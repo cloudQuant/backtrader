@@ -52,6 +52,7 @@ See Also:
 from . import analyzers as analyzers
 from . import broker as broker
 from . import brokers as brokers
+from . import channels as channels
 from . import commissions as commissions
 from . import commissions as comms
 from . import errors as errors
@@ -94,6 +95,10 @@ from .trade import *
 from .utils import date2num, num2date, num2dt, num2time, time2num
 from .version import __btversion__, __version__
 from .writer import *
+
+# Iteration 138: Tick-level backtesting and live trading
+from .events import TickEvent, OrderBookSnapshot, FundingEvent, BarEvent
+from .channel import Event, EventPriority, StreamingEventQueue
 
 # import backtrader.studies.contrib
 

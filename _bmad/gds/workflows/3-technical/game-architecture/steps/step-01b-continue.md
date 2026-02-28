@@ -1,16 +1,20 @@
----
+- --
+
 name: 'step-01b-continue'
 description: 'Continue an existing architecture workflow from where it left off'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-01b-continue.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Step Files (for routing)
+
 step02: './step-02-context.md'
 step03: './step-03-starter.md'
 step04: './step-04-decisions.md'
@@ -19,11 +23,12 @@ step06: './step-06-structure.md'
 step07: './step-07-patterns.md'
 step08: './step-08-validation.md'
 step09: './step-09-complete.md'
----
+
+- --
 
 # Step 1b: Continue Existing Architecture
 
-**Resuming Architecture Workflow**
+- *Resuming Architecture Workflow**
 
 ## STEP GOAL:
 
@@ -49,7 +54,7 @@ Load the existing architecture document, determine progress, and route to the ap
 
 ### 1. Load Existing Architecture
 
-**Read the existing architecture document:**
+- *Read the existing architecture document:**
 
 Load `{outputFile}` and parse the frontmatter to extract:
 
@@ -60,7 +65,7 @@ Load `{outputFile}` and parse the frontmatter to extract:
 
 ### 2. Analyze Progress
 
-**Determine workflow state:**
+- *Determine workflow state:**
 
 Map completed steps to workflow progress:
 
@@ -74,7 +79,7 @@ Map completed steps to workflow progress:
 - Step 8: Validation
 - Step 9: Complete
 
-**Calculate next step:**
+- *Calculate next step:**
 
 Find the highest completed step and determine the next step file to load.
 
@@ -84,36 +89,38 @@ Find the highest completed step and determine the next step file to load.
 
 {{user_name}}, I found your existing architecture for **{{project_name}}**.
 
-**Progress:** Steps completed: {{stepsCompleted}}
+- *Progress:** Steps completed: {{stepsCompleted}}
 
-**Current Status:**
+- *Current Status:**
 
 - Last completed: {{last_step_name}}
 - Next step: {{next_step_name}} (Step {{next_step_number}} of 9)
 
-**Document sections completed:**
+- *Document sections completed:**
+
 {{list_of_completed_sections}}
 
 Would you like to:
 
-1. **Continue** - Resume from {{next_step_name}}
-2. **Review** - Show me what we've documented so far
-3. **Restart Step** - Redo the last completed step
+1. **Continue**- Resume from {{next_step_name}}
+
+2.**Review**- Show me what we've documented so far
+3.**Restart Step** - Redo the last completed step
 
 Select an option:"
 
 ### 4. Handle User Selection
 
-**If Continue:**
+- *If Continue:**
 
 - Load the next step file based on `stepsCompleted`
 
-**If Review:**
+- *If Review:**
 
 - Present summary of all completed sections
 - Return to continuation options
 
-**If Restart Step:**
+- *If Restart Step:**
 
 - Decrement stepsCompleted to remove last step
 - Load the step file for the step being restarted
@@ -123,17 +130,26 @@ Select an option:"
 Based on next step number, load the appropriate step file:
 
 | Next Step | File     |
+
 | --------- | -------- |
+
 | 2         | {step02} |
+
 | 3         | {step03} |
+
 | 4         | {step04} |
+
 | 5         | {step05} |
+
 | 6         | {step06} |
+
 | 7         | {step07} |
+
 | 8         | {step08} |
+
 | 9         | {step09} |
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -151,4 +167,4 @@ Based on next step number, load the appropriate step file:
 - Not presenting continuation options
 - Overwriting existing progress without confirmation
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

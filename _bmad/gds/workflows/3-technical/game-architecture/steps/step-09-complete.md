@@ -1,23 +1,28 @@
----
+- --
+
 name: 'step-09-complete'
 description: 'Complete the architecture workflow with final review and handoff guidance'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-09-complete.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Handoff References
+
 epicWorkflow: '{project-root}/_bmad/gds/workflows/4-production/epic-workflow/workflow.yaml'
 projectContextWorkflow: '{project-root}/_bmad/gds/workflows/3-technical/generate-project-context/workflow.md'
----
+
+- --
 
 # Step 9: Completion
 
-**Progress: Step 9 of 9** - Architecture Complete!
+- *Progress: Step 9 of 9** - Architecture Complete!
 
 ## STEP GOAL:
 
@@ -56,35 +61,38 @@ Generate the executive summary, finalize the document, update workflow status, a
 
 ### 1. Generate Executive Summary
 
-**Create summary from all sections:**
+- *Create summary from all sections:**
 
 Based on all documented content, synthesize an executive summary:
 
 ```markdown
+
 ## Executive Summary
 
-**{{game_name}}** architecture is designed for {{engine}} targeting {{platform}}.
+- *{{game_name}}** architecture is designed for {{engine}} targeting {{platform}}.
 
-**Key Architectural Decisions:**
+- *Key Architectural Decisions:**
 
 - {{decision_1_summary}}
 - {{decision_2_summary}}
 - {{decision_3_summary}}
 
-**Project Structure:** {{organization_pattern}} organization with {{system_count}} core systems.
+- *Project Structure:** {{organization_pattern}} organization with {{system_count}} core systems.
 
-**Implementation Patterns:** {{pattern_count}} patterns defined ensuring AI agent consistency.
+- *Implementation Patterns:** {{pattern_count}} patterns defined ensuring AI agent consistency.
 
-**Ready for:** Epic implementation phase
-```
+- *Ready for:** Epic implementation phase
+
+```bash
 
 ### 2. Generate Development Setup Section
 
 "Let me generate the development environment setup section.
 
-**Development Prerequisites:**
+- *Development Prerequisites:**
 
 ````markdown
+
 ## Development Environment
 
 ### Prerequisites
@@ -97,10 +105,13 @@ Based on all documented content, synthesize an executive summary:
 The following MCP servers were selected during architecture to enhance AI-assisted development:
 
 | MCP Server | Purpose | Install Type |
+
 | ---------- | ------- | ------------ |
+
 {{mcp_table_rows}}
 
-**Setup:**
+- *Setup:**
+
 {{mcp_setup_instructions}}
 
 These give your AI assistant direct access to {{engine}} for scene inspection, asset queries, and context-aware code generation.
@@ -112,7 +123,9 @@ No engine-specific MCP servers were selected. You can add them later by searchin
 
 ```bash
 {{setup_commands}}
-```
+
+```bash
+
 ````
 
 ### First Steps
@@ -128,17 +141,19 @@ Does this capture the setup process correctly?"
 
 ### 3. Finalize Document
 
-**Update the document with final content:**
+- *Update the document with final content:**
 
 - Add Executive Summary at the top (after frontmatter)
 - Add Development Environment section
 - Update document status to 'complete'
 - Update frontmatter with all steps completed
 
-**Final frontmatter:**
+- *Final frontmatter:**
 
 ```yaml
----
+
+- --
+
 title: 'Game Architecture'
 project: '{{project_name}}'
 date: '{{date}}'
@@ -148,12 +163,14 @@ stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9]
 status: 'complete'
 engine: '{{engine}}'
 platform: '{{platform}}'
----
+
+- --
+
 ````
 
 ### 4. Update Workflow Status
 
-**If not in standalone mode:**
+- *If not in standalone mode:**
 
 Load `{output_folder}/gds-workflow-status.yaml` and:
 
@@ -167,15 +184,15 @@ Load `{output_folder}/gds-workflow-status.yaml` and:
 
 {{user_name}}, the Game Architecture for **{{game_name}}** is now complete!
 
-**Architecture Summary:**
+- *Architecture Summary:**
 
-- **Engine:** {{engine}} v{{version}}
-- **Platform:** {{platform}}
-- **Organization:** {{organization_pattern}}
-- **Decisions Made:** {{decision_count}}
+- **Engine:**{{engine}} v{{version}}
+- **Platform:**{{platform}}
+- **Organization:**{{organization_pattern}}
+- **Decisions Made:**{{decision_count}}
 - **Patterns Defined:** {{pattern_count}}
 
-**Sections Completed:**
+- *Sections Completed:**
 
 1. Project Context
 2. Engine & Framework
@@ -186,11 +203,11 @@ Load `{output_folder}/gds-workflow-status.yaml` and:
 7. Validation
 8. Development Setup
 
-**Document saved to:** `{outputFile}`
+- *Document saved to:** `{outputFile}`
 
 Do you want to review or adjust anything before we finalize?
 
-**Optional Enhancement: Project Context File**
+- *Optional Enhancement: Project Context File**
 
 Would you like to create a `project-context.md` file? This is a concise, optimized guide for AI agents that captures:
 
@@ -205,7 +222,7 @@ I noticed you already have a project context file. Would you like to update it w
 This file helps ensure AI agents implement game code consistently with your project's unique requirements and patterns.
 {/if_existing_project_context}
 
-**Create/Update project context?** [Y/N]"
+- *Create/Update project context?** [Y/N]"
 
 ### 6. Handle Project Context Creation Choice
 
@@ -222,7 +239,7 @@ This will help ensure consistent implementation by capturing:
 
 The workflow will collaborate with you to create an optimized `project-context.md` file that AI agents will read before implementing any game code."
 
-**Execute the Generate Project Context workflow:**
+- *Execute the Generate Project Context workflow:**
 
 - Load and execute: `{projectContextWorkflow}`
 - The workflow will handle discovery, generation, and completion of the project context file
@@ -233,7 +250,7 @@ If user responds 'N' or 'no':
 
 ### 7. Handle Review Requests
 
-**If user wants to review:**
+- *If user wants to review:**
 
 "Which section would you like to review?
 
@@ -248,28 +265,30 @@ If user responds 'N' or 'no':
 
 Or type 'all' to see the complete document."
 
-**Show requested section and allow edits.**
+- *Show requested section and allow edits.**
 
 ### 8. Present Next Steps Menu
 
-**After user confirms completion:**
+- *After user confirms completion:**
 
 "**Recommended Next Steps for {{game_name}}:**
 
-1. **Initialize Project** - Run the setup commands to create your project
+1. **Initialize Project**- Run the setup commands to create your project
    - Command: `{{setup_command}}`
    - This creates the base structure we designed
 
-2. **Create Epics** - Break down GDD into implementation epics
+2.**Create Epics**- Break down GDD into implementation epics
+
    - Workflow: `create-epics`
    - Input: GDD + Architecture
    - Output: Implementation-ready epic stories
 
-3. **Begin Implementation** - Start coding with AI agents
+3.**Begin Implementation** - Start coding with AI agents
+
    - Each agent will read this architecture
    - Patterns ensure consistency across all code
 
-**Which would you like to do next?**
+- *Which would you like to do next?**
 
 1. Review the completed architecture
 2. Proceed to Epic creation workflow
@@ -279,38 +298,38 @@ Or type 'all' to see the complete document."
 
 Based on user choice:
 
-**If 1 (Review):**
+- *If 1 (Review):**
 
 - Present full document or requested section
 - Return to next steps menu
 
-**If 2 (Epic Creation):**
+- *If 2 (Epic Creation):**
 
 - Confirm architecture is saved
 - Provide handoff guidance for epic workflow
 - Note that architecture document will be input
 
-**If 3 (Exit):**
+- *If 3 (Exit):**
 
 - Confirm document is saved and complete
 - Exit workflow gracefully
 
 ### 10. Provide Handoff Guidance
 
-**For Epic Creation handoff:**
+- *For Epic Creation handoff:**
 
 "**Handoff to Epic Creation**
 
 Your architecture is ready to guide epic creation.
 
-**What the Epic workflow will do:**
+- *What the Epic workflow will do:**
 
 - Read your architecture document
 - Break GDD features into implementable stories
 - Ensure stories align with architectural patterns
 - Create acceptance criteria referencing architecture
 
-**Architecture inputs that will be used:**
+- *Architecture inputs that will be used:**
 
 - Project structure for file placement
 - Implementation patterns for code style
@@ -319,7 +338,7 @@ Your architecture is ready to guide epic creation.
 
 Ready to proceed to epic creation, or any questions about the architecture?"
 
----
+- --
 
 ## CRITICAL STEP COMPLETION NOTE
 
@@ -331,7 +350,7 @@ This is the final step. Ensure:
 - User has clear actionable next steps
 - Handoff to epic workflow is smooth
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -354,22 +373,22 @@ This is the final step. Ensure:
 - No clear next steps provided
 - User left without actionable guidance
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:**Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
----
+- --
 
 ## Game Architecture Workflow Complete
 
 The Game Architecture workflow transforms a GDD into a comprehensive architecture document through 9 collaborative steps:
 
-1. **Initialize** - Validate readiness, discover input documents
-2. **Context** - Load and understand project requirements
-3. **Starter** - Select engine and starter templates
-4. **Decisions** - Make collaborative architectural decisions
-5. **Cross-cutting** - Define patterns for all systems
-6. **Structure** - Define project organization
-7. **Patterns** - Design implementation patterns
-8. **Validation** - Verify completeness and coherence
-9. **Complete** - Finalize and provide handoff
+1.**Initialize**- Validate readiness, discover input documents
+2.**Context**- Load and understand project requirements
+3.**Starter**- Select engine and starter templates
+4.**Decisions**- Make collaborative architectural decisions
+5.**Cross-cutting**- Define patterns for all systems
+6.**Structure**- Define project organization
+7.**Patterns**- Design implementation patterns
+8.**Validation**- Verify completeness and coherence
+9.**Complete** - Finalize and provide handoff
 
 This step-file architecture ensures consistent, thorough architecture creation with user collaboration at every step.

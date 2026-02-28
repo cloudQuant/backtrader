@@ -1,9 +1,9 @@
 # Non-Functional Requirements Assessment - Validation Checklist
 
-**Workflow:** `testarch-nfr`
-**Purpose:** Ensure comprehensive and evidence-based NFR assessment with actionable recommendations
+- *Workflow:** `testarch-nfr`
+- *Purpose:** Ensure comprehensive and evidence-based NFR assessment with actionable recommendations
 
----
+- --
 
 Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI workflows.
 
@@ -15,7 +15,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Evidence directories exist and are accessible (`test_results_dir`, `metrics_dir`, `logs_dir`)
 - [ ] Knowledge base is loaded (nfr-criteria, ci-burn-in, test-quality)
 
----
+- --
 
 ## Context Loading
 
@@ -28,7 +28,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
   - [ ] `test-quality.md`
   - [ ] `playwright-config.md` (if using Playwright)
 
----
+- --
 
 ## NFR Categories and Thresholds
 
@@ -68,7 +68,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Custom NFR category 2: Thresholds defined or marked as UNKNOWN
 - [ ] Custom NFR category 3: Thresholds defined or marked as UNKNOWN
 
----
+- --
 
 ## Evidence Gathering
 
@@ -108,7 +108,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Test review report collected (from test-review workflow, if available)
 - [ ] Git metrics collected (code churn, commit frequency, etc.)
 
----
+- --
 
 ## NFR Assessment with Deterministic Rules
 
@@ -158,7 +158,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Custom NFR 2 assessed against threshold with justification
 - [ ] Custom NFR 3 assessed against threshold with justification
 
----
+- --
 
 ## Status Classification Validation
 
@@ -189,7 +189,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] No thresholds were guessed or inferred
 - [ ] All UNKNOWN thresholds result in CONCERNS status
 
----
+- --
 
 ## Quick Wins and Recommended Actions
 
@@ -221,7 +221,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Validation gates suggested for security
 - [ ] Smoke tests suggested for maintainability
 
----
+- --
 
 ## Deliverables Generated
 
@@ -262,7 +262,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Overall status and critical issues included
 - [ ] Gate status included
 
----
+- --
 
 ## Quality Assurance
 
@@ -291,7 +291,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Effort estimates are provided (hours, days)
 - [ ] Owners are suggested (dev, ops, security)
 
----
+- --
 
 ## Integration with BMad Artifacts
 
@@ -316,7 +316,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Unstated requirements checked
 - [ ] Product-level SLAs referenced
 
----
+- --
 
 ## Quality Gates Validation
 
@@ -344,7 +344,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] No blockers or concerns exist
 - [ ] Ready for release confirmed
 
----
+- --
 
 ## Non-Prescriptive Validation
 
@@ -354,7 +354,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Teams can extend with custom NFR categories
 - [ ] Integration with external tools supported (New Relic, Datadog, SonarQube, JIRA)
 
----
+- --
 
 ## Documentation and Communication
 
@@ -366,7 +366,7 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Overall status is prominent and unambiguous
 - [ ] Executive summary provides quick understanding
 
----
+- --
 
 ## Final Validation
 
@@ -382,26 +382,26 @@ Note: `nfr-assess` evaluates existing evidence; it does not run tests or CI work
 - [ ] Evidence checklist generated (if enabled)
 - [ ] Workflow completed successfully
 
----
+- --
 
 ## Sign-Off
 
-**NFR Assessment Status:**
+- *NFR Assessment Status:**
 
 - [ ] ✅ PASS - All NFRs meet requirements, ready for release
 - [ ] ⚠️ CONCERNS - Some NFRs have concerns, address before next release
 - [ ] ❌ FAIL - Critical NFRs not met, BLOCKER for release
 
-**Next Actions:**
+- *Next Actions:**
 
 - If PASS ✅: Proceed to `*gate` workflow or release
 - If CONCERNS ⚠️: Address HIGH/CRITICAL issues, re-run `*nfr-assess`
 - If FAIL ❌: Resolve FAIL status NFRs, re-run `*nfr-assess`
 
-**Critical Issues:** {COUNT}
-**High Priority Issues:** {COUNT}
-**Concerns:** {COUNT}
+- *Critical Issues:** {COUNT}
+- *High Priority Issues:** {COUNT}
+- *Concerns:** {COUNT}
 
----
+- --
 
 <!-- Powered by BMAD-CORE™ -->

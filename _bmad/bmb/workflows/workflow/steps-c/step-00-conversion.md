@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-00-conversion'
 description: 'Convert existing workflow to BMAD compliant format by reading all instructions and extracting plan'
 
 nextStepFile: './step-02-classification.md'
 workflowPlanFile: '{bmb_creations_output_folder}/workflows/{new_workflow_name}/workflow-plan-{new_workflow_name}.md'
----
+
+- --
 
 # Step 0: Workflow Conversion
 
@@ -51,53 +53,55 @@ Convert an existing workflow (any format) to BMAD compliant format by fully read
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ### 1. Get Source Workflow Path
 
-**If path was passed from routing (e.g., from edit workflow):**
+- *If path was passed from routing (e.g., from edit workflow):**
 - Use `{sourceWorkflowPath}` provided
 
-**If no path was passed:**
+- *If no path was passed:**
 
 "I can help you convert an existing workflow to BMAD compliant format.
 
-**Please provide the path to the workflow you want to convert:**
+- *Please provide the path to the workflow you want to convert:**
 
 This could be:
+
 - A folder containing workflow.md
 - A folder with workflow.yaml (legacy format)
 - A folder with instructions.md
 - Any workflow from another system
 
-**Path:** {user provides path}"
+- *Path:** {user provides path}"
 
 ### 2. Load EVERYTHING - DO NOT BE LAZY
 
 "**Loading source workflow for complete analysis...**
 
-**CRITICAL:** I will read EVERY file in this workflow to understand it completely."
+- *CRITICAL:** I will read EVERY file in this workflow to understand it completely."
 
-**Load these files based on what exists:**
+- *Load these files based on what exists:**
 
-**If workflow.md exists:**
+- *If workflow.md exists:**
 - Load workflow.md completely
 - Load all step files (steps/*, steps-c/*, steps-v/*, steps-e/*)
 - Load all data files (data/*)
 - Load all templates (templates/*)
 
-**If workflow.yaml exists (legacy XML format):**
+- *If workflow.yaml exists (legacy XML format):**
 - Load workflow.yaml completely
 - Load instructions.md completely
 - Load all step files, templates, data
 
-**If other format:**
+- *If other format:**
 - Load every file that exists
 - Read everything to understand the structure
 
-**⚠️ DO NOT BE LAZY - Load and READ COMPLETELY:**
+- *⚠️ DO NOT BE LAZY - Load and READ COMPLETELY:**
 
 For each step file, read:
+
 - The STEP GOAL
 - All MANDATORY EXECUTION RULES
 - All instructions in EXECUTION PROTOCOLS
@@ -106,9 +110,9 @@ For each step file, read:
 
 "**✅ Source workflow loaded completely**
 
-**Files read:** {count} files
-**Format detected:** {format}
-**Structure identified:** {brief description}"
+- *Files read:** {count} files
+- *Format detected:** {format}
+- *Structure identified:** {brief description}"
 
 ### 3. Extract and Document Workflow Essence
 
@@ -119,23 +123,26 @@ Create the workflow plan with complete extraction:
 Create `{workflowPlanFile}`:
 
 ```markdown
----
+
+- --
+
 conversionFrom: '{sourceWorkflowPath}'
 originalFormat: '{detected format}'
 stepsCompleted: ['step-00-conversion']
 created: {current date}
 status: CONVERSION
----
+
+- --
 
 # Workflow Creation Plan
 
 ## Conversion Source
 
-**Original Path:** {sourceWorkflowPath}
-**Original Format:** {workflow.yaml / workflow.md / custom / etc.}
-**Detected Structure:** {describe what was found}
+- *Original Path:** {sourceWorkflowPath}
+- *Original Format:** {workflow.yaml / workflow.md / custom / etc.}
+- *Detected Structure:** {describe what was found}
 
----
+- --
 
 ## Original Workflow Analysis
 
@@ -147,11 +154,13 @@ status: CONVERSION
 
 {Create succinct bullet list of EVERY step from the source:}
 
-**Step 1:** {Step name} - {Brief purpose}
-**Step 2:** {Step name} - {Brief purpose}
-**Step 3:** {Step name} - {Brief purpose}
+- *Step 1:** {Step name} - {Brief purpose}
+- *Step 2:** {Step name} - {Brief purpose}
+- *Step 3:** {Step name} - {Brief purpose}
+
 ...
-**Step N:** {Step name} - {Brief purpose}
+
+- *Step N:** {Step name} - {Brief purpose}
 
 ### Output / Deliverable
 
@@ -166,44 +175,53 @@ status: CONVERSION
 {Extract the key instruction patterns - how does the workflow talk to the LLM?
 What style? What level of detail? What collaborative approach?}
 
----
+- --
 
 ## Conversion Notes
 
-**What works well in original:**
+- *What works well in original:**
+
 {List strengths to preserve}
 
-**What needs improvement:**
+- *What needs improvement:**
+
 {List issues to address}
 
-**Compliance gaps identified:**
+- *Compliance gaps identified:**
+
 {List what's missing for BMAD compliance}
-```
+
+```bash
 
 ### 4. Present Extracted Information to User
 
 "**I've analyzed your existing workflow completely. Here's what I found:**
 
----
+- --
 
-**Workflow Goal:**
+- *Workflow Goal:**
+
 {goal from analysis}
 
-**Steps ({count}):**
+- *Steps ({count}):**
+
 {Display succinct bullet list}
 
-**Output:**
+- *Output:**
+
 {what it produces}
 
-**Input Requirements:**
+- *Input Requirements:**
+
 {what it needs from user}
 
----
+- --
 
-**Format:** {originalFormat}
-**Compliance Status:** {compliant / non-compliant / partial}
+- *Format:** {originalFormat}
+- *Compliance Status:** {compliant / non-compliant / partial}
 
-**Key observations:**
+- *Key observations:**
+
 {Share 2-3 key insights about the workflow}"
 
 ### 5. Discovery Questions for Conversion
@@ -212,21 +230,21 @@ Even though this is a conversion, we need to understand some things:
 
 "**A few questions to ensure the conversion captures your intent:**
 
-1. **What's working well** in this workflow that we should definitely preserve?
+1. **What's working well**in this workflow that we should definitely preserve?
 
-2. **What problems** have you encountered with this workflow that we should fix?
+2.**What problems**have you encountered with this workflow that we should fix?
 
-3. **Any missing features** or improvements you'd like to add during conversion?
+3.**Any missing features**or improvements you'd like to add during conversion?
 
-4. **Who will use** the converted workflow - same audience or different?"
+4.**Who will use** the converted workflow - same audience or different?"
 
 ### 6. Confirm and Proceed to Classification
 
 "**Based on my analysis and your answers, I'm ready to proceed with classification.**
 
-**Next step:** We'll classify the workflow type (document, action, interactive, autonomous, meta), determine structure (continuable or single-session), and decide if it needs validation steps.
+- *Next step:** We'll classify the workflow type (document, action, interactive, autonomous, meta), determine structure (continuable or single-session), and decide if it needs validation steps.
 
-**Ready to proceed?** [C] Continue to Classification"
+- *Ready to proceed?** [C] Continue to Classification"
 
 #### Menu Handling Logic:
 
@@ -237,7 +255,7 @@ Even though this is a conversion, we need to understand some things:
 
 ONLY WHEN the entire source workflow has been read and analyzed, and the plan document contains the complete extraction (goal, steps, output, inputs) and conversionFrom metadata, will you then load and read fully `{nextStepFile}` to execute classification.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -259,4 +277,4 @@ ONLY WHEN the entire source workflow has been read and analyzed, and the plan do
 - Not setting conversionFrom metadata
 - Proceeding without complete understanding
 
-**Master Rule:** DO NOT BE LAZY. Read EVERYTHING. Document the COMPLETE workflow essence. The conversion must capture ALL of the original workflow's intent and functionality.
+- *Master Rule:** DO NOT BE LAZY. Read EVERYTHING. Document the COMPLETE workflow essence. The conversion must capture ALL of the original workflow's intent and functionality.

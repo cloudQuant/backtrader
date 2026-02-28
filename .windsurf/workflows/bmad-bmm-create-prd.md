@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Create a comprehensive PRD (Product Requirements Document) through structured workflow facilitation'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # create-prd
 

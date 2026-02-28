@@ -20,6 +20,7 @@ import time
 import queue
 import threading
 import pytest
+import ccxt as ccxtlib
 
 from tests.integration.conftest import skip_no_okx, skip_no_ccxtpro, _use_sandbox
 
@@ -66,6 +67,8 @@ class TestOrderSubmission:
             order_ids = [o['id'] for o in open_orders]
             assert order['id'] in order_ids, "Order not found in open orders"
 
+        except ccxtlib.InsufficientFunds as e:
+            pytest.skip(f"Sandbox account has insufficient funds: {e}")
         finally:
             # Always cancel
             if order and order.get('id'):
@@ -81,13 +84,17 @@ class TestOrderSubmission:
         ticker = ccxt_exchange.fetch_ticker('BTC/USDT:USDT')
         limit_price = round(ticker['last'] * 0.80, 1)
 
-        order = ccxt_exchange.create_order(
-            symbol='BTC/USDT:USDT',
-            type='limit',
-            side='buy',
-            amount=0.01,
-            price=limit_price,
-        )
+        try:
+            order = ccxt_exchange.create_order(
+                symbol='BTC/USDT:USDT',
+                type='limit',
+                side='buy',
+                amount=0.01,
+                price=limit_price,
+            )
+        except ccxtlib.InsufficientFunds as e:
+            pytest.skip(f"Sandbox account has insufficient funds: {e}")
+            return  # unreachable, but keeps linters/flow happy
 
         time.sleep(1)
         result = ccxt_exchange.cancel_order(order['id'], 'BTC/USDT:USDT')
@@ -121,6 +128,8 @@ class TestCCXTStoreOrderProxy:
                 price=limit_price,
             )
             assert order['id'] is not None
+        except ccxtlib.InsufficientFunds as e:
+            pytest.skip(f"Sandbox account has insufficient funds: {e}")
         finally:
             if order and order.get('id'):
                 try:
@@ -141,6 +150,18 @@ class TestWebSocketOrderPush:
         """Place market order and verify WS delivers fill notification."""
         from backtrader.ccxt.websocket import CCXTWebSocketManager
         import ccxt
+        from ccxt.base.errors import PermissionDenied, AuthenticationError, NetworkError
+
+        # Pre-check: verify IP whitelist before starting WS
+        exchange = ccxt.okx(okx_config)
+        if _use_sandbox():
+            exchange.set_sandbox_mode(True)
+        try:
+            exchange.load_markets()
+        except (PermissionDenied, AuthenticationError) as e:
+            pytest.skip(f"OKX API access denied (IP whitelist?): {e}")
+        except NetworkError as e:
+            pytest.skip(f"OKX network unreachable: {e}")
 
         # Setup WS manager
         ws = CCXTWebSocketManager(
@@ -153,6 +174,11 @@ class TestWebSocketOrderPush:
         fill_event = threading.Event()
 
         def on_fill(trades):
+            """Handle WebSocket fill notifications.
+
+            Args:
+                trades: List of trade objects received from the WebSocket.
+            """
             fills.extend(trades)
             fill_event.set()
 
@@ -162,12 +188,6 @@ class TestWebSocketOrderPush:
         # Subscribe to my_trades before placing order
         ws.subscribe_my_trades('BTC/USDT:USDT', on_fill)
         time.sleep(1)
-
-        # Place a small market buy order
-        exchange = ccxt.okx(okx_config)
-        if _use_sandbox():
-            exchange.set_sandbox_mode(True)
-        exchange.load_markets()
 
         order = None
         try:
@@ -194,6 +214,8 @@ class TestWebSocketOrderPush:
                     "(sandbox may not support watch_my_trades)"
                 )
 
+        except ccxtlib.InsufficientFunds as e:
+            pytest.skip(f"Sandbox account has insufficient funds: {e}")
         finally:
             ws.stop()
             # Close position if opened
@@ -211,6 +233,18 @@ class TestWebSocketOrderPush:
     def test_broker_ws_order_queue(self, okx_config):
         """Verify broker-level WS order queue receives fills."""
         from backtrader.ccxt.websocket import CCXTWebSocketManager
+        import ccxt
+        from ccxt.base.errors import PermissionDenied, AuthenticationError, NetworkError
+        # Pre-check: verify IP whitelist before starting WS
+        try:
+            ex = ccxt.okx(okx_config)
+            if _use_sandbox():
+                ex.set_sandbox_mode(True)
+            ex.load_markets()
+        except (PermissionDenied, AuthenticationError) as e:
+            pytest.skip(f"OKX API access denied (IP whitelist?): {e}")
+        except NetworkError as e:
+            pytest.skip(f"OKX network unreachable: {e}")
 
         ws = CCXTWebSocketManager(
             exchange_id='okx',
@@ -221,6 +255,11 @@ class TestWebSocketOrderPush:
         order_queue = queue.Queue()
 
         def on_fill(trades):
+            """Handle WebSocket fill notifications for queue testing.
+
+            Args:
+                trades: List of trade objects received from the WebSocket.
+            """
             for trade in trades:
                 order_queue.put(trade)
 

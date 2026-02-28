@@ -175,9 +175,7 @@ def patch_strategy_clk_update():
             """CRITICAL FIX: Safe _clk_update method that handles empty data sources"""
 
             # CRITICAL FIX: Ensure data is available before clock operations
-            if getattr(self, "_data_assignment_pending", True) and (
-                not hasattr(self, "datas") or not self.datas
-            ):
+            if getattr(self, "_data_assignment_pending", True) and (not hasattr(self, "datas") or not self.datas):
                 # Try to get data assignment from cerebro if not already done
                 if hasattr(self, "_ensure_data_available"):
                     self._ensure_data_available()
@@ -189,10 +187,7 @@ def patch_strategy_clk_update():
                     # Use the parent class method from StrategyBase if available
                     from .lineiterator import StrategyBase
 
-                    if (
-                        hasattr(StrategyBase, "_clk_update")
-                        and StrategyBase._clk_update != safe_clk_update
-                    ):
+                    if hasattr(StrategyBase, "_clk_update") and StrategyBase._clk_update != safe_clk_update:
                         clk_len = StrategyBase._clk_update(self)
                     else:
                         clk_len = 1
@@ -204,25 +199,15 @@ def patch_strategy_clk_update():
                     valid_data_times = []
                     for d in self.datas:
                         try:
-                            if (
-                                len(d) > 0
-                                and hasattr(d, "datetime")
-                                and hasattr(d.datetime, "__getitem__")
-                            ):
+                            if len(d) > 0 and hasattr(d, "datetime") and hasattr(d.datetime, "__getitem__"):
                                 dt_val = d.datetime[0]
                                 # Only add valid datetime values (not None or NaN)
-                                if dt_val is not None and not (
-                                    isinstance(dt_val, float) and math.isnan(dt_val)
-                                ):
+                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
                                     valid_data_times.append(dt_val)
                         except (IndexError, AttributeError, TypeError):
                             continue
 
-                    if (
-                        valid_data_times
-                        and hasattr(self, "lines")
-                        and hasattr(self.lines, "datetime")
-                    ):
+                    if valid_data_times and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
                         try:
                             self.lines.datetime[0] = max(valid_data_times)
                         except (ValueError, IndexError, AttributeError):
@@ -238,8 +223,7 @@ def patch_strategy_clk_update():
             # Initialize _dlens if not present
             if not hasattr(self, "_dlens"):
                 self._dlens = [
-                    len(d) if hasattr(d, "__len__") else 0
-                    for d in (self.datas if hasattr(self, "datas") else [])
+                    len(d) if hasattr(d, "__len__") else 0 for d in (self.datas if hasattr(self, "datas") else [])
                 ]
 
             # Get current data lengths safely
@@ -258,9 +242,7 @@ def patch_strategy_clk_update():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > old_len
-                    for old_len, nl in zip(self._dlens, newdlens)
-                    if old_len is not None and nl is not None
+                    nl > old_len for old_len, nl in zip(self._dlens, newdlens) if old_len is not None and nl is not None
                 )
             ):
                 try:
@@ -273,25 +255,14 @@ def patch_strategy_clk_update():
             self._dlens = newdlens
 
             # CRITICAL FIX: Set datetime safely - only use data sources that have valid data
-            if (
-                hasattr(self, "datas")
-                and self.datas
-                and hasattr(self, "lines")
-                and hasattr(self.lines, "datetime")
-            ):
+            if hasattr(self, "datas") and self.datas and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
                 valid_data_times = []
                 for d in self.datas:
                     try:
-                        if (
-                            len(d) > 0
-                            and hasattr(d, "datetime")
-                            and hasattr(d.datetime, "__getitem__")
-                        ):
+                        if len(d) > 0 and hasattr(d, "datetime") and hasattr(d.datetime, "__getitem__"):
                             dt_val = d.datetime[0]
                             # Only add valid datetime values (not None or NaN)
-                            if dt_val is not None and not (
-                                isinstance(dt_val, float) and math.isnan(dt_val)
-                            ):
+                            if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
                                 valid_data_times.append(dt_val)
                     except (IndexError, AttributeError, TypeError):
                         continue
@@ -688,9 +659,7 @@ class AutoInfoClass:
 
     def _getkwargs(self, skip_=False):
         """Get current parameter values as OrderedDict."""
-        pairs = [
-            (x, getattr(self, x)) for x in self._getkeys() if not skip_ or not x.startswith("_")
-        ]
+        pairs = [(x, getattr(self, x)) for x in self._getkeys() if not skip_ or not x.startswith("_")]
         return OrderedDict(pairs)
 
     def _getvalues(self):
@@ -1097,9 +1066,7 @@ class ParamsMixin(BaseMixin):
                                 or hasattr(arg, "__class__")
                                 and "Data" in str(arg.__class__.__name__)
                                 or hasattr(arg, "__class__")
-                                and any(
-                                    "LineSeries" in base.__name__ for base in arg.__class__.__mro__
-                                )
+                                and any("LineSeries" in base.__name__ for base in arg.__class__.__mro__)
                             ):
                                 temp_datas.append(arg)
                                 setattr(self, f"data{i}", arg)
@@ -1128,10 +1095,7 @@ class ParamsMixin(BaseMixin):
                                         for d, data in enumerate(potential_owner.datas):
                                             setattr(self, f"data{d}", data)
                                         break
-                                    elif (
-                                        hasattr(potential_owner, "data")
-                                        and potential_owner.data is not None
-                                    ):
+                                    elif hasattr(potential_owner, "data") and potential_owner.data is not None:
                                         self.datas = [potential_owner.data]
                                         self.data = potential_owner.data
                                         self.data0 = potential_owner.data
@@ -1292,12 +1256,8 @@ class ParamsMixin(BaseMixin):
 
                 try:
                     sig = inspect.signature(original_init)
-                    has_var_positional = any(
-                        p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values()
-                    )
-                    has_var_keyword = any(
-                        p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-                    )
+                    has_var_positional = any(p.kind == inspect.Parameter.VAR_POSITIONAL for p in sig.parameters.values())
+                    has_var_keyword = any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values())
                 except (ValueError, TypeError):
                     has_var_positional = False
                     has_var_keyword = False
@@ -1403,9 +1363,7 @@ class ParamsMixin(BaseMixin):
                     def info_keys(self):
                         # OPTIMIZED: Use __dict__ instead of dir() for better performance
                         return [
-                            attr
-                            for attr, val in self.__dict__.items()
-                            if not attr.startswith("_") and not callable(val)
+                            attr for attr, val in self.__dict__.items() if not attr.startswith("_") and not callable(val)
                         ]
 
                     def info_values(self):
@@ -1418,9 +1376,7 @@ class ParamsMixin(BaseMixin):
                     info_obj.__setitem__ = info_setitem
                     info_obj.__contains__ = info_contains
                     info_obj.get = info_get
-                    info_obj._get = (
-                        info_get_method  # CRITICAL: Add _get method for plotting compatibility
-                    )
+                    info_obj._get = info_get_method  # CRITICAL: Add _get method for plotting compatibility
                     info_obj.keys = info_keys
                     info_obj.values = info_values
                     info_obj.items = info_items
@@ -1696,9 +1652,7 @@ def _convert_plotlines_dict_to_object(cls):
 
         def __getattr__(self, name):
             if name.startswith("_"):
-                raise AttributeError(
-                    f"'{self.__class__.__name__}' object has no attribute '{name}'"
-                )
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
             # Return empty plot line object for missing attributes
             # Check if this might be a numeric index lookup first
             if name.isdigit() or name.startswith("_") and name[1:].isdigit():
@@ -1835,9 +1789,7 @@ def _initialize_indicator_aliases():
 
                     def __getattr__(self, name):
                         if name.startswith("_") and name != "_data":
-                            raise AttributeError(
-                                f"'{self.__class__.__name__}' object has no attribute '{name}'"
-                            )
+                            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
                         # Try _data dict first
                         if hasattr(self, "_data") and name in self._data:
                             return self._data[name]
@@ -1866,9 +1818,7 @@ def _initialize_indicator_aliases():
                         keys = set(getattr(self, "_data", {}).keys())
                         # OPTIMIZED: Use __dict__ instead of dir() for better performance
                         keys.update(
-                            attr
-                            for attr, val in self.__dict__.items()
-                            if not attr.startswith("_") and not callable(val)
+                            attr for attr, val in self.__dict__.items() if not attr.startswith("_") and not callable(val)
                         )
                         return list(keys)
 
@@ -1961,9 +1911,7 @@ def _initialize_indicator_aliases():
                                 pass
 
                             # CRITICAL FIX: Convert plotlines dict to object with _get method
-                            if hasattr(attr_value, "plotlines") and isinstance(
-                                attr_value.plotlines, dict
-                            ):
+                            if hasattr(attr_value, "plotlines") and isinstance(attr_value.plotlines, dict):
                                 _convert_plotlines_dict_to_object(attr_value)
                                 pass
 

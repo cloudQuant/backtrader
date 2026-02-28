@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-02-foundation'
 description: 'Define narrative premise, themes, tone, and story structure'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-02-foundation.md'
 nextStepFile: './step-03-story.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Story Foundation
 
-**Progress: Step 2 of 11** - Next: Story Beats
+- *Progress: Step 2 of 11**- Next: Story Beats
 
 ## STEP GOAL:
 
@@ -66,7 +71,7 @@ Define the narrative foundation: premise, themes, tone/atmosphere, and overall s
 
 "Let's define the narrative foundation for **{{game_name}}**.
 
-**First, the premise - your story's elevator pitch in 2-3 sentences.**
+- *First, the premise - your story's elevator pitch in 2-3 sentences.**
 
 Good premises have:
 
@@ -74,7 +79,7 @@ Good premises have:
 - An obstacle or conflict
 - Stakes (what happens if they fail?)
 
-**Examples:**
+- *Examples:**
 
 - \"A young knight discovers they're the last hope to stop an ancient evil, but must choose between saving the kingdom or their own family.\"
 - \"After a mysterious pandemic, survivors must navigate a world where telling the truth is deadly but lying corrupts your soul.\"
@@ -87,7 +92,7 @@ What's the premise for {{game_name}}?"
 
 Themes are the underlying ideas or messages woven throughout the story.
 
-**Common game themes:**
+- *Common game themes:**
 
 - Redemption, sacrifice, identity
 - Power and corruption
@@ -96,7 +101,7 @@ Themes are the underlying ideas or messages woven throughout the story.
 - Freedom vs. control
 - Family, loyalty, betrayal
 
-**Questions to consider:**
+- *Questions to consider:**
 
 - What questions does your story ask?
 - What will players think about after playing?
@@ -110,7 +115,7 @@ What are 2-4 core themes for {{game_name}}?"
 
 Tone shapes how the story feels moment-to-moment.
 
-**Tone spectrums:**
+- *Tone spectrums:**
 
 - Dark ←→ Lighthearted
 - Serious ←→ Comedic
@@ -118,7 +123,7 @@ Tone shapes how the story feels moment-to-moment.
 - Intimate ←→ Epic
 - Hopeful ←→ Melancholic
 
-**Atmosphere elements:**
+- *Atmosphere elements:**
 
 - Visual mood (colors, lighting)
 - Audio mood (music style)
@@ -131,16 +136,23 @@ Describe the tone and atmosphere for {{game_name}}:"
 
 "**What story structure will you use?**
 
-**Common structures:**
+- *Common structures:**
 
 | Structure          | Description                                            |
+
 | ------------------ | ------------------------------------------------------ |
-| **3-Act**          | Setup → Confrontation → Resolution                     |
-| **Hero's Journey** | Campbell's monomyth (departure, initiation, return)    |
-| **Kishōtenketsu**  | 4-act: Introduction → Development → Twist → Conclusion |
-| **Episodic**       | Self-contained episodes with overarching arc           |
-| **Branching**      | Multiple paths and endings                             |
-| **Freeform**       | Player-driven, emergent narrative                      |
+
+| **3-Act**| Setup → Confrontation → Resolution                     |
+
+|**Hero's Journey**| Campbell's monomyth (departure, initiation, return)    |
+
+|**Kishōtenketsu**| 4-act: Introduction → Development → Twist → Conclusion |
+
+|**Episodic**| Self-contained episodes with overarching arc           |
+
+|**Branching**| Multiple paths and endings                             |
+
+|**Freeform**       | Player-driven, emergent narrative                      |
 
 What structure fits {{game_name}}?"
 
@@ -159,6 +171,7 @@ Describe each act/section for {{game_name}}:"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Story Foundation
 
 ### Narrative Premise
@@ -171,26 +184,27 @@ Based on the conversation, prepare the content:
 
 ### Tone and Atmosphere
 
-**Tone:** {{tone_description}}
+- *Tone:** {{tone_description}}
 
-**Atmosphere:** {{atmosphere_description}}
+- *Atmosphere:** {{atmosphere_description}}
 
-**Emotional Register:** {{emotional_goals}}
+- *Emotional Register:** {{emotional_goals}}
 
----
+- --
 
 ## Story Structure
 
 ### Structure Type
 
-**{{structure_type}}**
+- *{{structure_type}}**
 
 {{structure_description}}
 
 ### Act Breakdown
 
 {{act_breakdown_details}}
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
@@ -198,17 +212,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Story Foundation based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does the premise capture your vision?
 - Do the themes resonate with your intent?
 - Does the structure fit your gameplay?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore themes and structure deeper
 [P] Party Mode - Get perspectives on foundation
 [C] Continue - Save this and move to Story Beats (Step 3 of 11)"
@@ -239,7 +254,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [foundation content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -260,4 +275,4 @@ ONLY WHEN [C continue option] is selected and [foundation content saved with fro
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

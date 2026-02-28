@@ -36,9 +36,7 @@ class LineRootMixin:
     def donew(cls, *args, **kwargs):
         """Create new instance with owner finding logic"""
         _obj, args, kwargs = (
-            super().donew(*args, **kwargs)
-            if hasattr(super(), "donew")
-            else (cls.__new__(cls), args, kwargs)
+            super().donew(*args, **kwargs) if hasattr(super(), "donew") else (cls.__new__(cls), args, kwargs)
         )
 
         # Find the owner and store it
@@ -211,9 +209,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             # Use original_other (before lines[0] extraction) to get the indicator reference
             parent_b_candidate = original_other if original_other is not None else other
             parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
-            return LinesOperation(
-                self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
-            )
+            return LinesOperation(self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b)
         else:
             # If no lines, return a simple operation result
             try:
@@ -736,9 +732,7 @@ class LineMultiple(LineRoot):
             parent_a = self if hasattr(self, "_once") else None
             parent_b_candidate = original_other if original_other is not None else other
             parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
-            return LinesOperation(
-                self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
-            )
+            return LinesOperation(self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b)
         else:
             # If no lines, return a simple operation result
             try:
@@ -865,25 +859,15 @@ def _apply_strategy_patch():
                     valid_data_times = []
                     for d in self.datas:
                         try:
-                            if (
-                                len(d) > 0
-                                and hasattr(d, "datetime")
-                                and hasattr(d.datetime, "__getitem__")
-                            ):
+                            if len(d) > 0 and hasattr(d, "datetime") and hasattr(d.datetime, "__getitem__"):
                                 dt_val = d.datetime[0]
                                 # Only add valid datetime values (not None or NaN)
-                                if dt_val is not None and not (
-                                    isinstance(dt_val, float) and math.isnan(dt_val)
-                                ):
+                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
                                     valid_data_times.append(dt_val)
                         except (IndexError, AttributeError, TypeError):
                             continue
 
-                    if (
-                        valid_data_times
-                        and hasattr(self, "lines")
-                        and hasattr(self.lines, "datetime")
-                    ):
+                    if valid_data_times and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
                         try:
                             self.lines.datetime[0] = max(valid_data_times)
                         except (ValueError, IndexError, AttributeError):
@@ -899,8 +883,7 @@ def _apply_strategy_patch():
             # Initialize _dlens if not present
             if not hasattr(self, "_dlens"):
                 self._dlens = [
-                    len(d) if hasattr(d, "__len__") else 0
-                    for d in (self.datas if hasattr(self, "datas") else [])
+                    len(d) if hasattr(d, "__len__") else 0 for d in (self.datas if hasattr(self, "datas") else [])
                 ]
 
             # Get current data lengths safely
@@ -919,9 +902,7 @@ def _apply_strategy_patch():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > old_len
-                    for old_len, nl in zip(self._dlens, newdlens)
-                    if old_len is not None and nl is not None
+                    nl > old_len for old_len, nl in zip(self._dlens, newdlens) if old_len is not None and nl is not None
                 )
             ):
                 try:
@@ -934,25 +915,14 @@ def _apply_strategy_patch():
             self._dlens = newdlens
 
             # CRITICAL FIX: Set datetime safely - only use data sources that have valid data
-            if (
-                hasattr(self, "datas")
-                and self.datas
-                and hasattr(self, "lines")
-                and hasattr(self.lines, "datetime")
-            ):
+            if hasattr(self, "datas") and self.datas and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
                 valid_data_times = []
                 for d in self.datas:
                     try:
-                        if (
-                            len(d) > 0
-                            and hasattr(d, "datetime")
-                            and hasattr(d.datetime, "__getitem__")
-                        ):
+                        if len(d) > 0 and hasattr(d, "datetime") and hasattr(d.datetime, "__getitem__"):
                             dt_val = d.datetime[0]
                             # Only add valid datetime values (not None or NaN)
-                            if dt_val is not None and not (
-                                isinstance(dt_val, float) and math.isnan(dt_val)
-                            ):
+                            if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
                                 valid_data_times.append(dt_val)
                     except (IndexError, AttributeError, TypeError):
                         continue

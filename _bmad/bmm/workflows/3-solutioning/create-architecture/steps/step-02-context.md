@@ -51,21 +51,21 @@ Fully read and Analyze the loaded project documents to understand architectural 
 
 ### 1. Review Project Requirements
 
-**From PRD Analysis:**
+- *From PRD Analysis:**
 
 - Extract and analyze Functional Requirements (FRs)
 - Identify Non-Functional Requirements (NFRs) like performance, security, compliance
 - Note any technical constraints or dependencies mentioned
 - Count and categorize requirements to understand project scale
 
-**From Epics/Stories (if available):**
+- *From Epics/Stories (if available):**
 
 - Map epic structure and user stories to architectural components
 - Extract acceptance criteria for technical implications
 - Identify cross-cutting concerns that span multiple epics
 - Estimate story complexity for architectural planning
 
-**From UX Design (if available):**
+- *From UX Design (if available):**
 
 - Extract architectural implications from UX requirements:
   - Component complexity (simple forms vs rich interactions)
@@ -81,7 +81,7 @@ Fully read and Analyze the loaded project documents to understand architectural 
 
 Calculate and present project complexity:
 
-**Complexity Indicators:**
+- *Complexity Indicators:**
 
 - Real-time features requirements
 - Multi-tenancy needs
@@ -100,7 +100,7 @@ Present your analysis back to user for validation:
 {if_no_epics}I found {{fr_count}} functional requirements organized into {{fr_category_list}}.{/if_no_epics}
 {if_ux_loaded}I also found your UX specification which defines the user experience requirements.{/if_ux_loaded}
 
-**Key architectural aspects I notice:**
+- *Key architectural aspects I notice:**
 
 - [Summarize core functionality from FRs]
 - [Note critical NFRs that will shape architecture]
@@ -108,7 +108,7 @@ Present your analysis back to user for validation:
 - [Identify unique technical challenges or constraints]
 - [Highlight any regulatory or compliance requirements]
 
-**Scale indicators:**
+- *Scale indicators:**
 
 - Project complexity appears to be: [low/medium/high/enterprise]
 - Primary technical domain: [web/mobile/api/backend/full-stack/etc]
@@ -125,17 +125,21 @@ Prepare the content to append to the document:
 #### Content Structure:
 
 ```markdown
+
 ## Project Context Analysis
 
 ### Requirements Overview
 
-**Functional Requirements:**
+- *Functional Requirements:**
+
 {{analysis of FRs and what they mean architecturally}}
 
-**Non-Functional Requirements:**
+- *Non-Functional Requirements:**
+
 {{NFRs that will drive architectural decisions}}
 
-**Scale & Complexity:**
+- *Scale & Complexity:**
+
 {{project_scale_assessment}}
 
 - Primary domain: {{technical_domain}}
@@ -149,7 +153,8 @@ Prepare the content to append to the document:
 ### Cross-Cutting Concerns Identified
 
 {{concerns_that_will_affect_multiple_components}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -157,11 +162,12 @@ Show the generated content and present choices:
 
 "I've drafted the Project Context Analysis based on your requirements. This sets the foundation for our architectural decisions.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's dive deeper into architectural implications
 [P] Party Mode - Bring different perspectives to analyze requirements
 [C] Continue - Save this analysis and begin architectural decisions"

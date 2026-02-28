@@ -32,10 +32,11 @@ Orchestrate dynamic multi-agent conversations with intelligent agent selection, 
 
 For each user message or topic:
 
-**Input Analysis Process:**
+- *Input Analysis Process:**
+
 "Analyzing your message for the perfect agent collaboration..."
 
-**Analysis Criteria:**
+- *Analysis Criteria:**
 
 - Domain expertise requirements (technical, business, creative, etc.)
 - Complexity level and depth needed
@@ -46,13 +47,13 @@ For each user message or topic:
 
 Select 2-3 most relevant agents based on analysis:
 
-**Selection Logic:**
+- *Selection Logic:**
 
 - **Primary Agent**: Best expertise match for core topic
 - **Secondary Agent**: Complementary perspective or alternative approach
 - **Tertiary Agent**: Cross-domain insight or devil's advocate (if beneficial)
 
-**Priority Rules:**
+- *Priority Rules:**
 
 - If user names specific agent → Prioritize that agent + 1-2 complementary agents
 - Rotate agent participation over time to ensure inclusive discussion
@@ -62,14 +63,15 @@ Select 2-3 most relevant agents based on analysis:
 
 Generate authentic responses for each selected agent:
 
-**Character Consistency:**
+- *Character Consistency:**
 
 - Apply agent's exact communication style from merged data
 - Reflect their principles and values in reasoning
 - Draw from their identity and role for authentic expertise
 - Maintain their unique voice and personality traits
 
-**Response Structure:**
+- *Response Structure:**
+
 [For each selected agent]:
 
 "[Icon Emoji] **[Agent Name]**: [Authentic in-character response]
@@ -80,14 +82,14 @@ Generate authentic responses for each selected agent:
 
 Enable dynamic agent-to-agent interactions:
 
-**Cross-Talk Patterns:**
+- *Cross-Talk Patterns:**
 
 - Agents can reference each other by name: "As [Another Agent] mentioned..."
 - Building on previous points: "[Another Agent] makes a great point about..."
 - Respectful disagreements: "I see it differently than [Another Agent]..."
 - Follow-up questions between agents: "How would you handle [specific aspect]?"
 
-**Conversation Flow:**
+- *Conversation Flow:**
 
 - Allow natural conversational progression
 - Enable agents to ask each other questions
@@ -98,7 +100,8 @@ Enable dynamic agent-to-agent interactions:
 
 Manage different types of questions appropriately:
 
-**Direct Questions to User:**
+- *Direct Questions to User:**
+
 When an agent asks the user a specific question:
 
 - End that response round immediately after the question
@@ -106,10 +109,12 @@ When an agent asks the user a specific question:
 - Display: _[Awaiting user response...]_
 - WAIT for user input before continuing
 
-**Rhetorical Questions:**
+- *Rhetorical Questions:**
+
 Agents can ask thinking-aloud questions without pausing conversation flow.
 
-**Inter-Agent Questions:**
+- *Inter-Agent Questions:**
+
 Allow natural back-and-forth within the same response round for dynamic interaction.
 
 ### 6. Response Round Completion
@@ -122,12 +127,12 @@ After generating all agent responses for the round, let the user know he can spe
 
 Check for exit conditions before continuing:
 
-**Automatic Triggers:**
+- *Automatic Triggers:**
 
 - User message contains: `*exit`, `goodbye`, `end party`, `quit`
 - Immediate agent farewells and workflow termination
 
-**Natural Conclusion:**
+- *Natural Conclusion:**
 
 - Conversation seems naturally concluding
 - Confirm if the user wants to exit party mode and go back to where they were or continue chatting. Do it in a conversational way with an agent in the party.
@@ -166,14 +171,14 @@ Check for exit conditions before continuing:
 
 ## MODERATION GUIDELINES:
 
-**Quality Control:**
+- *Quality Control:**
 
 - If discussion becomes circular, have bmad-master summarize and redirect
 - Ensure all agents stay true to their merged personalities
 - Handle disagreements constructively and professionally
 - Maintain respectful and inclusive conversation environment
 
-**Flow Management:**
+- *Flow Management:**
 
 - Guide conversation toward productive outcomes
 - Encourage diverse perspectives and creative thinking

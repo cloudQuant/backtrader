@@ -1,14 +1,19 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/BackTraderUI
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### BackTraderUI项目简介
-BackTraderUI是backtrader的Web界面扩展项目，具有以下核心特点：
-- **Web界面**: 提供Web管理界面
+### BackTraderUI 项目简介
+
+BackTraderUI 是 backtrader 的 Web 界面扩展项目，具有以下核心特点：
+
+- **Web 界面**: 提供 Web 管理界面
 - **策略管理**: 策略可视化管理
 - **回测控制**: 回测任务控制
 - **结果展示**: 回测结果展示
@@ -16,14 +21,15 @@ BackTraderUI是backtrader的Web界面扩展项目，具有以下核心特点：
 - **实时监控**: 实时状态监控
 
 ### 重点借鉴方向
-1. **Web架构**: Web应用架构设计
+
+1. **Web 架构**: Web 应用架构设计
 2. **界面设计**: 用户界面设计
-3. **API设计**: REST API设计
+3. **API 设计**: REST API 设计
 4. **实时更新**: 实时数据更新
 5. **任务管理**: 回测任务管理
 6. **结果可视化**: 结果可视化展示
 
----
+- --
 
 # 分析与设计文档
 
@@ -32,98 +38,128 @@ BackTraderUI是backtrader的Web界面扩展项目，具有以下核心特点：
 ### 1.1 backtrader vs BackTraderUI 对比
 
 | 维度 | backtrader (原生) | BackTraderUI |
+
 |------|------------------|--------------|
-| **定位** | Python回测框架 | Web可视化管理平台 |
-| **使用方式** | 代码编写 | Web界面操作 |
-| **策略管理** | 文件系统 | 数据库+界面 |
-| **回测执行** | 本地运行 | 服务器端执行 |
-| **结果展示** | 控制台/图表 | Web页面+交互图表 |
-| **实时监控** | 无 | WebSocket推送 |
-| **任务调度** | 无 | 异步任务队列 |
-| **数据存储** | 内存/文件 | 数据库持久化 |
-| **多用户支持** | 无 | 用户系统 |
+
+| **定位**| Python 回测框架 | Web 可视化管理平台 |
+
+|**使用方式**| 代码编写 | Web 界面操作 |
+
+|**策略管理**| 文件系统 | 数据库+界面 |
+
+|**回测执行**| 本地运行 | 服务器端执行 |
+
+|**结果展示**| 控制台/图表 | Web 页面+交互图表 |
+
+|**实时监控**| 无 | WebSocket 推送 |
+
+|**任务调度**| 无 | 异步任务队列 |
+
+|**数据存储**| 内存/文件 | 数据库持久化 |
+
+|**多用户支持**| 无 | 用户系统 |
 
 ### 1.2 可借鉴的核心优势
 
-1. **前后端分离架构**: Django + Vue3 分离，易于扩展
-2. **ECharts金融图表**: 专业的K线图和指标展示
-3. **多市场数据支持**: SSE/SZSE/BJSE 分表设计
-4. **技术指标预计算**: MA5/10/20/30 和九转信号
-5. **统一API响应格式**: 标准化的JSON响应
-6. **可扩展的模块设计**: 策略、数据、分析器分离
+1.**前后端分离架构**: Django + Vue3 分离，易于扩展
 
----
+1. **ECharts 金融图表**: 专业的 K 线图和指标展示
+2. **多市场数据支持**: SSE/SZSE/BJSE 分表设计
+3. **技术指标预计算**: MA5/10/20/30 和九转信号
+4. **统一 API 响应格式**: 标准化的 JSON 响应
+5. **可扩展的模块设计**: 策略、数据、分析器分离
+
+- --
 
 ## 二、需求规格文档
 
-### 2.1 Web服务框架
+### 2.1 Web 服务框架
 
-**需求描述**: 为backtrader提供可选的Web服务扩展，支持可视化管理。
+- *需求描述**: 为 backtrader 提供可选的 Web 服务扩展，支持可视化管理。
 
-**功能要求**:
-- 提供RESTful API接口
+- *功能要求**:
+- 提供 RESTful API 接口
 - 支持多种部署方式（独立服务/嵌入式）
 - 轻量级设计，可选依赖
-- 完善的API文档
+- 完善的 API 文档
 
-**技术选型**:
+- *技术选型**:
+
 ```python
-# 推荐使用FastAPI框架（轻量、高性能）
-# 或者提供Flask适配器（兼容性好）
-```
+
+# 推荐使用 FastAPI 框架（轻量、高性能）
+
+# 或者提供 Flask 适配器（兼容性好）
+
+```bash
 
 ### 2.2 策略管理服务
 
-**需求描述**: 提供策略的上传、存储、列表和详情查询。
+- *需求描述**: 提供策略的上传、存储、列表和详情查询。
 
-**功能要求**:
-- 策略代码上传（Python文件）
+- *功能要求**:
+- 策略代码上传（Python 文件）
 - 策略元数据管理（名称、描述、参数）
 - 策略版本控制
 - 策略模板库
 
-**API设计**:
-```
+- *API 设计**:
+
+```bash
 GET    /api/strategies           # 获取策略列表
+
 POST   /api/strategies           # 上传策略
+
 GET    /api/strategies/{id}      # 获取策略详情
+
 PUT    /api/strategies/{id}      # 更新策略
+
 DELETE /api/strategies/{id}      # 删除策略
+
 GET    /api/strategies/{id}/params  # 获取策略参数定义
-```
+
+```bash
 
 ### 2.3 回测任务服务
 
-**需求描述**: 提供回测任务的创建、执行、监控和结果查询。
+- *需求描述**: 提供回测任务的创建、执行、监控和结果查询。
 
-**功能要求**:
+- *功能要求**:
 - 异步任务执行
 - 任务状态跟踪（pending/running/completed/failed）
 - 任务进度推送
 - 任务取消和重试
 - 任务队列管理
 
-**API设计**:
-```
+- *API 设计**:
+
+```bash
 POST   /api/backtests            # 创建回测任务
+
 GET    /api/backtests            # 获取任务列表
+
 GET    /api/backtests/{id}       # 获取任务详情
+
 DELETE /api/backtests/{id}       # 取消任务
+
 GET    /api/backtests/{id}/logs  # 获取任务日志
+
 GET    /api/backtests/{id}/progress  # 获取任务进度
-```
+
+```bash
 
 ### 2.4 实时推送服务
 
-**需求描述**: 提供WebSocket实时数据推送能力。
+- *需求描述**: 提供 WebSocket 实时数据推送能力。
 
-**功能要求**:
+- *功能要求**:
 - 任务进度推送
 - 回测日志实时输出
 - 数据更新通知
 - 心跳保活
 
-**WebSocket事件**:
+- *WebSocket 事件**:
+
 ```javascript
 // 客户端订阅
 ws.send(JSON.stringify({
@@ -142,53 +178,65 @@ ws.send(JSON.stringify({
     total_bars: 1000
   }
 }
-```
+
+```bash
 
 ### 2.5 数据管理服务
 
-**需求描述**: 提供数据源的统一管理和查询。
+- *需求描述**: 提供数据源的统一管理和查询。
 
-**功能要求**:
+- *功能要求**:
 - 数据源注册
-- 数据查询API
+- 数据查询 API
 - 数据缓存
 - 数据更新通知
 
-**API设计**:
-```
+- *API 设计**:
+
+```bash
 GET    /api/data/sources         # 获取数据源列表
+
 GET    /api/data/{source}/symbols   # 获取品种列表
+
 GET    /api/data/{source}/{symbol}   # 获取历史数据
+
 POST   /api/data/{source}/update     # 更新数据
-```
+
+```bash
 
 ### 2.6 结果可视化服务
 
-**需求描述**: 提供回测结果的标准化数据和图表配置。
+- *需求描述**: 提供回测结果的标准化数据和图表配置。
 
-**功能要求**:
+- *功能要求**:
 - 标准化性能指标数据
 - 图表配置生成（ECharts/Plotly）
 - 交易记录导出
 - 报告生成
 
-**API设计**:
-```
-GET    /api/results/{id}/summary    # 获取性能指标
-GET    /api/results/{id}/trades     # 获取交易记录
-GET    /api/results/{id}/chart      # 获取图表配置
-GET    /api/results/{id}/export     # 导出报告
-```
+- *API 设计**:
 
----
+```bash
+GET    /api/results/{id}/summary    # 获取性能指标
+
+GET    /api/results/{id}/trades     # 获取交易记录
+
+GET    /api/results/{id}/chart      # 获取图表配置
+
+GET    /api/results/{id}/export     # 导出报告
+
+```bash
+
+- --
 
 ## 三、详细设计文档
 
-### 3.1 Web服务框架核心
+### 3.1 Web 服务框架核心
 
-**设计思路**: 使用FastAPI创建轻量级Web服务，支持ASGI异步执行。
+- *设计思路**: 使用 FastAPI 创建轻量级 Web 服务，支持 ASGI 异步执行。
 
 ```python
+
 # backtrader/web/__init__.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -205,7 +253,7 @@ logger = logging.getLogger(__name__)
 # === 数据模型 ===
 
 class APIResponse(BaseModel):
-    """统一API响应格式"""
+    """统一 API 响应格式"""
     code: str = "ok"
     message: str = "success"
     data: Any = None
@@ -256,24 +304,24 @@ class BacktestResult(BaseModel):
     drawdown: List[Dict[str, Any]]
 
 
-# === FastAPI应用 ===
+# === FastAPI 应用 ===
 
 def create_app(config: Optional[Dict] = None) -> FastAPI:
-    """创建FastAPI应用
+    """创建 FastAPI 应用
 
     Args:
         config: 配置字典
 
     Returns:
-        FastAPI应用实例
+        FastAPI 应用实例
     """
     app = FastAPI(
         title="BackTrader Web API",
-        description="BackTrader量化交易框架Web服务",
+        description="BackTrader 量化交易框架 Web 服务",
         version="1.0.0"
     )
 
-    # CORS配置
+# CORS 配置
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],  # 生产环境应限制
@@ -282,10 +330,10 @@ def create_app(config: Optional[Dict] = None) -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 注册路由
+# 注册路由
     _register_routes(app)
 
-    # 注册异常处理
+# 注册异常处理
     _register_handlers(app)
 
     return app
@@ -323,13 +371,15 @@ def _register_handlers(app: FastAPI):
     @app.get("/health")
     async def health():
         return {"status": "healthy"}
-```
+
+```bash
 
 ### 3.2 策略管理服务
 
-**设计思路**: 策略以代码形式存储，支持动态加载和参数解析。
+- *设计思路**: 策略以代码形式存储，支持动态加载和参数解析。
 
 ```python
+
 # backtrader/web/routes/strategies.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -349,6 +399,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 内存存储（生产环境应使用数据库）
+
 _strategies: Dict[str, StrategyInfo] = {}
 _strategy_counter = 0
 
@@ -378,7 +429,7 @@ async def create_strategy(upload: StrategyUpload):
     _strategy_counter += 1
     strategy_id = f"str_{_strategy_counter}"
 
-    # 验证代码
+# 验证代码
     try:
         params = _extract_strategy_params(upload.code)
     except Exception as e:
@@ -460,18 +511,19 @@ def _extract_strategy_params(code: str) -> Dict[str, Any]:
     """
     import backtrader as bt
 
-    # 创建临时模块
+# 创建临时模块
     temp_module = tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False)
     temp_module.write(code)
     temp_module.close()
 
     try:
-        # 动态导入
+
+# 动态导入
         spec = importlib.util.spec_from_file_location("temp_strategy", temp_module.name)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
-        # 查找Strategy类
+# 查找 Strategy 类
         strategy_class = None
         for name, obj in inspect.getmembers(module):
             if inspect.isclass(obj) and issubclass(obj, bt.Strategy) and obj != bt.Strategy:
@@ -479,9 +531,9 @@ def _extract_strategy_params(code: str) -> Dict[str, Any]:
                 break
 
         if strategy_class is None:
-            raise ValueError("未找到Strategy类")
+            raise ValueError("未找到 Strategy 类")
 
-        # 提取参数
+# 提取参数
         params = {}
         if hasattr(strategy_class, 'params'):
             for key, value in strategy_class.params._getitems():
@@ -501,13 +553,15 @@ def _serialize_param(value):
         return list(value)
     else:
         return str(value)
-```
+
+```bash
 
 ### 3.3 回测任务服务
 
-**设计思路**: 使用后台任务队列执行回测，支持状态跟踪。
+- *设计思路**: 使用后台任务队列执行回测，支持状态跟踪。
 
 ```python
+
 # backtrader/web/routes/backtests.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -531,6 +585,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 任务存储
+
 _tasks: Dict[str, BacktestStatus] = {}
 _task_counter = 0
 _task_lock = threading.Lock()
@@ -553,7 +608,7 @@ async def create_backtest(request: BacktestRequest, background_tasks: Background
     """创建回测任务"""
     global _task_counter
 
-    # 验证策略存在
+# 验证策略存在
     if request.strategy_id not in _strategies:
         raise HTTPException(status_code=404, detail="策略不存在")
 
@@ -569,7 +624,7 @@ async def create_backtest(request: BacktestRequest, background_tasks: Background
     with _task_lock:
         _tasks[task_id] = task
 
-    # 添加后台任务
+# 添加后台任务
     background_tasks.add_task(
         _execute_backtest,
         task_id,
@@ -601,7 +656,8 @@ async def cancel_backtest(task_id: str):
 
     task = _tasks[task_id]
     if task.status == "running":
-        # TODO: 实现取消逻辑
+
+# TODO: 实现取消逻辑
         task.status = "cancelled"
     elif task.status in ("pending", "completed", "failed"):
         pass
@@ -612,7 +668,8 @@ async def cancel_backtest(task_id: str):
 @router.get("/{task_id}/logs")
 async def get_backtest_logs(task_id: str):
     """获取任务日志"""
-    # TODO: 实现日志存储
+
+# TODO: 实现日志存储
     return {"code": "ok", "data": []}
 
 
@@ -638,24 +695,25 @@ async def get_backtest_progress(task_id: str):
 def _execute_backtest(task_id: str, request: BacktestRequest):
     """执行回测（后台任务）"""
     try:
-        # 更新状态
+
+# 更新状态
         with _task_lock:
             _tasks[task_id].status = "running"
             _tasks[task_id].started_at = datetime.now().isoformat()
 
-        # 获取策略代码
+# 获取策略代码
         strategy_code = _strategies[request.strategy_id].code
 
-        # 创建cerebro
+# 创建 cerebro
         cerebro = bt.Cerebro()
 
-        # 设置初始资金
+# 设置初始资金
         cerebro.broker.setcash(request.initial_cash)
 
-        # 设置佣金
+# 设置佣金
         cerebro.broker.setcommission(commission=request.commission)
 
-        # 加载数据
+# 加载数据
         data = _load_data(
             request.data_source,
             request.symbol,
@@ -664,25 +722,25 @@ def _execute_backtest(task_id: str, request: BacktestRequest):
         )
         cerebro.adddata(data)
 
-        # 添加策略
+# 添加策略
         strategy_class = _load_strategy_class(strategy_code)
         cerebro.addstrategy(strategy_class, **request.strategy_params)
 
-        # 添加分析器
+# 添加分析器
         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-        # 执行回测
+# 执行回测
         strats = cerebro.run()
 
-        # 提取结果
+# 提取结果
         result = _extract_result(cerebro, strats[0])
 
-        # 存储结果
+# 存储结果
         _results[task_id] = result
 
-        # 更新状态
+# 更新状态
         with _task_lock:
             _tasks[task_id].status = "completed"
             _tasks[task_id].progress = 100
@@ -706,7 +764,8 @@ def _load_data(source: str, symbol: str, start: str, end: str):
             fromdate=datetime.strptime(start, "%Y-%m-%d"),
             todate=datetime.strptime(end, "%Y-%m-%d")
         )
-    # 其他数据源...
+
+# 其他数据源...
     else:
         raise ValueError(f"Unsupported data source: {source}")
 
@@ -726,7 +785,7 @@ def _load_strategy_class(code: str):
             if inspect.isclass(obj) and issubclass(obj, bt.Strategy) and obj != bt.Strategy:
                 return obj
 
-        raise ValueError("未找到Strategy类")
+        raise ValueError("未找到 Strategy 类")
 
     finally:
         os.unlink(temp_module.name)
@@ -734,14 +793,16 @@ def _load_strategy_class(code: str):
 
 def _extract_result(cerebro, strategy):
     """提取回测结果"""
-    # 获取分析器结果
+
+# 获取分析器结果
     sharpe = strategy.analyzers.sharpe.get_analysis()
     drawdown = strategy.analyzers.drawdown.get_analysis()
     trades = strategy.analyzers.trades.get_analysis()
 
-    # 获取净值曲线
-    values = [ cerebro.broker.getvalue() ]
-    # TODO: 完整的净值曲线提取
+# 获取净值曲线
+    values = [cerebro.broker.getvalue()]
+
+# TODO: 完整的净值曲线提取
 
     return BacktestResult(
         task_id=task_id,
@@ -757,13 +818,15 @@ def _extract_result(cerebro, strategy):
         equity_curve=[],
         drawdown=[]
     )
-```
 
-### 3.4 WebSocket实时推送
+```bash
 
-**设计思路**: 使用WebSocket推送回测进度和日志。
+### 3.4 WebSocket 实时推送
+
+- *设计思路**: 使用 WebSocket 推送回测进度和日志。
 
 ```python
+
 # backtrader/web/websocket.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -778,10 +841,11 @@ logger = logging.getLogger(__name__)
 
 
 class ConnectionManager:
-    """WebSocket连接管理器"""
+    """WebSocket 连接管理器"""
 
     def __init__(self):
-        # task_id -> WebSocket连接集合
+
+# task_id -> WebSocket 连接集合
         self._connections: Dict[str, Set[WebSocket]] = {}
 
     async def subscribe(self, task_id: str, websocket: WebSocket):
@@ -811,7 +875,7 @@ class ConnectionManager:
                 logger.error(f"Failed to send message: {e}")
                 removed.add(websocket)
 
-        # 清理断开的连接
+# 清理断开的连接
         for websocket in removed:
             self._connections[task_id].discard(websocket)
 
@@ -852,25 +916,28 @@ class ConnectionManager:
 
 
 # 全局连接管理器
+
 manager = ConnectionManager()
 
 
-# WebSocket路由
+# WebSocket 路由
+
 @router.websocket("/ws/{task_id}")
 async def websocket_endpoint(websocket: WebSocket, task_id: str):
-    """WebSocket端点"""
+    """WebSocket 端点"""
     await websocket.accept()
 
     await manager.subscribe(task_id, websocket)
 
     try:
-        # 发送欢迎消息
+
+# 发送欢迎消息
         await websocket.send_json({
             "event": "connected",
             "data": {"task_id": task_id}
         })
 
-        # 保持连接并处理客户端消息
+# 保持连接并处理客户端消息
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
@@ -882,13 +949,15 @@ async def websocket_endpoint(websocket: WebSocket, task_id: str):
         logger.info(f"WebSocket disconnected from task {task_id}")
     finally:
         await manager.unsubscribe(task_id, websocket)
-```
+
+```bash
 
 ### 3.5 结果可视化服务
 
-**设计思路**: 提供标准化的结果数据和图表配置。
+- *设计思路**: 提供标准化的结果数据和图表配置。
 
 ```python
+
 # backtrader/web/routes/results.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -992,19 +1061,20 @@ async def export_result(task_id: str, format: str = "json"):
     if format == "json":
         return result.dict()
     elif format == "csv":
-        # 生成CSV
+
+# 生成 CSV
         import csv
         import io
 
         output = io.StringIO()
         writer = csv.writer(output)
 
-        # 写入摘要
+# 写入摘要
         writer.writerow(["指标", "值"])
         for key, value in result.summary.items():
             writer.writerow([key, value])
 
-        # 写入交易
+# 写入交易
         writer.writerow([])
         writer.writerow(["交易记录"])
         writer.writerow(["日期", "类型", "价格", "数量", "盈亏"])
@@ -1027,8 +1097,9 @@ async def export_result(task_id: str, format: str = "json"):
 
 
 def _generate_candlestick_chart(result: BacktestResult) -> ChartConfig:
-    """生成K线图配置（ECharts格式）"""
-    # 从数据中提取OHLC
+    """生成 K 线图配置（ECharts 格式）"""
+
+# 从数据中提取 OHLC
     ohlc = []
     for bar in result.bars:
         ohlc.append([
@@ -1041,11 +1112,11 @@ def _generate_candlestick_chart(result: BacktestResult) -> ChartConfig:
         ])
 
     return ChartConfig(
-        title="回测K线图",
+        title="回测 K 线图",
         type="candlestick",
         series=[
             {
-                "name": "K线",
+                "name": "K 线",
                 "type": "candlestick",
                 "data": ohlc,
                 "itemStyle": {
@@ -1130,13 +1201,15 @@ def _generate_drawdown_chart(result: BacktestResult) -> ChartConfig:
             }
         ]
     )
-```
+
+```bash
 
 ### 3.6 数据管理服务
 
-**设计思路**: 统一的数据源管理和查询接口。
+- *设计思路**: 统一的数据源管理和查询接口。
 
 ```python
+
 # backtrader/web/routes/data.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -1151,6 +1224,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # 数据源注册表
+
 _data_sources = {}
 
 
@@ -1237,8 +1311,9 @@ async def update_data(
     if source not in _data_sources:
         raise HTTPException(status_code=404, detail="数据源不存在")
 
-    # 触发后台更新任务
-    # TODO: 实现异步更新
+# 触发后台更新任务
+
+# TODO: 实现异步更新
 
     return {
         "code": "ok",
@@ -1249,17 +1324,19 @@ async def update_data(
 # === 内置数据源 ===
 
 class YahooDataSource:
-    """Yahoo Finance数据源"""
+    """Yahoo Finance 数据源"""
 
     description = "Yahoo Finance (免费)"
 
     def list_symbols(self, search=None, limit=100):
-        # Yahoo支持的常见股票
+
+# Yahoo 支持的常见股票
         common_symbols = [
             {"symbol": "AAPL", "name": "Apple Inc."},
             {"symbol": "MSFT", "name": "Microsoft Corporation"},
             {"symbol": "GOOGL", "name": "Alphabet Inc."},
-            # ...
+
+# ...
         ]
         return common_symbols[:limit]
 
@@ -1267,7 +1344,7 @@ class YahooDataSource:
         import backtrader as bt
         from backtrader.feeds import YahooFinanceData
 
-        # 创建临时cerebro加载数据
+# 创建临时 cerebro 加载数据
         cerebro = bt.Cerebro()
         data = YahooFinanceData(
             dataname=symbol,
@@ -1275,11 +1352,11 @@ class YahooDataSource:
             todate=end_date
         )
 
-        # 执行数据加载
+# 执行数据加载
         cerebro.adddata(data)
         cerebro.run()
 
-        # 转换为标准格式
+# 转换为标准格式
         bars = []
         for i in range(len(data)):
             bars.append({
@@ -1295,96 +1372,134 @@ class YahooDataSource:
 
 
 # 注册内置数据源
-register_data_source("yahoo", YahooDataSource)
-```
 
----
+register_data_source("yahoo", YahooDataSource)
+
+```bash
+
+- --
 
 ## 四、目录结构
 
-```
+```bash
 backtrader/
-├── web/                          # Web服务模块
+├── web/                          # Web 服务模块
+
 │   ├── __init__.py              # 模块初始化
-│   ├── app.py                   # FastAPI应用创建
+
+│   ├── app.py                   # FastAPI 应用创建
+
 │   ├── config.py                # 配置管理
+
 │   │
-│   ├── routes/                  # API路由
+│   ├── routes/                  # API 路由
+
 │   │   ├── __init__.py
 │   │   ├── strategies.py        # 策略管理
+
 │   │   ├── backtests.py         # 回测任务
+
 │   │   ├── data.py              # 数据管理
+
 │   │   ├── results.py           # 结果查询
+
 │   │   └── websocket.py         # WebSocket
+
 │   │
 │   ├── models/                  # 数据模型
+
 │   │   ├── __init__.py
 │   │   ├── strategy.py
 │   │   ├── backtest.py
 │   │   └── result.py
 │   │
 │   ├── services/                # 业务服务
+
 │   │   ├── __init__.py
 │   │   ├── strategy_service.py
 │   │   ├── backtest_service.py
 │   │   └── data_service.py
 │   │
 │   ├── data_sources/            # 数据源适配器
+
 │   │   ├── __init__.py
 │   │   ├── base.py
 │   │   ├── yahoo.py
 │   │   └── csv.py
 │   │
 │   ├── utils/                   # 工具函数
+
 │   │   ├── __init__.py
 │   │   └── chart.py             # 图表生成
+
 │   │
-│   └── static/                  # 静态资源（可选UI）
+│   └── static/                  # 静态资源（可选 UI）
+
 │       ├── index.html
 │       ├── css/
 │       └── js/
 │
 └── __init__.py
-```
 
----
+```bash
+
+- --
 
 ## 五、前端界面设计（可选）
 
-### 5.1 Vue3组件结构
+### 5.1 Vue3 组件结构
 
-```
+```bash
 frontend/
 ├── src/
 │   ├── views/                  # 页面组件
+
 │   │   ├── Dashboard.vue       # 仪表板
+
 │   │   ├── StrategyList.vue    # 策略列表
+
 │   │   ├── StrategyEditor.vue  # 策略编辑器
+
 │   │   ├── BacktestCreate.vue  # 创建回测
+
 │   │   ├── BacktestList.vue    # 任务列表
+
 │   │   └── ResultDetail.vue    # 结果详情
+
 │   │
 │   ├── components/             # 可复用组件
+
 │   │   ├── ChartCard.vue       # 图表卡片
-│   │   ├── KLineChart.vue      # K线图
+
+│   │   ├── KLineChart.vue      # K 线图
+
 │   │   ├── EquityChart.vue     # 净值曲线
+
 │   │   ├── TradeTable.vue      # 交易记录表
+
 │   │   └── MetricCard.vue      # 指标卡片
+
 │   │
-│   ├── api/                    # API调用
-│   │   ├── client.js           # Axios客户端
+│   ├── api/                    # API 调用
+
+│   │   ├── client.js           # Axios 客户端
+
 │   │   ├── strategy.js
 │   │   ├── backtest.js
 │   │   └── data.js
 │   │
 │   └── utils/                  # 工具函数
-│       ├── chart.js            # ECharts配置
+
+│       ├── chart.js            # ECharts 配置
+
 │       └── format.js           # 格式化函数
+
 │
 └── package.json
-```
 
-### 5.2 K线图组件示例
+```bash
+
+### 5.2 K 线图组件示例
 
 ```vue
 <!-- KLineChart.vue -->
@@ -1415,7 +1530,7 @@ export default {
       const option = {
         animation: false,
         legend: {
-          data: ['K线', 'MA5', 'MA10', 'MA20'],
+          data: ['K 线', 'MA5', 'MA10', 'MA20'],
           top: 10
         },
         tooltip: {
@@ -1440,7 +1555,7 @@ export default {
         ],
         series: [
           {
-            name: 'K线',
+            name: 'K 线',
             type: 'candlestick',
             data: this.candlestickData,
             itemStyle: {
@@ -1505,93 +1620,102 @@ export default {
   height: 500px;
 }
 </style>
-```
 
----
+```bash
+
+- --
 
 ## 六、实施计划
 
 ### 第一阶段（高优先级）
 
-1. **核心Web框架**
-   - 实现FastAPI应用创建
+1. **核心 Web 框架**
+   - 实现 FastAPI 应用创建
    - 实现统一响应格式
    - 实现异常处理
 
-2. **策略管理API**
+1. **策略管理 API**
    - 策略上传/列表/详情/删除
    - 策略参数提取
 
-3. **回测任务API**
+1. **回测任务 API**
    - 创建任务
    - 查询状态
    - 存储结果
 
 ### 第二阶段（中优先级）
 
-4. **WebSocket支持**
+1. **WebSocket 支持**
    - 连接管理
    - 进度推送
    - 日志推送
 
-5. **结果服务**
+1. **结果服务**
    - 性能指标提取
    - 图表配置生成
    - 数据导出
 
-6. **数据服务**
+1. **数据服务**
    - 数据源注册
-   - 数据查询API
+   - 数据查询 API
    - 数据更新
 
 ### 第三阶段（可选）
 
-7. **前端界面**
+1. **前端界面**
    - 策略管理页面
    - 回测创建页面
    - 结果展示页面
 
-8. **高级功能**
+1. **高级功能**
    - 用户认证
    - 数据库持久化
    - 任务队列（Celery）
-   - Docker部署
+   - Docker 部署
 
----
+- --
 
 ## 七、向后兼容性
 
-所有Web服务均为**完全可选的独立模块**：
+所有 Web 服务均为**完全可选的独立模块**：
 
-1. Web服务通过`pip install backtrader[web]`安装
-2. 用户可以选择使用Web界面或继续使用代码方式
-3. Web服务不影响backtrader核心功能
+1. Web 服务通过`pip install backtrader[web]`安装
+2. 用户可以选择使用 Web 界面或继续使用代码方式
+3. Web 服务不影响 backtrader 核心功能
 4. 提供嵌入式启动选项，可在现有应用中集成
 
----
+- --
 
 ## 八、使用示例
 
 ```python
-# 启动Web服务
+
+# 启动 Web 服务
+
 from backtrader.web import create_app
 
 app = create_app()
 
-# 使用uvicorn运行
+# 使用 uvicorn 运行
+
 import uvicorn
 uvicorn.run(app, host="0.0.0.0", port=8000)
 
 # 或嵌入到现有应用
+
 from fastapi import FastAPI
 main_app = FastAPI()
 main_app.mount("/backtrader", app)
-```
 
 ```bash
-# 访问API文档
-# http://localhost:8000/docs
-```
+
+```bash
+
+# 访问 API 文档
+
+# <http://localhost:8000/docs>
+
+```bash
 
 ```javascript
 // 前端调用示例
@@ -1606,7 +1730,7 @@ const response = await axios.post('/api/backtests', {
   initial_cash: 10000
 })
 
-// WebSocket连接
+// WebSocket 连接
 const ws = new WebSocket(`ws://localhost:8000/ws/${task_id}`)
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data)
@@ -1614,4 +1738,5 @@ ws.onmessage = (event) => {
     console.log('Progress:', message.data.progress)
   }
 }
-```
+
+```bash

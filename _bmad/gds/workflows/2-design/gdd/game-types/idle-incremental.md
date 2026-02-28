@@ -4,7 +4,7 @@
 
 {{core_interaction}}
 
-**Primary mechanic:**
+- *Primary mechanic:**
 
 - Click action (what happens on click)
 - Click value progression
@@ -16,7 +16,7 @@
 
 {{upgrade_trees}}
 
-**Upgrade systems:**
+- *Upgrade systems:**
 
 - Upgrade categories (click power, auto-generation, multipliers)
 - Upgrade costs and scaling
@@ -29,7 +29,7 @@
 
 {{automation}}
 
-**Passive mechanics:**
+- *Passive mechanics:**
 
 - Auto-clicker unlocks
 - Manager/worker systems
@@ -42,7 +42,7 @@
 
 {{prestige_reset}}
 
-**Long-term progression:**
+- *Long-term progression:**
 
 - Prestige conditions (when to reset)
 - Persistent bonuses after reset
@@ -55,7 +55,7 @@
 
 {{number_balancing}}
 
-**Economy design:**
+- *Economy design:**
 
 - Exponential growth curves
 - Notation systems (K, M, B, T or scientific)
@@ -68,7 +68,7 @@
 
 {{meta_progression}}
 
-**Long-term engagement:**
+- *Long-term engagement:**
 
 - Achievement system
 - Collectibles

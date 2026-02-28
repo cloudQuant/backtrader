@@ -73,28 +73,43 @@ High-skill players identify issues:
 ### Combat Balance
 
 | Metric                    | Target              | Red Flag                  |
+
 | ------------------------- | ------------------- | ------------------------- |
+
 | Win rate (symmetric)      | 50%                 | <45% or >55%              |
+
 | Win rate (asymmetric)     | Varies by design    | Outliers by >10%          |
+
 | Time-to-kill              | Design dependent    | Too fast = no counterplay |
+
 | Damage dealt distribution | Even across options | One option dominates      |
 
 ### Economy Balance
 
 | Metric               | Target               | Red Flag                        |
+
 | -------------------- | -------------------- | ------------------------------- |
+
 | Currency earned/hour | Design dependent     | Too fast = trivializes content  |
+
 | Item purchase rate   | Healthy distribution | Nothing bought = bad prices     |
+
 | Currency on hand     | Healthy churn        | Hoarding = nothing worth buying |
+
 | Premium currency     | Reasonable value     | Pay-to-win concerns             |
 
 ### Progression Balance
 
 | Metric             | Target                 | Red Flag               |
+
 | ------------------ | ---------------------- | ---------------------- |
+
 | Time to max level  | Design dependent       | Too fast = no journey  |
+
 | Power growth curve | Smooth, satisfying     | Flat periods = boring  |
+
 | Build diversity    | Multiple viable builds | One "best" build       |
+
 | Content completion | Healthy progression    | Walls or trivial skips |
 
 ## Balance Testing Process
@@ -133,26 +148,26 @@ High-skill players identify issues:
 
 ### Power Creep
 
-- **Symptom:** New content is always stronger
-- **Cause:** Fear of releasing weak content
-- **Fix:** Sidegrades over upgrades, periodic rebalancing
+- **Symptom:**New content is always stronger
+- **Cause:**Fear of releasing weak content
+- **Fix:**Sidegrades over upgrades, periodic rebalancing
 
 ### Dominant Strategy
 
-- **Symptom:** One approach beats all others
-- **Cause:** Insufficient counters, math oversight
-- **Fix:** Add counters, nerf dominant option, buff alternatives
+- **Symptom:**One approach beats all others
+- **Cause:**Insufficient counters, math oversight
+- **Fix:**Add counters, nerf dominant option, buff alternatives
 
 ### Feast or Famine
 
-- **Symptom:** Players either crush or get crushed
-- **Cause:** Snowball mechanics, high variance
-- **Fix:** Comeback mechanics, reduce variance
+- **Symptom:**Players either crush or get crushed
+- **Cause:**Snowball mechanics, high variance
+- **Fix:**Comeback mechanics, reduce variance
 
 ### Analysis Paralysis
 
-- **Symptom:** Too many options, players can't choose
-- **Cause:** Over-complicated systems
+- **Symptom:**Too many options, players can't choose
+- **Cause:**Over-complicated systems
 - **Fix:** Simplify, provide recommendations
 
 ## Balance Tools
@@ -211,10 +226,13 @@ High-skill players identify issues:
 
 ### Example
 
-```
-**Sword of Valor - Damage reduced from 100 to 85**
+```bash
+
+- *Sword of Valor - Damage reduced from 100 to 85**
+
 Win rate for Sword users was 58%, indicating it was
 overperforming. This brings it in line with other weapons
 while maintaining its identity as a high-damage option.
 We'll continue monitoring and adjust if needed.
-```
+
+```bash

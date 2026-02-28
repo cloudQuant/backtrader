@@ -1,14 +1,18 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize the product brief workflow by detecting continuation state and setting up the document'
 
 # File References
+
 nextStepFile: './step-02-vision.md'
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
 
 # Template References
+
 productBriefTemplate: '../product-brief.template.md'
----
+
+- --
 
 # Step 1: Product Brief Initialization
 
@@ -61,7 +65,7 @@ Initialize the product brief workflow by detecting continuation state and settin
 
 First, check if the output document already exists:
 
-**Workflow State Detection:**
+- *Workflow State Detection:**
 
 - Look for file `{outputFile}`
 - If exists, read the complete file including frontmatter
@@ -71,7 +75,7 @@ First, check if the output document already exists:
 
 If the document exists and has frontmatter with `stepsCompleted`:
 
-**Continuation Protocol:**
+- *Continuation Protocol:**
 
 - **STOP immediately** and load `./step-01b-continue.md`
 - Do not proceed with any initialization tasks
@@ -85,6 +89,7 @@ If no document exists or no `stepsCompleted` in frontmatter:
 #### A. Input Document Discovery
 
 load context documents using smart discovery. Documents can be in the following locations:
+
 - {planning_artifacts}/**
 - {output_folder}/**
 - {product_knowledge}/**
@@ -93,6 +98,7 @@ load context documents using smart discovery. Documents can be in the following 
 Also - when searching - documents can be a single markdown file, or a folder with an index and multiple files. For Example, if searching for `*foo*.md` and not found, also search for a folder called *foo*/index.md (which indicates sharded content)
 
 Try to discover the following:
+
 - Brainstorming Reports (`*brainstorming*.md`)
 - Research Documents (`*research*.md`)
 - Project Documentation (generally multiple documents might be found for this in the `{product_knowledge}` or `docs` folder.)
@@ -100,7 +106,7 @@ Try to discover the following:
 
 <critical>Confirm what you have found with the user, along with asking if the user wants to provide anything else. Only after this confirmation will you proceed to follow the loading rules</critical>
 
-**Loading Rules:**
+- *Loading Rules:**
 
 - Load ALL discovered files completely that the user confirmed or provided (no offset/limit)
 - If there is a project context, whatever is relevant should try to be biased in the remainder of this whole workflow process
@@ -110,28 +116,29 @@ Try to discover the following:
 
 #### B. Create Initial Document
 
-**Document Setup:**
+- *Document Setup:**
 
 - Copy the template from `{productBriefTemplate}` to `{outputFile}`, and update the frontmatter fields
 
 #### C. Present Initialization Results
 
-**Setup Report to User:**
+- *Setup Report to User:**
+
 "Welcome {{user_name}}! I've set up your product brief workspace for {{project_name}}.
 
-**Document Setup:**
+- *Document Setup:**
 
 - Created: `{outputFile}` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
+- *Input Documents Discovered:**
 
 - Research: {number of research files loaded or "None found"}
 - Brainstorming: {number of brainstorming files loaded or "None found"}
 - Project docs: {number of project files loaded or "None found"}
 - Project Context: {number of project context files loaded or "None found"}
 
-**Files loaded:** {list of specific file names or "No additional documents found"}
+- *Files loaded:** {list of specific file names or "No additional documents found"}
 
 Do you have any other documents you'd like me to include, or shall we continue to the next step?"
 
@@ -152,7 +159,7 @@ Display: "**Proceeding to product vision discovery...**"
 
 ONLY WHEN [setup completion is achieved and frontmatter properly updated], will you then read fully and follow: `{nextStepFile}` to begin product vision discovery.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -174,4 +181,4 @@ ONLY WHEN [setup completion is achieved and frontmatter properly updated], will 
 - Not reporting discovered documents to user clearly
 - Proceeding without user selecting 'C' (Continue)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

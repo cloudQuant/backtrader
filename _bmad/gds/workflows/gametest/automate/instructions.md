@@ -2,16 +2,16 @@
 
 # Game Test Automation
 
-**Workflow ID**: `_bmad/gds/gametest/automate`
-**Version**: 1.0 (BMad v6)
+- *Workflow ID**: `_bmad/gds/gametest/automate`
+- *Version**: 1.0 (BMad v6)
 
----
+- --
 
 ## Overview
 
 Generate automated test code for game projects based on test design scenarios or by analyzing existing game code. Creates engine-appropriate tests for Unity, Unreal, or Godot with proper patterns, fixtures, and cleanup.
 
----
+- --
 
 ## Preflight Requirements
 
@@ -19,7 +19,7 @@ Generate automated test code for game projects based on test design scenarios or
 - ✅ Test scenarios defined (from `test-design` or ad-hoc)
 - ✅ Game code accessible for analysis
 
----
+- --
 
 ## Step 1: Analyze Codebase
 
@@ -29,23 +29,23 @@ Generate automated test code for game projects based on test design scenarios or
    - Check for engine-specific project files
    - Load appropriate knowledge fragments
 
-2. **Identify Testable Systems**
+1. **Identify Testable Systems**
    - Pure logic classes (calculators, managers)
    - State machines (AI, gameplay)
    - Data structures (inventory, save data)
 
-3. **Locate Existing Tests**
+1. **Locate Existing Tests**
    - Find test directory structure
    - Identify test patterns already in use
    - Check for test helpers/fixtures
 
----
+- --
 
 ## Step 2: Generate Unit Tests
 
 ### Unity (C#)
 
-**Knowledge Base Reference**: `knowledge/unity-testing.md`
+- *Knowledge Base Reference**: `knowledge/unity-testing.md`
 
 ```csharp
 using NUnit.Framework;
@@ -82,19 +82,22 @@ public class {ClassName}Tests
         Assert.AreEqual(expected, result);
     }
 }
-```
+
+```bash
 
 ### Unreal (C++)
 
-**Knowledge Base Reference**: `knowledge/unreal-testing.md`
+- *Knowledge Base Reference**: `knowledge/unreal-testing.md`
 
 ```cpp
-#include "Misc/AutomationTest.h"
+
+# include "Misc/AutomationTest.h"
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     F{ClassName}{MethodName}Test,
     "{ProjectName}.{Category}.{TestName}",
     EAutomationTestFlags::ApplicationContextMask |
+
     EAutomationTestFlags::ProductFilter
 )
 
@@ -111,11 +114,12 @@ bool F{ClassName}{MethodName}Test::RunTest(const FString& Parameters)
 
     return true;
 }
-```
+
+```bash
 
 ### Godot (GDScript)
 
-**Knowledge Base Reference**: `knowledge/godot-testing.md`
+- *Knowledge Base Reference**: `knowledge/godot-testing.md`
 
 ```gdscript
 extends GutTest
@@ -129,13 +133,14 @@ func after_each():
     _sut.free()
 
 func test_{method_name}_when_{condition}_should_{expectation}():
-    # Arrange
+
+# Arrange
     {setup_code}
 
-    # Act
+# Act
     var result = _sut.{method_name}({parameters})
 
-    # Assert
+# Assert
     assert_eq(result, {expected}, "{assertion_message}")
 
 func test_{method_name}_parameterized():
@@ -147,15 +152,16 @@ func test_{method_name}_parameterized():
     for tc in test_cases:
         var result = _sut.{method_name}(tc.input)
         assert_eq(result, tc.expected)
-```
 
----
+```bash
+
+- --
 
 ## Step 3: Generate Integration Tests
 
 ### Scene/Level Testing
 
-**Unity Play Mode**:
+- *Unity Play Mode**:
 
 ```csharp
 [UnityTest]
@@ -169,9 +175,10 @@ public IEnumerator {SceneName}_Loads_WithoutErrors()
 
     Assert.IsEmpty(errors, "Scene should load without errors");
 }
-```
 
-**Unreal Functional Test**:
+```bash
+
+- *Unreal Functional Test**:
 
 ```cpp
 void A{TestName}::StartTest()
@@ -191,27 +198,31 @@ void A{TestName}::StartTest()
         FinishTest(EFunctionalTestResult::Failed, "{failure_message}");
     }
 }
-```
 
-**Godot Integration**:
+```bash
+
+- *Godot Integration**:
 
 ```gdscript
 func test_{feature}_integration():
     var scene = load("res://scenes/{scene}.tscn").instantiate()
     add_child(scene)
 
-    # Wait for scene ready
+# Wait for scene ready
     await get_tree().process_frame
 
-    # Test interaction
+# Test interaction
     {test_code}
 
-    # Cleanup
+# Cleanup
     scene.queue_free()
-```
+
+```bash
+
 ### E2E Journey Tests
 
-**Knowledge Base Reference**: `knowledge/e2e-testing.md`
+- *Knowledge Base Reference**: `knowledge/e2e-testing.md`
+
 ```csharp
 public class {Feature}E2ETests : GameE2ETestFixture
 {
@@ -223,21 +234,21 @@ public class {Feature}E2ETests : GameE2ETestFixture
             .{SetupMethod1}()
             .{SetupMethod2}()
             .Build();
-        
+
         // WHEN
         yield return Input.{Action1}();
         yield return AsyncAssert.WaitUntil(
             () => {Condition1}, "{Description1}");
         yield return Input.{Action2}();
-        
+
         // THEN
         yield return AsyncAssert.WaitUntil(
             () => {FinalCondition}, "{FinalDescription}");
         Assert.{Assertion}({expected}, {actual});
     }
 }
-```
 
+```bash
 
 ## Step 3.5: Generate E2E Infrastructure
 
@@ -251,22 +262,23 @@ Before generating E2E tests, scaffold the required infrastructure.
    - Common service access
    - Cleanup guarantees
 
-2. **Scenario Builder**
+1. **Scenario Builder**
    - Fluent API for game state configuration
    - Domain-specific methods (e.g., `WithUnit`, `OnTurn`)
    - Yields for state propagation
 
-3. **Input Simulator**
+1. **Input Simulator**
    - Click/drag abstractions
    - Button press simulation
    - Keyboard input queuing
 
-4. **Async Assertions**
+1. **Async Assertions**
    - `WaitUntil` with timeout and message
    - `WaitForEvent` for event-driven flows
    - `WaitForState` for state machine transitions
 
 ### Generation Template
+
 ```csharp
 // GameE2ETestFixture.cs
 public abstract class GameE2ETestFixture
@@ -274,7 +286,7 @@ public abstract class GameE2ETestFixture
     protected {GameStateClass} GameState;
     protected {InputSimulatorClass} Input;
     protected {ScenarioBuilderClass} Scenario;
-    
+
     [UnitySetUp]
     public IEnumerator BaseSetUp()
     {
@@ -284,27 +296,30 @@ public abstract class GameE2ETestFixture
         Scenario = new {ScenarioBuilderClass}(GameState);
         yield return WaitForReady();
     }
-    
+
     // ... (fill from e2e-testing.md patterns)
 }
-```
 
-**After scaffolding infrastructure, proceed to generate actual E2E tests.**
+```bash
 
----
+- *After scaffolding infrastructure, proceed to generate actual E2E tests.**
+
+- --
 
 ## Step 4: Generate Smoke Tests
 
 Create critical path tests that run on every build:
 
-```
+```bash
 Smoke Test Criteria:
+
 1. Game launches without crash
 2. Main menu is navigable
 3. New game starts successfully
 4. Core gameplay loop executes
 5. Save/load works
-```
+
+```bash
 
 ### Example Smoke Test
 
@@ -327,26 +342,33 @@ public IEnumerator Smoke_NewGame_StartsSuccessfully()
     var player = GameObject.FindWithTag("Player");
     Assert.IsNotNull(player, "Player should exist after new game");
 }
-```
 
----
+```bash
+
+- --
 
 ## Step 5: Generate Test Report
 
 After generating tests, create summary:
 
 ```markdown
+
 ## Automation Summary
 
-**Engine**: {Unity | Unreal | Godot}
-**Tests Generated**: {count}
+- *Engine**: {Unity | Unreal | Godot}
+
+- *Tests Generated**: {count}
 
 ### Test Distribution
 
 | Type        | Count | Coverage      |
+
 | ----------- | ----- | ------------- |
+
 | Unit Tests  | {n}   | {systems}     |
+
 | Integration | {n}   | {features}    |
+
 | Smoke Tests | {n}   | Critical path |
 
 ### Files Created
@@ -361,19 +383,21 @@ After generating tests, create summary:
 2. Fill in test-specific logic
 3. Run tests to verify
 4. Add to CI pipeline
-```
 
----
+```bash
+
+- --
 
 ## Test Patterns
 
 ### Common Patterns to Generate
 
-1. **Calculator/Logic Tests** - Pure functions
-2. **State Machine Tests** - State transitions
-3. **Event Tests** - Signal/delegate firing
-4. **Resource Tests** - ScriptableObject/Resource validation
-5. **Serialization Tests** - Save/load round-trip
+1. **Calculator/Logic Tests**- Pure functions
+
+2.**State Machine Tests**- State transitions
+3.**Event Tests**- Signal/delegate firing
+4.**Resource Tests**- ScriptableObject/Resource validation
+5.**Serialization Tests**- Save/load round-trip
 
 ### Anti-Patterns to Avoid
 
@@ -382,16 +406,16 @@ After generating tests, create summary:
 - Tests that depend on execution order
 - Tests without cleanup
 
----
+- --
 
 ## Deliverables
 
-1. **Unit Test Files** - Per-class test coverage
-2. **Integration Test Files** - Feature-level tests
-3. **Smoke Test Suite** - Critical path validation
-4. **Automation Summary** - Coverage report
+1.**Unit Test Files**- Per-class test coverage
+2.**Integration Test Files**- Feature-level tests
+3.**Smoke Test Suite**- Critical path validation
+4.**Automation Summary** - Coverage report
 
----
+- --
 
 ## Validation
 

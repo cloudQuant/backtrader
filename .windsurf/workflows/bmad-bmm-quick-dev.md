@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Flexible development - execute tech-specs OR direct instructions with optional planning.'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # quick-dev
 

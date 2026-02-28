@@ -2,11 +2,11 @@
 
 ## Principle
 
-Register network interceptions **before** any navigation or user action. Store the interception promise and await it immediately after the triggering step. Replace implicit waits with deterministic signals based on network responses, spinner disappearance, or event hooks.
+Register network interceptions **before**any navigation or user action. Store the interception promise and await it immediately after the triggering step. Replace implicit waits with deterministic signals based on network responses, spinner disappearance, or event hooks.
 
 ## Rationale
 
-The most common source of flaky E2E tests is **race conditions** between navigation and network interception:
+The most common source of flaky E2E tests is**race conditions**between navigation and network interception:
 
 - Navigate then intercept = missed requests (too late)
 - No explicit wait = assertion runs before response arrives
@@ -23,9 +23,9 @@ Network-first patterns provide:
 
 ### Example 1: Intercept Before Navigate Pattern
 
-**Context**: The foundational pattern for all E2E tests. Always register route interception **before** the action that triggers the request (navigation, click, form submit).
+- *Context**: The foundational pattern for all E2E tests. Always register route interception **before** the action that triggers the request (navigation, click, form submit).
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ✅ CORRECT: Intercept BEFORE navigate
@@ -71,20 +71,21 @@ test('flaky test example', async ({ page }) => {
   const usersPromise = page.waitForResponse('/api/users'); // TOO LATE - might miss it
   const response = await usersPromise; // May timeout randomly
 });
-```
 
-**Key Points**:
+```bash
 
-- Playwright: Use `page.waitForResponse()` with URL pattern or predicate **before** `page.goto()` or `page.click()`
-- Cypress: Use `cy.intercept().as()` **before** `cy.visit()` or `cy.click()`
-- Store promise/alias, trigger action, **then** await response
+- *Key Points**:
+
+- Playwright: Use `page.waitForResponse()` with URL pattern or predicate **before**`page.goto()` or `page.click()`
+- Cypress: Use `cy.intercept().as()`**before**`cy.visit()` or `cy.click()`
+- Store promise/alias, trigger action,**then** await response
 - This prevents 95% of race-condition flakiness in E2E tests
 
 ### Example 2: HAR Capture for Debugging
 
-**Context**: When debugging flaky tests or building deterministic mocks, capture real network traffic with HAR files. Replay them in tests for consistent, offline-capable test runs.
+- *Context**: When debugging flaky tests or building deterministic mocks, capture real network traffic with HAR files. Replay them in tests for consistent, offline-capable test runs.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright.config.ts - Enable HAR recording
@@ -147,9 +148,10 @@ test('mock order response based on HAR', async ({ page }) => {
   await page.click('[data-testid="submit-order"]');
   await expect(page.getByText('Order #12345')).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - HAR files capture real request/response pairs for analysis
 - `update: true` records new traffic; `update: false` replays existing
@@ -158,9 +160,9 @@ test('mock order response based on HAR', async ({ page }) => {
 
 ### Example 3: Network Stub with Edge Cases
 
-**Context**: When testing error handling, timeouts, and edge cases, stub network responses to simulate failures. Test both happy path and error scenarios.
+- *Context**: When testing error handling, timeouts, and edge cases, stub network responses to simulate failures. Test both happy path and error scenarios.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Test happy path
@@ -264,9 +266,10 @@ describe('Order Edge Cases', () => {
     cy.contains('Request timed out', { timeout: 15000 }).should('be.visible');
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Stub different HTTP status codes (200, 400, 500, 503)
 - Simulate timeouts with `delay` or non-resolving promises
@@ -275,9 +278,9 @@ describe('Order Edge Cases', () => {
 
 ### Example 4: Deterministic Waiting
 
-**Context**: Never use hard waits (`waitForTimeout(3000)`). Always wait for explicit signals: network responses, element state changes, or custom events.
+- *Context**: Never use hard waits (`waitForTimeout(3000)`). Always wait for explicit signals: network responses, element state changes, or custom events.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ✅ GOOD: Wait for response with predicate
@@ -360,9 +363,10 @@ describe('Deterministic Waiting', () => {
     cy.contains('Dashboard').should('be.visible');
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `waitForResponse()` with URL pattern or predicate = deterministic
 - `waitForLoadState('networkidle')` = wait for all network activity to finish
@@ -371,7 +375,7 @@ describe('Deterministic Waiting', () => {
 
 ### Example 5: Anti-Pattern - Navigate Then Mock
 
-**Problem**:
+- *Problem**:
 
 ```typescript
 // ❌ BAD: Race condition - mock registered AFTER navigation starts
@@ -408,16 +412,17 @@ test('flaky test - hard wait', async ({ page }) => {
 
   await expect(page.getByText('Dashboard')).toBeVisible();
 });
-```
 
-**Why It Fails**:
+```bash
+
+- *Why It Fails**:
 
 - **Mock after navigate**: Request fires during navigation, mock isn't active yet (race condition)
 - **No explicit wait**: Assertion runs before response arrives (timing-dependent)
 - **Hard waits**: Slow tests, brittle (fails if < timeout, wastes time if > timeout)
 - **Non-deterministic**: Passes locally, fails in CI (different speeds)
 
-**Better Approach**: Always intercept → trigger → await
+- *Better Approach**: Always intercept → trigger → await
 
 ```typescript
 // ✅ GOOD: Intercept BEFORE navigate
@@ -443,9 +448,10 @@ test('deterministic test', async ({ page }) => {
   // Step 5: THEN assert (data is guaranteed loaded)
   await expect(page.getByText('Test User')).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Order matters: Mock → Promise → Trigger → Await → Assert
 - No race conditions: Mock is active before request fires
@@ -464,11 +470,13 @@ test('deterministic test', async ({ page }) => {
 
 When network tests fail, check:
 
-1. **Timing**: Is interception registered **before** action?
-2. **URL pattern**: Does pattern match actual request URL?
-3. **Response format**: Is mocked response valid JSON/format?
-4. **Status code**: Is app checking for 200 vs 201 vs 204?
-5. **HAR file**: Capture real traffic to understand actual API contract
+1. **Timing**: Is interception registered **before**action?
+
+2.**URL pattern**: Does pattern match actual request URL?
+
+1. **Response format**: Is mocked response valid JSON/format?
+2. **Status code**: Is app checking for 200 vs 201 vs 204?
+3. **HAR file**: Capture real traffic to understand actual API contract
 
 ```typescript
 // Debug network issues with logging
@@ -481,6 +489,6 @@ test('debug network', async ({ page }) => {
 
   await page.goto('/dashboard');
 });
-```
 
+```bash
 _Source: Murat Testing Philosophy (lines 94-137), Playwright network patterns, Cypress intercept best practices._

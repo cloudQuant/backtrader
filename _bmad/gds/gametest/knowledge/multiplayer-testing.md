@@ -9,28 +9,40 @@ Multiplayer testing validates network code, synchronization, and the player expe
 ### Synchronization Testing
 
 | Test Type           | Description                              | Priority |
+
 | ------------------- | ---------------------------------------- | -------- |
+
 | State sync          | All clients see consistent game state    | P0       |
+
 | Position sync       | Character positions match across clients | P0       |
+
 | Event ordering      | Actions occur in correct sequence        | P0       |
+
 | Conflict resolution | Simultaneous actions handled correctly   | P1       |
+
 | Late join           | New players sync correctly mid-game      | P1       |
 
 ### Network Conditions
 
 | Condition       | Simulation Method | Test Focus               |
+
 | --------------- | ----------------- | ------------------------ |
+
 | High latency    | 200-500ms delay   | Input responsiveness     |
+
 | Packet loss     | 5-20% drop rate   | State recovery           |
+
 | Jitter          | Variable delay    | Interpolation smoothness |
+
 | Bandwidth limit | Throttle to 1Mbps | Data prioritization      |
+
 | Disconnection   | Kill connection   | Reconnection handling    |
 
 ## Test Scenarios
 
 ### Basic Multiplayer
 
-```
+```bash
 SCENARIO: Player Join/Leave
   GIVEN host has started multiplayer session
   WHEN Player 2 joins
@@ -51,11 +63,12 @@ SCENARIO: Combat Synchronization
   THEN damage is consistent on all clients
   AND hit effects play for all players
   AND health updates sync within 100ms
-```
+
+```bash
 
 ### Network Degradation
 
-```
+```bash
 SCENARIO: High Latency Gameplay
   GIVEN 200ms latency between players
   WHEN Player 1 moves forward
@@ -76,11 +89,12 @@ SCENARIO: Player Disconnection
   THEN other players are notified
   AND Player 2's character handles gracefully (despawn/AI takeover)
   AND game continues without crash
-```
+
+```bash
 
 ### Edge Cases
 
-```
+```bash
 SCENARIO: Simultaneous Actions
   GIVEN Player 1 and Player 2 grab same item simultaneously
   WHEN both inputs arrive at server
@@ -101,7 +115,8 @@ SCENARIO: Reconnection
   THEN Player 2 rejoins same session
   AND state is synchronized
   AND progress is preserved
-```
+
+```bash
 
 ## Network Simulation Tools
 
@@ -123,7 +138,7 @@ public class NetworkSimulator : MonoBehaviour
         var simulator = transport.GetSimulatorParameters();
 
         simulator.PacketDelayMS = latencyMs;
-        simulator.PacketDropRate = (int)(packetLossPercent * 100);
+        simulator.PacketDropRate = (int)(packetLossPercent *100);
         simulator.PacketJitterMS = jitterMs;
     }
 }
@@ -135,7 +150,7 @@ public IEnumerator Position_UnderLatency_ConvergesWithinThreshold()
     EnableNetworkSimulation(latencyMs: 200);
 
     // Move player
-    player1.Move(Vector3.forward * 10);
+    player1.Move(Vector3.forward* 10);
 
     yield return new WaitForSeconds(1f);
 
@@ -145,7 +160,8 @@ public IEnumerator Position_UnderLatency_ConvergesWithinThreshold()
 
     Assert.Less(Vector3.Distance(player1OnClient2, actualPosition), 0.5f);
 }
-```
+
+```bash
 
 ### Unreal
 
@@ -188,19 +204,23 @@ void AMultiplayerSyncTest::StartTest()
         }
     }, 2.0f, false);
 }
-```
+
+```bash
 
 ### Godot
 
 ```gdscript
+
 # Network simulation
+
 extends Node
 
 var simulated_latency_ms := 0
 var packet_loss_percent := 0.0
 
 func _ready():
-    # Hook into network to simulate conditions
+
+# Hook into network to simulate conditions
     multiplayer.peer_packet_received.connect(_on_packet_received)
 
 func _on_packet_received(id: int, packet: PackedByteArray):
@@ -213,36 +233,44 @@ func _on_packet_received(id: int, packet: PackedByteArray):
     _process_packet(id, packet)
 
 # Test
+
 func test_position_sync_under_latency():
     NetworkSimulator.simulated_latency_ms = 200
 
-    # Move player on host
+# Move player on host
     host_player.position = Vector3(100, 0, 100)
 
     await get_tree().create_timer(1.0).timeout
 
-    # Check client view
+# Check client view
     var client_view_position = client.get_remote_player_position(host_player.id)
     var distance = host_player.position.distance_to(client_view_position)
 
     assert_lt(distance, 1.0, "Position should converge within 1 unit")
-```
+
+```bash
 
 ## Dedicated Server Testing
 
 ### Test Matrix
 
 | Scenario              | Test Focus                           |
+
 | --------------------- | ------------------------------------ |
+
 | Server startup        | Clean initialization, port binding   |
+
 | Client authentication | Login validation, session management |
+
 | Server tick rate      | Consistent updates under load        |
+
 | Maximum players       | Performance at player cap            |
+
 | Server crash recovery | State preservation, reconnection     |
 
 ### Load Testing
 
-```
+```bash
 SCENARIO: Maximum Players
   GIVEN server configured for 64 players
   WHEN 64 players connect
@@ -256,11 +284,12 @@ SCENARIO: Stress Test
   THEN no memory leaks
   AND no desync events
   AND server CPU below 80%
-```
+
+```bash
 
 ## Matchmaking Testing
 
-```
+```bash
 SCENARIO: Skill-Based Matching
   GIVEN players with skill ratings [1000, 1050, 2000, 2100]
   WHEN matchmaking runs
@@ -279,26 +308,39 @@ SCENARIO: Queue Timeout
   WHEN 3 minutes pass without match
   THEN matchmaking expands search criteria
   AND player is notified of expanded search
-```
+
+```bash
 
 ## Security Testing
 
 | Vulnerability    | Test Method                 |
+
 | ---------------- | --------------------------- |
+
 | Speed hacking    | Validate movement on server |
+
 | Teleportation    | Check position delta limits |
+
 | Damage hacking   | Server-authoritative damage |
+
 | Packet injection | Validate packet checksums   |
+
 | Replay attacks   | Use unique session tokens   |
 
 ## Performance Metrics
 
 | Metric                | Good      | Acceptable | Poor       |
+
 | --------------------- | --------- | ---------- | ---------- |
+
 | Round-trip latency    | < 50ms    | < 100ms    | > 150ms    |
+
 | Sync delta            | < 100ms   | < 200ms    | > 500ms    |
+
 | Packet loss tolerance | < 5%      | < 10%      | > 15%      |
+
 | Bandwidth per player  | < 10 KB/s | < 50 KB/s  | > 100 KB/s |
+
 | Server tick rate      | 60+ Hz    | 30+ Hz     | < 20 Hz    |
 
 ## Best Practices

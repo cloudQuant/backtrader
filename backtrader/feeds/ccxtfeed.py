@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """CCXT Data Feed Module - Cryptocurrency exchange data.
 
 This module provides the CCXTFeed for connecting to cryptocurrency
@@ -25,9 +24,10 @@ Example:
     >>> cerebro.adddata(data)
 """
 
-import time
+import logging
 import threading
-from datetime import datetime
+import time
+from datetime import datetime, timezone
 
 from backtrader.feed import DataBase
 from backtrader.stores import ccxtstore
@@ -35,9 +35,12 @@ from backtrader.utils.py3 import queue
 
 from ..utils import date2num
 
+logger = logging.getLogger(__name__)
+
 # Import ccxt errors for error handling
 try:
-    from ccxt.base.errors import NetworkError, ExchangeError, ExchangeNotAvailable
+    from ccxt.base.errors import ExchangeError, ExchangeNotAvailable, NetworkError
+
     HAS_CCXT_ERRORS = True
 except ImportError:
     HAS_CCXT_ERRORS = False
@@ -49,6 +52,7 @@ except ImportError:
 try:
     from ..ccxt.threading import ThreadedDataManager
     from ..ccxt.websocket import CCXTWebSocketManager
+
     HAS_CCXT_ENHANCEMENTS = True
 except ImportError:
     HAS_CCXT_ENHANCEMENTS = False
@@ -109,7 +113,7 @@ class CCXTFeed(DataBase):
             store: Optional CCXTStore instance.
             **kwargs: Keyword arguments for data feed configuration.
         """
-        super(CCXTFeed, self).__init__()
+        super().__init__()
 
         self._state = None
         # Use provided store or create a new one
@@ -120,7 +124,7 @@ class CCXTFeed(DataBase):
 
         self._data = queue.Queue(maxsize=1000)  # data queue for price data
         self._last_id = ""
-        self._last_ts = self.utc_to_ts(datetime.utcnow())
+        self._last_ts = self.utc_to_ts(datetime.now(timezone.utc))
         self._last_update_bar_time = 0
 
         # WebSocket related
@@ -141,13 +145,29 @@ class CCXTFeed(DataBase):
         self._last_error_time = 0
 
     def utc_to_ts(self, dt):
-        """Convert datetime to timestamp in milliseconds."""
+        """Convert a datetime object to a Unix timestamp in milliseconds.
+
+        Args:
+            dt: datetime object to convert. Should be timezone-aware or
+                treated as UTC.
+
+        Returns:
+            int: Unix timestamp in milliseconds since epoch (1970-01-01).
+        """
         fromdate = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute)
         epoch = datetime(1970, 1, 1)
         return int((fromdate - epoch).total_seconds() * 1000)
 
     def start(self):
-        """Start the CCXT data feed."""
+        """Start the CCXT data feed and initialize data fetching.
+
+        Sets up the initial state based on configuration:
+        - Historical mode: Fetches historical data and stops
+        - Backfill mode: Fetches historical data then continues live
+        - Live mode: Starts live data fetching immediately
+
+        Also initializes WebSocket connection if use_websocket is True.
+        """
         DataBase.start(self)
 
         start_date = self.p.fromdate or self.p.hist_start_date
@@ -183,27 +203,22 @@ class CCXTFeed(DataBase):
 
         try:
             # Try to use shared WebSocket manager from store
-            if hasattr(self.store, 'get_websocket_manager'):
+            self._ws_is_shared = False
+            if hasattr(self.store, "get_websocket_manager"):
                 self._websocket_manager = self.store.get_websocket_manager()
+                if self._websocket_manager is not None:
+                    self._ws_is_shared = True
 
             # Fallback: create a per-feed WebSocket manager
             if self._websocket_manager is None:
-                config = getattr(self.store.exchange, 'config', {})
-                markets = getattr(self.store.exchange, 'markets', None)
-                self._websocket_manager = CCXTWebSocketManager(
-                    self.store.exchange_id,
-                    config,
-                    markets=markets
-                )
+                config = getattr(self.store.exchange, "config", {})
+                markets = getattr(self.store.exchange, "markets", None)
+                self._websocket_manager = CCXTWebSocketManager(self.store.exchange_id, config, markets=markets)
                 self._websocket_manager.start()
 
             # Subscribe to OHLCV updates for this feed's symbol
             granularity = self.store.get_granularity(self._timeframe, self._compression)
-            self._websocket_manager.subscribe_ohlcv(
-                self.p.dataname,
-                granularity,
-                self._on_websocket_ohlcv
-            )
+            self._websocket_manager.subscribe_ohlcv(self.p.dataname, granularity, self._on_websocket_ohlcv)
 
             print(f"[WS] WebSocket subscribed for {self.p.dataname} ({granularity})")
 
@@ -233,9 +248,11 @@ class CCXTFeed(DataBase):
 
                         # Log occasionally
                         if self.p.debug:
-                            bar_time = datetime.utcfromtimestamp(bar[0] // 1000)
-                            print(f"[WS] New bar: {bar_time} O={bar[1]:.6f} H={bar[2]:.6f} "
-                                  f"L={bar[3]:.6f} C={bar[4]:.6f} V={bar[5]:.0f}")
+                            bar_time = datetime.fromtimestamp(bar[0] / 1000, tz=timezone.utc)
+                            logger.debug(
+                                f"[WS] New bar: {bar_time} O={bar[1]:.6f} H={bar[2]:.6f} "
+                                f"L={bar[3]:.6f} C={bar[4]:.6f} V={bar[5]:.0f}"
+                            )
 
                 self._ws_connected = True
                 self._ws_last_data_time = time.time()
@@ -336,7 +353,7 @@ class CCXTFeed(DataBase):
 
         now = time.time()
         # Check if WebSocket manager reports disconnected
-        if hasattr(self._websocket_manager, 'is_connected') and not self._websocket_manager.is_connected():
+        if hasattr(self._websocket_manager, "is_connected") and not self._websocket_manager.is_connected():
             self._ws_connected = False
             return
 
@@ -356,7 +373,7 @@ class CCXTFeed(DataBase):
             livemode: True if in live mode (fetches less data).
         """
         # Check connection before fetching
-        if hasattr(self.store, 'is_connected') and not self.store.is_connected():
+        if hasattr(self.store, "is_connected") and not self.store.is_connected():
             if self.p.debug:
                 print("[CCXTFeed] Store disconnected, skipping fetch")
             return
@@ -389,8 +406,7 @@ class CCXTFeed(DataBase):
                 if self._consecutive_fetch_errors <= 3 or self.p.debug:
                     print(f"[CCXTFeed] Fetch error ({self._consecutive_fetch_errors}): {e}")
                 if self._consecutive_fetch_errors >= self._max_consecutive_errors:
-                    print(f"[CCXTFeed] Too many consecutive errors ({self._consecutive_fetch_errors}), "
-                          f"backing off...")
+                    print(f"[CCXTFeed] Too many consecutive errors ({self._consecutive_fetch_errors}), backing off...")
                 break
 
             # Drop newest bar if requested (may be incomplete)
@@ -450,12 +466,11 @@ class CCXTFeed(DataBase):
             except (NetworkError, ExchangeNotAvailable) as e:
                 last_exception = e
                 if attempt < self.p.max_fetch_retries - 1:
-                    delay = self.p.fetch_retry_delay * (2 ** attempt)
+                    delay = self.p.fetch_retry_delay * (2**attempt)
                     if self.p.debug:
-                        print(f"[CCXTFeed] Fetch retry {attempt + 1}/{self.p.max_fetch_retries} "
-                              f"in {delay:.1f}s: {e}")
+                        print(f"[CCXTFeed] Fetch retry {attempt + 1}/{self.p.max_fetch_retries} in {delay:.1f}s: {e}")
                     time.sleep(delay)
-            except ExchangeError as e:
+            except ExchangeError:
                 # Exchange errors should not retry
                 raise
         raise last_exception
@@ -473,7 +488,7 @@ class CCXTFeed(DataBase):
             return None
 
         tstamp, open_, high, low, close, volume = bar
-        dtime = datetime.utcfromtimestamp(tstamp // 1000)
+        dtime = datetime.fromtimestamp(tstamp / 1000, tz=timezone.utc).replace(tzinfo=None)
         self.lines.datetime[0] = date2num(dtime)
         self.lines.open[0] = open_
         self.lines.high[0] = high
@@ -483,27 +498,39 @@ class CCXTFeed(DataBase):
         return True
 
     def haslivedata(self):
-        """Check if live data is available."""
+        """Check if live data is currently available.
+
+        Returns:
+            bool: True if the feed is in live mode and has data in the queue.
+        """
         return self._state == self._ST_LIVE and not self._data.empty()
 
     def islive(self):
-        """Check if feed is in live mode."""
+        """Check if the feed is operating in live mode.
+
+        Returns:
+            bool: True if the feed is live (not historical only).
+        """
         return not self.p.historical
 
     def stop(self):
-        """Stop the data feed and cleanup resources."""
-        # Stop WebSocket
-        if self._websocket_manager:
+        """Stop the data feed and cleanup resources.
+
+        Stops WebSocket connection (if not shared), stops threaded data
+        manager, and stops the associated store.
+        """
+        # Stop WebSocket only if it's not shared with other feeds
+        if self._websocket_manager and not getattr(self, "_ws_is_shared", False):
             self._websocket_manager.stop()
-            self._websocket_manager = None
             print("[WS] WebSocket stopped")
+        self._websocket_manager = None
 
         # Stop threaded data manager
         if self._threaded_data_manager:
             self._threaded_data_manager.stop()
 
         # Stop store
-        if hasattr(self.store, 'stop'):
+        if hasattr(self.store, "stop"):
             self.store.stop()
 
 

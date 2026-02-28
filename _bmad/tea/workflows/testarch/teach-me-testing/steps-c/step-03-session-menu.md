@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-03-session-menu'
 description: 'Session selection hub - display all 7 sessions with completion status and route to selected session or completion'
 
@@ -11,7 +12,8 @@ session05File: './step-04-session-05.md'
 session06File: './step-04-session-06.md'
 session07File: './step-04-session-07.md'
 completionFile: './step-05-completion.md'
----
+
+- --
 
 # Step 3: Session Menu (Hub)
 
@@ -61,7 +63,7 @@ To present all 7 learning sessions with completion status, allow non-linear sess
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Progress File
 
@@ -79,60 +81,74 @@ Read {progressFile} and extract:
 
 Display:
 
-"🧪 **TEA Academy - Session Menu**
+"🧪**TEA Academy - Session Menu**
 
-**Progress:** {completion_percentage}% ({sessions_completed} of 7 sessions completed)
+- *Progress:** {completion_percentage}% ({sessions_completed} of 7 sessions completed)
 
----
+- --
 
 ### 📚 Available Sessions
 
 {For each session in sessions array, display with status indicator:}
 
-**Session 1: Quick Start (30 min)**
+- *Session 1: Quick Start (30 min)**
+
 {status_indicator} TEA Lite intro, run automate workflow
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
-**Session 2: Core Concepts (45 min)**
+- *Session 2: Core Concepts (45 min)**
+
 {status_indicator} Risk-based testing, DoD, testing philosophy
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
-**Session 3: Architecture & Patterns (60 min)**
+- *Session 3: Architecture & Patterns (60 min)**
+
 {status_indicator} Fixtures, network patterns, framework setup
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
-**Session 4: Test Design (60 min)**
+- *Session 4: Test Design (60 min)**
+
 {status_indicator} Risk assessment, test design workflow
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
-**Session 5: ATDD & Automate (60 min)**
+- *Session 5: ATDD & Automate (60 min)**
+
 {status_indicator} ATDD + Automate workflows, TDD approach
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
-**Session 6: Quality & Trace (45 min)**
+- *Session 6: Quality & Trace (45 min)**
+
 {status_indicator} Test review + Trace workflows, quality metrics
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
-**Session 7: Advanced Patterns (ongoing)**
+- *Session 7: Advanced Patterns (ongoing)**
+
 {status_indicator} Menu-driven knowledge fragment exploration (35 fragments)
 {if completed: Score: {score}/100 | Completed: {completed_date}}
+
 {if in-progress: Started: {started_date}}
 
----
+- --
 
-**Status Indicators:**
+- *Status Indicators:**
 
 - ✅ = Completed
 - 🔄 = In Progress
 - ⬜ = Not Started
 
----
+- --
 
 {If next_recommended exists:}
 💡 **Recommended Next:** {next_recommended}
@@ -140,7 +156,7 @@ Display:
 
 ### 3. Check for Completion
 
-**Before displaying menu options, check:**
+- *Before displaying menu options, check:**
 
 If all 7 sessions have status 'completed' AND certificate_generated != true:
 
@@ -148,7 +164,7 @@ If all 7 sessions have status 'completed' AND certificate_generated != true:
 - Skip session menu options
 - Proceed directly to step 4b (route to completion)
 
-**Otherwise:** Display session menu options in step 4a
+- *Otherwise:** Display session menu options in step 4a
 
 ### 4a. Present Session Menu Options (Sessions Remaining)
 
@@ -156,8 +172,8 @@ Display:
 
 "**Select a session or exit:**
 
-**[1-7]** Start or continue a session
-**[X]** Save progress and exit
+- *[1-7]** Start or continue a session
+- *[X]** Save progress and exit
 
 What would you like to do?"
 
@@ -181,7 +197,7 @@ What would you like to do?"
 
 ### 4b. Route to Completion (All Sessions Done)
 
-**If all 7 sessions completed:**
+- *If all 7 sessions completed:**
 
 Display:
 
@@ -189,7 +205,7 @@ Display:
 
 Load, read entire file, then execute {completionFile}
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -216,4 +232,4 @@ Load, read entire file, then execute {completionFile}
 - Not displaying session descriptions
 - Not allowing non-linear session selection
 
-**Master Rule:** This is the central hub. Display accurate status, let learner choose freely, route correctly. All sessions return here.
+- *Master Rule:** This is the central hub. Display accurate status, let learner choose freely, route correctly. All sessions return here.

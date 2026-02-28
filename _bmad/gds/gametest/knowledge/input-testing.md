@@ -9,27 +9,38 @@ Input testing validates that all supported input devices work correctly across p
 ### Device Types
 
 | Device            | Platforms      | Key Concerns                        |
+
 | ----------------- | -------------- | ----------------------------------- |
+
 | Keyboard + Mouse  | PC             | Key conflicts, DPI sensitivity      |
+
 | Gamepad (Xbox/PS) | PC, Console    | Deadzone, vibration, button prompts |
+
 | Touch             | Mobile, Switch | Multi-touch, gesture recognition    |
+
 | Motion Controls   | Switch, VR     | Calibration, drift, fatigue         |
+
 | Specialty         | Various        | Flight sticks, wheels, fight sticks |
 
 ### Input Characteristics
 
 | Characteristic | Description                  | Test Focus                       |
+
 | -------------- | ---------------------------- | -------------------------------- |
+
 | Responsiveness | Input-to-action delay        | Should feel instant (< 100ms)    |
+
 | Accuracy       | Input maps to correct action | No ghost inputs or missed inputs |
+
 | Consistency    | Same input = same result     | Deterministic behavior           |
+
 | Accessibility  | Alternative input support    | Remapping, assist options        |
 
 ## Test Scenarios
 
 ### Keyboard and Mouse
 
-```
+```bash
 SCENARIO: All Keybinds Functional
   GIVEN default keyboard bindings
   WHEN each bound key is pressed
@@ -54,11 +65,12 @@ SCENARIO: Mouse Button Support
   WHEN side buttons are pressed
   THEN they can be bound to actions
   AND they function correctly in gameplay
-```
+
+```bash
 
 ### Gamepad
 
-```
+```bash
 SCENARIO: Analog Stick Deadzone
   GIVEN controller with slight stick drift
   WHEN stick is in neutral position
@@ -83,11 +95,12 @@ SCENARIO: Vibration Feedback
   WHEN damage is taken
   THEN controller vibrates appropriately
   AND vibration intensity matches damage severity
-```
+
+```bash
 
 ### Touch Input
 
-```
+```bash
 SCENARIO: Multi-Touch Accuracy
   GIVEN virtual joystick and buttons
   WHEN left thumb on joystick AND right thumb on button
@@ -105,7 +118,8 @@ SCENARIO: Touch Target Size
   WHEN buttons are placed
   THEN all interactive elements meet minimum size
   AND elements have adequate spacing
-```
+
+```bash
 
 ## Platform-Specific Testing
 
@@ -120,9 +134,13 @@ SCENARIO: Touch Target Size
 ### Console
 
 | Platform    | Specific Tests                             |
+
 | ----------- | ------------------------------------------ |
+
 | PlayStation | Touchpad, adaptive triggers, haptics       |
+
 | Xbox        | Impulse triggers, Elite controller paddles |
+
 | Switch      | Joy-Con detachment, gyro, HD rumble        |
 
 ### Mobile
@@ -189,7 +207,8 @@ public void Deadzone_FiltersSmallInputs()
     filtered = InputProcessor.ApplyDeadzone(new Vector2(0.5f, 0.5f), settings);
     Assert.AreNotEqual(Vector2.zero, filtered);
 }
-```
+
+```bash
 
 ### Unreal
 
@@ -213,16 +232,18 @@ bool FInputTest::RunTest(const FString& Parameters)
 
     return true;
 }
-```
+
+```bash
 
 ### Godot
 
 ```gdscript
 func test_input_action_mapping():
-    # Verify action exists
+
+# Verify action exists
     assert_true(InputMap.has_action("jump"))
 
-    # Simulate input
+# Simulate input
     var event = InputEventKey.new()
     event.keycode = KEY_SPACE
     event.pressed = true
@@ -241,7 +262,8 @@ func test_gamepad_deadzone():
     assert_eq(processed, Vector2.ZERO, "Small input should be filtered")
 
 func test_controller_hotswap():
-    # Simulate controller connect
+
+# Simulate controller connect
     Input.joy_connection_changed(0, true)
     await get_tree().process_frame
 
@@ -249,7 +271,8 @@ func test_controller_hotswap():
 
     assert_true(prompt_icon.texture.resource_path.contains("gamepad"),
         "Should show gamepad prompts after controller connect")
-```
+
+```bash
 
 ## Accessibility Testing
 
@@ -265,7 +288,7 @@ func test_controller_hotswap():
 
 ### Accessibility Test Scenarios
 
-```
+```bash
 SCENARIO: Keyboard-Only Navigation
   GIVEN mouse is disconnected
   WHEN navigating through all menus
@@ -283,15 +306,21 @@ SCENARIO: Reduced Button Mashing
   WHEN QTE sequence appears
   THEN single press advances sequence
   AND no rapid input required
-```
+
+```bash
 
 ## Performance Metrics
 
 | Metric                  | Target          | Maximum Acceptable |
+
 | ----------------------- | --------------- | ------------------ |
+
 | Input-to-render latency | < 50ms          | 100ms              |
+
 | Polling rate match      | 1:1 with device | No input loss      |
+
 | Deadzone processing     | < 1ms           | 5ms                |
+
 | Rebind save/load        | < 100ms         | 500ms              |
 
 ## Best Practices

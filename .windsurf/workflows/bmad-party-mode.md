@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Orchestrates group discussions between all installed BMAD agents, enabling natural multi-agent conversations'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # party-mode
 

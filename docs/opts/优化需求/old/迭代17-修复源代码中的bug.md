@@ -1,17 +1,18 @@
 ### 背景
 
-现在有一些测试用例失败了，需要修复源代码中的bug，确保所有的测试用例都能通过。
+现在有一些测试用例失败了，需要修复源代码中的 bug，确保所有的测试用例都能通过。
 
 ### 任务
 
 1. 修复失败的测试用例
 2. 确保所有的测试用例都能通过
 3. 只能修改源代码，不能修改测试用例。
-4. 每次修改过源代码之后，需要pip install -U .   重新安装一下，使得源代码生效
+4. 每次修改过源代码之后，需要 pip install -U .   重新安装一下，使得源代码生效
 5. 测试用例一定不能修改，这些测试用例都是在正常条件下能够通过的。
 6. 需要确保所有的测试用例都能通过才算修复成功： pytest tests -n 8 所有的都通过，不允许有失败的测试用例。
 
 ### 现在失败的测试用例：
+
 ============================== short test summary info ===============================
 FAILED tests/strategies/test_06_macd_ema_fase_strategy.py::test_macd_ema_strategy - AssertionError: Expected bar_num=28069, got 28087
 FAILED tests/strategies/test_18_etf_rotation_strategy.py::test_etf_rotation_strategy - TypeError: Lines.reset() missing 1 required positional argument: 'self'
@@ -29,6 +30,7 @@ FAILED tests/strategies/test_09_dual_thrust_strategy.py::test_dual_thrust_strate
 Results (195.18s (0:03:15)):
      349 passed
       12 failed
+
          - tests/strategies/test_06_macd_ema_fase_strategy.py:163 test_macd_ema_strategy
          - tests/strategies/test_18_etf_rotation_strategy.py:215 test_etf_rotation_strategy
          - tests/strategies/test_19_index_future_momentum.py:236 test_treasury_futures_macd_strategy

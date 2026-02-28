@@ -1,22 +1,27 @@
----
+- --
+
 name: 'step-07-project-type'
 description: 'Conduct project-type specific discovery using CSV-driven guidance'
 
 # File References
+
 nextStepFile: './step-08-scoping.md'
 outputFile: '{planning_artifacts}/prd.md'
 
 # Data Files
+
 projectTypesCSV: '../data/project-types.csv'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 7: Project-Type Deep Dive
 
-**Progress: Step 7 of 11** - Next: Scoping
+- *Progress: Step 7 of 11** - Next: Scoping
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -53,20 +58,21 @@ Conduct project-type specific discovery using CSV-driven guidance to define tech
 
 ### 1. Load Project-Type Configuration Data
 
-**Attempt subprocess data lookup:**
+- *Attempt subprocess data lookup:**
 
 "Your task: Lookup data in {projectTypesCSV}
 
-**Search criteria:**
+- *Search criteria:**
 - Find row where project_type matches {{projectTypeFromStep02}}
 
-**Return format:**
+- *Return format:**
+
 Return ONLY the matching row as a YAML-formatted object with these fields:
 project_type, key_questions, required_sections, skip_sections, innovation_signals
 
-**Do NOT return the entire CSV - only the matching row.**"
+- *Do NOT return the entire CSV - only the matching row.**"
 
-**Graceful degradation (if Task tool unavailable):**
+- *Graceful degradation (if Task tool unavailable):**
 - Load the CSV file directly
 - Find the matching row manually
 - Extract required fields:
@@ -87,7 +93,8 @@ For each question in `key_questions` from CSV:
 - Listen for their response and ask clarifying follow-ups
 - Connect answers to product value proposition
 
-**Example Flow:**
+- *Example Flow:**
+
 If key_questions = "Endpoints needed?;Authentication method?;Data formats?;Rate limits?;Versioning?;SDK needed?"
 
 Ask naturally:
@@ -140,6 +147,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## [Project Type] Specific Requirements
 
 ### Project-Type Overview
@@ -155,7 +163,8 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Implementation Considerations
 
 [Implementation specific requirements based on conversation]
-```
+
+```bash
 
 ### 6. Present MENU OPTIONS
 
@@ -163,21 +172,23 @@ Present the project-type content for review, then display menu:
 
 "Based on our conversation and best practices for this product type, I've documented the {project_type}-specific requirements for {{project_name}}.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from section 5]
 
-**What would you like to do?**"
+- *What would you like to do?**"
 
-Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Scoping (Step 8 of 11)"
+Display: "**Select:**[A] Advanced Elicitation [P] Party Mode [C] Continue to Scoping (Step 8 of 11)"
 
 #### Menu Handling Logic:
+
 - IF A: Read fully and follow: {advancedElicitationTask} with the current project-type content, process the enhanced technical insights that come back, ask user "Accept these improvements to the technical requirements? (y/n)", if yes update content with improvements then redisplay menu, if no keep original content then redisplay menu
 - IF P: Read fully and follow: {partyModeWorkflow} with the current project-type requirements, process the collaborative technical expertise and validation, ask user "Accept these changes to the technical requirements? (y/n)", if yes update content with improvements then redisplay menu, if no keep original content then redisplay menu
 - IF C: Append the final content to {outputFile}, update frontmatter by adding this step name to the end of the stepsCompleted array, then read fully and follow: {nextStepFile}
 - IF Any other: help user respond, then redisplay menu
 
 #### EXECUTION RULES:
+
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
@@ -206,25 +217,25 @@ When user selects 'C', append the content directly to the document using the str
 ❌ Not presenting A/P/C menu after content generation
 ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## PROJECT-TYPE EXAMPLES:
 
-**For api_backend:**
+- *For api_backend:**
 
 - Focus on endpoints, authentication, data schemas, rate limiting
 - Skip visual design and user journey sections
 - Generate API specification documentation
 
-**For mobile_app:**
+- *For mobile_app:**
 
 - Focus on platform requirements, device permissions, offline mode
 - Skip API endpoint documentation unless needed
 - Generate mobile-specific technical requirements
 
-**For saas_b2b:**
+- *For saas_b2b:**
 
 - Focus on multi-tenancy, permissions, integrations
 - Skip mobile-first considerations unless relevant

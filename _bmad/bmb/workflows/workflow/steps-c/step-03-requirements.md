@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-03-requirements'
 description: 'Gather detailed requirements through collaborative conversation'
 
@@ -8,7 +9,8 @@ outputFormatStandards: '../data/output-format-standards.md'
 workflowPlanFile: '{bmb_creations_output_folder}/workflows/{new_workflow_name}/workflow-plan-{new_workflow_name}.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 3: Requirements Gathering
 
@@ -56,13 +58,14 @@ To gather comprehensive requirements through conversation, building on the class
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Initialize Requirements
 
 "**Let's gather the requirements for your workflow.**
 
 We already know:
+
 - [Summarize vision from discovery]
 - [Summarize 4 key decisions from classification]
 
@@ -76,18 +79,19 @@ Load `{workflowExamples}` to reference diverse patterns.
 
 From our examples, workflows can be structured differently:"
 
-**Flow Patterns:**
-- **Linear:** Step 1 → Step 2 → Step 3 → Finish
-- **Looping:** Generate → Review → Generate more... until done
-- **Branching:** Different paths based on user choices
+- *Flow Patterns:**
+- **Linear:**Step 1 → Step 2 → Step 3 → Finish
+- **Looping:**Generate → Review → Generate more... until done
+- **Branching:**Different paths based on user choices
 - **Repeating:** Same steps, new content each session
 
 "Think about your workflow:
+
 - Should it go straight through, or loop/branch?
 - How many logical phases does it need?
 - What are the major milestones?"
 
-**Think about their response...**
+- *Think about their response...**
 
 ### 3. User Interaction Style
 
@@ -95,9 +99,9 @@ From our examples, workflows can be structured differently:"
 
 Think about the person running this workflow:"
 
-- **Highly Collaborative:** AI asks questions, guides, facilitates at each step
-- **Mostly Autonomous:** AI does the work with occasional checkpoints
-- **Guided Session:** AI leads through a structured experience
+- **Highly Collaborative:**AI asks questions, guides, facilitates at each step
+- **Mostly Autonomous:**AI does the work with occasional checkpoints
+- **Guided Session:**AI leads through a structured experience
 - **Mixed:** Some steps collaborative, some autonomous
 
 "Where does your workflow fit on this spectrum?
@@ -117,7 +121,7 @@ And are there specific decision points where the user MUST choose something?"
 
 ### 5. Output Specifications (IF document-producing)
 
-**ONLY if `workflowProducesDocuments: true` from classification:**
+- *ONLY if `workflowProducesDocuments: true` from classification:**
 
 Load `{outputFormatStandards}` and discuss:
 
@@ -125,40 +129,43 @@ Load `{outputFormatStandards}` and discuss:
 
 Since your workflow produces a document, let's decide the format:"
 
-**Four Template Types:**
+- *Four Template Types:**
 
-1. **Free-form (Recommended)** - Minimal structure, content-driven
+1. **Free-form (Recommended)**- Minimal structure, content-driven
    - Use for: Most collaborative workflows
    - Has: Basic frontmatter, progressive content, final polish step
 
-2. **Structured** - Required sections, flexible within each
+2.**Structured**- Required sections, flexible within each
+
    - Use for: Reports, proposals, documentation
    - Has: Clear section headers, consistent structure
 
-3. **Semi-structured** - Core sections + optional additions
+3.**Semi-structured**- Core sections + optional additions
+
    - Use for: Forms, checklists, meeting minutes
    - Has: Required fields, optional extras
 
-4. **Strict** - Exact format, specific fields
+4.**Strict** - Exact format, specific fields
+
    - Use for: Compliance, legal, regulated (rare)
    - Has: Precise requirements, validation
 
 "Which format fits your workflow best?"
 
-**If Free-form (most common):**
+- *If Free-form (most common):**
 - "We'll use a minimal template with basic frontmatter. The workflow will build the document section by section, with a final polish step to optimize flow."
 
-**If Structured/Semi-structured:**
+- *If Structured/Semi-structured:**
 - "What sections are required? Any optional sections?"
 
-**If Strict:**
+- *If Strict:**
 - "Do you have an existing template to follow, or should we design one?"
 
 Document the output format decision.
 
 ### 6. Output Specifications (IF non-document)
 
-**ONLY if `workflowProducesDocuments: false` from classification:**
+- *ONLY if `workflowProducesDocuments: false` from classification:**
 
 "**What does this workflow produce if not a document?**
 
@@ -174,6 +181,7 @@ Document what the workflow produces.
 "**How will we know this workflow succeeded?**
 
 Think about the end result:
+
 - What does 'done' look like?
 - What would make a user satisfied?
 - Are there quality criteria?
@@ -183,22 +191,22 @@ Think about the end result:
 
 ### 8. Instruction Style (NOW, Not Earlier)
 
-**We ask this NOW because we understand the workflow:**
+- *We ask this NOW because we understand the workflow:**
 
 "**How should the AI executing this workflow behave?**"
 
-**Intent-Based (Recommended for most):**
+- *Intent-Based (Recommended for most):**
 - Steps describe goals and principles
 - AI adapts conversation naturally
 - More flexible and responsive
 - Example: "Guide user to define requirements through open-ended discussion"
 
-**Prescriptive:**
+- *Prescriptive:**
 - Steps provide exact instructions
 - More controlled and predictable
 - Example: "Ask: 'What is your primary goal? A) Growth B) Efficiency C) Quality'"
 
-**Mixed:**
+- *Mixed:**
 - Some steps prescriptive, others intent-based
 - Use prescriptive for critical/required steps
 - Use intent-based for creative/facilitative steps
@@ -210,36 +218,38 @@ Think about the end result:
 Update `{workflowPlanFile}` with the requirements section:
 
 ```markdown
+
 ## Requirements
 
-**Flow Structure:**
+- *Flow Structure:**
 - Pattern: [linear/looping/branching/repeating]
 - Phases: [list major phases]
 - Estimated steps: [rough count]
 
-**User Interaction:**
+- *User Interaction:**
 - Style: [highly collaborative/mostly autonomous/guided/mixed]
 - Decision points: [where user must choose]
 - Checkpoint frequency: [how often to pause]
 
-**Inputs Required:**
+- *Inputs Required:**
 - Required: [list]
 - Optional: [list]
 - Prerequisites: [list]
 
-**Output Specifications:**
+- *Output Specifications:**
 - Type: [document/action/decision/temporary]
 - Format: [free-form/structured/semi-structured/strict OR describe non-document output]
 - Sections: [if structured]
 - Frequency: [single/batch/continuous]
 
-**Success Criteria:**
+- *Success Criteria:**
 - [list what success looks like]
 
-**Instruction Style:**
+- *Instruction Style:**
 - Overall: [intent-based/prescriptive/mixed]
 - Notes: [any specific style requirements]
-```
+
+```bash
 
 ### 10. Present MENU OPTIONS
 
@@ -258,7 +268,7 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - IF C: Save requirements to plan, update frontmatter, then load `{nextStepFile}`
 - IF Any other: Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -279,4 +289,4 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Not storing to standardized template
 - Proceeding without understanding the flow
 
-**Master Rule:** Requirements build on classification. Use the standardized template so the next steps can read consistent data.
+- *Master Rule:** Requirements build on classification. Use the standardized template so the next steps can read consistent data.

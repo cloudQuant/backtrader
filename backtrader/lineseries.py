@@ -51,15 +51,36 @@ class MinimalData:
         self._clock = None
 
     def __getitem__(self, key):
+        """Get item from the array at the specified index offset.
+
+        Args:
+            key: Index offset from the current position (_idx).
+
+        Returns:
+            float: Value at the computed index, or 0.0 if index is invalid.
+        """
         try:
             return self.array[self._idx + key]
         except (IndexError, TypeError):
             return 0.0
 
     def __len__(self):
+        """Return the length of the internal array.
+
+        Returns:
+            int: Length of the array.
+        """
         return len(self.array)
 
     def __getattr__(self, name):
+        """Return None for any missing attributes to prevent further errors.
+
+        Args:
+            name: Name of the attribute being accessed.
+
+        Returns:
+            None: Always returns None for missing attributes.
+        """
         # Return None for any missing attributes to prevent further errors
         return None
 
@@ -85,7 +106,19 @@ class MinimalOwner:
         self.data0 = None
 
     def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
-        """Minimal implementation for observers"""
+        """Minimal implementation for adding analyzer slave.
+
+        This is a no-op implementation used when the actual owner
+        is not available for observers and analyzers.
+
+        Args:
+            ancls: Analyzer class to add.
+            *anargs: Positional arguments for the analyzer.
+            **ankwargs: Keyword arguments for the analyzer.
+
+        Returns:
+            None: Always returns None.
+        """
         return None
 
 
@@ -116,9 +149,22 @@ class MinimalClock:
         return 1
 
     def __len__(self):
+        """Return the length of the minimal clock.
+
+        Returns:
+            int: Always returns 0 for minimal clock.
+        """
         return 0
 
     def __getattr__(self, name):
+        """Return None for any missing attributes to prevent further errors.
+
+        Args:
+            name: Name of the attribute being accessed.
+
+        Returns:
+            None: Always returns None for missing attributes.
+        """
         # Return None for any missing attributes to prevent further errors
         return None
 
@@ -150,6 +196,15 @@ class LineAlias:
         self.line = line
 
     def __get__(self, obj, cls=None):
+        """Get the line from the owner's lines buffer.
+
+        Args:
+            obj: The object owning the lines (typically a Lines instance).
+            cls: The class being accessed (unused).
+
+        Returns:
+            LineBuffer: The line at the stored index.
+        """
         return obj.lines[self.line]
 
     def __set__(self, obj, value):
@@ -193,10 +248,21 @@ class LinesManager:
     """Manager for lines operations without metaclass"""
 
     @staticmethod
-    def create_lines_class(
-        base_class, name, lines=(), extralines=0, otherbases=(), linesoverride=False, lalias=None
-    ):
-        """Create a lines class dynamically"""
+    def create_lines_class(base_class, name, lines=(), extralines=0, otherbases=(), linesoverride=False, lalias=None):
+        """Create a lines class dynamically.
+
+        Args:
+            base_class: The base class to inherit from.
+            name: Suffix for the new class name.
+            lines: Tuple of line names to add.
+            extralines: Number of extra unnamed lines.
+            otherbases: Other base classes to inherit lines from.
+            linesoverride: If True, discard base class lines.
+            lalias: Line aliases configuration.
+
+        Returns:
+            type: The dynamically created lines class.
+        """
         # Get lines from other bases
         obaseslines = ()
         obasesextralines = 0
@@ -307,14 +373,17 @@ class Lines:
         the baseclass will be the topmost class "Lines". This is intended to
         create a new hierarchy
         """
-        return LinesManager.create_lines_class(
-            cls, name, lines, extralines, otherbases, linesoverride, lalias
-        )
+        return LinesManager.create_lines_class(cls, name, lines, extralines, otherbases, linesoverride, lalias)
 
     @classmethod
     def _getlinealias(cls, i):
-        """
-        Return the alias for a line given the index
+        """Return the alias for a line given the index.
+
+        Args:
+            i: Index of the line.
+
+        Returns:
+            str: The line alias name, or empty string if index out of range.
         """
         lines = cls._getlines()
         if i >= len(lines):
@@ -394,7 +463,11 @@ class Lines:
                 self.lines.append(initlines[i])
 
     def __iter__(self):
-        """Allow proper iteration over lines without calling __getitem__ for each index"""
+        """Allow proper iteration over lines without calling __getitem__ for each index.
+
+        Returns:
+            iterator: Iterator over the lines list.
+        """
         # PERF: Use EAFP instead of double hasattr
         try:
             return iter(self.lines)
@@ -402,7 +475,11 @@ class Lines:
             return iter([])
 
     def __len__(self):
-        """Return the number of lines"""
+        """Return the number of lines.
+
+        Returns:
+            int: Number of lines in the lines list.
+        """
         # PERF: Use EAFP instead of double hasattr
         try:
             return len(self.lines)
@@ -434,6 +511,19 @@ class Lines:
         return self._getlinesextra()
 
     def __getitem__(self, line):
+        """Get a line by index.
+
+        This method implements dynamic line creation - accessing an index
+        beyond the current number of lines will create new lines up to
+        a reasonable limit.
+
+        Args:
+            line: Index of the line to retrieve.
+
+        Returns:
+            LineBuffer: The line at the specified index, or None if
+                the index exceeds the maximum reasonable limit.
+        """
         # PERFORMANCE OPTIMIZATION: Use EAFP pattern instead of isinstance check
         # This reduces isinstance calls and improves performance
         try:
@@ -485,6 +575,18 @@ class Lines:
         return self.lines[line].get(ago, size)
 
     def __setitem__(self, line, value):
+        """Set a line by index with proper binding support.
+
+        This method handles different types of values:
+        - Scalar values: Creates a LineNum (constant line)
+        - Indicators: Binds the indicator's output line to the parent's line
+        - LineBuffers: Adds binding for value propagation
+        - Iterables: Creates a new line from the iterable values
+
+        Args:
+            line: Line index or name to set.
+            value: Value to assign (scalar, indicator, or iterable).
+        """
         # CRITICAL FIX: Enhanced line assignment with proper scalar and indicator handling
         try:
             # CRITICAL FIX: Get the line index/name first
@@ -690,12 +792,34 @@ class Lines:
         return self.lines[line].buflen()
 
     # PERF: Class-level frozenset avoids recreating on every __getattr__ call
-    _CRITICAL_STRATEGY_ATTRS = frozenset({
-        "datas", "data", "broker", "cerebro", "env", "position",
-        "analyzer", "analyzers", "observers", "writers", "trades",
-        "orders", "stats", "chkmin", "chkmax", "chkvals", "chkargs",
-        "runonce", "preload", "exactbars", "writer", "_id", "_sizer", "dnames",
-    })
+    _CRITICAL_STRATEGY_ATTRS = frozenset(
+        {
+            "datas",
+            "data",
+            "broker",
+            "cerebro",
+            "env",
+            "position",
+            "analyzer",
+            "analyzers",
+            "observers",
+            "writers",
+            "trades",
+            "orders",
+            "stats",
+            "chkmin",
+            "chkmax",
+            "chkvals",
+            "chkargs",
+            "runonce",
+            "preload",
+            "exactbars",
+            "writer",
+            "_id",
+            "_sizer",
+            "dnames",
+        }
+    )
 
     # PERF: Pre-defined default line aliases tuple (avoid list recreation)
     _DEFAULT_LINE_ALIASES = ("close", "low", "high", "open", "volume", "openinterest", "datetime")
@@ -726,10 +850,12 @@ class Lines:
                 return None
             elif name == "_getlinealias":
                 aliases = Lines._DEFAULT_LINE_ALIASES
+
                 def default_getlinealias(index, _aliases=aliases):
                     if 0 <= index < len(_aliases):
                         return _aliases[index]
                     return f"line_{index}"
+
                 return default_getlinealias
             # Other private attributes: fail fast
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
@@ -754,6 +880,7 @@ class Lines:
 
         # "size" special case
         if name == "size":
+
             def size(_self=self):
                 try:
                     lines = _self.lines
@@ -763,6 +890,7 @@ class Lines:
                         return len(lines)
                 except (AttributeError, TypeError):
                     return 1
+
             return size
 
         # PERF: Fast reject for strategy attrs that should NOT delegate to lines
@@ -876,13 +1004,8 @@ class Lines:
                                     from .lineiterator import LineIterator
 
                                     if LineIterator.IndType in owner_ref._lineiterators:
-                                        if (
-                                            value
-                                            not in owner_ref._lineiterators[LineIterator.IndType]
-                                        ):
-                                            owner_ref._lineiterators[LineIterator.IndType].append(
-                                                value
-                                            )
+                                        if value not in owner_ref._lineiterators[LineIterator.IndType]:
+                                            owner_ref._lineiterators[LineIterator.IndType].append(value)
                                             value._owner = owner_ref
                                 return  # Don't set the attribute directly
 
@@ -1038,6 +1161,14 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if an attribute exists in the plotinfo object.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                bool: True if the attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
         def keys(self):
@@ -1047,11 +1178,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 list: List of non-private, non-callable attribute names.
             """
             # OPTIMIZED: Use __dict__ instead of dir() for better performance
-            return [
-                attr
-                for attr, val in self.__dict__.items()
-                if not attr.startswith("_") and not callable(val)
-            ]
+            return [attr for attr, val in self.__dict__.items() if not attr.startswith("_") and not callable(val)]
 
     plotinfo = PlotInfoObj()
 
@@ -1092,9 +1219,26 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if an attribute exists in the plotlines object.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                bool: True if the attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
         def __getattr__(self, name):
+            """Return an empty plotline object for missing attributes.
+
+            Args:
+                name: Name of the missing attribute.
+
+            Returns:
+                PlotLineObj: A default plotline object with safe defaults.
+            """
+
             # Return an empty plotline object for missing attributes
             class PlotLineObj:
                 """Default plotline object for missing line configurations.
@@ -1108,9 +1252,22 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 __module__ = "backtrader.lineseries"
 
                 def __repr__(self):
+                    """Return string representation of PlotLineObj.
+
+                    Returns:
+                        str: The string 'PlotLineObj'.
+                    """
                     return "PlotLineObj"
 
                 def rpartition(self, sep):
+                    """Partition string for compatibility.
+
+                    Args:
+                        sep: Separator string.
+
+                    Returns:
+                        tuple: A tuple of empty strings and 'PlotLineObj'.
+                    """
                     return ("", "", "PlotLineObj")
 
                 def _get(self, key, default=None):
@@ -1138,6 +1295,14 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                     return default
 
                 def __contains__(self, key):
+                    """Check if a key exists in the plotline object.
+
+                    Args:
+                        key: Attribute name to check.
+
+                    Returns:
+                        bool: Always returns False for default plotline.
+                    """
                     return False
 
             return PlotLineObj()
@@ -1157,12 +1322,20 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     @property
     def line(self):
-        """Return the first line (lines[0]) for single-line indicators"""
+        """Return the first line (lines[0]) for single-line indicators.
+
+        Returns:
+            LineBuffer: The first line in the lines collection.
+        """
         return self.lines[0]
 
     @property
     def l(self):
-        """Alias for lines - used in indicator next() methods like self.l.sma[0]"""
+        """Alias for lines - used in indicator next() methods like self.l.sma[0].
+
+        Returns:
+            Lines: The lines container object.
+        """
         return self.lines
 
     def __getattr__(self, name):
@@ -1437,6 +1610,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             return 0.0
 
     def __setitem__(self, key, value):
+        """Set a line value by index.
+
+        Delegates to the Lines.__setitem__ method which handles
+        line assignments properly including binding for indicators.
+
+        Args:
+            key: Line index or name.
+            value: Value to set.
+        """
         # Delegate to the Lines.__setitem__ method which handles line assignments properly
         self.lines[key] = value
 
@@ -1478,9 +1660,24 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         return label
 
     def _plotlabel(self):
+        """Internal method to get plot label from parameters.
+
+        Returns:
+            dict: Dictionary of parameter key-value pairs for plot labeling.
+        """
         return self.params._getkwargs()
 
     def _getline(self, line, minusall=False):
+        """Get a line by name or index.
+
+        Args:
+            line: Line name (string) or index (int).
+            minusall: If True and line is an index, subtract the total
+                number of lines from the index.
+
+        Returns:
+            LineBuffer: The requested line object.
+        """
         # get line by name or index
         if isinstance(line, string_types):
             lineobj = getattr(self.lines, line)
@@ -1590,7 +1787,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         self.lines.advance(size)
 
     def size(self):
-        """Return the number of lines in this LineSeries"""
+        """Return the number of lines in this LineSeries.
+
+        Returns:
+            int: Number of main lines (excluding extra lines).
+        """
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
         elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
@@ -1600,7 +1801,14 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     @property
     def chkmin(self):
-        """Property to ensure chkmin is never None for TestStrategy"""
+        """Property to ensure chkmin is never None for TestStrategy.
+
+        This property provides a safe default value for chkmin, which is
+        used in testing to validate minimum period requirements.
+
+        Returns:
+            int: The chkmin value, or 30 as a safe default.
+        """
         # CRITICAL FIX: Handle TestStrategy chkmin property access
         if hasattr(self, "__class__") and "TestStrategy" in self.__class__.__name__:
             # For TestStrategy, check if _chkmin was set by nextstart() method
@@ -1620,7 +1828,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     @chkmin.setter
     def chkmin(self, value):
-        """Setter for chkmin to store the value"""
+        """Setter for chkmin to store the value.
+
+        Args:
+            value: The minimum check value to store.
+        """
         self._chkmin = value
 
 
@@ -1714,14 +1926,21 @@ class LineSeriesStub(LineSeries):
             self.lines.advance(size)
 
     def qbuffer(self):
-        """Queue buffer operation (no-op for stub)."""
+        """Queue buffer operation (no-op for stub).
+
+        This method is a no-op in the stub implementation since
+        the underlying line manages its own buffering.
+        """
         pass
 
     def minbuffer(self, size):
         """Set minimum buffer size (no-op for stub).
 
+        This method is a no-op in the stub implementation since
+        the underlying line manages its own buffering.
+
         Args:
-            size: Minimum buffer size.
+            size: Minimum buffer size (ignored in stub).
         """
         pass
 
@@ -1764,24 +1983,13 @@ def _patch_strategy_clk_update():
                     clk_len = 1
 
                 # CRITICAL FIX: Set datetime safely
-                if (
-                    hasattr(self, "datas")
-                    and self.datas
-                    and hasattr(self, "lines")
-                    and hasattr(self.lines, "datetime")
-                ):
+                if hasattr(self, "datas") and self.datas and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
                     valid_data_times = []
                     for d in self.datas:
                         try:
-                            if (
-                                len(d) > 0
-                                and hasattr(d, "datetime")
-                                and hasattr(d.datetime, "__getitem__")
-                            ):
+                            if len(d) > 0 and hasattr(d, "datetime") and hasattr(d.datetime, "__getitem__"):
                                 dt_val = d.datetime[0]
-                                if dt_val is not None and not (
-                                    isinstance(dt_val, float) and math.isnan(dt_val)
-                                ):
+                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
                                     valid_data_times.append(dt_val)
                         except (IndexError, AttributeError, TypeError):
                             continue
@@ -1799,8 +2007,7 @@ def _patch_strategy_clk_update():
             # CRITICAL FIX: Handle normal case
             if not hasattr(self, "_dlens"):
                 self._dlens = [
-                    len(d) if hasattr(d, "__len__") else 0
-                    for d in (self.datas if hasattr(self, "datas") else [])
+                    len(d) if hasattr(d, "__len__") else 0 for d in (self.datas if hasattr(self, "datas") else [])
                 ]
 
             # Get new data lengths safely
@@ -1819,9 +2026,7 @@ def _patch_strategy_clk_update():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > old_len
-                    for old_len, nl in zip(self._dlens, newdlens)
-                    if old_len is not None and nl is not None
+                    nl > old_len for old_len, nl in zip(self._dlens, newdlens) if old_len is not None and nl is not None
                 )
             ):
                 try:
@@ -1833,12 +2038,7 @@ def _patch_strategy_clk_update():
             self._dlens = newdlens
 
             # CRITICAL FIX: Set datetime safely - CHECK IF EMPTY BEFORE CALLING max()
-            if (
-                hasattr(self, "datas")
-                and self.datas
-                and hasattr(self, "lines")
-                and hasattr(self.lines, "datetime")
-            ):
+            if hasattr(self, "datas") and self.datas and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
                 # CRITICAL PART: Collect valid datetime values
                 valid_data_times = [d.datetime[0] for d in self.datas if len(d)]
 

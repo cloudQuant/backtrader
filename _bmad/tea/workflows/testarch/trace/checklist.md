@@ -1,14 +1,14 @@
 # Requirements Traceability & Gate Decision - Validation Checklist
 
-**Workflow:** `testarch-trace`
-**Purpose:** Ensure complete traceability matrix with actionable gap analysis AND make deployment readiness decision (PASS/CONCERNS/FAIL/WAIVED)
+- *Workflow:** `testarch-trace`
+- *Purpose:**Ensure complete traceability matrix with actionable gap analysis AND make deployment readiness decision (PASS/CONCERNS/FAIL/WAIVED)
 
-This checklist covers **two sequential phases**:
+This checklist covers**two sequential phases**:
 
 - **PHASE 1**: Requirements Traceability (always executed)
 - **PHASE 2**: Quality Gate Decision (executed if `enable_gate_decision: true`)
 
----
+- --
 
 # PHASE 1: REQUIREMENTS TRACEABILITY
 
@@ -21,7 +21,7 @@ This checklist covers **two sequential phases**:
 - [ ] Story file is accessible (if using BMad mode)
 - [ ] Knowledge base is loaded (test-priorities, traceability, risk-governance)
 
----
+- --
 
 ## Context Loading
 
@@ -33,7 +33,7 @@ This checklist covers **two sequential phases**:
 - [ ] `PRD.md` loaded (if available)
 - [ ] Relevant knowledge fragments loaded from `tea-index.csv`
 
----
+- --
 
 ## Test Discovery and Cataloging
 
@@ -47,7 +47,7 @@ This checklist covers **two sequential phases**:
   - [ ] Priority markers (P0/P1/P2/P3)
 - [ ] All relevant test files found (no tests missed due to naming conventions)
 
----
+- --
 
 ## Criteria-to-Test Mapping
 
@@ -63,20 +63,20 @@ This checklist covers **two sequential phases**:
   - [ ] Test Level
   - [ ] Coverage Status
 
----
+- --
 
 ## Coverage Classification
 
 - [ ] Coverage status classified for each criterion:
-  - [ ] **FULL** - All scenarios validated at appropriate level(s)
-  - [ ] **PARTIAL** - Some coverage but missing edge cases or levels
-  - [ ] **NONE** - No test coverage at any level
-  - [ ] **UNIT-ONLY** - Only unit tests (missing integration/E2E validation)
-  - [ ] **INTEGRATION-ONLY** - Only API/Component tests (missing unit confidence)
+  - [ ] **FULL**- All scenarios validated at appropriate level(s)
+  - [ ]**PARTIAL**- Some coverage but missing edge cases or levels
+  - [ ]**NONE**- No test coverage at any level
+  - [ ]**UNIT-ONLY**- Only unit tests (missing integration/E2E validation)
+  - [ ]**INTEGRATION-ONLY**- Only API/Component tests (missing unit confidence)
 - [ ] Classification justifications provided
 - [ ] Edge cases considered in FULL vs PARTIAL determination
 
----
+- --
 
 ## Duplicate Coverage Detection
 
@@ -86,7 +86,7 @@ This checklist covers **two sequential phases**:
 - [ ] Recommendations provided for consolidation
 - [ ] Selective testing principles applied
 
----
+- --
 
 ## Gap Analysis
 
@@ -100,17 +100,17 @@ This checklist covers **two sequential phases**:
   - [ ] Auth/authz criteria missing denied/invalid path tests
   - [ ] Criteria with happy-path-only coverage (missing error scenarios)
 - [ ] Gaps prioritized by risk level using test-priorities framework:
-  - [ ] **CRITICAL** - P0 criteria without FULL coverage (BLOCKER)
-  - [ ] **HIGH** - P1 criteria without FULL coverage (PR blocker)
-  - [ ] **MEDIUM** - P2 criteria without FULL coverage (nightly gap)
-  - [ ] **LOW** - P3 criteria without FULL coverage (acceptable)
+  - [ ]**CRITICAL**- P0 criteria without FULL coverage (BLOCKER)
+  - [ ]**HIGH**- P1 criteria without FULL coverage (PR blocker)
+  - [ ]**MEDIUM**- P2 criteria without FULL coverage (nightly gap)
+  - [ ]**LOW**- P3 criteria without FULL coverage (acceptable)
 - [ ] Specific test recommendations provided for each gap:
   - [ ] Suggested test level (E2E, API, Component, Unit)
   - [ ] Test description (Given-When-Then)
   - [ ] Recommended test ID (e.g., 1.3-E2E-004)
   - [ ] Explanation of why test is needed
 
----
+- --
 
 ## Coverage Metrics
 
@@ -124,7 +124,7 @@ This checklist covers **two sequential phases**:
   - [ ] Component coverage %
   - [ ] Unit coverage %
 
----
+- --
 
 ## Test Quality Verification
 
@@ -139,9 +139,9 @@ For each mapped test, verify:
 
 Quality issues flagged:
 
-- [ ] **BLOCKER** issues identified (missing assertions, hard waits, flaky patterns)
-- [ ] **WARNING** issues identified (large files, slow tests, unclear structure)
-- [ ] **INFO** issues identified (style inconsistencies, missing documentation)
+- [ ]**BLOCKER**issues identified (missing assertions, hard waits, flaky patterns)
+- [ ]**WARNING**issues identified (large files, slow tests, unclear structure)
+- [ ]**INFO** issues identified (style inconsistencies, missing documentation)
 
 Knowledge fragments referenced:
 
@@ -150,7 +150,7 @@ Knowledge fragments referenced:
 - [ ] `network-first.md` for Playwright best practices
 - [ ] `data-factories.md` for test data patterns
 
----
+- --
 
 ## Phase 1 Deliverables Generated
 
@@ -175,7 +175,7 @@ Knowledge fragments referenced:
 - [ ] Link to traceability matrix included
 - [ ] Coverage summary included
 
----
+- --
 
 ## Phase 1 Quality Assurance
 
@@ -204,7 +204,7 @@ Knowledge fragments referenced:
 - [ ] Impact explained for each gap
 - [ ] Priorities clear (CRITICAL, HIGH, MEDIUM, LOW)
 
----
+- --
 
 ## Phase 1 Documentation
 
@@ -214,13 +214,13 @@ Knowledge fragments referenced:
 - [ ] Links are valid and accessible
 - [ ] Recommendations are clear and prioritized
 
----
+- --
 
 # PHASE 2: QUALITY GATE DECISION
 
-**Note**: Phase 2 executes only if `enable_gate_decision: true` in workflow.yaml
+- *Note**: Phase 2 executes only if `enable_gate_decision: true` in workflow.yaml
 
----
+- --
 
 ## Prerequisites
 
@@ -249,7 +249,7 @@ Knowledge fragments referenced:
 - [ ] `test-priorities.md` loaded successfully
 - [ ] `ci-burn-in.md` loaded (if burn-in results available)
 
----
+- --
 
 ## Process Steps
 
@@ -263,7 +263,7 @@ Knowledge fragments referenced:
 
 ### Step 2: Evidence Parsing
 
-**Test Results:**
+- *Test Results:**
 
 - [ ] Total test count extracted
 - [ ] Passed test count extracted
@@ -274,7 +274,7 @@ Knowledge fragments referenced:
 - [ ] P1 test pass rate calculated
 - [ ] Overall test pass rate calculated
 
-**Quality Assessments:**
+- *Quality Assessments:**
 
 - [ ] P0/P1/P2/P3 scenarios extracted from test-design.md (if available)
 - [ ] Risk scores extracted from test-design.md (if available)
@@ -283,14 +283,14 @@ Knowledge fragments referenced:
 - [ ] NFR status extracted from nfr-assessment.md (if available)
 - [ ] Security issues count extracted from nfr-assessment.md (if available)
 
-**Code Coverage:**
+- *Code Coverage:**
 
 - [ ] Line coverage percentage extracted (if available)
 - [ ] Branch coverage percentage extracted (if available)
 - [ ] Function coverage percentage extracted (if available)
 - [ ] Critical path coverage validated (if available)
 
-**Burn-in Results:**
+- *Burn-in Results:**
 
 - [ ] Burn-in iterations count extracted (if available)
 - [ ] Flaky tests count extracted (if available)
@@ -298,7 +298,7 @@ Knowledge fragments referenced:
 
 ### Step 3: Decision Rules Application
 
-**P0 Criteria Evaluation:**
+- *P0 Criteria Evaluation:**
 
 - [ ] P0 test pass rate evaluated (must be 100%)
 - [ ] P0 acceptance criteria coverage evaluated (must be 100%)
@@ -307,7 +307,7 @@ Knowledge fragments referenced:
 - [ ] Flaky tests evaluated (must be 0 if burn-in enabled)
 - [ ] P0 decision recorded: PASS or FAIL
 
-**P1 Criteria Evaluation:**
+- *P1 Criteria Evaluation:**
 
 - [ ] P1 test pass rate evaluated (threshold: min_p1_pass_rate)
 - [ ] P1 acceptance criteria coverage evaluated (PASS >=90%, CONCERNS 80-89%, FAIL <80%)
@@ -316,13 +316,13 @@ Knowledge fragments referenced:
 - [ ] Code coverage considered if available (informational unless explicitly required by policy)
 - [ ] P1 decision recorded: PASS or CONCERNS
 
-**P2/P3 Criteria Evaluation:**
+- *P2/P3 Criteria Evaluation:**
 
 - [ ] P2 failures tracked (informational, don't block if allow_p2_failures: true)
 - [ ] P3 failures tracked (informational, don't block if allow_p3_failures: true)
 - [ ] Residual risks documented
 
-**Final Decision:**
+- *Final Decision:**
 
 - [ ] Decision determined: PASS / CONCERNS / FAIL / WAIVED
 - [ ] Decision rationale documented
@@ -330,33 +330,33 @@ Knowledge fragments referenced:
 
 ### Step 4: Documentation
 
-**Gate Decision Document Created:**
+- *Gate Decision Document Created:**
 
 - [ ] Story/epic/release info section complete (ID, title, description, links)
 - [ ] Decision clearly stated (PASS / CONCERNS / FAIL / WAIVED)
 - [ ] Decision date recorded
 - [ ] Evaluator recorded (user or agent name)
 
-**Evidence Summary Documented:**
+- *Evidence Summary Documented:**
 
 - [ ] Test results summary complete (total, passed, failed, pass rates)
 - [ ] Coverage summary complete (P0/P1 criteria, code coverage)
 - [ ] NFR validation summary complete (security, performance, reliability, maintainability)
 - [ ] Flakiness summary complete (burn-in iterations, flaky test count)
 
-**Rationale Documented:**
+- *Rationale Documented:**
 
 - [ ] Decision rationale clearly explained
 - [ ] Key evidence highlighted
 - [ ] Assumptions and caveats noted (if any)
 
-**Residual Risks Documented (if CONCERNS or WAIVED):**
+- *Residual Risks Documented (if CONCERNS or WAIVED):**
 
 - [ ] Unresolved P1/P2 issues listed
 - [ ] Probability × impact estimated for each risk
 - [ ] Mitigations or workarounds described
 
-**Waivers Documented (if WAIVED):**
+- *Waivers Documented (if WAIVED):**
 
 - [ ] Waiver reason documented (business justification)
 - [ ] Waiver approver documented (name, role)
@@ -364,14 +364,14 @@ Knowledge fragments referenced:
 - [ ] Remediation plan documented (fix in next release, due date)
 - [ ] Monitoring plan documented
 
-**Critical Issues Documented (if FAIL or CONCERNS):**
+- *Critical Issues Documented (if FAIL or CONCERNS):**
 
 - [ ] Top 5-10 critical issues listed
 - [ ] Priority assigned to each issue (P0/P1/P2)
 - [ ] Owner assigned to each issue
 - [ ] Due date assigned to each issue
 
-**Recommendations Documented:**
+- *Recommendations Documented:**
 
 - [ ] Next steps clearly stated for decision type
 - [ ] Deployment recommendation provided
@@ -380,40 +380,40 @@ Knowledge fragments referenced:
 
 ### Step 5: Status Updates and Notifications
 
-**Gate YAML Created:**
+- *Gate YAML Created:**
 
 - [ ] Gate YAML snippet generated with decision and criteria
 - [ ] Evidence references included in YAML
 - [ ] Next steps included in YAML
 - [ ] YAML file saved to output folder
 
-**Stakeholder Notification Generated:**
+- *Stakeholder Notification Generated:**
 
 - [ ] Notification subject line created
 - [ ] Notification body created with summary
 - [ ] Recipients identified (PM, SM, DEV lead, stakeholders)
 - [ ] Notification ready for delivery (if notify_stakeholders: true)
 
-**Outputs Saved:**
+- *Outputs Saved:**
 
 - [ ] Gate decision document saved to `{output_file}`
 - [ ] Gate YAML saved to `{test_artifacts}/gate-decision-{target}.yaml`
 - [ ] All outputs are valid and readable
 
----
+- --
 
 ## Phase 2 Output Validation
 
 ### Gate Decision Document
 
-**Completeness:**
+- *Completeness:**
 
 - [ ] All required sections present (info, decision, evidence, rationale, next steps)
 - [ ] No placeholder text or TODOs left in document
 - [ ] All evidence references are accurate and complete
 - [ ] All links to artifacts are valid
 
-**Accuracy:**
+- *Accuracy:**
 
 - [ ] Decision matches applied criteria rules
 - [ ] Test results match CI/CD pipeline output
@@ -421,7 +421,7 @@ Knowledge fragments referenced:
 - [ ] NFR status matches assessment document
 - [ ] No contradictions or inconsistencies
 
-**Clarity:**
+- *Clarity:**
 
 - [ ] Decision rationale is clear and unambiguous
 - [ ] Technical jargon is explained or avoided
@@ -430,19 +430,19 @@ Knowledge fragments referenced:
 
 ### Gate YAML
 
-**Format:**
+- *Format:**
 
 - [ ] YAML is valid (no syntax errors)
 - [ ] All required fields present (target, decision, date, evaluator, criteria, evidence)
 - [ ] Field values are correct data types (numbers, strings, dates)
 
-**Content:**
+- *Content:**
 
 - [ ] Criteria values match decision document
 - [ ] Evidence references are accurate
 - [ ] Next steps align with decision type
 
----
+- --
 
 ## Phase 2 Quality Checks
 
@@ -475,7 +475,7 @@ Knowledge fragments referenced:
 - [ ] Terminology consistent with test-quality knowledge fragment
 - [ ] Decision matrix followed correctly
 
----
+- --
 
 ## Phase 2 Integration Points
 
@@ -493,7 +493,7 @@ Knowledge fragments referenced:
 - [ ] Next steps are specific and time-bound
 - [ ] Recipients are appropriate for decision type
 
----
+- --
 
 ## Phase 2 Compliance and Audit
 
@@ -519,7 +519,7 @@ Knowledge fragments referenced:
 - [ ] Regulatory requirements addressed (if applicable)
 - [ ] Documentation sufficient for external audit
 
----
+- --
 
 ## Phase 2 Edge Cases and Exceptions
 
@@ -554,7 +554,7 @@ Knowledge fragments referenced:
 - [ ] Waiver has remediation plan with concrete due date
 - [ ] Security vulnerabilities are NOT waived (enforced)
 
----
+- --
 
 # FINAL VALIDATION (Both Phases)
 
@@ -566,7 +566,7 @@ Knowledge fragments referenced:
 - [ ] Integration with external systems supported (JIRA, Azure DevOps)
 - [ ] Compliance requirements considered (if applicable)
 
----
+- --
 
 ## Documentation and Communication
 
@@ -577,11 +577,11 @@ Knowledge fragments referenced:
 - [ ] Recommendations are clear and prioritized
 - [ ] Gate decision is prominent and unambiguous (Phase 2)
 
----
+- --
 
 ## Final Validation
 
-**Phase 1 (Traceability):**
+- *Phase 1 (Traceability):**
 
 - [ ] All prerequisites met
 - [ ] All acceptance criteria mapped or gaps documented
@@ -590,7 +590,7 @@ Knowledge fragments referenced:
 - [ ] Test quality issues identified and flagged
 - [ ] Deliverables generated and saved
 
-**Phase 2 (Gate Decision):**
+- *Phase 2 (Gate Decision):**
 
 - [ ] All quality evidence gathered
 - [ ] Decision criteria applied correctly
@@ -599,38 +599,38 @@ Knowledge fragments referenced:
 - [ ] Status file updated (if enabled)
 - [ ] Stakeholders notified (if enabled)
 
-**Workflow Complete:**
+- *Workflow Complete:**
 
 - [ ] Phase 1 completed successfully
 - [ ] Phase 2 completed successfully (if enabled)
 - [ ] All outputs validated and saved
 - [ ] Ready to proceed based on gate decision
 
----
+- --
 
 ## Sign-Off
 
-**Phase 1 - Traceability Status:**
+- *Phase 1 - Traceability Status:**
 
 - [ ] ✅ PASS - All quality gates met, no critical gaps
 - [ ] ⚠️ WARN - P1 gaps exist, address before PR merge
 - [ ] ❌ FAIL - P0 gaps exist, BLOCKER for release
 
-**Phase 2 - Gate Decision Status (if enabled):**
+- *Phase 2 - Gate Decision Status (if enabled):**
 
 - [ ] ✅ PASS - Deploy to production
 - [ ] ⚠️ CONCERNS - Deploy with monitoring
 - [ ] ❌ FAIL - Block deployment, fix issues
 - [ ] 🔓 WAIVED - Deploy with business approval and remediation plan
 
-**Next Actions:**
+- *Next Actions:**
 
 - If PASS (both phases): Proceed to deployment
 - If WARN/CONCERNS: Address gaps/issues, proceed with monitoring
 - If FAIL (either phase): Run `*atdd` for missing tests, fix issues, re-run `*trace`
 - If WAIVED: Deploy with approved waiver, schedule remediation
 
----
+- --
 
 ## Notes
 
@@ -642,6 +642,6 @@ Record any issues, deviations, or important observations during workflow executi
 - **Waiver Details**: [Document waiver negotiations or approvals]
 - **Follow-up Actions**: [List any actions required after gate decision]
 
----
+- --
 
 <!-- Powered by BMAD-CORE™ -->

@@ -1,14 +1,17 @@
----
+- --
+
 name: 'step-v-09-project-type-validation'
 description: 'Project-Type Compliance Validation - Validate project-type specific requirements are properly documented'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-10-smart-validation.md'
 prdFile: '{prd_file_path}'
 prdFrontmatter: '{prd_frontmatter}'
 validationReportPath: '{validation_report_path}'
 projectTypesData: '../data/project-types.csv'
----
+
+- --
 
 # Step 9: Project-Type Compliance Validation
 
@@ -59,7 +62,7 @@ Validate project-type specific requirements are properly documented - different 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Project Types Data
 
@@ -67,6 +70,7 @@ Load and read the complete file at:
 `{projectTypesData}` (../data/project-types.csv)
 
 This CSV contains:
+
 - Detection signals for each project type
 - Required sections for each project type
 - Skip/excluded sections for each project type
@@ -77,9 +81,10 @@ Internalize this data - it drives what sections must be present or absent for ea
 ### 2. Extract Project Type Classification
 
 From PRD frontmatter, extract:
+
 - `classification.projectType` - what type of project is this?
 
-**Common project types:**
+- *Common project types:**
 - api_backend
 - web_app
 - mobile_app
@@ -90,20 +95,23 @@ From PRD frontmatter, extract:
 - infrastructure
 - other
 
-**If no projectType classification found:**
+- *If no projectType classification found:**
+
 Assume "web_app" (most common) and note in findings
 
 ### 3. Determine Required and Excluded Sections from CSV Data
 
-**From loaded project-types.csv data, for this project type:**
+- *From loaded project-types.csv data, for this project type:**
 
-**Required sections:** (from required_sections column)
+- *Required sections:** (from required_sections column)
+
 These MUST be present in the PRD
 
-**Skip sections:** (from skip_sections column)
+- *Skip sections:** (from skip_sections column)
+
 These MUST NOT be present in the PRD
 
-**Example mappings from CSV:**
+- *Example mappings from CSV:**
 - api_backend: Required=[endpoint_specs, auth_model, data_schemas], Skip=[ux_ui, visual_design]
 - mobile_app: Required=[platform_reqs, device_permissions, offline_mode], Skip=[desktop_features, cli_commands]
 - cli_tool: Required=[command_structure, output_formats, config_schema], Skip=[visual_design, ux_principles, touch_interactions]
@@ -111,37 +119,37 @@ These MUST NOT be present in the PRD
 
 ### 4. Validate Against CSV-Based Requirements
 
-**Based on project type, determine:**
+- *Based on project type, determine:**
 
-**api_backend:**
+- *api_backend:**
 - Required: Endpoint Specs, Auth Model, Data Schemas, API Versioning
 - Excluded: UX/UI sections, mobile-specific sections
 
-**web_app:**
+- *web_app:**
 - Required: User Journeys, UX/UI Requirements, Responsive Design
 - Excluded: None typically
 
-**mobile_app:**
+- *mobile_app:**
 - Required: Mobile UX, Platform specifics (iOS/Android), Offline mode
 - Excluded: Desktop-specific sections
 
-**desktop_app:**
+- *desktop_app:**
 - Required: Desktop UX, Platform specifics (Windows/Mac/Linux)
 - Excluded: Mobile-specific sections
 
-**data_pipeline:**
+- *data_pipeline:**
 - Required: Data Sources, Data Transformation, Data Sinks, Error Handling
 - Excluded: UX/UI sections
 
-**ml_system:**
+- *ml_system:**
 - Required: Model Requirements, Training Data, Inference Requirements, Model Performance
 - Excluded: UX/UI sections (unless ML UI)
 
-**library_sdk:**
+- *library_sdk:**
 - Required: API Surface, Usage Examples, Integration Guide
 - Excluded: UX/UI sections, deployment sections
 
-**infrastructure:**
+- *infrastructure:**
 - Required: Infrastructure Components, Deployment, Monitoring, Scaling
 - Excluded: Feature requirements (this is infrastructure, not product)
 
@@ -149,36 +157,39 @@ These MUST NOT be present in the PRD
 
 "Perform project-type compliance validation for {projectType}:
 
-**Check that required sections are present:**
+- *Check that required sections are present:**
+
 {List required sections for this project type}
 For each: Is it present in PRD? Is it adequately documented?
 
-**Check that excluded sections are absent:**
+- *Check that excluded sections are absent:**
+
 {List excluded sections for this project type}
 For each: Is it absent from PRD? (Should not be present)
 
 Build compliance table showing:
+
 - Required sections: [Present/Missing/Incomplete]
 - Excluded sections: [Absent/Present] (Present = violation)
 
 Return compliance table with findings."
 
-**Graceful degradation (if no Task tool):**
+- *Graceful degradation (if no Task tool):**
 - Manually check PRD for required sections
 - Manually check PRD for excluded sections
 - Build compliance table
 
 ### 5. Build Compliance Table
 
-**Required sections check:**
+- *Required sections check:**
 - For each required section: Present / Missing / Incomplete
 - Count: Required sections present vs total required
 
-**Excluded sections check:**
+- *Excluded sections check:**
 - For each excluded section: Absent / Present (violation)
 - Count: Excluded sections present (violations)
 
-**Total compliance score:**
+- *Total compliance score:**
 - Required: {present}/{total}
 - Excluded violations: {count}
 
@@ -187,43 +198,50 @@ Return compliance table with findings."
 Append to validation report:
 
 ```markdown
+
 ## Project-Type Compliance Validation
 
-**Project Type:** {projectType}
+- *Project Type:** {projectType}
 
 ### Required Sections
 
-**{Section 1}:** [Present/Missing/Incomplete]
+- *{Section 1}:** [Present/Missing/Incomplete]
+
 {If missing or incomplete: Note specific gaps}
 
-**{Section 2}:** [Present/Missing/Incomplete]
+- *{Section 2}:** [Present/Missing/Incomplete]
+
 {If missing or incomplete: Note specific gaps}
 
 [Continue for all required sections]
 
 ### Excluded Sections (Should Not Be Present)
 
-**{Section 1}:** [Absent/Present] ✓
+- *{Section 1}:** [Absent/Present] ✓
+
 {If present: This section should not be present for {projectType}}
 
-**{Section 2}:** [Absent/Present] ✓
+- *{Section 2}:** [Absent/Present] ✓
+
 {If present: This section should not be present for {projectType}}
 
 [Continue for all excluded sections]
 
 ### Compliance Summary
 
-**Required Sections:** {present}/{total} present
-**Excluded Sections Present:** {violations} (should be 0)
-**Compliance Score:** {percentage}%
+- *Required Sections:** {present}/{total} present
+- *Excluded Sections Present:** {violations} (should be 0)
+- *Compliance Score:** {percentage}%
 
-**Severity:** [Critical if required sections missing, Warning if incomplete, Pass if complete]
+- *Severity:** [Critical if required sections missing, Warning if incomplete, Pass if complete]
 
-**Recommendation:**
+- *Recommendation:**
+
 [If Critical] "PRD is missing required sections for {projectType}. Add missing sections to properly specify this type of project."
 [If Warning] "Some required sections for {projectType} are incomplete. Strengthen documentation."
 [If Pass] "All required sections for {projectType} are present. No excluded sections found."
-```
+
+```bash
 
 ### 7. Display Progress and Auto-Proceed
 
@@ -232,11 +250,11 @@ Display: "**Project-Type Compliance Validation Complete**
 Project Type: {projectType}
 Compliance: {score}%
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile} (step-v-10-smart-validation.md)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -260,4 +278,4 @@ Without delay, read fully and follow: {nextStepFile} (step-v-10-smart-validation
 - Not reporting findings to validation report
 - Not auto-proceeding
 
-**Master Rule:** Different project types have different requirements. API PRDs don't need UX sections - validate accordingly.
+- *Master Rule:** Different project types have different requirements. API PRDs don't need UX sections - validate accordingly.

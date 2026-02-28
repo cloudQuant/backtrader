@@ -41,14 +41,14 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         margin: 12mm 15mm;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
+    body {
         font-family: 'Helvetica Neue', Helvetica, Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
         font-size: 10pt;
         line-height: 1.4;
         color: #2c3e50;
         background: white;
     }
-    
+
     /* Header - Compact */
     .header {
         background: #1a365d;
@@ -57,8 +57,8 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         margin-bottom: 12px;
         border-bottom: 3px solid #3182ce;
     }
-    .header h1 { 
-        font-size: 18pt; 
+    .header h1 {
+        font-size: 18pt;
         font-weight: 600;
         margin-bottom: 3px;
     }
@@ -68,7 +68,7 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         margin-bottom: 10px;
         opacity: 0.9;
     }
-    .header-info { 
+    .header-info {
         font-size: 9pt;
         line-height: 1.6;
     }
@@ -76,12 +76,12 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         margin-right: 20px;
     }
     .header-info b { color: #90cdf4; }
-    
+
     /* Sections - Minimal spacing */
-    .section { 
+    .section {
         margin-bottom: 8px;
     }
-    .section h2 { 
+    .section h2 {
         padding: 6px 12px;
         margin-bottom: 8px;
         background: #edf2f7;
@@ -90,7 +90,7 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         font-weight: 600;
         color: #1a365d;
     }
-    
+
     /* Notes */
     .notes {
         background: #fffbeb;
@@ -100,31 +100,31 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         font-size: 9pt;
         color: #744210;
     }
-    
+
     /* Charts - New Page */
     .section.charts-page {
         page-break-before: always;
     }
-    .charts { 
+    .charts {
         padding: 0 12px;
     }
-    .charts img { 
+    .charts img {
         width: 100%;
         height: auto;
         margin-bottom: 12px;
         border: 1px solid #e2e8f0;
     }
-    
+
     /* Params - New Page */
     .section.params-page {
         page-break-before: always;
     }
-    
+
     /* Metrics Table - Compact */
     .metrics-container {
         padding: 0 12px;
     }
-    .metrics-table { 
+    .metrics-table {
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 10px;
@@ -155,7 +155,7 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
     }
     .metrics-table .value.positive { color: #276749; }
     .metrics-table .value.negative { color: #c53030; }
-    
+
     /* Parameters - Compact */
     .params-table {
         width: 60%;
@@ -172,11 +172,11 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
         font-weight: 500;
         width: 40%;
     }
-    
+
     /* Footer - Minimal */
-    .footer { 
-        text-align: center; 
-        color: #718096; 
+    .footer {
+        text-align: center;
+        color: #718096;
         font-size: 8pt;
         padding: 10px;
         border-top: 1px solid #e2e8f0;
@@ -229,7 +229,7 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
                 <td class="label">Profit Factor</td>
                 <td class="value">{{ "{:.2f}".format(profit_factor) if profit_factor else 'N/A' }}</td>
             </tr>
-            
+
             <tr class="group-header"><td colspan="4">Risk Metrics</td></tr>
             <tr>
                 <td class="label">Max Drawdown ($)</td>
@@ -249,7 +249,7 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
                 <td class="label">SQN Rating</td>
                 <td class="value">{{ sqn_human if sqn_human else 'N/A' }}</td>
             </tr>
-            
+
             <tr class="group-header"><td colspan="4">Trade Statistics</td></tr>
             <tr>
                 <td class="label">Total Trades</td>
@@ -360,10 +360,7 @@ class ReportGenerator:
             str: Output file path
         """
         if not JINJA2_AVAILABLE:
-            raise ImportError(
-                "jinja2 is required for HTML report generation. "
-                "Install it with: pip install jinja2"
-            )
+            raise ImportError("jinja2 is required for HTML report generation. Install it with: pip install jinja2")
 
         self._user = user
         self._memo = memo
@@ -397,8 +394,7 @@ class ReportGenerator:
         """
         if not WEASYPRINT_AVAILABLE:
             raise ImportError(
-                "weasyprint is required for PDF report generation. "
-                "Install it with: pip install weasyprint"
+                "weasyprint is required for PDF report generation. Install it with: pip install weasyprint"
             )
 
         self._user = user
@@ -440,9 +436,7 @@ class ReportGenerator:
             "strategy": strategy_info,
             "data": {
                 "name": data_info.get("data_name"),
-                "start_date": (
-                    str(data_info.get("start_date")) if data_info.get("start_date") else None
-                ),
+                "start_date": (str(data_info.get("start_date")) if data_info.get("start_date") else None),
                 "end_date": str(data_info.get("end_date")) if data_info.get("end_date") else None,
                 "bars": data_info.get("bars"),
             },
@@ -508,9 +502,7 @@ class ReportGenerator:
 
         if dates and values:
             # Equity curve
-            fig_equity = self.charts.plot_equity_curve(
-                dates, values, benchmark_dates, benchmark_values
-            )
+            fig_equity = self.charts.plot_equity_curve(dates, values, benchmark_dates, benchmark_values)
             if fig_equity:
                 equity_curve_img = self.charts.to_base64(fig_equity)
 
@@ -531,12 +523,8 @@ class ReportGenerator:
             "params": strategy_info.get("params", {}),
             # Data information
             "data_name": data_info.get("data_name", "Data"),
-            "start_date": (
-                str(data_info.get("start_date", ""))[:10] if data_info.get("start_date") else "N/A"
-            ),
-            "end_date": (
-                str(data_info.get("end_date", ""))[:10] if data_info.get("end_date") else "N/A"
-            ),
+            "start_date": (str(data_info.get("start_date", ""))[:10] if data_info.get("start_date") else "N/A"),
+            "end_date": (str(data_info.get("end_date", ""))[:10] if data_info.get("end_date") else "N/A"),
             "bars": data_info.get("bars", 0),
             # User information
             "user": self._user,

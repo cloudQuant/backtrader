@@ -53,13 +53,15 @@ Design detailed user journey flows for critical user interactions.
 Start with user journeys already defined in the PRD:
 "Great! Since we have the PRD available, let's build on the user journeys already documented there.
 
-**Existing User Journeys from PRD:**
+- *Existing User Journeys from PRD:**
+
 I've already loaded these user journeys from your PRD:
 [Journey narratives from PRD input documents]
 
-These journeys tell us **who** users are and **why** they take certain actions. Now we need to design **how** those journeys work in detail.
+These journeys tell us **who**users are and**why**they take certain actions. Now we need to design**how** those journeys work in detail.
 
-**Critical Journeys to Design Flows For:**
+- *Critical Journeys to Design Flows For:**
+
 Looking at the PRD journeys, I need to design detailed interaction flows for:
 
 - [Critical journey 1 identified from PRD narratives]
@@ -72,10 +74,11 @@ The PRD gave us the stories - now we design the mechanics!"
 
 For each critical journey, design detailed flow:
 
-**For [Journey Name]:**
+- *For [Journey Name]:**
+
 "Let's design the flow for users accomplishing [journey goal].
 
-**Flow Design Questions:**
+- *Flow Design Questions:**
 
 - How do users start this journey? (entry point)
 - What information do they need at each step?
@@ -90,7 +93,7 @@ For each critical journey, design detailed flow:
 Visualize each journey with Mermaid diagrams:
 "I'll create detailed flow diagrams for each journey showing:
 
-**[Journey Name] Flow:**
+- *[Journey Name] Flow:**
 
 - Entry points and triggers
 - Decision points and branches
@@ -112,7 +115,7 @@ For each journey, let's ensure we're:
 - Creating moments of delight or accomplishment
 - Handling edge cases and error recovery gracefully
 
-**Specific Optimizations:**
+- *Specific Optimizations:**
 
 - [Optimization 1 for journey efficiency]
 - [Optimization 2 for user delight]
@@ -124,17 +127,17 @@ Extract reusable patterns across journeys:
 "**Journey Patterns:**
 Across these flows, I'm seeing some common patterns we can standardize:
 
-**Navigation Patterns:**
+- *Navigation Patterns:**
 
 - [Navigation pattern 1]
 - [Navigation pattern 2]
 
-**Decision Patterns:**
+- *Decision Patterns:**
 
 - [Decision pattern 1]
 - [Decision pattern 2]
 
-**Feedback Patterns:**
+- *Feedback Patterns:**
 
 - [Feedback pattern 1]
 - [Feedback pattern 2]
@@ -150,6 +153,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## User Journey Flows
 
 ### [Journey 1 Name]
@@ -167,18 +171,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Flow Optimization Principles
 
 [Flow optimization principles based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated user journey content and present choices:
 "I've designed detailed user journey flows for {{project_name}}. These flows will guide the detailed design of each user interaction.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine our user journey designs
 [P] Party Mode - Bring different perspectives on user flows
 [C] Continue - Save this to the document and move to component strategy

@@ -1,14 +1,17 @@
----
+- --
+
 name: 'step-e-02-discover-edits'
 description: 'Discover what user wants to change - fix validation issues, make changes, or both'
 
 # File References
+
 nextStepFile: './step-e-03-fix-validation.md'
 directEditStep: './step-e-04-direct-edit.md'
 editPlan: '{bmb_creations_output_folder}/edit-plan-{workflow_name}.md'
 targetWorkflowPath: '{targetWorkflowPath}'
 validationReport: '{targetWorkflowPath}/validation-report-{workflow_name}.md'
----
+
+- --
 
 # Edit Step 2: Discover Edits
 
@@ -48,42 +51,43 @@ Discover what the user wants to do: fix validation issues, make specific changes
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Read Edit Plan Context
 
-**Load the editPlan file:**
+- *Load the editPlan file:**
+
 Read `{editPlan}` to understand the workflow context and validation status.
 
 ### 2. Determine Discovery Approach
 
-**IF validation report exists AND has issues:**
+- *IF validation report exists AND has issues:**
 
 Present fix-or-change options (step 3a)
 
-**ELSE (no validation report or no issues):**
+- *ELSE (no validation report or no issues):**
 
 Present direct change options (step 3b)
 
----
+- --
 
 ### 3a. Discovery With Validation Issues
 
-**IF validation report exists with issues:**
+- *IF validation report exists with issues:**
 
 "**I found an existing validation report for this workflow.**
 
-**Validation Summary:**
+- *Validation Summary:**
 - Status: {status from report}
 - Critical Issues: {count}
 - Warnings: {count}
 
-**What would you like to do?**
+- *What would you like to do?**
 
-**[F]ix Validation Issues** - Systematically fix issues found in validation
-**[C]hange Something** - Make a specific change (add feature, modify step, etc.)
-**[B]oth** - Fix validation issues, then make a change
-**[R]eview Report** - See detailed validation findings first
+- *[F]ix Validation Issues** - Systematically fix issues found in validation
+- *[C]hange Something** - Make a specific change (add feature, modify step, etc.)
+- *[B]oth** - Fix validation issues, then make a change
+- *[R]eview Report** - See detailed validation findings first
 
 #### Menu Handling Logic:
 
@@ -93,111 +97,116 @@ Present direct change options (step 3b)
 - IF R: Present key findings from validation report, then redisplay this menu
 - IF Any other: help user, then redisplay menu"
 
----
+- --
 
 ### 3b. Discovery For Direct Change
 
-**IF no validation report or no issues:**
+- *IF no validation report or no issues:**
 
 "**What would you like to change about this workflow?**
 
 I can help you modify:
 
-**[W]orkflow.md** - Goal, role, initialization, routing
-**[S]tep Files** - Add, remove, or modify steps
-**[D]ata Files** - Add or modify reference data in data/ folder
-**[T]emplates** - Add or modify output templates
-**[M]ultiple** - Changes across multiple areas
-**[O]ther** - Something else
+- *[W]orkflow.md** - Goal, role, initialization, routing
+- *[S]tep Files** - Add, remove, or modify steps
+- *[D]ata Files** - Add or modify reference data in data/ folder
+- *[T]emplates** - Add or modify output templates
+- *[M]ultiple** - Changes across multiple areas
+- *[O]ther** - Something else
 
 Which areas would you like to edit?"
 
 #### For Each Selected Category:
 
-**If Workflow.md selected:**
+- *If Workflow.md selected:**
 - "What aspects need change?"
   - Goal or description?
   - Role definition?
   - Architecture principles?
   - Initialization/routing?
 
-**If Step Files selected:**
+- *If Step Files selected:**
 - "What type of step changes?"
   - Add new step?
   - Remove existing step?
   - Modify step content?
   - Reorder steps?
 
-**If Data Files selected:**
+- *If Data Files selected:**
 - "What data changes?"
   - Add new data file?
   - Modify existing data?
   - Add/remove data entries?
 
-**If Templates selected:**
+- *If Templates selected:**
 - "What template changes?"
   - Add new template?
   - Modify template structure?
   - Change variable references?"
 
-**If Multiple selected:**
+- *If Multiple selected:**
 - Walk through each area systematically
 
-**If Other selected:**
+- *If Other selected:**
 - "Describe what you'd like to change..."
 
----
+- --
 
 ### 4. Document Fix Goals (For Validation Issues)
 
-**Append to editPlan:**
+- *Append to editPlan:**
 
 ```markdown
+
 ## Edit Goals
 
 ### Fix Validation Issues
 
-**Priority: High** - These issues prevent compliance
+- *Priority: High** - These issues prevent compliance
 
-**Critical Issues to Fix:**
+- *Critical Issues to Fix:**
 - [ ] {issue from validation report}
 - [ ] {issue from validation report}
 
-**Warnings to Address:**
+- *Warnings to Address:**
 - [ ] {warning from validation report}
 - [ ] {warning from validation report}
-```
 
----
+```bash
+
+- --
 
 ### 5. Document Change Goals
 
-**Append to editPlan:**
+- *Append to editPlan:**
 
 ```markdown
+
 ### Direct Changes
 
-**Category:** [workflow.md / step files / data / templates / other]
+- *Category:** [workflow.md / step files / data / templates / other]
 
-**Changes Requested:**
+- *Changes Requested:**
 - [ ] {specific change description}
 - [ ] {specific change description}
 
-**Rationale:**
+- *Rationale:**
+
 {user's explanation of why this change is needed}
-```
 
----
+```bash
+
+- --
 
 ### 6. Confirm and Route
 
-**Present summary for confirmation:**
+- *Present summary for confirmation:**
 
 "**Here's what I heard you want to do:**
 
 {Summarize all edit goals clearly}
 
-**Did I capture everything correctly?**
+- *Did I capture everything correctly?**
 
 - [C] Yes, continue
 - [M] Modify the plan
@@ -226,7 +235,7 @@ Display: "**Edit Goals Confirmed. Select an Option:** [C] Continue to Edits"
 
 ONLY WHEN user confirms goals and routing is determined, will you then load and read fully the appropriate next step file to execute.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -245,4 +254,4 @@ ONLY WHEN user confirms goals and routing is determined, will you then load and 
 - Not getting user confirmation
 - Missing changes user mentioned
 
-**Master Rule:** Discovery must be thorough. Document all goals. Route correctly based on whether fixes, changes, or both are needed.
+- *Master Rule:** Discovery must be thorough. Document all goals. Route correctly based on whether fixes, changes, or both are needed.

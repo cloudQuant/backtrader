@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-10-art-audio'
 description: 'Define art style and audio direction'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-10-art-audio.md'
 nextStepFile: './step-11-technical.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 10: Art & Audio
 
-**Progress: Step 10 of 14** - Next: Technical Specs
+- *Progress: Step 10 of 14**- Next: Technical Specs
 
 ## STEP GOAL:
 
@@ -71,30 +76,39 @@ Define the visual art style and audio/music direction for the game, establishing
 
 ### 1. Art Style Discovery
 
-**Guide user through visual direction:**
+- *Guide user through visual direction:**
 
 "Let's define the visual identity of {{game_name}}.
 
-**Art Style Categories:**
+- *Art Style Categories:**
 
 | Style           | Description                  | Examples                  |
+
 | --------------- | ---------------------------- | ------------------------- |
-| **Pixel Art**   | Retro-styled discrete pixels | Celeste, Shovel Knight    |
-| **Low-Poly**    | Simple 3D geometry           | Superhot, Monument Valley |
-| **Hand-Drawn**  | Illustration-like visuals    | Cuphead, Hollow Knight    |
-| **Realistic**   | Photorealistic graphics      | AAA titles                |
-| **Stylized 3D** | Non-realistic 3D             | Fortnite, Zelda: BotW     |
-| **Vector/Flat** | Clean shapes, minimal        | Thomas Was Alone          |
-| **Mixed Media** | Combining multiple styles    | Paper Mario               |
 
-**Visual Elements to Consider:**
+| **Pixel Art**| Retro-styled discrete pixels | Celeste, Shovel Knight    |
 
-- **Color Palette:** Vibrant, muted, monochromatic, complementary?
-- **Lighting:** Dramatic, soft, realistic, stylized?
-- **Camera:** 2D side, top-down, isometric, 3D third/first person?
+|**Low-Poly**| Simple 3D geometry           | Superhot, Monument Valley |
+
+|**Hand-Drawn**| Illustration-like visuals    | Cuphead, Hollow Knight    |
+
+|**Realistic**| Photorealistic graphics      | AAA titles                |
+
+|**Stylized 3D**| Non-realistic 3D             | Fortnite, Zelda: BotW     |
+
+|**Vector/Flat**| Clean shapes, minimal        | Thomas Was Alone          |
+
+|**Mixed Media** | Combining multiple styles    | Paper Mario               |
+
+- *Visual Elements to Consider:**
+
+- **Color Palette:**Vibrant, muted, monochromatic, complementary?
+- **Lighting:**Dramatic, soft, realistic, stylized?
+- **Camera:**2D side, top-down, isometric, 3D third/first person?
 - **Character Design:** Cute, realistic, abstract, iconic?
 
-**For {{game_type}} on {{platform}}, common art styles include:**
+- *For {{game_type}} on {{platform}}, common art styles include:**
+
 {typical_art_styles_for_game_type}
 
 What visual style do you envision for {{game_name}}?"
@@ -113,30 +127,39 @@ What references capture the visual feel you want?"
 
 ### 3. Audio Direction Discovery
 
-**Guide user through audio/music direction:**
+- *Guide user through audio/music direction:**
 
 "Now let's define the audio identity of {{game_name}}.
 
-**Music Style Considerations:**
+- *Music Style Considerations:**
 
 | Style              | Mood                | Examples              |
+
 | ------------------ | ------------------- | --------------------- |
-| **Chiptune/8-bit** | Retro, energetic    | Shovel Knight         |
-| **Orchestral**     | Epic, emotional     | Zelda, Final Fantasy  |
-| **Electronic**     | Modern, driving     | Hotline Miami, FURI   |
-| **Ambient**        | Atmospheric, subtle | Journey, INSIDE       |
-| **Rock/Metal**     | Intense, aggressive | DOOM, Devil May Cry   |
-| **Jazz/Lo-fi**     | Chill, stylish      | Persona, VA-11 Hall-A |
-| **Dynamic**        | Adapts to gameplay  | DOOM, Ape Out         |
 
-**Sound Design Considerations:**
+| **Chiptune/8-bit**| Retro, energetic    | Shovel Knight         |
 
-- **Feedback Sounds:** How responsive and punchy?
-- **Environmental Audio:** How immersive?
-- **Voice/Dialogue:** None, grunts, partial, full VO?
+|**Orchestral**| Epic, emotional     | Zelda, Final Fantasy  |
+
+|**Electronic**| Modern, driving     | Hotline Miami, FURI   |
+
+|**Ambient**| Atmospheric, subtle | Journey, INSIDE       |
+
+|**Rock/Metal**| Intense, aggressive | DOOM, Devil May Cry   |
+
+|**Jazz/Lo-fi**| Chill, stylish      | Persona, VA-11 Hall-A |
+
+|**Dynamic**        | Adapts to gameplay  | DOOM, Ape Out         |
+
+- *Sound Design Considerations:**
+
+- **Feedback Sounds:**How responsive and punchy?
+- **Environmental Audio:**How immersive?
+- **Voice/Dialogue:**None, grunts, partial, full VO?
 - **Accessibility:** Audio cues for visual elements?
 
-**For {{game_type}} games, typical audio approaches include:**
+- *For {{game_type}} games, typical audio approaches include:**
+
 {typical_audio_for_game_type}
 
 What audio direction fits {{game_name}}?"
@@ -146,6 +169,7 @@ What audio direction fits {{game_name}}?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Art and Audio Direction
 
 ### Art Style
@@ -183,7 +207,8 @@ Based on the conversation, prepare the content:
 ### Aesthetic Goals
 
 {{how_art_and_audio_support_game_pillars}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -191,17 +216,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Art & Audio Direction based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does the art style support your game pillars?
 - Is the audio direction achievable for your scope?
 - Do art and audio work together cohesively?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into aesthetic details
 [P] Party Mode - Get artistic perspectives
 [C] Continue - Save this and move to Technical Specs (Step 11 of 14)"
@@ -232,7 +258,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [art/audio content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -253,4 +279,4 @@ ONLY WHEN [C continue option] is selected and [art/audio content saved with fron
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

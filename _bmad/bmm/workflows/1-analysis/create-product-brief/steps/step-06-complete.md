@@ -1,10 +1,13 @@
----
+- --
+
 name: 'step-06-complete'
 description: 'Complete the product brief workflow, update status files, and suggest next steps for the project'
 
 # File References
+
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
----
+
+- --
 
 # Step 6: Product Brief Completion
 
@@ -55,12 +58,13 @@ Complete the product brief workflow, update status files, and provide guidance o
 
 ### 1. Announce Workflow Completion
 
-**Completion Announcement:**
+- *Completion Announcement:**
+
 "🎉 **Product Brief Complete, {{user_name}}!**
 
 I've successfully collaborated with you to create a comprehensive Product Brief for {{project_name}}.
 
-**What we've accomplished:**
+- *What we've accomplished:**
 
 - ✅ Executive Summary with clear vision and problem statement
 - ✅ Core Vision with solution definition and unique differentiators
@@ -69,13 +73,14 @@ I've successfully collaborated with you to create a comprehensive Product Brief 
 - ✅ MVP Scope with focused feature set and clear boundaries
 - ✅ Future Vision that inspires while maintaining current focus
 
-**The complete Product Brief is now available at:** `{outputFile}`
+- *The complete Product Brief is now available at:** `{outputFile}`
 
 This brief serves as the foundation for all subsequent product development activities and strategic decisions."
 
 ### 2. Document Quality Check
 
-**Completeness Validation:**
+- *Completeness Validation:**
+
 Perform final validation of the product brief:
 
 - Does the executive summary clearly communicate the vision and problem?
@@ -84,7 +89,7 @@ Perform final validation of the product brief:
 - Is MVP scope focused and realistic?
 - Does the brief provide clear direction for next steps?
 
-**Consistency Validation:**
+- *Consistency Validation:**
 
 - Do all sections align with the core problem statement?
 - Is user value consistently emphasized throughout?
@@ -93,7 +98,8 @@ Perform final validation of the product brief:
 
 ### 3. Suggest Next Steps
 
-**Recommended Next Workflow:**
+- *Recommended Next Workflow:**
+
 Provide guidance on logical next workflows:
 
 1. `create-prd` - Create detailed Product Requirements Document
@@ -102,12 +108,12 @@ Provide guidance on logical next workflows:
    - Success metrics become specific acceptance criteria
    - MVP scope becomes detailed feature specifications
 
-**Other Potential Next Steps:**
+- *Other Potential Next Steps:**
 
 1. `create-ux-design` - UX research and design (can run parallel with PRD)
 2. `domain-research` - Deep market or domain research (if needed)
 
-**Strategic Considerations:**
+- *Strategic Considerations:**
 
 - The PRD workflow builds directly on this brief for detailed planning
 - Consider team capacity and immediate priorities
@@ -130,7 +136,7 @@ Recap that the brief captures everything needed to guide subsequent product deve
 
 Product Brief complete. Read fully and follow: `_bmad/core/tasks/help.md` with argument `Validate PRD`.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -153,10 +159,10 @@ Product Brief complete. Read fully and follow: `_bmad/core/tasks/help.md` with a
 - User unclear about what happens next or available options
 - Document quality issues not identified or addressed
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## FINAL WORKFLOW COMPLETION
 
 This product brief is now complete and serves as the strategic foundation for the entire product lifecycle. All subsequent design, architecture, and development work should trace back to the vision, user needs, and success criteria documented in this brief.
 
-**Congratulations on completing the Product Brief for {{project_name}}!** 🎉
+- *Congratulations on completing the Product Brief for {{project_name}}!** 🎉

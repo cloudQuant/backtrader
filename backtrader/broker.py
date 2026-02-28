@@ -67,9 +67,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     """
 
     # Use new parameter descriptor
-    commission = ParameterDescriptor(
-        default=CommInfoBase(percabs=True), doc="Default commission scheme for all assets"
-    )
+    commission = ParameterDescriptor(default=CommInfoBase(percabs=True), doc="Default commission scheme for all assets")
 
     # Initialize
     def __init__(self, **kwargs):

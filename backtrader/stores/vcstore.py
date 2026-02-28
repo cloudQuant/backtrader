@@ -20,20 +20,19 @@ import collections
 import warnings
 
 warnings.warn(
-    "backtrader.stores.vcstore (VisualChart) is deprecated. "
-    "Consider migrating to CCXT, IB, or CTP integrations.",
+    "backtrader.stores.vcstore (VisualChart) is deprecated. Consider migrating to CCXT, IB, or CTP integrations.",
     DeprecationWarning,
     stacklevel=2,
 )
-import ctypes
-import os.path
-import threading
-import traceback
-from datetime import datetime, timedelta
-from queue import Queue
+import ctypes  # noqa: E402
+import os.path  # noqa: E402
+import threading  # noqa: E402
+import traceback  # noqa: E402
+from datetime import datetime, timedelta  # noqa: E402
+from queue import Queue  # noqa: E402
 
-from ..dataseries import TimeFrame
-from .mixins import ParameterizedSingletonMixin
+from ..dataseries import TimeFrame  # noqa: E402
+from .mixins import ParameterizedSingletonMixin  # noqa: E402
 
 
 # Copy SymbolInfo object, set syminfo attributes and values to class instance
@@ -581,9 +580,7 @@ class VCStore(ParameterizedSingletonMixin):
         self.vcds.ActiveEvents = 0
         # self.vcds.EventsType = self.vcdsmod.EF_Always
 
-        serie = self.vcds.NewDataSerie(
-            symbol, self.vcdsmod.CT_Days, 1, self.MAXDATE1, self.MAXDATE2
-        )
+        serie = self.vcds.NewDataSerie(symbol, self.vcdsmod.CT_Days, 1, self.MAXDATE1, self.MAXDATE2)
 
         syminfo = _SymInfo(serie.GetSymbolInfo())
         self.vcds.DeleteDataSource(serie)

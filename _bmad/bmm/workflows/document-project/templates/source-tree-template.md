@@ -1,6 +1,6 @@
 # {{project_name}} - Source Tree Analysis
 
-**Date:** {{date}}
+- *Date:**{{date}}
 
 ## Overview
 
@@ -15,14 +15,16 @@ This project is organized into {{parts_count}} distinct parts:
 {{#each project_parts}}
 
 - **{{part_name}}** (`{{root_path}}`): {{purpose}}
+
   {{/each}}
   {{/if}}
 
 ## Complete Directory Structure
 
-```
+```bash
 {{complete_source_tree}}
-```
+
+```bash
 
 ## Critical Directories
 
@@ -32,8 +34,9 @@ This project is organized into {{parts_count}} distinct parts:
 
 {{description}}
 
-**Purpose:** {{purpose}}
-**Contains:** {{contents_summary}}
+- *Purpose:** {{purpose}}
+- *Contains:** {{contents_summary}}
+
 {{#if entry_points}}**Entry Points:** {{entry_points}}{{/if}}
 {{#if integration_note}}**Integration:** {{integration_note}}{{/if}}
 
@@ -47,14 +50,17 @@ This project is organized into {{parts_count}} distinct parts:
 
 ### {{part_name}} Structure
 
-```
+```bash
 {{source_tree}}
-```
 
-**Key Directories:**
+```bash
+
+- *Key Directories:**
+
 {{#each critical_directories}}
 
 - **`{{path}}`**: {{description}}
+
   {{/each}}
 
 {{/each}}
@@ -65,9 +71,10 @@ This project is organized into {{parts_count}} distinct parts:
 
 ### {{from_part}} → {{to_part}}
 
-- **Location:** `{{integration_path}}`
-- **Type:** {{integration_type}}
-- **Details:** {{details}}
+- **Location:**`{{integration_path}}`
+- **Type:**{{integration_type}}
+- **Details:**{{details}}
+
   {{/each}}
 
 {{/if}}
@@ -76,11 +83,16 @@ This project is organized into {{parts_count}} distinct parts:
 
 {{#if is_single_part}}
 
-- **Main Entry:** `{{main_entry_point}}`
+- **Main Entry:**`{{main_entry_point}}`
+
   {{#if additional_entry_points}}
+
 - **Additional:**
+
   {{#each additional_entry_points}}
+
   - `{{path}}`: {{description}}
+
     {{/each}}
     {{/if}}
     {{else}}
@@ -88,8 +100,9 @@ This project is organized into {{parts_count}} distinct parts:
 
 ### {{part_name}}
 
-- **Entry Point:** `{{entry_point}}`
-- **Bootstrap:** {{bootstrap_description}}
+- **Entry Point:**`{{entry_point}}`
+- **Bootstrap:**{{bootstrap_description}}
+
   {{/each}}
   {{/if}}
 
@@ -103,9 +116,10 @@ This project is organized into {{parts_count}} distinct parts:
 
 ### {{file_type}}
 
-- **Pattern:** `{{pattern}}`
-- **Purpose:** {{purpose}}
-- **Examples:** {{examples}}
+- **Pattern:**`{{pattern}}`
+- **Purpose:**{{purpose}}
+- **Examples:**{{examples}}
+
   {{/each}}
 
 ## Asset Locations
@@ -114,6 +128,7 @@ This project is organized into {{parts_count}} distinct parts:
 {{#each asset_locations}}
 
 - **{{asset_type}}**: `{{location}}` ({{file_count}} files, {{total_size}})
+
   {{/each}}
   {{else}}
   No significant assets detected.
@@ -124,12 +139,13 @@ This project is organized into {{parts_count}} distinct parts:
 {{#each config_files}}
 
 - **`{{path}}`**: {{description}}
+
   {{/each}}
 
 ## Notes for Development
 
 {{development_notes}}
 
----
+- --
 
 _Generated using BMAD Method `document-project` workflow_

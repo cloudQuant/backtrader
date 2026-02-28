@@ -31,5 +31,5 @@ from .buysell import *
 from .drawdown import *
 from .logreturns import *
 from .timereturn import *
+from .trade_logger import TradeLogger as TradeLogger
 from .trades import *
-from .trade_logger import TradeLogger

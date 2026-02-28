@@ -102,9 +102,7 @@ class ConfigTab(BokehTab):
                             "name": name,
                             "length": str(length),
                             "timeframe": str(
-                                getattr(data._timeframe, "name", "N/A")
-                                if hasattr(data, "_timeframe")
-                                else "N/A"
+                                getattr(data._timeframe, "name", "N/A") if hasattr(data, "_timeframe") else "N/A"
                             ),
                         }
                     )

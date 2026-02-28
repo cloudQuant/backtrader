@@ -51,33 +51,41 @@ Collaboratively generate specific, critical rules that AI agents must follow whe
 
 Document the exact technology stack from discovery:
 
-**Core Technologies:**
+- *Core Technologies:**
+
 Based on user skill level, present findings:
 
-**Expert Mode:**
+- *Expert Mode:**
+
 "Technology stack from your architecture and package files:
 {{exact_technologies_with_versions}}
 
 Any critical version constraints I should document for agents?"
 
-**Intermediate Mode:**
+- *Intermediate Mode:**
+
 "I found your technology stack:
 
-**Core Technologies:**
+- *Core Technologies:**
+
 {{main_technologies_with_versions}}
 
-**Key Dependencies:**
+- *Key Dependencies:**
+
 {{important_dependencies_with_versions}}
 
 Are there any version constraints or compatibility notes agents should know about?"
 
-**Beginner Mode:**
+- *Beginner Mode:**
+
 "Here are the technologies you're using:
 
-**Main Technologies:**
+- *Main Technologies:**
+
 {{friendly_description_of_tech_stack}}
 
-**Important Notes:**
+- *Important Notes:**
+
 {{key_things_agents_need_to_know_about_versions}}
 
 Should I document any special version rules or compatibility requirements?"
@@ -86,64 +94,80 @@ Should I document any special version rules or compatibility requirements?"
 
 Focus on unobvious language patterns agents might miss:
 
-**TypeScript/JavaScript Rules:**
+- *TypeScript/JavaScript Rules:**
+
 "Based on your codebase, I notice some specific patterns:
 
-**Configuration Requirements:**
+- *Configuration Requirements:**
+
 {{typescript_config_rules}}
 
-**Import/Export Patterns:**
+- *Import/Export Patterns:**
+
 {{import_export_conventions}}
 
-**Error Handling Patterns:**
+- *Error Handling Patterns:**
+
 {{error_handling_requirements}}
 
 Are these patterns correct? Any other language-specific rules agents should follow?"
 
-**Python/Ruby/Other Language Rules:**
+- *Python/Ruby/Other Language Rules:**
+
 Adapt to the actual language in use with similar focused questions.
 
 ### 3. Framework-Specific Rules
 
 Document framework-specific patterns:
 
-**React Rules (if applicable):**
+- *React Rules (if applicable):**
+
 "For React development, I see these patterns:
 
-**Hooks Usage:**
+- *Hooks Usage:**
+
 {{hooks_usage_patterns}}
 
-**Component Structure:**
+- *Component Structure:**
+
 {{component_organization_rules}}
 
-**State Management:**
+- *State Management:**
+
 {{state_management_patterns}}
 
-**Performance Rules:**
+- *Performance Rules:**
+
 {{performance_optimization_requirements}}
 
 Should I add any other React-specific rules?"
 
-**Other Framework Rules:**
+- *Other Framework Rules:**
+
 Adapt for Vue, Angular, Next.js, Express, etc.
 
 ### 4. Testing Rules
 
 Focus on testing patterns that ensure consistency:
 
-**Test Structure Rules:**
+- *Test Structure Rules:**
+
 "Your testing setup shows these patterns:
 
-**Test Organization:**
+- *Test Organization:**
+
 {{test_file_organization}}
 
-**Mock Usage:**
+- *Mock Usage:**
+
 {{mock_patterns_and_conventions}}
 
-**Test Coverage Requirements:**
+- *Test Coverage Requirements:**
+
 {{coverage_expectations}}
 
-**Integration vs Unit Test Rules:**
+- *Integration vs Unit Test Rules:**
+
 {{test_boundary_patterns}}
 
 Are there testing rules agents should always follow?"
@@ -152,19 +176,24 @@ Are there testing rules agents should always follow?"
 
 Document critical style and quality rules:
 
-**Linting/Formatting:**
+- *Linting/Formatting:**
+
 "Your code style configuration requires:
 
-**ESLint/Prettier Rules:**
+- *ESLint/Prettier Rules:**
+
 {{specific_linting_rules}}
 
-**Code Organization:**
+- *Code Organization:**
+
 {{file_and_folder_structure_rules}}
 
-**Naming Conventions:**
+- *Naming Conventions:**
+
 {{naming_patterns_agents_must_follow}}
 
-**Documentation Requirements:**
+- *Documentation Requirements:**
+
 {{comment_and_documentation_patterns}}
 
 Any additional code quality rules?"
@@ -173,19 +202,24 @@ Any additional code quality rules?"
 
 Document workflow patterns that affect implementation:
 
-**Git/Repository Rules:**
+- *Git/Repository Rules:**
+
 "Your project uses these patterns:
 
-**Branch Naming:**
+- *Branch Naming:**
+
 {{branch_naming_conventions}}
 
-**Commit Message Format:**
+- *Commit Message Format:**
+
 {{commit_message_patterns}}
 
-**PR Requirements:**
+- *PR Requirements:**
+
 {{pull_request_checklist}}
 
-**Deployment Patterns:**
+- *Deployment Patterns:**
+
 {{deployment_considerations}}
 
 Should I document any other workflow rules?"
@@ -194,18 +228,22 @@ Should I document any other workflow rules?"
 
 Identify rules that prevent common mistakes:
 
-**Anti-Patterns to Avoid:**
+- *Anti-Patterns to Avoid:**
+
 "Based on your codebase, here are critical things agents must NOT do:
 
 {{critical_anti_patterns_with_examples}}
 
-**Edge Cases:**
+- *Edge Cases:**
+
 {{specific_edge_cases_agents_should_handle}}
 
-**Security Rules:**
+- *Security Rules:**
+
 {{security_considerations_agents_must_follow}}
 
-**Performance Gotchas:**
+- *Performance Gotchas:**
+
 {{performance_patterns_to_avoid}}
 
 Are there other 'gotchas' agents should know about?"
@@ -217,6 +255,7 @@ For each category, prepare lean content for the project context file:
 #### Content Structure:
 
 ```markdown
+
 ## Technology Stack & Versions
 
 {{concise_technology_list_with_exact_versions}}
@@ -246,7 +285,8 @@ For each category, prepare lean content for the project context file:
 ### Critical Don't-Miss Rules
 
 {{bullet_points_of_anti_patterns_and_edge_cases}}
-```
+
+```bash
 
 ### 9. Present Content and Menu
 
@@ -254,11 +294,12 @@ After each category, show the generated rules and present choices:
 
 "I've drafted the {{category_name}} rules for your project context.
 
-**Here's what I'll add:**
+- *Here's what I'll add:**
 
 [Show the complete markdown content for this category]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Explore nuanced rules for this category
 [P] Party Mode - Review from different implementation perspectives
 [C] Continue - Save these rules and move to next category"

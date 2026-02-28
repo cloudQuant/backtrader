@@ -2,10 +2,10 @@
 
 # Test Automation Expansion
 
-**Workflow ID**: `_bmad/tea/testarch/automate`
-**Version**: 5.0 (Step-File Architecture)
+- *Workflow ID**: `_bmad/tea/testarch/automate`
+- *Version**: 5.0 (Step-File Architecture)
 
----
+- --
 
 ## Overview
 
@@ -16,17 +16,17 @@ Modes:
 - **BMad-Integrated**: Uses story/PRD/test-design artifacts when available
 - **Standalone**: Analyzes existing codebase without BMad artifacts
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This workflow uses **step-file architecture** for disciplined execution:
+This workflow uses **step-file architecture**for disciplined execution:
 
 - **Micro-file Design**: Each step is self-contained
 - **JIT Loading**: Only the current step file is in memory
 - **Sequential Enforcement**: Execute steps in order without skipping
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

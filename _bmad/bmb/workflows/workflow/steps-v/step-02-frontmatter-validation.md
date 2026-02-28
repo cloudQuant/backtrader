@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-02-frontmatter-validation'
 description: 'Validate frontmatter compliance across all step files'
 
@@ -6,7 +7,8 @@ nextStepFile: './step-02b-path-violations.md'
 targetWorkflowPath: '{workflow_folder_path}'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 frontmatterStandards: '../data/frontmatter-standards.md'
----
+
+- --
 
 # Validation Step 2: Frontmatter Validation
 
@@ -46,18 +48,18 @@ To validate that EVERY step file's frontmatter follows the frontmatter standards
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Load Frontmatter Standards
 
 Load {frontmatterStandards} to understand validation criteria.
 
-**Key Rules:**
+- *Key Rules:**
 1. Only variables USED in the step may be in frontmatter
 2. All file references MUST use `{variable}` format
 3. Paths within workflow folder MUST be relative - NO `workflow_path` allowed
 
-**Forbidden Patterns:**
+- *Forbidden Patterns:**
 - `workflow_path: '...'` - use relative paths instead
 - `thisStepFile: '...'` - remove unless actually referenced in body
 - `workflowFile: '...'` - remove unless actually referenced in body
@@ -66,52 +68,64 @@ Load {frontmatterStandards} to understand validation criteria.
 
 ### 2. Validate EVERY Step File - Systematic Algorithm with Subprocess Optimization
 
-**DO NOT BE LAZY - For EACH step file, launch a subprocess that:**
+- *DO NOT BE LAZY - For EACH step file, launch a subprocess that:**
 
 1. Loads that file
 2. Loads {frontmatterStandards} to understand validation criteria
 3. Performs all frontmatter validation checks on that file (extract variables, check usage, validate paths)
-4. **EITHER** updates the validation report directly with its findings
-5. **OR** returns structured findings to parent for aggregation
+4. **EITHER**updates the validation report directly with its findings
 
-**SUBPROCESS ANALYSIS PATTERN:**
+5.**OR** returns structured findings to parent for aggregation
+
+- *SUBPROCESS ANALYSIS PATTERN:**
 
 For each file, the subprocess performs the following deep analysis:
 
 #### Step 2.1: Extract Frontmatter Variables
 
 ```python
+
 # Algorithm to extract variables from frontmatter:
+
 1. Find content between first `---` and second `---`
 2. For each line, extract key before `:`
 3. Skip `name`, `description`, and comment lines starting with `#`
 4. Collect all variable names
-```
 
+```bash
 Example frontmatter:
+
 ```yaml
----
+
+- --
+
 # File References
+
 nextStepFile: './step-02-vision.md'
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}.md'
 workflow_path: '{project-root}/...'  # ❌ FORBIDDEN
-thisStepFile: './step-01-init.md'     # ❌ Likely unused
----
-```
 
+thisStepFile: './step-01-init.md'     # ❌ Likely unused
+
+- --
+
+```bash
 Variables extracted: `nextStepFile`, `outputFile`, `workflow_path`, `thisStepFile`
 
 #### Step 2.2: Check Each Variable Is Used
 
 ```python
+
 # Algorithm to check variable usage:
+
 for each variable in extracted_variables:
     search_body = "{variableName}"  # with curly braces
     if search_body NOT found in step body (after frontmatter):
         MARK_AS_UNUSED(variable)
-```
 
-**Example:**
+```bash
+
+- *Example:**
 - Variable `nextStepFile`: Search body for `{nextStepFile}` → Found in line 166 ✅
 - Variable `thisStepFile`: Search body for `{thisStepFile}` → Not found ❌ VIOLATION
 
@@ -120,7 +134,9 @@ for each variable in extracted_variables:
 For each variable containing a file path:
 
 ```python
+
 # Algorithm to validate paths:
+
 if path contains "{workflow_path}":
     MARK_AS_VIOLATION("workflow_path is forbidden - use relative paths")
 
@@ -134,9 +150,10 @@ if path is to parent folder template:
 
 if path contains "{project-root}" and is internal workflow reference:
     MARK_AS_VIOLATION("Internal paths must be relative, not project-root")
-```
 
-**RETURN FORMAT:**
+```bash
+
+- *RETURN FORMAT:**
 
 Subprocess returns file name, frontmatter compliance status, unused variables found, path violations, and overall status (PASS/FAIL). Include specific variable names and violation details for documentation.
 
@@ -145,6 +162,7 @@ Check ALL files systematically. Return findings for compilation and appendage to
 ### 3. Aggregate Findings and Document Results
 
 Document frontmatter validation results in the validation report showing:
+
 - Which files were checked
 - Frontmatter compliance status for each file
 - Unused variables found in each file
@@ -154,6 +172,7 @@ Document frontmatter validation results in the validation report showing:
 ### 4. List All Violations
 
 Document all violations found in the validation report, including:
+
 - Specific files with violations
 - Unused variable names and why they're unused
 - Forbidden patterns detected with explanation
@@ -166,14 +185,15 @@ Update {validationReportFile} - replace "## Frontmatter Validation *Pending...*"
 
 ### 6. Save Report and Auto-Proceed
 
-**CRITICAL:** Save the validation report BEFORE loading next step.
+- *CRITICAL:** Save the validation report BEFORE loading next step.
 
 Then immediately load, read entire file, then execute {nextStepFile}.
 
-**Display:**
+- *Display:**
+
 "**Frontmatter validation complete.** Proceeding to Menu Handling Validation..."
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -196,4 +216,4 @@ Then immediately load, read entire file, then execute {nextStepFile}.
 - Not returning structured findings OR updating report from subprocess
 - Not saving report before proceeding
 
-**Master Rule:** Validation is systematic and thorough using subprocess optimization. DO NOT BE LAZY. For EACH file, launch a subprocess that validates frontmatter, checks variable usage, validates paths, and returns findings. Auto-proceed through all validation steps.
+- *Master Rule:** Validation is systematic and thorough using subprocess optimization. DO NOT BE LAZY. For EACH file, launch a subprocess that validates frontmatter, checks variable usage, validates paths, and returns findings. Auto-proceed through all validation steps.

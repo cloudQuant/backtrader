@@ -36,217 +36,229 @@ Begin systematic review of all generated ideas:
 
 "**Outstanding creative work!** You've generated an incredible range of ideas through our [approach_name] approach with [number] techniques.
 
-**Session Achievement Summary:**
+- *Session Achievement Summary:**
 
-- **Total Ideas Generated:** [number] ideas across [number] techniques
-- **Creative Techniques Used:** [list of completed techniques]
+- **Total Ideas Generated:**[number] ideas across [number] techniques
+- **Creative Techniques Used:**[list of completed techniques]
 - **Session Focus:** [session_topic] with emphasis on [session_goals]
 
-**Now let's organize these creative gems and identify your most promising opportunities for action.**
+- *Now let's organize these creative gems and identify your most promising opportunities for action.**
 
-**Loading all generated ideas for systematic organization...**"
+- *Loading all generated ideas for systematic organization...**"
 
 ### 2. Theme Identification and Clustering
 
 Group related ideas into meaningful themes:
 
-**Theme Analysis Process:**
+- *Theme Analysis Process:**
+
 "I'm analyzing all your generated ideas to identify natural themes and patterns. This will help us see the bigger picture and prioritize effectively.
 
-**Emerging Themes I'm Identifying:**
+- *Emerging Themes I'm Identifying:**
 
-**Theme 1: [Theme Name]**
+- *Theme 1: [Theme Name]**
+
 _Focus: [Description of what this theme covers]_
 
-- **Ideas in this cluster:** [List 3-5 related ideas]
+- **Ideas in this cluster:**[List 3-5 related ideas]
 - **Pattern Insight:** [What connects these ideas]
 
-**Theme 2: [Theme Name]**
+- *Theme 2: [Theme Name]**
+
 _Focus: [Description of what this theme covers]_
 
-- **Ideas in this cluster:** [List 3-5 related ideas]
+- **Ideas in this cluster:**[List 3-5 related ideas]
 - **Pattern Insight:** [What connects these ideas]
 
-**Theme 3: [Theme Name]**
+- *Theme 3: [Theme Name]**
+
 _Focus: [Description of what this theme covers]_
 
-- **Ideas in this cluster:** [List 3-5 related ideas]
+- **Ideas in this cluster:**[List 3-5 related ideas]
 - **Pattern Insight:** [What connects these ideas]
 
-**Additional Categories:**
+- *Additional Categories:**
 
-- **[Cross-cutting Ideas]:** [Ideas that span multiple themes]
-- **[Breakthrough Concepts]:** [Particularly innovative or surprising ideas]
+- **[Cross-cutting Ideas]:**[Ideas that span multiple themes]
+- **[Breakthrough Concepts]:**[Particularly innovative or surprising ideas]
 - **[Implementation-Ready Ideas]:** [Ideas that seem immediately actionable]"
 
 ### 3. Present Organized Idea Themes
 
 Display systematically organized ideas for user review:
 
-**Organized by Theme:**
+- *Organized by Theme:**
 
 "**Your Brainstorming Results - Organized by Theme:**
 
-**[Theme 1]: [Theme Description]**
+- *[Theme 1]: [Theme Description]**
 
-- **[Idea 1]:** [Development potential and unique insight]
-- **[Idea 2]:** [Development potential and unique insight]
+- **[Idea 1]:**[Development potential and unique insight]
+- **[Idea 2]:**[Development potential and unique insight]
 - **[Idea 3]:** [Development potential and unique insight]
 
-**[Theme 2]: [Theme Description]**
+- *[Theme 2]: [Theme Description]**
 
-- **[Idea 1]:** [Development potential and unique insight]
+- **[Idea 1]:**[Development potential and unique insight]
 - **[Idea 2]:** [Development potential and unique insight]
 
-**[Theme 3]: [Theme Description]**
+- *[Theme 3]: [Theme Description]**
 
-- **[Idea 1]:** [Development potential and unique insight]
+- **[Idea 1]:**[Development potential and unique insight]
 - **[Idea 2]:** [Development potential and unique insight]
 
-**Breakthrough Concepts:**
+- *Breakthrough Concepts:**
 
-- **[Innovative Idea]:** [Why this represents a significant breakthrough]
+- **[Innovative Idea]:**[Why this represents a significant breakthrough]
 - **[Unexpected Connection]:** [How this creates new possibilities]
 
-**Which themes or specific ideas stand out to you as most valuable?**"
+- *Which themes or specific ideas stand out to you as most valuable?**"
 
 ### 4. Facilitate Prioritization
 
 Guide user through strategic prioritization:
 
-**Prioritization Framework:**
+- *Prioritization Framework:**
 
 "Now let's identify your most promising ideas based on what matters most for your **[session_goals]**.
 
-**Prioritization Criteria for Your Session:**
+- *Prioritization Criteria for Your Session:**
 
-- **Impact:** Potential effect on [session_topic] success
-- **Feasibility:** Implementation difficulty and resource requirements
-- **Innovation:** Originality and competitive advantage
+- **Impact:**Potential effect on [session_topic] success
+- **Feasibility:**Implementation difficulty and resource requirements
+- **Innovation:**Originality and competitive advantage
 - **Alignment:** Match with your stated constraints and goals
 
-**Quick Prioritization Exercise:**
+- *Quick Prioritization Exercise:**
 
 Review your organized ideas and identify:
 
-1. **Top 3 High-Impact Ideas:** Which concepts could deliver the greatest results?
-2. **Easiest Quick Wins:** Which ideas could be implemented fastest?
-3. **Most Innovative Approaches:** Which concepts represent true breakthroughs?
+1. **Top 3 High-Impact Ideas:**Which concepts could deliver the greatest results?
 
-**What stands out to you as most valuable? Share your top priorities and I'll help you develop action plans.**"
+2.**Easiest Quick Wins:**Which ideas could be implemented fastest?
+3.**Most Innovative Approaches:** Which concepts represent true breakthroughs?
+
+- *What stands out to you as most valuable? Share your top priorities and I'll help you develop action plans.**"
 
 ### 5. Develop Action Plans
 
 Create concrete next steps for prioritized ideas:
 
-**Action Planning Process:**
+- *Action Planning Process:**
 
 "**Excellent choices!** Let's develop actionable plans for your top priority ideas.
 
-**For each selected idea, let's explore:**
+- *For each selected idea, let's explore:**
 
-- **Immediate Next Steps:** What can you do this week?
-- **Resource Requirements:** What do you need to move forward?
-- **Potential Obstacles:** What challenges might arise?
+- **Immediate Next Steps:**What can you do this week?
+- **Resource Requirements:**What do you need to move forward?
+- **Potential Obstacles:**What challenges might arise?
 - **Success Metrics:** How will you know it's working?
 
-**Idea [Priority Number]: [Idea Name]**
-**Why This Matters:** [Connection to user's goals]
-**Next Steps:**
+- *Idea [Priority Number]: [Idea Name]**
+- *Why This Matters:** [Connection to user's goals]
+- *Next Steps:**
 
 1. [Specific action step 1]
 2. [Specific action step 2]
 3. [Specific action step 3]
 
-**Resources Needed:** [List of requirements]
-**Timeline:** [Implementation estimate]
-**Success Indicators:** [How to measure progress]
+- *Resources Needed:** [List of requirements]
+- *Timeline:** [Implementation estimate]
+- *Success Indicators:** [How to measure progress]
 
-**Would you like me to develop similar action plans for your other top ideas?**"
+- *Would you like me to develop similar action plans for your other top ideas?**"
 
 ### 6. Create Comprehensive Session Documentation
 
 Prepare final session output:
 
-**Session Documentation Structure:**
+- *Session Documentation Structure:**
 
 "**Creating your comprehensive brainstorming session documentation...**
 
 This document will include:
 
-- **Session Overview:** Context, goals, and approach used
-- **Complete Idea Inventory:** All concepts organized by theme
-- **Prioritization Results:** Your selected top ideas and rationale
-- **Action Plans:** Concrete next steps for implementation
+- **Session Overview:**Context, goals, and approach used
+- **Complete Idea Inventory:**All concepts organized by theme
+- **Prioritization Results:**Your selected top ideas and rationale
+- **Action Plans:**Concrete next steps for implementation
 - **Session Insights:** Key learnings and creative breakthroughs
 
-**Your brainstorming session has produced [number] organized ideas across [number] themes, with [number] prioritized concepts ready for action planning.**"
+- *Your brainstorming session has produced [number] organized ideas across [number] themes, with [number] prioritized concepts ready for action planning.**"
 
-**Append to document:**
+- *Append to document:**
 
 ```markdown
+
 ## Idea Organization and Prioritization
 
-**Thematic Organization:**
+- *Thematic Organization:**
+
 [Content showing all ideas organized by themes]
 
-**Prioritization Results:**
+- *Prioritization Results:**
 
-- **Top Priority Ideas:** [Selected priorities with rationale]
-- **Quick Win Opportunities:** [Easy implementation ideas]
+- **Top Priority Ideas:**[Selected priorities with rationale]
+- **Quick Win Opportunities:**[Easy implementation ideas]
 - **Breakthrough Concepts:** [Innovative approaches for longer-term]
 
-**Action Planning:**
+- *Action Planning:**
+
 [Detailed action plans for top priorities]
 
 ## Session Summary and Insights
 
-**Key Achievements:**
+- *Key Achievements:**
 
 - [Major accomplishments of the session]
 - [Creative breakthroughs and insights]
 - [Actionable outcomes generated]
 
-**Session Reflections:**
+- *Session Reflections:**
+
 [Content about what worked well and key learnings]
-```
+
+```bash
 
 ### 7. Session Completion and Next Steps
 
 Provide final session wrap-up and forward guidance:
 
-**Session Completion:**
+- *Session Completion:**
 
 "**Congratulations on an incredibly productive brainstorming session!**
 
-**Your Creative Achievements:**
+- *Your Creative Achievements:**
 
-- **[Number]** breakthrough ideas generated for **[session_topic]**
-- **[Number]** organized themes identifying key opportunity areas
-- **[Number prioritized concepts** with concrete action plans
+- **[Number]**breakthrough ideas generated for**[session_topic]**
+- **[Number]**organized themes identifying key opportunity areas
+- **[Number prioritized concepts**with concrete action plans
 - **Clear pathway** from creative ideas to practical implementation
 
-**Key Session Insights:**
+- *Key Session Insights:**
 
 - [Major insight about the topic or problem]
 - [Discovery about user's creative thinking or preferences]
 - [Breakthrough connection or innovative approach]
 
-**What Makes This Session Valuable:**
+- *What Makes This Session Valuable:**
 
 - Systematic exploration using proven creativity techniques
 - Balance of divergent and convergent thinking
 - Actionable outcomes rather than just ideas
 - Comprehensive documentation for future reference
 
-**Your Next Steps:**
+- *Your Next Steps:**
 
-1. **Review** your session document when you receive it
-2. **Begin** with your top priority action steps this week
-3. **Share** promising concepts with stakeholders if relevant
-4. **Schedule** follow-up sessions as ideas develop
+1. **Review**your session document when you receive it
 
-**Ready to complete your session documentation?**
+2.**Begin**with your top priority action steps this week
+3.**Share**promising concepts with stakeholders if relevant
+4.**Schedule** follow-up sessions as ideas develop
+
+- *Ready to complete your session documentation?**
+
 [C] Complete - Generate final brainstorming session document
 
 ### 8. Handle Completion Selection

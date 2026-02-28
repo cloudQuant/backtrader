@@ -2,7 +2,7 @@
 
 This checklist ensures the framework workflow completes successfully.
 
----
+- --
 
 ## Prerequisites
 
@@ -11,7 +11,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] No existing test framework conflicts
 - [ ] Write permissions to create directories
 
----
+- --
 
 ## Engine Detection
 
@@ -19,7 +19,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] Engine version detected
 - [ ] Project structure understood
 
----
+- --
 
 ## Unity-Specific Checks
 
@@ -32,7 +32,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] Sample Play Mode test created
 - [ ] Tests compile without errors
 
----
+- --
 
 ## Unreal-Specific Checks
 
@@ -43,7 +43,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] Test flags set correctly (`ProductFilter`)
 - [ ] Tests compile without errors
 
----
+- --
 
 ## Godot-Specific Checks
 
@@ -56,7 +56,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] `before_each`/`after_each` patterns used
 - [ ] Tests run without errors
 
----
+- --
 
 ## Sample Tests
 
@@ -66,7 +66,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] Tests demonstrate framework capabilities
 - [ ] Tests are syntactically correct
 
----
+- --
 
 ## Documentation
 
@@ -76,7 +76,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] CI integration commands included
 - [ ] Best practices section included
 
----
+- --
 
 ## Quality Checks
 
@@ -86,7 +86,7 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] Cleanup prevents orphan objects
 - [ ] Tests are deterministic
 
----
+- --
 
 ## Completion Criteria
 
@@ -96,8 +96,8 @@ This checklist ensures the framework workflow completes successfully.
 - [ ] Sample tests run successfully
 - [ ] Documentation complete
 
----
+- --
 
-**Completed by:** {name}
-**Date:** {date}
-**Engine:** {Unity | Unreal | Godot}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Engine:** {Unity | Unreal | Godot}

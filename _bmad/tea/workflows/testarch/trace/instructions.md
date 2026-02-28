@@ -1,25 +1,25 @@
 # Requirements Traceability & Quality Gate
 
-**Workflow:** `testarch-trace`
-**Version:** 5.0 (Step-File Architecture)
+- *Workflow:** `testarch-trace`
+- *Version:**5.0 (Step-File Architecture)
 
----
+- --
 
 ## Overview
 
 Create a requirements-to-tests traceability matrix, analyze coverage gaps, and optionally make a gate decision (PASS/CONCERNS/FAIL/WAIVED) based on evidence.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This workflow uses **step-file architecture**:
+This workflow uses**step-file architecture**:
 
 - **Micro-file Design**: Each step is self-contained
 - **JIT Loading**: Only the current step file is in memory
 - **Sequential Enforcement**: Execute steps in order
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

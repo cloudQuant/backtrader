@@ -1,16 +1,18 @@
----
+- --
+
 name: 'step-06-resolve-findings'
 description: 'Handle review findings interactively, apply fixes, update tech-spec with final status'
 
 workflow_path: '{project-root}/_bmad/gds/workflows/gds-quick-flow/quick-dev'
 thisStepFile: './step-06-resolve-findings.md'
----
+
+- --
 
 # Step 6: Resolve Findings
 
-**Goal:** Handle adversarial review findings interactively, apply fixes, finalize tech-spec.
+- *Goal:** Handle adversarial review findings interactively, apply fixes, finalize tech-spec.
 
----
+- --
 
 ## AVAILABLE STATE
 
@@ -21,28 +23,29 @@ From previous steps:
 - `{tech_spec_path}` - Tech-spec file (if Mode A)
 - Findings table from step-05
 
----
+- --
 
 ## RESOLUTION OPTIONS
 
 Present choice to user:
 
-```
+```bash
 How would you like to handle these findings?
 
-**[1] Walk through** - Discuss each finding individually
-**[2] Auto-fix** - Automatically fix issues classified as "real"
-**[3] Skip** - Acknowledge and proceed to commit
-```
+- *[1] Walk through** - Discuss each finding individually
+- *[2] Auto-fix** - Automatically fix issues classified as "real"
+- *[3] Skip**- Acknowledge and proceed to commit
 
----
+```bash
+
+- --
 
 ## OPTION 1: WALK THROUGH
 
 For each finding in order:
 
 1. Present the finding with context
-2. Ask: **fix now / skip / discuss**
+2. Ask:**fix now / skip / discuss**
 3. If fix: Apply the fix immediately
 4. If skip: Note as acknowledged, continue
 5. If discuss: Provide more context, re-ask
@@ -50,7 +53,7 @@ For each finding in order:
 
 After all findings processed, summarize what was fixed/skipped.
 
----
+- --
 
 ## OPTION 2: AUTO-FIX
 
@@ -58,16 +61,19 @@ After all findings processed, summarize what was fixed/skipped.
 2. Apply fixes for each real finding
 3. Report what was fixed:
 
-```
-**Auto-fix Applied:**
+```bash
+
+- *Auto-fix Applied:**
 - F1: {description of fix}
 - F3: {description of fix}
+
 ...
 
 Skipped (noise/uncertain): F2, F4
-```
 
----
+```bash
+
+- --
 
 ## OPTION 3: SKIP
 
@@ -75,7 +81,7 @@ Skipped (noise/uncertain): F2, F4
 2. Note that user chose to proceed without fixes
 3. Continue to completion
 
----
+- --
 
 ## UPDATE TECH-SPEC (Mode A only)
 
@@ -84,31 +90,38 @@ If `{execution_mode}` is "tech-spec":
 1. Load `{tech_spec_path}`
 2. Update status to "Completed"
 3. Add review notes:
+
    ```
-   ## Review Notes
+
+## Review Notes
+
    - Adversarial review completed
    - Findings: {count} total, {fixed} fixed, {skipped} skipped
    - Resolution approach: {walk-through/auto-fix/skip}
-   ```
-4. Save changes
 
----
+   ```
+
+1. Save changes
+
+- --
 
 ## COMPLETION OUTPUT
 
-```
-**Review complete. Ready to commit.**
+```bash
 
-**Implementation Summary:**
+- *Review complete. Ready to commit.**
+
+- *Implementation Summary:**
 - {what was implemented}
 - Files modified: {count}
 - Tests: {status}
 - Review findings: {X} addressed, {Y} skipped
 
 {Explain what was implemented based on game_dev_experience}
-```
 
----
+```bash
+
+- --
 
 ## WORKFLOW COMPLETE
 
@@ -120,7 +133,7 @@ User can:
 - Run additional tests
 - Start new Quick Dev session
 
----
+- --
 
 ## SUCCESS METRICS
 

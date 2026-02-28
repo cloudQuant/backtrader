@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-04-agents'
 description: 'Create agent placeholder/spec files'
 
@@ -7,7 +8,8 @@ agentSpecTemplate: '../data/agent-spec-template.md'
 agentArchitectureFile: '../data/agent-architecture.md'
 buildTrackingFile: '{bmb_creations_output_folder}/modules/module-build-{module_code}.md'
 targetLocation: '{build_tracking_targetLocation}'
----
+
+- --
 
 # Step 4: Agent Specs
 
@@ -31,7 +33,7 @@ Create agent placeholder/spec files based on the brief.
 - ✅ These are specs, not full agents (agent-builder does that)
 - ✅ Keep it high-level
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -42,6 +44,7 @@ Load `{agentArchitectureFile}` for guidance.
 ### 2. Get Agent Roster from Brief
 
 Extract from the brief:
+
 - Agent names
 - Roles
 - Workflows they're responsible for
@@ -55,14 +58,16 @@ Load `{agentSpecTemplate}` and create:
 `{targetLocation}/agents/{agent_name}.spec.md`
 
 With content:
+
 ```markdown
+
 # Agent Specification: {agent_name}
 
-**Module:** {module_code}
-**Status:** Placeholder — To be created via create-agent workflow
-**Created:** {date}
+- *Module:** {module_code}
+- *Status:** Placeholder — To be created via create-agent workflow
+- *Created:** {date}
 
----
+- --
 
 ## Agent Metadata
 
@@ -75,9 +80,10 @@ agent:
     icon: {agent_icon}
     module: {module_code}
     hasSidecar: {false/true}
-```
 
----
+```bash
+
+- --
 
 ## Agent Persona
 
@@ -97,17 +103,19 @@ agent:
 
 {agent_principles}
 
----
+- --
 
 ## Agent Menu
 
 ### Planned Commands
 
 | Trigger | Command | Description | Workflow |
+
 |---------|---------|-------------|----------|
+
 {agent_menu_table}
 
----
+- --
 
 ## Agent Integration
 
@@ -120,16 +128,17 @@ agent:
 
 {workflow_references}
 
----
+- --
 
 ## Implementation Notes
 
-**Use the create-agent workflow to build this agent.**
+- *Use the create-agent workflow to build this agent.**
 
----
+- --
 
 _Spec created on {date} via BMAD Module workflow_
-```
+
+```bash
 
 ### 4. Create All Agent Specs
 
@@ -138,6 +147,7 @@ Iterate through each agent from the brief and create their spec file.
 ### 5. Update Build Tracking
 
 Update `{buildTrackingFile}`:
+
 - Add 'step-04-agents' to stepsCompleted
 - List all agent specs created
 
@@ -152,12 +162,12 @@ Update `{buildTrackingFile}`:
 
 ### 7. MENU OPTIONS
 
-**Select an Option:** [C] Continue
+- *Select an Option:** [C] Continue
 
 - IF C: Update tracking, load `{nextStepFile}`
 - IF Any other: Help, then redisplay menu
 
----
+- --
 
 ## Success Metrics
 

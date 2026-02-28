@@ -4,7 +4,7 @@
 
 {{vehicle_physics}}
 
-**Handling systems:**
+- *Handling systems:**
 
 - Physics model (arcade vs. simulation vs. hybrid)
 - Vehicle stats (speed, acceleration, handling, braking, weight)
@@ -16,7 +16,7 @@
 
 {{vehicle_roster}}
 
-**Vehicle design:**
+- *Vehicle design:**
 
 - Vehicle types (cars, bikes, boats, etc.)
 - Vehicle classes (lightweight, balanced, heavyweight)
@@ -28,7 +28,7 @@
 
 {{track_design}}
 
-**Course design:**
+- *Course design:**
 
 - Track variety (circuits, point-to-point, open world)
 - Track length and lap counts
@@ -41,7 +41,7 @@
 
 {{race_mechanics}}
 
-**Core racing:**
+- *Core racing:**
 
 - Starting mechanics (countdown, reaction time)
 - Checkpoint system
@@ -54,7 +54,7 @@
 
 {{powerups_boost}}
 
-**Enhancement systems (if arcade-style):**
+- *Enhancement systems (if arcade-style):**
 
 - Powerup types (offensive, defensive, utility)
 - Boost mechanics (drift boost, nitro, slipstream)
@@ -66,7 +66,7 @@
 
 {{game_modes}}
 
-**Mode variety:**
+- *Mode variety:**
 
 - Standard race
 - Time trial
@@ -79,7 +79,7 @@
 
 {{progression}}
 
-**Player advancement:**
+- *Player advancement:**
 
 - Career structure
 - Unlockable vehicles and tracks

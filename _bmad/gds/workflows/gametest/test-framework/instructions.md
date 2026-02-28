@@ -2,61 +2,63 @@
 
 # Game Test Framework Setup
 
-**Workflow ID**: `_bmad/gds/gametest/framework`
-**Version**: 1.0 (BMad v6)
+- *Workflow ID**: `_bmad/gds/gametest/framework`
+- *Version**: 1.0 (BMad v6)
 
----
+- --
 
 ## Overview
 
 Initialize a production-ready game test framework for Unity, Unreal Engine, or Godot projects. This workflow scaffolds the complete testing infrastructure including unit tests, integration tests, and play mode tests appropriate for the detected game engine.
 
----
+- --
 
 ## Preflight Requirements
 
-**Critical:** Verify these requirements before proceeding. If any fail, HALT and notify the user.
+- *Critical:**Verify these requirements before proceeding. If any fail, HALT and notify the user.
 
 - ✅ Game project exists with identifiable engine
 - ✅ No test framework already configured (check for existing test directories)
 - ✅ Project structure is accessible
 
----
+- --
 
 ## Step 1: Detect Game Engine
 
 ### Actions
 
-1. **Identify Engine Type**
+1.**Identify Engine Type**
 
    Look for engine-specific files:
+
    - **Unity**: `Assets/`, `ProjectSettings/ProjectSettings.asset`, `*.unity` scene files
    - **Unreal**: `*.uproject`, `Source/`, `Config/DefaultEngine.ini`
    - **Godot**: `project.godot`, `*.tscn`, `*.gd` files
 
-2. **Verify Engine Version**
+1. **Verify Engine Version**
    - Unity: Check `ProjectSettings/ProjectVersion.txt`
    - Unreal: Check `*.uproject` file for `EngineAssociation`
    - Godot: Check `project.godot` for `config_version`
 
-3. **Check for Existing Test Framework**
+1. **Check for Existing Test Framework**
    - Unity: Check for `Tests/` folder, `*.Tests.asmdef`
    - Unreal: Check for `Tests/` in Source, `*Tests.Build.cs`
    - Godot: Check for `tests/` folder, GUT plugin in `addons/gut/`
 
-**Halt Condition:** If existing framework detected, offer upgrade path or HALT.
+- *Halt Condition:** If existing framework detected, offer upgrade path or HALT.
 
----
+- --
 
 ## Step 2: Scaffold Framework
 
 ### Unity Test Framework
 
-**Knowledge Base Reference**: `knowledge/unity-testing.md`
+- *Knowledge Base Reference**: `knowledge/unity-testing.md`
 
 1. **Create Directory Structure**
 
    ```
+
    Assets/
    ├── Tests/
    │   ├── EditMode/
@@ -67,7 +69,7 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    │       └── ExamplePlayModeTest.cs
    ```
 
-2. **Generate Assembly Definitions**
+1. **Generate Assembly Definitions**
 
    `EditModeTests.asmdef`:
 
@@ -93,7 +95,7 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    }
    ```
 
-3. **Generate Sample Tests**
+1. **Generate Sample Tests**
 
    Edit Mode test example:
 
@@ -148,15 +150,16 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    }
    ```
 
----
+- --
 
 ### Unreal Engine Automation
 
-**Knowledge Base Reference**: `knowledge/unreal-testing.md`
+- *Knowledge Base Reference**: `knowledge/unreal-testing.md`
 
 1. **Create Directory Structure**
 
    ```
+
    Source/
    ├── <ProjectName>/
    │   └── ...
@@ -167,7 +170,7 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
            └── PlayerCombatTests.cpp
    ```
 
-2. **Generate Module Build File**
+1. **Generate Module Build File**
 
    `<ProjectName>Tests.Build.cs`:
 
@@ -194,15 +197,17 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    }
    ```
 
-3. **Generate Sample Tests**
+1. **Generate Sample Tests**
 
    ```cpp
-   #include "Misc/AutomationTest.h"
+
+# include "Misc/AutomationTest.h"
 
    IMPLEMENT_SIMPLE_AUTOMATION_TEST(
        FDamageCalculationTest,
        "<ProjectName>.Combat.DamageCalculation",
        EAutomationTestFlags::ApplicationContextMask |
+
        EAutomationTestFlags::ProductFilter
    )
 
@@ -222,15 +227,16 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    }
    ```
 
----
+- --
 
 ### Godot GUT Framework
 
-**Knowledge Base Reference**: `knowledge/godot-testing.md`
+- *Knowledge Base Reference**: `knowledge/godot-testing.md`
 
 1. **Create Directory Structure**
 
    ```
+
    project/
    ├── addons/
    │   └── gut/ (plugin files)
@@ -242,7 +248,7 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    └── gut_config.json
    ```
 
-2. **Generate GUT Configuration**
+1. **Generate GUT Configuration**
 
    `gut_config.json`:
 
@@ -259,7 +265,7 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
    }
    ```
 
-3. **Generate Sample Tests**
+1. **Generate Sample Tests**
 
    `tests/unit/test_damage_calculator.gd`:
 
@@ -283,7 +289,7 @@ Initialize a production-ready game test framework for Unity, Unreal Engine, or G
        assert_eq(result, 200.0, "Critical hit should double damage")
    ```
 
----
+- --
 
 ## Step 3: Generate Documentation
 
@@ -296,30 +302,33 @@ Create `tests/README.md` with:
 - Best practices for game testing
 - Links to knowledge base fragments
 
----
+- --
 
 ## Step 4: Deliverables
 
 ### Primary Artifacts Created
 
-1. **Directory Structure** - Engine-appropriate test folders
-2. **Configuration Files** - Framework-specific config (asmdef, Build.cs, gut_config.json)
-3. **Sample Tests** - Working examples for unit and integration tests
-4. **Documentation** - `tests/README.md`
+1. **Directory Structure**- Engine-appropriate test folders
 
----
+2.**Configuration Files**- Framework-specific config (asmdef, Build.cs, gut_config.json)
+3.**Sample Tests**- Working examples for unit and integration tests
+4.**Documentation** - `tests/README.md`
+
+- --
 
 ## Output Summary
 
 After completing this workflow, provide a summary:
 
 ```markdown
+
 ## Game Test Framework Scaffold Complete
 
-**Engine Detected**: {Unity | Unreal | Godot}
-**Framework**: {Unity Test Framework | Unreal Automation | GUT}
+- *Engine Detected**: {Unity | Unreal | Godot}
 
-**Artifacts Created**:
+- *Framework**: {Unity Test Framework | Unreal Automation | GUT}
+
+- *Artifacts Created**:
 
 - ✅ Test directory structure
 - ✅ Framework configuration
@@ -327,21 +336,22 @@ After completing this workflow, provide a summary:
 - ✅ Sample integration/play mode tests
 - ✅ Documentation
 
-**Next Steps**:
+- *Next Steps**:
 
 1. Review sample tests and adapt to your game
 2. Run initial tests to verify setup
 3. Use `test-design` workflow to plan comprehensive test coverage
 4. Use `automate` workflow to generate additional tests
 
-**Knowledge Base References Applied**:
+- *Knowledge Base References Applied**:
 
 - {engine}-testing.md
 - qa-automation.md
 - test-priorities.md
-```
 
----
+```bash
+
+- --
 
 ## Validation
 

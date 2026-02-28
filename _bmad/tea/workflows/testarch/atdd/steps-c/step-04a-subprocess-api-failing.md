@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04a-subprocess-api-failing'
 description: 'Subprocess: Generate FAILING API tests (TDD red phase)'
 subprocess: true
 outputFile: '/tmp/tea-atdd-api-tests-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 4A: Generate Failing API Tests (TDD Red Phase)
 
@@ -11,16 +13,16 @@ outputFile: '/tmp/tea-atdd-api-tests-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with E2E failing test generation.
 
-**What you have from parent workflow:**
+- *What you have from parent workflow:**
 
 - Story acceptance criteria from Step 1
 - Test strategy and scenarios from Step 3
 - Knowledge fragments loaded: api-request, data-factories, api-testing-patterns
 - Config: test framework, Playwright Utils enabled/disabled
 
-**Your task:** Generate API tests that will FAIL because the feature is not implemented yet (TDD RED PHASE).
+- *Your task:** Generate API tests that will FAIL because the feature is not implemented yet (TDD RED PHASE).
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -33,7 +35,7 @@ This is an **isolated subprocess** running in parallel with E2E failing test gen
 - ❌ Do NOT generate passing tests (this is TDD red phase)
 - ❌ Do NOT run tests (that's step 5)
 
----
+- --
 
 ## SUBPROCESS TASK
 
@@ -46,21 +48,23 @@ From the story acceptance criteria (Step 1 output), identify:
 - Authentication requirements
 - Expected status codes and error scenarios
 
-**Example Acceptance Criteria:**
+- *Example Acceptance Criteria:**
 
-```
+```bash
 Story: User Registration
+
 - As a user, I can POST to /api/users/register with email and password
 - System returns 201 Created with user object
 - System returns 400 Bad Request if email already exists
 - System returns 422 Unprocessable Entity if validation fails
-```
+
+```bash
 
 ### 2. Generate FAILING API Test Files
 
 For each API endpoint, create test file in `tests/api/[feature].spec.ts`:
 
-**Test Structure (ATDD - Red Phase):**
+- *Test Structure (ATDD - Red Phase):**
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -101,9 +105,10 @@ test.describe('[Story Name] API Tests (ATDD)', () => {
     expect(error.message).toContain('Email already exists');
   });
 });
-```
 
-**CRITICAL ATDD Requirements:**
+```bash
+
+- *CRITICAL ATDD Requirements:**
 
 - ✅ Use `test.skip()` to mark tests as intentionally failing (red phase)
 - ✅ Write assertions for EXPECTED behavior (even though not implemented)
@@ -113,7 +118,7 @@ test.describe('[Story Name] API Tests (ATDD)', () => {
 - ✅ Use data factories for test data (from data-factories fragment)
 - ✅ Include priority tags [P0], [P1], [P2], [P3]
 
-**Why test.skip():**
+- *Why test.skip():**
 
 - Tests are written correctly for EXPECTED behavior
 - But we know they'll fail because feature isn't implemented
@@ -128,9 +133,9 @@ Identify fixtures needed for API tests:
 - Data factories (user data, etc.)
 - API client configurations
 
-**Do NOT create fixtures yet** - just track what's needed for aggregation step.
+- *Do NOT create fixtures yet** - just track what's needed for aggregation step.
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -165,9 +170,10 @@ Write JSON to temp file: `/tmp/tea-atdd-api-tests-{{timestamp}}.json`
   "tdd_phase": "RED",
   "summary": "Generated 3 FAILING API tests for user registration story"
 }
-```
 
-**On Error:**
+```bash
+
+- *On Error:**
 
 ```json
 {
@@ -175,12 +181,13 @@ Write JSON to temp file: `/tmp/tea-atdd-api-tests-{{timestamp}}.json`
   "subprocess": "atdd-api-tests",
   "error": "Error message describing what went wrong",
   "partial_output": {
-    /* any tests generated before error */
+    /*any tests generated before error*/
   }
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -192,9 +199,9 @@ Subprocess completes when:
 - ✅ JSON output written to temp file
 - ✅ Fixture needs tracked
 
-**Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
+- *Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
 
----
+- --
 
 ## 🚨 SUBPROCESS SUCCESS METRICS
 

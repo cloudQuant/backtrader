@@ -19,14 +19,13 @@ Example:
 import warnings
 
 warnings.warn(
-    "backtrader.feeds.blaze is deprecated (Blaze is unmaintained). "
-    "Consider using PandasData instead.",
+    "backtrader.feeds.blaze is deprecated (Blaze is unmaintained). Consider using PandasData instead.",
     DeprecationWarning,
     stacklevel=2,
 )
 
-from ..feed import DataBase
-from ..utils import date2num
+from ..feed import DataBase  # noqa: E402
+from ..utils import date2num  # noqa: E402
 
 
 # This class is for backtrader to interface with Blaze data

@@ -1,9 +1,9 @@
 # Test Quality Review
 
-**Workflow:** `testarch-test-review`
-**Version:** 5.0 (Step-File Architecture)
+- *Workflow:** `testarch-test-review`
+- *Version:**5.0 (Step-File Architecture)
 
----
+- --
 
 ## Overview
 
@@ -11,17 +11,17 @@ Review test quality using TEA knowledge base and produce a 0–100 quality score
 
 Coverage assessment is intentionally out of scope for this workflow. Use `trace` for requirements coverage and coverage gate decisions.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This workflow uses **step-file architecture**:
+This workflow uses**step-file architecture**:
 
 - **Micro-file Design**: Each step is self-contained
 - **JIT Loading**: Only the current step file is in memory
 - **Sequential Enforcement**: Execute steps in order
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

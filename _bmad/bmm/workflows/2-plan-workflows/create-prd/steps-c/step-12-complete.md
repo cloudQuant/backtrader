@@ -1,15 +1,18 @@
----
+- --
+
 name: 'step-12-complete'
 description: 'Complete the PRD workflow, update status files, and suggest next steps including validation'
 
 # File References
+
 outputFile: '{planning_artifacts}/prd.md'
 validationFlow: '../steps-v/step-v-01-discovery.md'
----
+
+- --
 
 # Step 12: Workflow Completion
 
-**Final Step - Complete the PRD**
+- *Final Step - Complete the PRD**
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -51,6 +54,7 @@ Complete the PRD workflow, update status files, offer validation options, and su
 ### 1. Announce Workflow Completion
 
 Inform user that the PRD is complete and polished:
+
 - Celebrate successful completion of comprehensive PRD
 - Summarize all sections that were created
 - Highlight that document has been polished for flow and coherence
@@ -69,18 +73,18 @@ Update the main workflow status file if there is one:
 
 Offer validation workflows to ensure PRD is ready for implementation:
 
-**Available Validation Workflows:**
+- *Available Validation Workflows:**
 
-**Option 1: Check Implementation Readiness** (`{checkImplementationReadinessWorkflow}`)
+- *Option 1: Check Implementation Readiness** (`{checkImplementationReadinessWorkflow}`)
 - Validates PRD has all information needed for development
 - Checks epic coverage completeness
 - Reviews UX alignment with requirements
 - Assesses epic quality and readiness
 - Identifies gaps before architecture/design work begins
 
-**When to use:** Before starting technical architecture or epic breakdown
+- *When to use:** Before starting technical architecture or epic breakdown
 
-**Option 2: Skip for Now**
+- *Option 2: Skip for Now**
 - Proceed directly to next workflows (architecture, UX, epics)
 - Validation can be done later if needed
 - Some teams prefer to validate during architecture reviews
@@ -121,4 +125,4 @@ PRD complete. Read fully and follow: `_bmad/core/tasks/help.md` with argument `C
 
 The polished PRD serves as the foundation for all subsequent product development activities. All design, architecture, and development work should trace back to the requirements and vision documented in this PRD - update it also as needed as you continue planning.
 
-**Congratulations on completing the Product Requirements Document for {{project_name}}!** 🎉
+- *Congratulations on completing the Product Requirements Document for {{project_name}}!** 🎉

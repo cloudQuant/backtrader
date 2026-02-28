@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-e-01-assess-workflow'
 description: 'Assess what needs to be edited in the teaching workflow'
 
@@ -6,7 +7,8 @@ nextStepFile: './step-e-02-apply-edits.md'
 workflowPath: '../'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Edit Step 1: Assess What to Edit
 
@@ -47,7 +49,7 @@ To identify what the user wants to edit in the teach-me-testing workflow and gat
 
 What would you like to edit?
 
-**Common edits:**
+- *Common edits:**
 
 - Update session content (new concepts, updated examples)
 - Modify quiz questions
@@ -56,38 +58,38 @@ What would you like to edit?
 - Change session durations or structure
 - Update role-based examples
 
-**Tell me what you'd like to change.**"
+- *Tell me what you'd like to change.**"
 
 ### 2. Gather Edit Requirements
 
 Ask targeted questions based on their response:
 
-**If editing session content:**
+- *If editing session content:**
 
 - Which session? (1-7)
 - What specific content needs updating?
 - Why the change? (outdated, incorrect, needs improvement)
 
-**If editing quiz questions:**
+- *If editing quiz questions:**
 
 - Which session's quiz?
 - Which question(s)?
 - What's wrong with current questions?
 
-**If editing session 7 fragments:**
+- *If editing session 7 fragments:**
 
 - Add new fragment category?
 - Update existing fragment references?
 - Change organization?
 
-**If editing templates:**
+- *If editing templates:**
 
 - Progress template?
 - Session notes template?
 - Certificate template?
 - What fields need changing?
 
-**If editing data files:**
+- *If editing data files:**
 
 - Curriculum structure?
 - Role customizations?
@@ -107,15 +109,15 @@ Show user the current content.
 
 "**Edit Plan:**
 
-**Target Files:**
+- *Target Files:**
 
 - {list files to be modified}
 
-**Changes Required:**
+- *Changes Required:**
 
 - {list specific changes}
 
-**Reason:**
+- *Reason:**
 
 - {why these edits are needed}
 
@@ -132,10 +134,10 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - IF C: Load, read entire file, then execute {nextStepFile}
 - IF Any other: help user, redisplay menu
 
----
+- --
 
 ## 🚨 SUCCESS METRICS
 
 ✅ Edit requirements clearly understood, target files identified, edit plan documented, user approves plan.
 
-**Master Rule:** Understand before editing. Get clear requirements first.
+- *Master Rule:** Understand before editing. Get clear requirements first.

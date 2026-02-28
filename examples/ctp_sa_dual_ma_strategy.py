@@ -1,7 +1,7 @@
 """SA futures dual moving average strategy via CTP.
 
 This script implements a classic dual moving average crossover strategy
-for SA (soda ash / 纯碱) main contract on CZCE exchange, using live
+for SA (soda ash) main contract on CZCE exchange, using live
 CTP market data through the ctp-python integration.
 
 Strategy logic:
@@ -151,6 +151,7 @@ class DualMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the dual MA strategy."""
         self.live_data = False
         self.bar_count = 0
         self.order = None  # pending order tracker
@@ -163,16 +164,34 @@ class DualMAStrategy(bt.Strategy):
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
 
     def log(self, msg):
+        """Log a message with timestamp if print_log is enabled.
+
+        Args:
+            msg: The message to log.
+        """
         if self.p.print_log:
             dt = self.data.datetime.datetime(0)
             print(f"[{dt}] {msg}")
 
     def notify_data(self, data, status, *args, **kwargs):
+        """Handle data status changes.
+
+        Args:
+            data: The data object that changed status.
+            status: The new status code.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         status_name = data._getstatusname(status)
         self.log(f"DATA STATUS: {data._name} -> {status_name}")
         self.live_data = (status_name == 'LIVE')
 
     def notify_order(self, order):
+        """Handle order status changes.
+
+        Args:
+            order: The order object that changed status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return  # wait for further updates
 
@@ -195,6 +214,11 @@ class DualMAStrategy(bt.Strategy):
         self.order = None  # clear pending order
 
     def notify_trade(self, trade):
+        """Handle trade completion.
+
+        Args:
+            trade: The trade object that was completed.
+        """
         if trade.isclosed:
             self.log(
                 f"TRADE CLOSED: pnl={trade.pnl:.2f}, "
@@ -211,6 +235,13 @@ class DualMAStrategy(bt.Strategy):
         )
 
     def next(self):
+        """Execute trading logic for each new bar.
+
+        Implements the dual moving average crossover strategy:
+        - Golden cross (fast MA > slow MA): Open long position
+        - Death cross (fast MA < slow MA): Open short position
+        - Account balance is queried and printed each bar
+        """
         self.bar_count += 1
 
         # Print bar data
@@ -328,7 +359,7 @@ if __name__ == "__main__":
         'auth_code': '0000000000000000',
     }
 
-    # SA (soda ash / 纯碱) main contract on CZCE
+    # SA (soda ash) main contract on CZCE
     # Common active months: 01, 05, 09
     # Adjust the contract month as needed
     sa_instrument = 'SA509'

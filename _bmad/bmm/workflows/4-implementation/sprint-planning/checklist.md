@@ -13,7 +13,7 @@
 
 Compare epic files against generated sprint-status.yaml:
 
-```
+```bash
 Epic Files Contains:                Sprint Status Contains:
 ✓ Epic 1                            ✓ epic-1: [status]
   ✓ Story 1.1: User Auth              ✓ 1-1-user-auth: [status]
@@ -24,7 +24,8 @@ Epic Files Contains:                Sprint Status Contains:
   ✓ Story 2.1: Personality Model      ✓ 2-1-personality-model: [status]
   ✓ Story 2.2: Chat Interface         ✓ 2-2-chat-interface: [status]
                                       ✓ epic-2-retrospective: [status]
-```
+
+```bash
 
 ### Final Check
 

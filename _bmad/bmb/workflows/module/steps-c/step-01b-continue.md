@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-01b-continue'
 description: 'Handle workflow continuation for Create mode'
 
 workflowFile: '../workflow-create-module.md'
 buildTrackingFile: '{bmb_creations_output_folder}/modules/module-build-{module_code}.md'
----
+
+- --
 
 # Step 1b: Continue (Create Mode)
 
@@ -25,7 +27,7 @@ Resume a paused Create mode session by loading the build tracking state and rout
 - ✅ Warm welcome back
 - ✅ Seamless resume
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -36,6 +38,7 @@ Resume a paused Create mode session by loading the build tracking state and rout
 ### 2. Load Build Tracking
 
 Load `{buildTrackingFile}` and read:
+
 - `stepsCompleted` array
 - `moduleCode`
 - `moduleName`
@@ -46,11 +49,11 @@ Load `{buildTrackingFile}` and read:
 
 "**Here's where we are:**"
 
-**Module:** {moduleName} ({moduleCode})
-**Type:** {moduleType}
-**Status:** {status}
+- *Module:** {moduleName} ({moduleCode})
+- *Type:** {moduleType}
+- *Status:** {status}
 
-**Completed steps:**
+- *Completed steps:**
 - {list completed steps}
 
 ### 4. Determine Next Step
@@ -58,12 +61,19 @@ Load `{buildTrackingFile}` and read:
 Find the last completed step and route to the next one:
 
 | Last Completed | Next Step |
+
 |---------------|-----------|
+
 | step-01-load-brief | step-02-structure |
+
 | step-02-structure | step-03-config |
+
 | step-03-config | step-04-agents |
+
 | step-04-agents | step-05-workflows |
+
 | step-05-workflows | step-06-docs |
+
 | step-06-docs | step-07-complete |
 
 ### 5. Route to Next Step
@@ -72,7 +82,7 @@ Find the last completed step and route to the next one:
 
 Load the appropriate step file and execute.
 
----
+- --
 
 ## Success Metrics
 

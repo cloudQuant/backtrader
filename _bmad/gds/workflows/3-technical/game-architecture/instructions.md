@@ -109,9 +109,12 @@ I see {{epic_count}} epics with {{story_count}} total stories.
 {{if_ux_spec}}I also found your UX specification which defines the user experience requirements.{{/if_ux_spec}}
 
      Key aspects I notice:
+
      - [Summarize core functionality]
      - [Note critical NFRs]
+
      {{if_ux_spec}}- [Note UX complexity and requirements]{{/if_ux_spec}}
+
      - [Identify unique challenges]
 
      This will help me guide you through the architectural decisions needed
@@ -131,11 +134,13 @@ I see {{epic_count}} epics with {{story_count}} total stories.
 
   <check if="ux_spec_loaded">
     <action>Consider UX requirements when selecting starter:
+
       - Rich animations → Framer Motion compatible starter
       - Complex forms → React Hook Form included starter
       - Real-time features → Socket.io or WebSocket ready starter
       - Accessibility focus → WCAG-compliant component library starter
       - Design system → Storybook-enabled starter
+
     </action>
   </check>
 
@@ -186,12 +191,14 @@ Search the web: "{{primary_technology}} boilerplate generator latest options"
 
       <action>Extract and document starter-provided decisions:
         Starter provides these architectural decisions:
+
         - Language/TypeScript: {{provided_or_not}}
         - Styling solution: {{provided_or_not}}
         - Testing framework: {{provided_or_not}}
         - Linting/Formatting: {{provided_or_not}}
         - Build tooling: {{provided_or_not}}
         - Project structure: {{provided_pattern}}
+
       </action>
 
       <action>Mark these decisions as "PROVIDED BY STARTER" in our decision tracking</action>
@@ -222,9 +229,11 @@ Search the web: "{{primary_technology}} boilerplate generator latest options"
 
 <check if="engine_mcps_available">
   <action>Present relevant MCP servers based on {game_dev_experience}:
+
     - Engine-specific MCP: present default recommendation first, mention alternatives
     - Include repo name, capabilities, requirements, and install type
     - Context7 (upstash/context7): documentation lookup MCP for any engine
+
   </action>
   <ask>Include MCP setup in your architecture? These give AI agents direct access to {{engine}} for scene inspection, asset queries, and context-aware code generation. [y/n]</ask>
   <check if="user_accepts_mcps">
@@ -247,26 +256,32 @@ Search the web: "{{primary_technology}} boilerplate generator latest options"
 
   <check if="{game_dev_experience} == 'expert'">
     Set mode: EXPERT
+
     - Use technical terminology freely
     - Move quickly through decisions
     - Assume familiarity with patterns and tools
     - Focus on edge cases and advanced concerns
+
   </check>
 
   <check if="{game_dev_experience} == 'intermediate'">
     Set mode: INTERMEDIATE
+
     - Balance technical accuracy with clarity
     - Explain complex patterns briefly
     - Confirm understanding at key points
     - Provide context for non-obvious choices
+
   </check>
 
   <check if="{game_dev_experience} == 'beginner'">
     Set mode: BEGINNER
+
     - Use analogies and real-world examples
     - Explain technical concepts in simple terms
     - Provide education about why decisions matter
     - Protect from complexity overload
+
   </check>
   </action>
 
@@ -280,9 +295,11 @@ Search the web: "{{primary_technology}} boilerplate generator latest options"
 CRITICAL (blocks everything): - {{list_of_critical_decisions}}
 
     IMPORTANT (shapes architecture):
+
     - {{list_of_important_decisions}}
 
     NICE-TO-HAVE (can defer):
+
     - {{list_of_optional_decisions}}
 
   </action>
@@ -450,19 +467,23 @@ Provided by Starter: {{yes_if_from_starter}}
     </action>
 
     <action>Facilitate pattern design:
+
       1. Identify core components involved
       2. Map data flow between components
       3. Design state management approach
       4. Create sequence diagrams for complex flows
       5. Define API contracts for the pattern
       6. Consider edge cases and failure modes
+
     </action>
 
     <action>Use advanced elicitation for innovation:
       "What if we approached this differently?
+
        - What would the ideal user experience look like?
        - Are there analogies from other domains we could apply?
        - What constraints can we challenge?"
+
     </action>
 
     <action>Document the novel pattern:
@@ -480,8 +501,10 @@ Provided by Starter: {{yes_if_from_starter}}
 
     <action>Validate pattern completeness:
       "Does this {{pattern_name}} design cover all the use cases in your epics?
+
        - {{use_case_1}}: ✓ Handled by {{component}}
        - {{use_case_2}}: ✓ Handled by {{component}}
+
        ..."
     </action>
 
@@ -509,52 +532,68 @@ Provided by Starter: {{yes_if_from_starter}}
 
     NAMING PATTERNS (How things are named):
     <check if="has_api">
+
       - REST endpoint naming: /users or /user? Plural or singular?
       - Route parameter format: :id or {id}?
+
     </check>
     <check if="has_database">
+
       - Table naming: users or Users or user?
       - Column naming: user_id or userId?
       - Foreign key format: user_id or fk_user?
+
     </check>
     <check if="has_frontend">
+
       - Component naming: UserCard or user-card?
       - File naming: UserCard.tsx or user-card.tsx?
+
     </check>
 
     STRUCTURE PATTERNS (How things are organized):
+
     - Where do tests live? __tests__/ or *.test.ts co-located?
     - How are components organized? By feature or by type?
     - Where do shared utilities go?
 
     FORMAT PATTERNS (Data exchange formats):
     <check if="has_api">
+
       - API response wrapper? {data: ..., error: ...} or direct response?
       - Error format? {message, code} or {error: {type, detail}}?
       - Date format in JSON? ISO strings or timestamps?
+
     </check>
 
     COMMUNICATION PATTERNS (How components interact):
     <check if="has_events">
+
       - Event naming convention?
       - Event payload structure?
+
     </check>
     <check if="has_state_management">
+
       - State update pattern?
       - Action naming convention?
+
     </check>
 
     LIFECYCLE PATTERNS (State and flow):
+
     - How are loading states handled?
     - What's the error recovery pattern?
     - How are retries implemented?
 
     LOCATION PATTERNS (Where things go):
+
     - API route structure?
     - Static asset organization?
     - Config file locations?
 
     CONSISTENCY PATTERNS (Cross-cutting):
+
     - How are dates formatted in the UI?
     - What's the logging format?
     - How are user-facing errors written?
@@ -564,7 +603,9 @@ Provided by Starter: {{yes_if_from_starter}}
   <check if="{game_dev_experience} == 'expert'">
     <action>Rapid-fire through patterns:
       "Quick decisions on implementation patterns:
+
        - {{pattern}}: {{suggested_convention}} OK? [y/n/specify]"
+
     </action>
   </check>
 
@@ -677,6 +718,7 @@ Enforcement: "All agents MUST follow this pattern"
      decisions that will keep AI agents consistent as they build your app.
 
      What happens next:
+
      1. AI agents will read this architecture before implementing each story
      2. They'll follow your technical choices exactly
      3. Your app will be built with consistent patterns throughout
@@ -704,16 +746,21 @@ Enforcement: "All agents MUST follow this pattern"
 <output>**Deliverables Created:**
 
 - ✅ architecture.md - Complete architectural decisions document
+
   {{if_novel_patterns}}
+
 - ✅ Novel pattern designs for unique concepts
+
   {{/if_novel_patterns}}
   {{if_starter_template}}
+
 - ✅ Project initialization command documented
+
   {{/if_starter_template}}
 
 The architecture is ready to guide AI agents through consistent implementation.
 
-**Next Steps:**
+- *Next Steps:**
 
 - **Next required:** {{next_workflow}} ({{next_agent}} agent)
 - Review the architecture.md document before proceeding

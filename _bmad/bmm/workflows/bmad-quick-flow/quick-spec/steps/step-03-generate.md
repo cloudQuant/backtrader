@@ -1,14 +1,16 @@
----
+- --
+
 name: 'step-03-generate'
 description: 'Build the implementation plan based on the technical mapping of constraints'
 
 nextStepFile: './step-04-review.md'
 wipFile: '{implementation_artifacts}/tech-spec-wip.md'
----
+
+- --
 
 # Step 3: Generate Implementation Plan
 
-**Progress: Step 3 of 4** - Next: Review & Finalize
+- *Progress: Step 3 of 4**- Next: Review & Finalize
 
 ## RULES:
 
@@ -23,13 +25,13 @@ wipFile: '{implementation_artifacts}/tech-spec-wip.md'
 - Requires `{wipFile}` with defined "Overview" and "Context for Development" sections.
 - Focus: Create the implementation sequence that addresses the requirement delta using the captured technical context.
 - Output: Implementation-ready tasks with specific files and instructions.
-- Target: Meet the **READY FOR DEVELOPMENT** standard defined in `workflow.md`.
+- Target: Meet the**READY FOR DEVELOPMENT** standard defined in `workflow.md`.
 
 ## SEQUENCE OF INSTRUCTIONS
 
 ### 1. Load Current State
 
-**Read `{wipFile}` completely and extract:**
+- *Read `{wipFile}` completely and extract:**
 
 - All frontmatter values
 - Overview section (Problem, Solution, Scope)
@@ -49,23 +51,27 @@ a) **Task Breakdown**
 b) **Task Format**
 
 ```markdown
+
 - [ ] Task N: Clear action description
   - File: `path/to/file.ext`
   - Action: Specific change to make
   - Notes: Any implementation details
-```
+
+```bash
 
 ### 3. Generate Acceptance Criteria
 
-**Create testable acceptance criteria:**
+- *Create testable acceptance criteria:**
 
 Each AC should follow Given/When/Then format:
 
 ```markdown
-- [ ] AC N: Given [precondition], when [action], then [expected result]
-```
 
-**Ensure ACs cover:**
+- [ ] AC N: Given [precondition], when [action], then [expected result]
+
+```bash
+
+- *Ensure ACs cover:**
 
 - Happy path functionality
 - Error handling
@@ -74,7 +80,7 @@ Each AC should follow Given/When/Then format:
 
 ### 4. Complete Additional Context
 
-**Fill in remaining sections:**
+- *Fill in remaining sections:**
 
 a) **Dependencies**
 
@@ -106,13 +112,17 @@ a) **Update `{wipFile}` with all generated content:**
 b) **Update frontmatter:**
 
 ```yaml
----
+
+- --
+
 # ... existing values ...
+
 status: 'review'
 stepsCompleted: [1, 2, 3]
----
-```
 
+- --
+
+```bash
 c) **Read fully and follow: `{nextStepFile}` (Step 4)**
 
 ## REQUIRED OUTPUTS:

@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-01-validate-prerequisites'
 description: 'Validate required documents exist and extract all requirements for epic and story creation'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
 
 # File References
+
 thisStepFile: './step-01-validate-prerequisites.md'
 nextStepFile: './step-02-design-epics.md'
 workflowFile: '{workflow_path}/workflow.md'
@@ -13,12 +16,15 @@ outputFile: '{planning_artifacts}/epics.md'
 epicsTemplate: '{workflow_path}/templates/epics-template.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 # Template References
+
 epicsTemplate: '{workflow_path}/templates/epics-template.md'
----
+
+- --
 
 # Step 1: Validate Prerequisites and Extract Requirements
 
@@ -64,29 +70,30 @@ To validate that all required input documents exist and extract all requirements
 
 Welcome {user_name} to comprehensive epic and story creation!
 
-**CRITICAL PREREQUISITE VALIDATION:**
+- *CRITICAL PREREQUISITE VALIDATION:**
 
 Verify required documents exist and are complete:
 
-1. **PRD.md** - Contains requirements (FRs and NFRs) and product scope
-2. **Architecture.md** - Contains technical decisions, API contracts, data models
-3. **UX Design.md** (if UI exists) - Contains interaction patterns, mockups, user flows
+1. **PRD.md**- Contains requirements (FRs and NFRs) and product scope
+
+2.**Architecture.md**- Contains technical decisions, API contracts, data models
+3.**UX Design.md** (if UI exists) - Contains interaction patterns, mockups, user flows
 
 ### 2. Document Discovery and Validation
 
 Search for required documents using these patterns (sharded means a large document was split into multiple small files with an index.md into a folder) - if the whole document is found, use that instead of the sharded version:
 
-**PRD Document Search Priority:**
+- *PRD Document Search Priority:**
 
 1. `{planning_artifacts}/*prd*.md` (whole document)
 2. `{planning_artifacts}/*prd*/index.md` (sharded version)
 
-**Architecture Document Search Priority:**
+- *Architecture Document Search Priority:**
 
 1. `{planning_artifacts}/*architecture*.md` (whole document)
 2. `{planning_artifacts}/*architecture*/index.md` (sharded version)
 
-**UX Design Document Search (Optional):**
+- *UX Design Document Search (Optional):**
 
 1. `{planning_artifacts}/*ux*.md` (whole document)
 2. `{planning_artifacts}/*ux*/index.md` (sharded version)
@@ -97,43 +104,45 @@ Before proceeding, Ask the user if there are any other documents to include for 
 
 From the PRD document (full or sharded), read then entire document and extract ALL functional requirements:
 
-**Extraction Method:**
+- *Extraction Method:**
 
 - Look for numbered items like "FR1:", "Functional Requirement 1:", or similar
 - Identify requirement statements that describe what the system must DO
 - Include user actions, system behaviors, and business rules
 
-**Format the FR list as:**
+- *Format the FR list as:**
 
-```
+```bash
 FR1: [Clear, testable requirement description]
 FR2: [Clear, testable requirement description]
 ...
-```
+
+```bash
 
 ### 4. Extract Non-Functional Requirements (NFRs)
 
 From the PRD document, extract ALL non-functional requirements:
 
-**Extraction Method:**
+- *Extraction Method:**
 
 - Look for performance, security, usability, reliability requirements
 - Identify constraints and quality attributes
 - Include technical standards and compliance requirements
 
-**Format the NFR list as:**
+- *Format the NFR list as:**
 
-```
+```bash
 NFR1: [Performance/Security/Usability requirement]
 NFR2: [Performance/Security/Usability requirement]
 ...
-```
+
+```bash
 
 ### 5. Extract Additional Requirements from Architecture
 
 Review the Architecture document for technical requirements that impact epic and story creation:
 
-**Look for:**
+- *Look for:**
 
 - **Starter Template**: Does Architecture specify a starter/greenfield template? If YES, document this for Epic 1 Story 1
 - Infrastructure and deployment requirements
@@ -143,22 +152,25 @@ Review the Architecture document for technical requirements that impact epic and
 - API versioning or compatibility requirements
 - Security implementation requirements
 
-**IMPORTANT**: If a starter template is mentioned in Architecture, note it prominently. This will impact Epic 1 Story 1.
+- *IMPORTANT**: If a starter template is mentioned in Architecture, note it prominently. This will impact Epic 1 Story 1.
 
-**Format Additional Requirements as:**
+- *Format Additional Requirements as:**
 
-```
+```bash
+
 - [Technical requirement from Architecture that affects implementation]
 - [Infrastructure setup requirement]
 - [Integration requirement]
+
 ...
-```
+
+```bash
 
 ### 6. Extract Additional Requirements from UX (if exists)
 
 Review the UX document for requirements that affect epic and story creation:
 
-**Look for:**
+- *Look for:**
 
 - Responsive design requirements
 - Accessibility requirements
@@ -167,7 +179,7 @@ Review the UX document for requirements that affect epic and story creation:
 - Animation or transition requirements
 - Error handling UX requirements
 
-**Add these to Additional Requirements list.**
+- *Add these to Additional Requirements list.**
 
 ### 7. Load and Initialize Template
 
@@ -179,25 +191,25 @@ Load {epicsTemplate} and initialize {outputFile}:
    - {{fr_list}} → extracted FRs
    - {{nfr_list}} → extracted NFRs
    - {{additional_requirements}} → extracted additional requirements
-4. Leave {{requirements_coverage_map}} and {{epics_list}} as placeholders for now
+1. Leave {{requirements_coverage_map}} and {{epics_list}} as placeholders for now
 
 ### 8. Present Extracted Requirements
 
 Display to user:
 
-**Functional Requirements Extracted:**
+- *Functional Requirements Extracted:**
 
 - Show count of FRs found
 - Display the first few FRs as examples
 - Ask if any FRs are missing or incorrectly captured
 
-**Non-Functional Requirements Extracted:**
+- *Non-Functional Requirements Extracted:**
 
 - Show count of NFRs found
 - Display key NFRs
 - Ask if any constraints were missed
 
-**Additional Requirements:**
+- *Additional Requirements:**
 
 - Summarize technical requirements from Architecture
 - Summarize UX requirements (if applicable)
@@ -236,7 +248,7 @@ Display: `**Confirm the Requirements are complete and correct to [C] continue:**
 
 ONLY WHEN C is selected and all requirements are saved to document and frontmatter is updated, will you then read fully and follow: {nextStepFile} to begin epic design step.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -256,4 +268,4 @@ ONLY WHEN C is selected and all requirements are saved to document and frontmatt
 - Template not properly initialized
 - Not saving requirements to output file
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

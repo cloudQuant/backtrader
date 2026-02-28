@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-05-scope'
 description: 'Define project scope including platforms, constraints, and resources'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-05-scope.md'
 nextStepFile: './step-06-references.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 5: Scope & Constraints
 
-**Progress: Step 5 of 8** - Next: Reference Framework
+- *Progress: Step 5 of 8**- Next: Reference Framework
 
 ## STEP GOAL:
 
@@ -65,21 +70,27 @@ Define realistic project constraints including target platforms, budget consider
 
 ### 1. Platform Discovery
 
-**Guide user through platform selection:**
+- *Guide user through platform selection:**
 
 "Let's define where {{game_name}} will be played.
 
-**Platform Considerations:**
+- *Platform Considerations:**
 
 | Platform       | Key Considerations                                      |
-| -------------- | ------------------------------------------------------- |
-| **PC (Steam)** | Keyboard/mouse, largest indie audience, most flexible   |
-| **Console**    | Controller-first, certification, couch play             |
-| **Mobile**     | Touch controls, short sessions, different monetization  |
-| **Web**        | Instant access, file size limits, browser compatibility |
-| **VR**         | Specialized hardware, motion controls, comfort          |
 
-**Questions to consider:**
+| -------------- | ------------------------------------------------------- |
+
+| **PC (Steam)**| Keyboard/mouse, largest indie audience, most flexible   |
+
+|**Console**| Controller-first, certification, couch play             |
+
+|**Mobile**| Touch controls, short sessions, different monetization  |
+
+|**Web**| Instant access, file size limits, browser compatibility |
+
+|**VR**         | Specialized hardware, motion controls, comfort          |
+
+- *Questions to consider:**
 
 - Where does your target audience primarily play?
 - Which platform(s) are you targeting for launch?
@@ -89,19 +100,19 @@ What platform(s) are you targeting for {{game_name}}?"
 
 ### 2. Budget Considerations
 
-**Explore financial constraints:**
+- *Explore financial constraints:**
 
 "Let's be realistic about budget constraints.
 
-**Budget Categories:**
+- *Budget Categories:**
 
-- **Development costs:** Tools, software, hardware
-- **Asset creation:** Art, audio, music (in-house vs outsource)
-- **Marketing:** Visibility, trailers, press
-- **Platform fees:** Store cuts, devkit costs
+- **Development costs:**Tools, software, hardware
+- **Asset creation:**Art, audio, music (in-house vs outsource)
+- **Marketing:**Visibility, trailers, press
+- **Platform fees:**Store cuts, devkit costs
 - **External services:** Servers, analytics, localization
 
-**Questions to consider:**
+- *Questions to consider:**
 
 - What's your budget reality? (self-funded, funded, shoestring)
 - What can you create yourself vs need to outsource?
@@ -111,32 +122,32 @@ What are the budget considerations for {{game_name}}?"
 
 ### 3. Team Resources Discovery
 
-**Assess team capabilities:**
+- *Assess team capabilities:**
 
 "Let's understand what team resources you have.
 
-**Resource Questions:**
+- *Resource Questions:**
 
-- **Team size:** Solo, small team, larger team?
-- **Roles covered:** Design, programming, art, audio, marketing?
-- **Availability:** Full-time, part-time, nights/weekends?
-- **Skill gaps:** What expertise is missing?
+- **Team size:**Solo, small team, larger team?
+- **Roles covered:**Design, programming, art, audio, marketing?
+- **Availability:**Full-time, part-time, nights/weekends?
+- **Skill gaps:**What expertise is missing?
 - **Outsourcing:** What might need external help?
 
 What team resources do you have for {{game_name}}?"
 
 ### 4. Technical Constraints Discovery
 
-**Identify technical boundaries:**
+- *Identify technical boundaries:**
 
 "Finally, let's identify technical constraints.
 
-**Technical Considerations:**
+- *Technical Considerations:**
 
-- **Engine/framework:** Already decided or open?
-- **Performance targets:** Frame rate, file size, load times?
-- **Technical experience:** Team's technical capabilities?
-- **Accessibility:** What accessibility features are required?
+- **Engine/framework:**Already decided or open?
+- **Performance targets:**Frame rate, file size, load times?
+- **Technical experience:**Team's technical capabilities?
+- **Accessibility:**What accessibility features are required?
 - **Online features:** Multiplayer, leaderboards, cloud saves?
 
 What technical constraints apply to {{game_name}}?"
@@ -146,12 +157,13 @@ What technical constraints apply to {{game_name}}?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Scope and Constraints
 
 ### Target Platforms
 
-**Primary:** {{primary_platform}}
-**Secondary:** {{secondary_platforms}}
+- *Primary:** {{primary_platform}}
+- *Secondary:** {{secondary_platforms}}
 
 ### Budget Considerations
 
@@ -161,7 +173,7 @@ Based on the conversation, prepare the content:
 
 {{team_composition}}
 
-**Skill Gaps:** {{identified_gaps}}
+- *Skill Gaps:** {{identified_gaps}}
 
 ### Technical Constraints
 
@@ -170,7 +182,8 @@ Based on the conversation, prepare the content:
 ### Scope Realities
 
 {{scope_acknowledgements}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -178,17 +191,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Scope & Constraints section based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Are these constraints realistic?
 - Have we identified potential blockers?
 - Is the scope achievable with these resources?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Challenge scope assumptions
 [P] Party Mode - Get perspectives on feasibility
 [C] Continue - Save this and move to Reference Framework (Step 6 of 8)"
@@ -219,7 +233,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [scope content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -240,4 +254,4 @@ ONLY WHEN [C continue option] is selected and [scope content saved with frontmat
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -1,22 +1,24 @@
----
+- --
+
 name: create-module-brief
 description: Create product brief for BMAD module development
 web_bundle: true
 installed_path: '{project-root}/_bmad/bmb/workflows/module'
 briefWorkflow: './steps-b/step-01-welcome.md'
----
+
+- --
 
 # Create Module Brief
 
-**Goal:** Collaboratively explore and design your module vision through creative discovery.
+- *Goal:** Collaboratively explore and design your module vision through creative discovery.
 
-**Your Role:** You are the **Module Architect** — a specialist in BMAD module design. You understand that modules are complex entities requiring careful planning before implementation.
+- *Your Role:**You are the**Module Architect**— a specialist in BMAD module design. You understand that modules are complex entities requiring careful planning before implementation.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution.
+This uses**step-file architecture**for disciplined execution.
 
 ### Core Principles
 
@@ -37,16 +39,16 @@ This uses **step-file architecture** for disciplined execution.
 
 ### Critical Rules
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter when writing final output for a step
-- 🎯 **ALWAYS** follow exact instructions in step files
-- ⏸️ **ALWAYS** halt at menus and wait for input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter when writing final output for a step
+- 🎯**ALWAYS**follow exact instructions in step files
+- ⏸️**ALWAYS**halt at menus and wait for input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -63,9 +65,9 @@ Load and read full config from `{project-root}/_bmad/bmb/config.yaml` and resolv
 
 Load, read completely, then execute `{briefWorkflow}` (steps-b/step-01-welcome.md)
 
----
+- --
 
 ## OUTPUT
 
-**Brief mode produces:**
+- *Brief mode produces:**
 - `module-brief-{code}.md` — Complete module vision document

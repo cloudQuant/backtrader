@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-02b-path-violations'
 description: 'CRITICAL: Catch path violations step-02 misses - hardcoded paths, dead links, module awareness'
 
 nextStepFile: './step-03-menu-validation.md'
 targetWorkflowPath: '{workflow_folder_path}'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
----
+
+- --
 
 # Validation Step 2b: Critical Path Violations
 
@@ -44,78 +46,88 @@ CRITICAL path checks that step-02's frontmatter validation MISSES. This catches 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Perform Critical Path Violation Detection
 
-**Perform systematic path violation checks on EVERY workflow file using subprocess optimization when available - each file in its own subprocess:**
+- *Perform systematic path violation checks on EVERY workflow file using subprocess optimization when available - each file in its own subprocess:**
 
-**SUBPROCESS EXECUTION PATTERN:**
+- *SUBPROCESS EXECUTION PATTERN:**
 
 For EACH file in the workflow being validated, launch a subprocess that:
+
 1. Loads any reference files it needs (to avoid bloating parent context)
 2. Performs all required checks on that file
-3. **EITHER** updates the validation report directly with its findings
-4. **OR** returns structured findings to parent for aggregation
+3. **EITHER**updates the validation report directly with its findings
 
-**DO NOT BE LAZY - Use appropriate subprocess pattern for each check:**
+4.**OR** returns structured findings to parent for aggregation
+
+- *DO NOT BE LAZY - Use appropriate subprocess pattern for each check:**
 - **Single subprocess for grep/regex**: Run one command across many files, return matches
 - **Separate subprocess per file**: When deep analysis of each file's content is required
 - **Subprocess for data operations**: Load reference data, find matches, summarize key findings
 
-**PHASE 1: Identify Config Variables (EXCEPTIONS to path checks):**
+- *PHASE 1: Identify Config Variables (EXCEPTIONS to path checks):**
 
 Read {targetWorkflowPath}/workflow.md to extract known config variables from the Configuration Loading section:
 
 ```bash
-# Extract config variables from workflow.md
-grep -A 20 "Configuration Loading" {targetWorkflowPath}/workflow.md | grep -E "^\s+-\s+`\{[^}]+\}`" | sed "s/.*//;s/[`']//g"
-```
 
-**Store these as KNOWN_CONFIG_VARIABLES for reference in later checks.**
+# Extract config variables from workflow.md
+
+grep -A 20 "Configuration Loading" {targetWorkflowPath}/workflow.md | grep -E "^\s+-\s+`\{[^}]+\}`" | sed "s/.*//;s/[`']//g"
+
+```bash
+
+- *Store these as KNOWN_CONFIG_VARIABLES for reference in later checks.**
 
 These are EXCEPTIONS - paths using these variables are VALID even if not relative:
+
 - Example: `{output_folder}/doc.md` - VALID (uses config variable)
 - Example: `{planning_artifacts}/prd.md` - VALID (uses config variable)
 - These paths won't exist during validation (workflow not running yet)
 
----
+- --
 
-**PHASE 2: Hardcoded paths in CONTENT (CRITICAL):**
+- *PHASE 2: Hardcoded paths in CONTENT (CRITICAL):**
 
 Step-02 checks frontmatter - this checks CONTENT (body text after frontmatter).
 
-**Launch a single subprocess that:**
+- *Launch a single subprocess that:**
 
 1. Runs grep across all step files to find hardcoded {project-root}/ paths in content
 2. Extracts content after frontmatter from each file
 3. Returns all findings to parent for aggregation
 
 ```bash
+
 # Extract content after frontmatter from all files, search for {project-root}/
+
 for file in steps-c/*.md; do
   awk '/^---$/,0 {if (p) print; p=1} /^---$/{p=1}' "$file" | grep -n "{project-root}/" && echo "Found in: $file"
-done
-```
 
-**What we're catching:**
+done
+
+```bash
+
+- *What we're catching:**
 - Content like: `Load {project-root}/_bmad/foo/workflows/.../file.csv`
 - Should be: `Load {dataFile}` (frontmatter variable with a relative path like ../data/file.csv)
 
-**SKIP:** Paths using KNOWN_CONFIG_VARIABLES (these are valid exceptions)
+- *SKIP:** Paths using KNOWN_CONFIG_VARIABLES (these are valid exceptions)
 
----
+- --
 
-**PHASE 3: Dead or bad links - referenced files don't exist (CRITICAL):**
+- *PHASE 3: Dead or bad links - referenced files don't exist (CRITICAL):**
 
-**Launch a single subprocess that:**
+- *Launch a single subprocess that:**
 
 1. Extracts all frontmatter path references from all files
 2. Tests file existence for each reference (skipping output files that use config variables)
 3. Returns all dead link findings to parent for aggregation
 
-**CRITICAL DISTINCTION:**
-- **Output files using config variables:** Skip (won't exist yet - workflow not installed/running)
+- *CRITICAL DISTINCTION:**
+- **Output files using config variables:**Skip (won't exist yet - workflow not installed/running)
   - Example: `{output_folder}/my-doc.md` - SKIP
   - Example: `{planning_artifacts}/prd.md` - SKIP
   - Example: `{bmb_creations_output_folder}/file.md` - SKIP
@@ -126,48 +138,58 @@ done
   - Example: `{advancedElicitationTask}` - MUST EXIST
   - Example: `{partyModeWorkflow}` - MUST EXIST
 
-**Bash execution pattern:**
+- *Bash execution pattern:**
+
 ```bash
+
 # Extract all frontmatter path references from all files
+
 for file in steps-c/*.md; do
-  # Extract file reference variables from frontmatter
+
+# Extract file reference variables from frontmatter
   grep "^\w*File:" "$file" | sed "s/.*: //"
 
-  # Resolve path (handle relative paths)
+# Resolve path (handle relative paths)
   resolved_path=$(resolve_relative_path "$file" "$value")
 
-  # Check file existence - BUT SKIP output files using config variables
+# Check file existence - BUT SKIP output files using config variables
   if ! path_uses_known_config_variable "$value"; then
     if ! test -f "$resolved_path"; then
       echo "DEAD LINK: $file references $resolved_path (not found)"
     fi
   fi
 done
-```
 
-**What we're catching:**
+```bash
+
+- *What we're catching:**
 - Dead links to any files that don't exist that the workflow needs during execution
 
----
+- --
 
-**PHASE 4: Module path awareness:**
+- *PHASE 4: Module path awareness:**
 
-**Launch a single subprocess that:**
+- *Launch a single subprocess that:**
 
 1. Determines if current workflow is in a non-bmb module
 2. If yes, runs grep across all files to find bmb-specific path assumptions
 3. Returns all module awareness issues to parent for aggregation
 
 ```bash
+
 # Check if in non-bmb module, then search for bmb-specific paths
+
 if pwd | grep -q "/modules/[^/]\+/" && ! pwd | grep -q "/bmb/"; then
+
   grep -rn "{project-root}/_bmad/bmb/" steps-c/ steps-e/ steps-v/ 2>/dev/null || echo "No bmb-specific paths found"
+
 fi
-```
 
----
+```bash
 
-**RETURN FORMAT:**
+- --
+
+- *RETURN FORMAT:**
 
 ```json
 {
@@ -183,17 +205,18 @@ fi
   ],
   "summary": {"critical": N, "high": N, "medium": N}
 }
-```
 
+```bash
 Check ALL files systematically. Return structured report for compilation and appendage to validation report.
 
 ### 2. Process Findings and Update Report
 
-**Create/Update "Critical Path Violations" section in {validationReportFile}:**
+- *Create/Update "Critical Path Violations" section in {validationReportFile}:**
 
 If ANY violations found:
 
 ```markdown
+
 ## Critical Path Violations
 
 ### Config Variables (Exceptions)
@@ -206,16 +229,20 @@ Paths using these variables are valid even if not relative (they reference post-
 ### Content Path Violations
 
 | File | Line | Issue | Details |
+
 | ---- | ---- | ----- | ------- |
+
 {table from content_violations}
 
 ### Dead Links
 
 | File | Line | Issue | Details |
+
 | ---- | ---- | ----- | ------- |
+
 {table from dead_links}
 
-**Note:** Output files using config variables were correctly skipped during existence checks.
+- *Note:**Output files using config variables were correctly skipped during existence checks.
 
 ### Module Awareness
 
@@ -223,24 +250,25 @@ Paths using these variables are valid even if not relative (they reference post-
 
 ### Summary
 
-- **CRITICAL:** {critical_count} violations (must fix - workflow will break)
-- **HIGH:** {high_count} violations (should fix)
+- **CRITICAL:**{critical_count} violations (must fix - workflow will break)
+- **HIGH:**{high_count} violations (should fix)
 - **MEDIUM:** {medium_count} violations (review)
 
-**Status:** {"❌ FAIL - Critical violations detected" or "⚠️ WARNINGS - Review recommended" or "✅ PASS - No violations"}
-```
+- *Status:** {"❌ FAIL - Critical violations detected" or "⚠️ WARNINGS - Review recommended" or "✅ PASS - No violations"}
+
+```bash
 
 ### 3. Handle Critical Violations
 
-**If CRITICAL violations found (content violations OR dead links):**
+- *If CRITICAL violations found (content violations OR dead links):**
 
 Halt process once all files have been checked and aggregated - and share the severity of the issue with the user and ask them if they want to stop and you can try to fix these now, or else go to the next item in this list. If not proceeding - its still critical all findings thus far are documented in the report output.
 
 ### 4. Save Report and Auto-Proceed
 
-**CRITICAL:** Save the validation report to {validationReportFile} BEFORE loading and executing {nextStepFile}.
+- *CRITICAL:** Save the validation report to {validationReportFile} BEFORE loading and executing {nextStepFile}.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 

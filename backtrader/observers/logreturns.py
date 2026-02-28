@@ -75,9 +75,7 @@ class LogReturns(Observer):
 
         Adds LogReturnsRolling analyzer to track log returns.
         """
-        self.logret1 = self._owner._addanalyzer_slave(
-            LogReturnsRolling, data=self.data0, **self.p._getkwargs()
-        )
+        self.logret1 = self._owner._addanalyzer_slave(LogReturnsRolling, data=self.data0, **self.p._getkwargs())
 
     def next(self):
         """Update log return value for the current period.
@@ -100,9 +98,7 @@ class LogReturns2(LogReturns):
         """
         super().__init__()
 
-        self.logret2 = self._owner._addanalyzer_slave(
-            LogReturnsRolling, data=self.data1, **self.p._getkwargs()
-        )
+        self.logret2 = self._owner._addanalyzer_slave(LogReturnsRolling, data=self.data1, **self.p._getkwargs())
 
     def next(self):
         """Update log return values for both data feeds.

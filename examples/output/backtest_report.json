@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-01-11T10:56:57.913458",
+  "generated_at": "2026-03-01T00:09:23.827196",
   "strategy": {
     "strategy_name": "ReportSMAStrategy",
     "params": {
@@ -10,7 +10,7 @@
       "matype": 0,
       "movav": null,
       "mult": 2.0,
-      "params": "<backtrader.metabase.Params_ReportSMAStrategy object at 0x1742fb1d0>",
+      "params": "<backtrader.metabase.Params_ReportSMAStrategy object at 0x126f71ad0>",
       "period": 14,
       "safediv": false,
       "safepct": false,

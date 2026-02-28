@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03a-subprocess-determinism'
 description: 'Subprocess: Check test determinism (no random/time dependencies)'
 subprocess: true
 outputFile: '/tmp/tea-test-review-determinism-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 3A: Determinism Quality Check
 
@@ -11,15 +13,15 @@ outputFile: '/tmp/tea-test-review-determinism-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other quality dimension checks.
 
-**What you have from parent workflow:**
+- *What you have from parent workflow:**
 
 - Test files discovered in Step 2
 - Knowledge fragment: test-quality (determinism criteria)
 - Config: test framework
 
-**Your task:** Analyze test files for DETERMINISM violations only.
+- *Your task:** Analyze test files for DETERMINISM violations only.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -30,15 +32,15 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 - ❌ Do NOT modify test files (read-only analysis)
 - ❌ Do NOT run tests (just analyze code)
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Identify Determinism Violations
 
-**Scan test files for non-deterministic patterns:**
+- *Scan test files for non-deterministic patterns:**
 
-**HIGH SEVERITY Violations**:
+- *HIGH SEVERITY Violations**:
 
 - `Math.random()` - Random number generation
 - `Date.now()` or `new Date()` without mocking
@@ -47,14 +49,14 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 - File system operations on random paths
 - Database queries with non-deterministic ordering
 
-**MEDIUM SEVERITY Violations**:
+- *MEDIUM SEVERITY Violations**:
 
 - `page.waitForTimeout(N)` - Hard waits instead of conditions
 - Flaky selectors (CSS classes that may change)
 - Race conditions (missing proper synchronization)
 - Test order dependencies (test A must run before test B)
 
-**LOW SEVERITY Violations**:
+- *LOW SEVERITY Violations**:
 
 - Missing test isolation (shared state between tests)
 - Console timestamps without fixed timezone
@@ -80,6 +82,7 @@ if (testFileContent.includes('Math.random()')) {
 
 // Check for Date.now()
 if (testFileContent.includes('Date.now()') || testFileContent.includes('new Date()')) {
+
   violations.push({
     file: testFile,
     line: findLineNumber('Date.now()'),
@@ -103,14 +106,15 @@ if (testFileContent.includes('waitForTimeout')) {
 }
 
 // ... check other patterns
-```
+
+```bash
 
 ### 3. Calculate Determinism Score
 
-**Scoring Logic**:
+- *Scoring Logic**:
 
 ```javascript
-const totalChecks = testFiles.length * checksPerFile;
+const totalChecks = testFiles.length *checksPerFile;
 const failedChecks = violations.length;
 const passedChecks = totalChecks - failedChecks;
 
@@ -120,9 +124,10 @@ const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.sever
 
 // Score: 100 - (penalty points)
 const score = Math.max(0, 100 - totalPenalty);
-```
 
----
+```bash
+
+- --
 
 ## OUTPUT FORMAT
 
@@ -142,7 +147,7 @@ Write JSON to temp file: `/tmp/tea-test-review-determinism-{{timestamp}}.json`
       "category": "random-generation",
       "description": "Test uses Math.random() - non-deterministic",
       "suggestion": "Use faker.seed(12345) for deterministic random data",
-      "code_snippet": "const userId = Math.random() * 1000;"
+      "code_snippet": "const userId = Math.random()*1000;"
     },
     {
       "file": "tests/e2e/checkout.spec.ts",
@@ -169,9 +174,10 @@ Write JSON to temp file: `/tmp/tea-test-review-determinism-{{timestamp}}.json`
   ],
   "summary": "Tests are mostly deterministic with 3 violations (1 HIGH, 1 MEDIUM, 1 LOW)"
 }
-```
 
-**On Error:**
+```bash
+
+- *On Error:**
 
 ```json
 {
@@ -179,9 +185,10 @@ Write JSON to temp file: `/tmp/tea-test-review-determinism-{{timestamp}}.json`
   "success": false,
   "error": "Error message describing what went wrong"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -193,9 +200,9 @@ Subprocess completes when:
 - ✅ Recommendations generated
 - ✅ JSON output written to temp file
 
-**Subprocess terminates here.** Parent workflow will read output and aggregate with other quality dimensions.
+- *Subprocess terminates here.** Parent workflow will read output and aggregate with other quality dimensions.
 
----
+- --
 
 ## 🚨 SUBPROCESS SUCCESS METRICS
 

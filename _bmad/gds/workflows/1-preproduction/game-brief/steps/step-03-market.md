@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-03-market'
 description: 'Define target audience and market context'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-03-market.md'
 nextStepFile: './step-04-fundamentals.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 3: Target Market
 
-**Progress: Step 3 of 8** - Next: Game Fundamentals
+- *Progress: Step 3 of 8**- Next: Game Fundamentals
 
 ## STEP GOAL:
 
@@ -65,35 +70,36 @@ Define the primary and secondary target audiences with specific demographics, an
 
 ### 1. Primary Audience Discovery
 
-**Guide user through audience definition:**
+- *Guide user through audience definition:**
 
 "Let's define who {{game_name}} is really for.
 
-**Primary Audience Questions:**
+- *Primary Audience Questions:**
 
-- **Age range:** Who are you designing for?
-- **Gaming experience:** Casual, core, or hardcore gamers?
-- **Genre familiarity:** Do they know this genre well, or are they new to it?
-- **Play patterns:** When and how do they play? (commute, evening sessions, weekends)
+- **Age range:**Who are you designing for?
+- **Gaming experience:**Casual, core, or hardcore gamers?
+- **Genre familiarity:**Do they know this genre well, or are they new to it?
+- **Play patterns:**When and how do they play? (commute, evening sessions, weekends)
 - **Motivations:** What draws them to games like this?
 
-**Push for specificity:**
+- *Push for specificity:**
+
 'People who like roguelikes' is too broad. 'Experienced roguelike fans who want deeper deckbuilding strategy' is better.
 
 Who is your primary audience for {{game_name}}?"
 
 ### 2. Secondary Audience Discovery
 
-**Explore additional audiences:**
+- *Explore additional audiences:**
 
 "Are there secondary audiences who might enjoy {{game_name}}?
 
-**Examples:**
+- *Examples:**
 
 - Primary: Hardcore roguelike fans → Secondary: Strategy game players looking for something new
 - Primary: Cozy game fans → Secondary: Burnt-out competitive gamers seeking relaxation
 
-**If you have a secondary audience:**
+- *If you have a secondary audience:**
 
 - How do their needs differ from primary?
 - What features might appeal specifically to them?
@@ -102,16 +108,16 @@ Do you have a secondary audience in mind?"
 
 ### 3. Market Context Discovery
 
-**Explore the competitive landscape:**
+- *Explore the competitive landscape:**
 
 "Let's understand the market context for {{game_name}}.
 
-**Market Questions:**
+- *Market Questions:**
 
-- **Similar successful games:** What games have proven there's an audience?
-- **Market gaps:** What's missing that {{game_name}} could fill?
-- **Timing:** Why is now the right time for this game?
-- **Competition:** Who are you competing with for player attention?
+- **Similar successful games:**What games have proven there's an audience?
+- **Market gaps:**What's missing that {{game_name}} could fill?
+- **Timing:**Why is now the right time for this game?
+- **Competition:**Who are you competing with for player attention?
 - **Discoverability:** How will players find your game?
 
 What does the market look like for {{game_name}}?"
@@ -121,19 +127,23 @@ What does the market look like for {{game_name}}?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Target Market
 
 ### Primary Audience
 
 {{primary_audience_description}}
 
-**Demographics:**
+- *Demographics:**
+
 {{demographics}}
 
-**Gaming Preferences:**
+- *Gaming Preferences:**
+
 {{gaming_preferences}}
 
-**Motivations:**
+- *Motivations:**
+
 {{what_draws_them}}
 
 ### Secondary Audience
@@ -144,12 +154,15 @@ Based on the conversation, prepare the content:
 
 {{market_context_analysis}}
 
-**Similar Successful Games:**
+- *Similar Successful Games:**
+
 {{comparable_titles}}
 
-**Market Opportunity:**
+- *Market Opportunity:**
+
 {{why_now}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -157,16 +170,17 @@ Show the generated content to the user and present:
 
 "I've drafted the Target Market section based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Is the primary audience specific enough to guide design decisions?
 - Does the market context support the viability of this game?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Dig deeper into market insights
 [P] Party Mode - Get perspectives on market positioning
 [C] Continue - Save this and move to Game Fundamentals (Step 4 of 8)"
@@ -197,7 +211,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [market content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -216,4 +230,4 @@ ONLY WHEN [C continue option] is selected and [market content saved with frontma
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

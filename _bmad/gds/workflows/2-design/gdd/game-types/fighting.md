@@ -4,7 +4,7 @@
 
 {{character_roster}}
 
-**Fighter design:**
+- *Fighter design:**
 
 - Roster size (launch + planned DLC)
 - Character archetypes (rushdown, zoner, grappler, all-rounder, etc.)
@@ -16,7 +16,7 @@
 
 {{moves_frame_data}}
 
-**Combat mechanics:**
+- *Combat mechanics:**
 
 - Normal moves (light, medium, heavy)
 - Special moves (quarter-circle, charge, etc.)
@@ -29,7 +29,7 @@
 
 {{combo_system}}
 
-**Combo design:**
+- *Combo design:**
 
 - Combo structure (links, cancels, chains)
 - Juggle system
@@ -42,7 +42,7 @@
 
 {{defensive_mechanics}}
 
-**Defense options:**
+- *Defense options:**
 
 - Blocking (high, low, crossup protection)
 - Dodging/rolling/backdashing
@@ -55,7 +55,7 @@
 
 {{stage_design}}
 
-**Arena design:**
+- *Arena design:**
 
 - Stage size and boundaries
 - Wall mechanics (wall combos, wall break)
@@ -67,7 +67,7 @@
 
 {{single_player}}
 
-**Offline content:**
+- *Offline content:**
 
 - Arcade/story mode
 - Training mode features
@@ -79,7 +79,7 @@
 
 {{competitive_features}}
 
-**Tournament-ready:**
+- *Tournament-ready:**
 
 - Ranked matchmaking
 - Lobby systems

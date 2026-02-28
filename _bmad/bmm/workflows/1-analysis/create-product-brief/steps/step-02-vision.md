@@ -1,15 +1,19 @@
----
+- --
+
 name: 'step-02-vision'
 description: 'Discover and define the core product vision, problem statement, and unique value proposition'
 
 # File References
+
 nextStepFile: './step-03-users.md'
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Product Vision Discovery
 
@@ -60,10 +64,11 @@ Conduct comprehensive product vision discovery to define the core problem, solut
 
 ### 1. Begin Vision Discovery
 
-**Opening Conversation:**
+- *Opening Conversation:**
+
 "As your PM peer, I'm excited to help you shape the vision for {{project_name}}. Let's start with the foundation.
 
-**Tell me about the product you envision:**
+- *Tell me about the product you envision:**
 
 - What core problem are you trying to solve?
 - Who experiences this problem most acutely?
@@ -74,7 +79,8 @@ Let's start with the problem space before we get into solutions."
 
 ### 2. Deep Problem Understanding
 
-**Problem Discovery:**
+- *Problem Discovery:**
+
 Explore the problem from multiple angles using targeted questions:
 
 - How do people currently solve this problem?
@@ -84,7 +90,7 @@ Explore the problem from multiple angles using targeted questions:
 
 ### 3. Current Solutions Analysis
 
-**Competitive Landscape:**
+- *Competitive Landscape:**
 
 - What solutions exist today?
 - Where do they fall short?
@@ -93,7 +99,7 @@ Explore the problem from multiple angles using targeted questions:
 
 ### 4. Solution Vision
 
-**Collaborative Solution Crafting:**
+- *Collaborative Solution Crafting:**
 
 - If we could solve this perfectly, what would that look like?
 - What's the simplest way we could make a meaningful difference?
@@ -102,7 +108,7 @@ Explore the problem from multiple angles using targeted questions:
 
 ### 5. Unique Differentiators
 
-**Competitive Advantage:**
+- *Competitive Advantage:**
 
 - What's your unfair advantage?
 - What would be hard for competitors to copy?
@@ -111,15 +117,17 @@ Explore the problem from multiple angles using targeted questions:
 
 ### 6. Generate Executive Summary Content
 
-**Content to Append:**
+- *Content to Append:**
+
 Prepare the following structure for document append:
 
 ```markdown
+
 ## Executive Summary
 
 [Executive summary content based on conversation]
 
----
+- --
 
 ## Core Vision
 
@@ -142,17 +150,20 @@ Prepare the following structure for document append:
 ### Key Differentiators
 
 [Key differentiators based on conversation]
-```
+
+```bash
 
 ### 7. Present MENU OPTIONS
 
-**Content Presentation:**
+- *Content Presentation:**
+
 "I've drafted the executive summary and core vision based on our conversation. This captures the essence of {{project_name}} and what makes it special.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
+
 [Show the complete markdown content from step 6]
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
 
 #### Menu Handling Logic:
 
@@ -172,7 +183,7 @@ Prepare the following structure for document append:
 
 ONLY WHEN [C continue option] is selected and [vision content finalized and saved to document with frontmatter updated], will you then read fully and follow: `{nextStepFile}` to begin target user discovery.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -196,4 +207,4 @@ ONLY WHEN [C continue option] is selected and [vision content finalized and save
 - Appending content without user selecting 'C'
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

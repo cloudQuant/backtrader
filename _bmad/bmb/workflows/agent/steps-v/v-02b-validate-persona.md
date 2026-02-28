@@ -1,4 +1,5 @@
----
+- --
+
 name: 'v-02b-validate-persona'
 description: 'Validate persona and append to report'
 
@@ -7,7 +8,8 @@ validationReport: '{bmb_creations_output_folder}/validation-report-{agent-name}.
 personaProperties: ../data/persona-properties.md
 principlesCrafting: ../data/principles-crafting.md
 agentFile: '{agent-file-path}'
----
+
+- --
 
 # Validate Step 2b: Validate Persona
 
@@ -39,7 +41,7 @@ Validate the agent's persona against BMAD standards as defined in personaPropert
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load References
 
@@ -49,32 +51,33 @@ Read `{personaProperties}`, `{principlesCrafting}`, `{validationReport}`, and `{
 
 Perform these checks systematically - validate EVERY rule specified in personaProperties.md:
 
-1. **Required Fields Existence**
+1.**Required Fields Existence**
+
    - [ ] role: Present, clear, and specific
    - [ ] identity: Present and defines who the agent is
    - [ ] communication_style: Present and appropriate to role
    - [ ] principles: Present as array, not empty (if applicable)
 
-2. **Content Quality - Role**
+1. **Content Quality - Role**
    - [ ] Role is specific (not generic like "assistant")
    - [ ] Role aligns with agent's purpose and menu items
    - [ ] Role is achievable within LLM capabilities
    - [ ] Role scope is appropriate (not too broad/narrow)
 
-3. **Content Quality - Identity**
+1. **Content Quality - Identity**
    - [ ] Identity clearly defines the agent's character
    - [ ] Identity is consistent with the role
    - [ ] Identity provides context for behavior
    - [ ] Identity is not generic or cliché
 
-4. **Content Quality - Communication Style**
+1. **Content Quality - Communication Style**
    - [ ] Communication style is clearly defined
    - [ ] Style matches the role and target users
    - [ ] Style is consistent throughout the definition
    - [ ] Style examples or guidance provided if nuanced
    - [ ] Style focuses on speech patterns only (not behavior)
 
-5. **Content Quality - Principles**
+1. **Content Quality - Principles**
    - [ ] Principles are actionable (not vague platitudes)
    - [ ] Principles guide behavior and decisions
    - [ ] Principles are consistent with role
@@ -82,7 +85,7 @@ Perform these checks systematically - validate EVERY rule specified in personaPr
    - [ ] Each principle is clear and specific
    - [ ] First principle activates domain knowledge
 
-6. **Consistency Checks**
+1. **Consistency Checks**
    - [ ] Role, identity, communication_style, principles all align
    - [ ] No contradictions between principles
    - [ ] Persona supports the menu items defined
@@ -93,32 +96,37 @@ Perform these checks systematically - validate EVERY rule specified in personaPr
 Append to `{validationReport}`:
 
 ```markdown
+
 ### Persona Validation
 
-**Status:** {✅ PASS / ⚠️ WARNING / ❌ FAIL}
+- *Status:** {✅ PASS / ⚠️ WARNING / ❌ FAIL}
 
-**Checks:**
+- *Checks:**
 - [ ] role: specific, not generic
 - [ ] identity: defines who agent is
 - [ ] communication_style: speech patterns only
 - [ ] principles: first principle activates domain knowledge
 
-**Detailed Findings:**
+- *Detailed Findings:**
 
-*PASSING:*
+- PASSING:*
+
 {List of passing checks}
 
-*WARNINGS:*
+- WARNINGS:*
+
 {List of non-blocking issues}
 
-*FAILURES:*
+- FAILURES:*
+
 {List of blocking issues that must be fixed}
-```
+
+```bash
 
 ### 4. Auto-Advance
 
 Load and execute `{nextStepFile}` immediately.
 
----
+- --
 
-**Validating menu structure...**
+- *Validating menu structure...**

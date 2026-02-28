@@ -11,12 +11,12 @@ Backtrader 支持多种数据源：
    - Pandas DataFrame
    - HDF5 文件
 
-2. **在线数据源**
+1. **在线数据源**
    - Yahoo Finance
    - Interactive Brokers
    - MT4/MT5
 
-3. **实时数据源**
+1. **实时数据源**
    - WebSocket
    - REST API
    - 自定义数据源
@@ -36,9 +36,11 @@ data = bt.feeds.GenericCSVData(
     low=3,           # 最低价列
     close=4,         # 收盘价列
     volume=5,        # 成交量列
-    openinterest=-1  # 未平仓量列（-1表示不使用）
+    openinterest=-1  # 未平仓量列（-1 表示不使用）
+
 )
-```
+
+```bash
 
 ### 自定义 CSV 格式
 
@@ -52,14 +54,15 @@ class MyCSVData(bt.feeds.GenericCSVData):
         ('close', 4),
         ('volume', 5),
         ('openinterest', -1),
-        
+
         ('dtformat', '%Y-%m-%d'),     # 日期格式
         ('tmformat', '%H:%M:%S'),     # 时间格式
-        
+
         ('delimiter', ','),           # 分隔符
         ('headerlines', 1),          # 标题行数
     )
-```
+
+```bash
 
 ## Pandas 数据源
 
@@ -70,9 +73,11 @@ import pandas as pd
 import backtrader as bt
 
 # 读取数据
+
 df = pd.read_csv('data.csv')
 
 # 创建数据源
+
 data = bt.feeds.PandasData(
     dataname=df,
     datetime='date',    # 日期列名
@@ -82,8 +87,10 @@ data = bt.feeds.PandasData(
     close='close',      # 收盘价列名
     volume='volume',    # 成交量列名
     openinterest=None   # 不使用未平仓量
+
 )
-```
+
+```bash
 
 ### 自定义 Pandas 数据源
 
@@ -98,10 +105,11 @@ class MyPandasData(bt.feeds.PandasData):
         ('volume', 'volume'),
         ('openinterest', None),
     )
-    
+
     def __init__(self):
         super(MyPandasData, self).__init__()
-```
+
+```bash
 
 ## 在线数据源
 
@@ -114,7 +122,8 @@ data = bt.feeds.YahooFinanceData(
     todate=datetime.datetime(2023, 12, 31),
     reverse=False
 )
-```
+
+```bash
 
 ### Interactive Brokers
 
@@ -126,8 +135,10 @@ data = IBData(
     sectype='STK',    # 证券类型
     exchange='SMART', # 交易所
     currency='USD'    # 货币
+
 )
-```
+
+```bash
 
 ## 实时数据源
 
@@ -138,18 +149,20 @@ class WebSocketData(bt.feeds.DataBase):
     def __init__(self):
         super(WebSocketData, self).__init__()
         self.ws = None
-        
+
     def start(self):
         super(WebSocketData, self).start()
         self.ws = websocket.WebSocketApp(
             "wss://example.com/ws",
             on_message=self._on_message
         )
-        
+
     def _on_message(self, ws, message):
-        # 处理接收到的数据
+
+# 处理接收到的数据
         pass
-```
+
+```bash
 
 ### REST API 数据源
 
@@ -159,70 +172,88 @@ class RestApiData(bt.feeds.DataBase):
         ('url', ''),
         ('apikey', ''),
     )
-    
+
     def __init__(self):
         super(RestApiData, self).__init__()
-        
+
     def start(self):
         super(RestApiData, self).start()
         self._get_data()
-        
+
     def _get_data(self):
         response = requests.get(
             self.p.url,
             headers={'apikey': self.p.apikey}
         )
-        # 处理响应数据
-```
+
+# 处理响应数据
+
+```bash
 
 ## 数据预处理
 
 ### 重采样
 
 ```python
+
 # 将分钟数据重采样为日线数据
+
 cerebro.resampledata(
     data,
     timeframe=bt.TimeFrame.Days,
     compression=1
 )
-```
+
+```bash
 
 ### 数据过滤
 
 ```python
-# 过滤掉成交量为0的数据
+
+# 过滤掉成交量为 0 的数据
+
 class VolumeFilter(bt.filters.DataFilter):
     def __init__(self):
         super(VolumeFilter, self).__init__()
-        
+
     def next(self):
         if self.data.volume[0] > 0:
             return True
         return False
-```
+
+```bash
 
 ## 多数据源
 
 ### 同时使用多个数据源
 
 ```python
+
 # 添加股票数据
+
 cerebro.adddata(stock_data)
+
 # 添加指数数据
+
 cerebro.adddata(index_data)
+
 # 添加期货数据
+
 cerebro.adddata(futures_data)
-```
+
+```bash
 
 ### 数据源同步
 
 ```python
+
 # 确保所有数据源在同一时间范围内
+
 cerebro.adddata(data1, name='AAPL')
 cerebro.adddata(data2, name='GOOGL')
 cerebro.synchronize()
-```
+
+```bash
 
 ## 最佳实践
 
@@ -230,15 +261,17 @@ cerebro.synchronize()
 
 ```python
 def validate_data(data):
-    # 检查是否有缺失值
+
+# 检查是否有缺失值
     if data.isnull().any().any():
         print("警告：数据中存在缺失值")
-    
-    # 检查时间序列是否连续
+
+# 检查时间序列是否连续
     dates = data.index
     if not dates.is_monotonic_increasing:
         print("警告：时间序列不连续")
-```
+
+```bash
 
 ### 2. 数据缓存
 
@@ -247,14 +280,15 @@ class CachedData(bt.feeds.GenericCSVData):
     def __init__(self):
         super(CachedData, self).__init__()
         self._cache = {}
-        
+
     def _load(self):
         if self._filename in self._cache:
             return self._cache[self._filename]
         data = super(CachedData, self)._load()
         self._cache[self._filename] = data
         return data
-```
+
+```bash
 
 ### 3. 错误处理
 
@@ -266,7 +300,8 @@ def safe_data_load(filename):
     except Exception as e:
         print(f"加载数据失败: {e}")
         return None
-```
+
+```bash
 
 ## 常见问题
 
@@ -275,12 +310,12 @@ def safe_data_load(filename):
    - 验证数据完整性
    - 确认文件权限
 
-2. **数据不同步**
+1. **数据不同步**
    - 检查时间戳格式
    - 确保时区一致
    - 验证数据频率
 
-3. **内存使用过高**
+1. **内存使用过高**
    - 使用数据过滤
    - 实现数据分块
    - 优化数据结构

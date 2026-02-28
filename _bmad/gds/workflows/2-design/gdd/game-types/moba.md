@@ -4,7 +4,7 @@
 
 {{hero_roster}}
 
-**Character design:**
+- *Character design:**
 
 - Hero count (initial roster, planned additions)
 - Hero roles (tank, support, carry, assassin, mage, etc.)
@@ -17,7 +17,7 @@
 
 {{lane_map}}
 
-**Map design:**
+- *Map design:**
 
 - Lane configuration (3-lane, 2-lane, custom)
 - Jungle/neutral areas
@@ -29,7 +29,7 @@
 
 {{item_build}}
 
-**Itemization:**
+- *Itemization:**
 
 - Item categories (offensive, defensive, utility, consumables)
 - Gold economy
@@ -41,7 +41,7 @@
 
 {{team_composition}}
 
-**Team strategy:**
+- *Team strategy:**
 
 - Role requirements (1-3-1, 2-1-2, etc.)
 - Team synergies
@@ -53,7 +53,7 @@
 
 {{match_phases}}
 
-**Game flow:**
+- *Game flow:**
 
 - Early game (laning phase)
 - Mid game (roaming, objectives)
@@ -65,7 +65,7 @@
 
 {{objectives_victory}}
 
-**Strategic objectives:**
+- *Strategic objectives:**
 
 - Primary objective (destroy base/nexus/ancient)
 - Secondary objectives (towers, dragons, baron, roshan, etc.)

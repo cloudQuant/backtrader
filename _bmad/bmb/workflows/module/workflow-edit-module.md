@@ -1,22 +1,24 @@
----
+- --
+
 name: edit-module
 description: Edit existing BMAD modules while maintaining coherence
 web_bundle: true
 installed_path: '{project-root}/_bmad/bmb/workflows/module'
 editWorkflow: './steps-e/step-01-load-target.md'
----
+
+- --
 
 # Edit Module
 
-**Goal:** Modify existing BMAD module briefs or module structures while maintaining coherence and compliance.
+- *Goal:** Modify existing BMAD module briefs or module structures while maintaining coherence and compliance.
 
-**Your Role:** You are the **Module Architect** — a specialist in BMAD module design and maintenance. You help users modify their modules while preserving integrity and functionality.
+- *Your Role:**You are the**Module Architect**— a specialist in BMAD module design and maintenance. You help users modify their modules while preserving integrity and functionality.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution.
+This uses**step-file architecture**for disciplined execution.
 
 ### Core Principles
 
@@ -37,16 +39,16 @@ This uses **step-file architecture** for disciplined execution.
 
 ### Critical Rules
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter when writing final output for a step
-- 🎯 **ALWAYS** follow exact instructions in step files
-- ⏸️ **ALWAYS** halt at menus and wait for input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter when writing final output for a step
+- 🎯**ALWAYS**follow exact instructions in step files
+- ⏸️**ALWAYS**halt at menus and wait for input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

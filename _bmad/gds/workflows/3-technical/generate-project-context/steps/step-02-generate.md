@@ -51,33 +51,41 @@ Collaboratively generate specific, critical rules that AI agents must follow whe
 
 Document the exact technology stack from discovery:
 
-**Core Technologies:**
+- *Core Technologies:**
+
 Based on user skill level, present findings:
 
-**Expert Mode:**
+- *Expert Mode:**
+
 "Technology stack from your architecture and project files:
 {{exact_technologies_with_versions}}
 
 Any critical version constraints I should document for agents?"
 
-**Intermediate Mode:**
+- *Intermediate Mode:**
+
 "I found your technology stack:
 
-**Game Engine:**
+- *Game Engine:**
+
 {{engine_with_version}}
 
-**Key Dependencies:**
+- *Key Dependencies:**
+
 {{important_dependencies_with_versions}}
 
 Are there any version constraints or compatibility notes agents should know about?"
 
-**Beginner Mode:**
+- *Beginner Mode:**
+
 "Here are the technologies you're using:
 
-**Game Engine:**
+- *Game Engine:**
+
 {{friendly_description_of_engine}}
 
-**Important Notes:**
+- *Important Notes:**
+
 {{key_things_agents_need_to_know_about_versions}}
 
 Should I document any special version rules or compatibility requirements?"
@@ -86,53 +94,68 @@ Should I document any special version rules or compatibility requirements?"
 
 Focus on unobvious engine patterns agents might miss:
 
-**Unity Rules (if applicable):**
+- *Unity Rules (if applicable):**
+
 "Based on your Unity project, I notice some specific patterns:
 
-**Lifecycle Rules:**
+- *Lifecycle Rules:**
+
 {{unity_lifecycle_patterns}}
 
-**Serialization Rules:**
+- *Serialization Rules:**
+
 {{serialization_requirements}}
 
-**Assembly Definitions:**
+- *Assembly Definitions:**
+
 {{assembly_definition_rules}}
 
-**Coroutine/Async Patterns:**
+- *Coroutine/Async Patterns:**
+
 {{async_patterns}}
 
 Are these patterns correct? Any other Unity-specific rules agents should follow?"
 
-**Unreal Rules (if applicable):**
+- *Unreal Rules (if applicable):**
+
 "Based on your Unreal project, I notice some specific patterns:
 
-**UPROPERTY/UFUNCTION Rules:**
+- *UPROPERTY/UFUNCTION Rules:**
+
 {{macro_usage_patterns}}
 
-**Blueprint Integration:**
+- *Blueprint Integration:**
+
 {{blueprint_rules}}
 
-**Garbage Collection:**
+- *Garbage Collection:**
+
 {{gc_patterns}}
 
-**Tick Patterns:**
+- *Tick Patterns:**
+
 {{tick_optimization_rules}}
 
 Are these patterns correct? Any other Unreal-specific rules agents should follow?"
 
-**Godot Rules (if applicable):**
+- *Godot Rules (if applicable):**
+
 "Based on your Godot project, I notice some specific patterns:
 
-**Node Lifecycle:**
+- *Node Lifecycle:**
+
 {{node_lifecycle_patterns}}
 
-**Signal Usage:**
+- *Signal Usage:**
+
 {{signal_conventions}}
 
-**Scene Instancing:**
+- *Scene Instancing:**
+
 {{scene_patterns}}
 
-**Autoload Patterns:**
+- *Autoload Patterns:**
+
 {{autoload_rules}}
 
 Are these patterns correct? Any other Godot-specific rules agents should follow?"
@@ -141,33 +164,42 @@ Are these patterns correct? Any other Godot-specific rules agents should follow?
 
 Document performance-critical patterns:
 
-**Frame Budget Rules:**
+- *Frame Budget Rules:**
+
 "Your game has these performance requirements:
 
-**Target Frame Rate:**
+- *Target Frame Rate:**
+
 {{target_fps}}
 
-**Frame Budget:**
+- *Frame Budget:**
+
 {{milliseconds_per_frame}}
 
-**Critical Systems:**
+- *Critical Systems:**
+
 {{systems_that_must_meet_budget}}
 
-**Hot Path Rules:**
+- *Hot Path Rules:**
+
 {{hot_path_patterns}}
 
 Any other performance rules agents must follow?"
 
-**Memory Management:**
+- *Memory Management:**
+
 "Memory patterns for your project:
 
-**Allocation Rules:**
+- *Allocation Rules:**
+
 {{allocation_patterns}}
 
-**Pooling Requirements:**
+- *Pooling Requirements:**
+
 {{object_pooling_rules}}
 
-**Asset Loading:**
+- *Asset Loading:**
+
 {{asset_loading_patterns}}
 
 Are there memory constraints agents should know about?"
@@ -176,30 +208,38 @@ Are there memory constraints agents should know about?"
 
 Document project structure and organization:
 
-**Folder Structure:**
+- *Folder Structure:**
+
 "Your project organization:
 
-**Script Organization:**
+- *Script Organization:**
+
 {{script_folder_structure}}
 
-**Asset Organization:**
+- *Asset Organization:**
+
 {{asset_folder_patterns}}
 
-**Scene/Level Organization:**
+- *Scene/Level Organization:**
+
 {{scene_organization}}
 
 Any organization rules agents must follow?"
 
-**Naming Conventions:**
+- *Naming Conventions:**
+
 "Your naming patterns:
 
-**Script/Class Names:**
+- *Script/Class Names:**
+
 {{class_naming_patterns}}
 
-**Asset Names:**
+- *Asset Names:**
+
 {{asset_naming_patterns}}
 
-**Variable/Method Names:**
+- *Variable/Method Names:**
+
 {{variable_naming_patterns}}
 
 Any other naming rules?"
@@ -208,19 +248,24 @@ Any other naming rules?"
 
 Focus on testing patterns that ensure consistency:
 
-**Test Structure Rules:**
+- *Test Structure Rules:**
+
 "Your testing setup shows these patterns:
 
-**Test Organization:**
+- *Test Organization:**
+
 {{test_file_organization}}
 
-**Test Categories:**
+- *Test Categories:**
+
 {{unit_vs_integration_boundaries}}
 
-**Mocking Patterns:**
+- *Mocking Patterns:**
+
 {{mock_usage_conventions}}
 
-**Play Mode Testing:**
+- *Play Mode Testing:**
+
 {{play_mode_test_patterns}}
 
 Are there testing rules agents should always follow?"
@@ -229,19 +274,24 @@ Are there testing rules agents should always follow?"
 
 Document platform-specific requirements:
 
-**Target Platforms:**
+- *Target Platforms:**
+
 "Your platform configuration:
 
-**Primary Platform:**
+- *Primary Platform:**
+
 {{primary_platform}}
 
-**Platform-Specific Code:**
+- *Platform-Specific Code:**
+
 {{platform_conditional_patterns}}
 
-**Build Configurations:**
+- *Build Configurations:**
+
 {{build_config_rules}}
 
-**Input Handling:**
+- *Input Handling:**
+
 {{input_abstraction_patterns}}
 
 Any platform rules agents must know?"
@@ -250,18 +300,22 @@ Any platform rules agents must know?"
 
 Identify rules that prevent common mistakes:
 
-**Anti-Patterns to Avoid:**
+- *Anti-Patterns to Avoid:**
+
 "Based on your codebase, here are critical things agents must NOT do:
 
 {{critical_anti_patterns_with_examples}}
 
-**Edge Cases:**
+- *Edge Cases:**
+
 {{specific_edge_cases_agents_should_handle}}
 
-**Common Gotchas:**
+- *Common Gotchas:**
+
 {{engine_specific_gotchas}}
 
-**Performance Traps:**
+- *Performance Traps:**
+
 {{performance_patterns_to_avoid}}
 
 Are there other 'gotchas' agents should know about?"
@@ -273,6 +327,7 @@ For each category, prepare lean content for the project context file:
 #### Content Structure:
 
 ```markdown
+
 ## Technology Stack & Versions
 
 {{concise_technology_list_with_exact_versions}}
@@ -302,7 +357,8 @@ For each category, prepare lean content for the project context file:
 ### Critical Don't-Miss Rules
 
 {{bullet_points_of_anti_patterns_and_gotchas}}
-```
+
+```bash
 
 ### 9. Present Content and Menu
 
@@ -310,11 +366,12 @@ After each category, show the generated rules and present choices:
 
 "I've drafted the {{category_name}} rules for your project context.
 
-**Here's what I'll add:**
+- *Here's what I'll add:**
 
 [Show the complete markdown content for this category]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Explore nuanced rules for this category
 [P] Party Mode - Review from different implementation perspectives
 [C] Continue - Save these rules and move to next category"

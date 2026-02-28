@@ -1,19 +1,23 @@
----
+- --
+
 name: 'step-02b-vision'
 description: 'Discover the product vision and differentiator through collaborative dialogue'
 
 # File References
+
 nextStepFile: './step-02c-executive-summary.md'
 outputFile: '{planning_artifacts}/prd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2b: Product Vision Discovery
 
-**Progress: Step 2b of 13** - Next: Executive Summary
+- *Progress: Step 2b of 13**- Next: Executive Summary
 
 ## STEP GOAL:
 
@@ -75,17 +79,17 @@ Reference the classification from step 2 and use it to frame the vision conversa
 
 Guide the conversation to uncover the product's unique value:
 
-- **User delight:** "What would make users say 'this is exactly what I needed'?"
-- **Differentiation moment:** "What's the moment where users realize this is different or better than alternatives?"
-- **Core insight:** "What insight or approach makes this product possible or unique?"
-- **Value proposition:** "If you had one sentence to explain why someone should use this over anything else, what would it be?"
+- **User delight:**"What would make users say 'this is exactly what I needed'?"
+- **Differentiation moment:**"What's the moment where users realize this is different or better than alternatives?"
+- **Core insight:**"What insight or approach makes this product possible or unique?"
+- **Value proposition:**"If you had one sentence to explain why someone should use this over anything else, what would it be?"
 
 ### 3. Understand the Vision
 
 Dig deeper into the product vision:
 
-- **Problem framing:** "What's the real problem you're solving — not the surface symptom, but the deeper need?"
-- **Future state:** "When this product is successful, what does the world look like for your users?"
+- **Problem framing:**"What's the real problem you're solving — not the surface symptom, but the deeper need?"
+- **Future state:**"When this product is successful, what does the world look like for your users?"
 - **Why now:** "Why is this the right time to build this?"
 
 ### 4. Validate Understanding
@@ -94,9 +98,9 @@ Reflect back what you've heard and confirm:
 
 "Here's what I'm hearing about your vision and differentiator:
 
-**Vision:** {{summarized_vision}}
-**What Makes It Special:** {{summarized_differentiator}}
-**Core Insight:** {{summarized_insight}}
+- *Vision:** {{summarized_vision}}
+- *What Makes It Special:** {{summarized_differentiator}}
+- *Core Insight:** {{summarized_insight}}
 
 Does this capture it? Anything I'm missing?"
 
@@ -108,17 +112,19 @@ Present your understanding of the product vision for review, then display menu:
 
 "Based on our conversation, I have a clear picture of your product vision and what makes it special. I'll use these insights to draft the Executive Summary in the next step.
 
-**What would you like to do?**"
+- *What would you like to do?**"
 
-Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Executive Summary (Step 2c of 13)"
+Display: "**Select:**[A] Advanced Elicitation [P] Party Mode [C] Continue to Executive Summary (Step 2c of 13)"
 
 #### Menu Handling Logic:
+
 - IF A: Read fully and follow: {advancedElicitationTask} with the current vision insights, process the enhanced insights that come back, ask user if they accept the improvements, if yes update understanding then redisplay menu, if no keep original understanding then redisplay menu
 - IF P: Read fully and follow: {partyModeWorkflow} with the current vision insights, process the collaborative insights, ask user if they accept the changes, if yes update understanding then redisplay menu, if no keep original understanding then redisplay menu
 - IF C: Update {outputFile} frontmatter by adding this step name to the end of stepsCompleted array, then read fully and follow: {nextStepFile}
 - IF Any other: help user respond, then redisplay menu
 
 #### EXECUTION RULES:
+
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
@@ -127,7 +133,7 @@ Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Ex
 
 ONLY WHEN [C continue option] is selected and [stepsCompleted updated], will you then read fully and follow: `{nextStepFile}` to generate the Executive Summary.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -148,7 +154,7 @@ ONLY WHEN [C continue option] is selected and [stepsCompleted updated], will you
 - Being prescriptive instead of having natural conversation
 - Proceeding without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 
-**Master Rule:** This step is vision discovery only. No content generation, no document writing. Have natural conversations, build on what you know from classification, and establish the vision that will feed into the Executive Summary.
+- *Master Rule:** This step is vision discovery only. No content generation, no document writing. Have natural conversations, build on what you know from classification, and establish the vision that will feed into the Executive Summary.

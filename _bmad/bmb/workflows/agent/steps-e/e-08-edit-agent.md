@@ -1,4 +1,5 @@
----
+- --
+
 name: 'e-08-edit-agent'
 description: 'Apply edits to agent (with or without sidecar)'
 
@@ -8,6 +9,7 @@ agentFile: '{original-agent-path}'
 agentBackup: '{original-agent-path}.backup'
 
 # Template and Architecture
+
 agentTemplate: ../templates/agent-template.md
 agentArch: ../data/agent-architecture.md
 agentValidation: ../data/agent-validation.md
@@ -19,12 +21,14 @@ agentMenuPatterns: ../data/agent-menu-patterns.md
 criticalActions: ../data/critical-actions.md
 
 # Reference examples
+
 noSidecarExample: ../data/reference/without-sidecar/commit-poet.agent.yaml
 withSidecarExample: ../data/reference/with-sidecar/journal-keeper/journal-keeper.agent.yaml
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Edit Step 8: Edit Agent
 
@@ -59,11 +63,12 @@ Apply all planned edits to the agent YAML file. The edit approach (with or witho
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Reference Documents
 
 Read all files before editing:
+
 - `{agentTemplate}` - YAML structure reference
 - `{agentArch}` - Agent architecture (with/without sidecar)
 - `{agentValidation}` - Validation checklist
@@ -81,19 +86,20 @@ Check the `hasSidecar` value from editPlan to determine edit approach.
 ### 3. Create Backup
 
 ALWAYS backup before editing:
+
 ```bash
 cp {agentFile} {agentBackup}
-```
 
+```bash
 Confirm: "Backup created at: `{agentBackup}`"
 
 ### 4. Apply Edits in Sequence
 
 For each planned edit:
 
-**Sidecar Conversion:**
+- *Sidecar Conversion:**
 
-**false → true (Adding sidecar):**
+- *false → true (Adding sidecar):**
 - Set `hasSidecar: true`
 - Add `metadata.sidecar-folder` if not present
 - Add `critical_actions` section with sidecar file references
@@ -101,7 +107,7 @@ For each planned edit:
 - Create starter files: `memories.md`, `instructions.md`
 - Update all references to use `{project-root}/_bmad/_memory/{sidecar-folder}/` format
 
-**true → false (Removing sidecar):**
+- *true → false (Removing sidecar):**
 - Set `hasSidecar: false`
 - Remove `metadata.sidecar-folder` and `metadata.sidecar-path`
 - If critical_actions contains only sidecar references, remove the section
@@ -109,21 +115,21 @@ For each planned edit:
 - Remove sidecar references from menu actions
 - Optionally archive sidecar folder
 
-**Metadata Edits:**
+- *Metadata Edits:**
 - Apply each field change from metadataEdits
 - Validate format conventions
 
-**Persona Edits:**
+- *Persona Edits:**
 - Replace persona section with new four-field persona
 - Validate field purity (role ≠ identity ≠ communication_style)
 - For hasSidecar: true, ensure communication_style includes memory reference patterns
 
-**Command Edits:**
+- *Command Edits:**
 - Additions: append to commands array
 - Modifications: update specific commands
 - Removals: remove from commands array
 
-**Critical Actions Edits (hasSidecar: true only):**
+- *Critical Actions Edits (hasSidecar: true only):**
 - Additions: append to critical_actions array
 - Modifications: update specific actions
 - Removals: remove from array
@@ -131,10 +137,10 @@ For each planned edit:
 
 ### 5. Validate After Each Edit
 
-**For both types:**
+- *For both types:**
 - Confirm YAML syntax is valid after each modification
 
-**For hasSidecar: true:**
+- *For hasSidecar: true:**
 - Validate sidecar path format
 - Ensure all critical_actions reference correct paths
 - Confirm sidecar folder structure exists
@@ -145,11 +151,14 @@ Append to `{editPlan}`:
 
 ```yaml
 editsApplied:
+
   - {edit-description}
   - {edit-description}
+
 backup: {agentBackup}
 timestamp: {YYYY-MM-DD HH:MM}
-```
+
+```bash
 
 ### 7. Present MENU OPTIONS
 
@@ -172,7 +181,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ONLY WHEN [C continue option] is selected and [all edits applied and validated], will you then load and read fully `{nextStepFile}` to execute and celebrate.
 
----
+- --
 
 ## SUCCESS METRICS
 
@@ -191,6 +200,6 @@ ONLY WHEN [C continue option] is selected and [all edits applied and validated],
 ❌ Sidecar paths broken (hasSidecar: true)
 ❌ Edits not applied as specified
 
----
+- --
 
-**Auto-advancing to celebration when complete...**
+- *Auto-advancing to celebration when complete...**

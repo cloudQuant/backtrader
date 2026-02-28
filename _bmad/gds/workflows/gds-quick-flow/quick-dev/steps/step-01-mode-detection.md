@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-mode-detection'
 description: 'Determine execution mode (tech-spec vs direct), handle escalation, set state variables'
 
@@ -6,13 +7,14 @@ workflow_path: '{project-root}/_bmad/gds/workflows/gds-quick-flow/quick-dev'
 thisStepFile: './step-01-mode-detection.md'
 nextStepFile_modeA: './step-03-execute.md'
 nextStepFile_modeB: './step-02-context-gathering.md'
----
+
+- --
 
 # Step 1: Mode Detection
 
-**Goal:** Determine execution mode, capture baseline, handle escalation if needed.
+- *Goal:** Determine execution mode, capture baseline, handle escalation if needed.
 
----
+- --
 
 ## STATE VARIABLES (capture now, persist throughout)
 
@@ -22,7 +24,7 @@ These variables MUST be set in this step and available to all subsequent steps:
 - `{execution_mode}` - "tech-spec" or "direct"
 - `{tech_spec_path}` - Path to tech-spec file (if Mode A)
 
----
+- --
 
 ## EXECUTION SEQUENCE
 
@@ -30,11 +32,11 @@ These variables MUST be set in this step and available to all subsequent steps:
 
 First, check if the project uses Git version control:
 
-**If Git repo exists** (`.git` directory present or `git rev-parse --is-inside-work-tree` succeeds):
+- *If Git repo exists** (`.git` directory present or `git rev-parse --is-inside-work-tree` succeeds):
 
 - Run `git rev-parse HEAD` and store result as `{baseline_commit}`
 
-**If NOT a Git repo:**
+- *If NOT a Git repo:**
 
 - Set `{baseline_commit}` = "NO_GIT"
 
@@ -46,7 +48,7 @@ Check if `{project_context}` exists (`**/project-context.md`). If found, load it
 
 Analyze the user's input to determine mode:
 
-**Mode A: Tech-Spec**
+- *Mode A: Tech-Spec**
 
 - User provided a path to a tech-spec file (e.g., `quick-dev tech-spec-auth.md`)
 - Load the spec, extract tasks/context/AC
@@ -54,19 +56,19 @@ Analyze the user's input to determine mode:
 - Set `{tech_spec_path}` = provided path
 - **NEXT:** Load `step-03-execute.md`
 
-**Mode B: Direct Instructions**
+- *Mode B: Direct Instructions**
 
 - User provided task description directly (e.g., `refactor src/foo.ts...`)
 - Set `{execution_mode}` = "direct"
 - **NEXT:** Evaluate escalation threshold, then proceed
 
----
+- --
 
 ## ESCALATION THRESHOLD (Mode B only)
 
 Evaluate user input with minimal token usage (no file loading):
 
-**Triggers escalation (if 2+ signals present):**
+- *Triggers escalation (if 2+ signals present):**
 
 - Multiple components mentioned (dashboard + api + database)
 - System-level language (platform, integration, architecture)
@@ -74,7 +76,7 @@ Evaluate user input with minimal token usage (no file loading):
 - Multi-layer scope (UI + backend + data together)
 - Extended timeframe ("this week", "over the next few days")
 
-**Reduces signal:**
+- *Reduces signal:**
 
 - Simplicity markers ("just", "quickly", "fix", "bug", "typo", "simple")
 - Single file/component focus
@@ -82,7 +84,7 @@ Evaluate user input with minimal token usage (no file loading):
 
 Use holistic judgment, not mechanical keyword matching.
 
----
+- --
 
 ## ESCALATION HANDLING
 
@@ -90,53 +92,57 @@ Use holistic judgment, not mechanical keyword matching.
 
 Present choice:
 
-```
-**[t] Plan first** - Create tech-spec then implement
-**[e] Execute directly** - Start now
-```
+```bash
 
-- **[t]:** Direct user to `{quick_spec_workflow}`. **EXIT Quick Dev.**
-- **[e]:** Ask for any additional guidance, then **NEXT:** Load `step-02-context-gathering.md`
+- *[t] Plan first** - Create tech-spec then implement
+- *[e] Execute directly**- Start now
+
+```bash
+
+- **[t]:**Direct user to `{quick_spec_workflow}`.**EXIT Quick Dev.**
+- **[e]:**Ask for any additional guidance, then**NEXT:** Load `step-02-context-gathering.md`
 
 ### Escalation Triggered - Level 0-2
 
-```
+```bash
 This looks like a focused feature with multiple components.
 
-**[t] Create tech-spec first** (recommended)
-**[w] Seems bigger than quick-dev** - see what BMad Method recommends
-**[e] Execute directly**
-```
+- *[t] Create tech-spec first** (recommended)
+- *[w] Seems bigger than quick-dev** - see what BMad Method recommends
+- *[e] Execute directly**
 
-- **[t]:** Direct to `{quick_spec_workflow}`. **EXIT Quick Dev.**
-- **[w]:** Direct to `{workflow_init}`. **EXIT Quick Dev.**
-- **[e]:** Ask for guidance, then **NEXT:** Load `step-02-context-gathering.md`
+```bash
+
+- **[t]:**Direct to `{quick_spec_workflow}`.**EXIT Quick Dev.**
+- **[w]:**Direct to `{workflow_init}`.**EXIT Quick Dev.**
+- **[e]:**Ask for guidance, then**NEXT:** Load `step-02-context-gathering.md`
 
 ### Escalation Triggered - Level 3+
 
-```
+```bash
 This sounds like platform/system work.
 
-**[w] Start GDS Method** (recommended)
-**[t] Create tech-spec** (lighter planning)
-**[e] Execute directly** - feeling lucky
-```
+- *[w] Start GDS Method** (recommended)
+- *[t] Create tech-spec** (lighter planning)
+- *[e] Execute directly**- feeling lucky
 
-- **[w]:** Direct to `{workflow_init}`. **EXIT Quick Dev.**
-- **[t]:** Direct to `{quick_spec_workflow}`. **EXIT Quick Dev.**
-- **[e]:** Ask for guidance, then **NEXT:** Load `step-02-context-gathering.md`
+```bash
 
----
+- **[w]:**Direct to `{workflow_init}`.**EXIT Quick Dev.**
+- **[t]:**Direct to `{quick_spec_workflow}`.**EXIT Quick Dev.**
+- **[e]:**Ask for guidance, then**NEXT:** Load `step-02-context-gathering.md`
+
+- --
 
 ## NEXT STEP DIRECTIVE
 
-**CRITICAL:** When this step completes, explicitly state which step to load:
+- *CRITICAL:** When this step completes, explicitly state which step to load:
 
 - Mode A (tech-spec): "**NEXT:** Loading `step-03-execute.md`"
 - Mode B (direct, [e] selected): "**NEXT:** Loading `step-02-context-gathering.md`"
 - Escalation ([t] or [w]): "**EXITING Quick Dev.** Follow the directed workflow."
 
----
+- --
 
 ## SUCCESS METRICS
 

@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-05-epic-quality-review'
 description: 'Validate epics and stories against create-epics-and-stories best practices'
 
 nextStepFile: './step-06-final-assessment.md'
 outputFile: '{planning_artifacts}/implementation-readiness-report-{{date}}.md'
----
+
+- --
 
 # Step 5: Epic Quality Review
 
@@ -48,7 +50,7 @@ To validate epics and stories against the best practices defined in create-epics
 
 ### 1. Initialize Best Practices Validation
 
-"Beginning **Epic Quality Review** against create-epics-and-stories standards.
+"Beginning **Epic Quality Review**against create-epics-and-stories standards.
 
 I will rigorously validate:
 
@@ -65,11 +67,11 @@ Any deviation from best practices will be flagged as a defect."
 
 For each epic:
 
-- **Epic Title:** Is it user-centric (what user can do)?
-- **Epic Goal:** Does it describe user outcome?
+- **Epic Title:**Is it user-centric (what user can do)?
+- **Epic Goal:**Does it describe user outcome?
 - **Value Proposition:** Can users benefit from this epic alone?
 
-**Red flags (violations):**
+- *Red flags (violations):**
 
 - "Setup Database" or "Create Models" - no user value
 - "API Development" - technical milestone
@@ -80,12 +82,12 @@ For each epic:
 
 Test epic independence:
 
-- **Epic 1:** Must stand alone completely
-- **Epic 2:** Can function using only Epic 1 output
-- **Epic 3:** Can function using Epic 1 & 2 outputs
+- **Epic 1:**Must stand alone completely
+- **Epic 2:**Can function using only Epic 1 output
+- **Epic 3:**Can function using Epic 1 & 2 outputs
 - **Rule:** Epic N cannot require Epic N+1 to work
 
-**Document failures:**
+- *Document failures:**
 
 - "Epic 2 requires Epic 3 features to function"
 - Stories in Epic 2 referencing Epic 3 components
@@ -97,10 +99,10 @@ Test epic independence:
 
 Check each story:
 
-- **Clear User Value:** Does the story deliver something meaningful?
+- **Clear User Value:**Does the story deliver something meaningful?
 - **Independent:** Can it be completed without future stories?
 
-**Common violations:**
+- *Common violations:**
 
 - "Setup all models" - not a USER story
 - "Create login UI (depends on Story 1.3)" - forward dependency
@@ -109,12 +111,12 @@ Check each story:
 
 For each story's ACs:
 
-- **Given/When/Then Format:** Proper BDD structure?
-- **Testable:** Each AC can be verified independently?
-- **Complete:** Covers all scenarios including errors?
+- **Given/When/Then Format:**Proper BDD structure?
+- **Testable:**Each AC can be verified independently?
+- **Complete:**Covers all scenarios including errors?
 - **Specific:** Clear expected outcomes?
 
-**Issues to find:**
+- *Issues to find:**
 
 - Vague criteria like "user can login"
 - Missing error conditions
@@ -131,7 +133,7 @@ Map story dependencies within each epic:
 - Story 1.2 can use Story 1.1 output
 - Story 1.3 can use Story 1.1 & 1.2 outputs
 
-**Critical violations:**
+- *Critical violations:**
 
 - "This story depends on Story 1.4"
 - "Wait for future story to work"
@@ -141,8 +143,8 @@ Map story dependencies within each epic:
 
 Validate database creation approach:
 
-- **Wrong:** Epic 1 Story 1 creates all tables upfront
-- **Right:** Each story creates tables it needs
+- **Wrong:**Epic 1 Story 1 creates all tables upfront
+- **Right:**Each story creates tables it needs
 - **Check:** Are tables created only when first needed?
 
 ### 5. Special Implementation Checks
@@ -223,7 +225,7 @@ After completing epic quality review:
 
 This step executes autonomously. Load {nextStepFile} only after complete epic quality review is documented.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -242,4 +244,4 @@ This step executes autonomously. Load {nextStepFile} only after complete epic qu
 - Not verifying story sizing
 - Overlooking obvious violations
 
-**Master Rule:** Enforce best practices rigorously. Find all violations.
+- *Master Rule:** Enforce best practices rigorously. Find all violations.

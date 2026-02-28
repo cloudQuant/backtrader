@@ -53,12 +53,24 @@ class SampleStrategy1(bt.Strategy):
     )
 
     def __init__(self):
-        """Initialize the strategy with indicators and state variables."""
+        """Initialize the strategy with indicators and state variables.
+
+        Creates the Simple Moving Average indicator using the configured period
+        and initializes the order tracker to None.
+        """
         self.sma = bt.indicators.SMA(self.data, period=self.p.period)
         self.order = None
 
     def notify_order(self, order):
-        """Handle order status changes."""
+        """Handle order status changes.
+
+        Called by the broker when an order's status changes. Logs execution
+        details for completed orders and clears the pending order reference.
+
+        Args:
+            order: Order object with status and execution information including
+                executed price and status codes.
+        """
         if order.status in [order.Completed]:
             if order.isbuy():
                 self.log(f"BUY EXECUTED, Price: {order.executed.price:.2f}")
@@ -67,18 +79,38 @@ class SampleStrategy1(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
-        """Handle trade completion notifications."""
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. Logs the profit/loss information
+        including gross and net PnL after commissions.
+
+        Args:
+            trade: Trade object with pnl (gross profit) and pnlcomm (net profit)
+                attributes.
+        """
         if trade.isclosed:
             self.log(f"TRADE PROFIT, GROSS {trade.pnl:.2f}, NET {trade.pnlcomm:.2f}")
 
     def log(self, txt):
-        """Log a message with timestamp if printlog is enabled."""
+        """Log a message with timestamp if printlog is enabled.
+
+        Args:
+            txt: String message to log. Will be prefixed with current bar's date.
+        """
         if self.p.printlog:
             dt = self.datas[0].datetime.date(0)
             print(f'{dt.isoformat()}, {txt}')
 
     def next(self):
-        """Execute trading logic for each bar."""
+        """Execute trading logic for each bar.
+
+        Implements a simple SMA crossover strategy:
+        - Buy when close price crosses above SMA (no position)
+        - Sell when close price crosses below SMA (has position)
+        - Only one active order at a time
+
+        Skips execution if there's already a pending order.
+        """
         if self.order:
             return
 
@@ -161,10 +193,6 @@ def test_2_2_IT_001_strategy_multiple_data_feeds(cerebro_engine):
     assert len(strat.datas) == len(datas)  # Should have all data feeds
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Multiprocessing pickle issue on Python < 3.11"
-)
 @pytest.mark.priority_p2
 def test_2_3_UT_001_strategy_optimization(cerebro_engine):
     """Test 2.3-UT-001: Verify strategy parameter optimization functionality.
@@ -261,24 +289,54 @@ def test_2_5_UT_001_strategy_lifecycle(cerebro_with_data):
     """
     # Arrange - Create strategy that tracks lifecycle
     class LifecycleStrategy(bt.Strategy):
+        """Strategy for testing lifecycle method execution order.
+
+        This strategy tracks which lifecycle methods are called during
+        backtesting to verify the proper execution sequence.
+
+        Attributes:
+            methods_called: List tracking the order of lifecycle method calls.
+        """
+
         def __init__(self):
+            """Initialize the strategy with an empty method call tracker."""
             self.methods_called = []
 
         def start(self):
+            """Mark the start method as called.
+
+            This is called once before backtesting begins.
+            """
             self.methods_called.append('start')
 
         def prenext(self):
+            """Mark prenext as called once during the warmup period.
+
+            This is called for each bar before minimum period is reached.
+            """
             if 'prenext' not in self.methods_called:
                 self.methods_called.append('prenext')
 
         def nextstart(self):
+            """Mark nextstart as called.
+
+            This is called exactly once when transitioning from prenext to next.
+            """
             self.methods_called.append('nextstart')
 
         def next(self):
+            """Mark next as called once during normal operation.
+
+            This is called for each bar after the minimum period is reached.
+            """
             if 'next' not in self.methods_called:
                 self.methods_called.append('next')
 
         def stop(self):
+            """Mark stop as called.
+
+            This is called once after backtesting completes.
+            """
             self.methods_called.append('stop')
 
     cerebro_with_data.addstrategy(LifecycleStrategy)
@@ -341,7 +399,12 @@ def test_strategy_integration_001_with_analyzers():
 # =============================================================================
 
 def main():
-    """Run tests in standalone mode."""
+    """Run tests in standalone mode.
+
+    This function allows the test file to be executed directly without
+    pytest discovery. It runs all tests in the file with verbose output
+    and short traceback format.
+    """
     pytest.main([__file__, "-v", "--tb=short"])
 
 

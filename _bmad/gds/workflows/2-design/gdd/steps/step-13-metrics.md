@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-13-metrics'
 description: 'Define success metrics for technical and gameplay evaluation'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-13-metrics.md'
 nextStepFile: './step-14-complete.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 13: Success Metrics
 
-**Progress: Step 13 of 14** - Next: Final Steps
+- *Progress: Step 13 of 14**- Next: Final Steps
 
 ## STEP GOAL:
 
@@ -71,25 +76,30 @@ Define measurable success metrics for both technical performance and gameplay qu
 
 ### 1. Technical Metrics Discovery
 
-**Guide user through technical success criteria:**
+- *Guide user through technical success criteria:**
 
 "Let's define how we'll measure technical success for {{game_name}}.
 
-**Technical Metric Categories:**
+- *Technical Metric Categories:**
 
 | Category        | Example Metrics                                  |
-| --------------- | ------------------------------------------------ |
-| **Performance** | Frame rate consistency, load times, memory usage |
-| **Stability**   | Crash rate, bug severity distribution            |
-| **Platform**    | Certification pass rate, store review score      |
-| **Build**       | Build time, test coverage, asset size            |
 
-**Your performance targets from earlier:**
+| --------------- | ------------------------------------------------ |
+
+| **Performance**| Frame rate consistency, load times, memory usage |
+
+|**Stability**| Crash rate, bug severity distribution            |
+
+|**Platform**| Certification pass rate, store review score      |
+
+|**Build**       | Build time, test coverage, asset size            |
+
+- *Your performance targets from earlier:**
 
 - Frame rate: {{target_fps}}
 - Platform: {{platform}}
 
-**Questions to consider:**
+- *Questions to consider:**
 
 1. What technical metrics matter most for {{game_type}}?
 2. How will you measure performance in the field?
@@ -100,24 +110,30 @@ What technical metrics will indicate success for {{game_name}}?"
 
 ### 2. Gameplay Metrics Discovery
 
-**Guide user through gameplay success criteria:**
+- *Guide user through gameplay success criteria:**
 
 "Now let's define gameplay metrics - how we know the design is working.
 
-**Gameplay Metric Categories:**
+- *Gameplay Metric Categories:**
 
 | Category                | Example Metrics                                   |
+
 | ----------------------- | ------------------------------------------------- |
-| **Engagement**          | Session length, sessions per week, retention      |
-| **Progression**         | Completion rates, time-to-milestone, churn points |
-| **Difficulty**          | Death/retry rates, difficulty setting usage       |
-| **Feature Usage**       | Which mechanics are used, feature discovery       |
-| **Player Satisfaction** | Ratings, reviews, NPS                             |
 
-**Your game pillars are:** {{pillars}}
-**Your goals are:** {{goals}}
+| **Engagement**| Session length, sessions per week, retention      |
 
-**Questions to consider:**
+|**Progression**| Completion rates, time-to-milestone, churn points |
+
+|**Difficulty**| Death/retry rates, difficulty setting usage       |
+
+|**Feature Usage**| Which mechanics are used, feature discovery       |
+
+|**Player Satisfaction** | Ratings, reviews, NPS                             |
+
+- *Your game pillars are:** {{pillars}}
+- *Your goals are:** {{goals}}
+
+- *Questions to consider:**
 
 1. How will you know if players are having the intended experience?
 2. What retention rates would indicate success?
@@ -128,11 +144,11 @@ What gameplay metrics will indicate success for {{game_name}}?"
 
 ### 3. Qualitative Success Criteria
 
-**Guide user through qualitative measures:**
+- *Guide user through qualitative measures:**
 
 "Finally, let's define qualitative success criteria - things that are harder to measure but equally important.
 
-**Qualitative Criteria Examples:**
+- *Qualitative Criteria Examples:**
 
 - 'Players describe the game using our pillar words'
 - 'Streamers enjoy playing without instruction'
@@ -147,6 +163,7 @@ What qualitative signs would tell you {{game_name}} is successful?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Success Metrics
 
 ### Technical Metrics
@@ -156,6 +173,7 @@ Based on the conversation, prepare the content:
 #### Key Technical KPIs
 
 | Metric | Target | Measurement Method |
+
 | ------ | ------ | ------------------ |
 
 {{technical_kpi_table}}
@@ -167,6 +185,7 @@ Based on the conversation, prepare the content:
 #### Key Gameplay KPIs
 
 | Metric | Target | Measurement Method |
+
 | ------ | ------ | ------------------ |
 
 {{gameplay_kpi_table}}
@@ -178,7 +197,8 @@ Based on the conversation, prepare the content:
 ### Metric Review Cadence
 
 {{when_and_how_metrics_will_be_reviewed}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -186,17 +206,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Success Metrics based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Do metrics align with your game pillars?
 - Are targets achievable and measurable?
 - Can you actually collect this data?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Refine metric selection
 [P] Party Mode - Get perspectives on success criteria
 [C] Continue - Save this and move to Final Steps (Step 14 of 14)"
@@ -227,7 +248,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [metrics content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -248,4 +269,4 @@ ONLY WHEN [C continue option] is selected and [metrics content saved with frontm
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

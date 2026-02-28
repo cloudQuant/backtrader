@@ -1,4 +1,5 @@
----
+- --
+
 name: 'e-07-activation'
 description: 'Review critical_actions and route to edit step'
 
@@ -6,11 +7,13 @@ editPlan: '{bmb_creations_output_folder}/edit-plan-{agent-name}.md'
 criticalActions: ../data/critical-actions.md
 
 # Edit step route (determined by hasSidecar)
+
 agentEdit: './e-08-edit-agent.md'
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Edit Step 7: Activation and Routing
 
@@ -39,17 +42,19 @@ Review critical_actions and route to the agent edit step based on hasSidecar val
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Reference Documents
 
 Read `{criticalActions}` and `{editPlan}` to understand:
+
 - Current critical_actions (if any)
 - Target hasSidecar value after edits
 
 ### 2. Review Critical Actions
 
 If user wants to add/modify critical_actions:
+
 - Reference patterns from criticalActions.md
 - Define action name, description, invocation
 - For hasSidecar: true — specify sidecar-folder and file paths
@@ -59,11 +64,13 @@ If user wants to add/modify critical_actions:
 Check `{editPlan}` for agent metadata (hasSidecar):
 
 ```yaml
+
 # Simple routing based on hasSidecar
+
 hasSidecar: true → route to e-08-edit-agent.md (create sidecar structure)
 hasSidecar: false → route to e-08-edit-agent.md (single YAML file)
-```
 
+```bash
 The edit step handles both cases based on hasSidecar value.
 
 ### 4. Document to Edit Plan
@@ -78,11 +85,12 @@ activationEdits:
 routing:
   destinationEdit: e-08-edit-agent.md
   hasSidecar: {true|false}  # Derived from edit plan
-```
+
+```bash
 
 ### 5. Present MENU OPTIONS
 
-Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Edit Agent"
+Display: "**Select an Option:**[A] Advanced Elicitation [P] Party Mode [C] Continue to Edit Agent"
 
 #### Menu Handling Logic:
 
@@ -99,12 +107,12 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ## CRITICAL STEP COMPLETION NOTE
 
-This is the **ROUTING HUB** for edit flow. ONLY WHEN [C continue option] is selected and [routing determined], load and execute the agent edit step:
+This is the**ROUTING HUB** for edit flow. ONLY WHEN [C continue option] is selected and [routing determined], load and execute the agent edit step:
 
 - hasSidecar: false → Single YAML file edit
 - hasSidecar: true → YAML + sidecar folder structure edit
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -120,4 +128,4 @@ This is the **ROUTING HUB** for edit flow. ONLY WHEN [C continue option] is sele
 - Routing not determined
 - Wrong edit step selected
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

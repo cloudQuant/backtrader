@@ -15,9 +15,20 @@ import backtrader as bt
 
 
 class BenchFeed(bt.feeds.DataBase):
+    """Benchmark data feed for measuring execution time.
+
+    Generates synthetic OHLCV data to measure backtrader performance
+    improvements from attribute access optimizations.
+    """
+
     params = (("num_bars", 2000),)
 
     def __init__(self):
+        """Initialize the benchmark feed and generate synthetic price data.
+
+        Creates a random walk of OHLCV bars starting from a base price of 100.
+        Uses a fixed random seed (42) for reproducible benchmark results.
+        """
         super().__init__()
         random.seed(42)
         self._bars = []
@@ -37,10 +48,19 @@ class BenchFeed(bt.feeds.DataBase):
         self._idx = 0
 
     def start(self):
+        """Start the data feed and reset the bar index.
+
+        Resets the internal index to begin data delivery from the first bar.
+        """
         super().start()
         self._idx = 0
 
     def _load(self):
+        """Load the next bar of data into the feed's lines.
+
+        Returns:
+            bool: True if data was loaded successfully, False if no more bars.
+        """
         if self._idx >= len(self._bars):
             return False
         dt, o, h, l, c, v, oi = self._bars[self._idx]
@@ -56,9 +76,18 @@ class BenchFeed(bt.feeds.DataBase):
 
 
 class BenchStrategy(bt.Strategy):
-    """Strategy with multiple indicators to stress attribute access."""
+    """Strategy with multiple indicators to stress attribute access.
+
+    Uses a comprehensive set of technical indicators to measure the
+    performance impact of attribute access optimizations.
+    """
 
     def __init__(self):
+        """Initialize multiple technical indicators for benchmarking.
+
+        Creates SMA, EMA, ATR, RSI, Bollinger Bands, MACD, and CrossOver
+        indicators to measure attribute access overhead.
+        """
         self.sma5 = bt.indicators.SMA(self.data.close, period=5)
         self.sma20 = bt.indicators.SMA(self.data.close, period=20)
         self.ema10 = bt.indicators.EMA(self.data.close, period=10)
@@ -70,6 +99,11 @@ class BenchStrategy(bt.Strategy):
         self.bar_count = 0
 
     def next(self):
+        """Execute trading logic on each bar and count processed bars.
+
+        Implements a simple crossover strategy with RSI filter to generate
+        trades during benchmarking.
+        """
         self.bar_count += 1
         # Simulate typical strategy attribute access patterns
         c = self.data.close[0]
@@ -88,6 +122,16 @@ class BenchStrategy(bt.Strategy):
 
 
 def run_benchmark(num_bars=2000, runonce=True, label=""):
+    """Run a single benchmark iteration and measure execution time.
+
+    Args:
+        num_bars: Number of bars to generate in the benchmark data feed.
+        runonce: If True, use runonce mode for faster execution.
+        label: Label for identifying the benchmark run in output.
+
+    Returns:
+        float: Elapsed time in seconds for the benchmark run.
+    """
     cerebro = bt.Cerebro()
     cerebro.adddata(BenchFeed(num_bars=num_bars))
     cerebro.addstrategy(BenchStrategy)

@@ -1,8 +1,10 @@
----
+- --
+
 name: 'e-01-load-existing'
 description: 'Load and analyze existing agent for editing'
 
 # File References
+
 thisStepFile: ./e-01-load-existing.md
 workflowFile: ../workflow-edit-agent.md
 nextStepFile: './e-02-discover-edits.md'
@@ -12,7 +14,8 @@ agentMenuPatterns: ../data/agent-menu-patterns.md
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Edit Step 1: Load Existing Agent
 
@@ -61,14 +64,16 @@ Load the existing agent file, parse its structure, and create an edit plan track
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Agent File
 
-**Load the agent file:**
+- *Load the agent file:**
+
 Read the complete YAML from the agent file path provided by the user.
 
-**If file does not exist or is invalid:**
+- *If file does not exist or is invalid:**
+
 Inform the user and request a valid path:
 "The agent file could not be loaded. Please verify the path and try again.
 
@@ -82,44 +87,54 @@ If the property hasSidecar: true exists in the metadata, then it is an expert ag
 Else it is a simple agent.
 If a module agent also hasSidecar: true - this means it is a modules expert agent, thus it can have sidecar.
 
-**Extract and categorize all agent components:**
+- *Extract and categorize all agent components:**
 
 ```yaml
+
 # Basic Metadata
+
 - name: {agent-name}
 - description: {agent-description}
 - module: {stand-alone|bmm|cis|bmgd|custom}
+
 - hasSidecar: {true|false}
 
 # Persona
+
 - persona: {full persona text}
 - system-context: {if present}
 
 # Commands/Menu
+
 - commands: {full command structure}
 
 # Critical Actions (if present)
+
 - critical-actions: {list}
 
 # Metadata
+
 - metadata: {all metadata fields}
-```
+
+```bash
 
 ### 3. Display Agent Summary
 
-**Present a clear summary to the user:**
+- *Present a clear summary to the user:**
 
 ```markdown
+
 ## Agent Analysis: {agent-name}
 
-**Type:** {simple|expert|module}  (derived from module + hasSidecar)
-**Status:** ready-for-edit
+- *Type:** {simple|expert|module}  (derived from module + hasSidecar)
+
+- *Status:** ready-for-edit
 
 ### Current Structure:
 
-**Persona:** {character count} characters
-**Commands:** {count} commands defined
-**Critical Actions:** {count} critical actions
+- *Persona:** {character count} characters
+- *Commands:** {count} commands defined
+- *Critical Actions:** {count} critical actions
 
 ### Editable Components:
 
@@ -127,30 +142,36 @@ If a module agent also hasSidecar: true - this means it is a modules expert agen
 - [ ] Commands and menu structure
 - [ ] Critical actions
 - [ ] Metadata (name, description, version, tags)
-```
+
+```bash
 
 ### 4. Create Edit Plan Document
 
-**Initialize the edit plan tracking file:**
+- *Initialize the edit plan tracking file:**
 
 ```markdown
----
+
+- --
+
 mode: edit
 originalAgent: '{agent-file-path}'
 agentName: '{agent-name}'
 agentType: '{simple|expert|module}'
+
 editSessionDate: '{YYYY-MM-DD}'
 stepsCompleted:
+
   - e-01-load-existing.md
----
+- --
 
 # Edit Plan: {agent-name}
 
 ## Original Agent Snapshot
 
-**File:** {agent-file-path}
-**Type:** {simple|expert|module}
-**Version:** {version}
+- *File:** {agent-file-path}
+- *Type:** {simple|expert|module}
+
+- *Version:** {version}
 
 ### Current Persona
 
@@ -164,19 +185,19 @@ stepsCompleted:
 
 {all metadata fields}
 
----
+- --
 
 ## Edits Planned
 
-*This section will be populated in subsequent steps*
+- This section will be populated in subsequent steps*
 
----
+- --
 
 ## Edits Applied
 
-*This section will track completed edits*
-```
+- This section will track completed edits*
 
+```bash
 Write to `{editPlan}`.
 
 ### 5. Present MENU OPTIONS
@@ -199,7 +220,7 @@ Display: "**Is this the correct agent to edit?** [C] Yes, Continue to Discovery"
 
 ONLY WHEN [C continue option] is selected and [agent file loaded, analyzed, and edit plan created], will you then load and read fully `{nextStepFile}` to execute and begin edit discovery.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -218,4 +239,4 @@ ONLY WHEN [C continue option] is selected and [agent file loaded, analyzed, and 
 - Edit plan not created
 - Proceeding without user confirmation of loaded agent
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

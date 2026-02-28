@@ -75,11 +75,7 @@ class LineIteratorMixin:
                 is_line_object = False
 
                 # Fast path 1: Check type name (no attribute access needed)
-                if (
-                    "LineRoot" in arg_type_name
-                    or "LineSeries" in arg_type_name
-                    or "LineBuffer" in arg_type_name
-                ):
+                if "LineRoot" in arg_type_name or "LineSeries" in arg_type_name or "LineBuffer" in arg_type_name:
                     is_line_object = True
                 else:
                     # Fast path 2: Try to access 'lines' attribute directly
@@ -94,10 +90,7 @@ class LineIteratorMixin:
                         except AttributeError:
                             # Slow path: Check class hierarchy (only if needed)
                             try:
-                                if any(
-                                    "line" in base.__name__.lower()
-                                    for base in arg.__class__.__mro__
-                                ):
+                                if any("line" in base.__name__.lower() for base in arg.__class__.__mro__):
                                     is_line_object = True
                             except (AttributeError, TypeError):
                                 pass
@@ -152,17 +145,13 @@ class LineIteratorMixin:
                         _ = _obj._mindatas
                         is_indicator_or_observer = True
                     except AttributeError:
-                        is_indicator_or_observer = (
-                            "Indicator" in class_name or "Observer" in class_name
-                        )
+                        is_indicator_or_observer = "Indicator" in class_name or "Observer" in class_name
 
                     if is_indicator_or_observer:
                         # Try to access owner.datas directly
                         try:
                             owner_datas = owner.datas
-                            if (
-                                owner_datas and _obj not in owner_datas
-                            ):  # Prevent circular reference
+                            if owner_datas and _obj not in owner_datas:  # Prevent circular reference
                                 _obj.datas = owner_datas[0 : getattr(_obj, "_mindatas", 1)]
                         except AttributeError:
                             pass
@@ -229,9 +218,7 @@ class LineIteratorMixin:
         # CRITICAL: Set up clock for different object types
         # PERFORMANCE: Use try-except instead of hasattr+getattr
         try:
-            is_strategy = (cls._ltype == LineIterator.StratType) or metabase.is_class_type(
-                cls, "Strategy"
-            )
+            is_strategy = (cls._ltype == LineIterator.StratType) or metabase.is_class_type(cls, "Strategy")
         except AttributeError:
             is_strategy = metabase.is_class_type(cls, "Strategy")
 
@@ -526,14 +513,40 @@ class LineIterator(LineIteratorMixin, LineSeries):
             self.plotmaster = None
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """Get plotinfo attribute value.
+
+            This is a critical method expected by the plotting system.
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility.
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if a plotinfo attribute exists.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                bool: True if the attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
         def keys(self):
@@ -543,11 +556,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 list: List of non-private, non-callable attribute names.
             """
             # OPTIMIZED: Use __dict__ instead of dir() for better performance
-            return [
-                attr
-                for attr, val in self.__dict__.items()
-                if not attr.startswith("_") and not callable(val)
-            ]
+            return [attr for attr, val in self.__dict__.items() if not attr.startswith("_") and not callable(val)]
 
     plotinfo = PlotInfoObj()
 
@@ -568,13 +577,38 @@ class LineIterator(LineIteratorMixin, LineSeries):
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Get plotlines attribute value.
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if a plotlines attribute exists.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                bool: True if the attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
         def __getattr__(self, name):
+            """Get a plotline configuration, returning default for missing attributes.
+
+            Args:
+                name: Name of the plotline to retrieve.
+
+            Returns:
+                PlotLineObj: A default plotline object for the requested name.
+            """
+
             # Return an empty plotline object for missing attributes
             class PlotLineObj:
                 """Default plotline object for missing line configurations.
@@ -588,9 +622,22 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 __module__ = "backtrader.lineiterator"
 
                 def __repr__(self):
+                    """Return string representation of PlotLineObj.
+
+                    Returns:
+                        str: String representation of the object.
+                    """
                     return "PlotLineObj"
 
                 def rpartition(self, sep):
+                    """Partition string around separator.
+
+                    Args:
+                        sep: Separator string (unused).
+
+                    Returns:
+                        tuple: Always returns ("", "", "PlotLineObj").
+                    """
                     return ("", "", "PlotLineObj")
 
                 def _get(self, key, default=None):
@@ -618,6 +665,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     return default
 
                 def __contains__(self, key):
+                    """Check if attribute exists in PlotLineObj.
+
+                    Args:
+                        key: Attribute name to check.
+
+                    Returns:
+                        bool: Always returns False for default PlotLineObj.
+                    """
                     return False
 
             return PlotLineObj()
@@ -785,9 +840,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             from .utils import DotDict
 
             try:
-                self.dnames = DotDict(
-                    [(d._name, d) for d in self.datas if d is not None and getattr(d, "_name", "")]
-                )
+                self.dnames = DotDict([(d._name, d) for d in self.datas if d is not None and getattr(d, "_name", "")])
             except Exception:
                 self.dnames = {}
 
@@ -854,39 +907,120 @@ class LineIterator(LineIteratorMixin, LineSeries):
                             """
 
                             def __gt__(self, other):
+                                """Greater than comparison.
+
+                                Args:
+                                    other: Value to compare against.
+
+                                Returns:
+                                    bool: Always returns False for safety.
+                                """
                                 return False
 
                             def __lt__(self, other):
+                                """Less than comparison.
+
+                                Args:
+                                    other: Value to compare against.
+
+                                Returns:
+                                    bool: Always returns False for safety.
+                                """
                                 return False
 
                             def __ge__(self, other):
+                                """Greater than or equal comparison.
+
+                                Args:
+                                    other: Value to compare against.
+
+                                Returns:
+                                    bool: Always returns False for safety.
+                                """
                                 return False
 
                             def __le__(self, other):
+                                """Less than or equal comparison.
+
+                                Args:
+                                    other: Value to compare against.
+
+                                Returns:
+                                    bool: Always returns False for safety.
+                                """
                                 return False
 
                             def __eq__(self, other):
+                                """Equality comparison.
+
+                                Args:
+                                    other: Value to compare against.
+
+                                Returns:
+                                    bool: Always returns False for safety.
+                                """
                                 return False
 
                             def __ne__(self, other):
+                                """Inequality comparison.
+
+                                Args:
+                                    other: Value to compare against.
+
+                                Returns:
+                                    bool: Always returns True for safety.
+                                """
                                 return True
 
                             def __getitem__(self, key):
+                                """Get item by key.
+
+                                Args:
+                                    key: Index key.
+
+                                Returns:
+                                    float: Always returns 0.0 as safe default.
+                                """
                                 return 0.0
 
                             def __bool__(self):
+                                """Boolean conversion.
+
+                                Returns:
+                                    bool: Always returns False for safety.
+                                """
                                 return False
 
                             def __float__(self):
+                                """Float conversion.
+
+                                Returns:
+                                    float: Always returns 0.0 as safe default.
+                                """
                                 return 0.0
 
                             def __int__(self):
+                                """Integer conversion.
+
+                                Returns:
+                                    int: Always returns 0 as safe default.
+                                """
                                 return 0
 
                             def __str__(self):
+                                """String conversion.
+
+                                Returns:
+                                    str: String representation "0.0".
+                                """
                                 return "0.0"
 
                             def __repr__(self):
+                                """Representation string.
+
+                                Returns:
+                                    str: Representation string.
+                                """
                                 return "SafeCrossOverDefault(0.0)"
 
                         self.cross = SafeCrossOverDefault()
@@ -1075,11 +1209,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             list: List of indicators that have line aliases.
         """
         # Get the lines from all indicators
-        return [
-            x
-            for x in self._lineiterators[LineIterator.IndType]
-            if hasattr(x.lines, "getlinealiases")
-        ]
+        return [x for x in self._lineiterators[LineIterator.IndType] if hasattr(x.lines, "getlinealiases")]
 
     def getobservers(self):
         """Get all observers registered with this lineiterator.
@@ -1110,12 +1240,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             # CRITICAL FIX: Use the indicator's actual data source's parent data feed as clock
             # This ensures proper synchronization when indicator operates on secondary data feeds
             clock_set = False
-            if (
-                hasattr(self, "datas")
-                and self.datas
-                and hasattr(indicator, "datas")
-                and indicator.datas
-            ):
+            if hasattr(self, "datas") and self.datas and hasattr(indicator, "datas") and indicator.datas:
                 # Find which data feed the indicator's data source belongs to
                 ind_data = indicator.datas[0]
                 for data_feed in self.datas:
@@ -1137,10 +1262,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 indicator._clock = self.datas[0]
             elif hasattr(self, "_clock") and self._clock is not None:
                 # Check if clock is MinimalClock (fallback), skip it
-                if not (
-                    hasattr(self._clock, "__class__")
-                    and "MinimalClock" in self._clock.__class__.__name__
-                ):
+                if not (hasattr(self._clock, "__class__") and "MinimalClock" in self._clock.__class__.__name__):
                     indicator._clock = self._clock
                 elif hasattr(self, "data") and self.data is not None:
                     indicator._clock = self.data
@@ -1248,7 +1370,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                             pass
             except AttributeError:
                 pass
-        
+
         if clock_len != len(self):
             self.forward()
 
@@ -1558,6 +1680,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     return getattr(self, key, default)
 
                 def __contains__(self, key):
+                    """Check if a plotinfo attribute exists.
+
+                    Args:
+                        key: Attribute name to check.
+
+                    Returns:
+                        bool: True if the attribute exists, False otherwise.
+                    """
                     return hasattr(self, key)
 
             self.plotinfo = PlotInfoObj()
@@ -1780,6 +1910,14 @@ class IndicatorBase(DataAccessor):
                     return getattr(self, key, default)
 
                 def __contains__(self, key):
+                    """Check if a plotinfo attribute exists.
+
+                    Args:
+                        key: Attribute name to check.
+
+                    Returns:
+                        bool: True if the attribute exists, False otherwise.
+                    """
                     return hasattr(self, key)
 
             plotinfo_obj = PlotInfoObj()
@@ -1844,9 +1982,7 @@ class IndicatorBase(DataAccessor):
             from backtrader.indicators.dema import DoubleExponentialMovingAverage
 
             setattr(indicators_module, "DEMA", DoubleExponentialMovingAverage)
-            setattr(
-                indicators_module, "DoubleExponentialMovingAverage", DoubleExponentialMovingAverage
-            )
+            setattr(indicators_module, "DoubleExponentialMovingAverage", DoubleExponentialMovingAverage)
         except ImportError:
             pass
 
@@ -1854,9 +1990,7 @@ class IndicatorBase(DataAccessor):
             from backtrader.indicators.tema import TripleExponentialMovingAverage
 
             setattr(indicators_module, "TEMA", TripleExponentialMovingAverage)
-            setattr(
-                indicators_module, "TripleExponentialMovingAverage", TripleExponentialMovingAverage
-            )
+            setattr(indicators_module, "TripleExponentialMovingAverage", TripleExponentialMovingAverage)
         except ImportError:
             pass
 
@@ -1924,7 +2058,7 @@ class ObserverBase(DataAccessor):
                 # Don't reset _owner to None - it may have been set correctly by super().__init__()
                 from . import metabase
 
-                existing_owner = getattr(self, '_owner', None)
+                existing_owner = getattr(self, "_owner", None)
 
                 # Only search for owner if not already set correctly
                 if existing_owner is None:
@@ -1940,7 +2074,7 @@ class ObserverBase(DataAccessor):
                             self._owner = strategy
 
                 # Fallback: Set up a flag to be connected later by cerebro
-                if getattr(self, '_owner', None) is None:
+                if getattr(self, "_owner", None) is None:
                     self._owner_pending = True
                 else:
                     self._owner_pending = False
@@ -1949,7 +2083,7 @@ class ObserverBase(DataAccessor):
                 if self._owner is not None:
                     # Set up clock from strategy for timing
                     # CRITICAL: Check _stclock flag - if True, clock should be the strategy itself
-                    if getattr(self, '_stclock', False):
+                    if getattr(self, "_stclock", False):
                         self._clock = self._owner
                     elif hasattr(self._owner, "datas") and self._owner.datas:
                         self._clock = self._owner.datas[0]
@@ -2136,11 +2270,7 @@ class StrategyBase(DataAccessor):
                             return 0.0
 
                         def __len__(self):
-                            if (
-                                hasattr(self, "_owner")
-                                and self._owner
-                                and hasattr(self._owner, "data")
-                            ):
+                            if hasattr(self, "_owner") and self._owner and hasattr(self._owner, "data"):
                                 try:
                                     return len(self._owner.data)
                                 except Exception:
@@ -2200,11 +2330,7 @@ class StrategyBase(DataAccessor):
                             Returns:
                                 int: Length of owner data, or 0 if not available.
                             """
-                            if (
-                                hasattr(self, "_owner")
-                                and self._owner
-                                and hasattr(self._owner, "data")
-                            ):
+                            if hasattr(self, "_owner") and self._owner and hasattr(self._owner, "data"):
                                 try:
                                     return len(self._owner.data)
                                 except Exception:
@@ -2304,6 +2430,11 @@ class StrategyBase(DataAccessor):
                         return 0
 
                     def __len__(self):
+                        """Return length.
+
+                        Returns:
+                            int: Always returns 0 for minimal clock.
+                        """
                         return 0
 
                 self._clock = MinimalClock()

@@ -1,15 +1,17 @@
----
+- --
+
 name: 'step-05-adversarial-review'
 description: 'Construct diff and invoke adversarial review task'
 
 nextStepFile: './step-06-resolve-findings.md'
----
+
+- --
 
 # Step 5: Adversarial Code Review
 
-**Goal:** Construct diff of all changes, invoke adversarial review task, present findings.
+- *Goal:** Construct diff of all changes, invoke adversarial review task, present findings.
 
----
+- --
 
 ## AVAILABLE STATE
 
@@ -19,7 +21,7 @@ From previous steps:
 - `{execution_mode}` - "tech-spec" or "direct"
 - `{tech_spec_path}` - Tech-spec file (if Mode A)
 
----
+- --
 
 ### 1. Construct Diff
 
@@ -27,13 +29,15 @@ Build complete diff of all changes since workflow started.
 
 ### If `{baseline_commit}` is a Git commit hash:
 
-**Tracked File Changes:**
+- *Tracked File Changes:**
 
 ```bash
 git diff {baseline_commit}
-```
 
-**New Untracked Files:**
+```bash
+
+- *New Untracked Files:**
+
 Only include untracked files that YOU created during this workflow (steps 2-4).
 Do not include pre-existing untracked files.
 For each new file created, include its full content as a "new file" addition.
@@ -51,9 +55,9 @@ Use best-effort diff construction:
 
 Merge all changes into `{diff_output}`.
 
-**Note:** Do NOT `git add` anything - this is read-only inspection.
+- *Note:** Do NOT `git add` anything - this is read-only inspection.
 
----
+- --
 
 ### 2. Invoke Adversarial Review
 
@@ -61,31 +65,34 @@ With `{diff_output}` constructed, load and follow the review task. If possible, 
 
 ```xml
 <invoke-task>Review {diff_output} using {project-root}/_bmad/core/tasks/review-adversarial-general.xml</invoke-task>
-```
 
-**Platform fallback:** If task invocation not available, load the task file and follow its instructions inline, passing `{diff_output}` as the content.
+```bash
+
+- *Platform fallback:** If task invocation not available, load the task file and follow its instructions inline, passing `{diff_output}` as the content.
 
 The task should: review `{diff_output}` and return a list of findings.
 
----
+- --
 
 ### 3. Process Findings
 
 Capture the findings from the task output.
-**If zero findings:** HALT - this is suspicious. Re-analyze or request user guidance.
+
+- *If zero findings:** HALT - this is suspicious. Re-analyze or request user guidance.
+
 Evaluate severity (Critical, High, Medium, Low) and validity (real, noise, undecided).
 DO NOT exclude findings based on severity or validity unless explicitly asked to do so.
 Order findings by severity.
 Number the ordered findings (F1, F2, F3, etc.).
 If TodoWrite or similar tool is available, turn each finding into a TODO, include ID, severity, validity, and description in the TODO; otherwise present findings as a table with columns: ID, Severity, Validity, Description
 
----
+- --
 
 ## NEXT STEP
 
 With findings in hand, read fully and follow: `step-06-resolve-findings.md` for user to choose resolution approach.
 
----
+- --
 
 ## SUCCESS METRICS
 

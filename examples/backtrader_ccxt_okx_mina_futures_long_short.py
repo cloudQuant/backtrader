@@ -1,21 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""OKX MINA/USDT 永续合约布林带突破策略（支持做多做空）.
+"""OKX MINA/USDT Perpetual Futures Bollinger Bands Breakout Strategy (Long/Short).
 
-策略说明：
-1. 使用60周期、2倍标准差的布林带
-2. 交易对：MINA/USDT 永续合约
-3. 每次下单金额：1 USDT
-4. 1分钟K线
+This strategy implements a Bollinger Bands breakout trading system for futures
+trading with support for both long and short positions.
 
-交易逻辑（合约双向交易）：
-- 做多：价格突破上轨 → 开多仓（买入）
-- 平多：价格跌破中轨 → 平多仓（卖出）
-- 做空：价格跌破下轨 → 开空仓（卖出）
-- 平空：价格突破中轨 → 平空仓（买入）
-- 使用ATR进行动态止损
+Strategy Overview:
+1. Uses 60-period, 2 standard deviation Bollinger Bands
+2. Trading pair: MINA/USDT perpetual futures
+3. Order size: 1 USDT per trade
+4. Timeframe: 1-minute candles
 
-注意：合约交易支持做多和做空双向交易。
+Trading Logic (Bidirectional futures trading):
+- Long entry: Price breaks above upper band → Open long position (buy)
+- Long exit: Price falls below middle band → Close long position (sell)
+- Short entry: Price falls below lower band → Open short position (sell)
+- Short exit: Price breaks above middle band → Close short position (buy)
+- Uses ATR for dynamic stop loss
+
+Note: Futures trading supports both long and short positions.
 """
 
 import os
@@ -35,76 +38,107 @@ from backtrader.ccxt import load_ccxt_config_from_env
 
 
 class BollingerBandsLongShortStrategy(bt.Strategy):
-    """布林带突破策略（合约支持做多做空）.
+    """Bollinger Bands breakout strategy with support for long and short positions.
 
-    参数:
-        period: 布林带周期，默认60
-        devfactor: 标准差倍数，默认2
-        order_size: 每次下单金额（USDT），默认1
-        atr_period: ATR周期，默认14
-        atr_mult: ATR止损倍数，默认2
-        position_size_pct: 仓位比例，默认1.0（满仓）
-        log_bars: 是否输出每个bar的详细信息，默认True
-        use_stop_loss: 是否启用止损，默认True
+    This strategy implements a dual-directional trading system using Bollinger Bands
+    for entry signals and ATR-based dynamic stop losses for risk management.
+
+    Attributes:
+        bollinger: Bollinger Bands indicator instance.
+        atr: Average True Range indicator for stop loss calculation.
+        mid: Middle band (simple moving average).
+        top: Upper band (middle band + standard deviation).
+        bot: Lower band (middle band - standard deviation).
+        order: Current pending order.
+        long_stop_price: Stop loss price for long positions.
+        short_stop_price: Stop loss price for short positions.
+        entry_price: Price at which current position was entered.
+        position_type: Type of current position ('long', 'short', or None).
+        trade_count: Total number of trades executed.
+        is_live_mode: Flag indicating if strategy is in live trading mode.
+        live_bar_count: Count of live bars processed.
+        historical_bar_count: Count of historical bars processed.
+        pending_orders: Dictionary tracking pending orders.
+
+    Args:
+        period: Bollinger Bands period. Defaults to 60.
+        devfactor: Standard deviation multiplier. Defaults to 2.0.
+        order_size: Order size in USDT. Defaults to 1.0.
+        atr_period: ATR period for stop loss calculation. Defaults to 14.
+        atr_mult: ATR multiplier for stop loss distance. Defaults to 2.0.
+        position_size_pct: Position size as percentage of capital. Defaults to 1.0.
+        log_bars: Whether to log detailed bar information. Defaults to True.
+        use_stop_loss: Whether to enable ATR-based stop loss. Defaults to True.
+        tdMode: Trading mode ('cross' for cross margin, 'isolated' for isolated). Defaults to 'cross'.
+        leverage: Leverage multiplier for futures trading. Defaults to 10.
     """
 
     params = (
-        ('period', 60),           # 布林带周期
-        ('devfactor', 2.0),       # 标准差倍数
-        ('order_size', 1.0),      # 每次下单金额（USDT）
-        ('atr_period', 14),       # ATR周期
-        ('atr_mult', 2.0),        # ATR止损倍数
-        ('position_size_pct', 1.0),  # 仓位比例
-        ('log_bars', True),       # 是否输出bar信息
-        ('use_stop_loss', True),  # 是否启用止损
-        # OKX 合约交易参数
-        ('tdMode', 'cross'),      # 交易模式: cross=全仓, isolated=逐仓
-        ('leverage', 10),         # 杠杆倍数
+        ('period', 60),           # Bollinger Bands period
+        ('devfactor', 2.0),       # Standard deviation multiplier
+        ('order_size', 1.0),      # Order size in USDT
+        ('atr_period', 14),       # ATR period
+        ('atr_mult', 2.0),        # ATR stop loss multiplier
+        ('position_size_pct', 1.0),  # Position size percentage
+        ('log_bars', True),       # Whether to log bar information
+        ('use_stop_loss', True),  # Whether to enable stop loss
+        # OKX futures trading parameters
+        ('tdMode', 'cross'),      # Trading mode: cross=cross margin, isolated=isolated margin
+        ('leverage', 10),         # Leverage multiplier
     )
 
     def __init__(self):
-        """初始化策略指标和状态"""
-        # 布林带指标
+        """Initialize strategy indicators and state variables.
+
+        Sets up Bollinger Bands indicator, ATR indicator for stop loss calculation,
+        and initializes all state tracking variables for the strategy.
+        """
+        # Bollinger Bands indicator
         self.bollinger = bt.indicators.BollingerBands(
             self.data.close,
             period=self.p.period,
             devfactor=self.p.devfactor
         )
 
-        # ATR指标（用于动态止损）
+        # ATR indicator (for dynamic stop loss)
         self.atr = bt.indicators.ATR(
             self.data,
             period=self.p.atr_period
         )
 
-        # 移动平均线（中轨）
+        # Moving average (middle band)
         self.mid = self.bollinger.mid
 
-        # 上下轨
+        # Upper and lower bands
         self.top = self.bollinger.top
         self.bot = self.bollinger.bot
 
-        # 交易状态（合约支持多空双向）
+        # Trading state (supports both long and short positions)
         self.order = None
-        self.long_stop_price = None   # 多仓止损价
-        self.short_stop_price = None  # 空仓止损价
-        self.entry_price = None       # 入场价格
-        self.position_type = None     # 持仓类型: 'long', 'short', None
+        self.long_stop_price = None   # Long position stop loss price
+        self.short_stop_price = None  # Short position stop loss price
+        self.entry_price = None       # Entry price
+        self.position_type = None     # Position type: 'long', 'short', None
 
-        # 交易统计
+        # Trading statistics
         self.trade_count = 0
         self.last_bar_logged = 0
 
-        # 实时交易标志：历史数据用于初始化指标，不触发交易
-        self.is_live_mode = False  # 是否进入实时模式
-        self.live_bar_count = 0    # 实时K线计数
-        self.historical_bar_count = 0  # 历史K线计数
+        # Live trading flag: historical data is used for indicator initialization, no trading
+        self.is_live_mode = False  # Whether in live mode
+        self.live_bar_count = 0    # Live bar count
+        self.historical_bar_count = 0  # Historical bar count
 
-        # 订单跟踪
-        self.pending_orders = {}  # 跟踪待处理的订单
+        # Order tracking
+        self.pending_orders = {}  # Track pending orders
 
     def log(self, msg, with_date=True):
-        """日志输出"""
+        """Log a message with optional timestamp.
+
+        Args:
+            msg: The message to log.
+            with_date: Whether to prepend a timestamp. Defaults to True.
+        """
         if with_date:
             timestamp = time.time()
             dt = datetime.fromtimestamp(timestamp)
@@ -112,47 +146,60 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
         print(msg)
 
     def notify_data(self, data, status, *args, **kwargs):
-        """监听数据状态变化
+        """Monitor data feed status changes.
 
-        当数据源状态变化时，backtrader会调用此方法
-        - DELAYED: 正在回填历史数据
-        - LIVE: 已进入实时模式
-        - DISCONNECTED: 数据断开
+        Called by backtrader when the data feed status changes.
+
+        Args:
+            data: The data feed that triggered the notification.
+            status: The new status of the data feed.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Note:
+            Status values:
+            - DELAYED: Backfilling historical data
+            - LIVE: Entered live trading mode
+            - DISCONNECTED: Data feed disconnected
         """
         if status == data.DELAYED and not self.is_live_mode:
-            self.log('[DATA] 正在加载历史数据...', with_date=True)
+            self.log('[DATA] Loading historical data...', with_date=True)
 
         elif status == data.LIVE:
             if not self.is_live_mode:
                 self.is_live_mode = True
                 self.log('=' * 80, with_date=True)
-                self.log('[LIVE] 历史数据加载完成，进入实时交易模式！', with_date=True)
-                self.log(f'[LIVE] 当前持仓: {self.getposition().size}', with_date=True)
+                self.log('[LIVE] Historical data loaded, entering live trading mode!', with_date=True)
+                self.log(f'[LIVE] Current position: {self.getposition().size}', with_date=True)
                 self.log('=' * 80, with_date=True)
             else:
-                # 确保保持实时模式
+                # Ensure live mode is maintained
                 self.is_live_mode = True
 
         elif status == data.DISCONNECTED:
-            self.log('[DATA] 数据源已断开 - 策略可能停止', with_date=True)
-            self.log(f'[DATA] 断开时的持仓: {self.getposition().size}', with_date=True)
+            self.log('[DATA] Data feed disconnected - strategy may stop', with_date=True)
+            self.log(f'[DATA] Position at disconnect: {self.getposition().size}', with_date=True)
 
     def log_bar_info(self):
-        """输出当前bar的详细信息（仅实时模式）"""
-        # 历史数据不输出详细信息
+        """Log detailed information for the current bar (live mode only).
+
+        Prints comprehensive trading information including price data,
+        indicator values, position details, and trading signals.
+        """
+        # Don't log detailed info for historical data
         if not self.is_live_mode:
             return
 
         if not self.p.log_bars:
             return
 
-        # 避免重复输出同一根bar
+        # Avoid logging the same bar multiple times
         if len(self.data) == self.last_bar_logged:
             return
 
         self.last_bar_logged = len(self.data)
 
-        # 获取bar信息
+        # Get bar information
         bar_time = self.data.datetime.datetime(0)
         current_price = self.data.close[0]
         upper_band = self.top[0]
@@ -160,14 +207,14 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
         middle_band = self.mid[0]
         atr_value = self.atr[0]
 
-        # 获取持仓信息
+        # Get position information
         position_size = self.getposition().size
         position_price = self.getposition().price if position_size != 0 else 0
 
-        # 计算带宽（上下轨距离/中轨）
+        # Calculate bandwidth (distance between bands / middle band)
         bandwidth = (upper_band - lower_band) / middle_band * 100 if middle_band > 0 else 0
 
-        # 计算价格在布林带中的位置
+        # Calculate price position within Bollinger Bands
         if upper_band != lower_band:
             bb_position = (current_price - lower_band) / (upper_band - lower_band) * 100
         else:
@@ -217,7 +264,7 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
             print(f"  Entry Price: N/A (No position)")
             print(f"  Stop Price: N/A (No position)")
 
-        # 信号提示（合约支持多空双向）
+        # Trading signals (supports both long and short)
         signals = []
         if position_size == 0:
             if current_price > upper_band:
@@ -225,7 +272,7 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
             elif current_price < lower_band:
                 signals.append("SHORT SIGNAL (Break below lower band)")
         elif position_size > 0:
-            # 持有多仓
+            # Holding long position
             if current_price < middle_band:
                 signals.append("CLOSE LONG SIGNAL (Below middle band)")
             elif self.long_stop_price and current_price <= self.long_stop_price:
@@ -233,7 +280,7 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
             elif current_price > upper_band:
                 signals.append("HOLD LONG (Above upper band - strong trend)")
         elif position_size < 0:
-            # 持有空仓
+            # Holding short position
             if current_price > middle_band:
                 signals.append("CLOSE SHORT SIGNAL (Above middle band)")
             elif self.short_stop_price and current_price >= self.short_stop_price:
@@ -249,91 +296,108 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
         print(f"{'='*100}\n")
 
     def calculate_order_size(self, price):
-        """计算下单数量，确保取整
+        """Calculate order size, ensuring proper rounding.
 
-        合约交易通常有最小数量限制，需要取整
+        Futures trading typically has minimum quantity limits that require rounding.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            int: The calculated order size rounded to minimum units.
         """
-        # 计算理论数量
+        # Calculate theoretical size
         theoretical_size = self.p.order_size / price
 
-        # 获取市场信息中的最小数量限制
-        min_amount = 1.0  # 默认最小1个单位
+        # Get minimum quantity limit from market info
+        min_amount = 1.0  # Default minimum 1 unit
 
-        # 向上取整到最小单位的整数倍
+        # Round up to nearest whole unit
         size = int(theoretical_size)
         if size < min_amount:
             size = int(min_amount)
 
-        # 确保至少为1
+        # Ensure at least 1
         if size < 1:
             size = 1
 
         return size
 
     def next(self):
-        """每根K线调用"""
+        """Called on each bar/candle.
+
+        Wraps the actual implementation with error handling to prevent
+        strategy crashes due to unexpected exceptions.
+        """
         try:
             self._next_impl()
         except Exception as e:
-            self.log(f'[ERROR] next() 发生异常: {e}', with_date=True)
-            self.log(f'[ERROR] 异常详情: {traceback.format_exc()}', with_date=True)
+            self.log(f'[ERROR] Exception in next(): {e}', with_date=True)
+            self.log(f'[ERROR] Exception details: {traceback.format_exc()}', with_date=True)
 
     def _next_impl(self):
-        """next() 的实际实现"""
-        # 统计K线数量
+        """Actual implementation of next() method.
+
+        Implements the core trading logic:
+        1. Track bar counts
+        2. Log bar information in live mode
+        3. Check stop loss conditions
+        4. Execute entry/exit signals based on Bollinger Bands
+        """
+        # Track bar counts
         if self.is_live_mode:
             self.live_bar_count += 1
         else:
             self.historical_bar_count += 1
 
-        # 实时数据：每60根或前3根输出进度
+        # Live data: log progress every 60 bars or first 3 bars
         if self.is_live_mode:
             if self.live_bar_count % 60 == 0 or self.live_bar_count <= 3:
-                self.log(f'[LIVE] 实时K线 #{self.live_bar_count}, 总K线数: {len(self.data)}', with_date=True)
+                self.log(f'[LIVE] Live bar #{self.live_bar_count}, total bars: {len(self.data)}', with_date=True)
 
-        # 输出详细bar信息（仅实时模式）
+        # Log detailed bar information (live mode only)
         if self.is_live_mode:
             self.log_bar_info()
 
-        # 确保没有待处理订单
+        # Ensure no pending orders
         if self.order:
             return
 
-        # 确保有足够的数据（至少period+1根）
+        # Ensure sufficient data (at least period+1 bars)
         if len(self.data) < self.p.period + 1:
             return
 
-        # === 历史数据不触发交易信号 ===
-        # 只有在收到 LIVE 通知后，才允许触发交易信号
+        # === Historical data does not trigger trading signals ===
+        # Only allow trading signals after LIVE notification is received
         if not self.is_live_mode:
             return
 
-        # 获取当前价格和指标值
+        # Get current price and indicator values
         current_price = self.data.close[0]
         upper_band = self.top[0]
         lower_band = self.bot[0]
         middle_band = self.mid[0]
         atr_value = self.atr[0]
 
-        # 检查指标值是否有效
+        # Check if indicator values are valid
         if any(x is None for x in [current_price, upper_band, lower_band, middle_band, atr_value]):
             return
 
-        # 获取当前仓位
+        # Get current position
         position_size = self.getposition().size
 
-        # 计算下单数量（取整）
+        # Calculate order size (rounded)
         size = self.calculate_order_size(current_price)
 
-        # === 合约双向交易逻辑 ===
+        # === Bidirectional futures trading logic ===
 
-        # 1. 检查止损（优先执行）
+        # 1. Check stop loss (executed first)
         if self.p.use_stop_loss:
-            # 多仓止损（使用限价单，价格略低以确保成交）
+            # Long position stop loss (use limit order, slightly lower to ensure execution)
             if position_size > 0 and self.long_stop_price is not None:
                 if current_price <= self.long_stop_price:
-                    limit_price = current_price * 0.99  # 卖出限价单：略低于市价
-                    self.log(f'[LONG STOP LOSS] 多仓止损触发: 当前=${current_price:.6f}, 止损=${self.long_stop_price:.6f}, 限价=${limit_price:.6f}')
+                    limit_price = current_price * 0.99  # Sell limit order: slightly below market
+                    self.log(f'[LONG STOP LOSS] Long stop loss triggered: Current=${current_price:.6f}, Stop=${self.long_stop_price:.6f}, Limit=${limit_price:.6f}')
                     order_params = {
                         'tdMode': self.p.tdMode,
                         'Coint': 'USDT',
@@ -345,11 +409,11 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
                     self.trade_count += 1
                     return
 
-            # 空仓止损（使用限价单，价格略高以确保成交）
+            # Short position stop loss (use limit order, slightly higher to ensure execution)
             elif position_size < 0 and self.short_stop_price is not None:
                 if current_price >= self.short_stop_price:
-                    limit_price = current_price * 1.01  # 买入限价单：略高于市价
-                    self.log(f'[SHORT STOP LOSS] 空仓止损触发: 当前=${current_price:.6f}, 止损=${self.short_stop_price:.6f}, 限价=${limit_price:.6f}')
+                    limit_price = current_price * 1.01  # Buy limit order: slightly above market
+                    self.log(f'[SHORT STOP LOSS] Short stop loss triggered: Current=${current_price:.6f}, Stop=${self.short_stop_price:.6f}, Limit=${limit_price:.6f}')
                     order_params = {
                         'tdMode': self.p.tdMode,
                         'Coint': 'USDT',
@@ -361,47 +425,47 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
                     self.trade_count += 1
                     return
 
-        # 2. 无仓位时的开仓逻辑
+        # 2. Entry logic when no position
         if position_size == 0:
-            # 突破上轨 → 开多仓（使用限价单，价格略高以确保成交）
+            # Break above upper band → Open long position (use limit order, slightly higher to ensure execution)
             if current_price > upper_band:
-                limit_price = current_price * 1.01  # 买入限价单：略高于市价
-                self.log(f'[LONG ENTRY] 突破上轨开多: 价格=${current_price:.6f}, 上轨=${upper_band:.6f}, 限价=${limit_price:.6f}, 数量={size}')
-                # 合约交易参数
+                limit_price = current_price * 1.01  # Buy limit order: slightly above market
+                self.log(f'[LONG ENTRY] Break above upper band to open long: Price=${current_price:.6f}, Upper Band=${upper_band:.6f}, Limit=${limit_price:.6f}, Size={size}')
+                # Futures trading parameters
                 order_params = {
                     'tdMode': self.p.tdMode,
-                    'Coint': 'USDT',  # 保证金币种
+                    'Coint': 'USDT',  # Margin currency
                 }
                 self.order = self.buy(size=size, price=limit_price, params=order_params)
                 self.entry_price = current_price
                 self.long_stop_price = current_price - (atr_value * self.p.atr_mult)
                 self.position_type = 'long'
-                self.log(f'[ORDER] 开多限价订单已提交，等待交易所确认...', with_date=True)
+                self.log(f'[ORDER] Long limit order submitted, waiting for exchange confirmation...', with_date=True)
                 return
 
-            # 跌破下轨 → 开空仓（使用限价单，价格略低以确保成交）
+            # Break below lower band → Open short position (use limit order, slightly lower to ensure execution)
             elif current_price < lower_band:
-                limit_price = current_price * 0.99  # 卖出限价单：略低于市价
-                self.log(f'[SHORT ENTRY] 跌破下轨开空: 价格=${current_price:.6f}, 下轨=${lower_band:.6f}, 限价=${limit_price:.6f}, 数量={size}')
-                # 合约交易参数
+                limit_price = current_price * 0.99  # Sell limit order: slightly below market
+                self.log(f'[SHORT ENTRY] Break below lower band to open short: Price=${current_price:.6f}, Lower Band=${lower_band:.6f}, Limit=${limit_price:.6f}, Size={size}')
+                # Futures trading parameters
                 order_params = {
                     'tdMode': self.p.tdMode,
-                    'Coint': 'USDT',  # 保证金币种
+                    'Coint': 'USDT',  # Margin currency
                 }
                 self.order = self.sell(size=size, price=limit_price, params=order_params)
                 self.entry_price = current_price
                 self.short_stop_price = current_price + (atr_value * self.p.atr_mult)
                 self.position_type = 'short'
-                self.log(f'[ORDER] 开空限价订单已提交，等待交易所确认...', with_date=True)
+                self.log(f'[ORDER] Short limit order submitted, waiting for exchange confirmation...', with_date=True)
                 return
 
-        # 3. 持有多仓时的逻辑
+        # 3. Logic when holding long position
         elif position_size > 0:
-            # 跌破中轨 → 平多仓（止盈，使用限价单，价格略低以确保成交）
+            # Fall below middle band → Close long position (take profit, use limit order, slightly lower to ensure execution)
             if current_price < middle_band:
-                limit_price = current_price * 0.99  # 卖出限价单：略低于市价
-                self.log(f'[LONG EXIT] 跌破中轨平多: 价格=${current_price:.6f}, 中轨=${middle_band:.6f}, 限价=${limit_price:.6f}, 数量={position_size}')
-                # 平仓也需要参数
+                limit_price = current_price * 0.99  # Sell limit order: slightly below market
+                self.log(f'[LONG EXIT] Fall below middle band to close long: Price=${current_price:.6f}, Middle Band=${middle_band:.6f}, Limit=${limit_price:.6f}, Size={position_size}')
+                # Closing position also requires parameters
                 order_params = {
                     'tdMode': self.p.tdMode,
                     'Coint': 'USDT',
@@ -413,18 +477,18 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
                 self.trade_count += 1
                 return
 
-            # 持仓日志（每30根bar输出一次）
+            # Position log (output every 30 bars)
             if len(self.data) % 30 == 0:
                 pnl = (current_price - self.entry_price) * position_size
-                self.log(f'[LONG HOLD] 持有多仓: 入场=${self.entry_price:.6f}, 当前=${current_price:.6f}, 浮盈=${pnl:.4f}')
+                self.log(f'[LONG HOLD] Holding long position: Entry=${self.entry_price:.6f}, Current=${current_price:.6f}, Unrealized P&L=${pnl:.4f}')
 
-        # 4. 持有空仓时的逻辑
+        # 4. Logic when holding short position
         elif position_size < 0:
-            # 突破中轨 → 平空仓（止盈，使用限价单，价格略高以确保成交）
+            # Break above middle band → Close short position (take profit, use limit order, slightly higher to ensure execution)
             if current_price > middle_band:
-                limit_price = current_price * 1.01  # 买入限价单：略高于市价
-                self.log(f'[SHORT EXIT] 突破中轨平空: 价格=${current_price:.6f}, 中轨=${middle_band:.6f}, 限价=${limit_price:.6f}, 数量={abs(position_size)}')
-                # 平仓也需要参数
+                limit_price = current_price * 1.01  # Buy limit order: slightly above market
+                self.log(f'[SHORT EXIT] Break above middle band to close short: Price=${current_price:.6f}, Middle Band=${middle_band:.6f}, Limit=${limit_price:.6f}, Size={abs(position_size)}')
+                # Closing position also requires parameters
                 order_params = {
                     'tdMode': self.p.tdMode,
                     'Coint': 'USDT',
@@ -436,24 +500,37 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
                 self.trade_count += 1
                 return
 
-            # 持仓日志（每30根bar输出一次）
+            # Position log (output every 30 bars)
             if len(self.data) % 30 == 0:
                 pnl = (self.entry_price - current_price) * abs(position_size)
-                self.log(f'[SHORT HOLD] 持有空仓: 入场=${self.entry_price:.6f}, 当前=${current_price:.6f}, 浮盈=${pnl:.4f}')
+                self.log(f'[SHORT HOLD] Holding short position: Entry=${self.entry_price:.6f}, Current=${current_price:.6f}, Unrealized P&L=${pnl:.4f}')
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Order status notification callback.
+
+        Called by backtrader when an order's status changes. Wraps the actual
+        implementation with error handling.
+
+        Args:
+            order: The order object that triggered the notification.
+        """
         try:
             self._notify_order_impl(order)
         except Exception as e:
-            self.log(f'[ERROR] notify_order() 发生异常: {e}', with_date=True)
-            self.log(f'[ERROR] 异常详情: {traceback.format_exc()}', with_date=True)
-            # 重置订单，防止阻塞后续交易
+            self.log(f'[ERROR] Exception in notify_order(): {e}', with_date=True)
+            self.log(f'[ERROR] Exception details: {traceback.format_exc()}', with_date=True)
+            # Reset order to prevent blocking subsequent trades
             self.order = None
 
     def _notify_order_impl(self, order):
-        """notify_order() 的实际实现"""
-        # 订单状态映射
+        """Actual implementation of notify_order() method.
+
+        Logs order status changes and executed trade details.
+
+        Args:
+            order: The order object that triggered the notification.
+        """
+        # Order status mapping
         status_names = {
             order.Created: 'Created',
             order.Submitted: 'Submitted',
@@ -469,90 +546,114 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
         status_name = status_names.get(order.status, f'Unknown({order.status})')
 
         if order.status in [order.Submitted, order.Accepted, order.Partial]:
-            self.log(f'[ORDER] 订单状态: {status_name} - 等待成交', with_date=True)
+            self.log(f'[ORDER] Order status: {status_name} - Awaiting execution', with_date=True)
             return
 
         if order.status in [order.Completed]:
             if order.isbuy():
-                self.log(f'[ORDER EXECUTED] 买入(平空): 价格=${order.executed.price:.6f}, '
-                        f'数量={order.executed.size:.0f}, '
-                        f'金额=${order.executed.value:.2f} USDT', with_date=True)
+                self.log(f'[ORDER EXECUTED] Buy (close short): Price=${order.executed.price:.6f}, '
+                        f'Size={order.executed.size:.0f}, '
+                        f'Value=${order.executed.value:.2f} USDT', with_date=True)
             else:
-                self.log(f'[ORDER EXECUTED] 卖出(平多): 价格=${order.executed.price:.6f}, '
-                        f'数量={order.executed.size:.0f}, '
-                        f'金额=${order.executed.value:.2f} USDT', with_date=True)
-            # 显示当前资金
-            self.log(f'[BALANCE] 当前资金: ${self.broker.getvalue():.2f} USDT', with_date=True)
+                self.log(f'[ORDER EXECUTED] Sell (close long): Price=${order.executed.price:.6f}, '
+                        f'Size={order.executed.size:.0f}, '
+                        f'Value=${order.executed.value:.2f} USDT', with_date=True)
+            # Display current balance
+            self.log(f'[BALANCE] Current balance: ${self.broker.getvalue():.2f} USDT', with_date=True)
 
         elif order.status in [order.Canceled]:
-            self.log('[ORDER] 订单取消', with_date=True)
+            self.log('[ORDER] Order canceled', with_date=True)
         elif order.status in [order.Rejected]:
-            self.log(f'[ORDER] 订单拒绝: {order}', with_date=True)
-            self.log(f'[ORDER] 拒绝详情 - Status: {status_name}, Size: {order.size}, Price: {order.price}', with_date=True)
+            self.log(f'[ORDER] Order rejected: {order}', with_date=True)
+            self.log(f'[ORDER] Rejection details - Status: {status_name}, Size: {order.size}, Price: {order.price}', with_date=True)
         elif order.status in [order.Margin]:
-            self.log('[ORDER] 订单保证金不足', with_date=True)
+            self.log('[ORDER] Order margin insufficient', with_date=True)
 
-        # 重置订单
+        # Reset order
         self.order = None
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification callback.
+
+        Called by backtrader when a trade is opened or closed.
+
+        Args:
+            trade: The trade object that triggered the notification.
+        """
         try:
             if trade.isclosed:
-                self.log(f'[TRADE CLOSED] 交易关闭: 毛利润=${trade.pnl:.4f} USDT, '
-                        f'净利润=${trade.pnlcomm:.4f} USDT', with_date=True)
+                self.log(f'[TRADE CLOSED] Trade closed: Gross P&L=${trade.pnl:.4f} USDT, '
+                        f'Net P&L=${trade.pnlcomm:.4f} USDT', with_date=True)
             elif trade.justopened:
-                self.log(f'[TRADE OPENED] 新交易开仓: {trade.gettradename()}', with_date=True)
+                self.log(f'[TRADE OPENED] New trade opened: {trade.gettradename()}', with_date=True)
         except Exception as e:
-            self.log(f'[ERROR] notify_trade() 发生异常: {e}', with_date=True)
+            self.log(f'[ERROR] Exception in notify_trade(): {e}', with_date=True)
 
     def stop(self):
-        """策略停止时调用"""
+        """Called when the strategy stops.
+
+        Logs final portfolio statistics and performance summary.
+        """
         self.log('=' * 80, with_date=True)
-        self.log('策略停止', with_date=True)
-        self.log(f'最终资金: {self.broker.getvalue():.2f} USDT', with_date=True)
-        self.log(f'总收益: {self.broker.getvalue() - self.broker.startingcash:.2f} USDT', with_date=True)
-        self.log(f'历史K线数: {self.historical_bar_count}', with_date=True)
-        self.log(f'实时K线数: {self.live_bar_count}', with_date=True)
-        self.log(f'总交易次数: {self.trade_count}', with_date=True)
+        self.log('Strategy stopped', with_date=True)
+        self.log(f'Final balance: {self.broker.getvalue():.2f} USDT', with_date=True)
+        self.log(f'Total return: {self.broker.getvalue() - self.broker.startingcash:.2f} USDT', with_date=True)
+        self.log(f'Historical bars: {self.historical_bar_count}', with_date=True)
+        self.log(f'Live bars: {self.live_bar_count}', with_date=True)
+        self.log(f'Total trades: {self.trade_count}', with_date=True)
         self.log('=' * 80, with_date=True)
 
 
 def run_strategy():
-    """运行策略"""
+    """Run the Bollinger Bands long/short strategy on OKX MINA/USDT perpetual futures.
 
-    # 加载环境变量
+    This function sets up and executes the trading strategy:
+    1. Loads environment variables and OKX API configuration
+    2. Creates a Cerebro engine and adds the strategy
+    3. Configures the CCXT store for OKX futures trading
+    4. Sets up live data feed with WebSocket support
+    5. Runs the strategy and prints performance summary
+
+    Environment Variables Required:
+        OKX_API_KEY: OKX API key for authentication
+        OKX_SECRET: OKX API secret
+        OKX_PASSWORD: OKX API password
+
+    Note:
+        Requires ccxt.pro for WebSocket support: pip install ccxtpro
+    """
+    # Load environment variables
     env_path = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_path)
 
-    # 加载 OKX 配置
+    # Load OKX configuration
     try:
         config = load_ccxt_config_from_env('okx', enable_rate_limit=True)
     except ValueError as e:
-        print(f"错误: {e}")
-        print("\n请在 .env 文件中配置 OKX API 凭证：")
+        print(f"Error: {e}")
+        print("\nPlease configure OKX API credentials in .env file:")
         print("OKX_API_KEY=your_api_key")
         print("OKX_SECRET=your_secret")
         print("OKX_PASSWORD=your_password")
         return
 
-    # 创建 Cerebro 引擎
+    # Create Cerebro engine
     cerebro = bt.Cerebro()
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(
         BollingerBandsLongShortStrategy,
-        period=60,              # 60周期布林带
-        devfactor=2.0,          # 2倍标准差
-        order_size=1.0,         # 每次1 USDT
-        atr_period=14,          # ATR周期
-        atr_mult=2.0,           # 止损倍数
+        period=60,              # 60-period Bollinger Bands
+        devfactor=2.0,          # 2x standard deviation
+        order_size=1.0,         # 1 USDT per order
+        atr_period=14,          # ATR period
+        atr_mult=2.0,           # Stop loss multiplier
     )
 
-    # 设置初始资金（小资金测试）
+    # Set initial capital (small capital for testing)
     cerebro.broker.setcash(10.0)  # 10 USDT
 
-    # 创建 OKX Store（合约交易）
+    # Create OKX Store (futures trading)
     store = CCXTStore(
         exchange='okx',
         currency='USDT',
@@ -561,21 +662,21 @@ def run_strategy():
         debug=False
     )
 
-    # 获取 broker
+    # Get broker
     broker = store.getbroker()
     cerebro.setbroker(broker)
 
-    # 获取合约数据（MINA/USDT 永续合约）
-    # 使用 WebSocket 实时数据流（需要安装 ccxt.pro: pip install ccxtpro）
+    # Get futures data (MINA/USDT perpetual futures)
+    # Use WebSocket live data stream (requires ccxt.pro: pip install ccxtpro)
     data = store.getdata(
-        dataname='MINA/USDT:USDT',           # 永续合约交易对
+        dataname='MINA/USDT:USDT',           # Perpetual futures trading pair
         name='MINA/USDT:USDT',
-        timeframe=bt.TimeFrame.Minutes,      # 1分钟
+        timeframe=bt.TimeFrame.Minutes,      # 1 minute
         compression=1,
-        fromdate=datetime.utcnow() - timedelta(minutes=200),  # 历史数据起始时间
-        backfill_start=True,                 # 启用历史数据回填
-        historical=False,                    # False=历史数据后继续实时模式
-        use_websocket=True,                  # 使用 WebSocket（需要 ccxt.pro）
+        fromdate=datetime.utcnow() - timedelta(minutes=200),  # Historical data start time
+        backfill_start=True,                 # Enable historical data backfill
+        historical=False,                    # False=continue live mode after historical data
+        use_websocket=True,                  # Use WebSocket (requires ccxt.pro)
         ohlcv_limit=100,
         drop_newest=False,
         debug=False
@@ -583,46 +684,46 @@ def run_strategy():
 
     cerebro.adddata(data)
 
-    # 打印初始信息
+    # Print initial information
     print('=' * 80)
-    print('OKX MINA/USDT 永续合约布林带突破策略（支持做多做空）')
+    print('OKX MINA/USDT Perpetual Futures Bollinger Bands Strategy (Long/Short)')
     print('=' * 80)
-    print(f'初始资金: {cerebro.broker.getvalue():.2f} USDT')
-    print(f'每次下单: 1.0 USDT')
-    print(f'交易对: MINA/USDT 永续合约')
-    print(f'时间周期: 1分钟')
-    print(f'布林带参数: 60周期, 2倍标准差')
-    print(f'ATR止损: 14周期, 2倍ATR')
-    print(f'交易模式: 合约双向（做多+做空）')
+    print(f'Initial Capital: {cerebro.broker.getvalue():.2f} USDT')
+    print(f'Order Size: 1.0 USDT')
+    print(f'Trading Pair: MINA/USDT Perpetual Futures')
+    print(f'Timeframe: 1 minute')
+    print(f'Bollinger Bands: 60 period, 2x standard deviation')
+    print(f'ATR Stop Loss: 14 period, 2x ATR')
+    print(f'Trading Mode: Bidirectional futures (Long + Short)')
     print('=' * 80)
     print()
 
-    # 运行策略
+    # Run strategy
     try:
-        print("\n开始运行策略...")
-        print(f"正在加载历史数据（需要至少 {60+10} 根K线初始化指标）...")
-        print("历史数据加载进度会每10根K线显示一次")
-        print("历史数据加载完成后，将开始监控实时交易信号")
-        print("按 Ctrl+C 可随时停止策略\n")
+        print("\nStarting strategy execution...")
+        print(f"Loading historical data (requires at least {60+10} bars to initialize indicators)...")
+        print("Historical data loading progress will be displayed every 10 bars")
+        print("After historical data loading completes, live trading signals will be monitored")
+        print("Press Ctrl+C to stop the strategy at any time\n")
 
         results = cerebro.run()
 
-        # 策略运行完成
+        # Strategy execution completed
         if results and len(results) > 0:
             strat = results[0]
             print('\n' + '=' * 80)
-            print('策略运行总结')
+            print('Strategy Execution Summary')
             print('=' * 80)
-            print(f'历史K线数: {strat.historical_bar_count}')
-            print(f'实时K线数: {strat.live_bar_count}')
-            print(f'总交易次数: {strat.trade_count}')
-            print(f'最终资金: {cerebro.broker.getvalue():.2f} USDT')
+            print(f'Historical bars: {strat.historical_bar_count}')
+            print(f'Live bars: {strat.live_bar_count}')
+            print(f'Total trades: {strat.trade_count}')
+            print(f'Final balance: {cerebro.broker.getvalue():.2f} USDT')
             print('=' * 80)
 
     except KeyboardInterrupt:
-        print("\n\n策略被用户中断")
+        print("\n\nStrategy interrupted by user")
     except Exception as e:
-        print(f"\n错误: {e}")
+        print(f"\nError: {e}")
         traceback.print_exc()
 
 

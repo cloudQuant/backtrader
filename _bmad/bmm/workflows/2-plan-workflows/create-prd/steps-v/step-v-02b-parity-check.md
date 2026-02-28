@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-v-02b-parity-check'
 description: 'Document Parity Check - Analyze non-standard PRD and identify gaps to achieve BMAD PRD parity'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-03-density-validation.md'
 prdFile: '{prd_file_path}'
 validationReportPath: '{validation_report_path}'
----
+
+- --
 
 # Step 2B: Document Parity Check
 
@@ -55,40 +58,40 @@ Analyze non-standard PRD and identify gaps to achieve BMAD PRD parity, presentin
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Analyze Each BMAD PRD Section
 
 For each of the 6 BMAD PRD core sections, analyze:
 
-**Executive Summary:**
+- *Executive Summary:**
 - Does PRD have vision/overview?
 - Is problem statement clear?
 - Are target users identified?
 - Gap: [What's missing or incomplete]
 
-**Success Criteria:**
+- *Success Criteria:**
 - Are measurable goals defined?
 - Is success clearly defined?
 - Gap: [What's missing or incomplete]
 
-**Product Scope:**
+- *Product Scope:**
 - Is scope clearly defined?
 - Are in-scope items listed?
 - Are out-of-scope items listed?
 - Gap: [What's missing or incomplete]
 
-**User Journeys:**
+- *User Journeys:**
 - Are user types/personas identified?
 - Are user flows documented?
 - Gap: [What's missing or incomplete]
 
-**Functional Requirements:**
+- *Functional Requirements:**
 - Are features/capabilities listed?
 - Are requirements structured?
 - Gap: [What's missing or incomplete]
 
-**Non-Functional Requirements:**
+- *Non-Functional Requirements:**
 - Are quality attributes defined?
 - Are performance/security/etc. requirements documented?
 - Gap: [What's missing or incomplete]
@@ -97,12 +100,12 @@ For each of the 6 BMAD PRD core sections, analyze:
 
 For each missing or incomplete section, estimate:
 
-**Effort Level:**
+- *Effort Level:**
 - Minimal - Section exists but needs minor enhancements
 - Moderate - Section missing but content exists elsewhere in PRD
 - Significant - Section missing, requires new content creation
 
-**Total Parity Effort:**
+- *Total Parity Effort:**
 - Based on individual section estimates
 - Classify overall: Quick / Moderate / Substantial effort
 
@@ -111,45 +114,47 @@ For each missing or incomplete section, estimate:
 Append to validation report:
 
 ```markdown
+
 ## Parity Analysis (Non-Standard PRD)
 
 ### Section-by-Section Gap Analysis
 
-**Executive Summary:**
+- *Executive Summary:**
 - Status: [Present/Missing/Incomplete]
 - Gap: [specific gap description]
 - Effort to Complete: [Minimal/Moderate/Significant]
 
-**Success Criteria:**
+- *Success Criteria:**
 - Status: [Present/Missing/Incomplete]
 - Gap: [specific gap description]
 - Effort to Complete: [Minimal/Moderate/Significant]
 
-**Product Scope:**
+- *Product Scope:**
 - Status: [Present/Missing/Incomplete]
 - Gap: [specific gap description]
 - Effort to Complete: [Minimal/Moderate/Significant]
 
-**User Journeys:**
+- *User Journeys:**
 - Status: [Present/Missing/Incomplete]
 - Gap: [specific gap description]
 - Effort to Complete: [Minimal/Moderate/Significant]
 
-**Functional Requirements:**
+- *Functional Requirements:**
 - Status: [Present/Missing/Incomplete]
 - Gap: [specific gap description]
 - Effort to Complete: [Minimal/Moderate/Significant]
 
-**Non-Functional Requirements:**
+- *Non-Functional Requirements:**
 - Status: [Present/Missing/Incomplete]
 - Gap: [specific gap description]
 - Effort to Complete: [Minimal/Moderate/Significant]
 
 ### Overall Parity Assessment
 
-**Overall Effort to Reach BMAD Standard:** [Quick/Moderate/Substantial]
-**Recommendation:** [Brief recommendation based on analysis]
-```
+- *Overall Effort to Reach BMAD Standard:** [Quick/Moderate/Substantial]
+- *Recommendation:** [Brief recommendation based on analysis]
+
+```bash
 
 ### 4. Present Parity Analysis and Options
 
@@ -159,19 +164,21 @@ Display:
 
 Your PRD is missing {count} of 6 core BMAD PRD sections. The overall effort to reach BMAD standard is: **{effort level}**
 
-**Quick Summary:**
+- *Quick Summary:**
+
 [2-3 sentence summary of key gaps]
 
-**Recommendation:**
+- *Recommendation:**
+
 {recommendation from analysis}
 
-**How would you like to proceed?**"
+- *How would you like to proceed?**"
 
 ### 5. Present MENU OPTIONS
 
-**[C] Continue Validation** - Proceed with validation using current structure
-**[E] Exit & Review** - Exit validation and review parity report
-**[S] Save & Exit** - Save parity report and exit
+- *[C] Continue Validation** - Proceed with validation using current structure
+- *[E] Exit & Review** - Exit validation and review parity report
+- *[S] Save & Exit** - Save parity report and exit
 
 #### EXECUTION RULES:
 
@@ -185,7 +192,7 @@ Your PRD is missing {count} of 6 core BMAD PRD sections. The overall effort to r
 - IF S (Save): Confirm saved, display summary, exit
 - IF Any other: help user respond, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -206,4 +213,4 @@ Your PRD is missing {count} of 6 core BMAD PRD sections. The overall effort to r
 - Auto-proceeding without user decision
 - Unclear recommendations
 
-**Master Rule:** Parity check informs user of gaps and effort, but user decides whether to proceed with validation or address gaps first.
+- *Master Rule:** Parity check informs user of gaps and effort, but user decides whether to proceed with validation or address gaps first.

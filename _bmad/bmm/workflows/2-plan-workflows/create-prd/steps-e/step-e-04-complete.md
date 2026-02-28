@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-e-04-complete'
 description: 'Complete & Validate - Present options for next steps including full validation'
 
 # File references (ONLY variables used in this step)
+
 prdFile: '{prd_file_path}'
 validationWorkflow: '../steps-v/step-v-01-discovery.md'
----
+
+- --
 
 # Step E-4: Complete & Validate
 
@@ -54,24 +57,24 @@ Present summary of completed edits and offer next steps including seamless integ
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Compile Edit Summary
 
 From step e-03 change execution, compile:
 
-**Changes Made:**
+- *Changes Made:**
 - Sections added: {list with names}
 - Sections updated: {list with names}
 - Content removed: {list}
 - Structure changes: {description}
 
-**Edit Details:**
+- *Edit Details:**
 - Total sections affected: {count}
 - Mode: {restructure/targeted/both}
 - Priority addressed: {Critical/High/Medium/Low}
 
-**PRD Status:**
+- *PRD Status:**
 - Format: {BMAD Standard / BMAD Variant / Legacy (converted)}
 - Completeness: {assessment}
 - Ready for: {downstream use cases}
@@ -82,31 +85,32 @@ Display:
 
 "**✓ PRD Edit Complete**
 
-**Updated PRD:** {prd_file_path}
+- *Updated PRD:** {prd_file_path}
 
-**Changes Summary:**
+- *Changes Summary:**
+
 {Present bulleted list of major changes}
 
-**Edit Mode:** {mode}
-**Sections Modified:** {count}
+- *Edit Mode:** {mode}
+- *Sections Modified:** {count}
 
-**PRD Format:** {format}
+- *PRD Format:** {format}
 
-**PRD is now ready for:**
+- *PRD is now ready for:**
 - Downstream workflows (UX Design, Architecture)
 - Validation to ensure quality
 - Production use
 
-**What would you like to do next?**"
+- *What would you like to do next?**"
 
 ### 3. Present MENU OPTIONS
 
 Display:
 
-**[V] Run Full Validation** - Execute complete validation workflow (steps-v) to verify PRD quality
-**[E] Edit More** - Make additional edits to the PRD
-**[S] Summary** - End with detailed summary of changes
-**[X] Exit** - Exit edit workflow
+- *[V] Run Full Validation** - Execute complete validation workflow (steps-v) to verify PRD quality
+- *[E] Edit More** - Make additional edits to the PRD
+- *[S] Summary** - End with detailed summary of changes
+- *[X] Exit**- Exit edit workflow
 
 #### EXECUTION RULES:
 
@@ -144,7 +148,7 @@ Display:
 
 - **IF Any other:** Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -165,4 +169,4 @@ Display:
 - Not documenting completion properly
 - No clear handoff to validation workflow
 
-**Master Rule:** Edit workflow seamlessly integrates with validation. User can edit → validate → edit again → validate again in iterative improvement cycle.
+- *Master Rule:** Edit workflow seamlessly integrates with validation. User can edit → validate → edit again → validate again in iterative improvement cycle.

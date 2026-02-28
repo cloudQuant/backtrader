@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Create a complete BMAD module with agents, workflows, and infrastructure'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # create-module
 

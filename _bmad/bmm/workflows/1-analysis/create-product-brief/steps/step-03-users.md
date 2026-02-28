@@ -1,15 +1,19 @@
----
+- --
+
 name: 'step-03-users'
 description: 'Define target users with rich personas and map their key interactions with the product'
 
 # File References
+
 nextStepFile: './step-04-metrics.md'
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 3: Target Users Discovery
 
@@ -60,10 +64,11 @@ Define target users with rich personas and map their key interactions with the p
 
 ### 1. Begin User Discovery
 
-**Opening Exploration:**
+- *Opening Exploration:**
+
 "Now that we understand what {{project_name}} does, let's define who it's for.
 
-**User Discovery:**
+- *User Discovery:**
 
 - Who experiences the problem we're solving?
 - Are there different types of users with different needs?
@@ -74,27 +79,28 @@ Let's start by identifying the main user groups."
 
 ### 2. Primary User Segment Development
 
-**Persona Development Process:**
+- *Persona Development Process:**
+
 For each primary user segment, create rich personas:
 
-**Name & Context:**
+- *Name & Context:**
 
 - Give them a realistic name and brief backstory
 - Define their role, environment, and context
 - What motivates them? What are their goals?
 
-**Problem Experience:**
+- *Problem Experience:**
 
 - How do they currently experience the problem?
 - What workarounds are they using?
 - What are the emotional and practical impacts?
 
-**Success Vision:**
+- *Success Vision:**
 
 - What would success look like for them?
 - What would make them say "this is exactly what I needed"?
 
-**Primary User Questions:**
+- *Primary User Questions:**
 
 - "Tell me about a typical person who would use {{project_name}}"
 - "What's their day like? Where does our product fit in?"
@@ -102,7 +108,7 @@ For each primary user segment, create rich personas:
 
 ### 3. Secondary User Segment Exploration
 
-**Secondary User Considerations:**
+- *Secondary User Considerations:**
 
 - "Who else benefits from this solution, even if they're not the primary user?"
 - "Are there admin, support, or oversight roles we should consider?"
@@ -111,16 +117,17 @@ For each primary user segment, create rich personas:
 
 ### 4. User Journey Mapping
 
-**Journey Elements:**
+- *Journey Elements:**
+
 Map key interactions for each user segment:
 
-- **Discovery:** How do they find out about the solution?
-- **Onboarding:** What's their first experience like?
-- **Core Usage:** How do they use the product day-to-day?
-- **Success Moment:** When do they realize the value?
+- **Discovery:**How do they find out about the solution?
+- **Onboarding:**What's their first experience like?
+- **Core Usage:**How do they use the product day-to-day?
+- **Success Moment:**When do they realize the value?
 - **Long-term:** How does it become part of their routine?
 
-**Journey Questions:**
+- *Journey Questions:**
 
 - "Walk me through how [Persona Name] would discover and start using {{project_name}}"
 - "What's their 'aha!' moment?"
@@ -128,10 +135,12 @@ Map key interactions for each user segment:
 
 ### 5. Generate Target Users Content
 
-**Content to Append:**
+- *Content to Append:**
+
 Prepare the following structure for document append:
 
 ```markdown
+
 ## Target Users
 
 ### Primary Users
@@ -145,17 +154,20 @@ Prepare the following structure for document append:
 ### User Journey
 
 [User journey content based on conversation, or N/A if not discussed]
-```
+
+```bash
 
 ### 6. Present MENU OPTIONS
 
-**Content Presentation:**
+- *Content Presentation:**
+
 "I've mapped out who {{project_name}} serves and how they'll interact with it. This helps us ensure we're building something that real people will love to use.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
+
 [Show the complete markdown content from step 5]
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
 
 #### Menu Handling Logic:
 
@@ -175,7 +187,7 @@ Prepare the following structure for document append:
 
 ONLY WHEN [C continue option] is selected and [user personas finalized and saved to document with frontmatter updated], will you then read fully and follow: `{nextStepFile}` to begin success metrics definition.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -199,4 +211,4 @@ ONLY WHEN [C continue option] is selected and [user personas finalized and saved
 - Appending content without user selecting 'C'
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -4,7 +4,7 @@
 
 {{creation_tools}}
 
-**Building mechanics:**
+- *Building mechanics:**
 
 - Tool types (place, delete, modify, paint)
 - Object library (blocks, props, entities)
@@ -17,7 +17,7 @@
 
 {{physics_building}}
 
-**System simulation:**
+- *System simulation:**
 
 - Physics engine (rigid body, soft body, fluids)
 - Structural integrity (if applicable)
@@ -30,7 +30,7 @@
 
 {{sharing_community}}
 
-**Social features:**
+- *Social features:**
 
 - Creation sharing (workshop, gallery)
 - Discoverability (search, trending, featured)
@@ -43,7 +43,7 @@
 
 {{constraints_rules}}
 
-**Game design:**
+- *Game design:**
 
 - Creative mode (unlimited resources, no objectives)
 - Challenge mode (limited resources, objectives)
@@ -56,7 +56,7 @@
 
 {{tools_editing}}
 
-**Advanced features:**
+- *Advanced features:**
 
 - Logic gates/scripting (if applicable)
 - Animation tools
@@ -69,7 +69,7 @@
 
 {{emergent_gameplay}}
 
-**Player creativity:**
+- *Player creativity:**
 
 - Unintended creations (embracing exploits)
 - Community-defined challenges

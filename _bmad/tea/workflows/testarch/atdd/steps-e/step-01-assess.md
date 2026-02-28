@@ -1,8 +1,10 @@
----
+- --
+
 name: 'step-01-assess'
 description: 'Load an existing output for editing'
 nextStepFile: './step-02-apply-edit.md'
----
+
+- --
 
 # Step 1: Assess Edit Target
 
@@ -38,7 +40,7 @@ Identify which output should be edited and load it.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly.
+- *CRITICAL:** Follow this sequence exactly.
 
 ### 1. Identify Target
 

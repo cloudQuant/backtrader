@@ -29,7 +29,18 @@ logging.basicConfig(
 
 # Load .env file
 def load_env(env_path=None):
-    """Load environment variables from .env file."""
+    """Load environment variables from .env file.
+
+    Parses KEY=VALUE pairs and sets them in os.environ. Skips comments
+    and empty lines.
+
+    Args:
+        env_path: Path to .env file. Defaults to ../.env relative to
+            this script's location.
+
+    Returns:
+        None. Environment variables are set directly in os.environ.
+    """
     if env_path is None:
         env_path = Path(__file__).resolve().parent.parent / '.env'
     if not env_path.exists():
@@ -73,25 +84,50 @@ NIGHT_END = time(2, 45)
 
 
 def is_trading_period():
-    """Check if current time is within SimNow trading hours."""
+    """Check if current time is within SimNow trading hours.
+
+    Returns:
+        bool: True if current time is within day or night trading
+            sessions, False otherwise.
+    """
     t = datetime.now().time()
     return (DAY_START <= t <= DAY_END) or (t >= NIGHT_START) or (t <= NIGHT_END)
 
 
 class GoldQuoteStrategy(bt.Strategy):
-    """Strategy that prints gold futures quotes and account balance each bar."""
+    """Strategy that prints gold futures quotes and account balance each bar.
+
+    Attributes:
+        live_data: Flag indicating when live data is being received.
+        bar_count: Counter for the number of bars processed.
+    """
 
     params = dict(smaperiod=5)
 
     def __init__(self):
+        """Initialize strategy state variables."""
         self.live_data = False
         self.bar_count = 0
 
     def prenext(self):
+        """Called before minimum period is reached.
+
+        Prints initial data bars as they arrive during warmup period.
+
+        Args:
+            None. Uses self.datas to access all data feeds.
+        """
         for d in self.datas:
             print(f"[prenext] {d._name} dt={d.datetime.datetime(0)} close={d.close[0]:.2f}")
 
     def next(self):
+        """Called for each bar after minimum period is reached.
+
+        Prints OHLCV data and account information for each data feed.
+
+        Args:
+            None. Uses self.datas to access all data feeds.
+        """
         self.bar_count += 1
         for d in self.datas:
             print(
@@ -110,16 +146,38 @@ class GoldQuoteStrategy(bt.Strategy):
             print("  >> [LIVE bar received]")
 
     def notify_order(self, order):
+        """Called when order status changes.
+
+        Args:
+            order: Order object with updated status information.
+        """
         print(f"[Order] ref={order.ref} status={order.getstatusname()}")
 
     def notify_data(self, data, status, *args, **kwargs):
+        """Called when data feed status changes.
+
+        Args:
+            data: Data feed object whose status changed.
+            status: New status code.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         status_name = data._getstatusname(status)
         print(f"[notify_data] {data._name}: {status_name}")
         self.live_data = (status_name == 'LIVE')
 
 
 def check_tcp_connectivity(host, port, timeout=3):
-    """Quick TCP connectivity check."""
+    """Perform a quick TCP connectivity check.
+
+    Args:
+        host: Target hostname or IP address.
+        port: Target port number.
+        timeout: Connection timeout in seconds. Defaults to 3.
+
+    Returns:
+        bool: True if connection succeeds, False otherwise.
+    """
     import socket
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
@@ -133,7 +191,19 @@ def check_tcp_connectivity(host, port, timeout=3):
 
 
 def find_reachable_server(presets):
-    """Try each preset and return the first reachable one."""
+    """Try each server preset and return the first reachable one.
+
+    Tests TCP connectivity to each server's trading front endpoint
+    and returns the first one that responds.
+
+    Args:
+        presets: Dictionary mapping server names to their address
+            configurations containing 'td_front' key.
+
+    Returns:
+        tuple: (server_name, server_addrs) if reachable server found,
+            (None, None) if no server is reachable.
+    """
     for name, addrs in presets.items():
         td = addrs['td_front']
         # Extract host:port from tcp://host:port

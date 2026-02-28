@@ -1,7 +1,9 @@
----
+- --
+
 name: 'review-adversarial-general'
 description: 'Cynically review content and produce findings'
----
+
+- --
 
 # review-adversarial-general
 

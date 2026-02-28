@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-13-review'
 description: 'Read through the brief together, "Does this excite you?"'
 
 nextStepFile: './step-14-finalize.md'
 briefTemplateFile: '../templates/brief-template.md'
----
+
+- --
 
 # Step 13: Review
 
@@ -15,6 +17,7 @@ Read through the brief together and confirm the vision is complete and exciting.
 ## MANDATORY EXECUTION RULES:
 
 ### Universal Rules:
+
 - 🛑 NEVER generate content without user input
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next with 'C', ensure entire file is read
@@ -22,11 +25,12 @@ Read through the brief together and confirm the vision is complete and exciting.
 - ✅ Speak in `{communication_language}`
 
 ### Role Reinforcement:
+
 - ✅ You are the **Module Architect** — review facilitator
 - ✅ Read back what we've discovered
 - ✅ Ensure nothing important is missing
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -73,7 +77,7 @@ Present the brief in an inspiring way:
 - Anything missing?
 - Anything you want to change?"
 
-**Make updates if needed.**
+- *Make updates if needed.**
 
 ### 4. Final Confirmation
 
@@ -81,7 +85,7 @@ Present the brief in an inspiring way:
 
 ### 5. MENU OPTIONS
 
-**Select an Option:** [B] Back to refine [C] Continue to Finalize
+- *Select an Option:** [B] Back to refine [C] Continue to Finalize
 
 #### EXECUTION RULES:
 
@@ -94,7 +98,7 @@ Present the brief in an inspiring way:
 - IF C: Load `{nextStepFile}`
 - IF Any other: Ask for clarification, then redisplay menu
 
----
+- --
 
 ## Success Metrics
 

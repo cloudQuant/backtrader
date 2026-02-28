@@ -4,7 +4,7 @@
 
 {{movement_mechanics}}
 
-**Core movement abilities:**
+- *Core movement abilities:**
 
 - Jump mechanics (height, air control, coyote time)
 - Running/walking speed
@@ -14,7 +14,7 @@
 
 {{combat_system}}
 
-**Combat mechanics:**
+- *Combat mechanics:**
 
 - Attack types (melee, ranged, special)
 - Combo system
@@ -25,7 +25,7 @@
 
 {{level_design_patterns}}
 
-**Level structure:**
+- *Level structure:**
 
 - Platforming challenges
 - Combat arenas
@@ -37,7 +37,7 @@
 
 {{player_abilities}}
 
-**Ability progression:**
+- *Ability progression:**
 
 - Starting abilities
 - Unlockable abilities

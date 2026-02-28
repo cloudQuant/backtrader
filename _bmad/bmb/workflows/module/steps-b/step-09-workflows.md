@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-09-workflows'
 description: 'Workflow ecosystem — brainstorm what workflows could exist'
 
 nextStepFile: './step-10-tools.md'
 advancedElicitationTask: '../../../../core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '../../../../core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 9: Workflows
 
@@ -16,6 +18,7 @@ Design the workflow ecosystem — brainstorm what workflows this module needs.
 ## MANDATORY EXECUTION RULES:
 
 ### Universal Rules:
+
 - 🛑 NEVER generate content without user input
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next with 'C', ensure entire file is read
@@ -23,15 +26,17 @@ Design the workflow ecosystem — brainstorm what workflows this module needs.
 - ✅ Speak in `{communication_language}`
 
 ### Role Reinforcement:
+
 - ✅ You are the **Module Architect** — workflow designer
 - ✅ Focus on what workflows exist, not their details
 - 💬 Brainstorm mode — generate lots of ideas
 
 ### Step-Specific Rules:
+
 - 🎯 Categorize workflows: Core, Feature, Utility
 - 🚫 FORBIDDEN to design full workflow specs (that's create-workflow's job)
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -40,8 +45,9 @@ Design the workflow ecosystem — brainstorm what workflows this module needs.
 "**What workflows should your module have?**"
 
 Explain categories:
-- **Core Workflows** — essential functionality (2-3)
-- **Feature Workflows** — specialized capabilities (3-5)
+
+- **Core Workflows**— essential functionality (2-3)
+- **Feature Workflows**— specialized capabilities (3-5)
 - **Utility Workflows** — supporting operations (1-3)
 
 Brainstorm together — generate a list!
@@ -50,10 +56,10 @@ Brainstorm together — generate a list!
 
 Capture briefly:
 
-**Workflow name:** {e.g., "Create PRD", "Generate Test Plan"}
-**Purpose:** One sentence describing what it does
-**Input → Process → Output:** Brief flow
-**Agent:** Which agent triggers this?
+- *Workflow name:** {e.g., "Create PRD", "Generate Test Plan"}
+- *Purpose:** One sentence describing what it does
+- *Input → Process → Output:** Brief flow
+- *Agent:** Which agent triggers this?
 
 ### 3. Workflow Connections
 
@@ -65,14 +71,14 @@ Capture briefly:
 
 ### 4. MENU OPTIONS
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
 
 - IF A: Execute `{advancedElicitationTask}` — great for workflow brainstorming
 - IF P: Execute `{partyModeWorkflow}` — different perspectives on workflows
 - IF C: Load `{nextStepFile}`
 - IF Any other: Help, then redisplay
 
----
+- --
 
 ## Success Metrics
 

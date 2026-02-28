@@ -2,18 +2,18 @@
 
 # Playtest Planning
 
-**Workflow ID**: `_bmad/gds/gametest/playtest-plan`
-**Version**: 1.0 (BMad v6)
+- *Workflow ID**: `_bmad/gds/gametest/playtest-plan`
+- *Version**: 1.0 (BMad v6)
 
----
+- --
 
 ## Overview
 
 Create structured playtesting sessions to validate gameplay, gather user feedback, and identify issues that automated testing cannot catch. Playtesting validates "feel" and player experience.
 
-**Knowledge Base Reference**: `knowledge/playtesting.md`
+- *Knowledge Base Reference**: `knowledge/playtesting.md`
 
----
+- --
 
 ## Preflight Requirements
 
@@ -21,7 +21,7 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
 - ✅ Test objectives defined
 - ✅ Participant criteria known
 
----
+- --
 
 ## Step 1: Define Playtest Objectives
 
@@ -34,56 +34,71 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
    - Tutorial effectiveness
    - Overall experience
 
-2. **What decisions will this inform?**
+1. **What decisions will this inform?**
    - Design changes
    - Difficulty tuning
    - Feature prioritization
    - Ship/no-ship decision
 
-3. **What metrics will we collect?**
+1. **What metrics will we collect?**
    - Completion rates
    - Time-on-task
    - Failure points
    - Player sentiment
 
----
+- --
 
 ## Step 2: Choose Playtest Type
 
 ### Internal Playtest
 
-**Best for**: Early validation, bug finding, quick iterations
+- *Best for**: Early validation, bug finding, quick iterations
 
 | Aspect       | Details                   |
+
 | ------------ | ------------------------- |
+
 | Participants | Team members, other teams |
+
 | Duration     | 30-60 minutes             |
+
 | Frequency    | Weekly or per-milestone   |
+
 | Setup        | Minimal, informal         |
 
 ### External Playtest
 
-**Best for**: Unbiased feedback, market validation
+- *Best for**: Unbiased feedback, market validation
 
 | Aspect       | Details                           |
+
 | ------------ | --------------------------------- |
+
 | Participants | Target audience, external testers |
+
 | Duration     | 1-2 hours                         |
+
 | Frequency    | Monthly or milestone              |
+
 | Setup        | Formal, NDA if needed             |
 
 ### Focused Playtest
 
-**Best for**: Specific feature validation
+- *Best for**: Specific feature validation
 
 | Aspect       | Details                      |
+
 | ------------ | ---------------------------- |
+
 | Participants | Selected for specific traits |
+
 | Duration     | 20-45 minutes                |
+
 | Frequency    | As needed                    |
+
 | Setup        | Specific build/scenario      |
 
----
+- --
 
 ## Step 3: Create Session Structure
 
@@ -94,12 +109,12 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
    - Session goals (what we're testing)
    - Comfort check (breaks, questions)
 
-2. **Consent & Setup**
+1. **Consent & Setup**
    - Recording consent (if applicable)
    - Controller/input preferences
    - Any accessibility needs
 
-3. **Instructions**
+1. **Instructions**
    - "Play as you normally would"
    - "Think aloud if comfortable"
    - "There are no wrong answers"
@@ -112,15 +127,16 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
    - What surprises them?
    - Where do they express frustration/joy?
 
-2. **Note-Taking Template**
+1. **Note-Taking Template**
 
    ```
+
    [TIME] [LOCATION] [OBSERVATION] [PLAYER REACTION]
    0:05   Tutorial    Skipped help text    Seemed impatient
    0:12   Combat      Died to first enemy  Frustrated, retried
    ```
 
-3. **Intervention Rules**
+1. **Intervention Rules**
    - Let players struggle (within reason)
    - Note when you want to help
    - Only intervene for:
@@ -135,26 +151,31 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
    - "What stood out most?"
    - "Would you play again?"
 
-2. **Specific Questions**
+1. **Specific Questions**
    - Feature-specific feedback
    - Difficulty perception
    - Clarity of objectives
 
-3. **Open Feedback**
+1. **Open Feedback**
    - "Anything else?"
    - "Questions for us?"
 
----
+- --
 
 ## Step 4: Create Observation Guide
 
 ### What to Watch For
 
 | Category    | Signals                               | Record             |
+
 | ----------- | ------------------------------------- | ------------------ |
+
 | Confusion   | Pausing, wandering, repeating actions | Location, duration |
+
 | Frustration | Sighing, repeated failures, quitting  | Cause, frequency   |
+
 | Engagement  | Leaning in, exclaiming, continuing    | Features that work |
+
 | Boredom     | Checking phone, disengaging           | Drop-off points    |
 
 ### Quantitative Metrics
@@ -165,13 +186,14 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
 - Session duration
 - Completion rate
 
----
+- --
 
 ## Step 5: Generate Playtest Plan Document
 
 ### Document Structure
 
 ```markdown
+
 # Playtest Plan: {Build/Feature Name}
 
 ## Overview
@@ -227,9 +249,10 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
 - Session debrief: {date}
 - Report due: {date}
 - Action items review: {date}
-```
 
----
+```bash
+
+- --
 
 ## Step 6: Post-Playtest Analysis
 
@@ -239,12 +262,12 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
    - What issues appeared multiple times?
    - What worked consistently well?
 
-2. **Severity Assessment**
+1. **Severity Assessment**
    - Critical: Blocks progression
    - Major: Significantly impacts experience
    - Minor: Noticeable but manageable
 
-3. **Recommendations**
+1. **Recommendations**
    - Immediate fixes
    - Design considerations
    - Further investigation needed
@@ -252,6 +275,7 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
 ### Report Template
 
 ```markdown
+
 ## Playtest Report: {Session}
 
 ### Summary
@@ -268,7 +292,9 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
 ### Recommendations
 
 | Issue   | Severity | Recommendation | Priority |
+
 | ------- | -------- | -------------- | -------- |
+
 | {issue} | {sev}    | {rec}          | {P0-P3}  |
 
 ### Quotes
@@ -279,18 +305,20 @@ Create structured playtesting sessions to validate gameplay, gather user feedbac
 
 1. {action item}
 2. {action item}
-```
 
----
+```bash
+
+- --
 
 ## Deliverables
 
-1. **Playtest Plan Document** - Session structure and logistics
-2. **Observation Guide** - What to watch for
-3. **Note-Taking Template** - Standardized recording
-4. **Report Template** - Post-session analysis format
+1. **Playtest Plan Document**- Session structure and logistics
 
----
+2.**Observation Guide**- What to watch for
+3.**Note-Taking Template**- Standardized recording
+4.**Report Template** - Post-session analysis format
+
+- --
 
 ## Validation
 

@@ -16,7 +16,7 @@
 
 <ask>What area would you like to deep-dive into?
 
-**Suggested Areas Based on Project Structure:**
+- *Suggested Areas Based on Project Structure:**
 
 {{#if has_api_routes}}
 
@@ -54,7 +54,7 @@
 {{/each}}
 {{/if}}
 
-**Or specify custom:**
+- *Or specify custom:**
 
 - Folder path (e.g., "client/src/features/dashboard")
 - File path (e.g., "server/src/api/users.ts")
@@ -64,6 +64,7 @@ Enter your choice (number or custom path):
 </ask>
 
 <action>Parse user input to determine: - target_type: "folder" | "file" | "feature" | "api_group" | "component_group" - target_path: Absolute path to scan - target_name: Human-readable name for documentation - target_scope: List of all files to analyze
+
 </action>
 
 <action>Store as {{deep_dive_target}}</action>
@@ -89,6 +90,7 @@ This will read EVERY file in this area. Proceed? [y/n]
     <action>Get complete recursive file list from {{target_path}}</action>
     <action>Filter out: node_modules/, .git/, dist/, build/, coverage/, *.min.js, *.map</action>
     <action>For EVERY remaining file in folder:
+
       - Read complete file contents (all lines)
       - Extract all exports (functions, classes, types, interfaces, constants)
       - Extract all imports (dependencies)
@@ -99,6 +101,7 @@ This will read EVERY file in this area. Proceed? [y/n]
       - Identify patterns (hooks, components, services, controllers, etc.)
       - Capture per-file contributor guidance: `contributor_note`, `risks`, `verification_steps`, `suggested_tests`
       - Store in file_inventory
+
     </action>
   </check>
 
@@ -134,12 +137,13 @@ This will read EVERY file in this area. Proceed? [y/n]
     <action>Store all in file_inventory</action>
   </check>
 
-<action>For each file in file\*inventory, document: - **File Path:** Full path - **Purpose:** What this file does (1-2 sentences) - **Lines of Code:** Total LOC - **Exports:** Complete list with signatures
+<action>For each file in file\*inventory, document: - **File Path:**Full path -**Purpose:**What this file does (1-2 sentences) -**Lines of Code:**Total LOC -**Exports:**Complete list with signatures
 
 - Functions: `functionName(param: Type): ReturnType` - Description
   - Classes: `ClassName` - Description with key methods
   - Types/Interfaces: `TypeName` - Description
-  - Constants: `CONSTANT_NAME: Type` - Description - **Imports/Dependencies:** What it uses and why - **Used By:** Files that import this (dependents) - **Key Implementation Details:** Important logic, algorithms, patterns - **State Management:** If applicable (Redux, Context, local state) - **Side Effects:** API calls, database queries, file I/O, external services - **Error Handling:** Try/catch blocks, error boundaries, validation - **Testing:** Associated test files and coverage - **Comments/TODOs:** Any inline documentation or planned work
+  - Constants: `CONSTANT_NAME: Type` - Description -**Imports/Dependencies:**What it uses and why -**Used By:**Files that import this (dependents) -**Key Implementation Details:**Important logic, algorithms, patterns -**State Management:**If applicable (Redux, Context, local state) -**Side Effects:**API calls, database queries, file I/O, external services -**Error Handling:**Try/catch blocks, error boundaries, validation -**Testing:**Associated test files and coverage -**Comments/TODOs:** Any inline documentation or planned work
+
     </action>
 
 <template-output>comprehensive_file_inventory</template-output>
@@ -147,11 +151,13 @@ This will read EVERY file in this area. Proceed? [y/n]
 
 <step n="13c" goal="Analyze relationships and data flow">
   <action>Build dependency graph for scanned area:
+
     - Create graph with files as nodes
     - Add edges for import relationships
     - Identify circular dependencies if any
     - Find entry points (files not imported by others in scope)
     - Find leaf nodes (files that don't import others in scope)
+
   </action>
 
 <action>Trace data flow through the system: - Follow function calls and data transformations - Track API calls and their responses - Document state updates and propagation - Map database queries and mutations
@@ -167,11 +173,13 @@ This will read EVERY file in this area. Proceed? [y/n]
 
 <step n="13d" goal="Find related code and similar patterns">
   <action>Search codebase OUTSIDE scanned area for:
+
     - Similar file/folder naming patterns
     - Similar function signatures
     - Similar component structures
     - Similar API patterns
     - Reusable utilities that could be used
+
   </action>
 
 <action>Identify code reuse opportunities: - Shared utilities available - Design patterns used elsewhere - Component libraries available - Helper functions that could apply
@@ -187,9 +195,11 @@ This will read EVERY file in this area. Proceed? [y/n]
 <step n="13e" goal="Generate comprehensive deep-dive documentation">
   <action>Create documentation filename: deep-dive-{{sanitized_target_name}}.md</action>
   <action>Aggregate contributor insights across files:
+
     - Combine unique risk/gotcha notes into {{risks_notes}}
     - Combine verification steps developers should run before changes into {{verification_steps}}
     - Combine recommended test commands into {{suggested_tests}}
+
   </action>
 
 <action>Load complete deep-dive template from: {installed_path}/templates/deep-dive-template.md</action>
@@ -222,6 +232,7 @@ Detailed exhaustive analysis of specific areas:
 <action>Add link to new deep-dive doc:
 
 - [{{target_name}} Deep-Dive](./deep-dive-{{sanitized_target_name}}.md) - Comprehensive analysis of {{target_description}} ({{file_count}} files, {{total_loc}} LOC) - Generated {{date}}
+
   </action>
 
   <action>Update index metadata:
@@ -241,12 +252,12 @@ Detailed exhaustive analysis of specific areas:
 
 ## Deep-Dive Documentation Complete! ✓
 
-**Generated:** {output_folder}/deep-dive-{{target_name}}.md
-**Files Analyzed:** {{file_count}}
-**Lines of Code Scanned:** {{total_loc}}
-**Time Taken:** ~{{duration}}
+- *Generated:** {output_folder}/deep-dive-{{target_name}}.md
+- *Files Analyzed:** {{file_count}}
+- *Lines of Code Scanned:** {{total_loc}}
+- *Time Taken:** ~{{duration}}
 
-**Documentation Includes:**
+- *Documentation Includes:**
 
 - Complete file inventory with all exports
 - Dependency graph and data flow
@@ -255,15 +266,15 @@ Detailed exhaustive analysis of specific areas:
 - Related code and reuse opportunities
 - Implementation guidance
 
-**Index Updated:** {output_folder}/index.md now includes link to this deep-dive
+- *Index Updated:**{output_folder}/index.md now includes link to this deep-dive
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 </action>
 
 <ask>Would you like to:
 
-1. **Deep-dive another area** - Analyze another feature/module/folder
-2. **Finish** - Complete workflow
+1.**Deep-dive another area**- Analyze another feature/module/folder
+2.**Finish** - Complete workflow
 
 Your choice [1/2]:
 </ask>
@@ -278,8 +289,8 @@ Your choice [1/2]:
 
 All deep-dive documentation complete!
 
-**Master Index:** {output_folder}/index.md
-**Deep-Dives Generated:** {{deep_dive_count}}
+- *Master Index:** {output_folder}/index.md
+- *Deep-Dives Generated:** {{deep_dive_count}}
 
 These comprehensive docs are now ready for:
 

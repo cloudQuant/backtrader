@@ -1,7 +1,7 @@
 # Backtrader 文档 / Documentation
 
-[![Sphinx](https://img.shields.io/badge/Sphinx-8.0+-blue.svg)](https://www.sphinx-doc.org/)
-[![Python](https://img.shields.io/badge/Python-3.7+-green.svg)](https://www.python.org/)
+[![Sphinx](<https://img.shields.io/badge/Sphinx-8.0+-blue.svg)](<https://www.sphinx-doc.org/>)>
+[![Python](<https://img.shields.io/badge/Python-3.7+-green.svg)](<https://www.python.org/>)>
 
 本目录包含 Backtrader 项目的完整文档源文件，支持中英文双语。
 
@@ -9,12 +9,12 @@ This directory contains complete documentation source files for the Backtrader p
 
 ## 文档特性 / Features
 
-- 📚 **完整的 API 参考** - 自动从源代码生成，包含所有 50+ 指标、15+ 分析器
-- 🌐 **中英文双语** - 用户指南和开发文档支持中英文
-- 🎨 **现代化主题** - 使用 Furo 主题，支持暗色模式
-- 🔍 **全文搜索** - 支持中英文搜索
-- 📋 **代码复制** - 一键复制代码示例
-- 📊 **继承图** - 自动生成类继承关系图
+- 📚 **完整的 API 参考**- 自动从源代码生成，包含所有 50+ 指标、15+ 分析器
+- 🌐**中英文双语**- 用户指南和开发文档支持中英文
+- 🎨**现代化主题**- 使用 Furo 主题，支持暗色模式
+- 🔍**全文搜索**- 支持中英文搜索
+- 📋**代码复制**- 一键复制代码示例
+- 📊**继承图** - 自动生成类继承关系图
 
 ## 快速开始 / Quick Start
 
@@ -22,60 +22,89 @@ This directory contains complete documentation source files for the Backtrader p
 
 ```bash
 pip install -r requirements.txt
-```
+
+```bash
 
 ### 构建文档 / Build Documentation
 
-**构建中英文文档 / Build both languages:**
+- *构建中英文文档 / Build both languages:**
+
 ```bash
 ./build_docs.sh
-# 或 Windows:
-make html-all
-```
 
-**仅构建英文文档 / English only:**
+# 或 Windows:
+
+make html-all
+
+```bash
+
+- *仅构建英文文档 / English only:**
+
 ```bash
 ./build_docs.sh en
-# 或
-make html
-```
 
-**仅构建中文文档 / Chinese only:**
+# 或
+
+make html
+
+```bash
+
+- *仅构建中文文档 / Chinese only:**
+
 ```bash
 ./build_docs.sh zh
+
 # 或
+
 make html-zh
-```
+
+```bash
 
 ### 启动本地服务器 / Start Local Server
 
 ```bash
 ./build_docs.sh serve
-```
 
-然后在浏览器中打开 http://localhost:8000
+```bash
+然后在浏览器中打开 <http://localhost:8000>
 
 ## 目录结构 / Directory Structure
 
-```
+```bash
 docs/
 ├── source/                 # 文档源文件
+
 │   ├── conf.py            # Sphinx 配置
+
 │   ├── index.rst          # 英文首页
+
 │   ├── index_zh.rst       # 中文首页
+
 │   ├── api/               # API 参考文档
+
 │   ├── user_guide/        # 英文用户指南
+
 │   ├── user_guide_zh/     # 中文用户指南
+
 │   ├── dev/               # 英文开发文档
+
 │   ├── dev_zh/            # 中文开发文档
+
 │   ├── locales/           # 翻译文件
+
 │   └── _static/           # 静态资源
+
 ├── Makefile               # Make 构建文件
+
 ├── make.bat               # Windows 构建脚本
+
 ├── build_docs.sh          # Shell 构建脚本
+
 ├── requirements.txt       # Python 依赖
+
 └── README.md              # 本文件
-```
+
+```bash
 
 ## 更新文档 / Updating Documentation
 
@@ -92,25 +121,31 @@ docs/
 
 ```bash
 ./build_docs.sh apidoc
+
 # 或
+
 make apidoc
-```
+
+```bash
 
 ### 翻译工作流 / Translation Workflow
 
 1. 提取可翻译字符串：
+
    ```bash
    make gettext
    ```
 
-2. 更新翻译文件：
+1. 更新翻译文件：
+
    ```bash
    make update-po
    ```
 
-3. 编辑 `source/locales/zh_CN/LC_MESSAGES/` 中的 `.po` 文件
+1. 编辑 `source/locales/zh_CN/LC_MESSAGES/` 中的 `.po` 文件
 
-4. 重新构建中文文档：
+2. 重新构建中文文档：
+
    ```bash
    make html-zh
    ```
@@ -126,7 +161,8 @@ make apidoc
 
    import backtrader as bt
    cerebro = bt.Cerebro()
-```
+
+```bash
 
 ### 警告和提示 / Admonitions
 
@@ -139,7 +175,8 @@ make apidoc
 
 .. tip::
    这是一个技巧
-```
+
+```bash
 
 ### 交叉引用 / Cross References
 
@@ -147,7 +184,8 @@ make apidoc
 参见 :doc:`strategies` 了解更多
 使用 :class:`backtrader.Strategy` 类
 调用 :meth:`buy` 方法
-```
+
+```bash
 
 ## 贡献文档 / Contributing
 

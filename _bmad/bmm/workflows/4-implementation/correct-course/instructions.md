@@ -14,13 +14,17 @@
   <action>Confirm change trigger and gather user description of the issue</action>
   <action>Ask: "What specific issue or change has been identified that requires navigation?"</action>
   <action>Verify access to required project documents:</action>
+
     - PRD (Product Requirements Document)
     - Current Epics and Stories
     - Architecture documentation
     - UI/UX specifications
+
   <action>Ask user for mode preference:</action>
-    - **Incremental** (recommended): Refine each edit collaboratively
+
+    - **Incremental**(recommended): Refine each edit collaboratively
     - **Batch**: Present all changes at once for review
+
   <action>Store mode selection for use throughout workflow</action>
 
 <action if="change trigger is unclear">HALT: "Cannot navigate change without clear understanding of the triggering issue. Please provide specific details about what needs to change and why."</action>
@@ -37,9 +41,11 @@
   <action>Read fully and follow the systematic analysis from: {checklist}</action>
   <action>Work through each checklist section interactively with the user</action>
   <action>Record status for each checklist item:</action>
+
     - [x] Done - Item completed successfully
     - [N/A] Skip - Item not applicable to this change
     - [!] Action-needed - Item requires attention or follow-up
+
   <action>Maintain running notes of findings and impacts discovered</action>
   <action>Present checklist progress after each major section</action>
 
@@ -57,13 +63,16 @@
 - Example format:
 
   ```
+
   Story: [STORY-123] User Authentication
   Section: Acceptance Criteria
 
   OLD:
+
   - User can log in with email/password
 
   NEW:
+
   - User can log in with email/password
   - User can enable 2FA via authenticator app
 
@@ -189,6 +198,7 @@
 
 <step n="6" goal="Workflow Completion">
 <action>Summarize workflow execution:</action>
+
   - Issue addressed: {{change_trigger}}
   - Change scope: {{scope_classification}}
   - Artifacts modified: {{list_of_artifacts}}

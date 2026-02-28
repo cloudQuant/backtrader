@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-02-generation-mode'
 description: 'Choose AI generation or recording mode'
 outputFile: '{test_artifacts}/atdd-checklist-{story_id}.md'
 nextStepFile: './step-03-test-strategy.md'
----
+
+- --
 
 # Step 2: Generation Mode Selection
 
@@ -16,7 +18,7 @@ Choose the appropriate generation mode for ATDD tests.
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -33,7 +35,7 @@ Choose the appropriate generation mode for ATDD tests.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Default Mode: AI Generation
 
@@ -45,25 +47,25 @@ Use AI generation when:
 
 Proceed directly to test strategy if this applies.
 
----
+- --
 
 ## 2. Optional Mode: Recording (Complex UI)
 
-**Skip this section entirely if {detected_stack} is `backend`.** For backend projects, use AI generation from API documentation, OpenAPI/Swagger specs, or source code analysis instead.
+- *Skip this section entirely if {detected_stack} is `backend`.** For backend projects, use AI generation from API documentation, OpenAPI/Swagger specs, or source code analysis instead.
 
-**If {detected_stack} is `frontend` or `fullstack`:**
+- *If {detected_stack} is `frontend` or `fullstack`:**
 
 Use recording when UI interactions need live browser verification.
 
-**Tool selection based on `config.tea_browser_automation`:**
+- *Tool selection based on `config.tea_browser_automation`:**
 
 If `auto`:
 
-> **Note:** `${timestamp}` is a placeholder the agent should replace with a unique value (e.g., epoch seconds) for session isolation.
+> **Note:**`${timestamp}` is a placeholder the agent should replace with a unique value (e.g., epoch seconds) for session isolation.
 
-- **Simple recording** (snapshot selectors, capture structure): Use CLI
+- **Simple recording**(snapshot selectors, capture structure): Use CLI
   - `playwright-cli -s=tea-atdd-${timestamp} open <url>` → `playwright-cli -s=tea-atdd-${timestamp} snapshot` → extract refs
-- **Complex recording** (drag/drop, wizards, multi-step state): Use MCP
+- **Complex recording**(drag/drop, wizards, multi-step state): Use MCP
   - Full browser automation with rich tool semantics
 - **Fallback:** If preferred tool unavailable, use the other; if neither, skip recording
 
@@ -81,26 +83,30 @@ If `none`:
 
 - Skip recording mode entirely, use AI generation from documentation
 
----
+- --
 
 ## 3. Confirm Mode
 
 State the chosen mode and why. Then proceed.
 
----
+- --
 
 ## 4. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-02-generation-mode']
   lastStep: 'step-02-generation-mode'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -122,4 +128,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

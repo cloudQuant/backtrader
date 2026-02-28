@@ -4,7 +4,7 @@
 
 {{sport_rules}}
 
-**Rule implementation:**
+- *Rule implementation:**
 
 - Core sport rules (scoring, fouls, violations)
 - Match/game structure (quarters, periods, innings, etc.)
@@ -16,7 +16,7 @@
 
 {{team_player}}
 
-**Roster design:**
+- *Roster design:**
 
 - Player attributes (speed, strength, skill, etc.)
 - Position-specific stats
@@ -29,7 +29,7 @@
 
 {{match_structure}}
 
-**Game flow:**
+- *Game flow:**
 
 - Pre-match setup (lineups, strategies)
 - In-match actions (plays, tactics, timeouts)
@@ -41,7 +41,7 @@
 
 {{physics_realism}}
 
-**Simulation balance:**
+- *Simulation balance:**
 
 - Physics accuracy (ball/puck physics, player movement)
 - Realism vs. fun tradeoffs
@@ -53,7 +53,7 @@
 
 {{career_season}}
 
-**Long-term modes:**
+- *Long-term modes:**
 
 - Career mode structure
 - Season/tournament progression
@@ -66,7 +66,7 @@
 
 {{multiplayer}}
 
-**Competitive play:**
+- *Competitive play:**
 
 - Local multiplayer (couch co-op)
 - Online multiplayer

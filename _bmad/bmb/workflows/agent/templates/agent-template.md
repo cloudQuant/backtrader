@@ -1,9 +1,13 @@
 {{#if comment}}
-------------------------------------------------------------------------------
+
+- -----------------------------------------------------------------------------
+
 Agent Handlebars Template (Unified)
 Used by: step-07-build-agent.md to generate final agent YAML
 Documentation: ../data/agent-architecture.md
-------------------------------------------------------------------------------
+
+- -----------------------------------------------------------------------------
+
 {{/if}}
 agent:
   metadata:
@@ -20,14 +24,17 @@ agent:
 
   persona:
     role: |
+
       {{persona_role}}{{#if persona_role_note}}
       {{!-- 1-2 sentences, first person, what the agent does --}}{{/if}}
 
     identity: |
+
       {{persona_identity}}{{#if persona_identity_note}}
       {{!-- 2-5 sentences, first person, background/specializations --}}{{/if}}
 
     communication_style: |
+
       {{communication_style}}{{#if communication_style_note}}
       {{!-- How the agent speaks: tone, voice, mannerisms --}}
       {{#if has_sidecar}}
@@ -37,28 +44,37 @@ agent:
 
     principles:
       {{#each principles}}
+
       - {{this}}
+
       {{/each}}
 
   {{#if has_critical_actions}}
   critical_actions:
     {{#each critical_actions}}
+
     - '{{{this}}}'
+
     {{/each}}
   {{/if}}
 
   {{#if has_prompts}}
   prompts:
     {{#each prompts}}
+
     - id: {{id}}
+
       content: |
+
         {{{content}}}
     {{/each}}
   {{/if}}
 
   menu:
     {{#each menu_items}}
+
     - trigger: {{trigger_code}} or fuzzy match on {{trigger_command}}
+
       {{#if action_is_prompt}}
       action: '#{{action_id}}'
       {{else if action_updates_sidecar}}
@@ -75,12 +91,16 @@ agent:
     description: '{{install_description}}'
     questions:
       {{#each install_questions}}
+
       - var: {{var_name}}
+
         prompt: '{{prompt}}'
         type: {{question_type}}{{#if question_options}}
         options:
           {{#each question_options}}
+
           - label: '{{label}}'
+
             value: '{{value}}'
           {{/each}}
         {{/if}}

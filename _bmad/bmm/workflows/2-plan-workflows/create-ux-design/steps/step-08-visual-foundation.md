@@ -75,7 +75,7 @@ Establish the typographic foundation:
 - Any accessibility requirements for font sizes or contrast?
 - Any brand fonts we must use?
 
-**Typography Strategy:**
+- *Typography Strategy:**
 
 - Choose primary and secondary typefaces
 - Establish type scale (h1, h2, h3, body, etc.)
@@ -92,7 +92,7 @@ Define the structural foundation:
 - How much white space should be between elements?
 - Should we use a grid system? If so, what column structure?
 
-**Layout Principles:**
+- *Layout Principles:**
 
 - [Layout principle 1 based on product type]
 - [Layout principle 2 based on user needs]
@@ -103,19 +103,19 @@ Define the structural foundation:
 Synthesize all visual decisions:
 "**Visual Foundation Strategy:**
 
-**Color System:**
+- *Color System:**
 
 - [Color strategy based on brand guidelines or generated themes]
 - Semantic color mapping (primary, secondary, success, warning, error, etc.)
 - Accessibility compliance (contrast ratios)
 
-**Typography System:**
+- *Typography System:**
 
 - [Typography strategy based on content needs and tone]
 - Type scale and hierarchy
 - Font pairing rationale
 
-**Spacing & Layout:**
+- *Spacing & Layout:**
 
 - [Spacing strategy based on content density and platform]
 - Grid system approach
@@ -132,6 +132,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Visual Design Foundation
 
 ### Color System
@@ -149,18 +150,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Accessibility Considerations
 
 [Accessibility considerations based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated visual foundation content and present choices:
 "I've established the visual design foundation for {{project_name}}. This provides the building blocks for consistent, beautiful design.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine our visual foundation
 [P] Party Mode - Bring design perspectives on visual choices
 [C] Continue - Save this to the document and move to design directions

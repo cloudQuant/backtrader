@@ -2,7 +2,7 @@
 
 本文档描述如何为 backtrader-ccxt 项目构建一个 Web 界面，用于策略实盘管理和回测研究。
 
----
+- --
 
 ## 目录
 
@@ -14,13 +14,13 @@
 6. [API 设计](#api-设计)
 7. [部署方案](#部署方案)
 
----
+- --
 
 ## 系统架构
 
 ### 整体架构图
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              Web 浏览器                                       │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
@@ -65,100 +65,157 @@
 ┌───────────────────────────────────────┴─────────────────────────────────────┐
 │                              外部接口层                                      │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
-│  │ CCXT 交易所  │  │  WebSocket   │  │  数据源API   │  │  消息队列    │    │
+│  │ CCXT 交易所  │  │  WebSocket   │  │  数据源 API   │  │  消息队列    │    │
 │  │ (OKX/Binance)│  │  (实时行情)  │  │ (历史数据)   │  │ (通知/告警)  │    │
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
 
----
+```bash
+
+- --
 
 ## 技术栈
 
 ### 后端技术栈
 
 | 组件 | 技术选择 | 说明 |
+
 |------|---------|------|
-| **Web 框架** | FastAPI | 高性能、异步支持、自动 API 文档 |
-| **任务队列** | Celery + Redis | 异步任务处理（回测、策略启动等） |
-| **WebSocket** | FastAPI WebSocket | 实时数据推送 |
-| **ORM** | SQLAlchemy | 数据库操作 |
-| **数据验证** | Pydantic | 数据校验和序列化 |
-| **认证** | JWT + OAuth2 | API 认证授权 |
-| **日志** | Loguru | 结构化日志 |
+
+| **Web 框架**| FastAPI | 高性能、异步支持、自动 API 文档 |
+
+|**任务队列**| Celery + Redis | 异步任务处理（回测、策略启动等） |
+
+|**WebSocket**| FastAPI WebSocket | 实时数据推送 |
+
+|**ORM**| SQLAlchemy | 数据库操作 |
+
+|**数据验证**| Pydantic | 数据校验和序列化 |
+
+|**认证**| JWT + OAuth2 | API 认证授权 |
+
+|**日志**| Loguru | 结构化日志 |
 
 ### 前端技术栈
 
 | 组件 | 技术选择 | 说明 |
+
 |------|---------|------|
-| **框架** | React / Vue 3 | 组件化开发 |
-| **状态管理** | Zustand / Pinia | 轻量级状态管理 |
-| **图表库** | TradingView Lightweight Charts | 金融图表 |
-| **UI 框架** | Ant Design / Element Plus | 企业级 UI 组件 |
-| **实时通信** | Socket.IO / WebSocket | 实时数据更新 |
-| **构建工具** | Vite | 快速构建 |
+
+|**框架**| React / Vue 3 | 组件化开发 |
+
+|**状态管理**| Zustand / Pinia | 轻量级状态管理 |
+
+|**图表库**| TradingView Lightweight Charts | 金融图表 |
+
+|**UI 框架**| Ant Design / Element Plus | 企业级 UI 组件 |
+
+|**实时通信**| Socket.IO / WebSocket | 实时数据更新 |
+
+|**构建工具**| Vite | 快速构建 |
 
 ### 数据库技术栈
 
 | 用途 | 技术选择 | 说明 |
-|------|---------|------|
-| **业务数据** | PostgreSQL | 用户、策略、订单等 |
-| **缓存** | Redis | 会话、热点数据 |
-| **时序数据** | ClickHouse / InfluxDB | K线、交易记录 |
-| **文件存储** | MinIO / 本地文件 | 策略文件、日志文件 |
 
----
+|------|---------|------|
+
+|**业务数据**| PostgreSQL | 用户、策略、订单等 |
+
+|**缓存**| Redis | 会话、热点数据 |
+
+|**时序数据**| ClickHouse / InfluxDB | K 线、交易记录 |
+
+|**文件存储** | MinIO / 本地文件 | 策略文件、日志文件 |
+
+- --
 
 ## 后端设计
 
 ### 项目结构
 
-```
+```bash
 backend/
 ├── app/
 │   ├── api/                    # API 路由
+
 │   │   ├── v1/
 │   │   │   ├── strategies.py   # 策略管理 API
+
 │   │   │   ├── backtests.py    # 回测 API
+
 │   │   │   ├── trading.py      # 交易 API
+
 │   │   │   ├── data.py         # 数据 API
+
 │   │   │   ├── auth.py         # 认证 API
+
 │   │   │   └── websocket.py    # WebSocket 端点
+
 │   ├── core/                   # 核心配置
+
 │   │   ├── config.py           # 配置管理
+
 │   │   ├── security.py         # 安全相关
+
 │   │   └── deps.py             # 依赖注入
+
 │   ├── models/                 # 数据模型
+
 │   │   ├── strategy.py         # 策略模型
+
 │   │   ├── backtest.py         # 回测模型
+
 │   │   ├── trade.py            # 交易模型
+
 │   │   └── user.py             # 用户模型
+
 │   ├── schemas/                # Pydantic 模式
+
 │   │   ├── strategy.py         # 策略请求/响应
+
 │   │   ├── backtest.py         # 回测请求/响应
+
 │   │   └── trade.py            # 交易请求/响应
+
 │   ├── services/               # 业务逻辑
+
 │   │   ├── strategy_manager.py # 策略管理器
+
 │   │   ├── backtest_engine.py  # 回测引擎
+
 │   │   ├── trading_engine.py   # 交易引擎
+
 │   │   └── data_service.py     # 数据服务
+
 │   ├── tasks/                  # Celery 任务
+
 │   │   ├── backtest_tasks.py   # 回测任务
+
 │   │   └── trading_tasks.py    # 交易任务
+
 │   └── utils/                  # 工具函数
+
 │       ├── ccxt_helper.py      # CCXT 辅助
+
 │       └── log_handler.py      # 日志处理
+
 ├── alembic/                    # 数据库迁移
+
 ├── tests/                      # 测试
+
 ├── main.py                     # 应用入口
+
 └── requirements.txt
-```
+
+```bash
 
 ### 核心服务设计
 
 #### 1. 策略管理器 (StrategyManager)
 
 ```python
+
 # app/services/strategy_manager.py
 
 from typing import List, Optional, Dict, Any
@@ -184,8 +241,10 @@ class StrategyManager:
 
     def _parse_strategy_file(self, file_path: Path) -> Optional[Dict[str, Any]]:
         """解析策略文件，提取元数据"""
-        # 解析文件中的策略类和参数
-        # 返回策略名称、描述、参数列表等信息
+
+# 解析文件中的策略类和参数
+
+# 返回策略名称、描述、参数列表等信息
         pass
 
     def load_strategy(self, strategy_name: str) -> type:
@@ -193,14 +252,14 @@ class StrategyManager:
         if strategy_name in self.loaded_strategies:
             return self.loaded_strategies[strategy_name]
 
-        # 动态导入策略模块
+# 动态导入策略模块
         file_path = self.strategy_dir / f"{strategy_name}.py"
         spec = importlib.util.spec_from_file_location(strategy_name, file_path)
         module = importlib.util.module_from_spec(spec)
         sys.modules[strategy_name] = module
         spec.loader.exec_module(module)
 
-        # 提取策略类
+# 提取策略类
         for attr_name in dir(module):
             attr = getattr(module, attr_name)
             if isinstance(attr, type) and hasattr(attr, 'params'):
@@ -210,8 +269,10 @@ class StrategyManager:
     def validate_strategy(self, strategy_class: type) -> List[str]:
         """验证策略是否符合要求"""
         errors = []
-        # 检查必需的方法：next, notify_order, notify_trade
-        # 检查参数定义
+
+# 检查必需的方法：next, notify_order, notify_trade
+
+# 检查参数定义
         return errors
 
     def get_strategy_params(self, strategy_name: str) -> Dict[str, Any]:
@@ -224,11 +285,13 @@ class StrategyManager:
             }
             for name in strategy_class.params._getpairs()
         }
-```
+
+```bash
 
 #### 2. 回测引擎 (BacktestEngine)
 
 ```python
+
 # app/services/backtest_engine.py
 
 import backtrader as bt
@@ -252,19 +315,19 @@ class BacktestEngine:
         """设置回测环境"""
         self.cerebro = bt.Cerebro()
 
-        # 添加策略
+# 添加策略
         self.cerebro.addstrategy(strategy_class, **strategy_params)
 
-        # 添加数据源
+# 添加数据源
         self.cerebro.adddata(data_feed)
 
-        # 设置初始资金
+# 设置初始资金
         self.cerebro.broker.setcash(initial_cash)
 
-        # 设置佣金
+# 设置佣金
         self.cerebro.broker.setcommission(commission=commission)
 
-        # 添加分析器
+# 添加分析器
         self.cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
         self.cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
         self.cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
@@ -275,11 +338,11 @@ class BacktestEngine:
         if not self.cerebro:
             raise ValueError("Backtest not setup")
 
-        # 运行策略
+# 运行策略
         strats = self.cerebro.run()
         strat = strats[0]
 
-        # 提取结果
+# 提取结果
         results = {
             'final_value': self.cerebro.broker.getvalue(),
             'total_return': self._calculate_total_return(),
@@ -300,13 +363,16 @@ class BacktestEngine:
 
     def _extract_trades(self, strategy: bt.Strategy) -> List[Dict]:
         """提取交易明细"""
-        # 从策略中提取每笔交易的详细信息
+
+# 从策略中提取每笔交易的详细信息
         pass
-```
+
+```bash
 
 #### 3. 交易引擎 (TradingEngine)
 
 ```python
+
 # app/services/trading_engine.py
 
 import backtrader as bt
@@ -332,15 +398,15 @@ class TradingEngine:
         if strategy_id in self.running_strategies:
             raise ValueError(f"Strategy {strategy_id} already running")
 
-        # 创建停止事件
+# 创建停止事件
         stop_event = Event()
         self.stop_events[strategy_id] = stop_event
 
-        # 创建队列用于接收策略输出
+# 创建队列用于接收策略输出
         log_queue = queue.Queue()
         self.queues[strategy_id] = log_queue
 
-        # 在新线程中运行策略
+# 在新线程中运行策略
         thread = Thread(
             target=self._run_strategy,
             args=(strategy_id, strategy_class, strategy_params,
@@ -363,22 +429,22 @@ class TradingEngine:
         try:
             cerebro = bt.Cerebro()
 
-            # 添加策略
+# 添加策略
             cerebro.addstrategy(strategy_class, **strategy_params)
 
-            # 创建 Store
+# 创建 Store
             from backtrader.stores.ccxtstore import CCXTStore
             store = CCXTStore(**store_config)
 
-            # 创建数据源
+# 创建数据源
             data = store.getdata(**data_config)
             cerebro.adddata(data)
 
-            # 设置 Broker
+# 设置 Broker
             broker = store.getbroker()
             cerebro.setbroker(broker)
 
-            # 运行策略
+# 运行策略
             results = cerebro.run()
             self.running_strategies[strategy_id] = results[0]
 
@@ -419,7 +485,8 @@ class TradingEngine:
 
     def _get_orders(self, strategy: bt.Strategy) -> List[Dict]:
         """获取订单信息"""
-        # 从策略中提取订单状态
+
+# 从策略中提取订单状态
         pass
 
     def get_strategy_logs(self, strategy_id: str, timeout: float = 0.1) -> List[Dict]:
@@ -435,60 +502,96 @@ class TradingEngine:
         except queue.Empty:
             pass
         return logs
-```
 
----
+```bash
+
+- --
 
 ## 前端设计
 
 ### 页面结构
 
-```
+```bash
 frontend/
 ├── src/
 │   ├── pages/              # 页面组件
+
 │   │   ├── Dashboard/      # 仪表板
+
 │   │   ├── Strategies/     # 策略管理
+
 │   │   │   ├── List/       # 策略列表
+
 │   │   │   ├── Create/     # 创建策略
+
 │   │   │   └── Edit/       # 编辑策略
+
 │   │   ├── Backtest/       # 回测研究
+
 │   │   │   ├── Config/     # 回测配置
+
 │   │   │   ├── Results/    # 回测结果
+
 │   │   │   └── Chart/      # 回测图表
+
 │   │   ├── Live/           # 实盘管理
+
 │   │   │   ├── Monitor/    # 实盘监控
+
 │   │   │   ├── Orders/     # 订单管理
+
 │   │   │   └── Positions/  # 持仓管理
+
 │   │   └── Data/           # 数据管理
+
 │   │       ├── Market/     # 行情数据
+
 │   │       └── History/    # 历史数据
+
 │   ├── components/         # 通用组件
+
 │   │   ├── charts/         # 图表组件
-│   │   │   ├── KLineChart/ # K线图
+
+│   │   │   ├── KLineChart/ # K 线图
+
 │   │   │   ├── EquityChart/# 资金曲线
+
 │   │   │   └── PnLChart/   # 盈亏图表
+
 │   │   ├── strategy/       # 策略组件
+
 │   │   │   ├── ParamEditor/# 参数编辑器
+
 │   │   │   └── CodeEditor/ # 代码编辑器
+
 │   │   └── trading/        # 交易组件
+
 │   │       ├── OrderBook/  # 订单簿
+
 │   │       └── TradeList/  # 成交列表
+
 │   ├── services/           # API 服务
+
 │   │   ├── api.ts          # API 客户端
+
 │   │   └── ws.ts           # WebSocket 客户端
+
 │   ├── stores/             # 状态管理
+
 │   ├── hooks/              # 自定义 Hooks
+
 │   └── utils/              # 工具函数
+
 ├── package.json
 └── vite.config.ts
-```
+
+```bash
 
 ### 主要页面设计
 
 #### 1. 仪表板 (Dashboard)
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  Backtrader 量化交易平台                                      [用户] [退出]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -517,15 +620,17 @@ frontend/
 │  │                                                                       │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+
+```bash
 
 #### 2. 策略管理页面
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  策略管理                                              [+ 新建策略] [导入]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  策略类型: [全部] [布林带] [SMA交叉] [自定义]  |  状态: [全部] [运行中] [停止]│
+│  策略类型: [全部] [布林带] [SMA 交叉] [自定义]  |  状态: [全部] [运行中] [停止]│
+
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
 │  │ 策略名称              │ 类型    │ 状态      │ 收益率    │ 操作         │ │
@@ -535,11 +640,12 @@ frontend/
 │  │ DOGS 网格策略        │ 网格    │ 运行中    │ -2.34%   │ [停止][编辑] │ │
 │  └───────────────────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+
+```bash
 
 #### 3. 回测配置页面
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  回测研究                                                          [开始回测]│
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -556,18 +662,19 @@ frontend/
 │  │ 策略参数:           │  │ 优化目标: [夏普比率 ▼]                      │  │
 │  │ 周期: [60]          │  │ 优化方法: [网格搜索 ▼]                      │  │
 │  │ 标准差: [2.0]       │  │                                             │  │
-│  │ ATR周期: [14]       │  │                                             │  │
-│  │ ATR倍数: [2.0]      │  │                                             │  │
+│  │ ATR 周期: [14]       │  │                                             │  │
+│  │ ATR 倍数: [2.0]      │  │                                             │  │
 │  └─────────────────────┘  └─────────────────────────────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  回测进度: ████████████████░░░░░░░░ 62%                                    │
-│  预计剩余时间: 2分30秒                                                        │
+│  预计剩余时间: 2 分 30 秒                                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+
+```bash
 
 #### 4. 回测结果页面
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  回测结果                                                          [导出报告]│
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -592,19 +699,20 @@ frontend/
 │  ┌─────────────────────────────────┐  ┌─────────────────────────────────┐  │
 │  │ 交易统计                         │  │ 按月统计                         │  │
 │  │                                 │  │                                 │  │
-│  │ 总交易次数: 156                  │  │ 1月: +2.3%   7月: +1.8%        │  │
-│  │ 盈利交易: 91 (58%)               │  │ 2月: -1.2%   8月: +3.4%        │  │
-│  │ 亏损交易: 65 (42%)               │  │ 3月: +4.5%   9月: -0.5%        │  │
-│  │ 平均盈利: $156.78                │  │ 4月: +1.2%  10月: +2.1%        │  │
-│  │ 平均亏损: -$98.34                │  │ 5月: +3.4%  11月: +4.5%        │  │
-│  │ 盈亏比: 1.59                     │  │ 6月: -2.1%  12月: +3.8%        │  │
+│  │ 总交易次数: 156                  │  │ 1 月: +2.3%   7 月: +1.8%        │  │
+│  │ 盈利交易: 91 (58%)               │  │ 2 月: -1.2%   8 月: +3.4%        │  │
+│  │ 亏损交易: 65 (42%)               │  │ 3 月: +4.5%   9 月: -0.5%        │  │
+│  │ 平均盈利: $156.78                │  │ 4 月: +1.2%  10 月: +2.1%        │  │
+│  │ 平均亏损: -$98.34                │  │ 5 月: +3.4%  11 月: +4.5%        │  │
+│  │ 盈亏比: 1.59                     │  │ 6 月: -2.1%  12 月: +3.8%        │  │
 │  └─────────────────────────────────┘  └─────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+
+```bash
 
 #### 5. 实盘监控页面
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  实盘监控 - MINA 布林带多空                                  [停止] [配置]   │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -615,7 +723,7 @@ frontend/
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │ MINA/USDT:USDT  1分钟K线                                            │ │
+│  │ MINA/USDT:USDT  1 分钟 K 线                                            │ │
 │  │                                                                       │ │
 │  │    ╱───╮                                                              │ │
 │  │   ╱    │  ╱───╮                                                      │ │
@@ -629,14 +737,15 @@ frontend/
 │  │ [14:32:15] 价格突破上轨...  │  │ 订单类型   │ 价格      │ 状态      │  │
 │  │ [14:32:16] 开多订单已提交... │  │ 开多限价单 │ $0.6300  │ 已成交    │  │
 │  │ [14:32:18] 订单成交: 100@... │  │ 止损单     │ $0.6000  │ 等待中    │  │
-│  │ [14:33:01] 新K线收盘...      │  │                                     │  │
+│  │ [14:33:01] 新 K 线收盘...      │  │                                     │  │
 │  └─────────────────────────────┘  └─────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
+
+```bash
 
 ### 核心组件设计
 
-#### K线图组件
+#### K 线图组件
 
 ```typescript
 // components/charts/KLineChart.tsx
@@ -664,6 +773,7 @@ interface KLineChartProps {
 export const KLineChart: React.FC<KLineChartProps> = ({ symbol, data, indicators }) => {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+
   const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
 
   useEffect(() => {
@@ -683,7 +793,7 @@ export const KLineChart: React.FC<KLineChartProps> = ({ symbol, data, indicators
       },
     });
 
-    // 添加K线系列
+    // 添加 K 线系列
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#26a69a',
       downColor: '#ef5350',
@@ -726,7 +836,8 @@ export const KLineChart: React.FC<KLineChartProps> = ({ symbol, data, indicators
     </div>
   );
 };
-```
+
+```bash
 
 #### 策略参数编辑器
 
@@ -738,6 +849,7 @@ import { Form, InputNumber, Select, Switch } from 'antd';
 interface Param {
   name: string;
   type: 'number' | 'select' | 'boolean' | 'string';
+
   default: any;
   options?: string[];
   label: string;
@@ -794,16 +906,19 @@ export const ParamEditor: React.FC<ParamEditorProps> = ({
     </Form>
   );
 };
-```
 
----
+```bash
+
+- --
 
 ## 数据库设计
 
 ### PostgreSQL 核心表结构
 
 ```sql
--- 用户表
+
+- - 用户表
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -813,7 +928,8 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 策略表
+- - 策略表
+
 CREATE TABLE strategies (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -827,7 +943,8 @@ CREATE TABLE strategies (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 回测任务表
+- - 回测任务表
+
 CREATE TABLE backtest_tasks (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -846,7 +963,8 @@ CREATE TABLE backtest_tasks (
     completed_at TIMESTAMP
 );
 
--- 实盘任务表
+- - 实盘任务表
+
 CREATE TABLE live_tasks (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -861,7 +979,8 @@ CREATE TABLE live_tasks (
     error_message TEXT
 );
 
--- 订单表
+- - 订单表
+
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -880,7 +999,8 @@ CREATE TABLE orders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 交易记录表
+- - 交易记录表
+
 CREATE TABLE trades (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -894,7 +1014,8 @@ CREATE TABLE trades (
     trade_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 持仓表
+- - 持仓表
+
 CREATE TABLE positions (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -908,12 +1029,15 @@ CREATE TABLE positions (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, live_task_id, symbol)
 );
-```
+
+```bash
 
 ### ClickHouse 时序数据表
 
 ```sql
--- K线数据表
+
+- - K 线数据表
+
 CREATE TABLE klines (
     symbol String,
     timeframe String,
@@ -928,7 +1052,8 @@ CREATE TABLE klines (
 ENGINE = MergeTree()
 ORDER BY (symbol, timeframe, timestamp);
 
--- 策略运行日志表
+- - 策略运行日志表
+
 CREATE TABLE strategy_logs (
     task_id String,
     timestamp DateTime64(3),
@@ -939,7 +1064,8 @@ CREATE TABLE strategy_logs (
 ENGINE = MergeTree()
 ORDER BY (task_id, timestamp);
 
--- 资金曲线表
+- - 资金曲线表
+
 CREATE TABLE equity_curve (
     task_id String,
     timestamp DateTime64(3),
@@ -950,15 +1076,17 @@ CREATE TABLE equity_curve (
 )
 ENGINE = MergeTree()
 ORDER BY (task_id, timestamp);
-```
 
----
+```bash
+
+- --
 
 ## API 设计
 
 ### RESTful API 端点
 
 ```python
+
 # app/api/v1/strategies.py
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -1023,9 +1151,11 @@ async def validate_strategy(
 ):
     """验证策略代码"""
     pass
-```
+
+```bash
 
 ```python
+
 # app/api/v1/backtests.py
 
 from fastapi import APIRouter, Depends, BackgroundTasks
@@ -1086,9 +1216,11 @@ async def optimize_parameters(
 ):
     """参数优化"""
     pass
-```
+
+```bash
 
 ```python
+
 # app/api/v1/trading.py
 
 from fastapi import APIRouter, Depends, BackgroundTasks
@@ -1162,9 +1294,11 @@ async def cancel_order(
 ):
     """取消订单"""
     pass
-```
+
+```bash
 
 ```python
+
 # app/api/v1/data.py
 
 from fastapi import APIRouter, Depends
@@ -1179,7 +1313,7 @@ async def get_klines(
     end: datetime,
     current_user: User = Depends(get_current_user)
 ):
-    """获取K线数据"""
+    """获取 K 线数据"""
     pass
 
 @router.get("/ticker")
@@ -1208,11 +1342,13 @@ async def list_symbols(
 ):
     """获取交易对列表"""
     pass
-```
+
+```bash
 
 ### WebSocket 端点
 
 ```python
+
 # app/api/v1/websocket.py
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -1250,10 +1386,11 @@ async def websocket_live_monitor(websocket: WebSocket, task_id: str):
 
     try:
         while True:
-            # 接收客户端消息
+
+# 接收客户端消息
             data = await websocket.receive_text()
 
-            # 发送策略状态更新
+# 发送策略状态更新
             status = await trading_service.get_status(task_id)
             await websocket.send_json({
                 "type": "status",
@@ -1270,7 +1407,8 @@ async def websocket_backtest_progress(websocket: WebSocket, task_id: str):
 
     try:
         while True:
-            # 发送回测进度更新
+
+# 发送回测进度更新
             progress = await backtest_service.get_progress(task_id)
             await websocket.send_json({
                 "type": "progress",
@@ -1288,7 +1426,8 @@ async def websocket_market_data(websocket: WebSocket, symbol: str):
 
     try:
         while True:
-            # 推送实时K线数据
+
+# 推送实时 K 线数据
             kline = await data_service.get_latest_kline(symbol)
             await websocket.send_json({
                 "type": "kline",
@@ -1298,21 +1437,24 @@ async def websocket_market_data(websocket: WebSocket, symbol: str):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, f"market:{symbol}")
-```
 
----
+```bash
+
+- --
 
 ## 部署方案
 
 ### Docker Compose 部署
 
 ```yaml
+
 # docker-compose.yml
 
 version: '3.8'
 
 services:
-  # PostgreSQL 数据库
+
+# PostgreSQL 数据库
   postgres:
     image: postgres:15-alpine
     container_name: backtrader_postgres
@@ -1321,37 +1463,52 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: backtrader
     volumes:
+
       - postgres_data:/var/lib/postgresql/data
+
     ports:
+
       - "5432:5432"
+
     networks:
+
       - backtrader_network
 
-  # Redis 缓存
+# Redis 缓存
   redis:
     image: redis:7-alpine
     container_name: backtrader_redis
     command: redis-server --appendonly yes
     volumes:
+
       - redis_data:/data
+
     ports:
+
       - "6379:6379"
+
     networks:
+
       - backtrader_network
 
-  # ClickHouse 时序数据库
+# ClickHouse 时序数据库
   clickhouse:
     image: clickhouse/clickhouse-server:latest
     container_name: backtrader_clickhouse
     volumes:
+
       - clickhouse_data:/var/lib/clickhouse
+
     ports:
+
       - "8123:8123"
       - "9000:9000"
+
     networks:
+
       - backtrader_network
 
-  # FastAPI 后端
+# FastAPI 后端
   backend:
     build:
       context: ./backend
@@ -1363,20 +1520,28 @@ services:
       CLICKHOUSE_URL: clickhouse://clickhouse:8123/default
       SECRET_KEY: ${SECRET_KEY}
     volumes:
+
       - ./backend:/app
       - strategy_files:/app/strategies
       - log_files:/app/logs
+
     ports:
+
       - "8000:8000"
+
     depends_on:
+
       - postgres
       - redis
       - clickhouse
+
     networks:
+
       - backtrader_network
+
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
-  # Celery Worker (后台任务)
+# Celery Worker (后台任务)
   celery_worker:
     build:
       context: ./backend
@@ -1386,45 +1551,64 @@ services:
       DATABASE_URL: postgresql://backtrader:${DB_PASSWORD}@postgres:5432/backtrader
       REDIS_URL: redis://redis:6379/0
     volumes:
+
       - ./backend:/app
       - strategy_files:/app/strategies
       - log_files:/app/logs
+
     depends_on:
+
       - postgres
       - redis
+
     networks:
+
       - backtrader_network
+
     command: celery -A app.tasks worker --loglevel=info
 
-  # 前端
+# 前端
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: backtrader_frontend
     volumes:
+
       - ./frontend:/app
       - /app/node_modules
+
     ports:
+
       - "3000:3000"
+
     networks:
+
       - backtrader_network
+
     command: npm run dev
 
-  # Nginx 反向代理
+# Nginx 反向代理
   nginx:
     image: nginx:alpine
     container_name: backtrader_nginx
     volumes:
+
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/ssl:/etc/nginx/ssl
+
     ports:
+
       - "80:80"
       - "443:443"
+
     depends_on:
+
       - backend
       - frontend
+
     networks:
+
       - backtrader_network
 
 volumes:
@@ -1437,11 +1621,13 @@ volumes:
 networks:
   backtrader_network:
     driver: bridge
-```
+
+```bash
 
 ### Nginx 配置
 
 ```nginx
+
 # nginx/nginx.conf
 
 user nginx;
@@ -1457,7 +1643,7 @@ http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
 
-    # 日志格式
+# 日志格式
     log_format main '$remote_addr - $remote_user [$time_local] "$request" '
                     '$status $body_bytes_sent "$http_referer" '
                     '"$http_user_agent" "$http_x_forwarded_for"';
@@ -1469,7 +1655,7 @@ http {
     keepalive_timeout 65;
     gzip on;
 
-    # 上游服务器
+# 上游服务器
     upstream backend {
         server backend:8000;
     }
@@ -1478,14 +1664,14 @@ http {
         server frontend:3000;
     }
 
-    # HTTP 重定向到 HTTPS
+# HTTP 重定向到 HTTPS
     server {
         listen 80;
         server_name your-domain.com;
-        return 301 https://$server_name$request_uri;
+        return 301 <https://$server_name$request_uri;>
     }
 
-    # HTTPS 主服务器
+# HTTPS 主服务器
     server {
         listen 443 ssl http2;
         server_name your-domain.com;
@@ -1495,32 +1681,32 @@ http {
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers HIGH:!aNULL:!MD5;
 
-        # 前端
+# 前端
         location / {
-            proxy_pass http://frontend;
+            proxy_pass <http://frontend;>
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
-        # API
+# API
         location /api/ {
-            proxy_pass http://backend/;
+            proxy_pass <http://backend/;>
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
 
-            # WebSocket 支持
+# WebSocket 支持
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
         }
 
-        # WebSocket
+# WebSocket
         location /ws/ {
-            proxy_pass http://backend/ws/;
+            proxy_pass <http://backend/ws/;>
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection "upgrade";
@@ -1530,11 +1716,13 @@ http {
         }
     }
 }
-```
+
+```bash
 
 ### 后端 Dockerfile
 
 ```dockerfile
+
 # backend/Dockerfile
 
 FROM python:3.10-slim
@@ -1542,33 +1730,42 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # 安装系统依赖
+
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
+
 COPY requirements.txt .
 
 # 安装 Python 依赖
+
 RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制代码
+
 COPY . .
 
 # 创建策略和日志目录
+
 RUN mkdir -p /app/strategies /app/logs
 
 # 暴露端口
+
 EXPOSE 8000
 
 # 启动命令
+
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+
+```bash
 
 ### 前端 Dockerfile
 
 ```dockerfile
+
 # frontend/Dockerfile
 
 FROM node:18-alpine
@@ -1576,87 +1773,108 @@ FROM node:18-alpine
 WORKDIR /app
 
 # 复制依赖文件
+
 COPY package*.json ./
 
 # 安装依赖
+
 RUN npm ci
 
 # 复制代码
+
 COPY . .
 
 # 暴露端口
+
 EXPOSE 3000
 
 # 启动命令
-CMD ["npm", "run", "dev", "--", "--host"]
-```
 
----
+CMD ["npm", "run", "dev", "--", "--host"]
+
+```bash
+
+- --
 
 ## 启动流程
 
 ### 1. 开发环境启动
 
 ```bash
+
 # 1. 启动数据库服务
+
 docker-compose up -d postgres redis clickhouse
 
 # 2. 初始化数据库
+
 cd backend
 alembic upgrade head
 
 # 3. 启动后端
+
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 4. 启动 Celery Worker
+
 celery -A app.tasks worker --loglevel=info
 
 # 5. 启动前端
+
 cd ../frontend
 npm install
 npm run dev
-```
+
+```bash
 
 ### 2. 生产环境启动
 
 ```bash
+
 # 构建并启动所有服务
+
 docker-compose build
 docker-compose up -d
 
 # 查看日志
-docker-compose logs -f backend
-```
 
----
+docker-compose logs -f backend
+
+```bash
+
+- --
 
 ## 功能路线图
 
 ### Phase 1: MVP (最小可行产品)
+
 - [ ] 用户认证系统
 - [ ] 策略列表和详情查看
 - [ ] 简单回测功能
 - [ ] 基础实盘启动/停止
 
 ### Phase 2: 核心功能
+
 - [ ] 回测参数优化
 - [ ] 实盘实时监控
 - [ ] 订单和持仓管理
-- [ ] K线图表展示
+- [ ] K 线图表展示
 
 ### Phase 3: 高级功能
+
 - [ ] 多策略组合管理
 - [ ] 风险控制模块
 - [ ] 通知告警系统
 - [ ] 性能分析报告
 
 ### Phase 4: 企业功能
+
 - [ ] 多用户权限管理
 - [ ] API 接口开放
 - [ ] 云端部署支持
 - [ ] 移动端适配
 
----
+- --
 
 ## 相关文档
 

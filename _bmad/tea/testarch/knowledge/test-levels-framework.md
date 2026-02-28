@@ -8,7 +8,7 @@ Comprehensive guide for determining appropriate test levels (unit, integration, 
 
 ### Unit Tests
 
-**When to use:**
+- *When to use:**
 
 - Testing pure functions and business logic
 - Algorithm correctness
@@ -16,14 +16,14 @@ Comprehensive guide for determining appropriate test levels (unit, integration, 
 - Error handling in isolated components
 - Complex calculations or state machines
 
-**Characteristics:**
+- *Characteristics:**
 
 - Fast execution (immediate feedback)
 - No external dependencies (DB, API, file system)
 - Highly maintainable and stable
 - Easy to debug failures
 
-**Example scenarios:**
+- *Example scenarios:**
 
 ```yaml
 unit_test:
@@ -31,11 +31,12 @@ unit_test:
   scenario: 'Calculate discount with multiple rules'
   justification: 'Complex business logic with multiple branches'
   mock_requirements: 'None - pure function'
-```
+
+```bash
 
 ### Integration Tests
 
-**When to use:**
+- *When to use:**
 
 - Component interaction verification
 - Database operations and transactions
@@ -43,14 +44,14 @@ unit_test:
 - Service-to-service communication
 - Middleware and interceptor behavior
 
-**Characteristics:**
+- *Characteristics:**
 
 - Moderate execution time
 - Tests component boundaries
 - May use test databases or containers
 - Validates system integration points
 
-**Example scenarios:**
+- *Example scenarios:**
 
 ```yaml
 integration_test:
@@ -58,11 +59,12 @@ integration_test:
   scenario: 'Create user with role assignment'
   justification: 'Critical data flow between service and persistence'
   test_environment: 'In-memory database'
-```
+
+```bash
 
 ### End-to-End Tests
 
-**When to use:**
+- *When to use:**
 
 - Critical user journeys
 - Cross-system workflows
@@ -70,14 +72,14 @@ integration_test:
 - Compliance and regulatory requirements
 - Final validation before release
 
-**Characteristics:**
+- *Characteristics:**
 
 - Slower execution
 - Tests complete workflows
 - Requires full environment setup
 - Most realistic but most brittle
 
-**Example scenarios:**
+- *Example scenarios:**
 
 ```yaml
 e2e_test:
@@ -85,7 +87,8 @@ e2e_test:
   scenario: 'User purchases with saved payment method'
   justification: 'Revenue-critical path requiring full validation'
   environment: 'Staging with test payment gateway'
-```
+
+```bash
 
 ## Test Level Selection Rules
 
@@ -119,13 +122,13 @@ e2e_test:
 
 ## Duplicate Coverage Guard
 
-**Before adding any test, check:**
+- *Before adding any test, check:**
 
 1. Is this already tested at a lower level?
 2. Can a unit test cover this instead of integration?
 3. Can an integration test cover this instead of E2E?
 
-**Coverage overlap is only acceptable when:**
+- *Coverage overlap is only acceptable when:**
 
 - Testing different aspects (unit: logic, integration: interaction, e2e: user experience)
 - Critical paths requiring defense in depth
@@ -151,7 +154,7 @@ Examples:
 
 ### Example 1: E2E Test (Full User Journey)
 
-**Scenario**: User logs in, navigates to dashboard, and places an order.
+- *Scenario**: User logs in, navigates to dashboard, and places an order.
 
 ```typescript
 // tests/e2e/checkout-flow.spec.ts
@@ -202,9 +205,10 @@ test.describe('Checkout Flow', () => {
     await expect(page.getByText('$29.99')).toBeVisible();
   });
 });
-```
 
-**Key Points (E2E)**:
+```bash
+
+- *Key Points (E2E)**:
 
 - Tests complete user journey across multiple pages
 - API setup for data (fast), UI for assertions (user-centric)
@@ -213,7 +217,7 @@ test.describe('Checkout Flow', () => {
 
 ### Example 2: Integration Test (API/Service Layer)
 
-**Scenario**: UserService creates user and assigns role via AuthRepository.
+- *Scenario**: UserService creates user and assigns role via AuthRepository.
 
 ```typescript
 // tests/integration/user-service.spec.ts
@@ -268,9 +272,10 @@ test.describe('UserService Integration', () => {
     await request.delete(`/api/users/${user1.id}`);
   });
 });
-```
 
-**Key Points (Integration)**:
+```bash
+
+- *Key Points (Integration)**:
 
 - Tests service layer + database interaction
 - No UI involved—pure API validation
@@ -279,7 +284,7 @@ test.describe('UserService Integration', () => {
 
 ### Example 3: Component Test (Isolated UI Component)
 
-**Scenario**: Test button component in isolation with props and user interactions.
+- *Scenario**: Test button component in isolation with props and user interactions.
 
 ```typescript
 // src/components/Button.cy.tsx (Cypress Component Test)
@@ -341,9 +346,10 @@ test.describe('Button Component', () => {
     await expect(component.getByTestId('spinner')).toBeVisible();
   });
 });
-```
 
-**Key Points (Component)**:
+```bash
+
+- *Key Points (Component)**:
 
 - Tests UI component in isolation (no full app)
 - Props + user interactions + visual states
@@ -352,7 +358,7 @@ test.describe('Button Component', () => {
 
 ### Example 4: Unit Test (Pure Function)
 
-**Scenario**: Test pure business logic function without framework dependencies.
+- *Scenario**: Test pure business logic function without framework dependencies.
 
 ```typescript
 // src/utils/price-calculator.test.ts (Jest/Vitest)
@@ -423,9 +429,10 @@ describe('PriceCalculator', () => {
     });
   });
 });
-```
 
-**Key Points (Unit)**:
+```bash
+
+- *Key Points (Unit)**:
 
 - Pure function testing—no framework dependencies
 - Fast execution (milliseconds)
@@ -435,19 +442,28 @@ describe('PriceCalculator', () => {
 ## When to Use Which Level
 
 | Scenario               | Unit          | Integration       | E2E           |
+
 | ---------------------- | ------------- | ----------------- | ------------- |
+
 | Pure business logic    | ✅ Primary    | ❌ Overkill       | ❌ Overkill   |
+
 | Database operations    | ❌ Can't test | ✅ Primary        | ❌ Overkill   |
+
 | API contracts          | ❌ Can't test | ✅ Primary        | ⚠️ Supplement |
+
 | User journeys          | ❌ Can't test | ❌ Can't test     | ✅ Primary    |
+
 | Component props/events | ✅ Partial    | ⚠️ Component test | ❌ Overkill   |
+
 | Visual regression      | ❌ Can't test | ⚠️ Component test | ✅ Primary    |
+
 | Error handling (logic) | ✅ Primary    | ⚠️ Integration    | ❌ Overkill   |
+
 | Error handling (UI)    | ❌ Partial    | ⚠️ Component test | ✅ Primary    |
 
 ## Anti-Pattern Examples
 
-**❌ BAD: E2E test for business logic**
+- *❌ BAD: E2E test for business logic**
 
 ```typescript
 // DON'T DO THIS
@@ -459,15 +475,16 @@ test('calculate discount via UI', async ({ page }) => {
   await expect(page.getByText('$80')).toBeVisible();
 });
 // Problem: Slow, brittle, tests logic that should be unit tested
-```
 
-**✅ GOOD: Unit test for business logic**
+```bash
+
+- *✅ GOOD: Unit test for business logic**
 
 ```typescript
 test('calculate discount', () => {
   expect(calculateDiscount(100, 20)).toBe(80);
 });
 // Fast, reliable, isolated
-```
 
+```bash
 _Source: Murat Testing Philosophy (test pyramid), existing test-levels-framework.md structure._

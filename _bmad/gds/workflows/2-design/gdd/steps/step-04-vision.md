@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-04-vision'
 description: 'Define project goals, context, and unique selling points'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-04-vision.md'
 nextStepFile: './step-05-core-gameplay.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Goals & Vision
 
-**Progress: Step 4 of 14** - Next: Core Gameplay
+- *Progress: Step 4 of 14**- Next: Core Gameplay
 
 ## STEP GOAL:
 
@@ -71,21 +76,27 @@ Define the project goals, background context for why this game matters now, and 
 
 ### 1. Goals Discovery
 
-**Guide user through goal definition:**
+- *Guide user through goal definition:**
 
 "Let's define what success looks like for {{game_name}}.
 
-**Types of Goals to Consider:**
+- *Types of Goals to Consider:**
 
 | Goal Type         | Examples                                             |
-| ----------------- | ---------------------------------------------------- |
-| **Creative**      | "Create a game that makes players feel powerful"     |
-| **Technical**     | "Ship a stable 60fps experience on target platforms" |
-| **Business**      | "Achieve 10,000 wishlists before launch"             |
-| **Personal**      | "Learn Godot through this project"                   |
-| **Player Impact** | "Create a speedrunning community"                    |
 
-**Questions to consider:**
+| ----------------- | ---------------------------------------------------- |
+
+| **Creative**| "Create a game that makes players feel powerful"     |
+
+|**Technical**| "Ship a stable 60fps experience on target platforms" |
+
+|**Business**| "Achieve 10,000 wishlists before launch"             |
+
+|**Personal**| "Learn Godot through this project"                   |
+
+|**Player Impact** | "Create a speedrunning community"                    |
+
+- *Questions to consider:**
 
 1. What does success look like for this project?
 2. What would make you proud to have shipped this?
@@ -95,43 +106,44 @@ What are your 2-4 main goals for {{game_name}}?"
 
 ### 2. Context Discovery
 
-**Guide user through background context:**
+- *Guide user through background context:**
 
 "Now let's capture why this game matters right now.
 
-**Context Questions:**
+- *Context Questions:**
 
-- **Motivation:** What inspired you to make this game?
-- **Timing:** Why is now the right time for this game?
-- **Gap:** What's missing in the market that this fills?
+- **Motivation:**What inspired you to make this game?
+- **Timing:**Why is now the right time for this game?
+- **Gap:**What's missing in the market that this fills?
 - **Personal:** What unique perspective or experience do you bring?
 
 Tell me the story behind {{game_name}}. Why are you making this?"
 
 ### 3. USP Discovery
 
-**Guide user through unique selling points:**
+- *Guide user through unique selling points:**
 
 "Now for the critical question: What makes {{game_name}} different?
 
-**USP Framework:**
+- *USP Framework:**
 
 A strong USP answers: "Why would someone play THIS game instead of the alternatives?"
 
-**Categories of Differentiation:**
+- *Categories of Differentiation:**
 
-- **Mechanical Innovation:** New gameplay systems or combinations
-- **Narrative/World:** Unique setting, story, or characters
-- **Art/Audio:** Distinctive aesthetic or soundscape
-- **Audience Focus:** Serving an underserved player segment
+- **Mechanical Innovation:**New gameplay systems or combinations
+- **Narrative/World:**Unique setting, story, or characters
+- **Art/Audio:**Distinctive aesthetic or soundscape
+- **Audience Focus:**Serving an underserved player segment
 - **Technical:** Performance, accessibility, or platform features
 
-**For {{game_type}} games, common USPs include:**
+- *For {{game_type}} games, common USPs include:**
+
 {typical_usps_for_game_type}
 
 But what's YOUR unique angle?
 
-**Challenge Questions:**
+- *Challenge Questions:**
 
 1. If I removed your USP, would the game still be interesting?
 2. Can another developer easily copy this USP?
@@ -144,6 +156,7 @@ What 2-4 things make {{game_name}} genuinely different?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Goals and Context
 
 ### Project Goals
@@ -154,7 +167,7 @@ Based on the conversation, prepare the content:
 
 {{context_narrative}}
 
----
+- --
 
 ## Unique Selling Points (USPs)
 
@@ -163,7 +176,8 @@ Based on the conversation, prepare the content:
 ### Competitive Positioning
 
 {{how_this_game_stands_out_in_the_market}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -171,11 +185,12 @@ Show the generated content to the user and present:
 
 "I've drafted the Goals & Vision sections based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Challenge and strengthen these points
 [P] Party Mode - Get other perspectives on differentiation
 [C] Continue - Save this and move to Core Gameplay (Step 5 of 14)"
@@ -206,7 +221,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [vision content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -227,4 +242,4 @@ ONLY WHEN [C continue option] is selected and [vision content saved with frontma
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

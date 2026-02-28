@@ -25,8 +25,8 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
-- **Research goals = "{{research_goals}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
+- **Research goals = "{{research_goals}}"**- established from initial discussion
 - Focus on regulatory and compliance requirements for the domain
 - Web search capabilities with source verification are enabled
 
@@ -39,9 +39,9 @@ Conduct focused regulatory and compliance analysis with emphasis on requirements
 ### 1. Begin Regulatory Analysis
 
 Start with regulatory research approach:
-"Now I'll focus on **regulatory and compliance requirements** that impact **{{research_topic}}**.
+"Now I'll focus on**regulatory and compliance requirements**that impact**{{research_topic}}**.
 
-**Regulatory Focus Areas:**
+- *Regulatory Focus Areas:**
 
 - Specific regulations and compliance frameworks
 - Industry standards and best practices
@@ -49,14 +49,14 @@ Start with regulatory research approach:
 - Data protection and privacy regulations
 - Environmental and safety requirements
 
-**Let me search for current regulatory requirements.**"
+- *Let me search for current regulatory requirements.**"
 
 ### 2. Web Search for Specific Regulations
 
 Search for current regulatory information:
 Search the web: "{{research_topic}} regulations compliance requirements"
 
-**Regulatory focus:**
+- *Regulatory focus:**
 
 - Specific regulations applicable to the domain
 - Compliance frameworks and standards
@@ -68,7 +68,7 @@ Search the web: "{{research_topic}} regulations compliance requirements"
 Search for current industry standards:
 Search the web: "{{research_topic}} standards best practices"
 
-**Standards focus:**
+- *Standards focus:**
 
 - Industry-specific technical standards
 - Best practices and guidelines
@@ -80,7 +80,7 @@ Search the web: "{{research_topic}} standards best practices"
 Search for current privacy regulations:
 Search the web: "data privacy regulations {{research_topic}}"
 
-**Privacy focus:**
+- *Privacy focus:**
 
 - GDPR, CCPA, and other data protection laws
 - Industry-specific privacy requirements
@@ -96,6 +96,7 @@ Prepare regulatory content with source citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Regulatory Requirements
 
 ### Applicable Regulations
@@ -131,14 +132,15 @@ _Source: [URL]_
 ### Risk Assessment
 
 [Regulatory and compliance risk assessment]
-```
+
+```bash
 
 ### 6. Present Analysis and Continue Option
 
 Show the generated regulatory analysis and present continue option:
 "I've completed **regulatory requirements analysis** for {{research_topic}}.
 
-**Key Regulatory Findings:**
+- *Key Regulatory Findings:**
 
 - Specific regulations and frameworks identified
 - Industry standards and best practices mapped
@@ -146,7 +148,8 @@ Show the generated regulatory analysis and present continue option:
 - Implementation considerations provided
 - Risk assessment completed
 
-**Ready to proceed to technical trends?**
+- *Ready to proceed to technical trends?**
+
 [C] Continue - Save this to the document and move to technical trends
 
 ### 7. Handle Continue Selection

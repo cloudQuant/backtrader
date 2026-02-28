@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-06-structure'
 description: 'Define project structure, directory organization, and architectural boundaries'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-06-structure.md'
 nextStepFile: './step-07-patterns.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 6: Project Structure
 
-**Progress: Step 6 of 9** - Next: Implementation Patterns
+- *Progress: Step 6 of 9**- Next: Implementation Patterns
 
 ## STEP GOAL:
 
@@ -66,16 +71,21 @@ Define the complete project structure including directory organization, file nam
 
 "Let's define how your project will be organized.
 
-**Organization Patterns:**
+- *Organization Patterns:**
 
 | Pattern           | Description                      | Best For      |
-| ----------------- | -------------------------------- | ------------- |
-| **By Feature**    | All related files together       | Feature teams |
-| **By Type**       | Scripts, assets, scenes separate | Traditional   |
-| **Hybrid**        | Types at top, features within    | Balanced      |
-| **Domain-Driven** | By game domain/system            | Complex games |
 
-**Engine Conventions:**
+| ----------------- | -------------------------------- | ------------- |
+
+| **By Feature**| All related files together       | Feature teams |
+
+|**By Type**| Scripts, assets, scenes separate | Traditional   |
+
+|**Hybrid**| Types at top, features within    | Balanced      |
+
+|**Domain-Driven** | By game domain/system            | Complex games |
+
+- *Engine Conventions:**
 
 - {{engine}} typically uses: {{engine_convention}}
 
@@ -85,59 +95,69 @@ What organization pattern do you prefer?"
 
 "Based on {{selected_pattern}}, let's define your root structure.
 
-**For {{engine}}, typical root looks like:**
+- *For {{engine}}, typical root looks like:**
 
-```
+```bash
 {{project_name}}/
 ├── {{source_folder}}/          # Game source code
-├── {{assets_folder}}/          # Art, audio, data
-├── {{scenes_folder}}/          # Scene/level files
-├── {{tests_folder}}/           # Test files
-├── {{docs_folder}}/            # Documentation
-└── {{config_files}}            # Project config
-```
 
+├── {{assets_folder}}/          # Art, audio, data
+
+├── {{scenes_folder}}/          # Scene/level files
+
+├── {{tests_folder}}/           # Test files
+
+├── {{docs_folder}}/            # Documentation
+
+└── {{config_files}}            # Project config
+
+```bash
 Does this work, or would you like to adjust?"
 
 ### 3. Detail Source Structure
 
 "Now let's detail the source code organization.
 
-**Based on your systems:**
+- *Based on your systems:**
+
 {{list_of_systems_from_context}}
 
-**Proposed structure:**
+- *Proposed structure:**
 
-```
+```bash
 {{source_folder}}/
 ├── core/                   # Core systems (singletons, managers)
+
 │   ├── {{core_systems}}
 ├── gameplay/               # Gameplay mechanics
+
 │   ├── {{gameplay_systems}}
 ├── ui/                     # User interface
+
 │   ├── {{ui_organization}}
 ├── utils/                  # Utilities and helpers
+
 │   ├── {{util_types}}
 └── data/                   # Data structures and models
     └── {{data_types}}
-```
 
+```bash
 What adjustments would you make?"
 
 ### 4. Define Asset Structure
 
 "Let's organize your assets.
 
-**Asset Categories:**
+- *Asset Categories:**
 
 - Art (sprites, textures, models)
 - Audio (music, sfx, voice)
 - Data (configurations, levels)
 - UI (interface assets)
 
-**Proposed asset structure:**
+- *Proposed asset structure:**
 
-```
+```bash
 {{assets_folder}}/
 ├── art/
 │   ├── {{art_categories}}
@@ -149,8 +169,8 @@ What adjustments would you make?"
 │   └── {{data_file_types}}
 └── ui/
     └── {{ui_asset_types}}
-```
 
+```bash
 How should assets be organized?"
 
 ### 5. Map Systems to Locations
@@ -158,6 +178,7 @@ How should assets be organized?"
 "Let's map each major system to its location.
 
 | System | Location | Notes |
+
 | ------ | -------- | ----- |
 
 {{system_location_mapping}}
@@ -168,20 +189,20 @@ Does this mapping make sense for your project?"
 
 "Finally, let's establish naming conventions.
 
-**Files:**
+- *Files:**
 
 - Scripts: {{script_naming}} (e.g., PlayerController, enemy_spawner)
 - Scenes: {{scene_naming}} (e.g., Level01, main_menu)
 - Assets: {{asset_naming}} (e.g., player_idle, btn_play)
 
-**Code Elements:**
+- *Code Elements:**
 
 - Classes: {{class_naming}} (e.g., PascalCase)
 - Functions: {{function_naming}} (e.g., snake_case, camelCase)
 - Variables: {{variable_naming}}
 - Constants: {{constant_naming}} (e.g., UPPER_SNAKE)
 
-**Game-Specific:**
+- *Game-Specific:**
 
 - Prefabs/Scenes: {{prefab_naming}}
 - Animation clips: {{animation_naming}}
@@ -194,45 +215,54 @@ What are your naming preferences?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Project Structure
 
 ### Organization Pattern
 
-**Pattern:** {{organization_pattern}}
+- *Pattern:** {{organization_pattern}}
 
-**Rationale:** {{why_this_pattern}}
+- *Rationale:** {{why_this_pattern}}
 
 ### Directory Structure
-```
 
+```bash
 {{project_name}}/
 {{complete_directory_tree}}
 
-```
+```bash
 
 ### System Location Mapping
 
 | System | Location | Responsibility |
+
 | ------ | -------- | -------------- |
+
 {{system_mapping_table}}
 
 ### Naming Conventions
 
 #### Files
+
 {{file_naming_rules}}
 
 #### Code Elements
+
 | Element | Convention | Example |
+
 | ------- | ---------- | ------- |
+
 {{code_naming_table}}
 
 #### Game Assets
+
 {{asset_naming_rules}}
 
 ### Architectural Boundaries
 
 {{boundary_rules}}
-```
+
+```bash
 
 ### 8. Present Content and Menu
 
@@ -240,17 +270,18 @@ Show the generated content to the user and present:
 
 "I've defined the complete project structure.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 7]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Can every system find its home?
 - Are naming conventions clear and consistent?
 - Will AI agents know exactly where to place new code?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Refine structure organization
 [P] Party Mode - Get perspectives on layout
 [C] Continue - Save this and move to Implementation Patterns (Step 7 of 9)"
@@ -281,7 +312,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [structure content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -302,4 +333,4 @@ ONLY WHEN [C continue option] is selected and [structure content saved with fron
 - Not presenting A/P/C menu after structure
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

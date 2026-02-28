@@ -48,7 +48,7 @@ Inform user that the UX design is complete:
 
 I've successfully collaborated with you to create a comprehensive UX design specification for {{project_name}}.
 
-**What we've accomplished:**
+- *What we've accomplished:**
 
 - ✅ Project understanding and user insights
 - ✅ Core experience and emotional response definition
@@ -62,9 +62,9 @@ I've successfully collaborated with you to create a comprehensive UX design spec
 - ✅ UX consistency patterns for common interactions
 - ✅ Responsive design and accessibility strategy
 
-**The complete UX design specification is now available at:** `{planning_artifacts}/ux-design-specification.md`
+- *The complete UX design specification is now available at:** `{planning_artifacts}/ux-design-specification.md`
 
-**Supporting Visual Assets:**
+- *Supporting Visual Assets:**
 
 - Color themes visualizer: `{planning_artifacts}/ux-color-themes.html`
 - Design directions mockups: `{planning_artifacts}/ux-design-directions.html`
@@ -87,8 +87,6 @@ UX Design complete. Read fully and follow: `_bmad/core/tasks/help.md` with argum
 ### 5. Final Completion Confirmation
 
 Congratulate the user on the completion you both completed together of the UX.
-
-
 
 ## SUCCESS METRICS:
 
@@ -137,15 +135,17 @@ Congratulate the user on the completion you both completed together of the UX.
 
 ## NEXT STEPS GUIDANCE:
 
-**Immediate Options:**
+- *Immediate Options:**
 
-1. **Wireframe Generation** - Create low-fidelity layouts based on UX spec
-2. **Interactive Prototype** - Build clickable prototypes for testing
-3. **Solution Architecture** - Technical design with UX context
-4. **Figma Visual Design** - High-fidelity UI implementation
-5. **Epic Creation** - Break down UX requirements for development
+1. **Wireframe Generation**- Create low-fidelity layouts based on UX spec
 
-**Recommended Sequence:**
+2.**Interactive Prototype**- Build clickable prototypes for testing
+3.**Solution Architecture**- Technical design with UX context
+4.**Figma Visual Design**- High-fidelity UI implementation
+5.**Epic Creation** - Break down UX requirements for development
+
+- *Recommended Sequence:**
+
 For design-focused teams: Wireframes → Prototypes → Figma Design → Development
 For technical teams: Architecture → Epic Creation → Development
 
@@ -162,9 +162,9 @@ Consider team capacity, timeline, and whether user validation is needed before i
 
 This UX design workflow is now complete. The specification serves as the foundation for all visual and development work. All design decisions, patterns, and requirements are documented to ensure consistent, accessible, and user-centered implementation.
 
-**Congratulations on completing the UX Design Specification for {{project_name}}!** 🎉
+- *Congratulations on completing the UX Design Specification for {{project_name}}!** 🎉
 
-**Core Deliverables:**
+- *Core Deliverables:**
 
 - ✅ UX Design Specification: `{planning_artifacts}/ux-design-specification.md`
 - ✅ Color Themes Visualizer: `{planning_artifacts}/ux-color-themes.html`

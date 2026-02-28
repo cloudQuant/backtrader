@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-02-spark'
 description: 'Ignite the idea, explore problem space, what excites them'
 
@@ -6,7 +7,8 @@ nextStepFile: './step-03-module-type.md'
 moduleStandardsFile: '../data/module-standards.md'
 advancedElicitationTask: '../../../../core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '../../../../core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Spark
 
@@ -42,17 +44,18 @@ Ignite and explore the user's idea — dig into the problem space, understand wh
 - 📖 Reference module standards to understand types
 - 📖 Load next step when user selects 'C'
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly.
+- *CRITICAL:** Follow this sequence exactly.
 
 ### 1. Connect to Their Idea
 
 "**Let's explore your idea together.**"
 
 Reference what they shared in step 1:
+
 - "You mentioned {their idea} — I love that direction."
 - "Tell me more about the problem you're solving."
 
@@ -60,13 +63,13 @@ Reference what they shared in step 1:
 
 Ask questions to deepen understanding:
 
-**"What problem does this module solve?"**
+- *"What problem does this module solve?"**
 
 - Who feels this problem right now?
 - What do they currently do without this module?
 - What would change if this existed?
 
-**"What excites you about this idea?"**
+- *"What excites you about this idea?"**
 
 - Why THIS module? Why now?
 - What's the vision — the dream outcome?
@@ -74,30 +77,32 @@ Ask questions to deepen understanding:
 
 ### 3. Identify the Users
 
-**"Who is this module for?"**
+- *"Who is this module for?"**
 
 Help them think about:
+
 - Primary users — who will use this most?
 - Secondary users — who else benefits?
 - What do these users care about?
 
 ### 4. Adjust for Mode
 
-**IF mode == Interactive:**
+- *IF mode == Interactive:**
 - Deep exploration, multiple rounds of questions
 - Use Advanced Elicitation if they want to dig deeper
 
-**IF mode == Express:**
+- *IF mode == Express:**
 - Targeted questions, get the key insights quickly
 - 2-3 rounds max
 
-**IF mode == YOLO:**
+- *IF mode == YOLO:**
 - Brief clarification, acknowledge what you have
 - Move quickly to next step
 
 ### 5. Capture Insights
 
 Summarize what you've learned:
+
 - "So the core problem is {summary}"
 - "The primary users are {users}"
 - "What excites you most is {excitement}"
@@ -106,7 +111,7 @@ Summarize what you've learned:
 
 ### 6. Present MENU OPTIONS
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
 
 #### EXECUTION RULES:
 
@@ -120,7 +125,7 @@ Summarize what you've learned:
 - IF C: Load `{nextStepFile}`
 - IF Any other: Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -137,4 +142,4 @@ Summarize what you've learned:
 - Not understanding the problem
 - Not capturing what excites them
 
-**Master Rule:** Understand before you build. This step is about clarity, not solutions.
+- *Master Rule:** Understand before you build. This step is about clarity, not solutions.

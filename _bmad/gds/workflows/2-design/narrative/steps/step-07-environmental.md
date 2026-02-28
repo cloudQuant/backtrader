@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-07-environmental'
 description: 'Plan environmental storytelling including visual, audio, and found documents'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-07-environmental.md'
 nextStepFile: './step-08-delivery.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 7: Environmental Storytelling
 
-**Progress: Step 7 of 11** - Next: Narrative Delivery
+- *Progress: Step 7 of 11**- Next: Narrative Delivery
 
 ## STEP GOAL:
 
@@ -66,12 +71,12 @@ Define how story is told through the environment: visual storytelling, audio sto
 
 "**How will you tell story through visuals in {{game_name}}?**
 
-**Visual storytelling elements:**
+- *Visual storytelling elements:**
 
-- **Set dressing and props** - What objects tell stories?
-- **Environmental damage/aftermath** - What happened here?
-- **Visual symbolism** - Recurring images with meaning
-- **Color and lighting** - Mood and meaning through visuals
+- **Set dressing and props**- What objects tell stories?
+- **Environmental damage/aftermath**- What happened here?
+- **Visual symbolism**- Recurring images with meaning
+- **Color and lighting**- Mood and meaning through visuals
 - **Character design details** - What do appearances reveal?
 
 How will visuals tell story in {{game_name}}?"
@@ -80,26 +85,26 @@ How will visuals tell story in {{game_name}}?"
 
 "**How will audio contribute to storytelling?**
 
-**Audio storytelling elements:**
+- *Audio storytelling elements:**
 
-- **Ambient sounds** - What do players hear in the world?
-- **Music emotional cues** - How does music guide feeling?
-- **Voice acting** - How is it used beyond dialogue?
-- **Audio logs/recordings** - Found audio content?
+- **Ambient sounds**- What do players hear in the world?
+- **Music emotional cues**- How does music guide feeling?
+- **Voice acting**- How is it used beyond dialogue?
+- **Audio logs/recordings**- Found audio content?
 - **Sound design** - Sounds that carry meaning
 
 How will audio tell story in {{game_name}}?"
 
 ### 3. Found Documents Discovery
 
-"**Will you have found documents?** (Journals, notes, emails, etc.)
+"**Will you have found documents?**(Journals, notes, emails, etc.)
 
 If yes, describe:
 
-- **Types of documents** - What forms do they take?
-- **How many** - Approximate count
-- **What they reveal** - Backstory? World-building? Character?
-- **Optional vs required** - Must players find them?
+- **Types of documents**- What forms do they take?
+- **How many**- Approximate count
+- **What they reveal**- Backstory? World-building? Character?
+- **Optional vs required**- Must players find them?
 - **Reward for finding** - Achievement? Story unlock? Lore only?
 
 Describe your found documents (or indicate N/A):"
@@ -109,64 +114,80 @@ Describe your found documents (or indicate N/A):"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Environmental Storytelling
 
 ### Visual Storytelling
 
-**Set Dressing:**
+- *Set Dressing:**
+
 {{set_dressing_approach}}
 
-**Environmental Details:**
+- *Environmental Details:**
+
 {{environmental_storytelling_examples}}
 
-**Visual Symbolism:**
+- *Visual Symbolism:**
+
 {{symbolic_elements}}
 
-**Color and Lighting:**
+- *Color and Lighting:**
+
 {{color_lighting_approach}}
 
----
+- --
 
 ### Audio Storytelling
 
-**Ambient Design:**
+- *Ambient Design:**
+
 {{ambient_sound_approach}}
 
-**Music Integration:**
+- *Music Integration:**
+
 {{music_storytelling}}
 
-**Voice Elements:**
+- *Voice Elements:**
+
 {{voice_beyond_dialogue}}
 
-**Sound Design Narrative:**
+- *Sound Design Narrative:**
+
 {{meaningful_sounds}}
 
----
+- --
 
 ### Found Documents
 
 {{if_has_documents}}
-**Document Types:**
+
+- *Document Types:**
+
 {{document_types}}
 
-**Quantity:** {{approximate_count}}
+- *Quantity:** {{approximate_count}}
 
-**Content Focus:**
+- *Content Focus:**
+
 {{what_documents_reveal}}
 
-**Discovery:**
+- *Discovery:**
 
 - Required: {{required_documents}}
 - Optional: {{optional_documents}}
 
-**Rewards:** {{finding_rewards}}
+- *Rewards:** {{finding_rewards}}
+
 {{/if_has_documents}}
 
 {{if_no_documents}}
-**Approach:** No found documents
-**Rationale:** {{why_no_documents}}
+
+- *Approach:** No found documents
+- *Rationale:** {{why_no_documents}}
+
 {{/if_no_documents}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -174,23 +195,24 @@ Show the generated content to the user and present:
 
 "I've documented the environmental storytelling approach.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Environmental Summary:**
+- *Environmental Summary:**
 
 - Visual elements: Defined
 - Audio elements: Defined
 - Found documents: {{yes_no}}
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does visual storytelling match your world?
 - Is audio approach realistic for scope?
 - Are found documents well-integrated?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore environmental depth
 [P] Party Mode - Get perspectives on environmental storytelling
 [C] Continue - Save this and move to Narrative Delivery (Step 8 of 11)"
@@ -221,7 +243,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [environmental content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -242,4 +264,4 @@ ONLY WHEN [C continue option] is selected and [environmental content saved with 
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

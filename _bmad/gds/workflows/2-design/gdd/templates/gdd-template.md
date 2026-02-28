@@ -1,10 +1,10 @@
 # {{game_name}} - Game Design Document
 
-**Author:** {{user_name}}
-**Game Type:** {{game_type}}
-**Target Platform(s):** {{platforms}}
+- *Author:** {{user_name}}
+- *Game Type:** {{game_type}}
+- *Target Platform(s):** {{platforms}}
 
----
+- --
 
 ## Executive Summary
 
@@ -20,7 +20,7 @@
 
 {{unique_selling_points}}
 
----
+- --
 
 ## Goals and Context
 
@@ -32,7 +32,7 @@
 
 {{context}}
 
----
+- --
 
 ## Core Gameplay
 
@@ -48,7 +48,7 @@
 
 {{win_loss_conditions}}
 
----
+- --
 
 ## Game Mechanics
 
@@ -60,11 +60,11 @@
 
 {{controls}}
 
----
+- --
 
 {{GAME_TYPE_SPECIFIC_SECTIONS}}
 
----
+- --
 
 ## Progression and Balance
 
@@ -80,7 +80,7 @@
 
 {{economy_resources}}
 
----
+- --
 
 ## Level Design Framework
 
@@ -92,7 +92,7 @@
 
 {{level_progression}}
 
----
+- --
 
 ## Art and Audio Direction
 
@@ -104,7 +104,7 @@
 
 {{audio_music}}
 
----
+- --
 
 ## Technical Specifications
 
@@ -120,7 +120,7 @@
 
 {{asset_requirements}}
 
----
+- --
 
 ## Development Epics
 
@@ -128,7 +128,7 @@
 
 {{epics}}
 
----
+- --
 
 ## Success Metrics
 
@@ -140,13 +140,13 @@
 
 {{gameplay_metrics}}
 
----
+- --
 
 ## Out of Scope
 
 {{out_of_scope}}
 
----
+- --
 
 ## Assumptions and Dependencies
 

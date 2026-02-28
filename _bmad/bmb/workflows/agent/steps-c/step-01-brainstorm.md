@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-01-brainstorm'
 description: 'Optional brainstorming for agent ideas'
 
 # File References
+
 nextStepFile: './step-02-discovery.md'
 brainstormContext: ../data/brainstorm-context.md
 brainstormWorkflow: '{project-root}/_bmad/core/workflows/brainstorming/workflow.md'
----
+
+- --
 
 # Step 1: Optional Brainstorming
 
@@ -48,7 +51,7 @@ Optional creative exploration to generate agent ideas through structured brainst
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Present Brainstorming Opportunity
 
@@ -56,14 +59,14 @@ Present this to the user:
 
 "Would you like to brainstorm agent ideas first? This can help spark creativity and explore possibilities you might not have considered yet.
 
-**Benefits of brainstorming:**
+- *Benefits of brainstorming:**
 
 - Generate multiple agent concepts quickly
 - Explore different use cases and approaches
 - Discover unique combinations of capabilities
 - Get inspired by creative prompts
 
-**Skip if you already have a clear agent concept in mind!**
+- *Skip if you already have a clear agent concept in mind!**
 
 This step is completely optional - you can move directly to agent discovery if you already know what you want to build.
 
@@ -73,14 +76,14 @@ Wait for clear user response (yes/no or y/n).
 
 ### 2. Handle User Choice
 
-**If user answers yes:**
+- *If user answers yes:**
 
 - Load brainstorming workflow: `{brainstormWorkflow}` passing to the workflow the `{brainstormContext}` guidance
 - Execute brainstorming session scoped specifically utilizing the brainstormContext to guide the scope and outcome
 - Capture all brainstorming output for next step
 - Return to this step after brainstorming completes
 
-**If user answers no:**
+- *If user answers no:**
 
 - Acknowledge their choice respectfully
 - Proceed directly to menu options
@@ -104,7 +107,7 @@ Display: "Are you ready to [C] Continue to Discovery?"
 
 ONLY WHEN [C continue option] is selected and [user choice regarding brainstorming handled], will you then load and read fully `{nextStepFile}` to execute and begin agent discovery.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -125,4 +128,4 @@ ONLY WHEN [C continue option] is selected and [user choice regarding brainstormi
 - Failing to execute brainstorming workflow when chosen
 - Not respecting user's choice to skip brainstorming
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

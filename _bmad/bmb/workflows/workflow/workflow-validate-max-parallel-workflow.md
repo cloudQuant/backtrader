@@ -1,21 +1,23 @@
----
+- --
+
 name: validate-max-parallel-workflow
 description: Run validation checks in MAX-PARALLEL mode against a workflow requires a tool that supports Parallel Sub-Processes
 web_bundle: true
 validateWorkflow: './steps-v/step-01-validate-max-mode.md'
----
+
+- --
 
 # Validate Max-Parallel Workflow
 
-**Goal:** Validate existing workflows against BMAD standards using maximum parallel execution for comprehensive review.
+- *Goal:** Validate existing workflows against BMAD standards using maximum parallel execution for comprehensive review.
 
-**Your Role:** Validation Architect and Quality Assurance Specialist with parallel processing expertise. You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
+- *Your Role:**Validation Architect and Quality Assurance Specialist with parallel processing expertise. You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution with parallel optimization:
+This uses**step-file architecture**for disciplined execution with parallel optimization:
 
 ### Core Principles
 
@@ -37,16 +39,16 @@ This uses **step-file architecture** for disciplined execution with parallel opt
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

@@ -32,21 +32,73 @@ try:
 except ImportError:
     winreg = None
 
+
 # --- URL helpers (used by feeds like Quandl, Yahoo) ---
 def urlquote(s, *args, **kwargs):
+    """Quote a string for use in a URL.
+
+    Args:
+        s: The string to quote.
+        *args: Additional positional arguments passed to urllib.parse.quote.
+        **kwargs: Additional keyword arguments passed to urllib.parse.quote.
+
+    Returns:
+        The quoted string safe for use in URLs.
+    """
     return _urlquote(s, *args, **kwargs)
 
+
 def urlopen(*args, **kwargs):
+    """Open a URL.
+
+    Args:
+        *args: Positional arguments passed to urllib.request.urlopen.
+        **kwargs: Keyword arguments passed to urllib.request.urlopen.
+
+    Returns:
+        A file-like object representing the URL response.
+    """
     return _urllib_request.urlopen(*args, **kwargs)
 
+
 def ProxyHandler(*args, **kwargs):  # noqa: N802 — keep legacy name
+    """Create a proxy handler for opening URLs.
+
+    Args:
+        *args: Positional arguments passed to urllib.request.ProxyHandler.
+        **kwargs: Keyword arguments passed to urllib.request.ProxyHandler.
+
+    Returns:
+        A ProxyHandler instance for configuring URL proxies.
+    """
     return _urllib_request.ProxyHandler(*args, **kwargs)
 
+
 def build_opener(*args, **kwargs):
+    """Build a URL opener with a chain of handlers.
+
+    Args:
+        *args: Positional arguments passed to urllib.request.build_opener.
+        **kwargs: Keyword arguments passed to urllib.request.build_opener.
+
+    Returns:
+        An OpenerDirector instance configured with the specified handlers.
+    """
     return _urllib_request.build_opener(*args, **kwargs)
 
+
 def install_opener(*args, **kwargs):
+    """Install an opener as the default global opener.
+
+    Args:
+        *args: Positional arguments passed to urllib.request.install_opener.
+        **kwargs: Keyword arguments passed to urllib.request.install_opener.
+
+    Returns:
+        None.
+    """
     return _urllib_request.install_opener(*args, **kwargs)
+
 
 # --- Numeric limits ---
 MAXINT = sys.maxsize
@@ -68,39 +120,136 @@ zip = zip
 
 # --- Utility functions ---
 def cmp(a, b):
-    """Compare *a* and *b*, return 1 / 0 / -1."""
+    """Compare two values.
+
+    Args:
+        a: First value to compare.
+        b: Second value to compare.
+
+    Returns:
+        int: 1 if a > b, 0 if a == b, -1 if a < b.
+    """
     return (a > b) - (a < b)
 
+
 def bytes(x):
+    """Encode a string to bytes using UTF-8 encoding.
+
+    Args:
+        x: String to encode.
+
+    Returns:
+        Bytes representation of the input string.
+    """
     return x.encode("utf-8")
 
+
 def bstr(x):
+    """Convert a value to a byte string.
+
+    Args:
+        x: Value to convert.
+
+    Returns:
+        String representation of the input value.
+    """
     return str(x)
 
 
 # --- Dict iteration helpers ---
 def iterkeys(d):
+    """Return an iterator over the dictionary's keys.
+
+    Args:
+        d: Dictionary to iterate over.
+
+    Returns:
+        An iterator over the dictionary's keys.
+    """
     return iter(d.keys())
 
+
 def itervalues(d):
+    """Return an iterator over the dictionary's values.
+
+    Args:
+        d: Dictionary to iterate over.
+
+    Returns:
+        An iterator over the dictionary's values.
+    """
     return iter(d.values())
 
+
 def iteritems(d):
+    """Return an iterator over the dictionary's items.
+
+    Args:
+        d: Dictionary to iterate over.
+
+    Returns:
+        An iterator over (key, value) tuples.
+    """
     return iter(d.items())
 
+
 def keys(d):
+    """Return a list of the dictionary's keys.
+
+    Args:
+        d: Dictionary to extract keys from.
+
+    Returns:
+        A list containing the dictionary's keys.
+    """
     return list(d.keys())
 
+
 def values(d):
+    """Return a list of the dictionary's values.
+
+    Args:
+        d: Dictionary to extract values from.
+
+    Returns:
+        A list containing the dictionary's values.
+    """
     return list(d.values())
 
+
 def items(d):
+    """Return a list of the dictionary's items.
+
+    Args:
+        d: Dictionary to extract items from.
+
+    Returns:
+        A list of (key, value) tuples.
+    """
     return list(d.items())
 
 
 # This is from Armin Ronacher from Flash simplified later by six
 def with_metaclass(meta, *bases):
-    """Create a base class with a metaclass."""
+    """Create a base class with a metaclass.
+
+    This function provides a compatibility layer for creating classes with
+    metaclasses in a way that works across Python versions. Originally designed
+    for Python 2/3 compatibility, now simplified for Python 3 only.
+
+    Args:
+        meta: The metaclass to use for the created class.
+        *bases: Base classes to inherit from.
+
+    Returns:
+        A temporary base class that, when inherited from, creates a class
+        with the specified metaclass and base classes.
+
+    Note:
+        Modern Python 3 code can use metaclass directly in class definition:
+        ``class MyClass(metaclass=Meta):``. This function is kept for
+        backward compatibility with existing code.
+    """
 
     # This requires a bit of explanation: the basic idea is to make a dummy
     # metaclass for one level of class instantiation that replaces itself with

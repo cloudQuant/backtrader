@@ -349,9 +349,7 @@ class PlotlyPlot(ParameterizedBase):
         max_width = getattr(self.p.scheme, "max_legend_text_width", 16)
         return wrap_legend_text(label, max_width)
 
-    def fill_between(
-        self, fig, row, x, y1, y2, secondary_y=False, color=None, opacity=None, name="", where=None
-    ):
+    def fill_between(self, fig, row, x, y1, y2, secondary_y=False, color=None, opacity=None, name="", where=None):
         """Draw filled area between two lines.
 
         Reference: backtrader_plotly/plotter.py:718-750
@@ -572,9 +570,7 @@ class PlotlyPlot(ParameterizedBase):
             #     )
 
             # Plot main price chart
-            current_row = self._plot_data(
-                fig, data, data_xdata, opens, highs, lows, closes, volumes, current_row
-            )
+            current_row = self._plot_data(fig, data, data_xdata, opens, highs, lows, closes, volumes, current_row)
 
             # Plot buy/sell signals with price offset
             self._plot_buysell_markers(fig, data, data_xdata, lows, highs, current_row - 1)
@@ -694,10 +690,7 @@ class PlotlyPlot(ParameterizedBase):
 
         # Plot volume
         if self.p.scheme.volume and max(volumes) > 0:
-            colors = [
-                self.p.scheme.volup if c >= o else self.p.scheme.voldown
-                for o, c in zip(opens, closes)
-            ]
+            colors = [self.p.scheme.volup if c >= o else self.p.scheme.voldown for o, c in zip(opens, closes)]
             colors = [self._to_plotly_color(c) for c in colors]
 
             if self.p.scheme.voloverlay:
@@ -963,12 +956,12 @@ class PlotlyPlot(ParameterizedBase):
             if len(color) == 3:
                 r, g, b = color
                 if all(0 <= c <= 1 for c in color):
-                    return f"rgb({int(r*255)},{int(g*255)},{int(b*255)})"
+                    return f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
                 return f"rgb({r},{g},{b})"
             elif len(color) == 4:
                 r, g, b, a = color
                 if all(0 <= c <= 1 for c in color):
-                    return f"rgba({int(r*255)},{int(g*255)},{int(b*255)},{a})"
+                    return f"rgba({int(r * 255)},{int(g * 255)},{int(b * 255)},{a})"
                 return f"rgba({r},{g},{b},{a})"
         return str(color)
 

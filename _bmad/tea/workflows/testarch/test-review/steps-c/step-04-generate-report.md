@@ -1,8 +1,10 @@
----
+- --
+
 name: 'step-04-generate-report'
 description: 'Create test-review report and validate'
 outputFile: '{test_artifacts}/test-review.md'
----
+
+- --
 
 # Step 4: Generate Report & Validate
 
@@ -15,7 +17,7 @@ Produce the test-review report and validate against checklist.
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -32,7 +34,7 @@ Produce the test-review report and validate against checklist.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Report Generation
 
@@ -44,18 +46,19 @@ Use `test-review-template.md` to produce `{outputFile}` including:
 - Context references (story/test-design if available)
 - Coverage boundary note: `test-review` does not score coverage. Direct coverage findings to `trace`.
 
----
+- --
 
 ## 2. Polish Output
 
 Before finalizing, review the complete output document for quality:
 
-1. **Remove duplication**: Progressive-append workflow may have created repeated sections — consolidate
-2. **Verify consistency**: Ensure terminology, risk scores, and references are consistent throughout
-3. **Check completeness**: All template sections should be populated or explicitly marked N/A
-4. **Format cleanup**: Ensure markdown formatting is clean (tables aligned, headers consistent, no orphaned references)
+1.**Remove duplication**: Progressive-append workflow may have created repeated sections — consolidate
 
----
+1. **Verify consistency**: Ensure terminology, risk scores, and references are consistent throughout
+2. **Check completeness**: All template sections should be populated or explicitly marked N/A
+3. **Format cleanup**: Ensure markdown formatting is clean (tables aligned, headers consistent, no orphaned references)
+
+- --
 
 ## 3. Validation
 
@@ -64,20 +67,24 @@ Validate against `checklist.md` and fix any gaps.
 - [ ] CLI sessions cleaned up (no orphaned browsers)
 - [ ] Temp artifacts stored in `{test_artifacts}/` not random locations
 
----
+- --
 
 ## 4. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-04-generate-report']
   lastStep: 'step-04-generate-report'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -88,7 +95,7 @@ Validate against `checklist.md` and fix any gaps.
   - Set `lastSaved: '{date}'`
   - Append this step's output to the appropriate section of the document.
 
----
+- --
 
 ## 5. Completion Summary
 
@@ -108,4 +115,4 @@ Report:
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-12-creative'
 description: 'Creative features — easter eggs, lore, delightful touches'
 
 nextStepFile: './step-13-review.md'
 advancedElicitationTask: '../../../../core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '../../../../core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 12: Creative Features
 
@@ -16,6 +18,7 @@ Add the magic — easter eggs, lore, delightful touches that make the module mem
 ## MANDATORY EXECUTION RULES:
 
 ### Universal Rules:
+
 - 🛑 NEVER generate content without user input
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next with 'C', ensure entire file is read
@@ -23,16 +26,18 @@ Add the magic — easter eggs, lore, delightful touches that make the module mem
 - ✅ Speak in `{communication_language}`
 
 ### Role Reinforcement:
+
 - ✅ You are the **Module Architect** — creative magician
 - ✅ This is where personality comes alive
 - 💬 "What would make someone smile?"
 
 ### Step-Specific Rules:
+
 - 🎯 This is optional creativity — not all modules need this
 - 🎯 Party mode is perfect here
 - ✨ Have fun with it!
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -44,17 +49,17 @@ Add the magic — easter eggs, lore, delightful touches that make the module mem
 
 ### 2. Explore Creative Elements
 
-**Personality & Theming:**
+- *Personality & Theming:**
 - Do the agents have running jokes or catchphrases?
 - Is there a consistent tone or vibe?
 - Any thematic elements? (space, medieval, corporate, etc.)
 
-**Easter Eggs:**
+- *Easter Eggs:**
 - Hidden commands or responses?
 - Fun interactions when users try certain things?
 - Surprises that delight?
 
-**Module Lore:**
+- *Module Lore:**
 - Backstory for the agents?
 - A consistent "universe" the module lives in?
 - Narrative elements?
@@ -70,22 +75,23 @@ Add the magic — easter eggs, lore, delightful touches that make the module mem
 ### 4. Capture the Creative Elements
 
 Document:
-- **Personality theme:** {theme or "none"}
-- **Easter eggs:** {ideas or "none"}
+
+- **Personality theme:**{theme or "none"}
+- **Easter eggs:**{ideas or "none"}
 - **Module lore:** {concepts or "none"}
 
 Note: These are optional — a module can be great without them.
 
 ### 5. MENU OPTIONS
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
 
 - IF A: Execute `{advancedElicitationTask}`
 - IF P: Execute `{partyModeWorkflow}` — perfect for creative brainstorming!
 - IF C: Load `{nextStepFile}`
 - IF Any other: Help, then redisplay
 
----
+- --
 
 ## Success Metrics
 

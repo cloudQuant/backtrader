@@ -23,8 +23,6 @@ import sys
 import tempfile
 import shutil
 from pathlib import Path
-
-import backtrader as bt
 import datetime
 
 
@@ -32,9 +30,12 @@ import datetime
 # Project Root Setup
 # =============================================================================
 
-# Get project root directory
+# Get project root directory and add to path BEFORE importing backtrader
 _PROJECT_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
+
+# Now backtrader can be imported correctly
+import backtrader as bt
 
 
 # =============================================================================
@@ -42,7 +43,14 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 # =============================================================================
 
 def pytest_configure(config):
-    """Configure pytest with custom markers."""
+    """Configure pytest with custom markers.
+
+    Registers custom priority markers (P0-P3) that can be used
+    to categorize test importance.
+
+    Args:
+        config: The pytest config object.
+    """
     config.addinivalue_line(
         "markers", "priority_p0: Critical tests - core functionality"
     )
@@ -63,13 +71,21 @@ def pytest_configure(config):
 
 @pytest.fixture
 def project_root():
-    """Return the project root directory path."""
+    """Return the project root directory path.
+
+    Returns:
+        Path: The root directory of the Backtrader project.
+    """
     return _PROJECT_ROOT
 
 
 @pytest.fixture
 def datas_path(project_root):
-    """Return the test data directory path."""
+    """Return the test data directory path.
+
+    Returns:
+        Path: The directory containing test data files.
+    """
     return project_root / "tests" / "datas"
 
 
@@ -77,7 +93,10 @@ def datas_path(project_root):
 def temp_dir():
     """Create a temporary directory for test files.
 
-    The directory is automatically cleaned up after the test.
+    The directory is automatically cleaned up after the test completes.
+
+    Yields:
+        str: Path to the temporary directory.
     """
     temp = tempfile.mkdtemp()
     yield temp
@@ -160,10 +179,10 @@ def cerebro_engine():
 
     The engine is created with default settings. Tests can configure
     it further as needed. The engine is automatically cleaned up
-    after the test.
+    after the test completes.
 
-    Returns:
-        bt.Cerebro: Fresh Cerebro instance for testing
+    Yields:
+        bt.Cerebro: Fresh Cerebro instance for testing.
     """
     cerebro = bt.Cerebro()
     yield cerebro
@@ -176,10 +195,10 @@ def cerebro_with_cash(cerebro_engine):
     """Provide a Cerebro engine with initial cash set.
 
     Args:
-        cerebro_engine: Base Cerebro fixture
+        cerebro_engine: Base Cerebro fixture.
 
     Returns:
-        bt.Cerebro: Cerebro with 10000.0 initial cash
+        bt.Cerebro: Cerebro with 10000.0 initial cash.
     """
     cerebro_engine.broker.setcash(10000.0)
     return cerebro_engine
@@ -190,11 +209,11 @@ def cerebro_with_data(sample_data, cerebro_engine):
     """Provide a Cerebro engine with data already loaded.
 
     Args:
-        sample_data: Data feed fixture
-        cerebro_engine: Cerebro fixture
+        sample_data: Data feed fixture.
+        cerebro_engine: Cerebro fixture.
 
     Returns:
-        bt.Cerebro: Cerebro with data feed added
+        bt.Cerebro: Cerebro with data feed added.
     """
     cerebro_engine.adddata(sample_data)
     return cerebro_engine
@@ -209,7 +228,7 @@ def simple_strategy():
     """Provide a simple test strategy class.
 
     Returns:
-        type: SimpleStrategy class for testing
+        type: SimpleStrategy class for testing.
     """
     class SimpleStrategy(bt.Strategy):
         """A simple moving average crossover trading strategy for testing."""
@@ -219,9 +238,20 @@ def simple_strategy():
         )
 
         def __init__(self):
+            """Initialize the strategy with SMA indicator.
+
+            Sets up the simple moving average indicator with the configured
+            period for use in the trading logic.
+            """
             self.sma = bt.indicators.SMA(self.data, period=self.p.period)
 
         def next(self):
+            """Execute trading logic for each bar.
+
+            Implements a simple trend-following strategy:
+            - Buy when close price crosses above SMA
+            - Close position when close price falls below SMA
+            """
             if not self.position:
                 if self.data.close[0] > self.sma[0]:
                     self.buy()
@@ -236,7 +266,7 @@ def crossover_strategy():
     """Provide a crossover strategy for testing.
 
     Returns:
-        type: CrossoverStrategy class with CrossOver indicator
+        type: CrossoverStrategy class with CrossOver indicator.
     """
     class CrossoverStrategy(bt.Strategy):
         """A crossover strategy using CrossOver indicator for testing."""
@@ -246,10 +276,21 @@ def crossover_strategy():
         )
 
         def __init__(self):
+            """Initialize the strategy with SMA and CrossOver indicators.
+
+            Sets up both the simple moving average indicator and the
+            crossover signal indicator for trading decisions.
+            """
             self.sma = bt.indicators.SMA(self.data, period=self.p.period)
             self.cross = bt.indicators.CrossOver(self.data.close, self.sma)
 
         def next(self):
+            """Execute trading logic for each bar.
+
+            Implements a crossover strategy:
+            - Buy when close price crosses above SMA (cross > 0)
+            - Close position when close price crosses below SMA (cross < 0)
+            """
             if not self.position.size:
                 if self.cross > 0:
                     self.buy()
@@ -269,6 +310,9 @@ def clean_test_environment():
 
     This fixture runs automatically for every test to ensure proper
     isolation. It can be extended to add cleanup logic as needed.
+
+    Yields:
+        None: Control is yielded to the test for execution.
     """
     # Setup before test
     yield
@@ -289,7 +333,7 @@ def test_config():
     """Provide standard test configuration values.
 
     Returns:
-        dict: Dictionary with common test parameters
+        dict: Dictionary with common test parameters.
     """
     return {
         "cash": 10000.0,
@@ -312,7 +356,7 @@ def run_cerebro_test():
     fixture for better integration.
 
     Returns:
-        callable: Function to run tests with different configurations
+        callable: Function to run tests with different configurations.
     """
     def _run_test(datas, strategy, runonce=None, preload=None, exbar=None, **kwargs):
         """Run a backtest strategy with multiple configuration combinations.
@@ -379,13 +423,27 @@ def run_cerebro_test():
 
 @pytest.fixture(params=[True, False])
 def runonce(request):
-    """Parametrize runonce mode for testing."""
+    """Parametrize runonce mode for testing.
+
+    Args:
+        request: Pytest request object containing parameter information.
+
+    Returns:
+        bool: True for runonce mode, False for step-by-step mode.
+    """
     return request.param
 
 
 @pytest.fixture(params=[True, False])
 def preload(request):
-    """Parametrize preload mode for testing."""
+    """Parametrize preload mode for testing.
+
+    Args:
+        request: Pytest request object containing parameter information.
+
+    Returns:
+        bool: True for preload mode, False for streaming mode.
+    """
     return request.param
 
 
@@ -399,6 +457,10 @@ def pytest_collection_modifyitems(config, items):
     This function is called after test collection to:
     - Add default priority markers to tests without explicit markers
     - Apply platform-specific skip conditions
+
+    Args:
+        config: The pytest config object.
+        items: List of collected test items.
     """
     for item in items:
         # Add default P2 marker to tests without priority markers

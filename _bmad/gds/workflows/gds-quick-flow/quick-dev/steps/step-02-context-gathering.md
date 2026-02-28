@@ -1,19 +1,21 @@
----
+- --
+
 name: 'step-02-context-gathering'
 description: 'Quick context gathering for direct mode - identify files, patterns, dependencies'
 
 workflow_path: '{project-root}/_bmad/gds/workflows/gds-quick-flow/quick-dev'
 thisStepFile: './step-02-context-gathering.md'
 nextStepFile: './step-03-execute.md'
----
+
+- --
 
 # Step 2: Context Gathering (Direct Mode)
 
-**Goal:** Quickly gather context for direct instructions - files, patterns, dependencies.
+- *Goal:** Quickly gather context for direct instructions - files, patterns, dependencies.
 
-**Note:** This step only runs for Mode B (direct instructions). If `{execution_mode}` is "tech-spec", this step was skipped.
+- *Note:** This step only runs for Mode B (direct instructions). If `{execution_mode}` is "tech-spec", this step was skipped.
 
----
+- --
 
 ## AVAILABLE STATE
 
@@ -23,7 +25,7 @@ From step-01:
 - `{execution_mode}` - Should be "direct"
 - `{project_context}` - Loaded if exists
 
----
+- --
 
 ## EXECUTION SEQUENCE
 
@@ -63,46 +65,49 @@ Synthesize gathered context into:
 - Order of operations
 - Files to touch
 
----
+- --
 
 ## PRESENT PLAN
 
 Display to user:
 
-```
-**Context Gathered:**
+```bash
 
-**Files to modify:**
+- *Context Gathered:**
+
+- *Files to modify:**
 - {list files}
 
-**Patterns identified:**
+- *Patterns identified:**
 - {key patterns}
 
-**Plan:**
+- *Plan:**
 1. {task 1}
 2. {task 2}
+
 ...
 
-**Inferred AC:**
+- *Inferred AC:**
 - {acceptance criteria}
 
 Ready to execute? (y/n/adjust)
-```
 
-- **y:** Proceed to execution
-- **n:** Gather more context or clarify
+```bash
+
+- **y:**Proceed to execution
+- **n:**Gather more context or clarify
 - **adjust:** Modify the plan based on feedback
 
----
+- --
 
 ## NEXT STEP DIRECTIVE
 
-**CRITICAL:** When user confirms ready, explicitly state:
+- *CRITICAL:**When user confirms ready, explicitly state:
 
-- **y:** "**NEXT:** Loading `step-03-execute.md`"
+- **y:** "**NEXT:**Loading `step-03-execute.md`"
 - **n/adjust:** Continue gathering context, then re-present plan
 
----
+- --
 
 ## SUCCESS METRICS
 

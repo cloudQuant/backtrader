@@ -4,7 +4,7 @@
 
 {{card_types}}
 
-**Card design:**
+- *Card design:**
 
 - Card categories (creatures, spells, enchantments, etc.)
 - Card rarity tiers (common, rare, epic, legendary)
@@ -17,7 +17,7 @@
 
 {{deck_building}}
 
-**Deck construction:**
+- *Deck construction:**
 
 - Deck size limits (minimum, maximum)
 - Card quantity limits (e.g., max 2 copies)
@@ -30,7 +30,7 @@
 
 {{mana_resources}}
 
-**Resource mechanics:**
+- *Resource mechanics:**
 
 - Mana generation (per turn, from cards, etc.)
 - Mana curve design
@@ -42,7 +42,7 @@
 
 {{turn_structure}}
 
-**Game flow:**
+- *Game flow:**
 
 - Turn phases (draw, main, combat, end)
 - Priority and response windows
@@ -54,7 +54,7 @@
 
 {{collection_progression}}
 
-**Player progression:**
+- *Player progression:**
 
 - Card acquisition (packs, rewards, crafting)
 - Deck unlocks
@@ -66,7 +66,7 @@
 
 {{game_modes}}
 
-**Mode variety:**
+- *Mode variety:**
 
 - Ranked ladder
 - Draft/Arena modes

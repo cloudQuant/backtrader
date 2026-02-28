@@ -54,14 +54,16 @@ Define the complete project structure and architectural boundaries based on all 
 
 Map project requirements to architectural components:
 
-**From Epics (if available):**
+- *From Epics (if available):**
+
 "Epic: {{epic_name}} → Lives in {{module/directory/service}}"
 
 - User stories within the epic
 - Cross-epic dependencies
 - Shared components needed
 
-**From FR Categories (if no epics):**
+- *From FR Categories (if no epics):**
+
 "FR Category: {{fr_category_name}} → Lives in {{module/directory/service}}"
 
 - Related functional requirements
@@ -72,7 +74,7 @@ Map project requirements to architectural components:
 
 Based on technology stack and patterns, create the complete project structure:
 
-**Root Configuration Files:**
+- *Root Configuration Files:**
 
 - Package management files (package.json, requirements.txt, etc.)
 - Build and development configuration
@@ -80,7 +82,7 @@ Based on technology stack and patterns, create the complete project structure:
 - CI/CD pipeline files
 - Documentation files
 
-**Source Code Organization:**
+- *Source Code Organization:**
 
 - Application entry points
 - Core application structure
@@ -88,14 +90,14 @@ Based on technology stack and patterns, create the complete project structure:
 - Shared utilities and libraries
 - Configuration and environment files
 
-**Test Organization:**
+- *Test Organization:**
 
 - Unit test locations and structure
 - Integration test organization
 - End-to-end test structure
 - Test utilities and fixtures
 
-**Build and Distribution:**
+- *Build and Distribution:**
 
 - Build output directories
 - Distribution files
@@ -106,21 +108,21 @@ Based on technology stack and patterns, create the complete project structure:
 
 Map how components communicate and where boundaries exist:
 
-**API Boundaries:**
+- *API Boundaries:**
 
 - External API endpoints
 - Internal service boundaries
 - Authentication and authorization boundaries
 - Data access layer boundaries
 
-**Component Boundaries:**
+- *Component Boundaries:**
 
 - Frontend component communication patterns
 - State management boundaries
 - Service communication patterns
 - Event-driven integration points
 
-**Data Boundaries:**
+- *Data Boundaries:**
 
 - Database schema boundaries
 - Data access patterns
@@ -131,11 +133,11 @@ Map how components communicate and where boundaries exist:
 
 Generate a comprehensive directory structure showing all files and directories:
 
-**Technology-Specific Structure Examples:**
+- *Technology-Specific Structure Examples:**
 
-**Next.js Full-Stack:**
+- *Next.js Full-Stack:**
 
-```
+```bash
 project-name/
 ├── README.md
 ├── package.json
@@ -172,11 +174,12 @@ project-name/
 │   └── e2e/
 └── public/
     └── assets/
-```
 
-**API Backend (NestJS):**
+```bash
 
-```
+- *API Backend (NestJS):**
+
+```bash
 project-name/
 ├── package.json
 ├── nest-cli.json
@@ -207,13 +210,15 @@ project-name/
 │   ├── schema.prisma
 │   └── migrations/
 └── docker-compose.yml
-```
+
+```bash
 
 ### 5. Map Requirements to Structure
 
 Create explicit mapping from project requirements to specific files/directories:
 
-**Epic/Feature Mapping:**
+- *Epic/Feature Mapping:**
+
 "Epic: User Management
 
 - Components: src/components/features/users/
@@ -222,7 +227,8 @@ Create explicit mapping from project requirements to specific files/directories:
 - Database: prisma/migrations/_*users*_
 - Tests: tests/features/users/"
 
-**Cross-Cutting Concerns:**
+- *Cross-Cutting Concerns:**
+
 "Authentication System
 
 - Components: src/components/auth/
@@ -238,73 +244,91 @@ Prepare the content to append to the document:
 #### Content Structure:
 
 ```markdown
+
 ## Project Structure & Boundaries
 
 ### Complete Project Directory Structure
-```
 
+```bash
 {{complete_project_tree_with_all_files_and_directories}}
 
-```
+```bash
 
 ### Architectural Boundaries
 
-**API Boundaries:**
+- *API Boundaries:**
+
 {{api_boundary_definitions_and_endpoints}}
 
-**Component Boundaries:**
+- *Component Boundaries:**
+
 {{component_communication_patterns_and_boundaries}}
 
-**Service Boundaries:**
+- *Service Boundaries:**
+
 {{service_integration_patterns_and_boundaries}}
 
-**Data Boundaries:**
+- *Data Boundaries:**
+
 {{data_access_patterns_and_boundaries}}
 
 ### Requirements to Structure Mapping
 
-**Feature/Epic Mapping:**
+- *Feature/Epic Mapping:**
+
 {{mapping_of_epics_or_features_to_specific_directories}}
 
-**Cross-Cutting Concerns:**
+- *Cross-Cutting Concerns:**
+
 {{mapping_of_shared_functionality_to_locations}}
 
 ### Integration Points
 
-**Internal Communication:**
+- *Internal Communication:**
+
 {{how_components_within_the_project_communicate}}
 
-**External Integrations:**
+- *External Integrations:**
+
 {{third_party_service_integration_points}}
 
-**Data Flow:**
+- *Data Flow:**
+
 {{how_data_flows_through_the_architecture}}
 
 ### File Organization Patterns
 
-**Configuration Files:**
+- *Configuration Files:**
+
 {{where_and_how_config_files_are_organized}}
 
-**Source Organization:**
+- *Source Organization:**
+
 {{how_source_code_is_structured_and_organized}}
 
-**Test Organization:**
+- *Test Organization:**
+
 {{how_tests_are_structured_and_organized}}
 
-**Asset Organization:**
+- *Asset Organization:**
+
 {{how_static_and_dynamic_assets_are_organized}}
 
 ### Development Workflow Integration
 
-**Development Server Structure:**
+- *Development Server Structure:**
+
 {{how_the_project_is organized_for_development}}
 
-**Build Process Structure:**
+- *Build Process Structure:**
+
 {{how_the_build_process_uses_the_project_structure}}
 
-**Deployment Structure:**
+- *Deployment Structure:**
+
 {{how_the_project_structure_supports_deployment}}
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
@@ -312,11 +336,12 @@ Show the generated project structure content and present choices:
 
 "I've created a complete project structure based on all our architectural decisions.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Explore innovative project organization approaches
 [P] Party Mode - Review structure from different development perspectives
 [C] Continue - Save this structure and move to architecture validation"

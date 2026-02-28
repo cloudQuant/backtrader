@@ -1,172 +1,192 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/pyalgotrade
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### pyalgotrade项目简介
-pyalgotrade是一个简洁的Python算法交易库，具有以下核心特点：
+### pyalgotrade 项目简介
+
+pyalgotrade 是一个简洁的 Python 算法交易库，具有以下核心特点：
+
 - **简洁设计**: 代码结构清晰，易于理解和学习
 - **事件驱动**: 基于事件的回测架构
 - **技术分析**: 内置常用技术分析指标
 - **策略优化**: 支持参数优化和遗传算法优化
-- **实时交易**: 支持Bitcoin和其他数据源的实时交易
+- **实时交易**: 支持 Bitcoin 和其他数据源的实时交易
 - **并行回测**: 支持多进程并行回测
 
 ### 重点借鉴方向
-1. **Bar处理**: BarFeed和Bar的设计模式
-2. **策略分析**: StrategyAnalyzer分析器设计
-3. **优化器**: Optimizer参数优化框架
-4. **数据序列**: DataSeries数据序列设计
-5. **技术指标**: Technical指标实现方式
+
+1. **Bar 处理**: BarFeed 和 Bar 的设计模式
+2. **策略分析**: StrategyAnalyzer 分析器设计
+3. **优化器**: Optimizer 参数优化框架
+4. **数据序列**: DataSeries 数据序列设计
+5. **技术指标**: Technical 指标实现方式
 6. **Dispatcher**: 事件分发器设计
 
----
+- --
 
 ## 一、项目对比分析
 
 ### 1.1 架构设计对比
 
 | 特性 | Backtrader | PyAlgoTrade |
+
 |------|-----------|-------------|
-| 核心架构 | Line系统 + Cerebro引擎 | Dispatcher + Subject/Observer |
-| 数据存储 | LineBuffer循环缓冲区 | SequenceDataSeries + ListDeque |
-| 事件模型 | 基于LineIterator的next/once | Event/Subject观察者模式 |
-| 指标计算 | 继承Indicator，支持向量化 | EventWindow + EventBasedFilter |
-| 参数优化 | 内置Cerebro.optstrategy | 独立Optimizer模块，支持分布式 |
+
+| 核心架构 | Line 系统 + Cerebro 引擎 | Dispatcher + Subject/Observer |
+
+| 数据存储 | LineBuffer 循环缓冲区 | SequenceDataSeries + ListDeque |
+
+| 事件模型 | 基于 LineIterator 的 next/once | Event/Subject 观察者模式 |
+
+| 指标计算 | 继承 Indicator，支持向量化 | EventWindow + EventBasedFilter |
+
+| 参数优化 | 内置 Cerebro.optstrategy | 独立 Optimizer 模块，支持分布式 |
 
 ### 1.2 优势对比
 
-**Backtrader的优势：**
-1. **Line系统设计精妙**：索引0始终指向当前值，历史数据通过正索引访问
-2. **向量化计算**：支持once模式批量计算，性能优秀
-3. **功能丰富**：60+指标、多种Observer、Analyzer
+- *Backtrader 的优势：**
+1. **Line 系统设计精妙**：索引 0 始终指向当前值，历史数据通过正索引访问
+2. **向量化计算**：支持 once 模式批量计算，性能优秀
+3. **功能丰富**：60+指标、多种 Observer、Analyzer
 4. **灵活性高**：支持复杂的数据重采样、多时间框架
-5. **绘图集成**：内置matplotlib绘图支持
+5. **绘图集成**：内置 matplotlib 绘图支持
 
-**PyAlgoTrade的优势：**
+- *PyAlgoTrade 的优势：**
 1. **代码简洁**：模块职责单一，易于理解和扩展
-2. **事件驱动清晰**：Dispatcher/Subject模式解耦良好
+2. **事件驱动清晰**：Dispatcher/Subject 模式解耦良好
 3. **并行优化强大**：内置多进程和分布式优化支持
-4. **DataSeries设计优雅**：自动内存管理，事件驱动更新
-5. **实时交易友好**：原生支持WebSocket等实时数据源
+4. **DataSeries 设计优雅**：自动内存管理，事件驱动更新
+5. **实时交易友好**：原生支持 WebSocket 等实时数据源
 
 ### 1.3 可借鉴的具体设计
 
-#### 1.3.1 Bar/BarFeed设计
-PyAlgoTrade的Bar类使用`__slots__`优化内存，数据验证严格：
+#### 1.3.1 Bar/BarFeed 设计
+
+PyAlgoTrade 的 Bar 类使用`__slots__`优化内存，数据验证严格：
+
 ```python
 class BasicBar(Bar):
     __slots__ = ('__dateTime', '__open', '__close', '__high', '__low',
                  '__volume', '__adjClose', '__frequency', '__useAdjustedValue')
-```
 
-#### 1.3.2 EventWindow模式
-技术指标采用EventWindow + EventBasedFilter组合：
+```bash
+
+#### 1.3.2 EventWindow 模式
+
+技术指标采用 EventWindow + EventBasedFilter 组合：
+
 - EventWindow：维护滑动窗口，支持增量计算
 - EventBasedFilter：订阅源数据序列，自动触发计算
 
 #### 1.3.3 并行优化框架
-基于XML-RPC的分布式优化：
+
+基于 XML-RPC 的分布式优化：
+
 - Server：参数任务分发
 - Worker：独立进程执行策略
 - 支持批量任务分配(batchSize)
 
-#### 1.3.4 Dispatcher事件分发
+#### 1.3.4 Dispatcher 事件分发
+
 - 优先级调度（dispatchprio）
-- 支持实时和回测Subject混合
+- 支持实时和回测 Subject 混合
 - 统一的事件循环管理
 
----
+- --
 
 ## 二、需求文档
 
 ### 2.1 优化目标
 
-借鉴PyAlgoTrade的设计优势，对Backtrader进行以下优化：
+借鉴 PyAlgoTrade 的设计优势，对 Backtrader 进行以下优化：
 
-1. **增强DataSeries功能**：添加事件驱动更新机制
-2. **改进技术指标实现**：支持EventWindow风格的增量计算
+1. **增强 DataSeries 功能**：添加事件驱动更新机制
+2. **改进技术指标实现**：支持 EventWindow 风格的增量计算
 3. **优化并行回测**：改进参数优化的并行效率
-4. **增强内存管理**：优化Bar数据的内存使用
+4. **增强内存管理**：优化 Bar 数据的内存使用
 5. **改进事件分发**：更清晰的事件驱动架构
 
 ### 2.2 详细需求
 
-#### 需求1：EventWindow风格的指标计算
+#### 需求 1：EventWindow 风格的指标计算
 
-**描述**：支持类似PyAlgoTrade的EventWindow模式，实现增量式指标计算
+- *描述**：支持类似 PyAlgoTrade 的 EventWindow 模式，实现增量式指标计算
 
-**功能点**：
-- 创建EventWindow基类，支持滑动窗口管理
-- 实现SMA/EMA等指标的增量计算版本
-- 保持与现有Indicator API兼容
+- *功能点**：
+- 创建 EventWindow 基类，支持滑动窗口管理
+- 实现 SMA/EMA 等指标的增量计算版本
+- 保持与现有 Indicator API 兼容
 
-**验收标准**：
-- 新增EventWindow基类
-- 提供至少3个指标的EventWindow实现示例
+- *验收标准**：
+- 新增 EventWindow 基类
+- 提供至少 3 个指标的 EventWindow 实现示例
 - 性能测试显示增量计算优于重新计算
 
-#### 需求2：增强的DataSeries事件机制
+#### 需求 2：增强的 DataSeries 事件机制
 
-**描述**：为DataSeries添加事件订阅/发布机制
+- *描述**：为 DataSeries 添加事件订阅/发布机制
 
-**功能点**：
-- 添加NewValueEvent事件
+- *功能点**：
+- 添加 NewValueEvent 事件
 - 支持订阅者注册/取消
 - 自动触发事件通知
 
-**验收标准**：
-- DataSeries支持事件订阅
+- *验收标准**：
+- DataSeries 支持事件订阅
 - 提供使用示例
 - 不影响现有功能
 
-#### 需求3：优化的并行参数优化
+#### 需求 3：优化的并行参数优化
 
-**描述**：改进Cerebro的并行优化机制
+- *描述**：改进 Cerebro 的并行优化机制
 
-**功能点**：
+- *功能点**：
 - 支持批量任务分配
 - 动态负载均衡
 - 进程池复用
 
-**验收标准**：
-- 并行效率提升20%以上
-- 支持自定义worker数量
+- *验收标准**：
+- 并行效率提升 20%以上
+- 支持自定义 worker 数量
 - 提供进度回调
 
-#### 需求4：内存优化的Bar存储
+#### 需求 4：内存优化的 Bar 存储
 
-**描述**：使用`__slots__`优化Bar对象内存
+- *描述**：使用`__slots__`优化 Bar 对象内存
 
-**功能点**：
+- *功能点**：
 - 为数据类添加__slots__
 - 支持可配置的内存优化级别
 
-**验收标准**：
-- 内存使用减少30%以上
+- *验收标准**：
+- 内存使用减少 30%以上
 - 性能不降低
 
-#### 需求5：改进的Dispatcher模式
+#### 需求 5：改进的 Dispatcher 模式
 
-**描述**：引入更清晰的事件分发器
+- *描述**：引入更清晰的事件分发器
 
-**功能点**：
-- 创建Dispatcher基类
+- *功能点**：
+- 创建 Dispatcher 基类
 - 支持优先级调度
-- 统一Subject接口
+- 统一 Subject 接口
 
-**验收标准**：
-- 可选使用新的Dispatcher
-- 与现有Cerebro兼容
+- *验收标准**：
+- 可选使用新的 Dispatcher
+- 与现有 Cerebro 兼容
 
----
+- --
 
 ## 三、设计文档
 
-### 3.1 EventWindow设计
+### 3.1 EventWindow 设计
 
 #### 3.1.1 类设计
 
@@ -194,13 +214,14 @@ class EventWindow:
     def get_value(self):
         """获取计算结果，由子类实现"""
         raise NotImplementedError
-```
 
-#### 3.1.2 SMA EventWindow实现
+```bash
+
+#### 3.1.2 SMA EventWindow 实现
 
 ```python
 class SMAEventWindow(EventWindow):
-    """SMA的增量计算窗口"""
+    """SMA 的增量计算窗口"""
 
     def __init__(self, period):
         super().__init__(period)
@@ -217,20 +238,22 @@ class SMAEventWindow(EventWindow):
             if self._value is None:
                 self._value = self.get_values().mean()
             else:
-                # 增量更新：新值 - 旧值 + 当前值
+
+# 增量更新：新值 - 旧值 + 当前值
                 self._value = (self._value +
                               value / self._window_size -
                               first_value / self._window_size)
 
     def get_value(self):
         return self._value
-```
 
-#### 3.1.3 集成到现有Indicator
+```bash
+
+#### 3.1.3 集成到现有 Indicator
 
 ```python
 class SMAIndicator(bt.Indicator):
-    """支持EventWindow的SMA指标"""
+    """支持 EventWindow 的 SMA 指标"""
 
     lines = ('sma',)
 
@@ -240,15 +263,18 @@ class SMAIndicator(bt.Indicator):
     def __init__(self):
         if self.p.use_event_window:
             self._event_window = SMAEventWindow(self.p.period)
-            # 每次next时调用on_new_value
+
+# 每次 next 时调用 on_new_value
         else:
-            # 使用原有计算方式
+
+# 使用原有计算方式
             pass
-```
 
-### 3.2 DataSeries事件机制设计
+```bash
 
-#### 3.2.1 Event类
+### 3.2 DataSeries 事件机制设计
+
+#### 3.2.1 Event 类
 
 ```python
 class Event:
@@ -277,13 +303,14 @@ class Event:
                 handler(*args, **kwargs)
         finally:
             self._emitting -= 1
-```
 
-#### 3.2.2 扩展DataSeries
+```bash
+
+#### 3.2.2 扩展 DataSeries
 
 ```python
 class EventDataSeries(bt.LineSeries):
-    """支持事件的DataSeries"""
+    """支持事件的 DataSeries"""
 
     def __init__(self):
         super().__init__()
@@ -293,11 +320,12 @@ class EventDataSeries(bt.LineSeries):
         return self._new_value_event
 
     def forward(self, value=None):
-        """覆盖forward方法，触发事件"""
+        """覆盖 forward 方法，触发事件"""
         super().forward(value)
         if value is not None:
             self._new_value_event.emit(self, self.datetime, value)
-```
+
+```bash
 
 ### 3.3 并行优化改进设计
 
@@ -318,9 +346,11 @@ class OptimizerServer:
 
     def run(self):
         """执行并行优化"""
-        # 使用进程池，复用worker
+
+# 使用进程池，复用 worker
         with multiprocessing.Pool(self.worker_count) as pool:
-            # 批量分配任务
+
+# 批量分配任务
             batches = self._create_batches()
             async_results = []
 
@@ -331,7 +361,7 @@ class OptimizerServer:
                 )
                 async_results.append(async_result)
 
-            # 收集结果
+# 收集结果
             for async_result in async_results:
                 self.results.extend(async_result.get())
 
@@ -346,13 +376,14 @@ class OptimizerServer:
         return batches
 
     def _run_strategy_batch(self, params_batch):
-        """在一个worker中运行一批策略"""
+        """在一个 worker 中运行一批策略"""
         batch_results = []
         for params in params_batch:
             result = self._run_single_strategy(params)
             batch_results.append(result)
         return batch_results
-```
+
+```bash
 
 #### 3.3.2 进度回调接口
 
@@ -372,15 +403,16 @@ class OptimizerWithProgress:
             if self.progress_callback:
                 progress = self.completed_tasks / self.total_tasks
                 self.progress_callback(progress, result)
-```
+
+```bash
 
 ### 3.4 内存优化设计
 
-#### 3.4.1 使用__slots__的Bar数据类
+#### 3.4.1 使用__slots__的 Bar 数据类
 
 ```python
 class OptimizedBar:
-    """内存优化的Bar数据结构"""
+    """内存优化的 Bar 数据结构"""
 
     __slots__ = ('datetime', 'open', 'high', 'low', 'close',
                  'volume', 'openinterest')
@@ -394,7 +426,8 @@ class OptimizedBar:
         self.close = close
         self.volume = volume
         self.openinterest = openinterest
-```
+
+```bash
 
 #### 3.4.2 内存优化级别
 
@@ -402,18 +435,18 @@ class OptimizedBar:
 class MemoryProfile:
     """内存优化配置"""
 
-    # 保守：保留所有数据
+# 保守：保留所有数据
     CONSERVATIVE = 0
 
-    # 平衡：数据feed保留全部，中间计算最小化
+# 平衡：数据 feed 保留全部，中间计算最小化
     BALANCED = 1
 
-    # 激进：仅保留必需的最小周期
+# 激进：仅保留必需的最小周期
     AGGRESSIVE = 2
 
 
 class Cerebro:
-    """扩展Cerebro，支持内存配置"""
+    """扩展 Cerebro，支持内存配置"""
 
     params = (
         ('memory_profile', MemoryProfile.BALANCED),
@@ -427,11 +460,12 @@ class Cerebro:
             self.maxcpus = 1
             self.runonce = False
             self.preload = False
-```
 
-### 3.5 Dispatcher设计
+```bash
 
-#### 3.5.1 Dispatcher基类
+### 3.5 Dispatcher 设计
+
+#### 3.5.1 Dispatcher 基类
 
 ```python
 class Dispatcher:
@@ -447,7 +481,8 @@ class Dispatcher:
         subject.set_dispatcher(self)
         if priority is not None:
             subject.set_dispatch_priority(priority)
-        # 按优先级排序插入
+
+# 按优先级排序插入
         self._subjects.append(subject)
         self._subjects.sort(key=lambda s: s.get_dispatch_priority())
 
@@ -460,16 +495,17 @@ class Dispatcher:
 
             self._current_datetime = smallest_dt
 
-            # 分发所有匹配当前时间的subject
+# 分发所有匹配当前时间的 subject
             for subject in self._subjects:
                 if subject.peek_datetime() == smallest_dt:
                     subject.dispatch()
 
     def get_current_datetime(self):
         return self._current_datetime
-```
 
-#### 3.5.2 Subject接口
+```bash
+
+#### 3.5.2 Subject 接口
 
 ```python
 class Subject(metaclass=abc.ABCMeta):
@@ -486,7 +522,7 @@ class Subject(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def peek_datetime(self):
-        """获取下一个事件的datetime"""
+        """获取下一个事件的 datetime"""
         pass
 
     def set_dispatcher(self, dispatcher):
@@ -497,59 +533,73 @@ class Subject(metaclass=abc.ABCMeta):
 
     def set_dispatch_priority(self, priority):
         self._dispatch_priority = priority
-```
+
+```bash
 
 ### 3.6 实现优先级
 
 | 优先级 | 功能 | 复杂度 | 收益 |
+
 |--------|------|--------|------|
-| P0 | EventWindow基类 | 中 | 高 |
-| P0 | SMA/EMA的EventWindow实现 | 低 | 高 |
+
+| P0 | EventWindow 基类 | 中 | 高 |
+
+| P0 | SMA/EMA 的 EventWindow 实现 | 低 | 高 |
+
 | P1 | 并行优化改进 | 高 | 中 |
+
 | P1 | 内存优化(__slots__) | 低 | 中 |
-| P2 | DataSeries事件机制 | 中 | 低 |
-| P2 | Dispatcher模式重构 | 高 | 低 |
+
+| P2 | DataSeries 事件机制 | 中 | 低 |
+
+| P2 | Dispatcher 模式重构 | 高 | 低 |
 
 ### 3.7 兼容性保证
 
 所有新功能都通过可选参数或独立模块实现，确保：
-1. 现有API不变
+
+1. 现有 API 不变
 2. 默认行为不变
 3. 向后兼容旧代码
 
----
+- --
 
 ## 四、实施计划
 
-### 阶段一：EventWindow基础（1-2周）
-1. 实现EventWindow基类
-2. 实现SMA/EMA的EventWindow版本
+### 阶段一：EventWindow 基础（1-2 周）
+
+1. 实现 EventWindow 基类
+2. 实现 SMA/EMA 的 EventWindow 版本
 3. 编写单元测试
 4. 性能对比测试
 
-### 阶段二：并行优化改进（1周）
+### 阶段二：并行优化改进（1 周）
+
 1. 实现批量任务分配
 2. 添加进度回调
 3. 性能测试
 
-### 阶段三：内存优化（3天）
+### 阶段三：内存优化（3 天）
+
 1. 为关键数据类添加__slots__
 2. 实现内存配置选项
 3. 内存使用测试
 
-### 阶段四：文档和示例（3天）
+### 阶段四：文档和示例（3 天）
+
 1. 编写使用文档
 2. 添加示例代码
-3. 更新API文档
+3. 更新 API 文档
 
----
+- --
 
 ## 五、总结
 
-通过借鉴PyAlgoTrade的优秀设计，Backtrader可以在保持现有优势的基础上，获得：
+通过借鉴 PyAlgoTrade 的优秀设计，Backtrader 可以在保持现有优势的基础上，获得：
+
 1. 更高效的增量计算能力
 2. 更好的并行优化性能
 3. 更优的内存使用效率
 4. 更清晰的事件驱动架构
 
-这些改进将使Backtrader成为一个更加高效、易用、可扩展的量化交易框架。
+这些改进将使 Backtrader 成为一个更加高效、易用、可扩展的量化交易框架。

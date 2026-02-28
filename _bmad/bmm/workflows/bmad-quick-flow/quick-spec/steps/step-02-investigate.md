@@ -1,14 +1,16 @@
----
+- --
+
 name: 'step-02-investigate'
 description: 'Map technical constraints and anchor points within the codebase'
 
 nextStepFile: './step-03-generate.md'
 wipFile: '{implementation_artifacts}/tech-spec-wip.md'
----
+
+- --
 
 # Step 2: Map Technical Constraints & Anchor Points
 
-**Progress: Step 2 of 4** - Next: Generate Plan
+- *Progress: Step 2 of 4** - Next: Generate Plan
 
 ## RULES:
 
@@ -29,14 +31,14 @@ wipFile: '{implementation_artifacts}/tech-spec-wip.md'
 
 ### 1. Load Current State
 
-**Read `{wipFile}` and extract:**
+- *Read `{wipFile}` and extract:**
 
 - Problem statement and scope from Overview section
 - Any context gathered in Step 1
 
 ### 2. Execute Investigation Path
 
-**Universal Code Investigation:**
+- *Universal Code Investigation:**
 
 _Isolate deep exploration in sub-agents/tasks where available. Return distilled summaries only to prevent context snowballing._
 
@@ -55,7 +57,7 @@ For each file/directory provided:
 - Note dependencies and imports
 - Find related test files
 
-**If NO relevant code is found (Clean Slate):**
+- *If NO relevant code is found (Clean Slate):**
 
 - Identify the target directory where the feature should live.
 - Scan parent directories for architectural context.
@@ -82,20 +84,25 @@ If `**/project-context.md` exists and wasn't loaded in Step 1:
 
 ### 3. Update WIP File
 
-**Update `{wipFile}` frontmatter:**
+- *Update `{wipFile}` frontmatter:**
 
 ```yaml
----
+
+- --
+
 # ... existing frontmatter ...
+
 stepsCompleted: [1, 2]
 tech_stack: ['{captured_tech_stack}']
 files_to_modify: ['{captured_files}']
 code_patterns: ['{captured_patterns}']
 test_patterns: ['{captured_test_patterns}']
----
-```
 
-**Update the Context for Development section:**
+- --
+
+```bash
+
+- *Update the Context for Development section:**
 
 Fill in:
 
@@ -103,7 +110,7 @@ Fill in:
 - Files to Reference table (files reviewed)
 - Technical Decisions (any decisions made during investigation)
 
-**Report to user:**
+- *Report to user:**
 
 "**Context Gathered:**
 
@@ -116,7 +123,7 @@ Fill in:
 
 Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Generate Spec (Step 3 of 4)"
 
-**HALT and wait for user selection.**
+- *HALT and wait for user selection.**
 
 #### Menu Handling Logic:
 
@@ -131,7 +138,7 @@ Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Ge
 - ONLY proceed to next step when user selects 'C'
 - After A or P execution, return to this menu
 
----
+- --
 
 ## REQUIRED OUTPUTS:
 

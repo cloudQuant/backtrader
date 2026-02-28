@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Create a new BMAD workflow with proper structure and best practices'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # create-workflow
 

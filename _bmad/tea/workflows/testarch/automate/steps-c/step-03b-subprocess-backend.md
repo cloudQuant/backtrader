@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03b-subprocess-backend'
 description: 'Subprocess: Generate backend tests only (unit, integration, contract)'
 subprocess: true
 outputFile: '/tmp/tea-automate-backend-tests-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 3B-backend: Generate Backend Tests
 
@@ -11,16 +13,16 @@ outputFile: '/tmp/tea-automate-backend-tests-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with API test generation (and optionally E2E test generation for fullstack projects).
 
-**What you have from parent workflow:**
+- *What you have from parent workflow:**
 
 - Target features/services identified in Step 2
 - Knowledge fragments loaded: test-levels-framework, test-priorities-matrix, data-factories
 - Config: test framework, detected stack type
 - Coverage plan: which services/modules need backend testing
 
-**Your task:** Generate backend tests ONLY (unit, integration, contract - not API endpoint tests, not E2E).
+- *Your task:**Generate backend tests ONLY (unit, integration, contract - not API endpoint tests, not E2E).
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -33,7 +35,7 @@ This is an **isolated subprocess** running in parallel with API test generation 
 - Do NOT run tests (that's step 4)
 - Do NOT generate fixtures yet (that's step 3C aggregation)
 
----
+- --
 
 ## SUBPROCESS TASK
 
@@ -60,7 +62,7 @@ From `config.test_framework` and project manifests, determine:
 
 For each module/service, create test files following language-idiomatic patterns:
 
-**Python (pytest) example:**
+- *Python (pytest) example:**
 
 ```python
 import pytest
@@ -81,9 +83,10 @@ class TestUserService:
         user_data = user_factory.build(email="existing@test.com")
         with pytest.raises(DuplicateEmailError):
             UserService.create(user_data)
-```
 
-**Go (go test) example:**
+```bash
+
+- *Go (go test) example:**
 
 ```go
 func TestUserService_Create(t *testing.T) {
@@ -105,9 +108,10 @@ func TestUserService_Create(t *testing.T) {
         })
     }
 }
-```
 
-**Requirements:**
+```bash
+
+- *Requirements:**
 
 - Follow the detected framework's idiomatic test patterns
 - Include priority tags [P0], [P1], [P2], [P3] in test descriptions
@@ -142,9 +146,9 @@ Identify fixtures/helpers needed for backend tests:
 - Mock services (HTTP mocks, message queue mocks)
 - Configuration fixtures (test environment config)
 
-**Do NOT create fixtures yet** - just track what's needed for aggregation step.
+- *Do NOT create fixtures yet** - just track what's needed for aggregation step.
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -188,9 +192,10 @@ Write JSON to temp file: `/tmp/tea-automate-backend-tests-{{timestamp}}.json`
   "knowledge_fragments_used": ["test-levels-framework", "test-priorities-matrix", "data-factories"],
   "summary": "Generated 15 backend test cases (10 unit, 4 integration, 1 contract)"
 }
-```
 
-**On Error:**
+```bash
+
+- *On Error:**
 
 ```json
 {
@@ -206,12 +211,13 @@ Write JSON to temp file: `/tmp/tea-automate-backend-tests-{{timestamp}}.json`
   "subprocess": "backend-tests",
   "error": "Error message describing what went wrong",
   "partial_output": {
-    /* any tests generated before error */
+    /*any tests generated before error*/
   }
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -222,9 +228,9 @@ Subprocess completes when:
 - JSON output written to temp file using the subprocess output schema contract
 - Fixture needs tracked
 
-**Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
+- *Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
 
----
+- --
 
 ## SUBPROCESS SUCCESS METRICS
 

@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-07-content'
 description: 'Define content framework, art/audio direction, and risk assessment'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-07-content.md'
 nextStepFile: './step-08-complete.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 7: Content & Production
 
-**Progress: Step 7 of 8** - Next: Final Review
+- *Progress: Step 7 of 8**- Next: Final Review
 
 ## STEP GOAL:
 
@@ -65,35 +70,40 @@ Define the content framework (world, narrative approach, volume), art and audio 
 
 ### 1. World & Setting Discovery
 
-**Explore the game's world:**
+- *Explore the game's world:**
 
 "Let's define the world of {{game_name}}.
 
-**World Questions:**
+- *World Questions:**
 
-- **Setting:** Where and when does this take place?
-- **World-building depth:** How much lore matters?
-- **Narrative importance:** Story-driven or story-light?
+- **Setting:**Where and when does this take place?
+- **World-building depth:**How much lore matters?
+- **Narrative importance:**Story-driven or story-light?
 - **Atmosphere:** What mood should the world evoke?
 
 Describe the world and setting for {{game_name}}."
 
 ### 2. Narrative Approach Discovery
 
-**Define storytelling strategy:**
+- *Define storytelling strategy:**
 
 "How will {{game_name}} handle narrative?
 
-**Narrative Approaches:**
+- *Narrative Approaches:**
 
 | Approach          | Examples                                  |
-| ----------------- | ----------------------------------------- |
-| **Story-Driven**  | Linear narrative with cutscenes, dialogue |
-| **Environmental** | Story told through world, items, visuals  |
-| **Emergent**      | Player creates their own stories          |
-| **Minimal**       | Pure gameplay, little to no story         |
 
-**Questions:**
+| ----------------- | ----------------------------------------- |
+
+| **Story-Driven**| Linear narrative with cutscenes, dialogue |
+
+|**Environmental**| Story told through world, items, visuals  |
+
+|**Emergent**| Player creates their own stories          |
+
+|**Minimal**       | Pure gameplay, little to no story         |
+
+- *Questions:**
 
 - How is story delivered? (cutscenes, dialogue, text, environmental)
 - Is there a dedicated narrative workflow needed later?
@@ -102,24 +112,24 @@ What's the narrative approach for {{game_name}}?"
 
 ### 3. Art & Audio Direction Discovery
 
-**Establish aesthetic vision:**
+- *Establish aesthetic vision:**
 
 "Let's define the look and sound of {{game_name}}.
 
-**Visual Style:**
+- *Visual Style:**
 
 - Art style (pixel, low-poly, stylized 3D, realistic)
 - Color palette and mood
 - Reference games or images
 - Animation complexity
 
-**Audio Style:**
+- *Audio Style:**
 
 - Music genre and mood
 - Sound effect approach
 - Voice acting scope (none, grunts, partial, full)
 
-**Production Reality:**
+- *Production Reality:**
 
 - What can be created in-house?
 - What needs outsourcing?
@@ -129,21 +139,27 @@ Describe the art and audio direction for {{game_name}}."
 
 ### 4. Risk Assessment Discovery
 
-**Facilitate honest risk evaluation:**
+- *Facilitate honest risk evaluation:**
 
 "Now let's honestly assess the risks for {{game_name}}.
 
-**Risk Categories:**
+- *Risk Categories:**
 
 | Category      | Questions                               |
-| ------------- | --------------------------------------- |
-| **Technical** | Unproven systems? Performance concerns? |
-| **Market**    | Saturated genre? Discoverability?       |
-| **Scope**     | Too ambitious? Feature creep?           |
-| **Team**      | Skill gaps? Availability?               |
-| **Financial** | Runway? Unexpected costs?               |
 
-**For each major risk:**
+| ------------- | --------------------------------------- |
+
+| **Technical**| Unproven systems? Performance concerns? |
+
+|**Market**| Saturated genre? Discoverability?       |
+
+|**Scope**| Too ambitious? Feature creep?           |
+
+|**Team**| Skill gaps? Availability?               |
+
+|**Financial** | Runway? Unexpected costs?               |
+
+- *For each major risk:**
 
 - What could go wrong?
 - How likely is it?
@@ -157,6 +173,7 @@ What are the key risks for {{game_name}}?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Content Framework
 
 ### World and Setting
@@ -167,13 +184,13 @@ Based on the conversation, prepare the content:
 
 {{narrative_approach}}
 
-**Story Delivery:** {{how_story_delivered}}
+- *Story Delivery:** {{how_story_delivered}}
 
 ### Content Volume
 
 {{content_volume_estimates}}
 
----
+- --
 
 ## Art and Audio Direction
 
@@ -181,7 +198,7 @@ Based on the conversation, prepare the content:
 
 {{visual_style_description}}
 
-**References:** {{reference_games_or_images}}
+- *References:** {{reference_games_or_images}}
 
 ### Audio Style
 
@@ -191,7 +208,7 @@ Based on the conversation, prepare the content:
 
 {{production_strategy}}
 
----
+- --
 
 ## Risk Assessment
 
@@ -210,7 +227,8 @@ Based on the conversation, prepare the content:
 ### Mitigation Strategies
 
 {{mitigation_strategies}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -218,17 +236,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Content & Production section based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does art/audio align with budget and team?
 - Have we identified the biggest risks?
 - Are mitigations actionable?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into risks
 [P] Party Mode - Get perspectives on feasibility
 [C] Continue - Save this and move to Final Review (Step 8 of 8)"
@@ -259,7 +278,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -280,4 +299,4 @@ ONLY WHEN [C continue option] is selected and [content saved with frontmatter up
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

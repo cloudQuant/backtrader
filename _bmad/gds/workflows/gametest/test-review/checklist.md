@@ -1,6 +1,6 @@
 # Test Review - Validation Checklist
 
----
+- --
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@
 - [ ] Feature list known
 - [ ] Access to CI/CD pipeline
 
----
+- --
 
 ## Metrics Collection
 
@@ -20,7 +20,7 @@
 - [ ] Slow tests identified
 - [ ] Disabled tests listed
 
----
+- --
 
 ## Quality Assessment
 
@@ -30,7 +30,7 @@
 - [ ] Readability assessed
 - [ ] Anti-patterns documented
 
----
+- --
 
 ## Coverage Analysis
 
@@ -40,7 +40,7 @@
 - [ ] Critical gaps identified
 - [ ] Gap priorities assigned
 
----
+- --
 
 ## Infrastructure Review
 
@@ -50,7 +50,7 @@
 - [ ] Fixture quality evaluated
 - [ ] Maintenance burden estimated
 
----
+- --
 
 ## Recommendations
 
@@ -60,7 +60,7 @@
 - [ ] Short-term improvements listed
 - [ ] Long-term strategy outlined
 
----
+- --
 
 ## Report
 
@@ -71,7 +71,7 @@
 - [ ] Recommendations actionable
 - [ ] Appendices populated
 
----
+- --
 
 ## Completion Criteria
 
@@ -80,8 +80,8 @@
 - [ ] Actionable recommendations provided
 - [ ] Report delivered to stakeholders
 
----
+- --
 
-**Completed by:** {name}
-**Date:** {date}
-**Tests Reviewed:** {count}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Tests Reviewed:** {count}

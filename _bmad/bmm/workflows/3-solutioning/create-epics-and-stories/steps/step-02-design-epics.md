@@ -1,23 +1,29 @@
----
+- --
+
 name: 'step-02-design-epics'
 description: 'Design and approve the epics_list that will organize all requirements into user-value-focused epics'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
 
 # File References
+
 thisStepFile: './step-02-design-epics.md'
 nextStepFile: './step-03-create-stories.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{planning_artifacts}/epics.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 # Template References
+
 epicsTemplate: '{workflow_path}/templates/epics-template.md'
----
+
+- --
 
 # Step 2: Design Epic List
 
@@ -64,13 +70,13 @@ To design and get approval for the epics_list that will organize all requirement
 
 Load {outputFile} and review:
 
-- **Functional Requirements:** Count and review FRs from Step 1
-- **Non-Functional Requirements:** Review NFRs that need to be addressed
+- **Functional Requirements:**Count and review FRs from Step 1
+- **Non-Functional Requirements:**Review NFRs that need to be addressed
 - **Additional Requirements:** Review technical and UX requirements
 
 ### 2. Explain Epic Design Principles
 
-**EPIC DESIGN PRINCIPLES:**
+- *EPIC DESIGN PRINCIPLES:**
 
 1. **User-Value First**: Each epic must enable users to accomplish something meaningful
 2. **Requirements Grouping**: Group related FRs that deliver cohesive user outcomes
@@ -78,24 +84,25 @@ Load {outputFile} and review:
 4. **Logical Flow**: Natural progression from user's perspective
 5. **🔗 Dependency-Free Within Epic**: Stories within an epic must NOT depend on future stories
 
-**⚠️ CRITICAL PRINCIPLE:**
+- *⚠️ CRITICAL PRINCIPLE:**
+
 Organize by USER VALUE, not technical layers:
 
-**✅ CORRECT Epic Examples (Standalone & Enable Future Epics):**
+- *✅ CORRECT Epic Examples (Standalone & Enable Future Epics):**
 
 - Epic 1: User Authentication & Profiles (users can register, login, manage profiles) - **Standalone: Complete auth system**
 - Epic 2: Content Creation (users can create, edit, publish content) - **Standalone: Uses auth, creates content**
 - Epic 3: Social Interaction (users can follow, comment, like content) - **Standalone: Uses auth + content**
 - Epic 4: Search & Discovery (users can find content and other users) - **Standalone: Uses all previous**
 
-**❌ WRONG Epic Examples (Technical Layers or Dependencies):**
+- *❌ WRONG Epic Examples (Technical Layers or Dependencies):**
 
 - Epic 1: Database Setup (creates all tables upfront) - **No user value**
 - Epic 2: API Development (builds all endpoints) - **No user value**
 - Epic 3: Frontend Components (creates reusable components) - **No user value**
 - Epic 4: Deployment Pipeline (CI/CD setup) - **No user value**
 
-**🔗 DEPENDENCY RULES:**
+- *🔗 DEPENDENCY RULES:**
 
 - Each epic must deliver COMPLETE functionality for its domain
 - Epic 2 must not require Epic 3 to function
@@ -103,13 +110,14 @@ Organize by USER VALUE, not technical layers:
 
 ### 3. Design Epic Structure Collaboratively
 
-**Step A: Identify User Value Themes**
+- *Step A: Identify User Value Themes**
 
 - Look for natural groupings in the FRs
 - Identify user journeys or workflows
 - Consider user types and their goals
 
-**Step B: Propose Epic Structure**
+- *Step B: Propose Epic Structure**
+
 For each proposed epic:
 
 1. **Epic Title**: User-centric, value-focused
@@ -117,23 +125,29 @@ For each proposed epic:
 3. **FR Coverage**: Which FR numbers this epic addresses
 4. **Implementation Notes**: Any technical or UX considerations
 
-**Step C: Create the epics_list**
+- *Step C: Create the epics_list**
 
 Format the epics_list as:
 
-```
+```bash
+
 ## Epic List
 
 ### Epic 1: [Epic Title]
+
 [Epic goal statement - what users can accomplish]
-**FRs covered:** FR1, FR2, FR3, etc.
+
+- *FRs covered:** FR1, FR2, FR3, etc.
 
 ### Epic 2: [Epic Title]
+
 [Epic goal statement - what users can accomplish]
-**FRs covered:** FR4, FR5, FR6, etc.
+
+- *FRs covered:** FR4, FR5, FR6, etc.
 
 [Continue for all epics]
-```
+
+```bash
 
 ### 4. Present Epic List for Review
 
@@ -148,15 +162,16 @@ Display the complete epics_list to user with:
 
 Create {{requirements_coverage_map}} showing how each FR maps to an epic:
 
-```
+```bash
+
 ### FR Coverage Map
 
 FR1: Epic 1 - [Brief description]
 FR2: Epic 1 - [Brief description]
 FR3: Epic 2 - [Brief description]
 ...
-```
 
+```bash
 This ensures no FRs are missed.
 
 ### 6. Collaborative Refinement
@@ -170,7 +185,8 @@ Ask user:
 
 ### 7. Get Final Approval
 
-**CRITICAL:** Must get explicit user approval:
+- *CRITICAL:** Must get explicit user approval:
+
 "Do you approve this epic structure for proceeding to story creation?"
 
 If user wants changes:
@@ -210,7 +226,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ONLY WHEN C is selected and the approved epics_list is saved to document, will you then read fully and follow: {nextStepFile} to begin story creation step.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -230,4 +246,4 @@ ONLY WHEN C is selected and the approved epics_list is saved to document, will y
 - No user approval obtained
 - epics_list not saved to document
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

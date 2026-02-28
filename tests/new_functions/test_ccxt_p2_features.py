@@ -47,7 +47,7 @@ class TestBrokerWsOrderInit(unittest.TestCase):
         broker._ws_subscribed_symbols = set()
         broker.order_types = {0: 'market', 2: 'limit'}
         broker.notifs = __import__('queue').Queue()
-        broker.open_orders = []
+        broker.open_orders = {}
         broker.positions = __import__('collections').defaultdict(
             lambda: Mock(clone=Mock(return_value=Mock()))
         )
@@ -130,7 +130,7 @@ class TestBrokerWsOrderProcessing(unittest.TestCase):
         broker._ws_order_updates = __import__('queue').Queue()
         broker._consecutive_failures = 0
         broker._bracket_manager = None
-        broker.open_orders = []
+        broker.open_orders = {}
         broker.notifs = __import__('queue').Queue()
         broker.positions = __import__('collections').defaultdict(
             lambda: Mock(clone=Mock(return_value=Mock()))
@@ -140,7 +140,7 @@ class TestBrokerWsOrderProcessing(unittest.TestCase):
     def _make_mock_order(self, order_id, amount, is_buy=True):
         order = Mock()
         order.ccxt_order = {'id': order_id, 'amount': amount}
-        order.executed_fills = []
+        order.executed_fills = set()
         order.isbuy.return_value = is_buy
         order.executed = Mock()
         order.executed.size = 0
@@ -153,7 +153,7 @@ class TestBrokerWsOrderProcessing(unittest.TestCase):
         """WS fill updates position and notifies."""
         broker = self._make_broker()
         order = self._make_mock_order('order_1', 0.01)
-        broker.open_orders.append(order)
+        broker.open_orders['order_1'] = order
 
         # Simulate a complete fill
         trade = {
@@ -174,8 +174,8 @@ class TestBrokerWsOrderProcessing(unittest.TestCase):
         """WS processing skips already-processed trades."""
         broker = self._make_broker()
         order = self._make_mock_order('order_1', 0.01)
-        order.executed_fills = ['trade_1']  # Already processed
-        broker.open_orders.append(order)
+        order.executed_fills = {'trade_1'}  # Already processed
+        broker.open_orders['order_1'] = order
 
         trade = {
             'id': 'trade_1',
@@ -221,7 +221,7 @@ class TestBrokerWsOrderProcessing(unittest.TestCase):
         broker = self._make_broker()
         broker._consecutive_failures = 5
         order = self._make_mock_order('order_1', 0.01)
-        broker.open_orders.append(order)
+        broker.open_orders['order_1'] = order
 
         trade = {
             'id': 'trade_1',
@@ -250,7 +250,7 @@ class TestBrokerNextWsMode(unittest.TestCase):
         broker._consecutive_failures = 0
         broker._max_consecutive_failures = 10
         broker._bracket_manager = None
-        broker.open_orders = []
+        broker.open_orders = {}
         broker.notifs = __import__('queue').Queue()
         broker.positions = __import__('collections').defaultdict(
             lambda: Mock(clone=Mock(return_value=Mock()))
@@ -272,7 +272,7 @@ class TestBrokerNextWsMode(unittest.TestCase):
     def test_next_ws_does_periodic_rest_check(self):
         """next() in WS mode does periodic REST check for stale orders."""
         broker = self._make_broker(use_ws=True)
-        broker.open_orders = [Mock()]
+        broker.open_orders = {'mock_id': Mock()}
         broker._last_op_time = time.time() - 60  # 60s ago
 
         with patch.object(broker, '_process_ws_order_updates'), \
@@ -518,7 +518,7 @@ class TestBrokerSubmitWsSubscription(unittest.TestCase):
         broker._ws_subscribed_symbols = set()
         broker.order_types = {0: 'market', 2: 'limit'}
         broker.notifs = __import__('queue').Queue()
-        broker.open_orders = []
+        broker.open_orders = {}
         broker.positions = __import__('collections').defaultdict(
             lambda: Mock(clone=Mock(return_value=Mock()))
         )

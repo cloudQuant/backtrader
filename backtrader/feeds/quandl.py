@@ -25,13 +25,13 @@ warnings.warn(
     DeprecationWarning,
     stacklevel=2,
 )
-import io
-import itertools
-from datetime import date, datetime
+import io  # noqa: E402
+import itertools  # noqa: E402
+from datetime import date, datetime  # noqa: E402
 
-from .. import feed
-from ..utils import date2num
-from ..utils.py3 import urlquote
+from .. import feed  # noqa: E402
+from ..utils import date2num  # noqa: E402
+from ..utils.py3 import urlquote  # noqa: E402
 
 __all__ = ["QuandlCSV", "Quandl"]
 

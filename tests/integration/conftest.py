@@ -151,6 +151,21 @@ def okx_config():
         # Async WebSocket proxy (aiohttp)
         config['aiohttp_proxy'] = proxy_url
 
+    # Pre-check: verify IP whitelist with a lightweight REST call
+    try:
+        import ccxt
+        from ccxt.base.errors import PermissionDenied, AuthenticationError, NetworkError
+        _ex = ccxt.okx(config)
+        if _use_sandbox():
+            _ex.set_sandbox_mode(True)
+        _ex.load_markets()
+    except (PermissionDenied, AuthenticationError) as e:
+        pytest.skip(f"OKX API access denied (IP whitelist?): {e}")
+    except NetworkError as e:
+        pytest.skip(f"OKX network unreachable: {e}")
+    except Exception:
+        pass  # Other errors — let individual tests handle
+
     return config
 
 
@@ -158,7 +173,7 @@ def okx_config():
 def ccxt_store(okx_config):
     """Create a CCXTStore connected to OKX."""
     from backtrader.stores.ccxtstore import CCXTStore
-    from ccxt.base.errors import PermissionDenied, AuthenticationError
+    from ccxt.base.errors import PermissionDenied, AuthenticationError, NetworkError
 
     # Reset singleton for test isolation
     CCXTStore._instances = {}
@@ -174,6 +189,8 @@ def ccxt_store(okx_config):
         )
     except (PermissionDenied, AuthenticationError) as e:
         pytest.skip(f"CCXTStore init failed (IP whitelist?): {e}")
+    except NetworkError as e:
+        pytest.skip(f"CCXTStore network unreachable: {e}")
 
     yield store
     try:
@@ -186,9 +203,17 @@ def ccxt_store(okx_config):
 def ccxt_exchange(okx_config):
     """Create a raw ccxt exchange instance for OKX."""
     import ccxt
+    from ccxt.base.errors import PermissionDenied, AuthenticationError, NetworkError
     exchange = ccxt.okx(okx_config)
     if _use_sandbox():
         exchange.set_sandbox_mode(True)
+    # Verify connectivity — skip early if IP not whitelisted or network down
+    try:
+        exchange.load_markets()
+    except (PermissionDenied, AuthenticationError) as e:
+        pytest.skip(f"OKX API access denied (IP whitelist?): {e}")
+    except NetworkError as e:
+        pytest.skip(f"OKX network unreachable: {e}")
     return exchange
 
 
@@ -199,23 +224,31 @@ def ccxt_pro_exchange(okx_config):
         import ccxt.pro as ccxtpro
     except (ImportError, AttributeError):
         pytest.skip("ccxt.pro not available")
+    from ccxt.base.errors import PermissionDenied, AuthenticationError, NetworkError
 
     exchange = ccxtpro.okx(okx_config)
     if _use_sandbox():
         exchange.set_sandbox_mode(True)
+    # Verify connectivity — skip early if IP not whitelisted or network down
+    try:
+        exchange.load_markets()
+    except (PermissionDenied, AuthenticationError) as e:
+        pytest.skip(f"OKX API access denied (IP whitelist?): {e}")
+    except NetworkError as e:
+        pytest.skip(f"OKX network unreachable: {e}")
     return exchange
 
 
 # ---- CTP Fixtures ----
 
 # CTP test server endpoints
-# SimNow 第一组 (看穿式前置, 使用监控中心生产秘钥, recommended)
+# SimNow Set 1 (penetrating front, uses monitoring center production key, recommended)
 CTP_SIMNOW_SET1_TD = 'tcp://182.254.243.31:30001'
 CTP_SIMNOW_SET1_MD = 'tcp://182.254.243.31:30011'
-# SimNow 第二组
+# SimNow Set 2
 CTP_SIMNOW_SET2_TD = 'tcp://182.254.243.31:30002'
 CTP_SIMNOW_SET2_MD = 'tcp://182.254.243.31:30012'
-# SimNow 第三组
+# SimNow Set 3
 CTP_SIMNOW_SET3_TD = 'tcp://182.254.243.31:30003'
 CTP_SIMNOW_SET3_MD = 'tcp://182.254.243.31:30013'
 # SimNow 7x24 (2nd env, requires separate registration)

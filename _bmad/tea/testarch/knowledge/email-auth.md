@@ -12,32 +12,36 @@ Email authentication introduces unique challenges: asynchronous email delivery, 
 
 ### Example 1: Magic Link Extraction with Mailosaur
 
-**Context**: Passwordless login flow where user receives magic link via email, clicks it, and is authenticated.
+- *Context**: Passwordless login flow where user receives magic link via email, clicks it, and is authenticated.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/magic-link-auth.spec.ts
 import { test, expect } from '@playwright/test';
 
 /**
- * Magic Link Authentication Flow
- * 1. User enters email
- * 2. Backend sends magic link
- * 3. Test retrieves email via Mailosaur
- * 4. Extract and visit magic link
- * 5. Verify user is authenticated
- */
+
+ - Magic Link Authentication Flow
+ - 1. User enters email
+ - 2. Backend sends magic link
+ - 3. Test retrieves email via Mailosaur
+ - 4. Extract and visit magic link
+ - 5. Verify user is authenticated
+ - /
 
 // Mailosaur configuration
 const MAILOSAUR_API_KEY = process.env.MAILOSAUR_API_KEY!;
 const MAILOSAUR_SERVER_ID = process.env.MAILOSAUR_SERVER_ID!;
 
 /**
- * Extract href from HTML email body
- * DOMParser provides XML/HTML parsing in Node.js
- */
+
+ - Extract href from HTML email body
+ - DOMParser provides XML/HTML parsing in Node.js
+ - /
+
 function extractMagicLink(htmlString: string): string | null {
+
   const { JSDOM } = require('jsdom');
   const dom = new JSDOM(htmlString);
   const link = dom.window.document.querySelector('#magic-link-button');
@@ -45,9 +49,11 @@ function extractMagicLink(htmlString: string): string | null {
 }
 
 /**
- * Alternative: Use Mailosaur's built-in link extraction
- * Mailosaur automatically parses links - no regex needed!
- */
+
+ - Alternative: Use Mailosaur's built-in link extraction
+ - Mailosaur automatically parses links - no regex needed!
+ - /
+
 async function getMagicLinkFromEmail(email: string): Promise<string> {
   const MailosaurClient = require('mailosaur');
   const mailosaur = new MailosaurClient(MAILOSAUR_API_KEY);
@@ -77,7 +83,7 @@ async function getMagicLinkFromEmail(email: string): Promise<string> {
 test.describe('Magic Link Authentication', () => {
   test('should authenticate user via magic link', async ({ page, context }) => {
     // Arrange: Generate unique test email
-    const randomId = Math.floor(Math.random() * 1000000);
+    const randomId = Math.floor(Math.random() *1000000);
     const testEmail = `user-${randomId}@${MAILOSAUR_SERVER_ID}.mailosaur.net`;
 
     // Act: Request magic link
@@ -106,7 +112,7 @@ test.describe('Magic Link Authentication', () => {
 
   test('should handle expired magic link', async ({ page }) => {
     // Use pre-expired link (older than 15 minutes)
-    const expiredLink = 'http://localhost:3000/auth/verify?token=expired-token-123';
+    const expiredLink = '<http://localhost:3000/auth/verify?token=expired-token-123';>
 
     await page.goto(expiredLink);
 
@@ -119,7 +125,7 @@ test.describe('Magic Link Authentication', () => {
   });
 
   test('should prevent reusing magic link', async ({ page }) => {
-    const randomId = Math.floor(Math.random() * 1000000);
+    const randomId = Math.floor(Math.random()*1000000);
     const testEmail = `user-${randomId}@${MAILOSAUR_SERVER_ID}.mailosaur.net`;
 
     // Request magic link
@@ -142,9 +148,10 @@ test.describe('Magic Link Authentication', () => {
     await expect(page.getByTestId('error-message')).toContainText('link has already been used');
   });
 });
-```
 
-**Cypress equivalent with Mailosaur plugin**:
+```bash
+
+- *Cypress equivalent with Mailosaur plugin**:
 
 ```javascript
 // cypress/e2e/magic-link-auth.cy.ts
@@ -174,9 +181,10 @@ describe('Magic Link Authentication', () => {
     cy.get('[data-cy="user-email"]').should('contain', testEmail);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Mailosaur auto-extraction**: `html.links[0].href` or `html.codes[0].value`
 - **Unique emails**: Random ID prevents collisions
@@ -184,13 +192,13 @@ describe('Magic Link Authentication', () => {
 - **State verification**: localStorage/session checked
 - **Fast email retrieval**: 30 second timeout typical
 
----
+- --
 
 ### Example 2: State Preservation Pattern with cy.session / Playwright storageState
 
-**Context**: Cache authenticated session to avoid requesting magic link on every test.
+- *Context**: Cache authenticated session to avoid requesting magic link on every test.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/fixtures/email-auth-fixture.ts
@@ -203,7 +211,7 @@ type EmailAuthFixture = {
 
 export const test = base.extend<EmailAuthFixture>({
   authenticatedUser: async ({ page, context }, use) => {
-    const randomId = Math.floor(Math.random() * 1000000);
+    const randomId = Math.floor(Math.random() *1000000);
     const testEmail = `user-${randomId}@${process.env.MAILOSAUR_SERVER_ID}.mailosaur.net`;
 
     // Check if we have cached auth state for this email
@@ -247,21 +255,25 @@ export const test = base.extend<EmailAuthFixture>({
     console.log(`💾 Cached session for ${testEmail}`);
 
     await use({ email: testEmail, token: authToken || '' });
+
   },
 });
-```
 
-**Cypress equivalent with cy.session + data-session**:
+```bash
+
+- *Cypress equivalent with cy.session + data-session**:
 
 ```javascript
 // cypress/support/commands/email-auth.js
 import { dataSession } from 'cypress-data-session';
 
 /**
- * Authenticate via magic link with session caching
- * - First run: Requests email, extracts link, authenticates
- * - Subsequent runs: Reuses cached session (no email)
- */
+
+ - Authenticate via magic link with session caching
+ - - First run: Requests email, extracts link, authenticates
+ - - Subsequent runs: Reuses cached session (no email)
+ - /
+
 Cypress.Commands.add('authViaMagicLink', (email) => {
   return dataSession({
     name: `magic-link-${email}`,
@@ -307,9 +319,10 @@ Cypress.Commands.add('authViaMagicLink', (email) => {
     shareAcrossSpecs: true, // Share session across all tests
   });
 });
-```
 
-**Usage in tests**:
+```bash
+
+- *Usage in tests**:
 
 ```javascript
 // cypress/e2e/dashboard.cy.ts
@@ -333,9 +346,10 @@ describe('Dashboard', () => {
 
   // Both tests share same session - only 1 email consumed!
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Session caching**: First test requests email, rest reuse session
 - **State preservation**: localStorage/cookies saved and restored
@@ -343,13 +357,13 @@ describe('Dashboard', () => {
 - **Quota optimization**: Massive reduction in email consumption
 - **Fast tests**: Cached auth takes seconds vs. minutes
 
----
+- --
 
 ### Example 3: Negative Flow Tests (Expired, Invalid, Reused Links)
 
-**Context**: Comprehensive negative testing for email authentication edge cases.
+- *Context**: Comprehensive negative testing for email authentication edge cases.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/email-auth-negative.spec.ts
@@ -364,11 +378,11 @@ test.describe('Email Auth Negative Flows', () => {
     const expiredToken = Buffer.from(
       JSON.stringify({
         email: 'test@example.com',
-        exp: Date.now() - 24 * 60 * 60 * 1000, // 24 hours ago
+        exp: Date.now() - 24 *60*60* 1000, // 24 hours ago
       }),
     ).toString('base64');
 
-    const expiredLink = `http://localhost:3000/auth/verify?token=${expiredToken}`;
+    const expiredLink = `<http://localhost:3000/auth/verify?token=${expiredToken}`;>
 
     // Visit expired link
     await page.goto(expiredLink);
@@ -385,7 +399,7 @@ test.describe('Email Auth Negative Flows', () => {
   });
 
   test('should reject invalid magic link token', async ({ page }) => {
-    const invalidLink = 'http://localhost:3000/auth/verify?token=invalid-garbage';
+    const invalidLink = '<http://localhost:3000/auth/verify?token=invalid-garbage';>
 
     await page.goto(invalidLink);
 
@@ -429,7 +443,7 @@ test.describe('Email Auth Negative Flows', () => {
   });
 
   test('should handle rapid successive link requests', async ({ page }) => {
-    const randomId = Math.floor(Math.random() * 1000000);
+    const randomId = Math.floor(Math.random() *1000000);
     const testEmail = `user-${randomId}@${MAILOSAUR_SERVER_ID}.mailosaur.net`;
 
     // Request magic link 3 times rapidly
@@ -468,7 +482,7 @@ test.describe('Email Auth Negative Flows', () => {
   });
 
   test('should rate-limit excessive magic link requests', async ({ page }) => {
-    const randomId = Math.floor(Math.random() * 1000000);
+    const randomId = Math.floor(Math.random()* 1000000);
     const testEmail = `user-${randomId}@${MAILOSAUR_SERVER_ID}.mailosaur.net`;
 
     // Request magic link 10 times rapidly (should hit rate limit)
@@ -486,6 +500,7 @@ test.describe('Email Auth Negative Flows', () => {
       if (errorVisible) {
         console.log(`Rate limit hit after ${i + 1} requests`);
         await expect(page.getByTestId('rate-limit-error')).toContainText(/too many.*requests|rate.*limit/i);
+
         return;
       }
     }
@@ -494,9 +509,10 @@ test.describe('Email Auth Negative Flows', () => {
     console.warn('⚠️  No rate limit detected after 10 requests');
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Expired links**: Test 24+ hour old tokens
 - **Invalid tokens**: Malformed or garbage tokens rejected
@@ -504,29 +520,30 @@ test.describe('Email Auth Negative Flows', () => {
 - **Rapid requests**: Multiple requests handled gracefully
 - **Rate limiting**: Excessive requests blocked
 
----
+- --
 
 ### Example 4: Caching Strategy with cypress-data-session / Playwright Projects
 
-**Context**: Minimize email consumption by sharing authentication state across tests and specs.
+- *Context**: Minimize email consumption by sharing authentication state across tests and specs.
 
-**Implementation**:
+- *Implementation**:
 
 ```javascript
 // cypress/support/commands/register-and-sign-in.js
 import { dataSession } from 'cypress-data-session';
 
 /**
- * Email Authentication Caching Strategy
- * - One email per test run (not per spec, not per test)
- * - First spec: Full registration flow (form → email → code → sign in)
- * - Subsequent specs: Only sign in (reuse user)
- * - Subsequent tests in same spec: Session already active (no sign in)
- */
+
+ - Email Authentication Caching Strategy
+ - - One email per test run (not per spec, not per test)
+ - - First spec: Full registration flow (form → email → code → sign in)
+ - - Subsequent specs: Only sign in (reuse user)
+ - - Subsequent tests in same spec: Session already active (no sign in)
+ - /
 
 // Helper: Fill registration form
 function fillRegistrationForm({ fullName, userName, email, password }) {
-  cy.intercept('POST', 'https://cognito-idp*').as('cognito');
+  cy.intercept('POST', '<https://cognito-idp*').as('cognito');>
   cy.contains('Register').click();
   cy.get('#reg-dialog-form').should('be.visible');
   cy.get('#first-name').type(fullName, { delay: 0 });
@@ -544,7 +561,7 @@ function confirmRegistration(email) {
     .mailosaurGetMessage(Cypress.env('MAILOSAUR_SERVERID'), { sentTo: email })
     .its('html.codes.0.value') // Mailosaur auto-extracts codes!
     .then((code) => {
-      cy.intercept('POST', 'https://cognito-idp*').as('cognito');
+      cy.intercept('POST', '<https://cognito-idp*').as('cognito');>
       cy.get('#verification-code').type(code, { delay: 0 });
       cy.contains('button', 'Confirm registration').click();
       cy.wait('@cognito');
@@ -562,7 +579,7 @@ function register({ fullName, userName, email, password }) {
 
 // Helper: Sign in
 function signIn({ userName, password }) {
-  cy.intercept('POST', 'https://cognito-idp*').as('cognito');
+  cy.intercept('POST', '<https://cognito-idp*').as('cognito');>
   cy.contains('Sign in').click();
   cy.get('#sign-in-username').type(userName, { delay: 0 });
   cy.get('#sign-in-password').type(password, { delay: 0 });
@@ -572,9 +589,11 @@ function signIn({ userName, password }) {
 }
 
 /**
- * Register and sign in with email caching
- * ONE EMAIL PER MACHINE (cypress run or cypress open)
- */
+
+ - Register and sign in with email caching
+ - ONE EMAIL PER MACHINE (cypress run or cypress open)
+ - /
+
 Cypress.Commands.add('registerAndSignIn', ({ fullName, userName, email, password }) => {
   return dataSession({
     name: email, // Unique session per email
@@ -592,9 +611,10 @@ Cypress.Commands.add('registerAndSignIn', ({ fullName, userName, email, password
     shareAcrossSpecs: true,
   });
 });
-```
 
-**Usage across multiple specs**:
+```bash
+
+- *Usage across multiple specs**:
 
 ```javascript
 // cypress/e2e/place-order.cy.ts
@@ -610,10 +630,10 @@ describe('Place Order', () => {
   });
 
   it('should place order', () => {
-    /* ... */
+    /*...*/
   });
   it('should view order history', () => {
-    /* ... */
+    /*...*/
   });
 });
 
@@ -630,12 +650,13 @@ describe('User Profile', () => {
   });
 
   it('should update profile', () => {
-    /* ... */
+    /*...*/
   });
 });
-```
 
-**Playwright equivalent with storageState**:
+```bash
+
+- *Playwright equivalent with storageState**:
 
 ```typescript
 // playwright.config.ts
@@ -657,7 +678,8 @@ export default defineConfig({
     },
   ],
 });
-```
+
+```bash
 
 ```typescript
 // tests/global-setup.ts (runs once)
@@ -686,9 +708,10 @@ setup('authenticate via magic link', async ({ page }) => {
 
   console.log('✅ Authentication state saved to', authFile);
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **One email per run**: Global setup authenticates once
 - **State reuse**: All tests use cached storageState
@@ -696,7 +719,7 @@ setup('authenticate via magic link', async ({ page }) => {
 - **shareAcrossSpecs**: Session shared across all spec files
 - **Massive savings**: 500 tests = 1 email (not 500!)
 
----
+- --
 
 ## Email Authentication Testing Checklist
 

@@ -1,4 +1,5 @@
----
+- --
+
 name: 'v-01-load-review'
 description: 'Load agent and initialize validation report'
 
@@ -8,7 +9,8 @@ agentMetadata: ../data/agent-metadata.md
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Validate Step 1: Load Agent for Review
 
@@ -36,65 +38,75 @@ Load the existing agent file and initialize a validation report to track all fin
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Agent File
 
 Read the complete YAML from the agent file path provided by the user.
 
 Check the metadata to determine agent configuration:
+
 - **module**: `stand-alone` or module code (bmm, cis, bmgd, etc.)
 - **hasSidecar**: `true` or `false`
 
 ### 2. Display Agent Summary
 
 ```markdown
+
 ## Agent to Validate: {agent-name}
 
-**Configuration:** Agent {WITH|WITHOUT} sidecar
-**hasSidecar:** {true|false}
-**module:** {module-value}
-**File:** {agent-file-path}
+- *Configuration:** Agent {WITH|WITHOUT} sidecar
+
+- *hasSidecar:** {true|false}
+
+- *module:** {module-value}
+- *File:** {agent-file-path}
 
 ### Current Structure:
 
-**Persona:** {character count} characters
-**Commands:** {count} commands
-**Critical Actions:** {count} actions (if hasSidecar: true)
-**Sidecar:** {present|not present}
-```
+- *Persona:** {character count} characters
+- *Commands:** {count} commands
+- *Critical Actions:** {count} actions (if hasSidecar: true)
+- *Sidecar:** {present|not present}
+
+```bash
 
 ### 3. Create Validation Report
 
 Initialize the validation report:
 
 ```markdown
----
+
+- --
+
 agentName: '{agent-name}'
 hasSidecar: {true|false}
+
 module: '{module-value}'
 agentFile: '{agent-file-path}'
 validationDate: '{YYYY-MM-DD}'
 stepsCompleted:
+
   - v-01-load-review.md
----
+- --
 
 # Validation Report: {agent-name}
 
 ## Agent Overview
 
-**Name:** {agent-name}
-**hasSidecar:** {true|false}
-**module:** {module-value}
-**File:** {agent-file-path}
+- *Name:** {agent-name}
+- *hasSidecar:** {true|false}
 
----
+- *module:** {module-value}
+- *File:** {agent-file-path}
+
+- --
 
 ## Validation Findings
 
-*This section will be populated by validation steps*
-```
+- This section will be populated by validation steps*
 
+```bash
 Write to `{validationReport}`.
 
 ### 4. Present MENU OPTIONS
@@ -118,7 +130,7 @@ Display: "**Is this the correct agent to validate and is it identified as the pr
 
 ONLY WHEN [C continue option] is selected and [agent loaded and report created], will you then load and read fully `{nextStepFile}` to execute and begin validation.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -134,4 +146,4 @@ ONLY WHEN [C continue option] is selected and [agent loaded and report created],
 - Report not created
 - Proceeded without user confirmation
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

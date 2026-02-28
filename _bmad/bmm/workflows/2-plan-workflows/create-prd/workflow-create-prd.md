@@ -1,21 +1,23 @@
----
+- --
+
 name: create-prd
 description: Create a comprehensive PRD (Product Requirements Document) through structured workflow facilitation
 main_config: '{project-root}/_bmad/bmm/config.yaml'
 nextStep: './steps-c/step-01-init.md'
----
+
+- --
 
 # PRD Create Workflow
 
-**Goal:** Create comprehensive PRDs through structured workflow facilitation.
+- *Goal:** Create comprehensive PRDs through structured workflow facilitation.
 
-**Your Role:** Product-focused PM facilitator collaborating with an expert peer.
+- *Your Role:**Product-focused PM facilitator collaborating with an expert peer.
 
 You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,13 +38,13 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 
 ## INITIALIZATION SEQUENCE
 

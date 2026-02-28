@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04b-subprocess-e2e-failing'
 description: 'Subprocess: Generate FAILING E2E tests (TDD red phase)'
 subprocess: true
 outputFile: '/tmp/tea-atdd-e2e-tests-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 4B: Generate Failing E2E Tests (TDD Red Phase)
 
@@ -11,16 +13,16 @@ outputFile: '/tmp/tea-atdd-e2e-tests-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with API failing test generation.
 
-**What you have from parent workflow:**
+- *What you have from parent workflow:**
 
 - Story acceptance criteria from Step 1
 - Test strategy and user journey scenarios from Step 3
 - Knowledge fragments loaded: fixture-architecture, network-first, selector-resilience
 - Config: test framework, Playwright Utils enabled/disabled
 
-**Your task:** Generate E2E tests that will FAIL because the feature UI is not implemented yet (TDD RED PHASE).
+- *Your task:** Generate E2E tests that will FAIL because the feature UI is not implemented yet (TDD RED PHASE).
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -33,7 +35,7 @@ This is an **isolated subprocess** running in parallel with API failing test gen
 - ❌ Do NOT generate passing tests (this is TDD red phase)
 - ❌ Do NOT run tests (that's step 5)
 
----
+- --
 
 ## SUBPROCESS TASK
 
@@ -46,26 +48,30 @@ From the story acceptance criteria (Step 1 output), identify:
 - Expected visual states
 - Success/error messages expected
 
-**Example Acceptance Criteria:**
+- *Example Acceptance Criteria:**
 
-```
+```bash
 Story: User Registration
+
 - As a user, I can navigate to /register page
 - I can fill in email and password fields
 - I can click "Register" button
 - System shows success message and redirects to dashboard
 - System shows error if email already exists
-```
+
+```bash
 
 ### 2. Browser Interaction (Selector Verification)
 
-**Automation mode:** `config.tea_browser_automation`
+- *Automation mode:**`config.tea_browser_automation`
 
 If `auto` (fall back to MCP if CLI unavailable; if neither available, generate from best practices):
 
 - Open the target page first, then verify selectors with a snapshot:
+
   `playwright-cli -s=tea-atdd-{{timestamp}} open <target_url>`
   `playwright-cli -s=tea-atdd-{{timestamp}} snapshot` → map refs to Playwright locators
+
   - ref `{role: "button", name: "Submit"}` → `page.getByRole('button', { name: 'Submit' })`
   - ref `{role: "textbox", name: "Email"}` → `page.getByRole('textbox', { name: 'Email' })`
 - `playwright-cli -s=tea-atdd-{{timestamp}} close` when done
@@ -73,13 +79,15 @@ If `auto` (fall back to MCP if CLI unavailable; if neither available, generate f
 If `cli` (CLI only — do NOT fall back to MCP; generate from best practices if CLI unavailable):
 
 - Open the target page first, then verify selectors with a snapshot:
+
   `playwright-cli -s=tea-atdd-{{timestamp}} open <target_url>`
   `playwright-cli -s=tea-atdd-{{timestamp}} snapshot` → map refs to Playwright locators
+
   - ref `{role: "button", name: "Submit"}` → `page.getByRole('button', { name: 'Submit' })`
   - ref `{role: "textbox", name: "Email"}` → `page.getByRole('textbox', { name: 'Email' })`
 - `playwright-cli -s=tea-atdd-{{timestamp}} close` when done
 
-> **Session Hygiene:** Always close sessions using `playwright-cli -s=tea-atdd-{{timestamp}} close`. Do NOT use `close-all` — it kills every session on the machine and breaks parallel execution.
+>**Session Hygiene:** Always close sessions using `playwright-cli -s=tea-atdd-{{timestamp}} close`. Do NOT use `close-all` — it kills every session on the machine and breaks parallel execution.
 
 If `mcp`:
 
@@ -93,7 +101,7 @@ If `none`:
 
 For each user journey, create test file in `tests/e2e/[feature].spec.ts`:
 
-**Test Structure (ATDD - Red Phase):**
+- *Test Structure (ATDD - Red Phase):**
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -125,9 +133,10 @@ test.describe('[Story Name] E2E User Journey (ATDD)', () => {
     await expect(page.getByText('Email already exists')).toBeVisible();
   });
 });
-```
 
-**CRITICAL ATDD Requirements:**
+```bash
+
+- *CRITICAL ATDD Requirements:**
 
 - ✅ Use `test.skip()` to mark tests as intentionally failing (red phase)
 - ✅ Write assertions for EXPECTED UI behavior (even though not implemented)
@@ -138,7 +147,7 @@ test.describe('[Story Name] E2E User Journey (ATDD)', () => {
 - ✅ Use proper TypeScript types
 - ✅ Deterministic waits (no hard sleeps)
 
-**Why test.skip():**
+- *Why test.skip():**
 
 - Tests are written correctly for EXPECTED UI behavior
 - But we know they'll fail because UI isn't implemented
@@ -153,9 +162,9 @@ Identify fixtures needed for E2E tests:
 - Network mocks (if API calls involved)
 - Test data fixtures
 
-**Do NOT create fixtures yet** - just track what's needed for aggregation step.
+- *Do NOT create fixtures yet** - just track what's needed for aggregation step.
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -191,9 +200,10 @@ Write JSON to temp file: `/tmp/tea-atdd-e2e-tests-{{timestamp}}.json`
   "tdd_phase": "RED",
   "summary": "Generated 2 FAILING E2E tests for user registration story"
 }
-```
 
-**On Error:**
+```bash
+
+- *On Error:**
 
 ```json
 {
@@ -201,12 +211,13 @@ Write JSON to temp file: `/tmp/tea-atdd-e2e-tests-{{timestamp}}.json`
   "subprocess": "atdd-e2e-tests",
   "error": "Error message describing what went wrong",
   "partial_output": {
-    /* any tests generated before error */
+    /*any tests generated before error*/
   }
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -219,9 +230,9 @@ Subprocess completes when:
 - ✅ JSON output written to temp file
 - ✅ Fixture needs tracked
 
-**Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
+- *Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
 
----
+- --
 
 ## 🚨 SUBPROCESS SUCCESS METRICS
 

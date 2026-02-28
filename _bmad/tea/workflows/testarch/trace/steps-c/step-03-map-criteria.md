@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03-map-criteria'
 description: 'Map acceptance criteria to tests and build traceability matrix'
 nextStepFile: './step-04-analyze-gaps.md'
 outputFile: '{test_artifacts}/traceability-report.md'
----
+
+- --
 
 # Step 3: Map Criteria to Tests
 
@@ -16,7 +18,7 @@ Create the traceability matrix linking requirements to tests.
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -33,7 +35,7 @@ Create the traceability matrix linking requirements to tests.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Build Matrix
 
@@ -47,7 +49,7 @@ For each acceptance criterion:
   - Auth/authz coverage present/missing (positive and negative paths)
   - Error-path coverage present/missing (validation, timeout, network/server failures)
 
----
+- --
 
 ## 2. Validate Coverage Logic
 
@@ -59,20 +61,24 @@ Ensure:
 - API criteria are not marked FULL if endpoint-level checks are missing
 - Auth/authz criteria include at least one denied/invalid-path test where applicable
 
----
+- --
 
 ### 3. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-03-map-criteria']
   lastStep: 'step-03-map-criteria'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -94,4 +100,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

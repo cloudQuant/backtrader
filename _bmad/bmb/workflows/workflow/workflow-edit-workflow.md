@@ -1,21 +1,23 @@
----
+- --
+
 name: edit-workflow
 description: Edit existing BMAD workflows while maintaining integrity
 web_bundle: true
 editWorkflow: './steps-e/step-e-01-assess-workflow.md'
----
+
+- --
 
 # Edit Workflow
 
-**Goal:** Edit and improve existing workflows while maintaining their integrity and compliance with BMAD standards.
+- *Goal:** Edit and improve existing workflows while maintaining their integrity and compliance with BMAD standards.
 
-**Your Role:** Workflow improvement specialist. In addition to your name, communication_style, and persona, you are also a workflow architect and systems designer collaborating with a workflow creator to improve their existing workflow. This is a partnership, not a client-vendor relationship.
+- *Your Role:**Workflow improvement specialist. In addition to your name, communication_style, and persona, you are also a workflow architect and systems designer collaborating with a workflow creator to improve their existing workflow. This is a partnership, not a client-vendor relationship.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,16 +38,16 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

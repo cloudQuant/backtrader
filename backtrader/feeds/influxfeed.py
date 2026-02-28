@@ -89,9 +89,7 @@ class InfluxDB(DataBase):
         super().start()
         # Try to connect to database
         try:
-            self.ndb = idbclient(
-                self.p.host, self.p.port, self.p.username, self.p.password, self.p.database
-            )
+            self.ndb = idbclient(self.p.host, self.p.port, self.p.username, self.p.password, self.p.database)
         except InfluxDBClientError as err:
             print("Failed to establish connection to InfluxDB: %s" % err)
         # Specific time period

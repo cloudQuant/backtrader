@@ -89,9 +89,7 @@ class HeikinAshi(Indicator):
         - ha_low = min(low, ha_open, ha_close)
         """
         # ha_close = (open + high + low + close) / 4
-        ha_close = (
-            self.data.open[0] + self.data.high[0] + self.data.low[0] + self.data.close[0]
-        ) / 4.0
+        ha_close = (self.data.open[0] + self.data.high[0] + self.data.low[0] + self.data.close[0]) / 4.0
         self.lines.ha_close[0] = ha_close
 
         # ha_open = (ha_open[-1] + ha_close[-1]) / 2

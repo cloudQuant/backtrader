@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-03-story'
 description: 'Define major story beats and narrative pacing'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-03-story.md'
 nextStepFile: './step-04-characters.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 3: Story Beats
 
-**Progress: Step 3 of 11** - Next: Characters
+- *Progress: Step 3 of 11**- Next: Characters
 
 ## STEP GOAL:
 
@@ -68,15 +73,15 @@ Define the major story beats (key narrative moments) and establish pacing and fl
 
 Story beats are significant events that drive the narrative forward.
 
-**Key beat types:**
+- *Key beat types:**
 
-- **Inciting Incident** - What sets the story in motion?
-- **Plot Points** - Major turning points
-- **Midpoint** - Central pivot moment
-- **Climax** - Highest tension point
+- **Inciting Incident**- What sets the story in motion?
+- **Plot Points**- Major turning points
+- **Midpoint**- Central pivot moment
+- **Climax**- Highest tension point
 - **Resolution** - How things conclude
 
-**Based on your {{structure_type}} structure, list 10-20 key moments.**
+- *Based on your {{structure_type}} structure, list 10-20 key moments.**
 
 Format:
 
@@ -91,13 +96,16 @@ What are the major story beats for {{game_name}}?"
 
 For {{structure_type}}:
 
-**Act 1 beats:**
+- *Act 1 beats:**
+
 Which of your beats belong in the setup/introduction?
 
-**Act 2 beats:**
+- *Act 2 beats:**
+
 Which beats drive the main conflict/development?
 
-**Act 3 beats:**
+- *Act 3 beats:**
+
 Which beats resolve the story?
 
 Let's organize your beats:"
@@ -106,16 +114,21 @@ Let's organize your beats:"
 
 "**Let's define the pacing and flow.**
 
-**Pacing considerations:**
+- *Pacing considerations:**
 
 | Aspect              | Options                           |
-| ------------------- | --------------------------------- |
-| **Overall tempo**   | Slow burn vs. fast-paced          |
-| **Tension pattern** | Escalating vs. waves              |
-| **Story density**   | Heavy sections vs. light sections |
-| **Player agency**   | Mandatory vs. optional content    |
 
-**Questions:**
+| ------------------- | --------------------------------- |
+
+| **Overall tempo**| Slow burn vs. fast-paced          |
+
+|**Tension pattern**| Escalating vs. waves              |
+
+|**Story density**| Heavy sections vs. light sections |
+
+|**Player agency**   | Mandatory vs. optional content    |
+
+- *Questions:**
 
 - When should tension be highest?
 - Where are the breathing room moments?
@@ -128,6 +141,7 @@ Describe the pacing for {{game_name}}:"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Story Beats
 
 ### Major Story Beats
@@ -136,16 +150,19 @@ Based on the conversation, prepare the content:
 
 ### Beat Placement by Act
 
-**Act 1: Setup**
+- *Act 1: Setup**
+
 {{act1_beats}}
 
-**Act 2: Confrontation**
+- *Act 2: Confrontation**
+
 {{act2_beats}}
 
-**Act 3: Resolution**
+- *Act 3: Resolution**
+
 {{act3_beats}}
 
----
+- --
 
 ## Pacing and Flow
 
@@ -163,10 +180,11 @@ Based on the conversation, prepare the content:
 
 ### Key Moments
 
-**Highest tension:** {{peak_moment}}
-**Emotional climax:** {{emotional_peak}}
-**Resolution beat:** {{resolution_moment}}
-```
+- *Highest tension:** {{peak_moment}}
+- *Emotional climax:** {{emotional_peak}}
+- *Resolution beat:** {{resolution_moment}}
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -174,17 +192,18 @@ Show the generated content to the user and present:
 
 "I've mapped out the story beats and pacing.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Are all major moments captured?
 - Does pacing match your vision?
 - Are beats properly distributed?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore beats and connections
 [P] Party Mode - Get perspectives on pacing
 [C] Continue - Save this and move to Characters (Step 4 of 11)"
@@ -215,7 +234,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [story content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -236,4 +255,4 @@ ONLY WHEN [C continue option] is selected and [story content saved with frontmat
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-12-epics'
 description: 'Define development epics and high-level story breakdown'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-12-epics.md'
 nextStepFile: './step-13-metrics.md'
 workflowFile: '{workflow_path}/workflow.md'
@@ -13,13 +16,15 @@ outputFile: '{output_folder}/gdd.md'
 epicsOutputFile: '{output_folder}/epics.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 12: Epic Structure
 
-**Progress: Step 12 of 14** - Next: Success Metrics
+- *Progress: Step 12 of 14**- Next: Success Metrics
 
 ## STEP GOAL:
 
@@ -72,52 +77,54 @@ Translate the game features defined throughout the GDD into development epics, e
 
 ### 1. Review Game Features for Epic Candidates
 
-**Analyze the GDD content:**
+- *Analyze the GDD content:**
 
 "Let's organize {{game_name}}'s features into development epics.
 
 Based on everything we've defined, here are the major feature areas I've identified:
 
-**From Core Gameplay:** {{core_loop_features}}
-**From Mechanics:** {{mechanics_features}}
-**From Game Type Specifics:** {{game_type_features}}
-**From Progression:** {{progression_features}}
-**From Level Design:** {{level_features}}
-**From Art/Audio:** {{art_audio_features}}
-**From Technical:** {{technical_features}}
+- *From Core Gameplay:** {{core_loop_features}}
+- *From Mechanics:** {{mechanics_features}}
+- *From Game Type Specifics:** {{game_type_features}}
+- *From Progression:** {{progression_features}}
+- *From Level Design:** {{level_features}}
+- *From Art/Audio:** {{art_audio_features}}
+- *From Technical:** {{technical_features}}
 
-**Epic Organization Principles:**
+- *Epic Organization Principles:**
 
-1. **Playable Milestones:** Each epic should result in something playable
-2. **Dependency Awareness:** Some epics must come before others
-3. **Vertical Slices:** Early epics often prove core gameplay
-4. **Scope Control:** 1-4 sprints per epic is ideal
+1. **Playable Milestones:**Each epic should result in something playable
+
+2.**Dependency Awareness:**Some epics must come before others
+3.**Vertical Slices:**Early epics often prove core gameplay
+4.**Scope Control:** 1-4 sprints per epic is ideal
 
 How would you like to group these features into epics?"
 
 ### 2. Define Epic Structure
 
-**For each epic, elicit:**
+- *For each epic, elicit:**
 
 "Let's define **Epic {{number}}: {{epic_name}}**
 
-**Epic Definition Questions:**
+- *Epic Definition Questions:**
 
-1. **Goal:** What does completing this epic achieve?
-2. **Includes:** What features/systems are in this epic?
-3. **Excludes:** What specifically is NOT in this epic?
-4. **Dependencies:** What epics must come before this?
-5. **Deliverable:** What's the playable result?
+1. **Goal:**What does completing this epic achieve?
+
+2.**Includes:**What features/systems are in this epic?
+3.**Excludes:**What specifically is NOT in this epic?
+4.**Dependencies:**What epics must come before this?
+5.**Deliverable:** What's the playable result?
 
 Describe this epic."
 
 ### 3. Generate High-Level Stories
 
-**For each epic, generate story candidates:**
+- *For each epic, generate story candidates:**
 
 "For **Epic {{number}}: {{epic_name}}**, let's identify high-level stories.
 
-**Story Principles:**
+- *Story Principles:**
 
 - Each story is independently valuable
 - Stories should be completable in 1-3 days
@@ -127,17 +134,19 @@ What are the main stories in this epic?"
 
 ### 4. Determine Epic Order and Dependencies
 
-**Guide user through sequencing:**
+- *Guide user through sequencing:**
 
 "Now let's determine the order for these epics.
 
-**Common Epic Sequences:**
+- *Common Epic Sequences:**
 
-1. **Foundation First:** Core systems before content
-2. **Vertical Slice Early:** Prove gameplay ASAP
-3. **Polish Last:** Visual/audio polish after mechanics solid
+1. **Foundation First:**Core systems before content
 
-**Your epics:**
+2.**Vertical Slice Early:**Prove gameplay ASAP
+3.**Polish Last:** Visual/audio polish after mechanics solid
+
+- *Your epics:**
+
 {{list_of_epics}}
 
 What order makes sense for {{game_name}}?"
@@ -146,14 +155,16 @@ What order makes sense for {{game_name}}?"
 
 Based on the conversation, prepare two outputs:
 
-**A. GDD Epic Summary (goes in gdd.md):**
+- *A. GDD Epic Summary (goes in gdd.md):**
 
 ```markdown
+
 ## Development Epics
 
 ### Epic Overview
 
 | #   | Epic Name | Scope | Dependencies | Est. Stories |
+
 | --- | --------- | ----- | ------------ | ------------ |
 
 {{epic_table}}
@@ -164,19 +175,21 @@ Based on the conversation, prepare two outputs:
 
 ### Vertical Slice
 
-**The first playable milestone:** {{vertical_slice_description}}
-```
+- *The first playable milestone:** {{vertical_slice_description}}
 
-**B. Detailed Epics File (goes in epics.md):**
+```bash
+
+- *B. Detailed Epics File (goes in epics.md):**
 
 ```markdown
+
 # {{game_name}} - Development Epics
 
 ## Epic Overview
 
 {{epic_overview_table}}
 
----
+- --
 
 ## Epic 1: {{epic_1_name}}
 
@@ -186,10 +199,12 @@ Based on the conversation, prepare two outputs:
 
 ### Scope
 
-**Includes:**
+- *Includes:**
+
 {{epic_1_includes}}
 
-**Excludes:**
+- *Excludes:**
+
 {{epic_1_excludes}}
 
 ### Dependencies
@@ -204,10 +219,11 @@ Based on the conversation, prepare two outputs:
 
 {{epic_1_stories_list}}
 
----
+- --
 
 {{repeat_for_each_epic}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -215,19 +231,22 @@ Show the generated content to the user and present:
 
 "I've drafted the Epic Structure based on our conversation.
 
-**For the GDD (gdd.md):**
+- *For the GDD (gdd.md):**
+
 [Show GDD epic summary]
 
-**For the Epics file (epics.md):**
+- *For the Epics file (epics.md):**
+
 [Show detailed epics structure]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does each epic deliver playable value?
 - Is the sequence achievable?
 - Are dependencies clear?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Refine epic organization
 [P] Party Mode - Get perspectives on epic structure
 [C] Continue - Save this and move to Success Metrics (Step 13 of 14)"
@@ -259,7 +278,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [both epic content files saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -282,4 +301,4 @@ ONLY WHEN [C continue option] is selected and [both epic content files saved wit
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

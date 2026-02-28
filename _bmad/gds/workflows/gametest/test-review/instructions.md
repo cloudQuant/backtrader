@@ -2,18 +2,18 @@
 
 # Test Review
 
-**Workflow ID**: `_bmad/gds/gametest/test-review`
-**Version**: 1.0 (BMad v6)
+- *Workflow ID**: `_bmad/gds/gametest/test-review`
+- *Version**: 1.0 (BMad v6)
 
----
+- --
 
 ## Overview
 
 Review existing test suite quality, identify coverage gaps, and recommend improvements. Regular test review prevents test rot and maintains test value over time.
 
-**Knowledge Base Reference**: `knowledge/regression-testing.md`, `knowledge/test-priorities.md`
+- *Knowledge Base Reference**: `knowledge/regression-testing.md`, `knowledge/test-priorities.md`
 
----
+- --
 
 ## Preflight Requirements
 
@@ -21,7 +21,7 @@ Review existing test suite quality, identify coverage gaps, and recommend improv
 - ✅ Access to test execution results
 - ✅ Understanding of game features
 
----
+- --
 
 ## Step 1: Gather Test Suite Metrics
 
@@ -30,25 +30,32 @@ Review existing test suite quality, identify coverage gaps, and recommend improv
 1. **Count Tests by Type**
 
    | Type                 | Count | Pass Rate | Avg Duration |
-   | -------------------- | ----- | --------- | ------------ |
-   | Unit                 |       |           |              |
-   | Integration          |       |           |              |
-   | Play Mode/Functional |       |           |              |
-   | Performance          |       |           |              |
-   | **Total**            |       |           |              |
 
-2. **Analyze Test Results**
+   | -------------------- | ----- | --------- | ------------ |
+
+   | Unit                 |       |           |              |
+
+   | Integration          |       |           |              |
+
+   | Play Mode/Functional |       |           |              |
+
+   | Performance          |       |           |              |
+
+   | **Total**|       |           |              |
+
+2.**Analyze Test Results**
+
    - Recent pass rate (last 10 runs)
    - Flaky tests (inconsistent results)
    - Slow tests (> 30s individual)
    - Disabled/skipped tests
 
-3. **Map Coverage**
+1. **Map Coverage**
    - Features with tests
    - Features without tests
    - Critical paths covered
 
----
+- --
 
 ## Step 2: Assess Test Quality
 
@@ -57,26 +64,33 @@ Review existing test suite quality, identify coverage gaps, and recommend improv
 For each test, evaluate:
 
 | Criterion         | Good                             | Bad                          |
+
 | ----------------- | -------------------------------- | ---------------------------- |
-| **Deterministic** | Same input = same result         | Flaky, timing-dependent      |
-| **Isolated**      | No shared state                  | Tests affect each other      |
-| **Fast**          | < 5s (unit), < 30s (integration) | Minutes per test             |
-| **Readable**      | Clear intent, good names         | Cryptic, no comments         |
-| **Maintained**    | Up-to-date, passing              | Disabled, stale              |
-| **Valuable**      | Tests real behavior              | Tests implementation details |
+
+| **Deterministic**| Same input = same result         | Flaky, timing-dependent      |
+
+|**Isolated**| No shared state                  | Tests affect each other      |
+
+|**Fast**| < 5s (unit), < 30s (integration) | Minutes per test             |
+
+|**Readable**| Clear intent, good names         | Cryptic, no comments         |
+
+|**Maintained**| Up-to-date, passing              | Disabled, stale              |
+
+|**Valuable**      | Tests real behavior              | Tests implementation details |
 
 ### Anti-Pattern Detection
 
 Look for these common issues:
 
-```
+```bash
 ❌ Hard-coded waits
    await Task.Delay(5000);  // Bad
    await WaitUntil(() => condition);  // Good
 
 ❌ Shared test state
    static bool wasSetup;  // Dangerous
-   [SetUp] void Setup() { /* fresh state */ }  // Good
+   [SetUp] void Setup() { /*fresh state*/ }  // Good
 
 ❌ Testing private implementation
    var result = obj.GetPrivateField();  // Bad
@@ -90,22 +104,31 @@ Look for these common issues:
 ❌ Assertion-free tests
    void Test() { DoSomething(); }  // What does it test?
    void Test() { DoSomething(); Assert.That(...); }  // Clear
-```
 
----
+```bash
+
+- --
 
 ## Step 3: Identify Coverage Gaps
 
 ### Critical Areas to Verify
 
 | Area          | P0 Coverage | P1 Coverage | Gap? |
+
 | ------------- | ----------- | ----------- | ---- |
+
 | Core Loop     |             |             |      |
+
 | Save/Load     |             |             |      |
+
 | Progression   |             |             |      |
+
 | Combat        |             |             |      |
+
 | UI/Menus      |             |             |      |
+
 | Multiplayer   |             |             |      |
+
 | Platform Cert |             |             |      |
 
 ### Gap Identification Process
@@ -115,7 +138,7 @@ Look for these common issues:
 3. Assess test depth (happy path only vs edge cases)
 4. Prioritize gaps by risk
 
----
+- --
 
 ## Step 4: Review Test Infrastructure
 
@@ -134,49 +157,52 @@ Look for these common issues:
 - Are updates proportional to code changes?
 - Do refactors break tests unnecessarily?
 
----
+- --
 
 ## Step 5: Generate Recommendations
 
 ### Priority Matrix
 
 | Finding   | Severity       | Effort         | Recommendation |
+
 | --------- | -------------- | -------------- | -------------- |
+
 | {finding} | {High/Med/Low} | {High/Med/Low} | {action}       |
 
 ### Common Recommendations
 
-**For Flaky Tests**:
+- *For Flaky Tests**:
 
 - Replace `Thread.Sleep` with explicit waits
 - Add proper synchronization
 - Isolate test state
 
-**For Slow Tests**:
+- *For Slow Tests**:
 
 - Move to nightly builds
 - Optimize test setup
 - Mock expensive dependencies
 
-**For Coverage Gaps**:
+- *For Coverage Gaps**:
 
 - Prioritize P0/P1 features
 - Add smoke tests first
 - Use test-design workflow
 
-**For Maintenance Issues**:
+- *For Maintenance Issues**:
 
 - Refactor common patterns
 - Create test utilities
 - Improve documentation
 
----
+- --
 
 ## Step 6: Generate Test Review Report
 
 ### Report Structure
 
 ```markdown
+
 # Test Review Report: {Project Name}
 
 ## Executive Summary
@@ -204,7 +230,9 @@ Look for these common issues:
 ### Issues Found
 
 | Issue | Severity | Tests Affected | Fix |
+
 | ----- | -------- | -------------- | --- |
+
 |       |          |                |     |
 
 ## Coverage Analysis
@@ -244,28 +272,34 @@ Look for these common issues:
 ### Disabled Tests
 
 [List with reasons]
-```
 
----
+```bash
+
+- --
 
 ## Review Frequency
 
 | Review Type | Frequency | Scope                    | Owner     |
+
 | ----------- | --------- | ------------------------ | --------- |
+
 | Quick Check | Weekly    | Pass rates, flaky tests  | QA        |
+
 | Full Review | Monthly   | Coverage, quality        | Tech Lead |
+
 | Deep Dive   | Quarterly | Infrastructure, strategy | Team      |
 
----
+- --
 
 ## Deliverables
 
-1. **Test Review Report** - Comprehensive analysis
-2. **Action Items** - Prioritized improvements
-3. **Coverage Matrix** - Visual gap identification
-4. **Technical Debt List** - Tests needing refactor
+1. **Test Review Report**- Comprehensive analysis
 
----
+2.**Action Items**- Prioritized improvements
+3.**Coverage Matrix**- Visual gap identification
+4.**Technical Debt List** - Tests needing refactor
+
+- --
 
 ## Validation
 

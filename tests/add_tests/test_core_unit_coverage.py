@@ -463,6 +463,14 @@ class TestExactBarsModes:
     """Test different exactbars modes to exercise qbuffer paths."""
 
     def _make_feed(self, n=30):
+        """Create a mock data feed for testing.
+
+        Args:
+            n: Number of data bars to generate.
+
+        Returns:
+            Feed: A custom DataBase feed with generated OHLCV data.
+        """
         import datetime
         import random
         random.seed(42)
@@ -485,15 +493,31 @@ class TestExactBarsModes:
             })
 
         class Feed(bt.feeds.DataBase):
+            """Custom data feed for testing exactbars modes.
+
+            This feed provides generated OHLCV data from a list of dictionaries,
+            allowing controlled testing scenarios without external data files.
+            """
+
             params = (("data_list", None),)
+
             def __init__(self):
+                """Initialize the feed with data list from parameters."""
                 super().__init__()
                 self._data_list = self.p.data_list or []
                 self._idx = 0
+
             def start(self):
+                """Start the feed and reset the data index."""
                 super().start()
                 self._idx = 0
+
             def _load(self):
+                """Load the next bar from the data list.
+
+                Returns:
+                    bool: True if data was loaded successfully, False if exhausted.
+                """
                 if self._idx >= len(self._data_list):
                     return False
                 bar = self._data_list[self._idx]
@@ -513,10 +537,18 @@ class TestExactBarsModes:
         """exactbars=0 (default, keep all data)."""
 
         class St(bt.Strategy):
+            """Simple test strategy with an SMA indicator.
+
+            Counts the number of next() calls to verify the strategy executes.
+            """
+
             def __init__(self):
+                """Initialize the strategy with SMA indicator and counter."""
                 self.sma = bt.indicators.SMA(period=5)
                 self.count = 0
+
             def next(self):
+                """Increment the counter on each bar."""
                 self.count += 1
 
         cerebro = bt.Cerebro()
@@ -529,10 +561,18 @@ class TestExactBarsModes:
         """exactbars=1 (minimum memory)."""
 
         class St(bt.Strategy):
+            """Simple test strategy with an SMA indicator.
+
+            Counts the number of next() calls to verify the strategy executes.
+            """
+
             def __init__(self):
+                """Initialize the strategy with SMA indicator and counter."""
                 self.sma = bt.indicators.SMA(period=5)
                 self.count = 0
+
             def next(self):
+                """Increment the counter on each bar."""
                 self.count += 1
 
         cerebro = bt.Cerebro()
@@ -545,10 +585,18 @@ class TestExactBarsModes:
         """exactbars=-1 (reduce but keep some history)."""
 
         class St(bt.Strategy):
+            """Simple test strategy with an SMA indicator.
+
+            Counts the number of next() calls to verify the strategy executes.
+            """
+
             def __init__(self):
+                """Initialize the strategy with SMA indicator and counter."""
                 self.sma = bt.indicators.SMA(period=5)
                 self.count = 0
+
             def next(self):
+                """Increment the counter on each bar."""
                 self.count += 1
 
         cerebro = bt.Cerebro()
@@ -561,10 +609,18 @@ class TestExactBarsModes:
         """exactbars=-2 (indicators use deque, data keeps all)."""
 
         class St(bt.Strategy):
+            """Simple test strategy with an SMA indicator.
+
+            Counts the number of next() calls to verify the strategy executes.
+            """
+
             def __init__(self):
+                """Initialize the strategy with SMA indicator and counter."""
                 self.sma = bt.indicators.SMA(period=5)
                 self.count = 0
+
             def next(self):
+                """Increment the counter on each bar."""
                 self.count += 1
 
         cerebro = bt.Cerebro()
@@ -577,13 +633,21 @@ class TestExactBarsModes:
         """runonce=True with indicator chain exercises once() paths."""
 
         class St(bt.Strategy):
+            """Test strategy with indicator chain for testing once() mode.
+
+            Creates a chain: SMA - EMA, then abs() of the difference.
+            """
+
             def __init__(self):
+                """Initialize indicators and counter."""
                 sma = bt.indicators.SMA(period=5)
                 ema = bt.indicators.EMA(period=10)
                 self.diff = sma - ema
                 self.abs_diff = abs(self.diff)
                 self.count = 0
+
             def next(self):
+                """Increment the counter on each bar."""
                 self.count += 1
 
         cerebro = bt.Cerebro()
@@ -596,12 +660,20 @@ class TestExactBarsModes:
         """runonce=False exercises next() paths step by step."""
 
         class St(bt.Strategy):
+            """Test strategy with indicator chain for testing next() mode.
+
+            Creates a chain: SMA - EMA to test step-by-step processing.
+            """
+
             def __init__(self):
+                """Initialize indicators and counter."""
                 sma = bt.indicators.SMA(period=5)
                 ema = bt.indicators.EMA(period=10)
                 self.diff = sma - ema
                 self.count = 0
+
             def next(self):
+                """Increment the counter on each bar."""
                 self.count += 1
 
         cerebro = bt.Cerebro()

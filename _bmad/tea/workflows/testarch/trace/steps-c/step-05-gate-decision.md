@@ -1,16 +1,18 @@
----
+- --
+
 name: 'step-05-gate-decision'
 description: 'Phase 2: Apply gate decision logic and generate outputs'
 outputFile: '{test_artifacts}/traceability-report.md'
----
+
+- --
 
 # Step 5: Phase 2 - Gate Decision
 
 ## STEP GOAL
 
-**Phase 2:** Read coverage matrix from Phase 1, apply deterministic gate decision logic, and generate traceability report.
+- *Phase 2:** Read coverage matrix from Phase 1, apply deterministic gate decision logic, and generate traceability report.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -20,7 +22,7 @@ outputFile: '{test_artifacts}/traceability-report.md'
 - ✅ Apply gate decision logic
 - ❌ Do NOT regenerate coverage matrix (use Phase 1 output)
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -34,7 +36,7 @@ outputFile: '{test_artifacts}/traceability-report.md'
 - Focus: gate decision logic only
 - Dependencies: Phase 1 complete (coverage matrix exists)
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -45,27 +47,30 @@ const matrixPath = '/tmp/tea-trace-coverage-matrix-{{timestamp}}.json';
 const coverageMatrix = JSON.parse(fs.readFileSync(matrixPath, 'utf8'));
 
 console.log('✅ Phase 1 coverage matrix loaded');
-```
 
-**Verify Phase 1 complete:**
+```bash
+
+- *Verify Phase 1 complete:**
 
 ```javascript
 if (coverageMatrix.phase !== 'PHASE_1_COMPLETE') {
   throw new Error('Phase 1 not complete - cannot proceed to gate decision');
 }
-```
 
----
+```bash
+
+- --
 
 ### 2. Apply Gate Decision Logic
 
-**Decision Tree:**
+- *Decision Tree:**
 
 ```javascript
 const stats = coverageMatrix.coverage_statistics;
 const p0Coverage = stats.priority_breakdown.P0.percentage;
 const p1Coverage = stats.priority_breakdown.P1.percentage;
 const hasP1Requirements = (stats.priority_breakdown.P1.total || 0) > 0;
+
 const effectiveP1Coverage = hasP1Requirements ? p1Coverage : 100;
 const overallCoverage = stats.overall_coverage_percentage;
 const criticalGaps = coverageMatrix.gap_analysis.critical_gaps.length;
@@ -111,9 +116,10 @@ if (manualWaiver) {
   gateDecision = 'WAIVED';
   rationale += ' Manual waiver applied by stakeholder.';
 }
-```
 
----
+```bash
+
+- --
 
 ### 3. Generate Gate Report
 
@@ -144,20 +150,22 @@ const gateReport = {
 
   recommendations: coverageMatrix.recommendations,
 };
-```
 
----
+```bash
+
+- --
 
 ### 4. Generate Traceability Report
 
-**Use trace-template.md to generate:**
+- *Use trace-template.md to generate:**
 
 ```markdown
+
 # Traceability Report
 
 ## Gate Decision: {gateDecision}
 
-**Rationale:** {rationale}
+- *Rationale:** {rationale}
 
 ## Coverage Summary
 
@@ -176,22 +184,25 @@ const gateReport = {
 ## Next Actions
 
 {recommendations}
-```
 
-**Save to:**
+```bash
+
+- *Save to:**
 
 ```javascript
 fs.writeFileSync('{outputFile}', reportContent, 'utf8');
-```
 
----
+```bash
+
+- --
 
 ### 5. Display Gate Decision
 
-```
+```bash
 🚨 GATE DECISION: {gateDecision}
 
 📊 Coverage Analysis:
+
 - P0 Coverage: {p0Coverage}% (Required: 100%) → {p0_status}
 - P1 Coverage: {effectiveP1Coverage}% (PASS target: 90%, minimum: 80%) → {p1_status}
 - Overall Coverage: {overallCoverage}% (Minimum: 80%) → {overall_status}
@@ -217,13 +228,14 @@ fs.writeFileSync('{outputFile}', reportContent, 'utf8');
 {if PASS}
 ✅ GATE: PASS - Release approved, coverage meets standards
 {endif}
-```
 
----
+```bash
+
+- --
 
 ### 6. Save Progress
 
-**Update the YAML frontmatter in `{outputFile}` to mark this final step complete.**
+- *Update the YAML frontmatter in `{outputFile}` to mark this final step complete.**
 
 Since step 4 (Generate Traceability Report) already wrote the report content to `{outputFile}`, do NOT overwrite it. Instead, update only the frontmatter at the top of the existing file:
 
@@ -233,20 +245,20 @@ Since step 4 (Generate Traceability Report) already wrote the report content to 
 
 Then append the gate decision summary (from section 5 above) to the end of the existing report content.
 
----
+- --
 
 ## EXIT CONDITION
 
-**WORKFLOW COMPLETE when:**
+- *WORKFLOW COMPLETE when:**
 
 - ✅ Phase 1 coverage matrix read successfully
 - ✅ Gate decision logic applied
 - ✅ Traceability report generated
 - ✅ Gate decision displayed
 
-**Workflow terminates here.**
+- *Workflow terminates here.**
 
----
+- --
 
 ## 🚨 PHASE 2 SUCCESS METRICS
 
@@ -263,4 +275,4 @@ Then append the gate decision summary (from section 5 above) to the end of the e
 - Gate decision logic incorrect
 - Report missing or incomplete
 
-**Master Rule:** Gate decision MUST be deterministic based on clear criteria (P0 100%, P1 90/80, overall >=80).
+- *Master Rule:** Gate decision MUST be deterministic based on clear criteria (P0 100%, P1 90/80, overall >=80).

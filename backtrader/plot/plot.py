@@ -309,9 +309,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                 min_="dataMin",
                 max_="dataMax",
             ),
-            yaxis_opts=opts.AxisOpts(
-                is_scale=True, splitline_opts=opts.SplitLineOpts(is_show=True)
-            ),
+            yaxis_opts=opts.AxisOpts(is_scale=True, splitline_opts=opts.SplitLineOpts(is_show=True)),
             tooltip_opts=opts.TooltipOpts(trigger="axis", axis_pointer_type="line"),
             datazoom_opts=[
                 opts.DataZoomOpts(is_show=False, type_="inside", xaxis_index=[0, 0], range_end=100),
@@ -455,9 +453,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
     bk_c = (
         EffectScatter()
         .add_xaxis(bk_df.index)
-        .add_yaxis(
-            "", bk_df.low, color="red", symbol="image://c:/result/img/open_long.png", symbol_size=10
-        )
+        .add_yaxis("", bk_df.low, color="red", symbol="image://c:/result/img/open_long.png", symbol_size=10)
         .set_global_opts(title_opts=opts.TitleOpts(title="buy"))
     )
     overlap_kline_line = kline.overlap(bk_c)
@@ -618,7 +614,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             #     """)
             # )
             # After improvement, after add_js_funcs in grid, it becomes as follows
-            itemstyle_opts=opts.ItemStyleOpts(color=JsCode("""
+            itemstyle_opts=opts.ItemStyleOpts(
+                color=JsCode("""
                 function(params) {
                     var colorList;
                     if (barData[params.dataIndex][1] > barData[params.dataIndex][0]) {
@@ -628,7 +625,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                     }
                     return colorList;
                 }
-                """)),
+                """)
+            ),
         )
         .set_global_opts(
             xaxis_opts=opts.AxisOpts(
@@ -650,7 +648,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             xaxis_index=2,
             yaxis_index=2,
             label_opts=opts.LabelOpts(is_show=False),
-            itemstyle_opts=opts.ItemStyleOpts(color=JsCode("""
+            itemstyle_opts=opts.ItemStyleOpts(
+                color=JsCode("""
                         function(params) {
                             var colorList;
                             if (params.data >= 0) {
@@ -660,7 +659,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                             }
                             return colorList;
                         }
-                        """)),
+                        """)
+            ),
         )
         .set_global_opts(
             xaxis_opts=opts.AxisOpts(
@@ -891,9 +891,7 @@ class Plot_OldSync(ParameterizedBase):
             va="center",
             ha="left",
             fontsize=self.pinf.sch.subtxtsize,
-            bbox=dict(
-                boxstyle=tag_box_style, facecolor=facecolor, edgecolor=edgecolor, alpha=alpha
-            ),
+            bbox=dict(boxstyle=tag_box_style, facecolor=facecolor, edgecolor=edgecolor, alpha=alpha),
             # 3.0 is the minimum default for text
             zorder=self.pinf.zorder[ax] + 3.0,
             **kwargs,
@@ -1049,9 +1047,7 @@ class Plot_OldSync(ParameterizedBase):
             self.pinf.cursors.append(cursor)
 
             # Put the subplots as indicated by hspace
-            fig.subplots_adjust(
-                hspace=self.pinf.sch.plotdist, top=0.98, left=0.05, bottom=0.05, right=0.95
-            )
+            fig.subplots_adjust(hspace=self.pinf.sch.plotdist, top=0.98, left=0.05, bottom=0.05, right=0.95)
 
             laxis = list(self.pinf.daxis.values())
 
@@ -1073,9 +1069,7 @@ class Plot_OldSync(ParameterizedBase):
             for ax in laxis:
                 self.mpyplot.setp(ax.get_xticklabels(), visible=False)
 
-            self.mpyplot.setp(
-                lastax.get_xticklabels(), visible=True, rotation=self.pinf.sch.tickrotation
-            )
+            self.mpyplot.setp(lastax.get_xticklabels(), visible=True, rotation=self.pinf.sch.tickrotation)
 
             # Things must be tight along the x-axis (to fill both ends)
             axtight = "x" if not self.pinf.sch.ytight else "both"
@@ -1657,9 +1651,7 @@ class Plot_OldSync(ParameterizedBase):
         # Code to place a label at the right-hand side with the last value
         vtags = data.plotinfo._get("plotvaluetags", True)
         if self.pinf.sch.valuetags and vtags:
-            self.drawtag(
-                ax, len(self.pinf.xreal), closes[-1], facecolor="white", edgecolor=self.pinf.sch.loc
-            )
+            self.drawtag(ax, len(self.pinf.xreal), closes[-1], facecolor="white", edgecolor=self.pinf.sch.loc)
 
         ax.yaxis.set_major_locator(mticker.MaxNLocator(prune="both"))
         # make sure "over" indicators do not change our scale
@@ -1853,12 +1845,8 @@ def plot_results(results, file_name):
     df4["total_position_value"] = df4.sum(axis=1)
 
     GrossLeverage = go.Scatter(x=df1.index, y=df1.GrossLeverage, name="gross_leverage")
-    log_return = go.Scatter(
-        x=df2.index, y=df2.log_return, xaxis="x2", yaxis="y2", name="log_return"
-    )
-    cumsum_return = go.Scatter(
-        x=df2.index, y=df2.log_return.cumsum(), xaxis="x2", yaxis="y2", name="cumsum_return"
-    )
+    log_return = go.Scatter(x=df2.index, y=df2.log_return, xaxis="x2", yaxis="y2", name="log_return")
+    cumsum_return = go.Scatter(x=df2.index, y=df2.log_return.cumsum(), xaxis="x2", yaxis="y2", name="cumsum_return")
 
     year_rate = go.Bar(x=df3.index, y=df3.year_rate, xaxis="x3", yaxis="y3", name="year_rate")
     total_position_value = go.Scatter(
@@ -1898,10 +1886,7 @@ def create_table(df, max_rows=18):
         [html.Tr([html.Th(col) for col in df.columns])]
         +
         # Body
-        [
-            html.Tr([html.Td(df.iloc[i][col]) for col in df.columns])
-            for i in range(min(len(df), max_rows))
-        ]
+        [html.Tr([html.Td(df.iloc[i][col]) for col in df.columns]) for i in range(min(len(df), max_rows))]
     )
     return table
 
@@ -1994,9 +1979,7 @@ def get_year_return(data):
     return data
 
 
-def run_cerebro_and_plot(
-    cerebro, strategy, params, score=90, port=8050, optimize=True, auto_open=True, result_path=""
-):
+def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimize=True, auto_open=True, result_path=""):
     """Run cerebro backtest and save/plot results.
 
     Executes a backtest with the given strategy and parameters,
@@ -2059,9 +2042,7 @@ def run_cerebro_and_plot(
             # Calculate annual return based on daily net value
             df_return = get_year_return(copy.deepcopy(df0))
             # Calculate Sharpe ratio, average return, maximum drawdown
-            sharpe_ratio, average_rate, max_drawdown_rate = get_rate_sharpe_drawdown(
-                copy.deepcopy(df0)
-            )
+            sharpe_ratio, average_rate, max_drawdown_rate = get_rate_sharpe_drawdown(copy.deepcopy(df0))
             # Analyze trading performance
             performance_dict = OrderedDict()
             # Performance measurement indicators
@@ -2151,9 +2132,7 @@ def run_cerebro_and_plot(
                 df00["General trading indicator"] = df02.index
                 df00["General trading indicator value"] = df02["General trading indicator value"]
                 df00["Long/short trading indicator"] = df03.index
-                df00["Long/short trading indicator value"] = df03[
-                    "Long/short trading indicator value"
-                ]
+                df00["Long/short trading indicator value"] = df03["Long/short trading indicator value"]
                 # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
                 # print(performance_dict)  # Removed for performance
                 # print(strategy.__name__ + params_str)  # Removed for performance
@@ -2236,9 +2215,7 @@ def run_cerebro_and_plot(
             # Calculate annual return based on daily net value
             df_return = get_year_return(copy.deepcopy(df0))
             # Calculate Sharpe ratio, average return, maximum drawdown
-            sharpe_ratio, average_rate, max_drawdown_rate = get_rate_sharpe_drawdown(
-                copy.deepcopy(df0)
-            )
+            sharpe_ratio, average_rate, max_drawdown_rate = get_rate_sharpe_drawdown(copy.deepcopy(df0))
 
             # Performance measurement indicators
             performance_dict["sharpe_ratio"] = sharpe_ratio
@@ -2416,9 +2393,7 @@ def run_cerebro_and_plot(
                 df00["General trading indicator"] = df02.index
                 df00["General trading indicator value"] = df02["General trading indicator value"]
                 df00["Long/short trading indicator"] = df03.index
-                df00["Long/short trading indicator value"] = df03[
-                    "Long/short trading indicator value"
-                ]
+                df00["Long/short trading indicator value"] = df03["Long/short trading indicator value"]
                 # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
                 # print(performance_dict)  # Removed for performance
                 # print(strategy.__name__ + params_str)  # Removed for performance

@@ -1,10 +1,10 @@
 # Performance Test Plan: {PROJECT_NAME}
 
-**Version**: {VERSION}
-**Created**: {DATE}
-**Author**: {AUTHOR}
+- *Version**: {VERSION}
+- *Created**: {DATE}
+- *Author**: {AUTHOR}
 
----
+- --
 
 ## Overview
 
@@ -17,43 +17,63 @@
 - Primary target: {platform, e.g., "PS5 at 60 FPS"}
 - Minimum viable: {platform, e.g., "PS4 at 30 FPS"}
 
----
+- --
 
 ## Performance Targets
 
 ### Frame Rate
 
 | Platform      | Target FPS | Minimum FPS | Mode        |
+
 | ------------- | ---------- | ----------- | ----------- |
+
 | PC (High)     |            |             |             |
+
 | PC (Low)      |            |             |             |
+
 | PS5           |            |             | Performance |
+
 | PS5           |            |             | Quality     |
+
 | Xbox Series X |            |             |             |
+
 | Switch        |            |             |             |
+
 | Mobile        |            |             |             |
 
 ### Memory Budget
 
 | Platform      | Total RAM | Game Budget | Reserve |
+
 | ------------- | --------- | ----------- | ------- |
+
 | PC (Min)      |           |             |         |
+
 | PS5           |           |             |         |
+
 | Xbox Series X |           |             |         |
+
 | Switch        |           |             |         |
+
 | Mobile        |           |             |         |
 
 ### Loading Times
 
 | Scenario     | Target | Maximum | Notes |
+
 | ------------ | ------ | ------- | ----- |
+
 | Initial boot |        |         |       |
+
 | Level load   |        |         |       |
+
 | Fast travel  |        |         |       |
+
 | Respawn      |        |         |       |
+
 | Save/Load    |        |         |       |
 
----
+- --
 
 ## Test Scenarios
 
@@ -61,88 +81,109 @@
 
 #### Scenario: {Name}
 
-```
+```bash
 GIVEN {setup conditions}
 WHEN {stress conditions applied}
 THEN frame rate >= {minimum}
 AND frame time variance < {threshold}
 PLATFORM: {target platforms}
-```
 
+```bash
 {Repeat for each scenario}
 
 ### Memory Tests
 
 #### Scenario: Extended Play Session
 
-```
+```bash
 GIVEN game running for 4+ hours
 WHEN normal gameplay patterns occur
 THEN memory usage stays within budget
 AND no detected memory leaks
 AND GC pauses < 16ms
-```
+
+```bash
 
 #### Scenario: Level Transition
 
-```
+```bash
 GIVEN player completes level
 WHEN loading next level
 THEN previous level memory freed
 AND memory returns to baseline (+/- 5%)
-```
+
+```bash
 
 ### Loading Time Tests
 
 #### Scenario: Cold Boot
 
-```
+```bash
 GIVEN game not in memory
 WHEN launching from platform UI
 THEN interactive menu in < {target}s
 AND loading progress visible
-```
 
----
+```bash
+
+- --
 
 ## Benchmark Suite
 
 ### Benchmark Levels
 
 | Name          | Purpose   | Duration  | Key Metrics        |
+
 | ------------- | --------- | --------- | ------------------ |
+
 | {Benchmark 1} | {purpose} | {seconds} | FPS, frame time    |
+
 | {Benchmark 2} | {purpose} | {seconds} | Draw calls, memory |
+
 | {Benchmark 3} | {purpose} | {seconds} | Load time          |
 
 ### Baseline Metrics
 
 | Benchmark | Platform | FPS (Avg) | FPS (1%) | Memory | Date |
+
 | --------- | -------- | --------- | -------- | ------ | ---- |
+
 |           |          |           |          |        |      |
 
 ### Regression Criteria
 
 | Metric      | Warning | Failure |
+
 | ----------- | ------- | ------- |
+
 | FPS Average | -5%     | -10%    |
+
 | FPS 1% Low  | -10%    | -20%    |
+
 | Memory      | +5%     | +10%    |
+
 | Load Time   | +10%    | +25%    |
 
----
+- --
 
 ## Profiling Methodology
 
 ### Tools
 
 | Platform | CPU Profiler    | GPU Profiler      | Memory          |
+
 | -------- | --------------- | ----------------- | --------------- |
+
 | Unity    | Unity Profiler  | Frame Debugger    | Memory Profiler |
+
 | Unreal   | Unreal Insights | RenderDoc         | Memreport       |
+
 | Godot    | Profiler        | Shader debugger   | Monitors        |
+
 | PC       | PIX, vtune      | RenderDoc, Nsight | RAMMap          |
+
 | PS5      | Razor           | Razor GPU         | -               |
+
 | Xbox     | PIX             | PIX               | -               |
 
 ### Profiling Checklist
@@ -168,31 +209,37 @@ AND loading progress visible
 - [ ] Fragmentation
 - [ ] Asset memory breakdown
 
----
+- --
 
 ## Automated Tests
 
 ### CI Integration
 
 ```yaml
+
 # Example CI configuration
+
 performance-tests:
   stage: test
   script:
+
     - ./run-benchmarks.sh
     - ./check-regression.sh
+
   artifacts:
     reports:
       performance: benchmark-results.json
   rules:
+
     - if: $CI_PIPELINE_SOURCE == "schedule"
-```
+
+```bash
 
 ### Automated Test Examples
 
 {Engine-appropriate code examples}
 
----
+- --
 
 ## Platform-Specific Testing
 
@@ -220,18 +267,23 @@ performance-tests:
 - [ ] Monitor thermal throttling
 - [ ] Check battery drain
 
----
+- --
 
 ## Schedule
 
 | Activity           | Frequency | Owner     |
+
 | ------------------ | --------- | --------- |
+
 | Benchmark run      | Daily     | CI        |
+
 | Regression review  | Weekly    | QA Lead   |
+
 | Deep profiling     | Milestone | Tech Lead |
+
 | Platform soak test | Monthly   | QA        |
 
----
+- --
 
 ## Reporting
 
@@ -249,7 +301,7 @@ performance-tests:
 - [ ] Load times within targets
 - [ ] No regression > failure threshold
 
----
+- --
 
 ## Notes
 

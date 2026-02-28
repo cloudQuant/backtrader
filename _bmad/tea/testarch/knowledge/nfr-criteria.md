@@ -6,11 +6,11 @@ Non-functional requirements (security, performance, reliability, maintainability
 
 ## Rationale
 
-**The Problem**: Teams ship features that "work" functionally but fail under load, expose security vulnerabilities, or lack error recovery. NFRs are treated as optional "nice-to-haves" instead of release blockers.
+- *The Problem**: Teams ship features that "work" functionally but fail under load, expose security vulnerabilities, or lack error recovery. NFRs are treated as optional "nice-to-haves" instead of release blockers.
 
-**The Solution**: Define explicit NFR criteria with automated validation. Security tests verify auth/authz and secret handling. Performance tests enforce SLO/SLA thresholds with profiling evidence. Reliability tests validate error handling, retries, and health checks. Maintainability is measured by test coverage, code duplication, and observability.
+- *The Solution**: Define explicit NFR criteria with automated validation. Security tests verify auth/authz and secret handling. Performance tests enforce SLO/SLA thresholds with profiling evidence. Reliability tests validate error handling, retries, and health checks. Maintainability is measured by test coverage, code duplication, and observability.
 
-**Why This Matters**:
+- *Why This Matters**:
 
 - Prevents production incidents (security breaches, performance degradation, cascading failures)
 - Provides objective release criteria (no subjective "feels fast enough")
@@ -21,9 +21,9 @@ Non-functional requirements (security, performance, reliability, maintainability
 
 ### Example 1: Security NFR Validation (Auth, Secrets, OWASP)
 
-**Context**: Automated security tests enforcing authentication, authorization, and secret handling
+- *Context**: Automated security tests enforcing authentication, authorization, and secret handling
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/nfr/security.spec.ts
@@ -143,9 +143,10 @@ async function login(request: any, email: string, password: string): Promise<str
   const body = await response.json();
   return body.token;
 }
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Authentication: Unauthenticated access redirected (not exposed)
 - Authorization: RBAC enforced (403 for insufficient permissions)
@@ -153,19 +154,19 @@ async function login(request: any, email: string, password: string): Promise<str
 - Secret handling: Passwords never logged or exposed in errors
 - OWASP Top 10: SQL injection and XSS blocked (input sanitization)
 
-**Security NFR Criteria**:
+- *Security NFR Criteria**:
 
 - ✅ PASS: All 6 tests green (auth, authz, token expiry, secret handling, SQL injection, XSS)
 - ⚠️ CONCERNS: 1-2 tests failing with mitigation plan and owner assigned
 - ❌ FAIL: Critical exposure (unauthenticated access, password leak, SQL injection succeeds)
 
----
+- --
 
 ### Example 2: Performance NFR Validation (k6 Load Testing for SLO/SLA)
 
-**Context**: Use k6 for load testing, stress testing, and SLO/SLA enforcement (NOT Playwright)
+- *Context**: Use k6 for load testing, stress testing, and SLO/SLA enforcement (NOT Playwright)
 
-**Implementation**:
+- *Implementation**:
 
 ```javascript
 // tests/nfr/performance.k6.js
@@ -236,34 +237,42 @@ export function handleSummary(data) {
 
   console.log(`P95 request duration: ${p95Duration.toFixed(2)}ms`);
   console.log(`P99 API duration: ${p99ApiDuration.toFixed(2)}ms`);
-  console.log(`Error rate: ${(errorRateValue * 100).toFixed(2)}%`);
+  console.log(`Error rate: ${(errorRateValue *100).toFixed(2)}%`);
 
   return {
     'summary.json': JSON.stringify(data),
     stdout: `
 Performance NFR Results:
+
 - P95 request duration: ${p95Duration < 500 ? '✅ PASS' : '❌ FAIL'} (${p95Duration.toFixed(2)}ms / 500ms threshold)
 - P99 API duration: ${p99ApiDuration < 1000 ? '✅ PASS' : '❌ FAIL'} (${p99ApiDuration.toFixed(2)}ms / 1000ms threshold)
-- Error rate: ${errorRateValue < 0.01 ? '✅ PASS' : '❌ FAIL'} (${(errorRateValue * 100).toFixed(2)}% / 1% threshold)
+- Error rate: ${errorRateValue < 0.01 ? '✅ PASS' : '❌ FAIL'} (${(errorRateValue*100).toFixed(2)}% / 1% threshold)
+
     `,
   };
 }
-```
-
-**Run k6 tests:**
 
 ```bash
+
+- *Run k6 tests:**
+
+```bash
+
 # Local smoke test (10 VUs, 30s)
+
 k6 run --vus 10 --duration 30s tests/nfr/performance.k6.js
 
 # Full load test (stages defined in script)
+
 k6 run tests/nfr/performance.k6.js
 
 # CI integration with thresholds
-k6 run --out json=performance-results.json tests/nfr/performance.k6.js
-```
 
-**Key Points**:
+k6 run --out json=performance-results.json tests/nfr/performance.k6.js
+
+```bash
+
+- *Key Points**:
 
 - **k6 is the right tool** for load testing (NOT Playwright)
 - SLO/SLA thresholds enforced automatically (`p(95)<500`, `rate<0.01`)
@@ -271,13 +280,13 @@ k6 run --out json=performance-results.json tests/nfr/performance.k6.js
 - Comprehensive metrics (p50, p95, p99, error rate, throughput)
 - CI-friendly (JSON output, exit codes based on thresholds)
 
-**Performance NFR Criteria**:
+- *Performance NFR Criteria**:
 
 - ✅ PASS: All SLO/SLA targets met with k6 profiling evidence (p95 < 500ms, error rate < 1%)
 - ⚠️ CONCERNS: Trending toward limits (e.g., p95 = 480ms approaching 500ms) or missing baselines
 - ❌ FAIL: SLO/SLA breached (e.g., p95 > 500ms) or error rate > 1%
 
-**Performance Testing Levels (from Test Architect course):**
+- *Performance Testing Levels (from Test Architect course):**
 
 - **Load testing**: System behavior under expected load
 - **Stress testing**: System behavior under extreme load (breaking point)
@@ -285,15 +294,15 @@ k6 run --out json=performance-results.json tests/nfr/performance.k6.js
 - **Endurance/Soak testing**: System behavior under sustained load (memory leaks, resource exhaustion)
 - **Benchmarking**: Baseline measurements for comparison
 
-**Note**: Playwright can validate **perceived performance** (Core Web Vitals via Lighthouse), but k6 validates **system performance** (throughput, latency, resource limits under load)
+- *Note**: Playwright can validate **perceived performance**(Core Web Vitals via Lighthouse), but k6 validates**system performance** (throughput, latency, resource limits under load)
 
----
+- --
 
 ### Example 3: Reliability NFR Validation (Playwright for UI Resilience)
 
-**Context**: Automated reliability tests validating graceful degradation and recovery paths
+- *Context**: Automated reliability tests validating graceful degradation and recovery paths
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/nfr/reliability.spec.ts
@@ -427,9 +436,10 @@ test.describe('Reliability NFR: Error Handling & Recovery', () => {
     await expect(page.getByText('Too many requests. Please wait a moment.')).toBeVisible();
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Error handling: Graceful degradation (500 error → user-friendly message + retry button)
 - Retries: 3 attempts on transient failures (503 → eventual success)
@@ -438,22 +448,24 @@ test.describe('Reliability NFR: Error Handling & Recovery', () => {
 - Circuit breaker: Opens after 5 failures (fallback UI, stop retries)
 - Rate limiting: 429 response handled (Retry-After header respected)
 
-**Reliability NFR Criteria**:
+- *Reliability NFR Criteria**:
 
 - ✅ PASS: Error handling, retries, health checks verified (all 6 tests green)
 - ⚠️ CONCERNS: Partial coverage (e.g., missing circuit breaker) or no telemetry
 - ❌ FAIL: No recovery path (500 error crashes app) or unresolved crash scenarios
 
----
+- --
 
 ### Example 4: Maintainability NFR Validation (CI Tools, Not Playwright)
 
-**Context**: Use proper CI tools for code quality validation (coverage, duplication, vulnerabilities)
+- *Context**: Use proper CI tools for code quality validation (coverage, duplication, vulnerabilities)
 
-**Implementation**:
+- *Implementation**:
 
 ```yaml
+
 # .github/workflows/nfr-maintainability.yml
+
 name: NFR - Maintainability
 
 on: [push, pull_request]
@@ -462,20 +474,26 @@ jobs:
   test-coverage:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
 
       - name: Install dependencies
+
         run: npm ci
 
       - name: Run tests with coverage
+
         run: npm run test:coverage
 
       - name: Check coverage threshold (80% minimum)
+
         run: |
+
           COVERAGE=$(jq '.total.lines.pct' coverage/coverage-summary.json)
           echo "Coverage: $COVERAGE%"
           if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+
             echo "❌ FAIL: Coverage $COVERAGE% below 80% threshold"
             exit 1
           else
@@ -485,15 +503,19 @@ jobs:
   code-duplication:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
 
       - name: Check code duplication (<5% allowed)
+
         run: |
+
           npx jscpd src/ --threshold 5 --format json --output duplication.json
           DUPLICATION=$(jq '.statistics.total.percentage' duplication.json)
           echo "Duplication: $DUPLICATION%"
           if (( $(echo "$DUPLICATION >= 5" | bc -l) )); then
+
             echo "❌ FAIL: Duplication $DUPLICATION% exceeds 5% threshold"
             exit 1
           else
@@ -503,28 +525,35 @@ jobs:
   vulnerability-scan:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
 
       - name: Install dependencies
+
         run: npm ci
 
       - name: Run npm audit (no critical/high vulnerabilities)
+
         run: |
+
           npm audit --json > audit.json || true
+
           CRITICAL=$(jq '.metadata.vulnerabilities.critical' audit.json)
           HIGH=$(jq '.metadata.vulnerabilities.high' audit.json)
           echo "Critical: $CRITICAL, High: $HIGH"
-          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+          if ["$CRITICAL" -gt 0] || ["$HIGH" -gt 0]; then
+
             echo "❌ FAIL: Found $CRITICAL critical and $HIGH high vulnerabilities"
             npm audit
             exit 1
           else
             echo "✅ PASS: No critical/high vulnerabilities"
           fi
-```
 
-**Playwright Tests for Observability (E2E Validation):**
+```bash
+
+- *Playwright Tests for Observability (E2E Validation):**
 
 ```typescript
 // tests/nfr/observability.spec.ts
@@ -592,9 +621,10 @@ test.describe('Maintainability NFR: Observability Validation', () => {
     expect(traceId).toBeTruthy(); // Confirms structured logging with correlation IDs
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Coverage/duplication**: CI jobs (GitHub Actions), not Playwright tests
 - **Vulnerability scanning**: npm audit in CI, not Playwright tests
@@ -602,46 +632,46 @@ test.describe('Maintainability NFR: Observability Validation', () => {
 - **Structured logging**: Validate logging contract (trace IDs, Server-Timing headers)
 - **Separation of concerns**: Build-time checks (coverage, audit) vs runtime checks (error tracking, telemetry)
 
-**Maintainability NFR Criteria**:
+- *Maintainability NFR Criteria**:
 
 - ✅ PASS: Clean code (80%+ coverage from CI, <5% duplication from CI), observability validated in E2E, no critical vulnerabilities from npm audit
 - ⚠️ CONCERNS: Duplication >5%, coverage 60-79%, or unclear ownership
 - ❌ FAIL: Absent tests (<60%), tangled implementations (>10% duplication), or no observability
 
----
+- --
 
 ## NFR Assessment Checklist
 
 Before release gate:
 
-- [ ] **Security** (Playwright E2E + Security Tools):
+- [ ] **Security**(Playwright E2E + Security Tools):
   - [ ] Auth/authz tests green (unauthenticated redirect, RBAC enforced)
   - [ ] Secrets never logged or exposed in errors
   - [ ] OWASP Top 10 validated (SQL injection blocked, XSS sanitized)
   - [ ] Security audit completed (vulnerability scan, penetration test if applicable)
 
-- [ ] **Performance** (k6 Load Testing):
+- [ ]**Performance**(k6 Load Testing):
   - [ ] SLO/SLA targets met with k6 evidence (p95 <500ms, error rate <1%)
   - [ ] Load testing completed (expected load)
   - [ ] Stress testing completed (breaking point identified)
   - [ ] Spike testing completed (handles traffic spikes)
   - [ ] Endurance testing completed (no memory leaks under sustained load)
 
-- [ ] **Reliability** (Playwright E2E + API Tests):
+- [ ]**Reliability**(Playwright E2E + API Tests):
   - [ ] Error handling graceful (500 → user-friendly message + retry)
   - [ ] Retries implemented (3 attempts on transient failures)
   - [ ] Health checks monitored (/api/health endpoint)
   - [ ] Circuit breaker tested (opens after failure threshold)
   - [ ] Offline handling validated (network disconnection graceful)
 
-- [ ] **Maintainability** (CI Tools):
+- [ ]**Maintainability**(CI Tools):
   - [ ] Test coverage ≥80% (from CI coverage report)
   - [ ] Code duplication <5% (from jscpd CI job)
   - [ ] No critical/high vulnerabilities (from npm audit CI job)
   - [ ] Structured logging validated (Playwright validates telemetry headers)
   - [ ] Error tracking configured (Sentry/monitoring integration validated)
 
-- [ ] **Ambiguous requirements**: Default to CONCERNS (force team to clarify thresholds and evidence)
+- [ ]**Ambiguous requirements**: Default to CONCERNS (force team to clarify thresholds and evidence)
 - [ ] **NFR criteria documented**: Measurable thresholds defined (not subjective "fast enough")
 - [ ] **Automated validation**: NFR tests run in CI pipeline (not manual checklists)
 - [ ] **Tool selection**: Right tool for each NFR (k6 for performance, Playwright for security/reliability E2E, CI tools for maintainability)
@@ -649,13 +679,18 @@ Before release gate:
 ## NFR Gate Decision Matrix
 
 | Category            | PASS Criteria                                | CONCERNS Criteria                            | FAIL Criteria                                  |
-| ------------------- | -------------------------------------------- | -------------------------------------------- | ---------------------------------------------- |
-| **Security**        | Auth/authz, secret handling, OWASP verified  | Minor gaps with clear owners                 | Critical exposure or missing controls          |
-| **Performance**     | Metrics meet SLO/SLA with profiling evidence | Trending toward limits or missing baselines  | SLO/SLA breached or resource leaks detected    |
-| **Reliability**     | Error handling, retries, health checks OK    | Partial coverage or missing telemetry        | No recovery path or unresolved crash scenarios |
-| **Maintainability** | Clean code, tests, docs shipped together     | Duplication, low coverage, unclear ownership | Absent tests, tangled code, no observability   |
 
-**Default**: If targets or evidence are undefined → **CONCERNS** (force team to clarify before sign-off)
+| ------------------- | -------------------------------------------- | -------------------------------------------- | ---------------------------------------------- |
+
+| **Security**| Auth/authz, secret handling, OWASP verified  | Minor gaps with clear owners                 | Critical exposure or missing controls          |
+
+|**Performance**| Metrics meet SLO/SLA with profiling evidence | Trending toward limits or missing baselines  | SLO/SLA breached or resource leaks detected    |
+
+|**Reliability**| Error handling, retries, health checks OK    | Partial coverage or missing telemetry        | No recovery path or unresolved crash scenarios |
+
+|**Maintainability** | Clean code, tests, docs shipped together     | Duplication, low coverage, unclear ownership | Absent tests, tangled code, no observability   |
+
+- *Default**: If targets or evidence are undefined → **CONCERNS**(force team to clarify before sign-off)
 
 ## Integration Points
 

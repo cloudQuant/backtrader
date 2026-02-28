@@ -54,16 +54,20 @@ If no document exists or no `stepsCompleted` in frontmatter:
 Create the brainstorming session document:
 
 ```bash
+
 # Create directory if needed
+
 mkdir -p "$(dirname "{output_folder}/brainstorming/brainstorming-session-{{date}}.md")"
 
 # Initialize from template
+
 cp "{template_path}" "{output_folder}/brainstorming/brainstorming-session-{{date}}.md"
-```
+
+```bash
 
 #### B. Context File Check and Loading
 
-**Check for Context File:**
+- *Check for Context File:**
 
 - Check if `context_file` is provided in workflow invocation
 - If context file exists and is readable, load it
@@ -74,36 +78,40 @@ cp "{template_path}" "{output_folder}/brainstorming/brainstorming-session-{{date
 
 "Welcome {{user_name}}! I'm excited to facilitate your brainstorming session. I'll guide you through proven creativity techniques to generate innovative ideas and breakthrough solutions.
 
-**Context Loading:** [If context_file provided, indicate context is loaded]
-**Context-Based Guidance:** [If context available, briefly mention focus areas]
+- *Context Loading:** [If context_file provided, indicate context is loaded]
+- *Context-Based Guidance:** [If context available, briefly mention focus areas]
 
-**Let's set up your session for maximum creativity and productivity:**
+- *Let's set up your session for maximum creativity and productivity:**
 
-**Session Discovery Questions:**
+- *Session Discovery Questions:**
 
-1. **What are we brainstorming about?** (The central topic or challenge)
-2. **What specific outcomes are you hoping for?** (Types of ideas, solutions, or insights)"
+1. **What are we brainstorming about?**(The central topic or challenge)
+
+2.**What specific outcomes are you hoping for?** (Types of ideas, solutions, or insights)"
 
 #### D. Process User Responses
 
 Wait for user responses, then:
 
-**Session Analysis:**
-"Based on your responses, I understand we're focusing on **[summarized topic]** with goals around **[summarized objectives]**.
+- *Session Analysis:**
 
-**Session Parameters:**
+"Based on your responses, I understand we're focusing on **[summarized topic]**with goals around**[summarized objectives]**.
 
-- **Topic Focus:** [Clear topic articulation]
+- *Session Parameters:**
+
+- **Topic Focus:**[Clear topic articulation]
 - **Primary Goals:** [Specific outcome objectives]
 
-**Does this accurately capture what you want to achieve?**"
+- *Does this accurately capture what you want to achieve?**"
 
 #### E. Update Frontmatter and Document
 
 Update the document frontmatter:
 
 ```yaml
----
+
+- --
+
 stepsCompleted: [1]
 inputDocuments: []
 session_topic: '[session_topic]'
@@ -112,16 +120,18 @@ selected_approach: ''
 techniques_used: []
 ideas_generated: []
 context_file: '[context_file if provided]'
----
-```
 
+- --
+
+```bash
 Append to document:
 
 ```markdown
+
 ## Session Overview
 
-**Topic:** [session_topic]
-**Goals:** [session_goals]
+- *Topic:** [session_topic]
+- *Goals:** [session_goals]
 
 ### Context Guidance
 
@@ -130,7 +140,8 @@ _[If context file provided, summarize key context and focus areas]_
 ### Session Setup
 
 _[Content based on conversation about session parameters and facilitator approach]_
-```
+
+```bash
 
 ## APPEND TO DOCUMENT:
 
@@ -140,7 +151,8 @@ When user selects approach, append the session overview content directly to `{ou
 
 "**Session setup complete!** I have a clear understanding of your goals and can select the perfect techniques for your brainstorming needs.
 
-**Ready to explore technique approaches?**
+- *Ready to explore technique approaches?**
+
 [1] User-Selected Techniques - Browse our complete technique library
 [2] AI-Recommended Techniques - Get customized suggestions based on your goals
 [3] Random Technique Selection - Discover unexpected creative methods
@@ -153,16 +165,16 @@ Which approach appeals to you most? (Enter 1-4)"
 #### When user selects approach number:
 
 - **Append initial session overview to `{output_folder}/brainstorming/brainstorming-session-{{date}}.md`**
-- **Update frontmatter:** `stepsCompleted: [1]`, `selected_approach: '[selected approach]'`
-- **Load the appropriate step-02 file** based on selection
+- **Update frontmatter:**`stepsCompleted: [1]`, `selected_approach: '[selected approach]'`
+- **Load the appropriate step-02 file**based on selection
 
 ### 5. Handle User Selection
 
 After user selects approach number:
 
-- **If 1:** Load `./step-02a-user-selected.md`
-- **If 2:** Load `./step-02b-ai-recommended.md`
-- **If 3:** Load `./step-02c-random-selection.md`
+- **If 1:**Load `./step-02a-user-selected.md`
+- **If 2:**Load `./step-02b-ai-recommended.md`
+- **If 3:**Load `./step-02c-random-selection.md`
 - **If 4:** Load `./step-02d-progressive-flow.md`
 
 ## SUCCESS METRICS:

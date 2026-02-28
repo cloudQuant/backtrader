@@ -1,28 +1,34 @@
----
+- --
+
 name: 'step-02-context'
 description: 'Load game context from brief and determine the game type'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-02-context.md'
 nextStepFile: './step-03-platforms.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Data Files
+
 gameTypesCSV: '{workflow_path}/game-types.csv'
 gameTypesFolder: '{workflow_path}/game-types'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Game Context & Type
 
-**Progress: Step 2 of 14** - Next: Platforms & Audience
+- *Progress: Step 2 of 14**- Next: Platforms & Audience
 
 ## STEP GOAL:
 
@@ -86,17 +92,19 @@ This step will generate content and present choices:
 
 ### 1. Read Document State from Frontmatter
 
-**CRITICAL FIRST ACTION:** Read the frontmatter from `{outputFile}` to get document counts.
+- *CRITICAL FIRST ACTION:** Read the frontmatter from `{outputFile}` to get document counts.
 
-```
+```bash
 Read documentCounts from gdd.md frontmatter:
+
 - briefCount = documentCounts.briefs
 - researchCount = documentCounts.research
 - brainstormingCount = documentCounts.brainstorming
 - projectDocsCount = documentCounts.projectDocs
-```
 
-**ANNOUNCE your understanding:**
+```bash
+
+- *ANNOUNCE your understanding:**
 
 "From step 1, I have loaded:
 
@@ -105,7 +113,7 @@ Read documentCounts from gdd.md frontmatter:
 - Brainstorming: {{brainstormingCount}} files
 - Project docs: {{projectDocsCount}} files
 
-{if projectDocsCount > 0}This is a **brownfield project** - I'll focus on understanding what you want to add or change.{else}This is a **greenfield project** - I'll help you define the full game vision.{/if}"
+{if projectDocsCount > 0}This is a **brownfield project**- I'll focus on understanding what you want to add or change.{else}This is a**greenfield project** - I'll help you define the full game vision.{/if}"
 
 ### 2. Load Game Types Data
 
@@ -117,45 +125,50 @@ Load and prepare CSV data for intelligent game type classification:
 
 ### 3. Begin Discovery Conversation
 
-**SELECT EXACTLY ONE DISCOVERY PATH based on document state:**
+- *SELECT EXACTLY ONE DISCOVERY PATH based on document state:**
 
----
+- --
 
 #### PATH A: Has Game Brief (briefCount > 0)
 
-**Use this path when:** `briefCount > 0`
+- *Use this path when:** `briefCount > 0`
 
 "As your game design peer, I've reviewed your game brief and have a great starting point. Let me share what I understand and you can refine or correct as needed.
 
-**Based on your game brief:**
+- *Based on your game brief:**
 
-**Game Name:**
+- *Game Name:**
+
 {{extracted_name_from_brief}}
 
-**Core Concept:**
+- *Core Concept:**
+
 {{extracted_concept_from_brief}}
 
-**Genre/Type:**
+- *Genre/Type:**
+
 {{extracted_genre_from_brief}}
 
-**Target Experience:**
+- *Target Experience:**
+
 {{extracted_experience_from_brief}}
 
 {if projectDocsCount > 0}I also see you have existing project documentation. This GDD will define how new features integrate with your existing game.{/if}
 
-**How does this align with your vision?** Should we refine any of these points or are there important aspects I'm missing?"
+- *How does this align with your vision?** Should we refine any of these points or are there important aspects I'm missing?"
 
-**AFTER this message, SKIP to Section 4.**
+- *AFTER this message, SKIP to Section 4.**
 
----
+- --
 
 #### PATH B: No Brief but Has Brainstorming (briefCount == 0 AND brainstormingCount > 0)
 
-**Use this path when:** `briefCount == 0 AND brainstormingCount > 0`
+- *Use this path when:** `briefCount == 0 AND brainstormingCount > 0`
 
 "As your game design peer, I've reviewed your brainstorming documents.
 
-**Ideas I've extracted:**
+- *Ideas I've extracted:**
+
 {{summarize key concepts from brainstorming}}
 
 Let's crystallize these ideas into a clear game concept:
@@ -166,17 +179,17 @@ Let's crystallize these ideas into a clear game concept:
 
 I'll use this to identify the right game type framework for our GDD."
 
-**AFTER this message, SKIP to Section 4.**
+- *AFTER this message, SKIP to Section 4.**
 
----
+- --
 
 #### PATH C: No Documents - Greenfield (briefCount == 0 AND brainstormingCount == 0)
 
-**Use this path when:** `briefCount == 0 AND brainstormingCount == 0`
+- *Use this path when:** `briefCount == 0 AND brainstormingCount == 0`
 
 "Let's start by understanding your game vision!
 
-**Tell me about what you want to create:**
+- *Tell me about what you want to create:**
 
 - What kind of game is it? (genre, style, references)
 - What does the player do? (core actions, moment-to-moment gameplay)
@@ -185,9 +198,9 @@ I'll use this to identify the right game type framework for our GDD."
 
 I'll be listening for signals to help us identify the right game type framework."
 
-**AFTER this message, SKIP to Section 4.**
+- *AFTER this message, SKIP to Section 4.**
 
----
+- --
 
 ### 4. Determine Game Type
 
@@ -206,23 +219,25 @@ Store the best matching `game_type` id.
 
 ### 5. Present Classification for Validation
 
-**Present to user:**
+- *Present to user:**
 
 "Based on our conversation, I'm classifying this as:
 
-**Game Type:** {matched_game_type_name} ({matched_game_type_id})
+- *Game Type:** {matched_game_type_name} ({matched_game_type_id})
 
-**Why this type:**
+- *Why this type:**
+
 {explain the detection signals that matched}
 
-**This game type includes these focus areas:**
+- *This game type includes these focus areas:**
+
 {key_mechanics from game-types.csv}
 
 Does this sound right? If not, tell me what type better fits your vision and I'll adjust."
 
 ### 6. Load Game Type Guide
 
-**After user confirms game type:**
+- *After user confirms game type:**
 
 - Load the corresponding game type guide: `{gameTypesFolder}/{game_type}.md`
 - Store the guide content for use in step-07 (game-type specific sections)
@@ -241,6 +256,7 @@ Based on the conversation, prepare the content to append to the document:
 #### Content Structure:
 
 ```markdown
+
 ## Executive Summary
 
 ### Game Name
@@ -253,9 +269,10 @@ Based on the conversation, prepare the content to append to the document:
 
 ### Game Type
 
-**Type:** {{game_type_name}}
-**Framework:** This GDD uses the {{game_type}} template with type-specific sections for {{key_mechanics}}
-```
+- *Type:** {{game_type_name}}
+- *Framework:** This GDD uses the {{game_type}} template with type-specific sections for {{key_mechanics}}
+
+```bash
 
 ### 9. Present Content and Menu
 
@@ -263,11 +280,12 @@ Show the generated content to the user and present:
 
 "I've drafted the Executive Summary based on our conversation. This will be the opening section of your GDD.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 8]
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Let's dive deeper and refine this content
 [P] Party Mode - Bring in different perspectives to improve this
 [C] Continue - Save this and move to Platforms & Audience (Step 3 of 14)"
@@ -300,7 +318,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [core concept content finalized and saved to document with frontmatter updated including game_type and game_name], will you then load and read fully `{nextStepFile}` to execute and begin platforms definition.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -330,4 +348,4 @@ ONLY WHEN [C continue option] is selected and [core concept content finalized an
 - Not presenting A/P/C menu after content generation
 - Appending content without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

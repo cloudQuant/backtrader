@@ -609,9 +609,7 @@ class OrderBase:
             # offset with regards to now ... get utcnow + offset
             # when reading with date2num ... it will be automatically localized
             if self.valid == self.DAY:
-                valid = datetime.datetime.combine(
-                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999)
-                )
+                valid = datetime.datetime.combine(self.data.datetime.date(), datetime.time(23, 59, 59, 9999))
             else:
                 valid = self.data.datetime.datetime() + self.valid
 
@@ -619,9 +617,7 @@ class OrderBase:
         # If validity is not None, if not 0, valid for the day, if 0, currently valid
         elif self.valid is not None:
             if not self.valid:  # avoid comparing None and 0
-                valid = datetime.datetime.combine(
-                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999)
-                )
+                valid = datetime.datetime.combine(self.data.datetime.date(), datetime.time(23, 59, 59, 9999))
             else:  # assume float
                 valid = self.data.datetime[0] + self.valid
         # If not simulated, get dteos, if simulated, dteos is 0

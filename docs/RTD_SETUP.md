@@ -6,7 +6,7 @@
 
 ## 架构说明
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────┐
 │                    Read the Docs                         │
 ├─────────────────────────────────────────────────────────┤
@@ -20,16 +20,18 @@
 │       ↑                          ↑                      │
 │       └──── 语言切换链接 ────────┘                      │
 └─────────────────────────────────────────────────────────┘
-```
 
-**说明**：`conf.py` 会自动检测 RTD 的 `READTHEDOCS_LANGUAGE` 环境变量，
+```bash
+
+- *说明**：`conf.py` 会自动检测 RTD 的 `READTHEDOCS_LANGUAGE` 环境变量，
+
 中文项目自动使用 `index_zh.rst` 和 `user_guide_zh/` 目录。
 
 ## 配置步骤
 
 ### 步骤 1：创建英文项目
 
-1. 登录 https://readthedocs.org/
+1. 登录 <https://readthedocs.org/>
 2. 点击 **Import a Project**
 3. 选择 GitHub 仓库：`cloudQuant/backtrader`
 4. 项目设置：
@@ -46,16 +48,16 @@
    - **Name**: `backtrader-zh`
    - **Language**: `Simplified Chinese`
    - **Default branch**: `development`
-4. 创建后，进入项目 **Admin** → **Advanced Settings**
-5. 设置 **Path for .readthedocs.yaml** 为：`.readthedocs-zh.yaml`
-6. 保存设置
+1. 创建后，进入项目 **Admin**→**Advanced Settings**
+2. 设置 **Path for .readthedocs.yaml**为：`.readthedocs-zh.yaml`
+3. 保存设置
 
 ### 步骤 3：禁用 stable 版本（两个项目都要设置）
 
 对于 `backtrader` 和 `backtrader-zh` 两个项目：
 
-1. 进入项目的 **Versions** 页面
-2. 找到 `stable`，点击 **Edit**
+1. 进入项目的**Versions**页面
+2. 找到 `stable`，点击**Edit**
 3. **取消勾选 Active**，保存
 4. 确保 `latest` 是 **Active**
 
@@ -63,16 +65,19 @@
 
 对于两个项目：
 
-1. **Admin** → **Advanced Settings**
+1. **Admin**→**Advanced Settings**
 2. **Default version** 选择 `latest`
 3. 保存
 
 ## 完成后的 URL
 
 | 语言 | URL |
+
 |------|-----|
-| 英文 | https://backtrader.readthedocs.io/en/latest/ |
-| 中文 | https://backtrader-zh.readthedocs.io/zh-cn/latest/ |
+
+| 英文 | <https://backtrader.readthedocs.io/en/latest/> |
+
+| 中文 | <https://backtrader-zh.readthedocs.io/zh-cn/latest/> |
 
 页面顶部会显示语言切换链接：**English** | 中文
 
@@ -83,25 +88,31 @@
 ```bash
 cd docs
 sphinx-build -b html source build/html/en -D language=en
-```
+
+```bash
 
 ### 构建中文文档
 
 ```bash
 cd docs
 sphinx-build -b html source build/html/zh -D language=zh_CN
-```
+
+```bash
 
 ### 生成翻译模板
 
 ```bash
 cd docs
+
 # 生成 .pot 文件
+
 sphinx-build -b gettext source build/gettext
 
 # 更新中文翻译文件
+
 sphinx-intl update -p build/gettext -l zh
-```
+
+```bash
 
 ## 翻译工作流
 
@@ -113,19 +124,25 @@ sphinx-intl update -p build/gettext -l zh
 
 ## 文件结构
 
-```
+```bash
 docs/
 ├── source/
 │   ├── conf.py              # Sphinx 配置（支持 RTD）
+
 │   ├── index.rst            # 英文主页
+
 │   ├── index_zh.rst         # 中文主页
+
 │   └── locales/
 │       └── zh/
 │           └── LC_MESSAGES/
 │               └── *.po     # 中文翻译文件
+
 ├── requirements.txt         # 文档依赖
+
 └── RTD_SETUP.md            # 本文件
-```
+
+```bash
 
 ## 注意事项
 
@@ -136,6 +153,6 @@ docs/
 
 ## 相关链接
 
-- [Read the Docs 文档](https://docs.readthedocs.io/)
-- [Sphinx 国际化指南](https://www.sphinx-doc.org/en/master/usage/advanced/intl.html)
-- [sphinx-intl 工具](https://sphinx-intl.readthedocs.io/)
+- [Read the Docs 文档](<https://docs.readthedocs.io/)>
+- [Sphinx 国际化指南](<https://www.sphinx-doc.org/en/master/usage/advanced/intl.html)>
+- [sphinx-intl 工具](<https://sphinx-intl.readthedocs.io/)>

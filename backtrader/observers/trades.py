@@ -47,12 +47,8 @@ class Trades(Observer):
     )
     # Line settings when plotting
     plotlines = dict(
-        pnlplus=dict(
-            _name="Positive", ls="", marker="o", color="blue", markersize=8.0, fillstyle="full"
-        ),
-        pnlminus=dict(
-            _name="Negative", ls="", marker="o", color="red", markersize=8.0, fillstyle="full"
-        ),
+        pnlplus=dict(_name="Positive", ls="", marker="o", color="blue", markersize=8.0, fillstyle="full"),
+        pnlminus=dict(_name="Negative", ls="", marker="o", color="red", markersize=8.0, fillstyle="full"),
     )
 
     def __init__(self):

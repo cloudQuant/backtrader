@@ -136,7 +136,7 @@ class TestBrokerNextConnectionAwareness(unittest.TestCase):
         broker._threaded_order_manager = None
         broker._use_ws_orders = False
         broker._ws_order_manager = None
-        broker.open_orders = []
+        broker.open_orders = {}
         broker._bracket_manager = None
         return broker
 
@@ -209,7 +209,7 @@ class TestBrokerProcessThreadedUpdates(unittest.TestCase):
         mock_order.executed.size = 0.0
         mock_order.clone.return_value = Mock()
 
-        broker.open_orders = [mock_order]
+        broker.open_orders = {'order_123': mock_order}
 
         # Create mock threaded manager
         mock_manager = Mock()
@@ -250,7 +250,7 @@ class TestBrokerProcessThreadedUpdates(unittest.TestCase):
         manager.get_updates.return_value = [update]
 
         broker._process_threaded_updates()
-        self.assertNotIn(order, broker.open_orders)
+        self.assertNotIn('order_123', broker.open_orders)
 
     def test_handles_canceled_order(self):
         """Cancels and removes order on cancel update."""
@@ -268,7 +268,7 @@ class TestBrokerProcessThreadedUpdates(unittest.TestCase):
 
         broker._process_threaded_updates()
         order.cancel.assert_called_once()
-        self.assertNotIn(order, broker.open_orders)
+        self.assertNotIn('order_123', broker.open_orders)
 
     def test_ignores_unknown_order(self):
         """Ignores updates for unknown order IDs."""
@@ -286,7 +286,7 @@ class TestBrokerProcessThreadedUpdates(unittest.TestCase):
 
         broker._process_threaded_updates()
         # Order should still be in open_orders
-        self.assertIn(order, broker.open_orders)
+        self.assertIn('order_123', broker.open_orders)
 
 
 class TestBrokerSubmitErrorHandling(unittest.TestCase):
@@ -312,7 +312,7 @@ class TestBrokerSubmitErrorHandling(unittest.TestCase):
         broker._ws_subscribed_symbols = set()
         broker.order_types = {0: 'market', 2: 'limit'}
         broker.notifs = __import__('queue').Queue()
-        broker.open_orders = []
+        broker.open_orders = {}
         broker.positions = __import__('collections').defaultdict(
             lambda: Mock(clone=Mock(return_value=Mock()))
         )
@@ -407,7 +407,7 @@ class TestBrokerCancelErrorHandling(unittest.TestCase):
             "canceled_order": {"key": "status", "value": "canceled"},
         }
         broker.notifs = __import__('queue').Queue()
-        broker.open_orders = []
+        broker.open_orders = {}
         broker.positions = __import__('collections').defaultdict(
             lambda: Mock(clone=Mock(return_value=Mock()))
         )
@@ -417,7 +417,7 @@ class TestBrokerCancelErrorHandling(unittest.TestCase):
         mock_order.data = Mock()
         mock_order.data.p.dataname = 'BTC/USDT'
         mock_order.clone.return_value = Mock()
-        broker.open_orders = [mock_order]
+        broker.open_orders = {'order_123': mock_order}
 
         return broker, mock_order
 
@@ -430,7 +430,7 @@ class TestBrokerCancelErrorHandling(unittest.TestCase):
         result = broker.cancel(order)
         self.assertEqual(result, order)
         # Order should still be in open_orders
-        self.assertIn(order, broker.open_orders)
+        self.assertIn('order_123', broker.open_orders)
 
     def test_cancel_order_not_found(self):
         """cancel() marks order canceled if exchange says not found."""
@@ -440,7 +440,7 @@ class TestBrokerCancelErrorHandling(unittest.TestCase):
 
         result = broker.cancel(order)
         order.cancel.assert_called_once()
-        self.assertNotIn(order, broker.open_orders)
+        self.assertNotIn('order_123', broker.open_orders)
 
 
 class TestFeedFetchWithRetry(unittest.TestCase):

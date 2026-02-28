@@ -53,7 +53,7 @@ Analyze inspiring products and UX patterns to inform design decisions for the cu
 Start by gathering inspiration sources:
 "Let's learn from products your users already love and use regularly.
 
-**Inspiration Questions:**
+- *Inspiration Questions:**
 
 - Name 2-3 apps your target users already love and USE frequently
 - For each one, what do they do well from a UX perspective?
@@ -67,7 +67,7 @@ Think about apps in your category or even unrelated products that have great UX.
 Break down what makes these apps successful:
 "For each inspiring app, let's analyze their UX success:
 
-**For [App Name]:**
+- *For [App Name]:**
 
 - What core problem does it solve elegantly?
 - What makes the onboarding experience effective?
@@ -82,17 +82,17 @@ Identify patterns that could apply to your project:
 "**Transferable UX Patterns:**
 Looking across these inspiring apps, I see patterns we could adapt:
 
-**Navigation Patterns:**
+- *Navigation Patterns:**
 
 - [Pattern 1] - could work for your [specific use case]
 - [Pattern 2] - might solve your [specific challenge]
 
-**Interaction Patterns:**
+- *Interaction Patterns:**
 
 - [Pattern 1] - excellent for [your user goal]
 - [Pattern 2] - addresses [your user pain point]
 
-**Visual Patterns:**
+- *Visual Patterns:**
 
 - [Pattern 1] - supports your [emotional goal]
 - [Pattern 2] - aligns with your [platform requirements]
@@ -116,17 +116,17 @@ Learning from others' mistakes is as important as learning from their successes.
 Create a clear strategy for using this inspiration:
 "**Design Inspiration Strategy:**
 
-**What to Adopt:**
+- *What to Adopt:**
 
 - [Specific pattern] - because it supports [your core experience]
 - [Specific pattern] - because it aligns with [user needs]
 
-**What to Adapt:**
+- *What to Adapt:**
 
 - [Specific pattern] - modify for [your unique requirements]
 - [Specific pattern] - simplify for [your user skill level]
 
-**What to Avoid:**
+- *What to Avoid:**
 
 - [Specific anti-pattern] - conflicts with [your goals]
 - [Specific anti-pattern] - doesn't fit [your platform]
@@ -142,6 +142,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## UX Pattern Analysis & Inspiration
 
 ### Inspiring Products Analysis
@@ -159,18 +160,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Design Inspiration Strategy
 
 [Strategy for using inspiration based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated inspiration analysis content and present choices:
 "I've analyzed inspiring UX patterns and products to inform our design strategy for {{project_name}}. This gives us a solid foundation of proven patterns to build upon.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's deepen our UX pattern analysis
 [P] Party Mode - Bring different perspectives on inspiration sources
 [C] Continue - Save this to the document and move to design system choice"

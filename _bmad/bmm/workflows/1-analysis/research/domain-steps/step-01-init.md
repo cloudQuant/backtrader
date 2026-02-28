@@ -23,23 +23,23 @@
 ## CONTEXT BOUNDARIES:
 
 - Research type = "domain" is already set
-- **Research topic = "{{research_topic}}"** - discovered from initial discussion
-- **Research goals = "{{research_goals}}"** - captured from initial discussion
+- **Research topic = "{{research_topic}}"**- discovered from initial discussion
+- **Research goals = "{{research_goals}}"**- captured from initial discussion
 - Focus on industry/domain analysis with web research
 - Web search is required to verify and supplement your knowledge with current facts
 
 ## YOUR TASK:
 
-Confirm domain research scope and approach for **{{research_topic}}** with the user's goals in mind.
+Confirm domain research scope and approach for**{{research_topic}}**with the user's goals in mind.
 
 ## DOMAIN SCOPE CONFIRMATION:
 
 ### 1. Begin Scope Confirmation
 
 Start with domain scope understanding:
-"I understand you want to conduct **domain research** for **{{research_topic}}** with these goals: {{research_goals}}
+"I understand you want to conduct**domain research**for**{{research_topic}}** with these goals: {{research_goals}}
 
-**Domain Research Scope:**
+- *Domain Research Scope:**
 
 - **Industry Analysis**: Industry structure, market dynamics, and competitive landscape
 - **Regulatory Environment**: Compliance requirements, regulations, and standards
@@ -47,7 +47,7 @@ Start with domain scope understanding:
 - **Economic Factors**: Market size, growth trends, and economic impact
 - **Supply Chain**: Value chain analysis and ecosystem relationships
 
-**Research Approach:**
+- *Research Approach:**
 
 - All claims verified against current public sources
 - Multi-source validation for critical domain claims
@@ -61,15 +61,16 @@ Present clear scope confirmation:
 
 For **{{research_topic}}**, I will research:
 
-✅ **Industry Analysis** - market structure, key players, competitive dynamics
-✅ **Regulatory Requirements** - compliance standards, legal frameworks
-✅ **Technology Trends** - innovation patterns, digital transformation
-✅ **Economic Factors** - market size, growth projections, economic impact
-✅ **Supply Chain Analysis** - value chain, ecosystem, partnerships
+✅ **Industry Analysis**- market structure, key players, competitive dynamics
+✅**Regulatory Requirements**- compliance standards, legal frameworks
+✅**Technology Trends**- innovation patterns, digital transformation
+✅**Economic Factors**- market size, growth projections, economic impact
+✅**Supply Chain Analysis** - value chain, ecosystem, partnerships
 
-**All claims verified against current public sources.**
+- *All claims verified against current public sources.**
 
-**Does this domain research scope and approach align with your goals?**
+- *Does this domain research scope and approach align with your goals?**
+
 [C] Continue - Begin domain research with this scope
 
 ### 3. Handle Continue Selection
@@ -85,12 +86,13 @@ For **{{research_topic}}**, I will research:
 When user selects 'C', append scope confirmation:
 
 ```markdown
+
 ## Domain Research Scope Confirmation
 
-**Research Topic:** {{research_topic}}
-**Research Goals:** {{research_goals}}
+- *Research Topic:** {{research_topic}}
+- *Research Goals:** {{research_goals}}
 
-**Domain Research Scope:**
+- *Domain Research Scope:**
 
 - Industry Analysis - market structure, competitive landscape
 - Regulatory Environment - compliance requirements, legal frameworks
@@ -98,15 +100,16 @@ When user selects 'C', append scope confirmation:
 - Economic Factors - market size, growth projections
 - Supply Chain Analysis - value chain, ecosystem relationships
 
-**Research Methodology:**
+- *Research Methodology:**
 
 - All claims verified against current public sources
 - Multi-source validation for critical domain claims
 - Confidence level framework for uncertain information
 - Comprehensive domain coverage with industry-specific insights
 
-**Scope Confirmed:** {{date}}
-```
+- *Scope Confirmed:**{{date}}
+
+```bash
 
 ## SUCCESS METRICS:
 
@@ -126,7 +129,7 @@ When user selects 'C', append scope confirmation:
 ❌ Proceeding without user scope confirmation
 ❌ Not routing to next domain research step
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 

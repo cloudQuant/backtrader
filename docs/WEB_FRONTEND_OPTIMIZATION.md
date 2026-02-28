@@ -2,7 +2,7 @@
 
 本文档详细描述基于 Vue3 和 ECharts 的前端实现优化方案。
 
----
+- --
 
 ## 目录
 
@@ -15,7 +15,7 @@
 7. [实时数据处理](#实时数据处理)
 8. [UI/UX 优化](#uiux-优化)
 
----
+- --
 
 ## 技术栈升级
 
@@ -59,7 +59,8 @@
     "rollup-plugin-visualizer": "^5.11.0"
   }
 }
-```
+
+```bash
 
 ### Vite 配置优化
 
@@ -126,7 +127,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: '<http://localhost:8000',>
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       },
@@ -159,21 +160,27 @@ export default defineConfig({
     }
   }
 })
-```
 
----
+```bash
+
+- --
 
 ## 前端架构优化
 
 ### 目录结构优化
 
-```
+```bash
 frontend/src/
 ├── api/                        # API 服务层
+
 │   ├── index.ts               # API 入口
+
 │   ├── request.ts             # Axios 封装
+
 │   ├── types.ts               # API 类型定义
+
 │   ├── modules/               # API 模块
+
 │   │   ├── auth.ts
 │   │   ├── strategy.ts
 │   │   ├── backtest.ts
@@ -181,53 +188,75 @@ frontend/src/
 │   │   └── data.ts
 │
 ├── assets/                     # 静态资源
+
 │   ├── styles/                # 样式文件
+
 │   │   ├── variables.scss     # SCSS 变量
+
 │   │   ├── mixins.scss        # SCSS mixins
+
 │   │   ├── element.scss       # Element Plus 覆盖样式
+
 │   │   ├── transition.scss    # 过渡动画
+
 │   │   └── index.scss         # 主样式
+
 │   ├── images/                # 图片
+
 │   └── icons/                 # SVG 图标
+
 │
 ├── components/                 # 组件
+
 │   ├── layout/                # 布局组件
+
 │   │   ├── AppHeader.vue
 │   │   ├── AppSidebar.vue
 │   │   ├── AppMain.vue
 │   │   └── AppTabs.vue
 │   ├── charts/                # 图表组件
+
 │   │   ├── base/              # 基础图表组件
+
 │   │   │   ├── BaseChart.vue  # 图表基类
+
 │   │   │   ├── ChartMixin.ts  # 图表混入
+
 │   │   │   └── chart-types.ts # 图表类型定义
+
 │   │   ├── trading/           # 交易图表
+
 │   │   │   ├── KLineChart.vue
 │   │   │   ├── DepthChart.vue
 │   │   │   └── TimeShareChart.vue
 │   │   ├── analysis/          # 分析图表
+
 │   │   │   ├── EquityCurve.vue
 │   │   │   ├── DrawdownChart.vue
 │   │   │   ├── PnLChart.vue
 │   │   │   ├── TradeDistChart.vue
 │   │   │   └── MonthlyReturns.vue
 │   │   └── indicators/        # 指标图表
+
 │   │       ├── BollingerChart.vue
 │   │       ├── MACDChart.vue
 │   │       └── RSIChart.vue
 │   ├── strategy/              # 策略组件
+
 │   │   ├── StrategyCard.vue
 │   │   ├── ParamEditor.vue
 │   │   ├── CodeEditor.vue
 │   │   ├── TemplateSelector.vue
 │   │   └── StrategyRunner.vue
 │   ├── trading/               # 交易组件
+
 │   │   ├── OrderBook.vue
 │   │   ├── OrderForm.vue
 │   │   ├── PositionList.vue
 │   │   ├── OrderList.vue
 │   │   └── TradeList.vue
 │   └── common/                # 通用组件
+
 │       ├── DataTable.vue
 │       ├── StatusTag.vue
 │       ├── DateTimePicker.vue
@@ -237,31 +266,45 @@ frontend/src/
 │       └── LoadingSpinner.vue
 │
 ├── composables/                # 组合式函数
+
 │   ├── useApi.ts              # API 调用
+
 │   ├── useWebSocket.ts        # WebSocket
+
 │   ├── useChart.ts            # ECharts 封装
+
 │   ├── useTable.ts            # 表格封装
+
 │   ├── usePagination.ts       # 分页
+
 │   ├── useDebounce.ts         # 防抖
+
 │   ├── useThrottle.ts         # 节流
+
 │   └── useLocalStorage.ts     # 本地存储
+
 │
 ├── directives/                 # 自定义指令
+
 │   ├── loading.ts
 │   ├── permission.ts
 │   └── debounce.ts
 │
 ├── layouts/                    # 布局
+
 │   ├── DefaultLayout.vue
 │   ├── EmptyLayout.vue
 │   └── FullscreenLayout.vue
 │
 ├── router/                     # 路由
+
 │   ├── index.ts
 │   ├── routes.ts
 │   └── guards.ts              # 路由守卫
+
 │
 ├── stores/                     # Pinia 状态
+
 │   ├── index.ts
 │   ├── useAppStore.ts
 │   ├── useUserStore.ts
@@ -271,6 +314,7 @@ frontend/src/
 │   └── useWebSocketStore.ts
 │
 ├── types/                      # TypeScript 类型
+
 │   ├── index.ts
 │   ├── global.d.ts
 │   ├── components.d.ts
@@ -282,15 +326,24 @@ frontend/src/
 │   └── chart.ts
 │
 ├── utils/                      # 工具函数
+
 │   ├── format.ts              # 格式化
+
 │   ├── validate.ts            # 验证
+
 │   ├── storage.ts             # 存储
+
 │   ├── constants.ts           # 常量
+
 │   ├── date.ts                # 日期
+
 │   ├── number.ts              # 数字
+
 │   └── download.ts            # 下载
+
 │
 ├── views/                      # 页面视图
+
 │   ├── Dashboard.vue
 │   ├── strategies/
 │   ├── backtests/
@@ -300,9 +353,10 @@ frontend/src/
 │
 ├── App.vue
 └── main.ts
-```
 
----
+```bash
+
+- --
 
 ## ECharts 图表组件库
 
@@ -354,6 +408,7 @@ interface Props {
   width?: string
   height?: string
   theme?: string | object
+
   loading?: boolean
   loadingOptions?: object
 }
@@ -387,6 +442,7 @@ const initChart = () => {
   chartInstance = echarts.init(
     chartRef.value,
     props.theme || themeStore.chartTheme
+
   )
 
   chartInstance.on('click', (params) => {
@@ -441,9 +497,10 @@ defineExpose({
   min-height: 200px;
 }
 </style>
-```
 
-### K线图组件（完整版）
+```bash
+
+### K 线图组件（完整版）
 
 ```vue
 <!-- components/charts/trading/KLineChart.vue -->
@@ -590,7 +647,7 @@ const chartOption = computed(() => {
 
   const series: any[] = [
     {
-      name: 'K线',
+      name: 'K 线',
       type: 'candlestick',
       data: candleData,
       barWidth: '60%',
@@ -718,7 +775,7 @@ const chartOption = computed(() => {
       }
     },
     legend: {
-      data: ['K线', '上轨', '中轨', '下轨', '成交量'].filter(Boolean),
+      data: ['K 线', '上轨', '中轨', '下轨', '成交量'].filter(Boolean),
       top: props.title ? '50' : '10',
       textStyle: { color: '#999' }
     },
@@ -745,7 +802,8 @@ defineExpose({
   dispatchAction: (action: any) => chartRef.value?.dispatchAction(action)
 })
 </script>
-```
+
+```bash
 
 ### 资金曲线图组件（完整版）
 
@@ -802,6 +860,7 @@ const chartOption = computed(() => {
   const dates = props.data.map(item => item.date)
   const equity = props.data.map(item => item.equity)
   const drawdown = props.data.map(item => item.drawdown || 0)
+
   const trades = props.data.map(item => item.trades || 0)
 
   const series: any[] = [
@@ -892,6 +951,7 @@ const chartOption = computed(() => {
     legend: {
       data: ['权益', '回撤', '交易次数'].filter((_, i) =>
         i === 0 || (i === 1 && props.showDrawdown) || (i === 2 && props.showTrades)
+
       ),
       top: 30,
       textStyle: { color: '#999' }
@@ -900,6 +960,7 @@ const chartOption = computed(() => {
       {
         left: '3%',
         right: props.showDrawdown || props.showTrades ? '15%' : '4%',
+
         top: '15%',
         height: '70%'
       }
@@ -947,7 +1008,8 @@ const chartOption = computed(() => {
   }
 })
 </script>
-```
+
+```bash
 
 ### 深度图组件
 
@@ -1055,13 +1117,15 @@ const chartOption = computed(() => {
       textStyle: { color: '#fff' },
       formatter: (params: any) => {
         if (!params.length || !params[0].name) return ''
+
         return `价格: ${params[0].name}<br/>累计: ${params[0].value.toFixed(4)}`
       }
     }
   }
 })
 </script>
-```
+
+```bash
 
 ### 交易分布图组件
 
@@ -1091,6 +1155,7 @@ interface TradePoint {
   pnlPercent: number
   duration: number
   side: 'long' | 'short'
+
 }
 
 interface Props {
@@ -1098,6 +1163,7 @@ interface Props {
   width?: string
   height?: string
   chartType?: 'pnl-time' | 'pnl-duration' | 'entry-exit'
+
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1206,9 +1272,10 @@ const chartOption = computed(() => {
   }
 })
 </script>
-```
 
----
+```bash
+
+- --
 
 ## 状态管理优化
 
@@ -1226,7 +1293,8 @@ pinia.use(createPersistedState({
 }))
 
 export default pinia
-```
+
+```bash
 
 ### 应用状态 Store
 
@@ -1240,6 +1308,7 @@ export const useAppStore = defineStore('app', () => {
   // 状态
   const sidebarCollapsed = ref(false)
   const theme = ref<'dark' | 'light'>('dark')
+
   const loading = ref(false)
   const breadcrumbs = ref<Array<{ name: string, path?: string }>>([])
   const tabs = ref<Array<{
@@ -1259,6 +1328,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   const setTheme = (newTheme: 'dark' | 'light') => {
+
     theme.value = newTheme
     document.documentElement.className = newTheme
   }
@@ -1313,7 +1383,8 @@ export const useAppStore = defineStore('app', () => {
     paths: ['sidebarCollapsed', 'theme', 'tabs']
   }
 })
-```
+
+```bash
 
 ### WebSocket Store
 
@@ -1327,6 +1398,7 @@ type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 export const useWebSocketStore = defineStore('websocket', () => {
   const ws = ref<WebSocket | null>(null)
+
   const status = ref<ConnectionStatus>('disconnected')
   const reconnectAttempts = ref(0)
   const maxReconnectAttempts = 5
@@ -1442,9 +1514,10 @@ export const useWebSocketStore = defineStore('websocket', () => {
     subscribeOnce
   }
 })
-```
 
----
+```bash
+
+- --
 
 ## 性能优化方案
 
@@ -1499,11 +1572,11 @@ const props = withDefaults(defineProps<Props>(), {
 const containerRef = ref<HTMLElement>()
 const scrollTop = ref(0)
 
-const totalHeight = computed(() => props.items.length * props.itemHeight)
+const totalHeight = computed(() => props.items.length *props.itemHeight)
 
 const visibleCount = computed(() => {
   const height = parseInt(props.containerHeight)
-  return Math.ceil(height / props.itemHeight) + props.buffer * 2
+  return Math.ceil(height / props.itemHeight) + props.buffer*2
 })
 
 const startIndex = computed(() => {
@@ -1516,7 +1589,7 @@ const endIndex = computed(() => {
 })
 
 const offsetY = computed(() => {
-  return startIndex.value * props.itemHeight
+  return startIndex.value*props.itemHeight
 })
 
 const visibleItems = computed(() => {
@@ -1534,7 +1607,7 @@ const handleScroll = (e: Event) => {
 defineExpose({
   scrollTo: (index: number) => {
     if (containerRef.value) {
-      const top = index * props.itemHeight
+      const top = index* props.itemHeight
       containerRef.value.scrollTop = top
     }
   }
@@ -1558,7 +1631,8 @@ defineExpose({
   }
 }
 </style>
-```
+
+```bash
 
 ### 请求缓存封装
 
@@ -1581,6 +1655,7 @@ export function useCache<T>(key: string, options: CacheOptions = {}) {
   const { ttl = 60000, staleWhileRevalidate = true } = options
 
   const data = shallowRef<T | null>(null)
+
   const isLoading = ref(false)
   const error = ref<Error | null>(null)
 
@@ -1636,7 +1711,8 @@ export function clearCache(pattern?: string) {
     cache.clear()
   }
 }
-```
+
+```bash
 
 ### 防抖/节流 Composable
 
@@ -1690,9 +1766,10 @@ export function useThrottleFn<T extends (...args: any[]) => any>(
   const throttled = _throttle(fn, delay) as T & { cancel: () => void }
   return throttled
 }
-```
 
----
+```bash
+
+- --
 
 ## 组件设计规范
 
@@ -1705,6 +1782,7 @@ export function useThrottleFn<T extends (...args: any[]) => any>(
 export interface BaseProps {
   class?: string
   style?: string | Record<string, any>
+
 }
 
 // 加载状态 Props
@@ -1715,18 +1793,23 @@ export interface LoadingProps {
 
 // 尺寸 Props
 export type Size = 'small' | 'medium' | 'large'
+
 export interface SizeProps {
   size?: Size
   width?: string | number
+
   height?: string | number
+
 }
 
 // 主题 Props
 export type Theme = 'primary' | 'success' | 'warning' | 'danger' | 'info'
+
 export interface ThemeProps {
   theme?: Theme
 }
-```
+
+```bash
 
 ### 组件 Emit 规范
 
@@ -1745,9 +1828,10 @@ export interface StrategyCardEmits {
 
 // 使用示例
 const emit = defineEmits<StrategyCardEmits>()
-```
 
----
+```bash
+
+- --
 
 ## 实时数据处理
 
@@ -1760,8 +1844,11 @@ import { useWebSocketStore } from '@/stores/useWebSocketStore'
 
 export function useRealtimePrice(symbol: string) {
   const price = ref<number | null>(null)
+
   const change24h = ref<number | null>(null)
+
   const volume24h = ref<number | null>(null)
+
   const lastUpdate = ref<Date | null>(null)
 
   const wsStore = useWebSocketStore()
@@ -1795,9 +1882,10 @@ export function useRealtimePrice(symbol: string) {
     unsubscribe
   }
 }
-```
 
----
+```bash
+
+- --
 
 ## UI/UX 优化
 
@@ -1867,7 +1955,8 @@ $z-modal-backdrop: 1040;
 $z-modal: 1050;
 $z-popover: 1060;
 $z-tooltip: 1070;
-```
+
+```bash
 
 ### Element Plus 主题覆盖
 
@@ -1906,13 +1995,14 @@ $z-tooltip: 1070;
 
 // 深色模式覆盖
 .dark {
-  --el-bg-color: #{$bg-dark-primary};
-  --el-bg-color-overlay: #{$bg-dark-secondary};
-  --el-text-color-primary: #{$text-dark-primary};
-  --el-text-color-regular: #{$text-dark-secondary};
-  --el-border-color: #{$border-dark};
-  --el-border-color-light: #{$border-dark};
-  --el-fill-color-light: #{$bg-dark-tertiary};
+
+  - -el-bg-color: #{$bg-dark-primary};
+  - -el-bg-color-overlay: #{$bg-dark-secondary};
+  - -el-text-color-primary: #{$text-dark-primary};
+  - -el-text-color-regular: #{$text-dark-secondary};
+  - -el-border-color: #{$border-dark};
+  - -el-border-color-light: #{$border-dark};
+  - -el-fill-color-light: #{$bg-dark-tertiary};
 
   .el-card {
     background-color: $bg-dark-secondary;
@@ -1940,22 +2030,24 @@ $z-tooltip: 1070;
     background-color: $bg-dark-secondary;
   }
 }
-```
 
----
+```bash
+
+- --
 
 ## 开发规范
 
 ### 命名规范
 
-```
+```bash
 组件文件:        PascalCase (StrategyCard.vue)
 组合式函数:      camelCase with 'use' prefix (useApi.ts)
 工具函数:        camelCase (formatNumber.ts)
 常量:            UPPER_SNAKE_CASE (API_BASE_URL)
 类型:            PascalCase (StrategyData)
 接口:            PascalCase with 'I' prefix (IUserData)
-```
+
+```bash
 
 ### 文件导入顺序
 
@@ -1980,9 +2072,10 @@ import type { StrategyData } from '@/types/strategy'
 
 // 6. 工具函数
 import { formatNumber } from '@/utils/format'
-```
 
----
+```bash
+
+- --
 
 ## 总结
 

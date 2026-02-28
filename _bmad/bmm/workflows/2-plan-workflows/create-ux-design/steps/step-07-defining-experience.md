@@ -53,14 +53,15 @@ Define the core interaction that, if nailed, makes everything else follow in the
 Focus on the core interaction:
 "Every successful product has a defining experience - the core interaction that, if we nail it, everything else follows.
 
-**Think about these famous examples:**
+- *Think about these famous examples:**
 
 - Tinder: "Swipe to match with people"
 - Snapchat: "Share photos that disappear"
 - Instagram: "Share perfect moments with filters"
 - Spotify: "Discover and play any song instantly"
 
-**For {{project_name}}:**
+- *For {{project_name}}:**
+
 What's the core action that users will describe to their friends?
 What's the interaction that makes users feel successful?
 If we get ONE thing perfectly right, what should it be?"
@@ -75,7 +76,7 @@ Understand how users think about the core task:
 - What's their expectation for how this should work?
 - Where are they likely to get confused or frustrated?
 
-**Current Solutions:**
+- *Current Solutions:**
 
 - What do users love/hate about existing approaches?
 - What shortcuts or workarounds do they use?
@@ -92,7 +93,7 @@ Establish what makes the core interaction successful:
 - How fast should it feel?
 - What should happen automatically?
 
-**Success Indicators:**
+- *Success Indicators:**
 
 - [Success indicator 1]
 - [Success indicator 2]
@@ -108,13 +109,13 @@ Looking at your core experience, does this:
 - Require novel interaction design that needs user education?
 - Combine familiar patterns in innovative ways?
 
-**If Novel:**
+- *If Novel:**
 
 - What makes this different from existing approaches?
 - How will we teach users this new pattern?
 - What familiar metaphors can we use?
 
-**If Established:**
+- *If Established:**
 
 - Which proven patterns should we adopt?
 - How can we innovate within familiar patterns?
@@ -126,24 +127,24 @@ Break down the core interaction into details:
 "**Core Experience Mechanics:**
 Let's design the step-by-step flow for [defining experience]:
 
-**1. Initiation:**
+- *1. Initiation:**
 
 - How does the user start this action?
 - What triggers or invites them to begin?
 
-**2. Interaction:**
+- *2. Interaction:**
 
 - What does the user actually do?
 - What controls or inputs do they use?
 - How does the system respond?
 
-**3. Feedback:**
+- *3. Feedback:**
 
 - What tells users they're succeeding?
 - How do they know when it's working?
 - What happens if they make a mistake?
 
-**4. Completion:**
+- *4. Completion:**
 
 - How do users know they're done?
 - What's the successful outcome?
@@ -158,6 +159,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## 2. Core User Experience
 
 ### 2.1 Defining Experience
@@ -179,18 +181,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### 2.5 Experience Mechanics
 
 [Detailed mechanics for core experience based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated defining experience content and present choices:
 "I've defined the core experience for {{project_name}} - the interaction that will make users love this product.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine the core experience definition
 [P] Party Mode - Bring different perspectives on the defining interaction
 [C] Continue - Save this to the document and move to visual foundation

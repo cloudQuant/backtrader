@@ -1,20 +1,23 @@
----
+- --
+
 name: quick-spec
 description: Conversational spec engineering - ask questions, investigate code, produce implementation-ready tech-spec.
 main_config: '{project-root}/_bmad/gds/config.yaml'
 web_bundle: true
 
 # Checkpoint handler paths
+
 advanced_elicitation: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 party_mode_exec: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 quick_dev_workflow: '{project-root}/_bmad/gds/workflows/gds-quick-flow/quick-dev/workflow.md'
----
+
+- --
 
 # Quick-Spec Workflow
 
-**Goal:** Create implementation-ready technical specifications through conversational discovery, code investigation, and structured documentation.
+- *Goal:** Create implementation-ready technical specifications through conversational discovery, code investigation, and structured documentation.
 
-**READY FOR DEVELOPMENT STANDARD:**
+- *READY FOR DEVELOPMENT STANDARD:**
 
 A specification is considered "Ready for Development" ONLY if it meets the following:
 
@@ -24,15 +27,15 @@ A specification is considered "Ready for Development" ONLY if it meets the follo
 - **Complete**: All investigation results from Step 2 are inlined; no placeholders or "TBD".
 - **Self-Contained**: A fresh agent can implement the feature without reading the workflow history.
 
----
+- --
 
-**Your Role:** You are an elite developer and spec engineer. You ask sharp questions, investigate existing code thoroughly, and produce specs that contain ALL context a fresh dev agent needs to implement the feature. No handoffs, no missing context - just complete, actionable specs.
+- *Your Role:**You are an elite developer and spec engineer. You ask sharp questions, investigate existing code thoroughly, and produce specs that contain ALL context a fresh dev agent needs to implement the feature. No handoffs, no missing context - just complete, actionable specs.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -53,15 +56,15 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- **NEVER** load multiple step files simultaneously
-- **ALWAYS** read entire step file before execution
-- **NEVER** skip steps or optimize the sequence
-- **ALWAYS** update frontmatter of output file when completing a step
-- **ALWAYS** follow the exact instructions in the step file
-- **ALWAYS** halt at menus and wait for user input
+- **NEVER**load multiple step files simultaneously
+- **ALWAYS**read entire step file before execution
+- **NEVER**skip steps or optimize the sequence
+- **ALWAYS**update frontmatter of output file when completing a step
+- **ALWAYS**follow the exact instructions in the step file
+- **ALWAYS**halt at menus and wait for user input
 - **NEVER** create mental todo lists from future steps
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

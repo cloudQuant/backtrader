@@ -64,6 +64,7 @@ Note: CI setup is typically a one-time task per repo and can be run any time aft
 - [ ] Burn-in job created (frontend/fullstack stacks) or intentionally skipped (backend-only)
 - [ ] 10 iterations configured (when enabled)
 - [ ] Proper exit on failure (`|| exit 1`)
+
 - [ ] Runs on appropriate triggers (PR, cron)
 - [ ] Failure artifacts uploaded
 - [ ] Backend-only stacks: burn-in skipped by default (documented reason: targets UI flakiness)
@@ -186,7 +187,7 @@ Note: CI setup is typically a one-time task per repo and can be run any time aft
 
 ## Completion Criteria
 
-**All must be true:**
+- *All must be true:**
 
 - [ ] All prerequisites met
 - [ ] All process steps completed
@@ -199,7 +200,7 @@ Note: CI setup is typically a one-time task per repo and can be run any time aft
 
 ## Post-Workflow Actions
 
-**User must complete:**
+- *User must complete:**
 
 1. [ ] Commit CI configuration
 2. [ ] Push to remote repository
@@ -209,7 +210,7 @@ Note: CI setup is typically a one-time task per repo and can be run any time aft
 6. [ ] Adjust parallelism if needed (based on actual run times)
 7. [ ] Set up notifications (optional)
 
-**Recommended next workflows:**
+- *Recommended next workflows:**
 
 1. [ ] Run `atdd` workflow for test generation
 2. [ ] Run `automate` workflow for coverage expansion
@@ -230,59 +231,59 @@ If workflow fails:
 
 ### Common Issues
 
-**Issue**: CI file syntax errors
+- *Issue**: CI file syntax errors
 
 - **Solution**: Validate YAML syntax online or with linter
 
-**Issue**: Tests fail in CI but pass locally
+- *Issue**: Tests fail in CI but pass locally
 
 - **Solution**: Use `scripts/ci-local.sh` to mirror CI environment
 
-**Issue**: Caching not working
+- *Issue**: Caching not working
 
 - **Solution**: Check cache key formula, verify paths
 
-**Issue**: Burn-in too slow
+- *Issue**: Burn-in too slow
 
 - **Solution**: Reduce iterations or run on cron only
 
 ### Platform-Specific
 
-**GitHub Actions:**
+- *GitHub Actions:**
 
 - Secrets: Repository Settings → Secrets and variables → Actions
 - Runners: Ubuntu latest recommended
 - Concurrency limits: 20 jobs for free tier
 
-**GitLab CI:**
+- *GitLab CI:**
 
 - Variables: Project Settings → CI/CD → Variables
 - Runners: Shared or project-specific
 - Pipeline quota: 400 minutes/month free tier
 
-**Jenkins:**
+- *Jenkins:**
 
 - Credentials: Manage Jenkins → Manage Credentials
 - Agents: Configure build agents with Node.js
 - Plugins: Pipeline, JUnit, HTML Publisher recommended
 
-**Azure DevOps:**
+- *Azure DevOps:**
 
 - Variables: Pipelines → Library → Variable groups
 - Agent pools: Azure-hosted or self-hosted
 - Parallel jobs: 1 free (Microsoft-hosted)
 
-**Harness:**
+- *Harness:**
 
 - Connectors: Configure container registry and code repo connectors
 - Delegates: Install Harness delegate in target infrastructure
 - Steps: Use Run steps with appropriate container images
 
----
+- --
 
-**Checklist Complete**: Sign off when all items validated.
+- *Checklist Complete**: Sign off when all items validated.
 
-**Completed by:** {name}
-**Date:** {date}
-**Platform:** {GitHub Actions, GitLab CI, Other}
-**Notes:** {notes}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Platform:** {GitHub Actions, GitLab CI, Other}
+- *Notes:** {notes}

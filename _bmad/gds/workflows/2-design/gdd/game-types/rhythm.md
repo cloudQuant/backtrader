@@ -4,7 +4,7 @@
 
 {{music_sync}}
 
-**Core mechanics:**
+- *Core mechanics:**
 
 - Beat/rhythm detection
 - Note types (tap, hold, slide, etc.)
@@ -17,7 +17,7 @@
 
 {{note_charts}}
 
-**Chart design:**
+- *Chart design:**
 
 - Charting philosophy (fun, challenge, accuracy to song)
 - Pattern vocabulary (streams, jumps, chords, etc.)
@@ -30,7 +30,7 @@
 
 {{timing_windows}}
 
-**Judgment system:**
+- *Judgment system:**
 
 - Judgment tiers (perfect, great, good, bad, miss)
 - Timing windows (frame-perfect vs. lenient)
@@ -43,7 +43,7 @@
 
 {{scoring}}
 
-**Score design:**
+- *Score design:**
 
 - Base score calculation
 - Combo multipliers
@@ -56,7 +56,7 @@
 
 {{difficulty_tiers}}
 
-**Progression:**
+- *Progression:**
 
 - Difficulty levels (easy, normal, hard, expert, etc.)
 - Difficulty representation (stars, numbers)
@@ -69,7 +69,7 @@
 
 {{song_selection}}
 
-**Music library:**
+- *Music library:**
 
 - Song count (launch + planned DLC)
 - Genre diversity

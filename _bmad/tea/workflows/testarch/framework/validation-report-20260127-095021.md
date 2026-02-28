@@ -1,16 +1,18 @@
----
+- --
+
 validationDate: 2026-01-27
 workflowName: testarch-framework
 workflowPath: /Users/murat.ozcan/opensource/bmad-method-test-architecture-enterprise/src/workflows/testarch/framework
 validationStatus: COMPLETE
 completionDate: 2026-01-27 10:03:10
----
+
+- --
 
 # Validation Report: testarch-framework
 
-**Validation Started:** 2026-01-27 09:50:21
-**Validator:** BMAD Workflow Validation System (Codex)
-**Standards Version:** BMAD Workflow Standards
+- *Validation Started:** 2026-01-27 09:50:21
+- *Validator:** BMAD Workflow Validation System (Codex)
+- *Standards Version:** BMAD Workflow Standards
 
 ## File Structure & Size
 
@@ -19,7 +21,7 @@ completionDate: 2026-01-27 10:03:10
 - workflow.yaml present: YES
 - step files found: 8
 
-**Step File Sizes:**
+- *Step File Sizes:**
 
 - steps-c/step-01-preflight.md: 69 lines [GOOD]
 - steps-c/step-02-select-framework.md: 66 lines [GOOD]

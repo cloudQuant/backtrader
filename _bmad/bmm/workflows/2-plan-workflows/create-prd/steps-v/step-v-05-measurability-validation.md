@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-v-05-measurability-validation'
 description: 'Measurability Validation - Validate that all requirements (FRs and NFRs) are measurable and testable'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-06-traceability-validation.md'
 prdFile: '{prd_file_path}'
 validationReportPath: '{validation_report_path}'
----
+
+- --
 
 # Step 5: Measurability Validation
 
@@ -56,30 +59,30 @@ Validate that all Functional Requirements (FRs) and Non-Functional Requirements 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Attempt Sub-Process Validation
 
-**Try to use Task tool to spawn a subprocess:**
+- *Try to use Task tool to spawn a subprocess:**
 
 "Perform measurability validation on this PRD:
 
-**Functional Requirements (FRs):**
+- *Functional Requirements (FRs):**
 1. Extract all FRs from Functional Requirements section
 2. Check each FR for:
    - '[Actor] can [capability]' format compliance
    - No subjective adjectives (easy, fast, simple, intuitive, etc.)
    - No vague quantifiers (multiple, several, some, many, etc.)
    - No implementation details (technology names, library names, data structures unless capability-relevant)
-3. Document violations with line numbers
+1. Document violations with line numbers
 
-**Non-Functional Requirements (NFRs):**
+- *Non-Functional Requirements (NFRs):**
 1. Extract all NFRs from Non-Functional Requirements section
 2. Check each NFR for:
    - Specific metrics with measurement methods
    - Template compliance (criterion, metric, measurement method, context)
    - Context included (why this matters, who it affects)
-3. Document violations with line numbers
+1. Document violations with line numbers
 
 Return structured findings with violation counts and examples."
 
@@ -87,37 +90,37 @@ Return structured findings with violation counts and examples."
 
 If Task tool unavailable, perform analysis directly:
 
-**Functional Requirements Analysis:**
+- *Functional Requirements Analysis:**
 
 Extract all FRs and check each for:
 
-**Format compliance:**
+- *Format compliance:**
 - Does it follow "[Actor] can [capability]" pattern?
 - Is actor clearly defined?
 - Is capability actionable and testable?
 
-**No subjective adjectives:**
+- *No subjective adjectives:**
 - Scan for: easy, fast, simple, intuitive, user-friendly, responsive, quick, efficient (without metrics)
 - Note line numbers
 
-**No vague quantifiers:**
+- *No vague quantifiers:**
 - Scan for: multiple, several, some, many, few, various, number of
 - Note line numbers
 
-**No implementation details:**
+- *No implementation details:**
 - Scan for: React, Vue, Angular, PostgreSQL, MongoDB, AWS, Docker, Kubernetes, Redux, etc.
 - Unless capability-relevant (e.g., "API consumers can access...")
 - Note line numbers
 
-**Non-Functional Requirements Analysis:**
+- *Non-Functional Requirements Analysis:**
 
 Extract all NFRs and check each for:
 
-**Specific metrics:**
+- *Specific metrics:**
 - Is there a measurable criterion? (e.g., "response time < 200ms", not "fast response")
 - Can this be measured or tested?
 
-**Template compliance:**
+- *Template compliance:**
 - Criterion defined?
 - Metric specified?
 - Measurement method included?
@@ -125,73 +128,83 @@ Extract all NFRs and check each for:
 
 ### 3. Tally Violations
 
-**FR Violations:**
+- *FR Violations:**
 - Format violations: count
 - Subjective adjectives: count
 - Vague quantifiers: count
 - Implementation leakage: count
 - Total FR violations: sum
 
-**NFR Violations:**
+- *NFR Violations:**
 - Missing metrics: count
 - Incomplete template: count
 - Missing context: count
 - Total NFR violations: sum
 
-**Total violations:** FR violations + NFR violations
+- *Total violations:** FR violations + NFR violations
 
 ### 4. Report Measurability Findings to Validation Report
 
 Append to validation report:
 
 ```markdown
+
 ## Measurability Validation
 
 ### Functional Requirements
 
-**Total FRs Analyzed:** {count}
+- *Total FRs Analyzed:** {count}
 
-**Format Violations:** {count}
+- *Format Violations:** {count}
+
 [If violations exist, list examples with line numbers]
 
-**Subjective Adjectives Found:** {count}
+- *Subjective Adjectives Found:** {count}
+
 [If found, list examples with line numbers]
 
-**Vague Quantifiers Found:** {count}
+- *Vague Quantifiers Found:** {count}
+
 [If found, list examples with line numbers]
 
-**Implementation Leakage:** {count}
+- *Implementation Leakage:** {count}
+
 [If found, list examples with line numbers]
 
-**FR Violations Total:** {total}
+- *FR Violations Total:** {total}
 
 ### Non-Functional Requirements
 
-**Total NFRs Analyzed:** {count}
+- *Total NFRs Analyzed:** {count}
 
-**Missing Metrics:** {count}
+- *Missing Metrics:** {count}
+
 [If missing, list examples with line numbers]
 
-**Incomplete Template:** {count}
+- *Incomplete Template:** {count}
+
 [If incomplete, list examples with line numbers]
 
-**Missing Context:** {count}
+- *Missing Context:** {count}
+
 [If missing, list examples with line numbers]
 
-**NFR Violations Total:** {total}
+- *NFR Violations Total:** {total}
 
 ### Overall Assessment
 
-**Total Requirements:** {FRs + NFRs}
-**Total Violations:** {FR violations + NFR violations}
+- *Total Requirements:** {FRs + NFRs}
+- *Total Violations:** {FR violations + NFR violations}
 
-**Severity:** [Critical if >10 violations, Warning if 5-10, Pass if <5]
+- *Severity:** [Critical if >10 violations, Warning if 5-10, Pass if <5]
 
-**Recommendation:**
+- *Recommendation:**
+
 [If Critical] "Many requirements are not measurable or testable. Requirements must be revised to be testable for downstream work."
 [If Warning] "Some requirements need refinement for measurability. Focus on violating requirements above."
 [If Pass] "Requirements demonstrate good measurability with minimal issues."
-```
+
+```bash
 
 ### 5. Display Progress and Auto-Proceed
 
@@ -199,11 +212,11 @@ Display: "**Measurability Validation Complete**
 
 Total Violations: {count} ({severity})
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile} (step-v-06-traceability-validation.md)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -225,4 +238,4 @@ Without delay, read fully and follow: {nextStepFile} (step-v-06-traceability-val
 - Not assessing severity
 - Not auto-proceeding
 
-**Master Rule:** Requirements must be testable to be useful. Validate every requirement for measurability, document violations, auto-proceed.
+- *Master Rule:** Requirements must be testable to be useful. Validate every requirement for measurability, document violations, auto-proceed.

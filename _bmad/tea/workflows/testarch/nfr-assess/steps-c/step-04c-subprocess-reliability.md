@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04c-subprocess-reliability'
 description: 'Subprocess: Reliability NFR assessment'
 subprocess: true
 outputFile: '/tmp/tea-nfr-reliability-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 4C: Reliability NFR Assessment
 
@@ -11,42 +13,42 @@ outputFile: '/tmp/tea-nfr-reliability-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other NFR domain assessments.
 
-**Your task:** Assess RELIABILITY NFR domain only.
+- *Your task:** Assess RELIABILITY NFR domain only.
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Reliability Assessment Categories
 
-**A) Error Handling:**
+- *A) Error Handling:**
 
 - Try-catch blocks for critical operations
 - Graceful degradation
 - Circuit breakers
 - Retry mechanisms
 
-**B) Monitoring & Observability:**
+- *B) Monitoring & Observability:**
 
 - Logging implementation
 - Error tracking (Sentry/Datadog)
 - Health check endpoints
 - Alerting systems
 
-**C) Fault Tolerance:**
+- *C) Fault Tolerance:**
 
 - Database failover
 - Service redundancy
 - Backup strategies
 - Disaster recovery plan
 
-**D) Uptime & Availability:**
+- *D) Uptime & Availability:**
 
 - SLA targets
 - Historical uptime
 - Incident response
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -76,9 +78,10 @@ This is an **isolated subprocess** running in parallel with other NFR domain ass
   "priority_actions": ["Implement APM for better observability"],
   "summary": "Reliability is good with minor monitoring gaps"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 

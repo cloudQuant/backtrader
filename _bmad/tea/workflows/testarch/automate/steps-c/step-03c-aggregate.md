@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03c-aggregate'
 description: 'Aggregate subprocess outputs and complete test infrastructure'
 outputFile: '{test_artifacts}/automation-summary.md'
 nextStepFile: './step-04-validate-and-summarize.md'
----
+
+- --
 
 # Step 3C: Aggregate Test Generation Results
 
@@ -11,7 +13,7 @@ nextStepFile: './step-04-validate-and-summarize.md'
 
 Read outputs from parallel subprocesses (API + E2E and/or Backend test generation based on `{detected_stack}`), aggregate results, and create supporting infrastructure (fixtures, helpers).
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -23,7 +25,7 @@ Read outputs from parallel subprocesses (API + E2E and/or Backend test generatio
 - ❌ Do NOT regenerate tests (use subprocess outputs)
 - ❌ Do NOT run tests yet (that's step 4)
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -38,62 +40,68 @@ Read outputs from parallel subprocesses (API + E2E and/or Backend test generatio
 - Limits: do not execute future steps
 - Dependencies: Step 3A and 3B subprocess outputs
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ### 1. Read Subprocess Outputs
 
-**Read API test subprocess output (always):**
+- *Read API test subprocess output (always):**
 
 ```javascript
 const apiTestsPath = '/tmp/tea-automate-api-tests-{{timestamp}}.json';
 const apiTestsOutput = JSON.parse(fs.readFileSync(apiTestsPath, 'utf8'));
-```
 
-**Read E2E test subprocess output (if {detected_stack} is `frontend` or `fullstack`):**
+```bash
+
+- *Read E2E test subprocess output (if {detected_stack} is `frontend` or `fullstack`):**
 
 ```javascript
 let e2eTestsOutput = null;
 if (detected_stack === 'frontend' || detected_stack === 'fullstack') {
+
   const e2eTestsPath = '/tmp/tea-automate-e2e-tests-{{timestamp}}.json';
   e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, 'utf8'));
 }
-```
 
-**Read Backend test subprocess output (if {detected_stack} is `backend` or `fullstack`):**
+```bash
+
+- *Read Backend test subprocess output (if {detected_stack} is `backend` or `fullstack`):**
 
 ```javascript
 let backendTestsOutput = null;
 if (detected_stack === 'backend' || detected_stack === 'fullstack') {
+
   const backendTestsPath = '/tmp/tea-automate-backend-tests-{{timestamp}}.json';
   backendTestsOutput = JSON.parse(fs.readFileSync(backendTestsPath, 'utf8'));
 }
-```
 
-**Verify all launched subprocesses succeeded:**
+```bash
+
+- *Verify all launched subprocesses succeeded:**
 
 - Check `apiTestsOutput.success === true`
 - If E2E was launched: check `e2eTestsOutput.success === true`
 - If Backend was launched: check `backendTestsOutput.success === true`
 - If any failed, report error and stop (don't proceed)
 
----
+- --
 
 ### 2. Write All Test Files to Disk
 
-**Write API test files:**
+- *Write API test files:**
 
 ```javascript
 apiTestsOutput.tests.forEach((test) => {
   fs.writeFileSync(test.file, test.content, 'utf8');
   console.log(`✅ Created: ${test.file}`);
 });
-```
 
-**Write E2E test files (if {detected_stack} is `frontend` or `fullstack`):**
+```bash
+
+- *Write E2E test files (if {detected_stack} is `frontend` or `fullstack`):**
 
 ```javascript
 if (e2eTestsOutput) {
@@ -102,9 +110,10 @@ if (e2eTestsOutput) {
     console.log(`✅ Created: ${test.file}`);
   });
 }
-```
 
-**Write Backend test files (if {detected_stack} is `backend` or `fullstack`):**
+```bash
+
+- *Write Backend test files (if {detected_stack} is `backend` or `fullstack`):**
 
 ```javascript
 if (backendTestsOutput) {
@@ -113,39 +122,42 @@ if (backendTestsOutput) {
     console.log(`✅ Created: ${test.file}`);
   });
 }
-```
 
----
+```bash
+
+- --
 
 ### 3. Aggregate Fixture Needs
 
-**Collect all fixture needs from all launched subprocesses:**
+- *Collect all fixture needs from all launched subprocesses:**
 
 ```javascript
 const allFixtureNeeds = [
   ...apiTestsOutput.fixture_needs,
   ...(e2eTestsOutput ? e2eTestsOutput.fixture_needs : []),
   ...(backendTestsOutput ? backendTestsOutput.coverageSummary?.fixtureNeeds || [] : []),
+
 ];
 
 // Remove duplicates
 const uniqueFixtures = [...new Set(allFixtureNeeds)];
-```
 
-**Categorize fixtures:**
+```bash
 
-- **Authentication fixtures:** authToken, authenticatedUserFixture, etc.
-- **Data factories:** userDataFactory, productDataFactory, etc.
-- **Network mocks:** paymentMockFixture, apiResponseMocks, etc.
+- *Categorize fixtures:**
+
+- **Authentication fixtures:**authToken, authenticatedUserFixture, etc.
+- **Data factories:**userDataFactory, productDataFactory, etc.
+- **Network mocks:**paymentMockFixture, apiResponseMocks, etc.
 - **Test helpers:** wait/retry/assertion helpers
 
----
+- --
 
 ### 4. Generate Fixture Infrastructure
 
-**Create or update fixture files based on needs:**
+- *Create or update fixture files based on needs:**
 
-**A) Authentication Fixtures** (`tests/fixtures/auth.ts`):
+- *A) Authentication Fixtures** (`tests/fixtures/auth.ts`):
 
 ```typescript
 import { test as base } from '@playwright/test';
@@ -172,9 +184,10 @@ export const test = base.extend({
     await use(token);
   },
 });
-```
 
-**B) Data Factories** (`tests/fixtures/data-factories.ts`):
+```bash
+
+- *B) Data Factories** (`tests/fixtures/data-factories.ts`):
 
 ```typescript
 import { faker } from '@faker-js/faker';
@@ -190,9 +203,10 @@ export const createProductData = (overrides = {}) => ({
   price: faker.number.int({ min: 10, max: 1000 }),
   ...overrides,
 });
-```
 
-**C) Network Mocks** (`tests/fixtures/network-mocks.ts`):
+```bash
+
+- *C) Network Mocks** (`tests/fixtures/network-mocks.ts`):
 
 ```typescript
 import { Page } from '@playwright/test';
@@ -205,9 +219,10 @@ export const mockPaymentSuccess = async (page: Page) => {
     });
   });
 };
-```
 
-**D) Helper Utilities** (`tests/fixtures/helpers.ts`):
+```bash
+
+- *D) Helper Utilities** (`tests/fixtures/helpers.ts`):
 
 ```typescript
 import { expect, Page } from '@playwright/test';
@@ -215,13 +230,14 @@ import { expect, Page } from '@playwright/test';
 export const waitForApiResponse = async (page: Page, urlPattern: string) => {
   return page.waitForResponse((response) => response.url().includes(urlPattern) && response.ok());
 };
-```
 
----
+```bash
+
+- --
 
 ### 5. Calculate Summary Statistics
 
-**Aggregate test counts (based on `{detected_stack}`):**
+- *Aggregate test counts (based on `{detected_stack}`):**
 
 ```javascript
 const e2eCount = e2eTestsOutput ? e2eTestsOutput.test_count : 0;
@@ -259,42 +275,48 @@ const summary = {
     ...apiTestsOutput.knowledge_fragments_used,
     ...(e2eTestsOutput ? e2eTestsOutput.knowledge_fragments_used : []),
     ...(backendTestsOutput ? backendTestsOutput.knowledge_fragments_used || [] : []),
+
   ],
   subprocess_execution: `PARALLEL (based on ${detected_stack})`,
   performance_gain: '~40-70% faster than sequential',
 };
-```
 
-**Store summary for Step 4:**
+```bash
+
+- *Store summary for Step 4:**
+
 Save summary to temp file for validation step:
 
 ```javascript
 fs.writeFileSync('/tmp/tea-automate-summary-{{timestamp}}.json', JSON.stringify(summary, null, 2), 'utf8');
-```
 
----
+```bash
+
+- --
 
 ### 6. Optional Cleanup
 
-**Clean up subprocess temp files** (optional - can keep for debugging):
+- *Clean up subprocess temp files** (optional - can keep for debugging):
 
 ```javascript
 fs.unlinkSync(apiTestsPath);
 if (e2eTestsOutput) fs.unlinkSync('/tmp/tea-automate-e2e-tests-{{timestamp}}.json');
 if (backendTestsOutput) fs.unlinkSync('/tmp/tea-automate-backend-tests-{{timestamp}}.json');
 console.log('✅ Subprocess temp files cleaned up');
-```
 
----
+```bash
+
+- --
 
 ## OUTPUT SUMMARY
 
 Display to user:
 
-```
+```bash
 ✅ Test Generation Complete (Parallel Execution)
 
 📊 Summary:
+
 - Stack Type: {detected_stack}
 - Total Tests: {total_tests}
   - API Tests: {api_tests} ({api_test_files} files)
@@ -310,16 +332,18 @@ Display to user:
 🚀 Performance: Parallel execution ~40-70% faster than sequential
 
 📂 Generated Files:
+
 - tests/api/[feature].spec.ts                                [always]
 - tests/e2e/[feature].spec.ts                                [if frontend/fullstack]
 - tests/unit/[feature].test.*                                 [if backend/fullstack]
-- tests/integration/[feature].test.*                          [if backend/fullstack]
+- tests/integration/[feature].test.*[if backend/fullstack]
 - tests/fixtures/ or tests/support/                           [shared infrastructure]
 
 ✅ Ready for validation (Step 4)
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -330,20 +354,24 @@ Proceed to Step 4 when:
 - ✅ Summary statistics calculated and saved
 - ✅ Output displayed to user
 
----
+- --
 
 ### 7. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-03c-aggregate']
   lastStep: 'step-03c-aggregate'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -356,7 +384,7 @@ Proceed to Step 4 when:
 
 Load next step: `{nextStepFile}`
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS:
 
@@ -374,4 +402,4 @@ Load next step: `{nextStepFile}`
 - Fixtures missing or incomplete
 - Summary missing or inaccurate
 
-**Master Rule:** Do NOT proceed to Step 4 if aggregation incomplete.
+- *Master Rule:** Do NOT proceed to Step 4 if aggregation incomplete.

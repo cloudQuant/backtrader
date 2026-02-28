@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-01b-continue'
 description: 'Resume TEA Academy learning - load progress and display dashboard'
 
 progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
 nextStepFile: './step-03-session-menu.md'
----
+
+- --
 
 # Step 1b: Continue TEA Academy
 
@@ -54,7 +56,7 @@ To resume the TEA Academy workflow from a previous session by loading progress, 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Progress File
 
@@ -80,14 +82,14 @@ Update {progressFile} frontmatter:
 
 Display:
 
-"🧪 **Welcome back to TEA Academy, {user}!**
+"🧪**Welcome back to TEA Academy, {user}!**
 
-**Your Role:** {role}
-**Experience Level:** {experience_level}
-**Started:** {started_date}
-**Progress:** {completion_percentage}% ({sessions_completed} of 7 sessions completed)
+- *Your Role:** {role}
+- *Experience Level:** {experience_level}
+- *Started:** {started_date}
+- *Progress:**{completion_percentage}% ({sessions_completed} of 7 sessions completed)
 
----
+- --
 
 ### 📊 Session Progress
 
@@ -95,21 +97,21 @@ Display:
 
 {For each session in sessions array:}
 {If status == 'completed':}
-✅ **Session {N}:** {name} - Completed {completed_date} (Score: {score}/100)
+✅**Session {N}:**{name} - Completed {completed_date} (Score: {score}/100)
 {If status == 'in-progress':}
-🔄 **Session {N}:** {name} - In Progress (Started {started_date})
+🔄**Session {N}:**{name} - In Progress (Started {started_date})
 {If status == 'not-started':}
-⬜ **Session {N}:** {name} - Not Started
+⬜**Session {N}:** {name} - Not Started
 
----
+- --
 
 ### 🎯 Next Recommended
 
 {next_recommended}
 
----
+- --
 
-**Let's continue your learning journey!**
+- *Let's continue your learning journey!**
 
 Loading session menu..."
 
@@ -119,9 +121,9 @@ Display:
 
 "**Proceeding to session menu...**"
 
-**THEN:** Immediately load, read entire file, then execute {nextStepFile}
+- *THEN:** Immediately load, read entire file, then execute {nextStepFile}
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -144,4 +146,4 @@ Display:
 - Asking user for input instead of auto-routing
 - Not routing to session menu
 
-**Master Rule:** This is an auto-proceed continuation step. Load progress, show dashboard, route to session menu - no user menu needed.
+- *Master Rule:** This is an auto-proceed continuation step. Load progress, show dashboard, route to session menu - no user menu needed.

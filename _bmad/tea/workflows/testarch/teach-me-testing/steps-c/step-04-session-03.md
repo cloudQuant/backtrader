@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-04-session-03'
 description: 'Session 3: Architecture & Patterns - Fixtures, network patterns, framework setup (60 min)'
 
@@ -8,7 +9,8 @@ sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-03-notes.md'
 nextStepFile: './step-03-session-menu.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Session 3 - Architecture & Patterns
 
@@ -54,15 +56,15 @@ To teach TEA architecture patterns including fixture composition, network-first 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly.
+- *CRITICAL:**Follow this sequence exactly.
 
 ### 1. Session Welcome
 
-"🧪 **Session 3: Architecture & Patterns** (60 minutes)
+"🧪**Session 3: Architecture & Patterns** (60 minutes)
 
-**Objective:** Understand TEA patterns and architecture
+- *Objective:** Understand TEA patterns and architecture
 
-**What you'll learn:**
+- *What you'll learn:**
 
 - Fixture architecture and composition
 - Network-first patterns
@@ -82,17 +84,17 @@ Load {progressFile}, update session-03-architecture:
 
 "### 🏗️ Fixture Architecture
 
-**The Problem:** Tests have setup/teardown boilerplate everywhere.
+- *The Problem:** Tests have setup/teardown boilerplate everywhere.
 
-**TEA Solution:** Composable fixtures
+- *TEA Solution:** Composable fixtures
 
-**Fixture Composition Pattern:**
+- *Fixture Composition Pattern:**
 
 ```typescript
 // Base fixtures
 const baseFixtures = {
   page: async ({}, use) => {
-    /* ... */
+    /*...*/
   },
 };
 
@@ -107,9 +109,10 @@ const authFixtures = {
 
 // Merge and use
 test.use(mergeTests(baseFixtures, authFixtures));
-```
 
-**Benefits:**
+```bash
+
+- *Benefits:**
 
 - DRY: Define once, use everywhere
 - Composable: Build complex fixtures from simple ones
@@ -118,18 +121,18 @@ test.use(mergeTests(baseFixtures, authFixtures));
 
 {Role-adapted example based on user role}
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/explanation/fixture-architecture/>
-**Knowledge Fragment:** fixture-architecture.md, fixtures-composition.md"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/explanation/fixture-architecture/>
+- *Knowledge Fragment:** fixture-architecture.md, fixtures-composition.md"
 
 ### 4. Teaching: Network-First Patterns
 
 "### 🌐 Network-First Patterns
 
-**The Problem:** Flaky tests due to network timing issues.
+- *The Problem:** Flaky tests due to network timing issues.
 
-**TEA Solution:** Intercept and control network
+- *TEA Solution:** Intercept and control network
 
-**Network-First Pattern:**
+- *Network-First Pattern:**
 
 ```typescript
 // BEFORE the action, set up network interception
@@ -141,9 +144,10 @@ await page.route('/api/users', (route) => {
 await page.click('Load Users');
 
 // Network is already mocked - no race condition
-```
 
-**Why Network-First:**
+```bash
+
+- *Why Network-First:**
 
 - Prevents race conditions
 - Deterministic test behavior
@@ -152,18 +156,18 @@ await page.click('Load Users');
 
 {Role-adapted example}
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/explanation/network-first-patterns/>
-**Knowledge Fragment:** network-first.md, intercept-network-call.md"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/explanation/network-first-patterns/>
+- *Knowledge Fragment:** network-first.md, intercept-network-call.md"
 
 ### 5. Teaching: Data Factories
 
 "### 🏭 Data Factories
 
-**The Problem:** Hard-coded test data everywhere.
+- *The Problem:** Hard-coded test data everywhere.
 
-**TEA Solution:** Factory functions
+- *TEA Solution:** Factory functions
 
-**Factory Pattern:**
+- *Factory Pattern:**
 
 ```typescript
 function createUser(overrides = {}) {
@@ -178,9 +182,10 @@ function createUser(overrides = {}) {
 // Use in tests
 const admin = createUser({ role: 'admin' });
 const user = createUser(); // defaults
-```
 
-**Benefits:**
+```bash
+
+- *Benefits:**
 
 - No hardcoded data
 - Easy to override fields
@@ -189,37 +194,38 @@ const user = createUser(); // defaults
 
 {Role-adapted example}
 
-**Knowledge Fragment:** data-factories.md"
+- *Knowledge Fragment:** data-factories.md"
 
 ### 6. Teaching: Step-File Architecture
 
 "### 📋 Step-File Architecture
 
-**This workflow uses step-file architecture!**
+- *This workflow uses step-file architecture!**
 
-**Pattern:**
+- *Pattern:**
 
 - Micro-file design: Each step is self-contained
 - Just-in-time loading: Only current step in memory
 - Sequential enforcement: No skipping steps
 - State tracking: Progress saved between steps
 
-**Why:**
+- *Why:**
 
 - Disciplined execution
 - Clear progression
 - Resumable (continuable workflows)
 - Maintainable (one file per step)
 
-**You're experiencing this right now:** Each session is a step file!
+- *You're experiencing this right now:** Each session is a step file!
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/explanation/step-file-architecture/>"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/explanation/step-file-architecture/>"
 
 ### 7. Quiz (3 questions)
 
 "### ✅ Knowledge Check"
 
-**Q1:** "What is the main benefit of fixture composition?
+- *Q1:** "What is the main benefit of fixture composition?
+
 A) Faster test execution
 B) DRY - define once, reuse everywhere
 C) Better error messages
@@ -227,7 +233,8 @@ D) Automatic screenshot capture"
 
 Correct: B
 
-**Q2:** "Why is 'network-first' better than mocking after the action?
+- *Q2:** "Why is 'network-first' better than mocking after the action?
+
 A) It's faster
 B) It prevents race conditions
 C) It uses less memory
@@ -235,7 +242,8 @@ D) It's easier to write"
 
 Correct: B
 
-**Q3:** "What pattern does this teaching workflow use?
+- *Q3:**"What pattern does this teaching workflow use?
+
 A) Page Object Model
 B) Behavior Driven Development
 C) Step-File Architecture
@@ -270,7 +278,7 @@ Append 'step-04-session-03' to stepsCompleted.
 
 ### 10. Complete Message
 
-"🎉 **Session 3 Complete!** Score: {score}/100
+"🎉**Session 3 Complete!** Score: {score}/100
 You understand TEA architecture patterns!
 Progress: {completion_percentage}%"
 
@@ -280,7 +288,7 @@ Progress: {completion_percentage}%"
 
 Return to {nextStepFile}
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -298,4 +306,4 @@ Return to {nextStepFile}
 - Not generating notes
 - Not updating progress
 
-**Master Rule:** Teach patterns, quiz, update, return to hub.
+- *Master Rule:** Teach patterns, quiz, update, return to hub.

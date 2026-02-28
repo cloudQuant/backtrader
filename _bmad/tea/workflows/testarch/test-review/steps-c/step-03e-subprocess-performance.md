@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03e-subprocess-performance'
 description: 'Subprocess: Check test performance (speed, efficiency, parallelization)'
 subprocess: true
 outputFile: '/tmp/tea-test-review-performance-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 3E: Performance Quality Check
 
@@ -11,9 +13,9 @@ outputFile: '/tmp/tea-test-review-performance-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other quality dimension checks.
 
-**Your task:** Analyze test files for PERFORMANCE violations only.
+- *Your task:** Analyze test files for PERFORMANCE violations only.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -21,27 +23,27 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 - ✅ Output structured JSON to temp file
 - ❌ Do NOT check determinism, isolation, maintainability, or coverage
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Identify Performance Violations
 
-**HIGH SEVERITY Violations**:
+- *HIGH SEVERITY Violations**:
 
 - Tests not parallelizable (using test.describe.serial unnecessarily)
 - Slow setup/teardown (creating fresh DB for every test)
 - Excessive navigation (reloading pages unnecessarily)
 - No fixture reuse (repeating expensive operations)
 
-**MEDIUM SEVERITY Violations**:
+- *MEDIUM SEVERITY Violations**:
 
 - Hard waits >2 seconds (waitForTimeout(5000))
 - Inefficient selectors (page.$$ instead of locators)
 - Large data sets in tests without pagination
 - Missing performance optimizations
 
-**LOW SEVERITY Violations**:
+- *LOW SEVERITY Violations**:
 
 - Could use parallelization (test.describe.configure({ mode: 'parallel' }))
 - Minor inefficiencies
@@ -53,9 +55,10 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 const severityWeights = { HIGH: 10, MEDIUM: 5, LOW: 2 };
 const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.severity], 0);
 const score = Math.max(0, 100 - totalPenalty);
-```
 
----
+```bash
+
+- --
 
 ## OUTPUT FORMAT
 
@@ -106,12 +109,13 @@ const score = Math.max(0, 100 - totalPenalty);
   ],
   "summary": "Good performance with 2 violations - 80% tests can run in parallel"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
 Subprocess completes when JSON output written to temp file.
 
-**Subprocess terminates here.**
+- *Subprocess terminates here.**

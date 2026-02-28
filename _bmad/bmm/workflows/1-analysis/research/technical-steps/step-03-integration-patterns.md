@@ -25,7 +25,7 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 - Focus on APIs, protocols, and system interoperability
 - Web search capabilities with source verification are enabled
@@ -38,12 +38,12 @@ Conduct integration patterns analysis focusing on APIs, communication protocols,
 
 ### 1. Begin Integration Patterns Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different integration areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different integration areas simultaneously and thoroughly.
 
 Start with integration patterns research approach:
-"Now I'll conduct **integration patterns analysis** for **{{research_topic}}** to understand system integration approaches.
+"Now I'll conduct **integration patterns analysis**for**{{research_topic}}** to understand system integration approaches.
 
-**Integration Patterns Focus:**
+- *Integration Patterns Focus:**
 
 - API design patterns and protocols
 - Communication protocols and data formats
@@ -51,18 +51,18 @@ Start with integration patterns research approach:
 - Microservices integration patterns
 - Event-driven architectures and messaging
 
-**Let me search for current integration patterns insights.**"
+- *Let me search for current integration patterns insights.**"
 
 ### 2. Parallel Integration Patterns Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} API design patterns protocols"
 Search the web: "{{research_topic}} communication protocols data formats"
 Search the web: "{{research_topic}} system interoperability integration"
 Search the web: "{{research_topic}} microservices integration patterns"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for recent API design guides and best practices
 - Search for communication protocol documentation and standards
@@ -72,26 +72,28 @@ Search the web: "{{research_topic}} microservices integration patterns"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate integration patterns findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - API design patterns and protocols analysis
 - Communication protocols and data formats evaluation
 - System interoperability approaches assessment
 - Microservices integration patterns documentation
 
-**Cross-Integration Analysis:**
+- *Cross-Integration Analysis:**
+
 [Identify patterns connecting API choices, communication protocols, and system design]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Integration Patterns Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare integration patterns analysis with web search citations:
 
@@ -100,6 +102,7 @@ Prepare integration patterns analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Integration Patterns Analysis
 
 ### API Design Patterns
@@ -164,15 +167,16 @@ _API Key Management: [Secure API access and key rotation]_
 _Mutual TLS: [Certificate-based service authentication]_
 _Data Encryption: [Secure data transmission and storage]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **integration patterns analysis** of system integration approaches for {{research_topic}}.
 
-**Key Integration Patterns Findings:**
+- *Key Integration Patterns Findings:**
 
 - API design patterns and protocols thoroughly analyzed
 - Communication protocols and data formats evaluated
@@ -180,7 +184,8 @@ _Source: [URL]_
 - Microservices integration patterns mapped
 - Event-driven integration strategies identified
 
-**Ready to proceed to architectural patterns analysis?**
+- *Ready to proceed to architectural patterns analysis?**
+
 [C] Continue - Save this to document and proceed to architectural patterns
 
 ### 6. Handle Continue Selection

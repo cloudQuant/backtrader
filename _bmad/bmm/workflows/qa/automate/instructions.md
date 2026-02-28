@@ -1,8 +1,8 @@
 # Quinn QA - Automate
 
-**Goal**: Generate automated API and E2E tests for implemented code.
+- *Goal**: Generate automated API and E2E tests for implemented code.
 
-**Scope**: This workflow generates tests ONLY. It does **not** perform code review or story validation (use Code Review `CR` for that).
+- *Scope**: This workflow generates tests ONLY. It does **not** perform code review or story validation (use Code Review `CR` for that).
 
 ## Instructions
 
@@ -57,41 +57,47 @@ If failures occur, fix them immediately.
 Output markdown summary:
 
 ```markdown
+
 # Test Automation Summary
 
 ## Generated Tests
 
 ### API Tests
+
 - [x] tests/api/endpoint.spec.ts - Endpoint validation
 
 ### E2E Tests
+
 - [x] tests/e2e/feature.spec.ts - User workflow
 
 ## Coverage
+
 - API endpoints: 5/10 covered
 - UI features: 3/8 covered
 
 ## Next Steps
+
 - Run tests in CI
 - Add more edge cases as needed
-```
+
+```bash
 
 ## Keep It Simple
 
-**Do:**
+- *Do:**
 
 - Use standard test framework APIs
 - Focus on happy path + critical errors
 - Write readable, maintainable tests
 - Run tests to verify they pass
 
-**Avoid:**
+- *Avoid:**
 
 - Complex fixture composition
 - Over-engineering
 - Unnecessary abstractions
 
-**For Advanced Features:**
+- *For Advanced Features:**
 
 If the project needs:
 
@@ -107,4 +113,4 @@ If the project needs:
 
 Save summary to: `{implementation_artifacts}/tests/test-summary.md`
 
-**Done!** Tests generated and verified.
+- *Done!** Tests generated and verified.

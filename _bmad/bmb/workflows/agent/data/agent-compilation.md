@@ -1,8 +1,8 @@
 # Agent Compilation: YAML → Compiled
 
-**TL;DR:** Write minimal YAML → compiler adds frontmatter, activation XML, handlers, rules, MH/CH/PM/DA menu items.
+- *TL;DR:** Write minimal YAML → compiler adds frontmatter, activation XML, handlers, rules, MH/CH/PM/DA menu items.
 
----
+- --
 
 ## YAML Structure (YOU WRITE)
 
@@ -20,57 +20,80 @@ agent:
     identity: "Background and specializations"
     communication_style: "How the agent speaks"
     principles:
+
       - "Core belief or methodology"
 
   critical_actions:              # Optional - ANY agent can have these
+
     - "Load COMPLETE file {project-root}/_bmad/_memory/journal-sidecar/memories.md"
     - "Load COMPLETE file {project-root}/_bmad/_memory/journal-sidecar/instructions.md"
     - "ONLY read/write files in {project-root}/_bmad/_memory/journal-sidecar/"
 
   prompts:                        # Optional - standalone agents
+
     - id: prompt-name
+
       content: |
+
         <instructions>Prompt content</instructions>
 
   menu:                           # Custom items ONLY
+
     - trigger: XX or fuzzy match on command-name
+
       workflow: "path/to/workflow.yaml"   # OR
       exec: "path/to/file.md"             # OR
       action: "#prompt-id"
       description: "[XX] Command description"
-```
 
----
+```bash
+
+- --
 
 ## What Compiler Adds (DO NOT WRITE)
 
 | Component | Source |
+
 |-----------|--------|
+
 | Frontmatter (`---name/description---`) | Auto-generated |
+
 | XML activation block with numbered steps | Auto-generated |
+
 | critical_actions → activation steps | Injected as steps 4, 5, 6... |
+
 | Menu handlers (workflow/exec/action) | Auto-detected |
+
 | Rules section | Auto-generated |
+
 | MH, CH, PM, DA menu items | Always injected |
 
 ### Auto-Injected Menu Items (NEVER add)
 
 | Code | Trigger | Description |
+
 |------|---------|-------------|
+
 | MH | menu or help | Redisplay Menu Help |
+
 | CH | chat | Chat with the Agent about anything |
+
 | PM | party-mode | Start Party Mode |
+
 | DA | exit, leave, goodbye, dismiss agent | Dismiss Agent |
 
----
+- --
 
 ## Compiled Output Structure
 
 ```markdown
----
+
+- --
+
 name: "architect"
 description: "Architect"
----
+
+- --
 
 You must fully embody this agent's persona...
 
@@ -122,38 +145,46 @@ You must fully embody this agent's persona...
   <item cmd="DA or fuzzy match on exit leave goodbye dismiss agent">[DA] Dismiss Agent</item>
 </menu>
 </agent>
-```
 
----
+```bash
+
+- --
 
 ## critical_actions Injection
 
 Your `critical_actions` become numbered activation steps.
 
 ### With sidecar (hasSidecar: true):
+
 ```yaml
 critical_actions:
+
   - "Load COMPLETE file {project-root}/_bmad/_memory/journal-sidecar/memories.md"
   - "Load COMPLETE file {project-root}/_bmad/_memory/journal-sidecar/instructions.md"
   - "ONLY read/write files in {project-root}/_bmad/_memory/journal-sidecar/"
-```
+
+```bash
 → Injected as steps 4, 5, 6
 
 ### Without sidecar (hasSidecar: false):
+
 ```yaml
 critical_actions:
+
   - "Give user an inspirational quote before showing menu"
-```
+
+```bash
 → Injected as step 4
 
 ### No critical_actions:
+
 Activation jumps directly from step 3 to "ALWAYS communicate in {communication_language}"
 
----
+- --
 
 ## DO NOT / DO Checklist
 
-**DO NOT:**
+- *DO NOT:**
 - [ ] Add frontmatter
 - [ ] Create activation/XML blocks
 - [ ] Add MH/CH/PM/DA menu items
@@ -161,7 +192,7 @@ Activation jumps directly from step 3 to "ALWAYS communicate in {communication_l
 - [ ] Add rules section
 - [ ] Duplicate auto-injected content
 
-**DO:**
+- *DO:**
 - [ ] Define metadata (id, name, title, icon, module)
 - [ ] Define persona (role, identity, communication_style, principles)
 - [ ] Define critical_actions (if activation behavior needed)
@@ -170,16 +201,24 @@ Activation jumps directly from step 3 to "ALWAYS communicate in {communication_l
 - [ ] Use format: `XX or fuzzy match on command-name`
 - [ ] Use description format: `[XX] Description text`
 
----
+- --
 
 ## Division of Responsibilities
 
 | Aspect | YOU (YAML) | COMPILER |
+
 |--------|------------|----------|
+
 | Agent identity | metadata + persona | Wrapped in XML |
+
 | Activation steps | critical_actions | Inserted as steps 4+ |
+
 | Prompts | prompts with IDs | Referenced by actions |
+
 | Menu items | Custom only | + MH, CH, PM, DA |
+
 | Activation block | — | Full XML with handlers |
+
 | Rules | — | Standardized section |
+
 | Frontmatter | — | name/description |

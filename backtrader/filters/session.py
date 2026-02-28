@@ -70,9 +70,7 @@ class SessionFiller(ParameterizedBase):
         default=None,
         doc="Price to be used to fill missing bars. If None will be used the closing price of the previous bar",
     )
-    fill_vol = ParameterDescriptor(
-        default=float("NaN"), type_=float, doc="Value to use to fill the missing volume"
-    )
+    fill_vol = ParameterDescriptor(default=float("NaN"), type_=float, doc="Value to use to fill the missing volume")
     fill_oi = ParameterDescriptor(
         default=float("NaN"), type_=float, doc="Value to use to fill the missing Open Interest"
     )

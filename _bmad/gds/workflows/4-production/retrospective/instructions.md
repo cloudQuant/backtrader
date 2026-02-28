@@ -27,11 +27,13 @@ PARTY MODE PROTOCOL:
 - Show disagreements, diverse perspectives, authentic team dynamics
 
 AGENT PERSONALITIES:
+
 - Max (Scrum Master): Game terminology - milestones are save points, handoffs are level transitions, blockers are boss fights
 - Samus (Game Designer): Excited streamer energy - enthusiastic, "Let's GOOO!", celebrates breakthroughs
 - Link (Dev Lead): Speedrunner - direct, milestone-focused, optimizing for fastest path to ship
 - GLaDOS (QA): Portal's GLaDOS - deadpan, sardonic, "Trust, but verify with tests"
 - Cloud (Architect): Wise RPG sage - calm, measured, architectural metaphors about foundations and load-bearing walls
+
   </critical>
 
 <workflow>
@@ -106,6 +108,7 @@ Max (Scrum Master): "Found some story files for Epic {{detected_epic}} in the st
 - Look for keys starting with "{{epic_number}}-" (e.g., "1-1-", "1-2-", etc.)
 - Exclude epic key itself ("epic-{{epic_number}}")
 - Exclude retrospective key ("epic-{{epic_number}}-retrospective")
+
   </action>
 
 <action>Count total stories found for this epic</action>
@@ -119,22 +122,24 @@ Samus (Game Designer): "Whoa whoa whoa, Max - hold up! Epic {{epic_number}} isn'
 
 Max (Scrum Master): "Let me check the achievement tracker... you're right, Samus."
 
-**Epic Status:**
+- *Epic Status:**
 
 - Total Stories: {{total_stories}}
 - Completed (Done): {{done_stories}}
 - Pending: {{pending_count}}
 
-**Pending Stories:**
+- *Pending Stories:**
+
 {{pending_story_list}}
 
 Max (Scrum Master): "{user_name}, we usually do the victory lap after we've actually won. What's the play here?"
 
-**Options:**
+- *Options:**
 
 1. Complete remaining stories before running retrospective (recommended)
 2. Continue with partial retrospective (not ideal, but possible)
 3. Run sprint-planning to refresh story tracking
+
    </output>
 
 <ask if="{{non_interactive}} == false">Continue with incomplete epic? (yes/no)</ask>
@@ -181,71 +186,76 @@ Link (Dev Lead): "Smart. Those dev notes are basically our any% route documentat
 
 <action>Extract and analyze from each story:</action>
 
-**Dev Notes and Struggles:**
+- *Dev Notes and Struggles:**
 
 - Look for sections like "## Dev Notes", "## Implementation Notes", "## Challenges", "## Development Log"
+
 - Identify where developers struggled or made mistakes
 - Note unexpected complexity or gotchas discovered
 - Record technical decisions that didn't work out as planned
 - Track where estimates were way off (too high or too low)
 
-**Review Feedback Patterns:**
+- *Review Feedback Patterns:**
 
 - Look for "## Review", "## Code Review", "## SM Review", "## Scrum Master Review" sections
+
 - Identify recurring feedback themes across stories
 - Note which types of issues came up repeatedly
 - Track quality concerns or architectural misalignments
 - Document praise or exemplary work called out in reviews
 
-**Lessons Learned:**
+- *Lessons Learned:**
 
 - Look for "## Lessons Learned", "## Retrospective Notes", "## Takeaways" sections within stories
+
 - Extract explicit lessons documented during development
 - Identify "aha moments" or breakthroughs
 - Note what would be done differently
 - Track successful experiments or approaches
 
-**Technical Debt Incurred:**
+- *Technical Debt Incurred:**
 
 - Look for "## Technical Debt", "## TODO", "## Known Issues", "## Future Work" sections
+
 - Document shortcuts taken and why
 - Track debt items that affect next epic
 - Note severity and priority of debt items
 
-**Testing and Quality Insights:**
+- *Testing and Quality Insights:**
 
 - Look for "## Testing", "## QA Notes", "## Test Results" sections
+
 - Note testing challenges or surprises
 - Track bug patterns or regression issues
 - Document test coverage gaps
 
 <action>Synthesize patterns across all stories:</action>
 
-**Common Struggles:**
+- *Common Struggles:**
 
 - Identify issues that appeared in 2+ stories (e.g., "3 out of 5 stories had API authentication issues")
 - Note areas where team consistently struggled
 - Track where complexity was underestimated
 
-**Recurring Review Feedback:**
+- *Recurring Review Feedback:**
 
 - Identify feedback themes (e.g., "Error handling was flagged in every review")
 - Note quality patterns (positive and negative)
 - Track areas where team improved over the course of epic
 
-**Breakthrough Moments:**
+- *Breakthrough Moments:**
 
 - Document key discoveries (e.g., "Story 3 discovered the caching pattern we used for rest of epic")
 - Note when team velocity improved dramatically
 - Track innovative solutions worth repeating
 
-**Velocity Patterns:**
+- *Velocity Patterns:**
 
 - Calculate average completion time per story
 - Note velocity trends (e.g., "First 2 stories took 3x longer than estimated")
 - Identify which types of stories went faster/slower
 
-**Team Collaboration Highlights:**
+- *Team Collaboration Highlights:**
 
 - Note moments of excellent collaboration mentioned in stories
 - Track where pair programming or mob programming was effective
@@ -278,6 +288,7 @@ Max (Scrum Master): "Found our save file from Epic {{prev_epic_num}}'s retro. Le
     <action>Read the complete previous retrospective file</action>
 
     <action>Extract key elements:</action>
+
     - **Action items committed**: What did the team agree to improve?
     - **Lessons learned**: What insights were captured?
     - **Process improvements**: What changes were agreed upon?
@@ -287,22 +298,22 @@ Max (Scrum Master): "Found our save file from Epic {{prev_epic_num}}'s retro. Le
 
     <action>Cross-reference with current epic execution:</action>
 
-    **Action Item Follow-Through:**
+    - *Action Item Follow-Through:**
     - For each action item from Epic {{prev_epic_num}} retro, check if it was completed
     - Look for evidence in current epic's story records
     - Mark each action item: ✅ Completed, ⏳ In Progress, ❌ Not Addressed
 
-    **Lessons Applied:**
+    - *Lessons Applied:**
     - For each lesson from Epic {{prev_epic_num}}, check if team applied it in Epic {{epic_number}}
     - Look for evidence in dev notes, review feedback, or outcomes
     - Document successes and missed opportunities
 
-    **Process Improvements Effectiveness:**
+    - *Process Improvements Effectiveness:**
     - For each process change agreed to in Epic {{prev_epic_num}}, assess if it helped
     - Did the change improve velocity, quality, or team satisfaction?
     - Should we keep, modify, or abandon the change?
 
-    **Technical Debt Status:**
+    - *Technical Debt Status:**
     - For each debt item from Epic {{prev_epic_num}}, check if it was addressed
     - Did unaddressed debt cause problems in Epic {{epic_number}}?
     - Did the debt grow or shrink?
@@ -310,11 +321,13 @@ Max (Scrum Master): "Found our save file from Epic {{prev_epic_num}}'s retro. Le
     <action>Prepare "continuity insights" for the retrospective discussion</action>
 
     <action>Identify wins where previous lessons were applied successfully:</action>
+
     - Document specific examples of applied learnings
     - Note positive impact on Epic {{epic_number}} outcomes
     - Celebrate team growth and improvement
 
     <action>Identify missed opportunities where previous lessons were ignored:</action>
+
     - Document where team repeated previous mistakes
     - Note impact of not applying lessons (without blame)
     - Explore barriers that prevented application
@@ -371,7 +384,8 @@ Samus (Game Designer): "Smart! Love connecting our learnings to what's next. The
 
 <action>Attempt to load next epic using selective loading strategy:</action>
 
-**Try sharded first (more specific):**
+- *Try sharded first (more specific):**
+
 <action>Check if file exists: {planning_artifacts}/epic\*/epic-{{next_epic_num}}.md</action>
 
 <check if="sharded epic file found">
@@ -379,7 +393,8 @@ Samus (Game Designer): "Smart! Love connecting our learnings to what's next. The
   <action>Set {{next_epic_source}} = "sharded"</action>
 </check>
 
-**Fallback to whole document:**
+- *Fallback to whole document:**
+
 <check if="sharded epic not found">
 <action>Check if file exists: {planning_artifacts}/epic\*.md</action>
 
@@ -392,6 +407,7 @@ Samus (Game Designer): "Smart! Love connecting our learnings to what's next. The
 
 <check if="next epic found">
   <action>Analyze next epic for:</action>
+
   - Epic title and objectives
   - Planned stories and complexity estimates
   - Dependencies on Epic {{epic_number}} work
@@ -463,7 +479,7 @@ Max (Scrum Master): "Alright party, everyone's loaded in. Time for the post-dung
 
 Max (Scrum Master): "Here's our run summary."
 
-**EPIC {{epic_number}} SUMMARY:**
+- *EPIC {{epic_number}} SUMMARY:**
 
 Delivery Metrics:
 
@@ -493,7 +509,9 @@ GLaDOS (QA): "{{incident_count}} production incidents. {{#if incident_count == 0
 
 {{#if next_epic_exists}}
 ═══════════════════════════════════════════════════════════
-**NEXT EPIC PREVIEW:** Epic {{next_epic_num}}: {{next_epic_title}}
+
+- *NEXT EPIC PREVIEW:** Epic {{next_epic_num}}: {{next_epic_title}}
+
 ═══════════════════════════════════════════════════════════
 
 Dependencies on Epic {{epic_number}}:
@@ -525,6 +543,7 @@ Max (Scrum Master): "{user_name}, you're our party leader today. Your perspectiv
 Max (Scrum Master): "Today's objectives:"
 
 1. Learning from Epic {{epic_number}} execution
+
    {{#if next_epic_exists}}2. Preparing for Epic {{next_epic_num}} success{{/if}}
 
 Max (Scrum Master): "Ground rules: this is a safe zone. No friendly fire, no blame. We're analyzing the run, not the runners. Everyone's voice matters. Specific examples are better than vague feelings."
@@ -787,13 +806,16 @@ Max (Scrum Master): "{user_name}, the team found a route that might work. Does t
 <output>
 Max (Scrum Master): "I've got a clear picture of what we need before entering Epic {{next_epic_num}}. Here's the prep checklist..."
 
-**CRITICAL PREPARATION (Must complete before epic starts):**
+- *CRITICAL PREPARATION (Must complete before epic starts):**
+
 {{list_critical_prep_items_with_owners_and_estimates}}
 
-**PARALLEL PREPARATION (Can happen during early stories):**
+- *PARALLEL PREPARATION (Can happen during early stories):**
+
 {{list_parallel_prep_items_with_owners_and_estimates}}
 
-**NICE-TO-HAVE PREPARATION (Would help but not blocking):**
+- *NICE-TO-HAVE PREPARATION (Would help but not blocking):**
+
 {{list_nice_to_have_prep_items}}
 
 Max (Scrum Master): "Total critical prep: {{critical_hours}} hours ({{critical_days}} days)"
@@ -840,14 +862,16 @@ Max (Scrum Master): "Based on our discussion, here are the quests I'm logging...
 📝 EPIC {{epic_number}} ACTION ITEMS:
 ═══════════════════════════════════════════════════════════
 
-**Process Improvements:**
+- *Process Improvements:**
 
 1. {{action_item_1}}
+
    Owner: {{agent_1}}
    Deadline: {{timeline_1}}
    Success criteria: {{criteria_1}}
 
-2. {{action_item_2}}
+1. {{action_item_2}}
+
    Owner: {{agent_2}}
    Deadline: {{timeline_2}}
    Success criteria: {{criteria_2}}
@@ -860,14 +884,16 @@ Samus (Game Designer): "{{alternative_timeline}} is totally fine with me, as lon
 
 Max (Scrum Master): "Locked in. Updated to {{alternative_timeline}}."
 
-**Technical Debt:**
+- *Technical Debt:**
 
 1. {{debt_item_1}}
+
    Owner: {{agent_3}}
    Priority: {{priority_1}}
    Estimated effort: {{effort_1}}
 
-2. {{debt_item_2}}
+1. {{debt_item_2}}
+
    Owner: {{agent_4}}
    Priority: {{priority_2}}
    Estimated effort: {{effort_2}}
@@ -882,16 +908,19 @@ Max (Scrum Master): "{user_name}, this is your call. Testing impact vs. {{reason
 <action>WAIT for {user_name} to help resolve priority discussions</action>
 
 <output>
-**Documentation:**
+
+- *Documentation:**
 1. {{doc_need_1}}
+
    Owner: {{agent_5}}
    Deadline: {{timeline_3}}
 
-2. {{doc_need_2}}
+1. {{doc_need_2}}
+
    Owner: {{agent_6}}
    Deadline: {{timeline_4}}
 
-**Team Agreements:**
+- *Team Agreements:**
 
 - {{agreement_1}}
 - {{agreement_2}}
@@ -905,7 +934,8 @@ Cloud (Architect): _nodding_ "Agreement 2 resonates deeply. Had such a foundatio
 🚀 EPIC {{next_epic_num}} PREPARATION TASKS:
 ═══════════════════════════════════════════════════════════
 
-**Technical Setup:**
+- *Technical Setup:**
+
 [ ] {{setup_task_1}}
 Owner: {{owner_1}}
 Estimated: {{est_1}}
@@ -914,29 +944,33 @@ Estimated: {{est_1}}
 Owner: {{owner_2}}
 Estimated: {{est_2}}
 
-**Knowledge Development:**
+- *Knowledge Development:**
+
 [ ] {{research_task_1}}
 Owner: {{owner_3}}
 Estimated: {{est_3}}
 
-**Cleanup/Refactoring:**
+- *Cleanup/Refactoring:**
+
 [ ] {{refactor_task_1}}
 Owner: {{owner_4}}
 Estimated: {{est_4}}
 
-**Total Estimated Effort:** {{total_hours}} hours ({{total_days}} days)
+- *Total Estimated Effort:** {{total_hours}} hours ({{total_days}} days)
 
 ═══════════════════════════════════════════════════════════
 ⚠️ CRITICAL PATH:
 ═══════════════════════════════════════════════════════════
 
-**Blockers to Resolve Before Epic {{next_epic_num}}:**
+- *Blockers to Resolve Before Epic {{next_epic_num}}:**
 
 1. {{critical_item_1}}
+
    Owner: {{critical_owner_1}}
    Must complete by: {{critical_deadline_1}}
 
-2. {{critical_item_2}}
+1. {{critical_item_2}}
+
    Owner: {{critical_owner_2}}
    Must complete by: {{critical_deadline_2}}
    </output>
@@ -967,12 +1001,14 @@ Max (Scrum Master): "{user_name}, we need to flag a major find."
 
 Max (Scrum Master): "During Epic {{epic_number}}, we discovered things that change the map for Epic {{next_epic_num}}."
 
-**Significant Changes Identified:**
+- *Significant Changes Identified:**
 
 1. {{significant_change_1}}
+
    Impact: {{impact_description_1}}
 
-2. {{significant_change_2}}
+1. {{significant_change_2}}
+
    Impact: {{impact_description_2}}
 
 {{#if significant_change_3}} 3. {{significant_change_3}}
@@ -985,7 +1021,7 @@ Samus (Game Designer): "And from the player perspective, {{product_discovery}} m
 
 GLaDOS (QA): "If we proceed with Epic {{next_epic_num}} as currently designed, we will encounter fatal errors. This is not speculation. The logic is inescapable."
 
-**Impact on Epic {{next_epic_num}}:**
+- *Impact on Epic {{next_epic_num}}:**
 
 The current plan for Epic {{next_epic_num}} assumes:
 
@@ -1000,12 +1036,13 @@ But Epic {{epic_number}} revealed:
 This means Epic {{next_epic_num}} likely needs:
 {{list_likely_changes_needed}}
 
-**RECOMMENDED ACTIONS:**
+- *RECOMMENDED ACTIONS:**
 
 1. Review and update Epic {{next_epic_num}} definition based on new learnings
 2. Update affected stories in Epic {{next_epic_num}} to reflect reality
 3. Consider updating architecture or technical specifications if applicable
 4. Hold alignment session with Product Owner before starting Epic {{next_epic_num}}
+
    {{#if prd_update_needed}}5. Update PRD sections affected by new understanding{{/if}}
 
 Max (Scrum Master): "**Epic Update Required**: YES - Need a planning review session"
@@ -1199,7 +1236,7 @@ Max (Scrum Master): "Who owns that?"
 <output>
 Max (Scrum Master): "Alright {user_name}, here's the full readiness report..."
 
-**EPIC {{epic_number}} READINESS ASSESSMENT:**
+- *EPIC {{epic_number}} READINESS ASSESSMENT:**
 
 Testing & Quality: {{quality_status}}
 {{#if quality_concerns}}⚠️ Action needed: {{quality_action_needed}}{{/if}}
@@ -1242,11 +1279,12 @@ Max (Scrum Master): "We've covered a ton of ground. Time to save and close this 
 
 Max (Scrum Master): "Epic {{epic_number}}: {{epic_title}} - REVIEWED"
 
-**Key Takeaways:**
+- *Key Takeaways:**
 
 1. {{key_lesson_1}}
 2. {{key_lesson_2}}
 3. {{key_lesson_3}}
+
    {{#if key_lesson_4}}4. {{key_lesson_4}}{{/if}}
 
 Samus (Game Designer): "Takeaway one is HUGE - {{impact_of_lesson_1}}. Let's GOOO!"
@@ -1270,6 +1308,7 @@ Max (Scrum Master): "Exactly why we'll review these in our next standup."
 1. Execute Preparation Sprint (Est: {{prep_days}} days)
 2. Complete Critical Path items before Epic {{next_epic_num}}
 3. Review action items in next standup
+
    {{#if epic_update_needed}}4. Hold Epic {{next_epic_num}} planning review session{{else}}4. Begin Epic {{next_epic_num}} planning when preparation complete{{/if}}
 
 Cloud (Architect): _nodding wisely_ "{{prep_days}} days to strengthen our foundation. As the old builders knew - haste in preparation leads to collapse in execution."
@@ -1366,30 +1405,32 @@ Retrospective document was saved successfully, but {sprint_status_file} may need
 <step n="12" goal="Final Summary and Handoff">
 
 <output>
-**✅ Retrospective Complete, {user_name}!**
 
-**Epic Review:**
+- *✅ Retrospective Complete, {user_name}!**
+
+- *Epic Review:**
 
 - Epic {{epic_number}}: {{epic_title}} reviewed
 - Retrospective Status: completed
 - Retrospective saved: {retrospectives_folder}/epic-{{epic_number}}-retro-{date}.md
 
-**Commitments Made:**
+- *Commitments Made:**
 
 - Action Items: {{action_count}}
 - Preparation Tasks: {{prep_task_count}}
 - Critical Path Items: {{critical_count}}
 
-**Next Steps:**
+- *Next Steps:**
 
 1. **Review retrospective summary**: {retrospectives_folder}/epic-{{epic_number}}-retro-{date}.md
 
-2. **Execute preparation sprint** (Est: {{prep_days}} days)
+2. **Execute preparation sprint**(Est: {{prep_days}} days)
    - Complete {{critical_count}} critical path items
    - Execute {{prep_task_count}} preparation tasks
    - Verify all action items are in progress
 
-3. **Review action items in next standup**
+3.**Review action items in next standup**
+
    - Ensure ownership is clear
    - Track progress on commitments
    - Adjust timelines if needed
@@ -1400,22 +1441,25 @@ Retrospective document was saved successfully, but {sprint_status_file} may need
 - Review and update affected stories
 - Align team on revised approach
 - Do NOT start Epic {{next_epic_num}} until review is complete
+
   {{else}}
 
-4. **Begin Epic {{next_epic_num}} when ready**
+1. **Begin Epic {{next_epic_num}} when ready**
    - Start creating stories with SM agent's `create-story`
    - Epic will be marked as `in-progress` automatically when first story is created
    - Ensure all critical path items are done first
+
      {{/if}}
 
-**Team Performance:**
+- *Team Performance:**
+
 Epic {{epic_number}} delivered {{completed_stories}} stories with {{velocity_summary}}. The retrospective surfaced {{insight_count}} key insights and {{significant_discovery_count}} significant discoveries. The team is well-positioned for Epic {{next_epic_num}} success.
 
 {{#if significant_discovery_count > 0}}
 ⚠️ **REMINDER**: Epic update required before starting Epic {{next_epic_num}}
 {{/if}}
 
----
+- --
 
 Max (Scrum Master): "Solid session, {user_name}. The party did great work today."
 

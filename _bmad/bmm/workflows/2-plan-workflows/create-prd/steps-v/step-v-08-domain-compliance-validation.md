@@ -1,14 +1,17 @@
----
+- --
+
 name: 'step-v-08-domain-compliance-validation'
 description: 'Domain Compliance Validation - Validate domain-specific requirements are present for high-complexity domains'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-09-project-type-validation.md'
 prdFile: '{prd_file_path}'
 prdFrontmatter: '{prd_frontmatter}'
 validationReportPath: '{validation_report_path}'
 domainComplexityData: '../data/domain-complexity.csv'
----
+
+- --
 
 # Step 8: Domain Compliance Validation
 
@@ -59,7 +62,7 @@ Validate domain-specific requirements are present for high-complexity domains (H
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Domain Complexity Data
 
@@ -67,6 +70,7 @@ Load and read the complete file at:
 `{domainComplexityData}` (../data/domain-complexity.csv)
 
 This CSV contains:
+
 - Domain classifications and complexity levels (high/medium/low)
 - Required special sections for each domain
 - Key concerns and requirements for regulated industries
@@ -76,20 +80,22 @@ Internalize this data - it drives which domains require special compliance secti
 ### 2. Extract Domain Classification
 
 From PRD frontmatter, extract:
+
 - `classification.domain` - what domain is this PRD for?
 
-**If no domain classification found:**
+- *If no domain classification found:**
+
 Treat as "general" (low complexity) and proceed to step 4
 
 ### 2. Determine Domain Complexity
 
-**Low complexity domains (skip detailed checks):**
+- *Low complexity domains (skip detailed checks):**
 - General
 - Consumer apps (standard e-commerce, social, productivity)
 - Content websites
 - Business tools (standard)
 
-**High complexity domains (require special sections):**
+- *High complexity domains (require special sections):**
 - Healthcare / Healthtech
 - Fintech / Financial services
 - GovTech / Public sector
@@ -99,45 +105,46 @@ Treat as "general" (low complexity) and proceed to step 4
 
 ### 3. For High-Complexity Domains: Validate Required Special Sections
 
-**Attempt subprocess validation:**
+- *Attempt subprocess validation:**
 
 "Perform domain compliance validation for {domain}:
 
 Based on {domain} requirements, check PRD for:
 
-**Healthcare:**
+- *Healthcare:**
 - Clinical Requirements section
 - Regulatory Pathway (FDA, HIPAA, etc.)
 - Safety Measures
 - HIPAA Compliance (data privacy, security)
 - Patient safety considerations
 
-**Fintech:**
+- *Fintech:**
 - Compliance Matrix (SOC2, PCI-DSS, GDPR, etc.)
 - Security Architecture
 - Audit Requirements
 - Fraud Prevention measures
 - Financial transaction handling
 
-**GovTech:**
+- *GovTech:**
 - Accessibility Standards (WCAG 2.1 AA, Section 508)
 - Procurement Compliance
 - Security Clearance requirements
 - Data residency requirements
 
-**Other regulated domains:**
+- *Other regulated domains:**
 - Check for domain-specific regulatory sections
 - Compliance requirements
 - Special considerations
 
 For each required section:
+
 - Is it present in PRD?
 - Is it adequately documented?
 - Note any gaps
 
 Return compliance matrix with presence/adequacy assessment."
 
-**Graceful degradation (if no Task tool):**
+- *Graceful degradation (if no Task tool):**
 - Manually check for required sections based on domain
 - List present sections and missing sections
 - Assess adequacy of documentation
@@ -145,21 +152,23 @@ Return compliance matrix with presence/adequacy assessment."
 ### 5. For Low-Complexity Domains: Skip Detailed Checks
 
 Append to validation report:
+
 ```markdown
+
 ## Domain Compliance Validation
 
-**Domain:** {domain}
-**Complexity:** Low (general/standard)
-**Assessment:** N/A - No special domain compliance requirements
+- *Domain:** {domain}
+- *Complexity:** Low (general/standard)
+- *Assessment:** N/A - No special domain compliance requirements
 
-**Note:** This PRD is for a standard domain without regulatory compliance requirements.
-```
+- *Note:** This PRD is for a standard domain without regulatory compliance requirements.
 
+```bash
 Display: "**Domain Compliance Validation Skipped**
 
 Domain: {domain} (low complexity)
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile}
 
@@ -168,17 +177,20 @@ Without delay, read fully and follow: {nextStepFile}
 Append to validation report:
 
 ```markdown
+
 ## Domain Compliance Validation
 
-**Domain:** {domain}
-**Complexity:** High (regulated)
+- *Domain:** {domain}
+- *Complexity:** High (regulated)
 
 ### Required Special Sections
 
-**{Section 1 Name}:** [Present/Missing/Adequate]
+- *{Section 1 Name}:** [Present/Missing/Adequate]
+
 {If missing or inadequate: Note specific gaps}
 
-**{Section 2 Name}:** [Present/Missing/Adequate]
+- *{Section 2 Name}:** [Present/Missing/Adequate]
+
 {If missing or inadequate: Note specific gaps}
 
 [Continue for all required sections]
@@ -186,23 +198,29 @@ Append to validation report:
 ### Compliance Matrix
 
 | Requirement | Status | Notes |
+
 |-------------|--------|-------|
+
 | {Requirement 1} | [Met/Partial/Missing] | {Notes} |
+
 | {Requirement 2} | [Met/Partial/Missing] | {Notes} |
+
 [... continue for all requirements]
 
 ### Summary
 
-**Required Sections Present:** {count}/{total}
-**Compliance Gaps:** {count}
+- *Required Sections Present:** {count}/{total}
+- *Compliance Gaps:** {count}
 
-**Severity:** [Critical if missing regulatory sections, Warning if incomplete, Pass if complete]
+- *Severity:** [Critical if missing regulatory sections, Warning if incomplete, Pass if complete]
 
-**Recommendation:**
+- *Recommendation:**
+
 [If Critical] "PRD is missing required domain-specific compliance sections. These are essential for {domain} products."
 [If Warning] "Some domain compliance sections are incomplete. Strengthen documentation for full compliance."
 [If Pass] "All required domain compliance sections are present and adequately documented."
-```
+
+```bash
 
 ### 7. Display Progress and Auto-Proceed
 
@@ -211,11 +229,11 @@ Display: "**Domain Compliance Validation Complete**
 Domain: {domain} ({complexity})
 Compliance Status: {status}
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile} (step-v-09-project-type-validation.md)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -240,4 +258,4 @@ Without delay, read fully and follow: {nextStepFile} (step-v-09-project-type-val
 - Not reporting findings to validation report
 - Not auto-proceeding
 
-**Master Rule:** Domain compliance is conditional. High-complexity domains require special sections - low complexity domains skip these checks.
+- *Master Rule:** Domain compliance is conditional. High-complexity domains require special sections - low complexity domains skip these checks.

@@ -6,7 +6,7 @@ Use this template alongside **step-01-init-continuable-template.md** to create w
 
 <!-- TEMPLATE START -->
 
----
+- --
 
 name: 'step-01b-continue'
 description: 'Handle workflow continuation from previous session'
@@ -89,7 +89,7 @@ Example: If `stepsCompleted: [1, 2, 3, 4]`, then step 4 was the last completed s
 For each step number in `stepsCompleted` array (excluding step 1, which is init):
 
 1. **Construct step filename**: `step-[N]-[name].md`
-2. **Read the complete step file** to understand:
+2. **Read the complete step file**to understand:
    - What that step accomplished
    - What the next step should be (from nextStep references)
    - Any specific context or decisions made
@@ -113,9 +113,9 @@ Read the complete {outputFile} to understand:
 
 Based on the last completed step file:
 
-1. **Find the nextStep reference** in the last completed step file
-2. **Validate the file exists** at the referenced path
-3. **Confirm the workflow is incomplete** (not all steps finished)
+1.**Find the nextStep reference**in the last completed step file
+2.**Validate the file exists**at the referenced path
+3.**Confirm the workflow is incomplete** (not all steps finished)
 
 ### 5. Welcome Back Dialog
 
@@ -182,7 +182,7 @@ Do NOT modify any other content in the output document during this continuation 
 - Not updating frontmatter with continuation info
 - Proceeding without user confirmation
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:**Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
 <!-- TEMPLATE END -->
 
@@ -216,8 +216,8 @@ If your workflow has specific checkpoints or validation requirements, add them t
 
 ## Implementation Notes
 
-1. **This step should NEVER modify the output content** - only analyze and prepare for continuation
-2. **Always preserve the `stepsCompleted` array** - don't modify it in this step
-3. **Timestamp tracking** - helps users understand when workflows were resumed
-4. **Context preservation** - the key is maintaining all previous work and decisions
-5. **Seamless experience** - user should feel like they never left the workflow
+1.**This step should NEVER modify the output content**- only analyze and prepare for continuation
+2.**Always preserve the `stepsCompleted` array**- don't modify it in this step
+3.**Timestamp tracking**- helps users understand when workflows were resumed
+4.**Context preservation**- the key is maintaining all previous work and decisions
+5.**Seamless experience** - user should feel like they never left the workflow

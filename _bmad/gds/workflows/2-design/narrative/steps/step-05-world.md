@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-05-world'
 description: 'Build the world including setting, history, factions, and key locations'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-05-world.md'
 nextStepFile: './step-06-dialogue.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 5: World Building
 
-**Progress: Step 5 of 11** - Next: Dialogue Systems
+- *Progress: Step 5 of 11**- Next: Dialogue Systems
 
 ## STEP GOAL:
 
@@ -68,10 +73,10 @@ Build the game's world including setting, history/backstory, factions/organizati
 
 Describe your world:
 
-- **Setting** - Where and when does this take place?
-- **World type** - Fantasy, sci-fi, modern, historical, etc.
-- **World rules** - Magic systems? Technology level? Physical laws?
-- **Atmosphere** - What mood does the world evoke?
+- **Setting**- Where and when does this take place?
+- **World type**- Fantasy, sci-fi, modern, historical, etc.
+- **World rules**- Magic systems? Technology level? Physical laws?
+- **Atmosphere**- What mood does the world evoke?
 - **What makes it unique?**
 
 Describe the world:"
@@ -82,17 +87,17 @@ Describe the world:"
 
 Consider:
 
-- **Major historical events** - Wars, discoveries, cataclysms?
+- **Major historical events**- Wars, discoveries, cataclysms?
 - **How did the world reach its current state?**
-- **Legends and myths** - What do people believe?
-- **Past conflicts** - What shaped the present?
+- **Legends and myths**- What do people believe?
+- **Past conflicts**- What shaped the present?
 - **Secrets** - What is hidden or forgotten?
 
 Describe the history:"
 
 ### 3. Factions Discovery (Optional)
 
-"**Are there factions, organizations, or groups?** (Optional)
+"**Are there factions, organizations, or groups?**(Optional)
 
 If applicable, for each faction:
 
@@ -111,7 +116,7 @@ Describe any factions:"
 For each significant location:
 
 - **Name and description**
-- **Narrative significance** - Why does it matter to the story?
+- **Narrative significance**- Why does it matter to the story?
 - **Atmosphere and mood**
 - **Key events that occur there**
 - **Who controls/inhabits it?**
@@ -123,38 +128,44 @@ What are the key locations?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## World Building
 
 ### World Overview
 
-**Setting:** {{setting_description}}
+- *Setting:** {{setting_description}}
 
-**World Type:** {{world_type}}
+- *World Type:** {{world_type}}
 
-**World Rules:**
+- *World Rules:**
+
 {{rules_and_systems}}
 
-**Atmosphere:** {{world_atmosphere}}
+- *Atmosphere:** {{world_atmosphere}}
 
-**Unique Elements:** {{what_makes_it_unique}}
+- *Unique Elements:** {{what_makes_it_unique}}
 
----
+- --
 
 ### History and Backstory
 
-**Timeline Overview:**
+- *Timeline Overview:**
+
 {{historical_timeline}}
 
-**Major Events:**
+- *Major Events:**
+
 {{significant_events}}
 
-**Legends and Myths:**
+- *Legends and Myths:**
+
 {{beliefs_and_legends}}
 
-**Hidden Secrets:**
+- *Hidden Secrets:**
+
 {{world_secrets}}
 
----
+- --
 
 ### Factions and Organizations
 
@@ -162,15 +173,16 @@ Based on the conversation, prepare the content:
 
 #### {{faction_name}}
 
-**Purpose:** {{purpose}}
-**Leadership:** {{leadership}}
-**Goals:** {{goals}}
-**Methods:** {{methods}}
-**Relationships:** {{faction_relationships}}
-**Story Role:** {{narrative_function}}
+- *Purpose:** {{purpose}}
+- *Leadership:** {{leadership}}
+- *Goals:** {{goals}}
+- *Methods:** {{methods}}
+- *Relationships:** {{faction_relationships}}
+- *Story Role:** {{narrative_function}}
+
 {{/for_each}}
 
----
+- --
 
 ### Key Locations
 
@@ -178,13 +190,15 @@ Based on the conversation, prepare the content:
 
 #### {{location_name}}
 
-**Description:** {{description}}
-**Narrative Significance:** {{why_important}}
-**Atmosphere:** {{mood}}
-**Key Events:** {{events_here}}
-**Inhabitants:** {{who_is_here}}
+- *Description:** {{description}}
+- *Narrative Significance:** {{why_important}}
+- *Atmosphere:** {{mood}}
+- *Key Events:** {{events_here}}
+- *Inhabitants:** {{who_is_here}}
+
 {{/for_each}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -192,23 +206,24 @@ Show the generated content to the user and present:
 
 "I've documented the world of {{game_name}}.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**World Summary:**
+- *World Summary:**
 
 - Setting: {{setting}}
 - Factions: {{count}}
 - Key locations: {{count}}
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does the world support your themes?
 - Are locations narratively significant?
 - Is history relevant to the present story?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore world depth
 [P] Party Mode - Get perspectives on world-building
 [C] Continue - Save this and move to Dialogue Systems (Step 6 of 11)"
@@ -239,7 +254,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [world content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -260,4 +275,4 @@ ONLY WHEN [C continue option] is selected and [world content saved with frontmat
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

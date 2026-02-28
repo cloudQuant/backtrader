@@ -6,11 +6,11 @@ Robust selectors follow a strict hierarchy: **data-testid > ARIA roles > text co
 
 ## Rationale
 
-**The Problem**: Brittle selectors (CSS classes, nth-child, complex XPath) break when UI styling changes, elements are reordered, or design updates occur. This causes test maintenance burden and false negatives.
+- *The Problem**: Brittle selectors (CSS classes, nth-child, complex XPath) break when UI styling changes, elements are reordered, or design updates occur. This causes test maintenance burden and false negatives.
 
-**The Solution**: Prioritize semantic selectors that reflect user intent (ARIA roles, accessible names, test IDs). Use dynamic filtering for lists instead of nth() indexes. Validate selectors during code review and refactor proactively.
+- *The Solution**: Prioritize semantic selectors that reflect user intent (ARIA roles, accessible names, test IDs). Use dynamic filtering for lists instead of nth() indexes. Validate selectors during code review and refactor proactively.
 
-**Why This Matters**:
+- *Why This Matters**:
 
 - Prevents false test failures (UI refactoring doesn't break tests)
 - Improves accessibility (ARIA roles benefit both tests and screen readers)
@@ -21,9 +21,9 @@ Robust selectors follow a strict hierarchy: **data-testid > ARIA roles > text co
 
 ### Example 1: Selector Hierarchy (Priority Order with Examples)
 
-**Context**: Choose the most resilient selector for each element type
+- *Context**: Choose the most resilient selector for each element type
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/selectors/hierarchy-examples.spec.ts
@@ -100,9 +100,10 @@ test.describe('Selector Hierarchy Best Practices', () => {
     // - Tight coupling between tests and styling
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Hierarchy: data-testid (best) > ARIA (good) > text (acceptable) > CSS/ID (last resort)
 - data-testid survives ALL UI changes (explicit test contract)
@@ -110,13 +111,13 @@ test.describe('Selector Hierarchy Best Practices', () => {
 - Text content is user-centric (but breaks with copy changes)
 - CSS/ID are brittle (break with styling refactoring)
 
----
+- --
 
 ### Example 2: Dynamic Selector Patterns (Lists, Filters, Regex)
 
-**Context**: Handle dynamic content, lists, and variable data with resilient selectors
+- *Context**: Handle dynamic content, lists, and variable data with resilient selectors
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/selectors/dynamic-selectors.spec.ts
@@ -188,9 +189,10 @@ test.describe('Dynamic Selector Patterns', () => {
     // Scoping prevents ambiguity (multiple "City" fields on page)
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Regex patterns handle variable content (IDs, timestamps, counts)
 - Partial matching survives minor text changes (`exact: false`)
@@ -198,13 +200,13 @@ test.describe('Dynamic Selector Patterns', () => {
 - `nth(0)` acceptable for "first item", avoid arbitrary indexes
 - Combine locators to narrow scope (prevent ambiguity)
 
----
+- --
 
 ### Example 3: Selector Anti-Patterns (What NOT to Do)
 
-**Context**: Common selector mistakes that cause brittle tests
+- *Context**: Common selector mistakes that cause brittle tests
 
-**Problem Examples**:
+- *Problem Examples**:
 
 ```typescript
 // tests/selectors/anti-patterns.spec.ts
@@ -265,24 +267,25 @@ test.describe('Selector Anti-Patterns to Avoid', () => {
     await expect(page.getByText('Payment successful')).toBeVisible();
   });
 });
-```
 
-**Why These Fail**:
+```bash
+
+- *Why These Fail**:
 
 - **CSS classes**: Change frequently with design updates (Tailwind, CSS modules)
 - **nth() indexes**: Fragile to element reordering (new features, A/B tests)
 - **Complex XPath**: Unreadable, breaks with HTML structure changes
 - **HTML IDs**: Not stable (accessibility improvements change IDs)
 
-**Better Approach**: Use selector hierarchy (testid > ARIA > text)
+- *Better Approach**: Use selector hierarchy (testid > ARIA > text)
 
----
+- --
 
 ### Example 4: Selector Debugging Techniques (Inspector, DevTools, MCP)
 
-**Context**: Debug selector failures interactively to find better alternatives
+- *Context**: Debug selector failures interactively to find better alternatives
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/selectors/debugging-techniques.spec.ts
@@ -352,9 +355,10 @@ test.describe('Selector Debugging Techniques', () => {
     await expect(page).toHaveURL(/\/products\/\d+/);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Playwright Inspector: Interactive selector testing with "Pick Locator" feature
 - `locator.all()`: Debug lists to understand structure and content
@@ -362,13 +366,13 @@ test.describe('Selector Debugging Techniques', () => {
 - MCP browser_generate_locator: Auto-generate optimal selectors (if MCP available)
 - Always validate selectors work before committing
 
----
+- --
 
 ### Example 2: Selector Refactoring Guide (Before/After Patterns)
 
-**Context**: Systematically improve brittle selectors to resilient alternatives
+- *Context**: Systematically improve brittle selectors to resilient alternatives
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/selectors/refactoring-guide.spec.ts
@@ -429,9 +433,10 @@ test.describe('Selector Refactoring Patterns', () => {
     await sidebar.getByRole('link', { name: 'Settings' }).click();
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - CSS class → data-testid (survives design system updates)
 - nth() → filter() (content-based vs index-based)
@@ -439,7 +444,7 @@ test.describe('Selector Refactoring Patterns', () => {
 - ID → data-testid (decouples from HTML structure)
 - Deep nesting → scoped locators (modular, maintainable)
 
----
+- --
 
 ### Example 3: Selector Best Practices Checklist
 
@@ -448,10 +453,14 @@ test.describe('Selector Refactoring Patterns', () => {
 import { test, expect } from '@playwright/test';
 
 /**
- * Selector Validation Checklist
+
+ - Selector Validation Checklist
+
  *
- * Before committing test, verify selectors meet these criteria:
- */
+
+ - Before committing test, verify selectors meet these criteria:
+ - /
+
 test.describe('Selector Best Practices Validation', () => {
   test('✅ 1. Prefer data-testid for interactive elements', async ({ page }) => {
     await page.goto('/login');
@@ -493,23 +502,25 @@ test.describe('Selector Best Practices Validation', () => {
     // await page.locator('div > div:nth-child(2) > input[type="text"]').fill('123 Main St')
   });
 });
-```
 
-**Validation Rules**:
+```bash
 
-1. **Interactive elements** (buttons, inputs) → data-testid
-2. **Semantic elements** (headings, nav, forms) → ARIA roles
-3. **CSS classes** → Avoid (except visual regression tests)
-4. **Lists** → filter() over nth() (content-based selection)
-5. **Readability** → Selectors document user intent (clear, semantic)
+- *Validation Rules**:
 
----
+1. **Interactive elements**(buttons, inputs) → data-testid
+
+2.**Semantic elements**(headings, nav, forms) → ARIA roles
+3.**CSS classes**→ Avoid (except visual regression tests)
+4.**Lists**→ filter() over nth() (content-based selection)
+5.**Readability**→ Selectors document user intent (clear, semantic)
+
+- --
 
 ## Selector Resilience Checklist
 
 Before deploying selectors:
 
-- [ ] **Hierarchy followed**: data-testid (1st choice) > ARIA (2nd) > text (3rd) > CSS/ID (last resort)
+- [ ]**Hierarchy followed**: data-testid (1st choice) > ARIA (2nd) > text (3rd) > CSS/ID (last resort)
 - [ ] **Interactive elements use data-testid**: Buttons, inputs, links have dedicated test attributes
 - [ ] **Semantic elements use ARIA**: Headings, navigation, forms use roles and accessible names
 - [ ] **No brittle patterns**: No CSS classes (except visual tests), no arbitrary nth(), no complex XPath

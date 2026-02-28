@@ -25,23 +25,24 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - comprehensive domain analysis
-- **Research goals = "{{research_goals}}"** - achieved through exhaustive research
+- **Research topic = "{{research_topic}}"**- comprehensive domain analysis
+- **Research goals = "{{research_goals}}"**- achieved through exhaustive research
 - All domain research sections have been completed (analysis, regulatory, technical)
 - Web search capabilities with source verification are enabled
 - This is the final synthesis step producing the complete research document
 
 ## YOUR TASK:
 
-Produce a comprehensive, authoritative research document on **{{research_topic}}** with compelling narrative introduction, detailed TOC, and executive summary based on exhaustive domain research.
+Produce a comprehensive, authoritative research document on**{{research_topic}}** with compelling narrative introduction, detailed TOC, and executive summary based on exhaustive domain research.
 
 ## COMPREHENSIVE DOCUMENT SYNTHESIS:
 
 ### 1. Document Structure Planning
 
-**Complete Research Document Structure:**
+- *Complete Research Document Structure:**
 
 ```markdown
+
 # [Compelling Title]: Comprehensive {{research_topic}} Research
 
 ## Executive Summary
@@ -60,11 +61,12 @@ Produce a comprehensive, authoritative research document on **{{research_topic}}
 - Future Outlook and Strategic Opportunities
 - Research Methodology and Source Documentation
 - Appendices and Additional Resources
-```
+
+```bash
 
 ### 2. Generate Compelling Narrative Introduction
 
-**Introduction Requirements:**
+- *Introduction Requirements:**
 
 - Hook reader with compelling opening about {{research_topic}}
 - Establish research significance and timeliness
@@ -72,12 +74,13 @@ Produce a comprehensive, authoritative research document on **{{research_topic}}
 - Preview key findings and strategic implications
 - Set professional, authoritative tone
 
-**Web Search for Introduction Context:**
+- *Web Search for Introduction Context:**
+
 Search the web: "{{research_topic}} significance importance"
 
 ### 3. Synthesize All Research Sections
 
-**Section-by-Section Integration:**
+- *Section-by-Section Integration:**
 
 - Combine industry analysis from step-02
 - Integrate regulatory focus from step-03
@@ -90,20 +93,21 @@ Search the web: "{{research_topic}} significance importance"
 #### Final Document Structure:
 
 ```markdown
+
 # [Compelling Title]: Comprehensive {{research_topic}} Domain Research
 
 ## Executive Summary
 
 [2-3 paragraph compelling summary of the most critical findings and strategic implications for {{research_topic}} based on comprehensive current research]
 
-**Key Findings:**
+- *Key Findings:**
 
 - [Most significant market dynamics]
 - [Critical regulatory considerations]
 - [Important technology trends]
 - [Strategic implications]
 
-**Strategic Recommendations:**
+- *Strategic Recommendations:**
 
 - [Top 3-5 actionable recommendations based on research]
 
@@ -140,9 +144,9 @@ _Source: [URL]_
 
 ### Research Goals and Objectives
 
-**Original Goals:** {{research_goals}}
+- *Original Goals:** {{research_goals}}
 
-**Achieved Objectives:**
+- *Achieved Objectives:**
 
 - [Goal 1 achievement with supporting evidence]
 - [Goal 2 achievement with supporting evidence]
@@ -308,7 +312,7 @@ _Research Organizations: [Authoritative research institutions and reports]_
 _Government Resources: [Regulatory agencies and official resources]_
 _Professional Networks: [Industry communities and knowledge sources]_
 
----
+- --
 
 ## Research Conclusion
 
@@ -324,24 +328,25 @@ _Professional Networks: [Industry communities and knowledge sources]_
 
 [Specific next steps for leveraging this research]
 
----
+- --
 
-**Research Completion Date:** {{date}}
-**Research Period:** Comprehensive analysis
-**Document Length:** As needed for comprehensive coverage
-**Source Verification:** All facts cited with sources
-**Confidence Level:** High - based on multiple authoritative sources
+- *Research Completion Date:** {{date}}
+- *Research Period:** Comprehensive analysis
+- *Document Length:** As needed for comprehensive coverage
+- *Source Verification:** All facts cited with sources
+- *Confidence Level:** High - based on multiple authoritative sources
 
 _This comprehensive research document serves as an authoritative reference on {{research_topic}} and provides strategic insights for informed decision-making._
-```
+
+```bash
 
 ### 5. Present Complete Document and Final Option
 
-**Document Completion Presentation:**
+- *Document Completion Presentation:**
 
-"I've completed the **comprehensive research document synthesis** for **{{research_topic}}**, producing an authoritative research document with:
+"I've completed the **comprehensive research document synthesis**for**{{research_topic}}**, producing an authoritative research document with:
 
-**Document Features:**
+- *Document Features:**
 
 - **Compelling Narrative Introduction**: Engaging opening that establishes research significance
 - **Comprehensive Table of Contents**: Complete navigation structure for easy reference
@@ -350,7 +355,7 @@ _This comprehensive research document serves as an authoritative reference on {{
 - **Strategic Recommendations**: Actionable insights based on comprehensive research
 - **Complete Source Citations**: Every factual claim verified with sources
 
-**Research Completeness:**
+- *Research Completeness:**
 
 - Industry analysis and market dynamics fully documented
 - Technology trends and innovation landscape comprehensively covered
@@ -358,7 +363,7 @@ _This comprehensive research document serves as an authoritative reference on {{
 - Competitive landscape and ecosystem analysis complete
 - Strategic insights and implementation guidance provided
 
-**Document Standards Met:**
+- *Document Standards Met:**
 
 - Exhaustive research with no critical gaps
 - Professional structure and compelling narrative
@@ -366,7 +371,8 @@ _This comprehensive research document serves as an authoritative reference on {{
 - Multiple independent sources for all claims
 - Proper citations throughout
 
-**Ready to complete this comprehensive research document?**
+- *Ready to complete this comprehensive research document?**
+
 [C] Complete Research - Save final comprehensive document
 
 ### 6. Handle Final Completion

@@ -1,21 +1,23 @@
----
+- --
+
 name: validate-workflow
 description: Run validation check on BMAD workflows against best practices
 web_bundle: true
 validateWorkflow: './steps-v/step-01-validate.md'
----
+
+- --
 
 # Validate Workflow
 
-**Goal:** Validate existing workflows against BMAD standards through comprehensive review.
+- *Goal:** Validate existing workflows against BMAD standards through comprehensive review.
 
-**Your Role:** Validation Architect and Quality Assurance Specialist. You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
+- *Your Role:**Validation Architect and Quality Assurance Specialist. You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,16 +38,16 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

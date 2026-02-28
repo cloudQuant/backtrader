@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-09-integration'
 description: 'Define how narrative integrates with gameplay including gating, agency, and ludonarrative harmony'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-09-integration.md'
 nextStepFile: './step-10-production.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 9: Gameplay Integration
 
-**Progress: Step 9 of 11** - Next: Production Planning
+- *Progress: Step 9 of 11**- Next: Production Planning
 
 ## STEP GOAL:
 
@@ -66,14 +71,15 @@ Define how narrative integrates with gameplay: story-gameplay connection, progre
 
 "**How does narrative integrate with gameplay in {{game_name}}?**
 
-**Integration questions:**
+- *Integration questions:**
 
 - Does story unlock new mechanics or abilities?
 - Do mechanics reflect the themes?
 - Is there harmony between what player DOES and what story SAYS?
 - What's the balance of story vs. gameplay sections?
 
-**Ludonarrative consideration:**
+- *Ludonarrative consideration:**
+
 Games work best when mechanics and narrative tell the same story. A game about pacifism shouldn't require combat.
 
 Describe how narrative and gameplay connect:"
@@ -82,14 +88,14 @@ Describe how narrative and gameplay connect:"
 
 "**How does story gate progression?**
 
-**Gating types:**
+- *Gating types:**
 
-- **Hard gates** - Must complete story to proceed
-- **Soft gates** - Story available but optional
-- **Skill gates** - Narrative rewards for mastery
+- **Hard gates**- Must complete story to proceed
+- **Soft gates**- Story available but optional
+- **Skill gates**- Narrative rewards for mastery
 - **Exploration gates** - Story found through exploring
 
-**Questions:**
+- *Questions:**
 
 - What areas are story-locked?
 - What triggers cutscenes?
@@ -102,14 +108,14 @@ How does story gate progress in {{game_name}}?"
 
 "**How much narrative agency does the player have?**
 
-**Agency spectrum:**
+- *Agency spectrum:**
 
-- **Full agency** - Player creates their own story
-- **Meaningful choices** - Player shapes outcomes
-- **Flavor choices** - Player affects tone, not outcome
+- **Full agency**- Player creates their own story
+- **Meaningful choices**- Player shapes outcomes
+- **Flavor choices**- Player affects tone, not outcome
 - **Witness** - Player observes a fixed story
 
-**Questions:**
+- *Questions:**
 
 - Can player affect the story?
 - Are choices meaningful or cosmetic?
@@ -123,60 +129,74 @@ Describe player agency in {{game_name}}:"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Gameplay Integration
 
 ### Narrative-Gameplay Connection
 
-**Integration Approach:**
+- *Integration Approach:**
+
 {{integration_description}}
 
-**Mechanic-Theme Alignment:**
+- *Mechanic-Theme Alignment:**
+
 {{how_mechanics_reflect_themes}}
 
-**Story-Gameplay Balance:**
+- *Story-Gameplay Balance:**
+
 {{balance_description}}
 
-**Ludonarrative Considerations:**
+- *Ludonarrative Considerations:**
+
 {{harmony_or_dissonance_notes}}
 
----
+- --
 
 ### Story Gating
 
-**Gating Approach:** {{gating_type}}
+- *Gating Approach:** {{gating_type}}
 
-**Story-Locked Elements:**
+- *Story-Locked Elements:**
+
 {{what_requires_story_progress}}
 
-**Cutscene Triggers:**
+- *Cutscene Triggers:**
+
 {{when_cutscenes_play}}
 
-**Mandatory Story Beats:**
+- *Mandatory Story Beats:**
+
 {{required_narrative_content}}
 
-**Optional Narrative:**
+- *Optional Narrative:**
+
 {{skippable_content}}
 
----
+- --
 
 ### Player Agency
 
-**Agency Level:** {{agency_type}}
+- *Agency Level:** {{agency_type}}
 
-**Player Influence:**
+- *Player Influence:**
+
 {{what_player_can_affect}}
 
-**Choice System:**
+- *Choice System:**
+
 {{if_has_choices}}
 
 - Choice types: {{choice_types}}
 - Consequence scope: {{how_choices_matter}}
 - Timing: {{when_choices_occur}}
+
   {{/if_has_choices}}
 
-**Role-Playing Freedom:**
+- *Role-Playing Freedom:**
+
 {{roleplay_options}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -184,23 +204,24 @@ Show the generated content to the user and present:
 
 "I've documented the gameplay-narrative integration.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Integration Summary:**
+- *Integration Summary:**
 
 - Connection: {{integration_type}}
 - Gating: {{gating_approach}}
 - Agency: {{agency_level}}
 
-**Validation Check:**
+- *Validation Check:**
 
 - Do mechanics support themes?
 - Is gating appropriate for your game?
 - Is agency level what you want?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore integration depth
 [P] Party Mode - Get perspectives on integration
 [C] Continue - Save this and move to Production Planning (Step 10 of 11)"
@@ -231,7 +252,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [integration content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -252,4 +273,4 @@ ONLY WHEN [C continue option] is selected and [integration content saved with fr
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

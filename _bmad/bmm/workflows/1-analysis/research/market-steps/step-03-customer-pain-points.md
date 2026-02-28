@@ -28,7 +28,7 @@
 - Customer behavior analysis completed in previous step
 - Focus on customer pain points, challenges, and unmet needs
 - Web search capabilities with source verification are enabled
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 
 ## YOUR TASK:
@@ -39,12 +39,12 @@ Conduct customer pain points and needs analysis with emphasis on challenges and 
 
 ### 1. Begin Customer Pain Points Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different customer pain point areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different customer pain point areas simultaneously and thoroughly.
 
 Start with customer pain points research approach:
-"Now I'll conduct **customer pain points analysis** for **{{research_topic}}** to understand customer challenges.
+"Now I'll conduct **customer pain points analysis**for**{{research_topic}}** to understand customer challenges.
 
-**Customer Pain Points Focus:**
+- *Customer Pain Points Focus:**
 
 - Customer challenges and frustrations
 - Unmet needs and unaddressed problems
@@ -52,18 +52,18 @@ Start with customer pain points research approach:
 - Service and support pain points
 - Customer satisfaction gaps
 
-**Let me search for current customer pain points insights.**"
+- *Let me search for current customer pain points insights.**"
 
 ### 2. Parallel Pain Points Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} customer pain points challenges"
 Search the web: "{{research_topic}} customer frustrations"
 Search the web: "{{research_topic}} unmet customer needs"
 Search the web: "{{research_topic}} customer barriers to adoption"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for customer satisfaction surveys and reports
 - Search for customer complaints and reviews
@@ -73,26 +73,28 @@ Search the web: "{{research_topic}} customer barriers to adoption"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate customer pain points findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - Customer challenges and frustrations
 - Unmet needs and unaddressed problems
 - Barriers to adoption or usage
 - Service and support pain points
 
-**Cross-Pain Points Analysis:**
+- *Cross-Pain Points Analysis:**
+
 [Identify patterns connecting different types of pain points]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Customer Pain Points Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare customer pain points analysis with web search citations:
 
@@ -101,6 +103,7 @@ Prepare customer pain points analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Customer Pain Points and Needs
 
 ### Customer Challenges and Frustrations
@@ -165,15 +168,16 @@ _Medium Priority Pain Points: [Important but less critical pain points]_
 _Low Priority Pain Points: [Minor pain points with lower impact]_
 _Opportunity Mapping: [Pain points with highest solution opportunity]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **customer pain points analysis** for {{research_topic}}, focusing on customer challenges.
 
-**Key Pain Points Findings:**
+- *Key Pain Points Findings:**
 
 - Customer challenges and frustrations thoroughly documented
 - Unmet needs and solution gaps clearly identified
@@ -181,7 +185,8 @@ _Source: [URL]_
 - Customer satisfaction gaps assessed
 - Pain points prioritized by impact and opportunity
 
-**Ready to proceed to customer decision processes?**
+- *Ready to proceed to customer decision processes?**
+
 [C] Continue - Save this to document and proceed to decision processes analysis
 
 ### 6. Handle Continue Selection

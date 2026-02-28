@@ -1,10 +1,13 @@
----
+- --
+
 name: 'step-01b-continue'
 description: 'Resume an interrupted PRD workflow from the last completed step'
 
 # File References
+
 outputFile: '{planning_artifacts}/prd.md'
----
+
+- --
 
 # Step 1B: Workflow Continuation
 
@@ -52,7 +55,8 @@ Resume the PRD workflow from where it was left off, ensuring smooth continuation
 
 ### 1. Analyze Current State
 
-**State Assessment:**
+- *State Assessment:**
+
 Review the frontmatter to understand:
 
 - `stepsCompleted`: Array of completed step filenames
@@ -62,7 +66,7 @@ Review the frontmatter to understand:
 
 ### 2. Restore Context Documents
 
-**Context Reloading:**
+- *Context Reloading:**
 
 - For each document in `inputDocuments`, load the complete file
 - This ensures you have full context for continuation
@@ -70,13 +74,13 @@ Review the frontmatter to understand:
 
 ### 3. Determine Next Step
 
-**Simplified Next Step Logic:**
+- *Simplified Next Step Logic:**
 1. Get the last element from the `stepsCompleted` array (this is the filename of the last completed step, e.g., "step-03-success.md")
 2. Load that step file and read its frontmatter
 3. Extract the `nextStepFile` value from the frontmatter
 4. That's the next step to load!
 
-**Example:**
+- *Example:**
 - If `stepsCompleted = ["step-01-init.md", "step-02-discovery.md", "step-03-success.md"]`
 - Last element is `"step-03-success.md"`
 - Load `step-03-success.md`, read its frontmatter
@@ -85,7 +89,8 @@ Review the frontmatter to understand:
 
 ### 4. Handle Workflow Completion
 
-**If `stepsCompleted` array contains `"step-11-complete.md"`:**
+- *If `stepsCompleted` array contains `"step-11-complete.md"`:**
+
 "Great news! It looks like we've already completed the PRD workflow for {{project_name}}.
 
 The final document is ready at `{outputFile}` with all sections completed.
@@ -100,15 +105,16 @@ What would be most helpful?"
 
 ### 5. Present Current Progress
 
-**If workflow not complete:**
+- *If workflow not complete:**
+
 "Welcome back {{user_name}}! I'm resuming our PRD collaboration for {{project_name}}.
 
-**Current Progress:**
+- *Current Progress:**
 - Last completed: {last step filename from stepsCompleted array}
 - Next up: {nextStepFile determined from that step's frontmatter}
 - Context documents available: {len(inputDocuments)} files
 
-**Document Status:**
+- *Document Status:**
 - Current PRD document is ready with all completed sections
 - Ready to continue from where we left off
 
@@ -132,7 +138,7 @@ Display: "**Select an Option:** [C] Continue to {next step name}"
 
 ONLY WHEN [C continue option] is selected and [current state confirmed], will you then read fully and follow: {nextStepFile} to resume the workflow.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -150,4 +156,4 @@ ONLY WHEN [C continue option] is selected and [current state confirmed], will yo
 - Failing to extract nextStepFile from the last completed step's frontmatter
 - Proceeding without user confirmation of current state
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

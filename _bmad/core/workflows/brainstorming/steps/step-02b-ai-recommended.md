@@ -36,16 +36,16 @@ Load techniques from CSV for analysis:
 
 "Great choice! Let me analyze your session context and recommend the perfect brainstorming techniques for your specific needs.
 
-**Analyzing Your Session Goals:**
+- *Analyzing Your Session Goals:**
 
 - Topic: [session_topic]
 - Goals: [session_goals]
 - Constraints: [constraints]
 - Session Type: [session_type]
 
-**Loading Brain Techniques Library for AI Analysis...**"
+- *Loading Brain Techniques Library for AI Analysis...**"
 
-**Load CSV and parse:**
+- *Load CSV and parse:**
 
 - Read `brain-methods.csv`
 - Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level, typical_duration
@@ -54,9 +54,9 @@ Load techniques from CSV for analysis:
 
 Analyze user's session context across multiple dimensions:
 
-**Analysis Framework:**
+- *Analysis Framework:**
 
-**1. Goal Analysis:**
+- *1. Goal Analysis:**
 
 - Innovation/New Ideas → creative, wild categories
 - Problem Solving → deep, structured categories
@@ -64,19 +64,19 @@ Analyze user's session context across multiple dimensions:
 - Personal Insight → introspective_delight category
 - Strategic Planning → structured, deep categories
 
-**2. Complexity Match:**
+- *2. Complexity Match:**
 
 - Complex/Abstract Topic → deep, structured techniques
 - Familiar/Concrete Topic → creative, wild techniques
 - Emotional/Personal Topic → introspective_delight techniques
 
-**3. Energy/Tone Assessment:**
+- *3. Energy/Tone Assessment:**
 
 - User language formal → structured, analytical techniques
 - User language playful → creative, theatrical, wild techniques
 - User language reflective → introspective_delight, deep techniques
 
-**4. Time Available:**
+- *4. Time Available:**
 
 - <30 min → 1-2 focused techniques
 - 30-60 min → 2-3 complementary techniques
@@ -90,63 +90,64 @@ Based on context analysis, create tailored recommendations:
 
 Based on your session context, I recommend this customized technique sequence:
 
-**Phase 1: Foundation Setting**
-**[Technique Name]** from [Category] (Duration: [time], Energy: [level])
+- *Phase 1: Foundation Setting**
+- *[Technique Name]**from [Category] (Duration: [time], Energy: [level])
 
-- **Why this fits:** [Specific connection to user's goals/context]
+- **Why this fits:**[Specific connection to user's goals/context]
 - **Expected outcome:** [What this will accomplish for their session]
 
-**Phase 2: Idea Generation**
-**[Technique Name]** from [Category] (Duration: [time], Energy: [level])
+- *Phase 2: Idea Generation**
+- *[Technique Name]**from [Category] (Duration: [time], Energy: [level])
 
-- **Why this builds on Phase 1:** [Complementary effect explanation]
+- **Why this builds on Phase 1:**[Complementary effect explanation]
 - **Expected outcome:** [How this develops the foundation]
 
-**Phase 3: Refinement & Action** (If time allows)
-**[Technique Name]** from [Category] (Duration: [time], Energy: [level])
+- *Phase 3: Refinement & Action** (If time allows)
+- *[Technique Name]**from [Category] (Duration: [time], Energy: [level])
 
-- **Why this concludes effectively:** [Final phase rationale]
+- **Why this concludes effectively:**[Final phase rationale]
 - **Expected outcome:** [How this leads to actionable results]
 
-**Total Estimated Time:** [Sum of durations]
-**Session Focus:** [Primary benefit and outcome description]"
+- *Total Estimated Time:** [Sum of durations]
+- *Session Focus:** [Primary benefit and outcome description]"
 
 ### 4. Present Recommendation Details
 
 Provide deeper insight into each recommended technique:
 
-**Detailed Technique Explanations:**
+- *Detailed Technique Explanations:**
 
 "For each recommended technique, here's what makes it perfect for your session:
 
-**1. [Technique 1]:**
+- *1. [Technique 1]:**
 
-- **Description:** [Detailed explanation]
-- **Best for:** [Why this matches their specific needs]
-- **Sample facilitation:** [Example of how we'll use this]
+- **Description:**[Detailed explanation]
+- **Best for:**[Why this matches their specific needs]
+- **Sample facilitation:**[Example of how we'll use this]
 - **Your role:** [What you'll do during this technique]
 
-**2. [Technique 2]:**
+- *2. [Technique 2]:**
 
-- **Description:** [Detailed explanation]
-- **Best for:** [Why this builds on the first technique]
-- **Sample facilitation:** [Example of how we'll use this]
+- **Description:**[Detailed explanation]
+- **Best for:**[Why this builds on the first technique]
+- **Sample facilitation:**[Example of how we'll use this]
 - **Your role:** [What you'll do during this technique]
 
-**3. [Technique 3] (if applicable):**
+- *3. [Technique 3] (if applicable):**
 
-- **Description:** [Detailed explanation]
-- **Best for:** [Why this completes the sequence effectively]
-- **Sample facilitation:** [Example of how we'll use this]
+- **Description:**[Detailed explanation]
+- **Best for:**[Why this completes the sequence effectively]
+- **Sample facilitation:**[Example of how we'll use this]
 - **Your role:** [What you'll do during this technique]"
 
 ### 5. Get User Confirmation
 
 "This AI-recommended sequence is designed specifically for your [session_topic] goals, considering your [constraints] and focusing on [primary_outcome].
 
-**Does this approach sound perfect for your session?**
+- *Does this approach sound perfect for your session?**
 
-**Options:**
+- *Options:**
+
 [C] Continue - Begin with these recommended techniques
 [Modify] - I'd like to adjust the technique selection
 [Details] - Tell me more about any specific technique
@@ -175,34 +176,41 @@ Provide deeper insight into each recommended technique:
 
 If user confirms recommendations:
 
-**Update frontmatter:**
+- *Update frontmatter:**
 
 ```yaml
----
+
+- --
+
 selected_approach: 'ai-recommended'
 techniques_used: ['technique1', 'technique2', 'technique3']
 stepsCompleted: [1, 2]
----
-```
 
-**Append to document:**
+- --
+
+```bash
+
+- *Append to document:**
 
 ```markdown
+
 ## Technique Selection
 
-**Approach:** AI-Recommended Techniques
-**Analysis Context:** [session_topic] with focus on [session_goals]
+- *Approach:** AI-Recommended Techniques
+- *Analysis Context:** [session_topic] with focus on [session_goals]
 
-**Recommended Techniques:**
+- *Recommended Techniques:**
 
-- **[Technique 1]:** [Why this was recommended and expected outcome]
-- **[Technique 2]:** [How this builds on the first technique]
+- **[Technique 1]:**[Why this was recommended and expected outcome]
+- **[Technique 2]:**[How this builds on the first technique]
 - **[Technique 3]:** [How this completes the sequence effectively]
 
-**AI Rationale:** [Content based on context analysis and matching logic]
-```
+- *AI Rationale:** [Content based on context analysis and matching logic]
 
-**Route to execution:**
+```bash
+
+- *Route to execution:**
+
 Load `./step-03-technique-execution.md`
 
 ## SUCCESS METRICS:

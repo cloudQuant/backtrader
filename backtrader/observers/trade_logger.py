@@ -36,6 +36,7 @@ from ..observer import Observer
 # Optional MySQL support
 try:
     import pymysql
+
     MYSQL_AVAILABLE = True
 except ImportError:
     MYSQL_AVAILABLE = False
@@ -43,6 +44,7 @@ except ImportError:
 # Optional YAML support
 try:
     import yaml
+
     YAML_AVAILABLE = True
 except ImportError:
     YAML_AVAILABLE = False
@@ -86,28 +88,27 @@ class TradeLogger(Observer):
 
     _stclock = True
     _ltype = 2  # LineIterator.ObsType - ensure observer is registered for next() calls
-    lines = ('dummy',)  # Observer requires at least one line
+    lines = ("dummy",)  # Observer requires at least one line
 
     params = dict(
         # File logging settings
-        log_dir='./logs',
+        log_dir="./logs",
         log_orders=True,
         log_trades=True,
         log_positions=True,
         log_indicators=True,
         log_signals=True,
         log_position_snapshot=True,
-        snapshot_file='current_position.yaml',
-        log_format='json',
+        snapshot_file="current_position.yaml",
+        log_format="json",
         log_to_console=False,
-
         # MySQL settings - disabled by default
         mysql_enabled=False,
-        mysql_host='localhost',
+        mysql_host="localhost",
         mysql_port=3306,
-        mysql_user='root',
-        mysql_password='',
-        mysql_database='backtrader',
+        mysql_user="root",
+        mysql_password="",
+        mysql_database="backtrader",
     )
 
     def __init__(self):
@@ -116,8 +117,8 @@ class TradeLogger(Observer):
         # CRITICAL: Set _ltype AFTER super().__init__() and ensure registration
         self._ltype = 2  # LineIterator.ObsType
         # Register self to owner's _lineiterators if not already done
-        if hasattr(self, '_owner') and self._owner is not None:
-            if hasattr(self._owner, '_lineiterators'):
+        if hasattr(self, "_owner") and self._owner is not None:
+            if hasattr(self._owner, "_lineiterators"):
                 if self._ltype in self._owner._lineiterators:
                     if self not in self._owner._lineiterators[self._ltype]:
                         self._owner._lineiterators[self._ltype].append(self)
@@ -134,8 +135,8 @@ class TradeLogger(Observer):
         """Called at the start of the backtest/live run."""
         # CRITICAL: Ensure registration to _lineiterators for next() to be called
         self._ltype = 2  # LineIterator.ObsType
-        if hasattr(self, '_owner') and self._owner is not None:
-            if hasattr(self._owner, '_lineiterators'):
+        if hasattr(self, "_owner") and self._owner is not None:
+            if hasattr(self._owner, "_lineiterators"):
                 if self._ltype in self._owner._lineiterators:
                     if self not in self._owner._lineiterators[self._ltype]:
                         self._owner._lineiterators[self._ltype].append(self)
@@ -155,24 +156,21 @@ class TradeLogger(Observer):
         os.makedirs(self.p.log_dir, exist_ok=True)
 
         if self.p.log_orders:
-            self._order_logger = self._create_file_logger(
-                'bt_order', os.path.join(self.p.log_dir, 'order.log'))
+            self._order_logger = self._create_file_logger("bt_order", os.path.join(self.p.log_dir, "order.log"))
 
         if self.p.log_trades:
-            self._trade_logger = self._create_file_logger(
-                'bt_trade', os.path.join(self.p.log_dir, 'trade.log'))
+            self._trade_logger = self._create_file_logger("bt_trade", os.path.join(self.p.log_dir, "trade.log"))
 
         if self.p.log_positions:
-            self._position_logger = self._create_file_logger(
-                'bt_position', os.path.join(self.p.log_dir, 'position.log'))
+            self._position_logger = self._create_file_logger("bt_position", os.path.join(self.p.log_dir, "position.log"))
 
         if self.p.log_indicators:
             self._indicator_logger = self._create_file_logger(
-                'bt_indicator', os.path.join(self.p.log_dir, 'indicator.log'))
+                "bt_indicator", os.path.join(self.p.log_dir, "indicator.log")
+            )
 
         if self.p.log_signals:
-            self._signal_logger = self._create_file_logger(
-                'bt_signal', os.path.join(self.p.log_dir, 'signal.log'))
+            self._signal_logger = self._create_file_logger("bt_signal", os.path.join(self.p.log_dir, "signal.log"))
 
     def _create_file_logger(self, name, file_path):
         """Create a file logger using Python standard logging.
@@ -189,16 +187,16 @@ class TradeLogger(Observer):
         logger.handlers = []  # Clear existing handlers
 
         # File handler - write to file
-        file_handler = logging.FileHandler(file_path, encoding='utf-8')
+        file_handler = logging.FileHandler(file_path, encoding="utf-8")
         file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(logging.Formatter('%(message)s'))
+        file_handler.setFormatter(logging.Formatter("%(message)s"))
         logger.addHandler(file_handler)
 
         # Console handler - optional
         if self.p.log_to_console:
             console_handler = logging.StreamHandler()
             console_handler.setLevel(logging.INFO)
-            console_handler.setFormatter(logging.Formatter('[%(name)s] %(message)s'))
+            console_handler.setFormatter(logging.Formatter("[%(name)s] %(message)s"))
             logger.addHandler(console_handler)
 
         return logger
@@ -216,8 +214,8 @@ class TradeLogger(Observer):
                 user=self.p.mysql_user,
                 password=self.p.mysql_password,
                 database=self.p.mysql_database,
-                charset='utf8mb4',
-                autocommit=True
+                charset="utf8mb4",
+                autocommit=True,
             )
             self._create_mysql_tables()
         except Exception as e:
@@ -343,7 +341,7 @@ class TradeLogger(Observer):
         try:
             return self._owner.__class__.__name__
         except Exception:
-            return 'Unknown'
+            return "Unknown"
 
     def next(self):
         """Called on every bar - log positions and indicators."""
@@ -363,6 +361,7 @@ class TradeLogger(Observer):
                 self._save_position_snapshot()
         except Exception as e:
             import traceback
+
             if self.p.log_to_console:
                 print(f"[TradeLogger] Error in next(): {e}")
                 traceback.print_exc()
@@ -370,7 +369,7 @@ class TradeLogger(Observer):
     def notify_order(self, order):
         """Log order status changes."""
         self._ensure_loggers_initialized()
-        
+
         if not self.p.log_orders:
             return
 
@@ -378,7 +377,7 @@ class TradeLogger(Observer):
 
         # File logging
         if self._order_logger:
-            if self.p.log_format == 'json':
+            if self.p.log_format == "json":
                 self._order_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
             else:
                 self._order_logger.info(self._format_order_text(order))
@@ -390,7 +389,7 @@ class TradeLogger(Observer):
     def notify_trade(self, trade):
         """Log trade information."""
         self._ensure_loggers_initialized()
-        
+
         if not self.p.log_trades:
             return
 
@@ -398,7 +397,7 @@ class TradeLogger(Observer):
 
         # File logging
         if self._trade_logger:
-            if self.p.log_format == 'json':
+            if self.p.log_format == "json":
                 self._trade_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
             else:
                 self._trade_logger.info(self._format_trade_text(trade))
@@ -423,23 +422,22 @@ class TradeLogger(Observer):
             return
 
         log_data = {
-            'datetime': self._get_datetime_str(),
-            'action': action,
-            'size': size,
-            'price': price,
-            'data_name': data_name or (self._owner.data._name if hasattr(self._owner, 'data') else None),
-            'reason': reason or '',
-            'strategy_name': self._get_strategy_name(),
+            "datetime": self._get_datetime_str(),
+            "action": action,
+            "size": size,
+            "price": price,
+            "data_name": data_name or (self._owner.data._name if hasattr(self._owner, "data") else None),
+            "reason": reason or "",
+            "strategy_name": self._get_strategy_name(),
         }
 
         # File logging
         if self._signal_logger:
-            if self.p.log_format == 'json':
+            if self.p.log_format == "json":
                 self._signal_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
             else:
                 self._signal_logger.info(
-                    f"{log_data['datetime']} | {action.upper()} | size={size} | "
-                    f"price={price} | {reason or ''}"
+                    f"{log_data['datetime']} | {action.upper()} | size={size} | price={price} | {reason or ''}"
                 )
 
         # MySQL logging
@@ -451,28 +449,28 @@ class TradeLogger(Observer):
         if not self._position_logger and not (self.p.mysql_enabled and self._mysql_conn):
             return
 
-        if not hasattr(self, '_owner') or self._owner is None:
+        if not hasattr(self, "_owner") or self._owner is None:
             return
 
-        if not hasattr(self._owner, 'datas') or not self._owner.datas:
+        if not hasattr(self._owner, "datas") or not self._owner.datas:
             return
 
         for data in self._owner.datas:
             position = self._owner.getposition(data)
-            data_name = getattr(data, '_name', str(data))
+            data_name = getattr(data, "_name", str(data))
 
             log_data = {
-                'datetime': self._get_datetime_str(),
-                'data_name': data_name,
-                'size': position.size,
-                'price': position.price,
-                'value': position.size * data.close[0] if position.size != 0 else 0,
-                'strategy_name': self._get_strategy_name(),
+                "datetime": self._get_datetime_str(),
+                "data_name": data_name,
+                "size": position.size,
+                "price": position.price,
+                "value": position.size * data.close[0] if position.size != 0 else 0,
+                "strategy_name": self._get_strategy_name(),
             }
 
             # File logging
             if self._position_logger:
-                if self.p.log_format == 'json':
+                if self.p.log_format == "json":
                     self._position_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
                 else:
                     self._position_logger.info(
@@ -496,17 +494,19 @@ class TradeLogger(Observer):
             return
 
         log_data = {
-            'datetime': self._get_datetime_str(),
-            'strategy_name': self._get_strategy_name(),
-            **indicators_data
+            "datetime": self._get_datetime_str(),
+            "strategy_name": self._get_strategy_name(),
+            **indicators_data,
         }
 
         # File logging
         if self._indicator_logger:
-            if self.p.log_format == 'json':
+            if self.p.log_format == "json":
                 self._indicator_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
             else:
-                indicator_str = ' | '.join([f"{k}={v:.4f}" for k, v in indicators_data.items() if isinstance(v, (int, float))])
+                indicator_str = " | ".join(
+                    [f"{k}={v:.4f}" for k, v in indicators_data.items() if isinstance(v, (int, float))]
+                )
                 self._indicator_logger.info(f"{log_data['datetime']} | {indicator_str}")
 
         # MySQL logging - insert each indicator separately
@@ -525,17 +525,17 @@ class TradeLogger(Observer):
 
         try:
             # Get all indicators from the strategy
-            if hasattr(self._owner, '_lineiterators'):
+            if hasattr(self._owner, "_lineiterators"):
                 for item in self._owner._lineiterators.get(self._owner.IndType, []):
                     self._extract_indicator_values(item, indicators)
 
             # Also check for indicators stored as attributes
             for attr_name in dir(self._owner):
-                if attr_name.startswith('_'):
+                if attr_name.startswith("_"):
                     continue
                 try:
                     attr = getattr(self._owner, attr_name)
-                    if hasattr(attr, 'lines') and hasattr(attr, '__len__'):
+                    if hasattr(attr, "lines") and hasattr(attr, "__len__"):
                         self._extract_indicator_values(attr, indicators, attr_name)
                 except Exception:
                     continue
@@ -545,7 +545,7 @@ class TradeLogger(Observer):
 
         return indicators
 
-    def _extract_indicator_values(self, indicator, indicators_dict, prefix=''):
+    def _extract_indicator_values(self, indicator, indicators_dict, prefix=""):
         """Extract values from an indicator object.
 
         Args:
@@ -560,13 +560,13 @@ class TradeLogger(Observer):
                 ind_name = f"{prefix}_{ind_name}"
 
             # Get line values
-            if hasattr(indicator, 'lines'):
+            if hasattr(indicator, "lines"):
                 for line_name in indicator.lines.getlinealiases():
                     try:
                         line = getattr(indicator.lines, line_name)
                         if len(line) > 0:
                             value = line[0]
-                            if value is not None and not (hasattr(value, '__float__') and float(value) != float(value)):
+                            if value is not None and not (hasattr(value, "__float__") and float(value) != float(value)):
                                 full_name = f"{ind_name}_{line_name}" if line_name != ind_name.lower() else ind_name
                                 indicators_dict[full_name] = float(value)
                     except Exception:
@@ -580,26 +580,26 @@ class TradeLogger(Observer):
             return
 
         snapshot = {
-            'datetime': self._get_datetime_str(),
-            'strategy': self._get_strategy_name(),
-            'positions': {}
+            "datetime": self._get_datetime_str(),
+            "strategy": self._get_strategy_name(),
+            "positions": {},
         }
 
         for data in self._owner.datas:
             position = self._owner.getposition(data)
-            data_name = getattr(data, '_name', str(data))
+            data_name = getattr(data, "_name", str(data))
 
             if position.size != 0:
-                snapshot['positions'][data_name] = {
-                    'size': position.size,
-                    'price': round(position.price, 4),
-                    'value': round(position.size * data.close[0], 2),
-                    'current_price': round(data.close[0], 4),
+                snapshot["positions"][data_name] = {
+                    "size": position.size,
+                    "price": round(position.price, 4),
+                    "value": round(position.size * data.close[0], 2),
+                    "current_price": round(data.close[0], 4),
                 }
 
         snapshot_path = os.path.join(self.p.log_dir, self.p.snapshot_file)
         try:
-            with open(snapshot_path, 'w', encoding='utf-8') as f:
+            with open(snapshot_path, "w", encoding="utf-8") as f:
                 yaml.dump(snapshot, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
         except Exception as e:
             if self.p.log_to_console:
@@ -608,18 +608,18 @@ class TradeLogger(Observer):
     def _format_order(self, order):
         """Format order data for logging."""
         return {
-            'datetime': self._get_datetime_str(),
-            'ref': order.ref,
-            'order_type': 'Buy' if order.isbuy() else 'Sell',
-            'status': order.getstatusname(),
-            'size': order.size,
-            'price': order.price,
-            'executed_price': order.executed.price if order.executed.size else None,
-            'executed_size': order.executed.size,
-            'executed_value': order.executed.value,
-            'commission': order.executed.comm,
-            'data_name': order.data._name if order.data else None,
-            'strategy_name': self._get_strategy_name(),
+            "datetime": self._get_datetime_str(),
+            "ref": order.ref,
+            "order_type": "Buy" if order.isbuy() else "Sell",
+            "status": order.getstatusname(),
+            "size": order.size,
+            "price": order.price,
+            "executed_price": order.executed.price if order.executed.size else None,
+            "executed_size": order.executed.size,
+            "executed_value": order.executed.value,
+            "commission": order.executed.comm,
+            "data_name": order.data._name if order.data else None,
+            "strategy_name": self._get_strategy_name(),
         }
 
     def _format_order_text(self, order):
@@ -634,26 +634,26 @@ class TradeLogger(Observer):
     def _format_trade(self, trade):
         """Format trade data for logging."""
         return {
-            'datetime': self._get_datetime_str(),
-            'ref': trade.ref,
-            'data_name': trade.data._name,
-            'size': trade.size,
-            'price': trade.price,
-            'value': trade.value,
-            'pnl': trade.pnl,
-            'pnlcomm': trade.pnlcomm,
-            'commission': trade.commission,
-            'isclosed': trade.isclosed,
-            'isopen': trade.isopen,
-            'baropen': trade.baropen,
-            'barclose': trade.barclose if trade.isclosed else None,
-            'barlen': trade.barlen,
-            'strategy_name': self._get_strategy_name(),
+            "datetime": self._get_datetime_str(),
+            "ref": trade.ref,
+            "data_name": trade.data._name,
+            "size": trade.size,
+            "price": trade.price,
+            "value": trade.value,
+            "pnl": trade.pnl,
+            "pnlcomm": trade.pnlcomm,
+            "commission": trade.commission,
+            "isclosed": trade.isclosed,
+            "isopen": trade.isopen,
+            "baropen": trade.baropen,
+            "barclose": trade.barclose if trade.isclosed else None,
+            "barlen": trade.barlen,
+            "strategy_name": self._get_strategy_name(),
         }
 
     def _format_trade_text(self, trade):
         """Format trade data as text."""
-        status = 'CLOSED' if trade.isclosed else ('OPEN' if trade.isopen else 'UPDATE')
+        status = "CLOSED" if trade.isclosed else ("OPEN" if trade.isopen else "UPDATE")
         return (
             f"{self._get_datetime_str()} | {status} | "
             f"ref={trade.ref} | data={trade.data._name} | "
@@ -667,17 +667,27 @@ class TradeLogger(Observer):
 
         try:
             cursor = self._mysql_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO bt_orders (datetime, ref, order_type, status, size, price,
                     executed_price, executed_size, executed_value, commission, data_name, strategy_name)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                log_data['datetime'], log_data['ref'], log_data['order_type'],
-                log_data['status'], log_data['size'], log_data['price'],
-                log_data['executed_price'], log_data['executed_size'],
-                log_data['executed_value'], log_data['commission'],
-                log_data['data_name'], log_data['strategy_name']
-            ))
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["ref"],
+                    log_data["order_type"],
+                    log_data["status"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["executed_price"],
+                    log_data["executed_size"],
+                    log_data["executed_value"],
+                    log_data["commission"],
+                    log_data["data_name"],
+                    log_data["strategy_name"],
+                ),
+            )
             cursor.close()
         except Exception as e:
             if self.p.log_to_console:
@@ -690,17 +700,30 @@ class TradeLogger(Observer):
 
         try:
             cursor = self._mysql_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO bt_trades (datetime, ref, data_name, size, price, value,
                     pnl, pnlcomm, commission, isclosed, isopen, baropen, barclose, barlen, strategy_name)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                log_data['datetime'], log_data['ref'], log_data['data_name'],
-                log_data['size'], log_data['price'], log_data['value'],
-                log_data['pnl'], log_data['pnlcomm'], log_data['commission'],
-                log_data['isclosed'], log_data['isopen'], log_data['baropen'],
-                log_data['barclose'], log_data['barlen'], log_data['strategy_name']
-            ))
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["ref"],
+                    log_data["data_name"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["value"],
+                    log_data["pnl"],
+                    log_data["pnlcomm"],
+                    log_data["commission"],
+                    log_data["isclosed"],
+                    log_data["isopen"],
+                    log_data["baropen"],
+                    log_data["barclose"],
+                    log_data["barlen"],
+                    log_data["strategy_name"],
+                ),
+            )
             cursor.close()
         except Exception as e:
             if self.p.log_to_console:
@@ -713,13 +736,20 @@ class TradeLogger(Observer):
 
         try:
             cursor = self._mysql_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO bt_positions (datetime, data_name, size, price, value, strategy_name)
                 VALUES (%s, %s, %s, %s, %s, %s)
-            """, (
-                log_data['datetime'], log_data['data_name'], log_data['size'],
-                log_data['price'], log_data['value'], log_data['strategy_name']
-            ))
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["data_name"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["value"],
+                    log_data["strategy_name"],
+                ),
+            )
             cursor.close()
         except Exception as e:
             if self.p.log_to_console:
@@ -732,13 +762,18 @@ class TradeLogger(Observer):
 
         try:
             cursor = self._mysql_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO bt_indicators (datetime, indicator_name, indicator_value, strategy_name)
                 VALUES (%s, %s, %s, %s)
-            """, (
-                self._get_datetime_str(), indicator_name, indicator_value,
-                self._get_strategy_name()
-            ))
+            """,
+                (
+                    self._get_datetime_str(),
+                    indicator_name,
+                    indicator_value,
+                    self._get_strategy_name(),
+                ),
+            )
             cursor.close()
         except Exception as e:
             if self.p.log_to_console:
@@ -751,14 +786,21 @@ class TradeLogger(Observer):
 
         try:
             cursor = self._mysql_conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO bt_signals (datetime, action, size, price, data_name, reason, strategy_name)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (
-                log_data['datetime'], log_data['action'], log_data['size'],
-                log_data['price'], log_data['data_name'], log_data['reason'],
-                log_data['strategy_name']
-            ))
+            """,
+                (
+                    log_data["datetime"],
+                    log_data["action"],
+                    log_data["size"],
+                    log_data["price"],
+                    log_data["data_name"],
+                    log_data["reason"],
+                    log_data["strategy_name"],
+                ),
+            )
             cursor.close()
         except Exception as e:
             if self.p.log_to_console:

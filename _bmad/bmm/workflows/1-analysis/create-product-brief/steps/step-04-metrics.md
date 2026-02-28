@@ -1,15 +1,19 @@
----
+- --
+
 name: 'step-04-metrics'
 description: 'Define comprehensive success metrics that include user success, business objectives, and key performance indicators'
 
 # File References
+
 nextStepFile: './step-05-scope.md'
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Success Metrics Definition
 
@@ -60,10 +64,11 @@ Define comprehensive success metrics that include user success, business objecti
 
 ### 1. Begin Success Metrics Discovery
 
-**Opening Exploration:**
+- *Opening Exploration:**
+
 "Now that we know who {{project_name}} serves and what problem it solves, let's define what success looks like.
 
-**Success Discovery:**
+- *Success Discovery:**
 
 - How will we know we're succeeding for our users?
 - What would make users say 'this was worth it'?
@@ -73,7 +78,8 @@ Let's start with the user perspective."
 
 ### 2. User Success Metrics
 
-**User Success Questions:**
+- *User Success Questions:**
+
 Define success from the user's perspective:
 
 - "What outcome are users trying to achieve?"
@@ -81,7 +87,8 @@ Define success from the user's perspective:
 - "What's the moment where they realize this is solving their problem?"
 - "What behaviors indicate users are getting value?"
 
-**User Success Exploration:**
+- *User Success Exploration:**
+
 Guide from vague to specific metrics:
 
 - "Users are happy" → "Users complete [key action] within [timeframe]"
@@ -90,7 +97,8 @@ Guide from vague to specific metrics:
 
 ### 3. Business Objectives
 
-**Business Success Questions:**
+- *Business Success Questions:**
+
 Define business success metrics:
 
 - "What does success look like for the business at 3 months? 12 months?"
@@ -98,16 +106,17 @@ Define business success metrics:
 - "What business metrics would make you say 'this is working'?"
 - "How does this product contribute to broader company goals?"
 
-**Business Success Categories:**
+- *Business Success Categories:**
 
-- **Growth Metrics:** User acquisition, market penetration
-- **Engagement Metrics:** Usage patterns, retention, satisfaction
-- **Financial Metrics:** Revenue, profitability, cost efficiency
+- **Growth Metrics:**User acquisition, market penetration
+- **Engagement Metrics:**Usage patterns, retention, satisfaction
+- **Financial Metrics:**Revenue, profitability, cost efficiency
 - **Strategic Metrics:** Market position, competitive advantage
 
 ### 4. Key Performance Indicators
 
-**KPI Development Process:**
+- *KPI Development Process:**
+
 Define specific, measurable KPIs:
 
 - Transform objectives into measurable indicators
@@ -115,7 +124,7 @@ Define specific, measurable KPIs:
 - Define targets and timeframes where appropriate
 - Include leading indicators that predict success
 
-**KPI Examples:**
+- *KPI Examples:**
 
 - User acquisition: "X new users per month"
 - Engagement: "Y% of users complete core journey weekly"
@@ -123,7 +132,8 @@ Define specific, measurable KPIs:
 
 ### 5. Connect Metrics to Strategy
 
-**Strategic Alignment:**
+- *Strategic Alignment:**
+
 Ensure metrics align with product vision and user needs:
 
 - Connect each metric back to the product vision
@@ -133,10 +143,12 @@ Ensure metrics align with product vision and user needs:
 
 ### 6. Generate Success Metrics Content
 
-**Content to Append:**
+- *Content to Append:**
+
 Prepare the following structure for document append:
 
 ```markdown
+
 ## Success Metrics
 
 [Success metrics content based on conversation]
@@ -148,17 +160,20 @@ Prepare the following structure for document append:
 ### Key Performance Indicators
 
 [Key performance indicators content based on conversation, or N/A if not discussed]
-```
+
+```bash
 
 ### 7. Present MENU OPTIONS
 
-**Content Presentation:**
+- *Content Presentation:**
+
 "I've defined success metrics that will help us track whether {{project_name}} is creating real value for users and achieving business objectives.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
+
 [Show the complete markdown content from step 6]
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue"
 
 #### Menu Handling Logic:
 
@@ -178,7 +193,7 @@ Prepare the following structure for document append:
 
 ONLY WHEN [C continue option] is selected and [success metrics finalized and saved to document with frontmatter updated], will you then read fully and follow: `{nextStepFile}` to begin MVP scope definition.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -202,4 +217,4 @@ ONLY WHEN [C continue option] is selected and [success metrics finalized and sav
 - Appending content without user selecting 'C'
 - Not updating frontmatter properly
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

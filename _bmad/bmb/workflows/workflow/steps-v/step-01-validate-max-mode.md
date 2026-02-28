@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-validate'
 description: 'Initialize validation: create report and check file structure & size'
 
@@ -9,7 +10,8 @@ workflowPlanFile: '{workflow_folder_path}/workflow-plan.md'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 partialValidationFragmentFile: '{workflow_folder_path}/validation-report-{step-name}.md'
 stepFileRules: '../data/step-file-rules.md'
----
+
+- --
 
 # Validation Step 1: File Structure & Size
 
@@ -43,37 +45,40 @@ To create the validation report that all parallel tasks that this will kick off 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut. IF there is no subprocess type tool available that can achieve running a process in a subprocess and handle starting multiple - let the user know they need to restart validation specifically NOT using max-parallel mode and HALT and end this workflow!
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut. IF there is no subprocess type tool available that can achieve running a process in a subprocess and handle starting multiple - let the user know they need to restart validation specifically NOT using max-parallel mode and HALT and end this workflow!
 
 ### 1. Create Validation Report
 
 Create {validationReportFile} with header structure:
 
 ```markdown
----
+
+- --
+
 validationDate: [current date]
 workflowName: {new_workflow_name}
 workflowPath: {workflow_folder_path}
 validationStatus: IN_PROGRESS
----
+
+- --
 
 # Validation Report: {new_workflow_name}
 
-**Validation Started:** [current date]
-**Validator:** BMAD Workflow Validation System
-**Standards Version:** BMAD Workflow Standards
+- *Validation Started:** [current date]
+- *Validator:** BMAD Workflow Validation System
+- *Standards Version:** BMAD Workflow Standards
 
 {{TOC}}
 
 {{#each parallel-steps}}
+
 ## {{title}}
 
 {{results}}
 
 {{/each}}
 
-```
-
+```bash
 Save the file (without the handlebars output of course) before proceeding.
 
 ### 2. Launch Mass Parallelization and consolidate results!
@@ -94,7 +99,7 @@ IF a file is missing or empty from a given subprocess - but it did return to you
 
 ONLY after ensuring all has been written to the final report, let the user know about the final report that is a consolidation - and they can ignore or remove the smaller files or use them as they like to focus on a specific validation (but its all in the master doc), and then proceed to {nextStep}, ensuring that in the {nextStep} it is focused on the {validationReportFile}
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 

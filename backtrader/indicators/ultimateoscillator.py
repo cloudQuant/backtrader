@@ -129,12 +129,7 @@ class UltimateOscillator(Indicator):
 
             for j in range(p3):
                 idx = i - j
-                if (
-                    idx >= 0
-                    and idx < len(close_array)
-                    and idx < len(tl_array)
-                    and idx < len(tr_array)
-                ):
+                if idx >= 0 and idx < len(close_array) and idx < len(tl_array) and idx < len(tr_array):
                     bp = close_array[idx] - tl_array[idx]
                     tr = tr_array[idx]
 

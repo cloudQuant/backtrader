@@ -1,20 +1,25 @@
----
+- --
+
 name: 'step-05-commands-menu'
 description: 'Build capabilities and command structure'
 
 # File References
+
 nextStepFile: './step-06-activation.md'
 agentPlan: '{bmb_creations_output_folder}/agent-plan-{agent_name}.md'
 agentMenuPatterns: ../data/agent-menu-patterns.md
 
 # Example Menus (for reference)
+
 simpleExample: ../data/reference/without-sidecar/commit-poet.agent.yaml
 expertExample: ../data/reference/with-sidecar/journal-keeper/journal-keeper.agent.yaml
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # STEP GOAL
 
@@ -22,19 +27,21 @@ Transform discovered capabilities into structured menu commands following BMAD m
 
 # MANDATORY EXECUTION RULES
 
-1. **MUST** load agent-menu-patterns.md before any conversation
-2. **MUST** use menu patterns as structural templates
-3. **MUST** keep final menu YAML under 100 lines
-4. **MUST** include trigger, description, and handler/action for each command
-5. **MUST NOT** add help or exit commands (auto-injected)
-6. **MUST** document menu YAML in agent-plan before completion
-7. **MUST** complete Menu [A][P][C] verification
+1. **MUST**load agent-menu-patterns.md before any conversation
+
+2.**MUST**use menu patterns as structural templates
+3.**MUST**keep final menu YAML under 100 lines
+4.**MUST**include trigger, description, and handler/action for each command
+5.**MUST NOT**add help or exit commands (auto-injected)
+6.**MUST**document menu YAML in agent-plan before completion
+7.**MUST**complete Menu [A][P][C] verification
 
 # EXECUTION PROTOCOLS
 
 ## Load Menu Patterns
 
 Read agentMenuPatterns file to understand:
+
 - Command structure requirements
 - YAML formatting standards
 - Handler/action patterns
@@ -43,12 +50,14 @@ Read agentMenuPatterns file to understand:
 ## Capability Discovery Conversation
 
 Guide collaborative conversation to:
+
 1. Review capabilities from previous step
 2. Identify which capabilities become commands
 3. Group related capabilities
 4. Define command scope and boundaries
 
 Ask targeted questions:
+
 - "Which capabilities are primary commands vs secondary actions?"
 - "Can related capabilities be grouped under single commands?"
 - "What should each command accomplish?"
@@ -58,26 +67,29 @@ Ask targeted questions:
 
 For each command, define:
 
-1. **Trigger** - User-facing command name
+1.**Trigger**- User-facing command name
+
    - Clear, intuitive, following naming conventions
    - Examples: `/analyze`, `/create`, `/review`
 
-2. **Description** - What the command does
+2.**Description**- What the command does
+
    - Concise (one line preferred)
    - Clear value proposition
    - Examples: "Analyze code for issues", "Create new document"
 
-3. **Handler/Action** - How command executes
+3.**Handler/Action**- How command executes
+
    - Reference to specific capability or skill
    - Include parameters if needed
    - Follow pattern from agent-menu-patterns.md
 
 ## Structure Best Practices
 
-- **Group related commands** logically
-- **Prioritize frequently used** commands early
-- **Use clear, action-oriented** trigger names
-- **Keep descriptions** concise and valuable
+- **Group related commands**logically
+- **Prioritize frequently used**commands early
+- **Use clear, action-oriented**trigger names
+- **Keep descriptions**concise and valuable
 - **Match handler names** to actual capabilities
 
 ## Document Menu YAML
@@ -87,28 +99,33 @@ Create structured menu YAML following format from agent-menu-patterns.md:
 ```yaml
 menu:
   commands:
+
     - trigger: "/command-name"
+
       description: "Clear description of what command does"
       handler: "specific_capability_or_skill"
       parameters:
+
         - name: "param_name"
+
           description: "Parameter description"
           required: true/false
-```
+
+```bash
 
 ## Menu [A][P][C] Verification
 
-**[A]ccuracy**
+- *[A]ccuracy**
 - All commands match defined capabilities
 - Triggers are clear and intuitive
 - Handlers reference actual capabilities
 
-**[P]attern Compliance**
+- *[P]attern Compliance**
 - Follows agent-menu-patterns.md structure
 - YAML formatting is correct
 - No help/exit commands included
 
-**[C]ompleteness**
+- *[C]ompleteness**
 - All primary capabilities have commands
 - Commands cover agent's core functions
 - Menu is ready for next step
@@ -116,14 +133,14 @@ menu:
 # CONTEXT BOUNDARIES
 
 - **Focus on command structure**, not implementation details
-- **Reference example menus** for patterns, not copying
-- **Keep menu concise** - better fewer, clearer commands
-- **User-facing perspective** - triggers should feel natural
+- **Reference example menus**for patterns, not copying
+- **Keep menu concise**- better fewer, clearer commands
+- **User-facing perspective**- triggers should feel natural
 - **Capability alignment** - every command maps to a capability
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 1. Load agent-menu-patterns.md to understand structure
 2. Review capabilities from agent-plan step 3
@@ -157,7 +174,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ONLY WHEN [C continue option] is selected and [menu YAML documented in agent-plan and all commands have trigger/description/handler], will you then load and read fully `{nextStepFile}` to execute and begin activation planning.
 
----
+- --
 
 # SUCCESS METRICS
 

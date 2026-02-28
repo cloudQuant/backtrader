@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-validate'
 description: 'Initialize validation: create report and check file structure & size'
 
@@ -7,7 +8,8 @@ targetWorkflowPath: '{workflow_folder_path}'
 workflowPlanFile: '{workflow_folder_path}/workflow-plan.md'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 stepFileRules: '../data/step-file-rules.md'
----
+
+- --
 
 # Validation Step 1: File Structure & Size
 
@@ -41,27 +43,31 @@ To create the validation report and check that the workflow has correct file str
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Check Folder Structure
 
-**Launch a single subprocess that will do all of the following for items:**
+- *Launch a single subprocess that will do all of the following for items:**
 
 1.  Load {stepFileRules} to understand:
 - File size limits (<200 recommended, 250 max)
 - Required folder structure
 - Required files
-2. Lists the entire folder structure using bash commands
-3. Verifies all required folders and files exist
-4. Returns structured findings to parent for aggregation
+1. Lists the entire folder structure using bash commands
+2. Verifies all required folders and files exist
+3. Returns structured findings to parent for aggregation
 
 ```bash
-# List folder structure
-find {targetWorkflowPath} -type f -name "*.md" | sort
-```
 
-**Expected structure:**
-```
+# List folder structure
+
+find {targetWorkflowPath} -type f -name "*.md" | sort
+
+```bash
+
+- *Expected structure:**
+
+```bash
 {targetWorkflowPath}/
 ├── workflow.md
 ├── steps*/ potentially more than one folder like this (such as steps-v, steps-c - the folder name is not critical but should make sense)
@@ -70,13 +76,15 @@ find {targetWorkflowPath} -type f -name "*.md" | sort
 │   ├── step-02-*.md
 │   └── ...
 ├── */ # any other random files - critical will be later ensure its all used - aside from potential documentation for user later.
+
 ├── data/
 │   └── [as needed]
 └── templates/
     └── [as needed]
-```
 
-**Check:**
+```bash
+
+- *Check:**
 - ✅ workflow.md exists
 - ✅ step files are in a well organized folder
 - ✅ non step reference files are organized in other folders such as data, templates, or others that make sense for the workflow
@@ -84,24 +92,24 @@ find {targetWorkflowPath} -type f -name "*.md" | sort
 
 ### 4. Check File Sizes
 
-**DO NOT BE LAZY - For EACH step file in steps-c/, launch a subprocess that:**
+- *DO NOT BE LAZY - For EACH step file in steps-c/, launch a subprocess that:**
 
 1. Loads that step file
 2. Counts lines and checks against size limits
 3. Returns structured findings to parent for aggregation
 
-**Limits:**
+- *Limits:**
 - < 200 lines: ✅ Good
 - 200-300 lines: ⚠️ Approaching limit
 - > 300 lines: ❌ Exceeds limit
 
-**Subprocess returns:** File name, line count, status (Good/Approaching limit/Exceeds limit), and any issues found.
+- *Subprocess returns:** File name, line count, status (Good/Approaching limit/Exceeds limit), and any issues found.
 
-**Subprocess must either:**
+- *Subprocess must either:**
 - Update validation report directly with findings, OR
 - Return structured findings to parent for aggregation into report
 
-**Document findings in validation report:**
+- *Document findings in validation report:**
 - List all step files checked with their line counts
 - Note any files approaching or exceeding size limits (<200 recommended, 250 max)
 - Check data and reference files for size issues (large files should be sharded or indexed)
@@ -110,6 +118,7 @@ find {targetWorkflowPath} -type f -name "*.md" | sort
 ### 5. Verify File Presence
 
 From the design in {workflowPlanFile}, verify:
+
 - Every step from design has a corresponding file
 - Step files are numbered sequentially
 - No gaps in numbering
@@ -117,7 +126,7 @@ From the design in {workflowPlanFile}, verify:
 
 ### 6. Document all findings in a report
 
-**Document the following:**
+- *Document the following:**
 - Folder structure assessment
 - Required files presence check
 - File size analysis results
@@ -126,11 +135,11 @@ From the design in {workflowPlanFile}, verify:
 
 ### 7. Save Report
 
-**CRITICAL:** Save the validation report BEFORE COMPLETING THIS STEP
+- *CRITICAL:** Save the validation report BEFORE COMPLETING THIS STEP
 
-**Display:** "**File Structure & Size validation complete.**"
+- *Display:** "**File Structure & Size validation complete.**"
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -149,4 +158,4 @@ From the design in {workflowPlanFile}, verify:
 - Not saving report before proceeding
 - Halting for user input
 
-**Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Check EVERY file. Auto-proceed through all validation steps.
+- *Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Check EVERY file. Auto-proceed through all validation steps.

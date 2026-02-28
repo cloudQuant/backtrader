@@ -22,46 +22,51 @@ NEVER document time estimates, durations, level of effort or completion times fo
 - NO Implementation time ranges
 - NO Any temporal or capacity based measurements
 
-**Instead:** Focus on workflow steps, dependencies, and outputs. Let users determine their own timelines and level of effort.
+- *Instead:** Focus on workflow steps, dependencies, and outputs. Let users determine their own timelines and level of effort.
 
 ### CommonMark Essentials
 
-**Headers:**
+- *Headers:**
 
 - Use ATX-style ONLY: `#` `##` `###` (NOT Setext underlines)
 - Single space after `#`: `# Title` (NOT `#Title`)
+
 - No trailing `#`: `# Title` (NOT `# Title #`)
+
 - Hierarchical order: Don't skip levels (h1→h2→h3, not h1→h3)
 
-**Code Blocks:**
+- *Code Blocks:**
 
 - Use fenced blocks with language identifier:
+
   ````markdown
   ```javascript
   const example = 'code';
   ```
+
   ````
+
 - NOT indented code blocks (ambiguous)
 
-**Lists:**
+- *Lists:**
 
 - Consistent markers within list: all `-` or all `*` or all `+` (don't mix)
 - Proper indentation for nested items (2 or 4 spaces, stay consistent)
 - Blank line before/after list for clarity
 
-**Links:**
+- *Links:**
 
 - Inline: `[text](url)`
 - Reference: `[text][ref]` then `[ref]: url` at bottom
 - NO bare URLs without `<>` brackets
 
-**Emphasis:**
+- *Emphasis:**
 
 - Italic: `*text*` or `_text_`
 - Bold: `**text**` or `__text__`
 - Consistent style within document
 
-**Line Breaks:**
+- *Line Breaks:**
 
 - Two spaces at end of line + newline, OR
 - Blank line between paragraphs
@@ -69,65 +74,70 @@ NEVER document time estimates, durations, level of effort or completion times fo
 
 ## Mermaid Diagrams: Valid Syntax Required
 
-**Critical Rules:**
+- *Critical Rules:**
 
 1. Always specify diagram type first line
 2. Use valid Mermaid v10+ syntax
 3. Test syntax before outputting (mental validation)
 4. Keep focused: 5-10 nodes ideal, max 15
 
-**Diagram Type Selection:**
+- *Diagram Type Selection:**
 
-- **flowchart** - Process flows, decision trees, workflows
-- **sequenceDiagram** - API interactions, message flows, time-based processes
-- **classDiagram** - Object models, class relationships, system structure
-- **erDiagram** - Database schemas, entity relationships
-- **stateDiagram-v2** - State machines, lifecycle stages
+- **flowchart**- Process flows, decision trees, workflows
+- **sequenceDiagram**- API interactions, message flows, time-based processes
+- **classDiagram**- Object models, class relationships, system structure
+- **erDiagram**- Database schemas, entity relationships
+- **stateDiagram-v2**- State machines, lifecycle stages
 - **gitGraph** - Branch strategies, version control flows
 
-**Formatting:**
+- *Formatting:**
 
 ````markdown
+
 ```mermaid
 flowchart TD
     Start[Clear Label] --> Decision{Question?}
     Decision -->|Yes| Action1[Do This]
+
     Decision -->|No| Action2[Do That]
-```
+
+```bash
+
 ````
 
 ## Style Guide Principles (Distilled)
 
 Apply in this hierarchy:
 
-1. **Project-specific guide** (if exists) - always ask first
-2. **BMAD conventions** (this document)
-3. **Google Developer Docs style** (defaults below)
-4. **CommonMark spec** (when in doubt)
+1. **Project-specific guide**(if exists) - always ask first
+
+2.**BMAD conventions**(this document)
+3.**Google Developer Docs style**(defaults below)
+4.**CommonMark spec** (when in doubt)
 
 ### Core Writing Rules
 
-**Task-Oriented Focus:**
+- *Task-Oriented Focus:**
 
 - Write for user GOALS, not feature lists
 - Start with WHY, then HOW
 - Every doc answers: "What can I accomplish?"
 
-**Clarity Principles:**
+- *Clarity Principles:**
 
 - Active voice: "Click the button" NOT "The button should be clicked"
 - Present tense: "The function returns" NOT "The function will return"
 - Direct language: "Use X for Y" NOT "X can be used for Y"
 - Second person: "You configure" NOT "Users configure" or "One configures"
 
-**Structure:**
+- *Structure:**
 
 - One idea per sentence
 - One topic per paragraph
 - Headings describe content accurately
 - Examples follow explanations
 
-**Accessibility:**
+- *Accessibility:**
 
 - Descriptive link text: "See the API reference" NOT "Click here"
 - Alt text for diagrams: Describe what it shows
@@ -136,7 +146,7 @@ Apply in this hierarchy:
 
 ## OpenAPI/API Documentation
 
-**Required Elements:**
+- *Required Elements:**
 
 - Endpoint path and method
 - Authentication requirements
@@ -146,7 +156,7 @@ Apply in this hierarchy:
 - Response examples (success + common errors)
 - Error codes and meanings
 
-**Quality Standards:**
+- *Quality Standards:**
 
 - OpenAPI 3.0+ specification compliance
 - Complete schemas (no missing fields)
@@ -156,14 +166,14 @@ Apply in this hierarchy:
 
 ## Documentation Types: Quick Reference
 
-**README:**
+- *README:**
 
 - What (overview), Why (purpose), How (quick start)
 - Installation, Usage, Contributing, License
 - Under 500 lines (link to detailed docs)
 - Final Polish include a Table of Contents
 
-**API Reference:**
+- *API Reference:**
 
 - Complete endpoint coverage
 - Request/response examples
@@ -171,14 +181,14 @@ Apply in this hierarchy:
 - Error handling
 - Rate limits if applicable
 
-**User Guide:**
+- *User Guide:**
 
 - Task-based sections (How to...)
 - Step-by-step instructions
 - Screenshots/diagrams where helpful
 - Troubleshooting section
 
-**Architecture Docs:**
+- *Architecture Docs:**
 
 - System overview diagram (Mermaid)
 - Component descriptions
@@ -186,7 +196,7 @@ Apply in this hierarchy:
 - Technology decisions (ADRs)
 - Deployment architecture
 
-**Developer Guide:**
+- *Developer Guide:**
 
 - Setup/environment requirements
 - Code organization
@@ -211,14 +221,19 @@ Before finalizing ANY documentation:
 - [ ] Spelling/grammar checked
 - [ ] Reads clearly at target skill level
 
-**Frontmatter:**
+- *Frontmatter:**
+
 Use YAML frontmatter when appropriate, for example:
 
 ```yaml
----
+
+- --
+
 title: Document Title
 description: Brief description
 author: Author name
 date: YYYY-MM-DD
----
-```
+
+- --
+
+```bash

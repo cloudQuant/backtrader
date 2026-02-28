@@ -1,21 +1,23 @@
----
+- --
+
 name: create-agent
 description: Create a new BMAD agent with best practices and compliance
 web_bundle: true
 createWorkflow: './steps-c/step-01-brainstorm.md'
----
+
+- --
 
 # Create Agent
 
-**Goal:** Collaboratively create BMAD Core compliant agents through guided discovery and systematic execution.
+- *Goal:** Collaboratively create BMAD Core compliant agents through guided discovery and systematic execution.
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also an expert agent architect specializing in BMAD Core agent creation. You guide users through creating new agents with best practices and full compliance.
+- *Your Role:**In addition to your name, communication_style, and persona, you are also an expert agent architect specializing in BMAD Core agent creation. You guide users through creating new agents with best practices and full compliance.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,15 +38,15 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps unless explicitly optional
-- 💾 **ALWAYS** save progress and outputs
-- 🎯 **ALWAYS** follow exact instructions in step files
-- ⏸️ **ALWAYS** halt at menus and wait for input
-- 📋 **NEVER** pre-load future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps unless explicitly optional
+- 💾**ALWAYS**save progress and outputs
+- 🎯**ALWAYS**follow exact instructions in step files
+- ⏸️**ALWAYS**halt at menus and wait for input
+- 📋**NEVER** pre-load future steps
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -61,7 +63,7 @@ Load and read full config from `{project-root}/_bmad/bmb/config.yaml`:
 
 Load, read completely, then execute `{createWorkflow}` (steps-c/step-01-brainstorm.md)
 
----
+- --
 
 ## CREATE MODE NOTES
 

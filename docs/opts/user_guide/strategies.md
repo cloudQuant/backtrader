@@ -12,18 +12,22 @@
 import backtrader as bt
 
 class MyStrategy(bt.Strategy):
-    # 策略参数
+
+# 策略参数
     params = (
         ('param1', 20),
         ('param2', 10),
     )
 
     def __init__(self):
-        # 初始化代码
+
+# 初始化代码
 
     def next(self):
-        # 核心交易逻辑
-```
+
+# 核心交易逻辑
+
+```bash
 
 ### 核心方法
 
@@ -32,16 +36,16 @@ class MyStrategy(bt.Strategy):
    - 创建指标
    - 设置变量
 
-2. **next(self)**
+1. **next(self)**
    - 主要交易逻辑
    - 每个 bar 都会调用
    - 处理订单和持仓
 
-3. **notify_order(self, order)**
+1. **notify_order(self, order)**
    - 订单状态通知
    - 处理订单执行结果
 
-4. **notify_trade(self, trade)**
+1. **notify_trade(self, trade)**
    - 交易状态通知
    - 处理开仓/平仓信息
 
@@ -52,42 +56,52 @@ class MyStrategy(bt.Strategy):
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 获取数据
+
+# 获取数据
         self.data = self.datas[0]
-        # 访问数据
+
+# 访问数据
         self.close = self.data.close
         self.high = self.data.high
         self.low = self.data.low
-```
+
+```bash
 
 ### 2. 指标计算
 
 ```python
 def __init__(self):
-    # 创建技术指标
+
+# 创建技术指标
     self.sma = bt.indicators.SimpleMovingAverage(
         self.data.close, period=self.params.period
     )
     self.rsi = bt.indicators.RSI(
         self.data.close, period=14
     )
-```
+
+```bash
 
 ### 3. 交易逻辑
 
 ```python
 def next(self):
-    # 没有持仓
+
+# 没有持仓
     if not self.position:
-        # 买入条件
+
+# 买入条件
         if self.sma > self.data.close and self.rsi < 30:
             self.buy()
-    # 有持仓
+
+# 有持仓
     else:
-        # 卖出条件
+
+# 卖出条件
         if self.sma < self.data.close or self.rsi > 70:
             self.sell()
-```
+
+```bash
 
 ### 4. 订单管理
 
@@ -104,7 +118,8 @@ def notify_order(self, order):
 
     elif order.status in [order.Canceled, order.Margin, order.Rejected]:
         self.log('订单取消/保证金不足/拒绝')
-```
+
+```bash
 
 ## 进阶技巧
 
@@ -120,7 +135,8 @@ class MultiDataStrategy(bt.Strategy):
         if self.stock.close[0] > self.stock.close[-1] and \
            self.index.close[0] > self.index.close[-1]:
             self.buy(data=self.stock)
-```
+
+```bash
 
 ### 2. 参数优化
 
@@ -136,27 +152,31 @@ class OptStrategy(bt.Strategy):
             period=self.p.period,
             devfactor=self.p.devfactor
         )
-```
+
+```bash
 
 ### 3. 持仓管理
 
 ```python
 def next(self):
-    # 计算目标持仓
+
+# 计算目标持仓
     target_size = self.broker.get_cash() / self.data.close[0]
-    
-    # 调整持仓
+
+# 调整持仓
     if target_size > self.position.size:
         self.buy(size=target_size - self.position.size)
     elif target_size < self.position.size:
         self.sell(size=self.position.size - target_size)
-```
+
+```bash
 
 ### 4. 风险管理
 
 ```python
 def __init__(self):
-    # 跟踪止损
+
+# 跟踪止损
     self.trailing_stop = bt.indicators.Highest(
         self.data.close, period=20
     )
@@ -165,7 +185,8 @@ def next(self):
     if self.position and \
        self.data.close[0] < self.trailing_stop[0] * 0.95:
         self.close()  # 平仓
-```
+
+```bash
 
 ## 最佳实践
 
@@ -184,7 +205,8 @@ class WellStructuredStrategy(bt.Strategy):
     def _initialize_trading_variables(self):
         self.last_trade = None
         self.trades_count = 0
-```
+
+```bash
 
 ### 2. 日志记录
 
@@ -196,35 +218,41 @@ def log(self, txt, dt=None):
 def notify_trade(self, trade):
     if trade.isclosed:
         self.log(f'交易利润: {trade.pnl:.2f}')
-```
+
+```bash
 
 ### 3. 健壮性检查
 
 ```python
 def next(self):
-    # 检查数据是否有效
+
+# 检查数据是否有效
     if not self.data.close[0] or not self.sma[0]:
         return
 
-    # 检查是否有足够资金
+# 检查是否有足够资金
     if self.broker.get_cash() < 5000:
         return
-```
+
+```bash
 
 ### 4. 性能优化
 
 ```python
 def __init__(self):
-    # 缓存常用值
+
+# 缓存常用值
     self.order = None
     self.price = self.data.close
     self.volume = self.data.volume
 
 def next(self):
-    # 使用缓存值
+
+# 使用缓存值
     price = self.price[0]
     volume = self.volume[0]
-```
+
+```bash
 
 ## 常见问题
 
@@ -233,12 +261,12 @@ def next(self):
    - 验证资金是否充足
    - 确认订单状态
 
-2. **回测结果不理想**
+1. **回测结果不理想**
    - 检查交易逻辑
    - 优化参数设置
    - 考虑交易成本
 
-3. **执行速度慢**
+1. **执行速度慢**
    - 减少指标计算
    - 优化数据处理
    - 使用缓存机制

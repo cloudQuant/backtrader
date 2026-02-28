@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Create comprehensive product briefs through collaborative step-by-step discovery as creative Business Analyst working with the user as peers.'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # create-product-brief
 

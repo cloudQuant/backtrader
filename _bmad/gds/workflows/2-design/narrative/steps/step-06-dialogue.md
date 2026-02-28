@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-06-dialogue'
 description: 'Define dialogue style, key conversations, and branching systems'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-06-dialogue.md'
 nextStepFile: './step-07-environmental.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 6: Dialogue Systems
 
-**Progress: Step 6 of 11** - Next: Environmental Storytelling
+- *Progress: Step 6 of 11**- Next: Environmental Storytelling
 
 ## STEP GOAL:
 
@@ -66,17 +71,23 @@ Define dialogue style, key conversations, and branching dialogue systems if appl
 
 "**Let's define how characters speak in {{game_name}}.**
 
-**Style considerations:**
+- *Style considerations:**
 
 | Aspect        | Options                      |
-| ------------- | ---------------------------- |
-| **Formality** | Formal ←→ Casual             |
-| **Period**    | Period-appropriate ←→ Modern |
-| **Length**    | Verbose ←→ Concise           |
-| **Humor**     | Serious ←→ Comedic           |
-| **Profanity** | None ←→ Heavy                |
 
-**Questions:**
+| ------------- | ---------------------------- |
+
+| **Formality**| Formal ←→ Casual             |
+
+|**Period**| Period-appropriate ←→ Modern |
+
+|**Length**| Verbose ←→ Concise           |
+
+|**Humor**| Serious ←→ Comedic           |
+
+|**Profanity** | None ←→ Heavy                |
+
+- *Questions:**
 
 - How do different characters speak differently?
 - Are there speech patterns or verbal tics?
@@ -93,7 +104,7 @@ For each important conversation:
 - **Who is involved?**
 - **When does it occur?**
 - **What's discussed?**
-- **Narrative purpose** - What does it accomplish?
+- **Narrative purpose**- What does it accomplish?
 - **Emotional tone**
 
 What are the key conversations in {{game_name}}?"
@@ -105,7 +116,7 @@ What are the key conversations in {{game_name}}?"
 If yes, describe:
 
 - **How many branches/paths?**
-- **What determines branches?** (player choice, stats, flags)
+- **What determines branches?**(player choice, stats, flags)
 - **Do branches converge or stay separate?**
 - **How much unique dialogue?**
 - **What are the consequences of choices?**
@@ -117,13 +128,14 @@ Describe your branching system (or indicate N/A):"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Dialogue Framework
 
 ### Dialogue Style
 
-**Overall Voice:** {{dialogue_voice}}
+- *Overall Voice:** {{dialogue_voice}}
 
-**Style Elements:**
+- *Style Elements:**
 
 - Formality: {{formality_level}}
 - Period: {{period_style}}
@@ -131,10 +143,11 @@ Based on the conversation, prepare the content:
 - Humor: {{humor_level}}
 - Profanity: {{profanity_level}}
 
-**Character Voice Distinctions:**
+- *Character Voice Distinctions:**
+
 {{how_characters_differ}}
 
----
+- --
 
 ### Key Conversations
 
@@ -142,37 +155,43 @@ Based on the conversation, prepare the content:
 
 #### {{conversation_name}}
 
-**Participants:** {{who}}
-**When:** {{timing}}
-**Topic:** {{what_discussed}}
-**Purpose:** {{narrative_function}}
-**Tone:** {{emotional_tone}}
+- *Participants:** {{who}}
+- *When:** {{timing}}
+- *Topic:** {{what_discussed}}
+- *Purpose:** {{narrative_function}}
+- *Tone:** {{emotional_tone}}
+
 {{/for_each}}
 
----
+- --
 
 ### Branching Dialogue System
 
 {{if_branching}}
-**System Type:** {{branching_type}}
 
-**Branch Triggers:** {{what_causes_branches}}
+- *System Type:** {{branching_type}}
 
-**Branch Scope:**
+- *Branch Triggers:** {{what_causes_branches}}
+
+- *Branch Scope:**
 
 - Total branches: {{branch_count}}
 - Convergence: {{do_they_converge}}
 - Unique content: {{percentage_unique}}
 
-**Consequence System:**
+- *Consequence System:**
+
 {{how_choices_matter}}
 {{/if_branching}}
 
 {{if_not_branching}}
-**System:** Linear dialogue
-**Notes:** {{why_linear}}
+
+- *System:** Linear dialogue
+- *Notes:** {{why_linear}}
+
 {{/if_not_branching}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -180,23 +199,24 @@ Show the generated content to the user and present:
 
 "I've documented the dialogue framework.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Dialogue Summary:**
+- *Dialogue Summary:**
 
 - Style: {{style_summary}}
 - Key conversations: {{count}}
 - Branching: {{yes_no}}
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does style match your tone?
 - Are key conversations identified?
 - Is branching scope realistic?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore dialogue depth
 [P] Party Mode - Get perspectives on dialogue approach
 [C] Continue - Save this and move to Environmental Storytelling (Step 7 of 11)"
@@ -227,7 +247,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [dialogue content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -248,4 +268,4 @@ ONLY WHEN [C continue option] is selected and [dialogue content saved with front
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

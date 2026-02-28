@@ -29,14 +29,14 @@ from datetime import datetime, timedelta
 import ib.opt as ibopt
 from ib.ext.Contract import Contract
 
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
+from backtrader.mixins.singleton import ParameterizedSingletonMixin
+
 from ..dataseries import TimeFrame
 from ..position import Position
 from ..utils import UTC, AutoDict
 from ..utils.py3 import bstr, long, queue
-
-# Remove MetaParams import since we'll eliminate metaclass usage
-# from backtrader.metabase import MetaParams
-from backtrader.mixins.singleton import ParameterizedSingletonMixin
 
 bytes = bstr  # py2/3 need for ibpy
 
@@ -1465,9 +1465,7 @@ class IBStore(ParameterizedSingletonMixin):
         return q
 
     # Request historical data from IB
-    def reqHistoricalData(
-        self, contract, enddate, duration, barsize, what=None, useRTH=False, tz="", sessionend=None
-    ):
+    def reqHistoricalData(self, contract, enddate, duration, barsize, what=None, useRTH=False, tz="", sessionend=None):
         """Proxy to reqHistorical Data"""
 
         # get a ticker/queue for identification/data delivery

@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-02-assess'
 description: 'Gather learner role, experience level, learning goals, and pain points to customize teaching'
 
 nextStepFile: './step-03-session-menu.md'
 progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
----
+
+- --
 
 # Step 2: Learner Assessment
 
@@ -53,13 +55,13 @@ To gather the learner's role, experience level, learning goals, and pain points 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Welcome and Explain Assessment
 
 Display:
 
-"📋 **Learner Assessment**
+"📋**Learner Assessment**
 
 Before we begin, let me learn about you. This helps me:
 
@@ -78,22 +80,22 @@ Ask:
 
 Please select one:
 
-- **QA** - QA Engineer / Test Engineer / SDET
-- **Dev** - Software Developer / Engineer
-- **Lead** - Tech Lead / Engineering Manager
+- **QA**- QA Engineer / Test Engineer / SDET
+- **Dev**- Software Developer / Engineer
+- **Lead**- Tech Lead / Engineering Manager
 - **VP** - VP Engineering / Director / Executive
 
 Your role helps me tailor examples to your perspective."
 
-**Wait for response.**
+- *Wait for response.**
 
-**Validate response:**
+- *Validate response:**
 
 - Must be one of: QA, Dev, Lead, VP (case-insensitive)
 - If invalid: "Please select one of the four options: QA, Dev, Lead, or VP"
 - Repeat until valid
 
-**Store validated role for later update to progress file.**
+- *Store validated role for later update to progress file.**
 
 ### 3. Gather Experience Level
 
@@ -103,21 +105,21 @@ Ask:
 
 Please select one:
 
-- **Beginner** - New to testing, learning fundamentals
-- **Intermediate** - Have written tests, want to improve
+- **Beginner**- New to testing, learning fundamentals
+- **Intermediate**- Have written tests, want to improve
 - **Experienced** - Strong testing background, want advanced techniques
 
 Your experience level helps me adjust complexity and skip topics you already know."
 
-**Wait for response.**
+- *Wait for response.**
 
-**Validate response:**
+- *Validate response:**
 
 - Must be one of: Beginner, Intermediate, Experienced (case-insensitive)
 - If invalid: "Please select one of the three levels: Beginner, Intermediate, or Experienced"
 - Repeat until valid
 
-**Store validated experience_level for later update to progress file.**
+- *Store validated experience_level for later update to progress file.**
 
 ### 4. Gather Learning Goals
 
@@ -133,18 +135,18 @@ Tell me what you want to achieve with TEA Academy. For example:
 - Master advanced patterns (fixtures, network-first, etc.)
 - Prepare for QA onboarding at my company
 
-**Your answer helps me recommend which sessions to focus on.**"
+- *Your answer helps me recommend which sessions to focus on.**"
 
-**Wait for response.**
+- *Wait for response.**
 
-**Validate response:**
+- *Validate response:**
 
 - Must not be empty
 - Should be at least 10 characters
 - If too short: "Please provide more detail about your learning goals (at least a sentence)"
 - Repeat until valid
 
-**Store learning_goals for later update to progress file.**
+- *Store learning_goals for later update to progress file.**
 
 ### 5. Gather Pain Points (Optional)
 
@@ -160,11 +162,11 @@ For example:
 - Don't know where to start
 - Team doesn't value testing
 
-**This helps me provide targeted examples. You can skip this by typing 'skip' or 'none'.**"
+- *This helps me provide targeted examples. You can skip this by typing 'skip' or 'none'.**"
 
-**Wait for response.**
+- *Wait for response.**
 
-**Handle response:**
+- *Handle response:**
 
 - If response is "skip", "none", or similar → Set pain_points to null
 - If response is provided → Store pain_points for later update
@@ -178,10 +180,10 @@ Display:
 
 Here's what I learned about you:
 
-**Role:** {role}
-**Experience Level:** {experience_level}
-**Learning Goals:** {learning_goals}
-**Pain Points:** {pain_points or 'None specified'}
+- *Role:** {role}
+- *Experience Level:** {experience_level}
+- *Learning Goals:** {learning_goals}
+- *Pain Points:** {pain_points or 'None specified'}
 
 I'll use this to customize examples and recommendations throughout your learning journey."
 
@@ -199,7 +201,7 @@ Update stepsCompleted array:
 - Append 'step-02-assess' to stepsCompleted array
 - Update lastStep: 'step-02-assess'
 
-**Save the updated progress file.**
+- *Save the updated progress file.**
 
 ### 8. Provide Next Steps Preview
 
@@ -207,7 +209,7 @@ Display:
 
 "**Next:** You'll see the session menu where you can choose from 7 learning sessions.
 
-**Based on your experience level:**
+- *Based on your experience level:**
 
 {If beginner:}
 
@@ -232,7 +234,7 @@ After the assessment summary, proceed directly to the session menu:
 
 - Load, read entire file, then execute {nextStepFile}
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -255,4 +257,4 @@ After the assessment summary, proceed directly to the session menu:
 - Not providing experience-based recommendations
 - Hardcoding responses instead of asking user
 
-**Master Rule:** Assessment must be complete and validated before proceeding to session menu.
+- *Master Rule:** Assessment must be complete and validated before proceeding to session menu.

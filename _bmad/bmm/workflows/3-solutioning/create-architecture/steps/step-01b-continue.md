@@ -37,14 +37,14 @@ Handle workflow continuation by analyzing existing work and guiding the user to 
 
 Read the existing architecture document completely and analyze:
 
-**Frontmatter Analysis:**
+- *Frontmatter Analysis:**
 
 - `stepsCompleted`: What steps have been done
 - `inputDocuments`: What documents were loaded
 - `lastStep`: Last step that was executed
 - `project_name`, `user_name`, `date`: Basic context
 
-**Content Analysis:**
+- *Content Analysis:**
 
 - What sections exist in the document
 - What architectural decisions have been made
@@ -57,22 +57,26 @@ Show the user their current progress:
 
 "Welcome back {{user_name}}! I found your Architecture work for {{project_name}}.
 
-**Current Progress:**
+- *Current Progress:**
 
 - Steps completed: {{stepsCompleted list}}
 - Last step worked on: Step {{lastStep}}
 - Input documents loaded: {{number of inputDocuments}} files
 
-**Document Sections Found:**
+- *Document Sections Found:**
+
 {list all H2/H3 sections found in the document}
 
 {if_incomplete_sections}
-**Incomplete Areas:**
+
+- *Incomplete Areas:**
 
 - {areas that appear incomplete or have placeholders}
+
   {/if_incomplete_sections}
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [R] Resume from where we left off
 [C] Continue to next logical step
 [O] Overview of all remaining steps
@@ -110,13 +114,13 @@ Show the user their current progress:
 
 After user makes choice:
 
-**Load the selected step file:**
+- *Load the selected step file:**
 
 - Update frontmatter `lastStep` to reflect current navigation
 - Execute the selected step file
 - Let that step handle the detailed continuation logic
 
-**State Preservation:**
+- *State Preservation:**
 
 - Maintain all existing content in the document
 - Keep `stepsCompleted` accurate

@@ -1,27 +1,33 @@
----
+- --
+
 name: 'step-07-game-type'
 description: 'Process game-type specific sections from the loaded game type guide'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-07-game-type.md'
 nextStepFile: './step-08-progression.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Game Type Resources
+
 gameTypesFolder: '{workflow_path}/game-types'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 7: Game Type Specifics
 
-**Progress: Step 7 of 14** - Next: Progression & Balance
+- *Progress: Step 7 of 14**- Next: Progression & Balance
 
 ## STEP GOAL:
 
@@ -75,33 +81,35 @@ Process the game-type specific sections from the loaded game type guide ({game_t
 
 ### 1. Load Game Type Guide
 
-**CRITICAL FIRST ACTION:**
+- *CRITICAL FIRST ACTION:**
 
 - Read `game_type` from frontmatter
 - If not already loaded, load `{gameTypesFolder}/{game_type}.md`
 - Parse the guide to identify all sections that need elicitation
 
-**Announce to user:**
+- *Announce to user:**
 
 "Now we'll work through the **{{game_type}}** specific sections. This game type has unique design elements that we need to define.
 
-**{{game_type}} requires these specific sections:**
+- *{{game_type}} requires these specific sections:**
+
 {list_sections_from_game_type_guide}
 
 Let's work through each one."
 
 ### 2. Process Each Section from Guide
 
-**For each section defined in the game type guide:**
+- *For each section defined in the game type guide:**
 
 The game type guide will have sections marked with placeholders like `{{section_name}}`. For each:
 
-1. **Read the guidance** in the guide for this section
-2. **Present the guidance and questions** to the user
-3. **Elicit user input** for this specific section
-4. **Store the content** for final assembly
+1. **Read the guidance**in the guide for this section
 
-**Example flow for an RPG game type:**
+2.**Present the guidance and questions**to the user
+3.**Elicit user input**for this specific section
+4.**Store the content** for final assembly
+
+- *Example flow for an RPG game type:**
 
 "**Character System**
 
@@ -142,16 +150,18 @@ If flag found:
 Based on all elicited sections, prepare the content:
 
 ```markdown
+
 ## {{game_type_name}} Specific Design
 
 {{assembled_sections_from_guide_elicitation}}
-```
 
+```bash
 The content structure will vary based on game type:
 
-**Example for RPG:**
+- *Example for RPG:**
 
 ```markdown
+
 ## RPG Specific Design
 
 ### Character System
@@ -169,11 +179,13 @@ The content structure will vary based on game type:
 ### Quest System
 
 {{quest_system_content}}
-```
 
-**Example for Platformer:**
+```bash
+
+- *Example for Platformer:**
 
 ```markdown
+
 ## Platformer Specific Design
 
 ### Movement Feel
@@ -191,7 +203,8 @@ The content structure will vary based on game type:
 ### Collectibles
 
 {{collectibles_content}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -199,17 +212,18 @@ Show the generated content to the user and present:
 
 "I've drafted the {{game_type}} Specific Design sections based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does each section align with your core pillars?
 - Have we covered all required elements for {{game_type}}?
 - Any genre conventions you want to subvert?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into genre specifics
 [P] Party Mode - Get genre expert perspectives
 [C] Continue - Save this and move to Progression & Balance (Step 8 of 14)"
@@ -241,7 +255,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [game type content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -264,4 +278,4 @@ ONLY WHEN [C continue option] is selected and [game type content saved with fron
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

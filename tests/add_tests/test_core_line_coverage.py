@@ -25,6 +25,15 @@ from backtrader import linebuffer, lineroot, lineseries
 # ============================================================================
 
 def generate_ohlcv(num_bars=50, seed=99):
+    """Generate synthetic OHLCV data for testing.
+
+    Args:
+        num_bars: Number of bars to generate.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        List of dicts with datetime, open, high, low, close, volume data.
+    """
     random.seed(seed)
     data = []
     base = 100.0
@@ -47,18 +56,30 @@ def generate_ohlcv(num_bars=50, seed=99):
 
 
 class SimpleFeed(bt.feeds.DataBase):
+    """Simple data feed for testing with pre-generated data.
+
+    Attributes:
+        params: Contains data_list parameter with OHLCV data.
+    """
     params = (("data_list", None),)
 
     def __init__(self):
+        """Initialize the simple data feed."""
         super().__init__()
         self._data_list = self.p.data_list or []
         self._idx = 0
 
     def start(self):
+        """Start the data feed and reset the index."""
         super().start()
         self._idx = 0
 
     def _load(self):
+        """Load the next bar of data.
+
+        Returns:
+            bool: True if data was loaded successfully, False if at end.
+        """
         if self._idx >= len(self._data_list):
             return False
         bar = self._data_list[self._idx]
@@ -74,6 +95,16 @@ class SimpleFeed(bt.feeds.DataBase):
 
 
 def run_cerebro(strategy_class, num_bars=50, **kwargs):
+    """Run a Cerebro backtest with the given strategy.
+
+    Args:
+        strategy_class: Strategy class to instantiate.
+        num_bars: Number of bars of data to generate.
+        **kwargs: Additional arguments to pass to Cerebro.
+
+    Returns:
+        Strategy instance from the completed backtest.
+    """
     cerebro = bt.Cerebro()
     data = SimpleFeed(data_list=generate_ohlcv(num_bars=num_bars))
     cerebro.adddata(data)
@@ -93,7 +124,10 @@ class TestLineRootOperators:
         """Arithmetic ops in stage1 create LinesOperation objects."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with arithmetic operations."""
                 self.add_line = self.data.close + self.data.open
                 self.sub_line = self.data.close - self.data.open
                 self.mul_line = self.data.close * 2
@@ -101,6 +135,7 @@ class TestLineRootOperators:
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St)
@@ -110,10 +145,14 @@ class TestLineRootOperators:
         """Comparison operators in stage2 return bool values."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.results = []
 
             def next(self):
+                """Execute trading logic for each bar and collect comparison results."""
                 c = self.data.close[0]
                 o = self.data.open[0]
                 self.results.append({
@@ -135,10 +174,14 @@ class TestLineRootOperators:
         """Comparison operators with scalar values in stage2."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.results = []
 
             def next(self):
+                """Execute trading logic for each bar and compare with scalars."""
                 self.results.append({
                     "lt_scalar": self.data.close < 100.0,
                     "gt_scalar": self.data.close > 50.0,
@@ -153,10 +196,14 @@ class TestLineRootOperators:
         """Comparison operators handle None gracefully in stage2."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.ok = True
 
             def next(self):
+                """Execute trading logic for each bar and test None comparisons."""
                 try:
                     _ = self.data.close < None
                     _ = self.data.close > None
@@ -172,12 +219,16 @@ class TestLineRootOperators:
         """Test abs() and neg() operators."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with unary operations."""
                 self.abs_line = abs(self.data.close)
                 self.neg_line = -self.data.close
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar and verify abs is non-negative."""
                 self.bar_count += 1
                 assert self.abs_line[0] >= 0
 
@@ -188,13 +239,17 @@ class TestLineRootOperators:
         """Test right-hand side operators (radd, rsub, rmul, etc)."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with right-hand side operators."""
                 self.radd = 10.0 + self.data.close
                 self.rsub = 200.0 - self.data.close
                 self.rmul = 3.0 * self.data.close
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St)
@@ -204,12 +259,16 @@ class TestLineRootOperators:
         """Test floor division and true division operators."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with floor and true division."""
                 self.fdiv = self.data.close // 10
                 self.tdiv = self.data.close / 10
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St)
@@ -219,11 +278,15 @@ class TestLineRootOperators:
         """Test power operator."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with power operator."""
                 self.pow_line = self.data.close ** 2
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St)
@@ -233,10 +296,14 @@ class TestLineRootOperators:
         """Test __bool__/__nonzero__ on data line."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.bool_results = []
 
             def next(self):
+                """Execute trading logic for each bar and test bool conversion."""
                 result = bool(self.data.close)
                 self.bool_results.append(result)
 
@@ -247,7 +314,10 @@ class TestLineRootOperators:
         """Test _stage1 and _stage2 switching."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy and test stage switching."""
                 self.data.close._stage1()
                 assert self.data.close._opstage == 1
                 self.data.close._stage2()
@@ -256,6 +326,7 @@ class TestLineRootOperators:
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St)
@@ -352,12 +423,16 @@ class TestLineBuffer:
         """Test LinesOperation and LineOwnOperation through cerebro."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with line operations."""
                 self.sum_line = self.data.close + self.data.open
                 self.neg_line = -self.data.close
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar and verify operations."""
                 self.bar_count += 1
                 c = self.data.close[0]
                 o = self.data.open[0]
@@ -388,10 +463,14 @@ class TestLineSeries:
         """Test accessing data lines by name in a strategy."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.line_names = []
 
             def next(self):
+                """Execute trading logic for each bar and access data lines."""
                 c = self.data.close[0]
                 o = self.data.open[0]
                 h = self.data.high[0]
@@ -406,10 +485,14 @@ class TestLineSeries:
         """Test len() on Lines objects."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.len_results = []
 
             def next(self):
+                """Execute trading logic for each bar and record data length."""
                 self.len_results.append(len(self.data))
 
         strat = run_cerebro(St)
@@ -421,10 +504,14 @@ class TestLineSeries:
         """Test __getitem__ on data (both int and slice)."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy."""
                 self.ok = True
 
             def next(self):
+                """Execute trading logic for each bar and test data access."""
                 try:
                     val = self.data.close[0]
                     assert isinstance(val, float)
@@ -441,12 +528,15 @@ class TestLineSeries:
         """Test that indicators properly create output lines."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.ema = bt.indicators.EMA(self.data.close, period=5)
 
             def next(self):
-                pass
+                """Execute trading logic for each bar."""
 
         strat = run_cerebro(St, num_bars=20)
         assert hasattr(strat.sma, "lines")
@@ -456,22 +546,33 @@ class TestLineSeries:
         """Test custom indicator with multiple output lines."""
 
         class MultiLineInd(bt.Indicator):
+            """Indicator with multiple output lines for testing.
+
+            Attributes:
+                lines: Contains upper and lower output lines.
+                params: Contains mult parameter for multiplier.
+            """
             lines = ("upper", "lower")
             params = (("mult", 2.0),)
 
             def __init__(self):
+                """Initialize the indicator with minimum period."""
                 self.addminperiod(1)
 
             def next(self):
+                """Calculate upper and lower bands for current bar."""
                 self.lines.upper[0] = self.data.close[0] * self.p.mult
                 self.lines.lower[0] = self.data.close[0] / self.p.mult
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with multi-line indicator."""
                 self.ind = MultiLineInd(self.data, mult=1.5)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
                 c = self.data.close[0]
                 assert abs(self.ind.lines.upper[0] - c * 1.5) < 1e-10
@@ -484,10 +585,13 @@ class TestLineSeries:
         """Test that data feed has correct number of lines."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy and count data lines."""
                 self.num_lines = len(self.data.lines)
 
             def next(self):
+                """Execute trading logic for each bar."""
                 pass
 
         strat = run_cerebro(St)
@@ -505,19 +609,24 @@ class TestLineIterator:
         """Full strategy lifecycle: init → prenext → next → stop."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.prenext_count = 0
                 self.next_count = 0
                 self.stopped = False
 
             def prenext(self):
+                """Called before minimum period is reached."""
                 self.prenext_count += 1
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.next_count += 1
 
             def stop(self):
+                """Called when backtesting is complete."""
                 self.stopped = True
 
         strat = run_cerebro(St, num_bars=30)
@@ -529,15 +638,19 @@ class TestLineIterator:
         """Test that nextstart is called exactly once at transition."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.nextstart_count = 0
 
             def nextstart(self):
+                """Called exactly once at transition from prenext to next."""
                 self.nextstart_count += 1
                 super().nextstart()
 
             def next(self):
+                """Execute trading logic for each bar."""
                 pass
 
         strat = run_cerebro(St, num_bars=30)
@@ -547,13 +660,16 @@ class TestLineIterator:
         """Test that dependent indicators are calculated in correct order."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with dependent indicators."""
                 self.sma_fast = bt.indicators.SMA(self.data.close, period=5)
                 self.sma_slow = bt.indicators.SMA(self.data.close, period=10)
                 self.cross = bt.indicators.CrossOver(self.sma_fast, self.sma_slow)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
                 assert not math.isnan(self.sma_fast[0])
                 assert not math.isnan(self.sma_slow[0])
@@ -568,10 +684,13 @@ class TestLineIterator:
         cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(30, seed=2)))
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
                 assert len(self.datas) == 2
 
@@ -583,17 +702,25 @@ class TestLineIterator:
         """Test order creation and notification through LineIterator."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.order_submitted = False
                 self.order_completed = False
 
             def next(self):
+                """Execute trading logic for each bar."""
                 if not self.position and not self.order_submitted:
                     self.buy()
                     self.order_submitted = True
 
             def notify_order(self, order):
+                """Receive order status notifications.
+
+                Args:
+                    order: The order object with status information.
+                """
                 if order.status == order.Completed:
                     self.order_completed = True
 
@@ -605,11 +732,14 @@ class TestLineIterator:
         """Test that cerebro.run(runonce=True) exercises once() paths."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         cerebro = bt.Cerebro()
@@ -622,23 +752,34 @@ class TestLineIterator:
         """Test preonce/oncestart/once lifecycle in runonce mode."""
 
         class OnceInd(bt.Indicator):
+            """Indicator for testing runonce mode batch calculation.
+
+            Attributes:
+                lines: Contains out output line.
+                params: Contains period parameter for SMA calculation.
+            """
             lines = ("out",)
             params = (("period", 5),)
 
             def __init__(self):
+                """Initialize the indicator with minimum period."""
                 self.addminperiod(self.p.period)
 
             def next(self):
+                """Calculate SMA for current bar."""
                 self.lines.out[0] = sum(
                     self.data.close.get(ago=-i) for i in range(self.p.period)
                 ) / self.p.period
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicator."""
                 self.ind = OnceInd(self.data)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St, num_bars=30)
@@ -656,12 +797,15 @@ class TestCoreIntegration:
         """Test chaining indicators: SMA of SMA."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with chained indicators."""
                 sma1 = bt.indicators.SMA(self.data.close, period=5)
                 self.sma2 = bt.indicators.SMA(sma1, period=3)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
                 assert not math.isnan(self.sma2[0])
 
@@ -672,12 +816,15 @@ class TestCoreIntegration:
         """Test chaining arithmetic: (close + open) / 2 - SMA."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with chained operations."""
                 midprice = (self.data.close + self.data.open) / 2
                 self.diff = midprice - bt.indicators.SMA(midprice, period=5)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St, num_bars=30)
@@ -687,7 +834,9 @@ class TestCoreIntegration:
         """Test that minperiod propagates correctly through indicator chain."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with multiple indicators."""
                 self.sma5 = bt.indicators.SMA(self.data.close, period=5)
                 self.sma10 = bt.indicators.SMA(self.data.close, period=10)
                 self.cross = bt.indicators.CrossOver(self.sma5, self.sma10)
@@ -695,9 +844,11 @@ class TestCoreIntegration:
                 self.next_count = 0
 
             def prenext(self):
+                """Called before minimum period is reached."""
                 self.prenext_count += 1
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.next_count += 1
 
         strat = run_cerebro(St, num_bars=30)
@@ -711,10 +862,13 @@ class TestCoreIntegration:
         cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(50)))
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with SMA indicator."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
 
             def next(self):
+                """Execute trading logic for each bar."""
                 if not self.position:
                     if self.data.close > self.sma:
                         self.buy()
@@ -737,7 +891,9 @@ class TestCoreIntegration:
         cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(50)))
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def next(self):
+                """Execute trading logic for each bar."""
                 if not self.position:
                     self.buy()
                 else:
@@ -751,10 +907,13 @@ class TestCoreIntegration:
         """Test bracket order creation."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.ordered = False
 
             def next(self):
+                """Execute trading logic for each bar."""
                 if not self.ordered and len(self.data) > 5:
                     self.buy_bracket(
                         limitprice=self.data.close[0] * 1.05,
@@ -769,12 +928,15 @@ class TestCoreIntegration:
         """Test period management methods."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy and check minperiod."""
                 sma = bt.indicators.SMA(self.data.close, period=5)
                 mp = sma._minperiod
                 assert mp >= 5
 
             def next(self):
+                """Execute trading logic for each bar."""
                 pass
 
         run_cerebro(St)
@@ -786,10 +948,13 @@ class TestCoreIntegration:
         data_list[10]["high"] = float("nan")
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         cerebro = bt.Cerebro()
@@ -856,10 +1021,13 @@ class TestStrategyDataAccess:
         """Test data.close.get(ago=-N, size=M) pattern."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.results = []
 
             def next(self):
+                """Execute trading logic for each bar."""
                 if len(self.data) >= 5:
                     vals = self.data.close.get(ago=0, size=5)
                     self.results.append(vals)
@@ -873,10 +1041,13 @@ class TestStrategyDataAccess:
         """Test common data indexing: data[0], data[-1], data.close[0]."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.ok = True
 
             def next(self):
+                """Execute trading logic for each bar."""
                 try:
                     _ = self.data.close[0]
                     if len(self.data) > 1:
@@ -897,12 +1068,15 @@ class TestStrategyDataAccess:
         cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(30, seed=2)))
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with multiple data feeds."""
                 self.sma0 = bt.indicators.SMA(self.datas[0].close, period=5)
                 self.sma1 = bt.indicators.SMA(self.datas[1].close, period=5)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
                 _ = self.datas[0].close[0]
                 _ = self.datas[1].close[0]
@@ -915,16 +1089,24 @@ class TestStrategyDataAccess:
         """Test position tracking across buys and sells."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.trade_log = []
 
             def next(self):
+                """Execute trading logic for each bar."""
                 if len(self.data) == 5:
                     self.buy(size=10)
                 elif len(self.data) == 10:
                     self.sell(size=10)
 
             def notify_trade(self, trade):
+                """Receive trade notifications.
+
+                Args:
+                    trade: The trade object with trade information.
+                """
                 self.trade_log.append({
                     "size": trade.size,
                     "pnl": trade.pnl,
@@ -938,11 +1120,14 @@ class TestStrategyDataAccess:
         """Test cerebro with runonce=False (step-by-step mode)."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         cerebro = bt.Cerebro()
@@ -963,11 +1148,14 @@ class TestLineRootMakeOperation:
         """Test deeply nested expression: ((close + open) * 2 - high) / low."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with complex expression."""
                 self.expr = ((self.data.close + self.data.open) * 2 - self.data.high) / self.data.low
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
                 c = self.data.close[0]
                 o = self.data.open[0]
@@ -983,7 +1171,9 @@ class TestLineRootMakeOperation:
         """Test arithmetic between two indicators."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicator arithmetic."""
                 sma5 = bt.indicators.SMA(self.data.close, period=5)
                 sma10 = bt.indicators.SMA(self.data.close, period=10)
                 self.spread = sma5 - sma10
@@ -991,6 +1181,7 @@ class TestLineRootMakeOperation:
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         strat = run_cerebro(St, num_bars=30)
@@ -1008,11 +1199,14 @@ class TestPeriodManagement:
         """Test qbuffer (exactbars) memory optimization."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy with indicators."""
                 self.sma = bt.indicators.SMA(self.data.close, period=5)
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         cerebro = bt.Cerebro()
@@ -1025,10 +1219,13 @@ class TestPeriodManagement:
         """Test preload mode loads all data upfront."""
 
         class St(bt.Strategy):
+            """Test strategy for line coverage."""
             def __init__(self):
+                """Initialize the test strategy."""
                 self.bar_count = 0
 
             def next(self):
+                """Execute trading logic for each bar."""
                 self.bar_count += 1
 
         cerebro = bt.Cerebro()

@@ -4,7 +4,7 @@
 
 {{resource_systems}}
 
-**Resource management:**
+- *Resource management:**
 
 - Resource types (gold, food, energy, population, etc.)
 - Gathering mechanics (auto-generate, harvesting, capturing)
@@ -16,7 +16,7 @@
 
 {{unit_types}}
 
-**Unit design:**
+- *Unit design:**
 
 - Unit roster (basic, advanced, specialized, hero units)
 - Unit stats (health, attack, defense, speed, range)
@@ -28,7 +28,7 @@
 
 {{tech_progression}}
 
-**Progression systems:**
+- *Progression systems:**
 
 - Tech tree structure (linear, branching, era-based)
 - Research mechanics (time, cost, prerequisites)
@@ -39,7 +39,7 @@
 
 {{map_terrain}}
 
-**Strategic space:**
+- *Strategic space:**
 
 - Map size and structure (small/medium/large, symmetric/asymmetric)
 - Terrain types (passable, impassable, elevated, water)
@@ -51,7 +51,7 @@
 
 {{ai_opponent}}
 
-**AI design:**
+- *AI design:**
 
 - AI difficulty levels (easy, medium, hard, expert)
 - AI behavior patterns (aggressive, defensive, economic, adaptive)
@@ -62,7 +62,7 @@
 
 {{victory_conditions}}
 
-**Win/loss design:**
+- *Win/loss design:**
 
 - Victory types (domination, economic, technological, diplomatic, etc.)
 - Time limits (if applicable)

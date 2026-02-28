@@ -105,7 +105,7 @@ class Webapp:
             <style>
                 body {{
                     background-color: {self._scheme.body_background_color};
-                    color: {getattr(self._scheme, 'text_color', '#333')};
+                    color: {getattr(self._scheme, "text_color", "#333")};
                 }}
                 .bk-root {{
                     background-color: {self._scheme.body_background_color};

@@ -8,63 +8,64 @@ Performance testing ensures your game runs smoothly on target hardware. Frame ra
 
 ### Frame Rate
 
-- **Target:** 30fps, 60fps, 120fps depending on platform/genre
-- **Measure:** Average, minimum, 1% low, 0.1% low
-- **Goal:** Consistent frame times, no stutters
+- **Target:**30fps, 60fps, 120fps depending on platform/genre
+- **Measure:**Average, minimum, 1% low, 0.1% low
+- **Goal:**Consistent frame times, no stutters
 
 ### Frame Time Budget
 
 At 60fps, you have 16.67ms per frame:
 
-```
+```bash
 Rendering:     8ms  (48%)
 Game Logic:    4ms  (24%)
 Physics:       2ms  (12%)
 Audio:         1ms  (6%)
 UI:            1ms  (6%)
 Headroom:      0.67ms (4%)
-```
+
+```bash
 
 ### Memory
 
-- **RAM:** Total allocation, peak usage, fragmentation
-- **VRAM:** Texture memory, render targets, buffers
-- **Goal:** Stay within platform limits with headroom
+- **RAM:**Total allocation, peak usage, fragmentation
+- **VRAM:**Texture memory, render targets, buffers
+- **Goal:**Stay within platform limits with headroom
 
 ### Load Times
 
-- **Initial Load:** Time to main menu
-- **Level Load:** Time between scenes
-- **Streaming:** Asset loading during gameplay
-- **Goal:** Meet platform certification requirements
+- **Initial Load:**Time to main menu
+- **Level Load:**Time between scenes
+- **Streaming:**Asset loading during gameplay
+- **Goal:**Meet platform certification requirements
 
 ## Profiling Tools by Engine
 
 ### Unity
 
-- **Profiler Window** - CPU, GPU, memory, rendering
-- **Frame Debugger** - Draw call analysis
-- **Memory Profiler** - Heap snapshots
-- **Profile Analyzer** - Compare captures
+- **Profiler Window**- CPU, GPU, memory, rendering
+- **Frame Debugger**- Draw call analysis
+- **Memory Profiler**- Heap snapshots
+- **Profile Analyzer**- Compare captures
 
 ### Unreal Engine
 
-- **Unreal Insights** - Comprehensive profiling
-- **Stat Commands** - Runtime statistics
-- **GPU Visualizer** - GPU timing breakdown
-- **Memory Report** - Allocation tracking
+- **Unreal Insights**- Comprehensive profiling
+- **Stat Commands**- Runtime statistics
+- **GPU Visualizer**- GPU timing breakdown
+- **Memory Report**- Allocation tracking
 
 ### Godot
 
-- **Debugger** - Built-in profiler
-- **Monitors** - Real-time metrics
-- **Remote Debugger** - Profile on device
+- **Debugger**- Built-in profiler
+- **Monitors**- Real-time metrics
+- **Remote Debugger**- Profile on device
 
 ### Platform Tools
 
-- **PIX** (Xbox/Windows) - GPU debugging
-- **RenderDoc** - GPU capture and replay
-- **Instruments** (iOS/macOS) - Apple profiling
+- **PIX**(Xbox/Windows) - GPU debugging
+- **RenderDoc**- GPU capture and replay
+- **Instruments**(iOS/macOS) - Apple profiling
 - **Android Profiler** - Android Studio tools
 
 ## Performance Testing Process
@@ -98,27 +99,41 @@ Headroom:      0.67ms (4%)
 ### CPU Bottlenecks
 
 | Issue                 | Symptoms          | Solution                          |
+
 | --------------------- | ----------------- | --------------------------------- |
+
 | Too many game objects | Slow update loop  | Object pooling, LOD               |
+
 | Expensive AI          | Spiky frame times | Budget AI, spread over frames     |
+
 | Physics overload      | Physics spikes    | Simplify colliders, reduce bodies |
+
 | GC stutter            | Regular hitches   | Avoid runtime allocations         |
 
 ### GPU Bottlenecks
 
 | Issue               | Symptoms          | Solution                         |
+
 | ------------------- | ----------------- | -------------------------------- |
+
 | Overdraw            | Fill rate limited | Occlusion culling, reduce layers |
+
 | Too many draw calls | CPU-GPU bound     | Batching, instancing, atlasing   |
+
 | Shader complexity   | Long GPU times    | Simplify shaders, LOD            |
+
 | Resolution too high | Fill rate limited | Dynamic resolution, FSR/DLSS     |
 
 ### Memory Issues
 
 | Issue         | Symptoms          | Solution                     |
+
 | ------------- | ----------------- | ---------------------------- |
+
 | Texture bloat | High VRAM         | Compress, mipmap, stream     |
+
 | Leaks         | Growing memory    | Track allocations, fix leaks |
+
 | Fragmentation | OOM despite space | Pool allocations, defrag     |
 
 ## Benchmark Scenes
@@ -148,14 +163,20 @@ Create standardized test scenarios:
 ### CI Integration
 
 ```yaml
+
 # Example: Fail build if frame time exceeds budget
+
 performance_test:
   script:
+
     - run_benchmark --scene stress_test
     - check_metrics --max-frame-time 16.67ms --max-memory 2GB
+
   artifacts:
+
     - performance_report.json
-```
+
+```bash
 
 ### Regression Detection
 

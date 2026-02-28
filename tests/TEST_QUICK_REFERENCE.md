@@ -3,27 +3,36 @@
 ## 运行测试
 
 ```bash
-# 快速烟雾测试 (P0 only - ~30秒)
+
+# 快速烟雾测试 (P0 only - ~30 秒)
+
 pytest tests/ -v -m priority_p0
 
-# 预提交验证 (P0 + P1 - ~1分钟)
+# 预提交验证 (P0 + P1 - ~1 分钟)
+
 pytest tests/ -v -m "priority_p0 or priority_p1"
 
 # 完整回归 (所有测试)
+
 pytest tests/ -v
 
 # 运行特定文件
+
 pytest tests/add_tests/test_strategy.py -v
 
 # 运行特定测试
+
 pytest tests/add_tests/test_strategy.py::test_strategy_basic -v
 
-# 并行执行 (4核)
+# 并行执行 (4 核)
+
 pytest tests/ -n 4 -v
 
 # 生成覆盖率报告
+
 pytest tests/ --cov=backtrader --cov-report=html
-```
+
+```bash
 
 ## 新测试模式
 
@@ -35,7 +44,8 @@ def test_example(sample_data, cerebro_engine):
     cerebro_engine.adddata(sample_data)
     results = cerebro_engine.run()
     assert len(results) > 0
-```
+
+```bash
 
 ### 2. 使用工厂函数
 
@@ -49,7 +59,8 @@ def test_example():
     cerebro.adddata(data)
     results = cerebro.run()
     assert len(results) > 0
-```
+
+```bash
 
 ### 3. 完整设置
 
@@ -67,11 +78,12 @@ def test_example():
     )
     results = cerebro.run()
     assert len(results) > 0
-```
+
+```bash
 
 ## 测试 ID 格式
 
-```
+```bash
 test_EPIC_STORY_LEVEL_SEQ_description
 
 EPIC:   1=Cerebro, 2=Strategy, 3=Indicator, 4=Broker
@@ -80,39 +92,63 @@ LEVEL:  UT=单元, IT=集成, E2E=端到端
 SEQ:    001, 002, ...
 
 示例: test_1_1_UT_001_cerebro_basic_execution
-```
+
+```bash
 
 ## 优先级标记
 
 | 标记 | 用途 | 运行命令 |
+
 |------|------|----------|
+
 | `@pytest.mark.priority_p0` | 关键功能 | `-m priority_p0` |
+
 | `@pytest.mark.priority_p1` | 高频功能 | `-m "priority_p0 or priority_p1"` |
+
 | `@pytest.mark.priority_p2` | 次要功能 | 默认包含 |
+
 | `@pytest.mark.priority_p3` | 低优先级 | 完整回归 |
 
 ## 可用 Fixtures
 
 | Fixture | 提供内容 |
+
 |---------|----------|
-| `sample_data` | 2006日线数据 |
+
+| `sample_data` | 2006 日线数据 |
+
 | `sample_data_multi` | 多个数据源 |
-| `cerebro_engine` | 空Cerebro实例 |
-| `cerebro_with_cash` | 带10000现金的Cerebro |
-| `cerebro_with_data` | 已加载数据的Cerebro |
-| `simple_strategy` | 简单SMA策略类 |
+
+| `cerebro_engine` | 空 Cerebro 实例 |
+
+| `cerebro_with_cash` | 带 10000 现金的 Cerebro |
+
+| `cerebro_with_data` | 已加载数据的 Cerebro |
+
+| `simple_strategy` | 简单 SMA 策略类 |
+
 | `crossover_strategy` | 交叉策略类 |
 
 ## 可用工厂函数
 
 | 函数 | 描述 |
+
 |------|------|
+
 | `create_data_feed()` | 创建数据源 |
-| `create_cerebro()` | 创建Cerebro |
-| `create_simple_sma_strategy()` | 创建SMA策略 |
+
+| `create_cerebro()` | 创建 Cerebro |
+
+| `create_simple_sma_strategy()` | 创建 SMA 策略 |
+
 | `create_crossover_strategy()` | 创建交叉策略 |
-| `create_sma_indicator()` | 创建SMA指标 |
-| `create_ema_indicator()` | 创建EMA指标 |
-| `create_macd_indicator()` | 创建MACD指标 |
+
+| `create_sma_indicator()` | 创建 SMA 指标 |
+
+| `create_ema_indicator()` | 创建 EMA 指标 |
+
+| `create_macd_indicator()` | 创建 MACD 指标 |
+
 | `create_sharpe_analyzer()` | 创建夏普分析器 |
+
 | `setup_basic_backtest()` | 完整回测设置 |

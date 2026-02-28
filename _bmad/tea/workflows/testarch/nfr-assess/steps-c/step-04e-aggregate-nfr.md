@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04e-aggregate-nfr'
 description: 'Aggregate NFR domain assessments into executive summary'
 nextStepFile: './step-05-generate-report.md'
 outputFile: '{test_artifacts}/nfr-assessment.md'
----
+
+- --
 
 # Step 4E: Aggregate NFR Assessment Results
 
@@ -11,7 +13,7 @@ outputFile: '{test_artifacts}/nfr-assessment.md'
 
 Read outputs from 4 parallel NFR subprocesses, calculate overall risk level, aggregate compliance status, and identify cross-domain risks.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -21,7 +23,7 @@ Read outputs from 4 parallel NFR subprocesses, calculate overall risk level, agg
 - ✅ Calculate overall risk level
 - ❌ Do NOT re-assess NFRs (use subprocess outputs)
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -35,28 +37,30 @@ domains.forEach((domain) => {
   const outputPath = `/tmp/tea-nfr-${domain}-{{timestamp}}.json`;
   assessments[domain] = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
 });
-```
 
----
+```bash
+
+- --
 
 ### 2. Calculate Overall Risk Level
 
-**Risk hierarchy:** HIGH > MEDIUM > LOW > NONE
+- *Risk hierarchy:** HIGH > MEDIUM > LOW > NONE
 
 ```javascript
 const riskLevels = { HIGH: 3, MEDIUM: 2, LOW: 1, NONE: 0 };
 const domainRisks = domains.map((d) => assessments[d].risk_level);
 const maxRiskValue = Math.max(...domainRisks.map((r) => riskLevels[r]));
 const overallRisk = Object.keys(riskLevels).find((k) => riskLevels[k] === maxRiskValue);
-```
 
-**Risk assessment:**
+```bash
+
+- *Risk assessment:**
 
 - If ANY domain is HIGH → overall is HIGH
 - If ANY domain is MEDIUM (and none HIGH) → overall is MEDIUM
 - If ALL domains are LOW/NONE → overall is LOW
 
----
+- --
 
 ### 3. Aggregate Compliance Status
 
@@ -81,13 +85,14 @@ Object.entries(allCompliance).forEach(([standard, statuses]) => {
 
   complianceSummary[standard] = hasFail ? 'FAIL' : hasPartial ? 'PARTIAL' : 'PASS';
 });
-```
 
----
+```bash
+
+- --
 
 ### 4. Identify Cross-Domain Risks
 
-**Look for risks that span multiple domains:**
+- *Look for risks that span multiple domains:**
 
 ```javascript
 const crossDomainRisks = [];
@@ -113,9 +118,10 @@ if (securityFails.length > 0 && reliabilityConcerns.length > 0) {
     impact: 'CRITICAL',
   });
 }
-```
 
----
+```bash
+
+- --
 
 ### 5. Aggregate Priority Actions
 
@@ -130,9 +136,10 @@ const allPriorityActions = domains.flatMap((domain) =>
 
 // Sort by urgency
 const prioritizedActions = allPriorityActions.sort((a, b) => (a.urgency === 'URGENT' ? -1 : 1));
-```
 
----
+```bash
+
+- --
 
 ### 6. Generate Executive Summary
 
@@ -162,18 +169,20 @@ const executiveSummary = {
 
 // Save for Step 5 (report generation)
 fs.writeFileSync('/tmp/tea-nfr-summary-{{timestamp}}.json', JSON.stringify(executiveSummary, null, 2), 'utf8');
-```
 
----
+```bash
+
+- --
 
 ### 7. Display Summary to User
 
-```
+```bash
 ✅ NFR Assessment Complete (Parallel Execution)
 
 🎯 Overall Risk Level: {overallRisk}
 
 📊 Domain Risk Breakdown:
+
 - Security:      {security_risk}
 - Performance:   {performance_risk}
 - Reliability:   {reliability_risk}
@@ -189,24 +198,29 @@ fs.writeFileSync('/tmp/tea-nfr-summary-{{timestamp}}.json', JSON.stringify(execu
 🚀 Performance: Parallel execution ~67% faster
 
 ✅ Ready for report generation (Step 5)
-```
 
----
+```bash
 
----
+- --
+
+- --
 
 ### 8. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-04e-aggregate-nfr']
   lastStep: 'step-04e-aggregate-nfr'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -217,7 +231,7 @@ fs.writeFileSync('/tmp/tea-nfr-summary-{{timestamp}}.json', JSON.stringify(execu
   - Set `lastSaved: '{date}'`
   - Append this step's output to the appropriate section of the document.
 
----
+- --
 
 ## EXIT CONDITION
 
@@ -231,7 +245,7 @@ Proceed to Step 5 when:
 
 Load next step: `{nextStepFile}`
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS METRICS
 

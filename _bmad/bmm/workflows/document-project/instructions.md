@@ -18,7 +18,7 @@
 
 <ask>I found an in-progress workflow state from {{last_updated}}.
 
-    **Current Progress:**
+    - *Current Progress:**
 
     - Mode: {{mode}}
     - Scan Level: {{scan_level}}
@@ -28,9 +28,10 @@
 
     Would you like to:
 
-    1. **Resume from where we left off** - Continue from step {{current_step}}
-    2. **Start fresh** - Archive old state and begin new scan
-    3. **Cancel** - Exit without changes
+    1. **Resume from where we left off**- Continue from step {{current_step}}
+
+    2.**Start fresh**- Archive old state and begin new scan
+    3.**Cancel**- Exit without changes
 
     Your choice [1/2/3]:
 </ask>
@@ -90,9 +91,9 @@
 
 What would you like to do?
 
-1. **Re-scan entire project** - Update all documentation with latest changes
-2. **Deep-dive into specific area** - Generate detailed documentation for a particular feature/module/folder
-3. **Cancel** - Keep existing documentation as-is
+1.**Re-scan entire project**- Update all documentation with latest changes
+2.**Deep-dive into specific area**- Generate detailed documentation for a particular feature/module/folder
+3.**Cancel** - Keep existing documentation as-is
 
 Your choice [1/2/3]:
 </ask>

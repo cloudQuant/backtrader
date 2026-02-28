@@ -1,15 +1,17 @@
----
+- --
+
 name: 'step-01-detect-mode'
 description: 'Determine system-level vs epic-level mode and validate prerequisites'
 nextStepFile: './step-02-load-context.md'
 outputFile: '{test_artifacts}/test-design-progress.md'
----
+
+- --
 
 # Step 1: Detect Mode & Prerequisites
 
 ## STEP GOAL
 
-Determine whether to run **System-Level** or **Epic-Level** test design, and confirm required inputs are available.
+Determine whether to run **System-Level**or**Epic-Level**test design, and confirm required inputs are available.
 
 ## MANDATORY EXECUTION RULES
 
@@ -21,10 +23,10 @@ Determine whether to run **System-Level** or **Epic-Level** test design, and con
 
 ### Role Reinforcement
 
-- ✅ You are the **Master Test Architect**
+- ✅ You are the**Master Test Architect**
 - ✅ You prioritize risk-based, evidence-backed decisions
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -41,7 +43,7 @@ Determine whether to run **System-Level** or **Epic-Level** test design, and con
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Mode Detection (Priority Order)
 
@@ -49,26 +51,26 @@ Determine whether to run **System-Level** or **Epic-Level** test design, and con
 
 Use explicit intent if the user already indicates scope:
 
-- **PRD + ADR (no epic/stories)** → **System-Level Mode**
-- **Epic + Stories (no PRD/ADR)** → **Epic-Level Mode**
-- **Both PRD/ADR + Epic/Stories** → Prefer **System-Level Mode** first
+- **PRD + ADR (no epic/stories)**→**System-Level Mode**
+- **Epic + Stories (no PRD/ADR)**→**Epic-Level Mode**
+- **Both PRD/ADR + Epic/Stories**→ Prefer**System-Level Mode**first
 
 If intent is unclear, ask:
 
-> "Should I create (A) **System-level** test design (PRD + ADR → Architecture + QA docs), or (B) **Epic-level** test design (Epic → single test plan)?"
+> "Should I create (A)**System-level**test design (PRD + ADR → Architecture + QA docs), or (B)**Epic-level**test design (Epic → single test plan)?"
 
 ### B) File-Based Detection (BMad-Integrated)
 
 If user intent is unclear:
 
-- If `{implementation_artifacts}/sprint-status.yaml` exists → **Epic-Level Mode**
+- If `{implementation_artifacts}/sprint-status.yaml` exists →**Epic-Level Mode**
 - Otherwise → **System-Level Mode**
 
 ### C) Ambiguous → Ask
 
-If mode still unclear, ask the user to choose (A) or (B) and **halt** until they respond.
+If mode still unclear, ask the user to choose (A) or (B) and **halt**until they respond.
 
----
+- --
 
 ## 2. Prerequisite Check (Mode-Specific)
 
@@ -85,31 +87,35 @@ If mode still unclear, ask the user to choose (A) or (B) and **halt** until they
 
 ### HALT CONDITIONS
 
-If required inputs are missing **and** the user cannot provide them:
+If required inputs are missing**and**the user cannot provide them:
 
 - **System-Level**: "Please provide PRD + ADR/architecture docs to proceed."
 - **Epic-Level**: "Please provide epic/story requirements or acceptance criteria to proceed."
 
----
+- --
 
 ## 3. Confirm Mode
 
 State which mode you will use and why. Then proceed.
 
----
+- --
 
 ### 4. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-01-detect-mode']
   lastStep: 'step-01-detect-mode'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -131,4 +137,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize the Game Brief workflow by detecting continuation state and setting up the document'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-01-init.md'
 nextStepFile: './step-02-vision.md'
 continueStepFile: './step-01b-continue.md'
@@ -13,12 +16,14 @@ workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
 
 # Template References
+
 briefTemplate: '{workflow_path}/templates/game-brief-template.md'
----
+
+- --
 
 # Step 1: Workflow Initialization
 
-**Progress: Step 1 of 8** - Next: Game Vision
+- *Progress: Step 1 of 8** - Next: Game Vision
 
 ## STEP GOAL:
 
@@ -69,7 +74,7 @@ Initialize the Game Brief workflow by detecting continuation state, discovering 
 
 First, check if the output document already exists:
 
-**Workflow State Detection:**
+- *Workflow State Detection:**
 
 - Look for file at `{outputFile}`
 - If exists, read the complete file including frontmatter
@@ -79,7 +84,7 @@ First, check if the output document already exists:
 
 If the document exists and has frontmatter with `stepsCompleted`:
 
-**Continuation Protocol:**
+- *Continuation Protocol:**
 
 - **STOP immediately** and load `{continueStepFile}`
 - Do not proceed with any initialization tasks
@@ -94,50 +99,53 @@ If no document exists or no `stepsCompleted` in frontmatter:
 
 Discover and load context documents using smart discovery.
 
-**IMPORTANT: Track document counts as you discover files.**
+- *IMPORTANT: Track document counts as you discover files.**
 
 Initialize counters:
 
-```
+```bash
 brainstormingCount = 0
 researchCount = 0
 notesCount = 0
-```
 
-**Brainstorming Documents:**
+```bash
+
+- *Brainstorming Documents:**
 
 1. Check: `{output_folder}/*brainstorm*.md`
 2. Check: `{output_folder}/analysis/*brainstorm*.md`
 3. Load completely and extract key ideas
 4. **Update brainstormingCount with number of files found**
 
-**Research Documents:**
+- *Research Documents:**
 
 1. Check: `{output_folder}/*research*.md`
 2. Check: `{output_folder}/analysis/*research*.md`
 3. Load useful research files completely
 4. **Update researchCount with number of files found**
 
-**Design Notes:**
+- *Design Notes:**
 
 1. Check: `{output_folder}/*notes*.md` or `{output_folder}/*design*.md`
 2. Load any relevant design notes
 3. **Update notesCount with number of files found**
 
-**Loading Rules:**
+- *Loading Rules:**
 
 - Load ALL discovered files completely (no offset/limit)
 - Track all successfully loaded files in frontmatter `inputDocuments` array
 
 #### B. Create Initial Document
 
-**Document Setup:**
+- *Document Setup:**
 
 - Copy the template from `{briefTemplate}` to `{outputFile}`
 - Initialize frontmatter with proper structure:
 
 ```yaml
----
+
+- --
+
 stepsCompleted: []
 inputDocuments: []
 documentCounts:
@@ -150,21 +158,23 @@ project_name: '{{project_name}}'
 user_name: '{{user_name}}'
 date: '{{date}}'
 game_name: ''
----
-```
+
+- --
+
+```bash
 
 #### C. Present Initialization Results
 
-**Setup Report to User:**
+- *Setup Report to User:**
 
 "Welcome {{user_name}}! I've set up your Game Brief workspace.
 
-**Document Setup:**
+- *Document Setup:**
 
 - Created: `{outputFile}` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
+- *Input Documents Discovered:**
 
 - Brainstorming: {{brainstormingCount}} files {if brainstormingCount > 0}loaded{else}(none found){/if}
 - Research: {{researchCount}} files {if researchCount > 0}loaded{else}(none found){/if}
@@ -199,7 +209,7 @@ Display menu after setup report:
 
 ONLY WHEN [C continue option] is selected and [frontmatter properly updated with stepsCompleted: [1] and documentCounts], will you then load and read fully `{nextStepFile}` to execute and begin game vision discovery.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -221,4 +231,4 @@ ONLY WHEN [C continue option] is selected and [frontmatter properly updated with
 - Creating document without proper template structure
 - Proceeding without user selecting 'C' (Continue)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

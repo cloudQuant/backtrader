@@ -27,7 +27,3 @@ Note:
         - runtest(): Execute backtests with multiple configurations
         - TestStrategy: Base strategy for indicator validation
 """
-
-import backtrader as bt
-
-# Test suite for extended backtrader coverage

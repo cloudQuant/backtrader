@@ -216,7 +216,11 @@ class TestCTPBrokerOrder:
             lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
         )
         broker._pending_stops = []  # C1: pending stop orders
-        broker._params = {'use_positions': True, 'commission': 0.0}
+        broker._processed_trade_ids = set()  # T4: dedup
+        broker._last_balance_time = 0.0  # T1: rate-limit balance
+        broker._balance_interval = 10.0
+        broker._last_trading_day = None  # T13: day change
+        broker._params = {'use_positions': True, 'commission': 0.0, 'stop_slippage_ticks': 0.0}
         broker.get_param = lambda k: broker._params.get(k)
 
         # Mock owner and data

@@ -1,18 +1,19 @@
 # module.yaml Conventions
 
-**Purpose:** Defines how module.yaml works, including variables, templates, and how they provide context to agents and workflows.
+- *Purpose:** Defines how module.yaml works, including variables, templates, and how they provide context to agents and workflows.
 
----
+- --
 
 ## Overview
 
 `module.yaml` is the configuration file for a BMAD module. It:
+
 - Defines module metadata (code, name, description)
 - Collects user input via prompts during installation
 - Makes those inputs available to agents and workflows as variables
 - Specifies which module should be selected by default
 
----
+- --
 
 ## Frontmatter Fields
 
@@ -20,21 +21,30 @@
 
 ```yaml
 code: {module-code}              # kebab-case identifier
+
 name: "Display Name"             # Human-readable name
+
 header: "Brief description"      # One-line summary
+
 subheader: "Additional context"  # More detail
+
 default_selected: false          # Auto-select on install?
-```
+
+```bash
 
 ### `default_selected` Guidelines
 
 | Module Type | default_selected | Example |
+
 |-------------|------------------|---------|
+
 | Core/Primary | `true` | BMM (agile software delivery) |
+
 | Specialized | `false` | CIS (creative innovation), BMGD (game dev) |
+
 | Experimental | `false` | New modules in development |
 
----
+- --
 
 ## Variables System
 
@@ -43,16 +53,21 @@ default_selected: false          # Auto-select on install?
 These variables are automatically available to ALL modules:
 
 ```yaml
-# Variables from Core Config inserted:
-## user_name                  # User's name
-## communication_language     # Preferred language
-## document_output_language    # Output document language
-## output_folder             # Default output location
-```
 
+# Variables from Core Config inserted:
+
+## user_name                  # User's name
+
+## communication_language     # Preferred language
+
+## document_output_language    # Output document language
+
+## output_folder             # Default output location
+
+```bash
 No need to define these — they're injected automatically.
 
----
+- --
 
 ### Custom Variables
 
@@ -63,30 +78,38 @@ variable_name:
   prompt: "Question to ask the user?"
   default: "{default_value}"
   result: "{template_for_final_value}"
-```
 
-**Example:**
+```bash
+
+- *Example:**
 
 ```yaml
 project_name:
   prompt: "What is the title of your project?"
   default: "{directory_name}"
   result: "{value}"
-```
+
+```bash
 
 ### Variable Templates
 
 In `prompt` and `result`, you can use templates:
 
 | Template | Expands To |
+
 |----------|------------|
+
 | `{value}` | The user's input |
+
 | `{directory_name}` | Current directory name |
+
 | `{output_folder}` | Output folder from core config |
+
 | `{project-root}` | Project root path |
+
 | `{variable_name}` | Another variable's value |
 
----
+- --
 
 ## Variable Types
 
@@ -97,9 +120,10 @@ project_name:
   prompt: "What is the title of your project?"
   default: "{directory_name}"
   result: "{value}"
-```
 
----
+```bash
+
+- --
 
 ### 2. Boolean/Flag
 
@@ -108,9 +132,10 @@ enable_feature:
   prompt: "Enable this feature?"
   default: false
   result: "{value}"
-```
 
----
+```bash
+
+- --
 
 ### 3. Single Select
 
@@ -120,15 +145,22 @@ skill_level:
   default: "intermediate"
   result: "{value}"
   single-select:
-    - value: "beginner"
-      label: "Beginner - Explains concepts clearly"
-    - value: "intermediate"
-      label: "Intermediate - Balanced approach"
-    - value: "expert"
-      label: "Expert - Direct and technical"
-```
 
----
+    - value: "beginner"
+
+      label: "Beginner - Explains concepts clearly"
+
+    - value: "intermediate"
+
+      label: "Intermediate - Balanced approach"
+
+    - value: "expert"
+
+      label: "Expert - Direct and technical"
+
+```bash
+
+- --
 
 ### 4. Multi Select
 
@@ -138,29 +170,39 @@ platforms:
   default: ["unity", "unreal"]
   result: "{value}"
   multi-select:
-    - value: "unity"
-      label: "Unity"
-    - value: "unreal"
-      label: "Unreal Engine"
-    - value: "godot"
-      label: "Godot"
-```
 
----
+    - value: "unity"
+
+      label: "Unity"
+
+    - value: "unreal"
+
+      label: "Unreal Engine"
+
+    - value: "godot"
+
+      label: "Godot"
+
+```bash
+
+- --
 
 ### 5. Multi-Line Prompt
 
 ```yaml
 complex_variable:
   prompt:
+
     - "First question?"
     - "Second context?"
     - "Third detail?"
+
   default: "default_value"
   result: "{value}"
-```
 
----
+```bash
+
+- --
 
 ### 6. Required Variable
 
@@ -169,9 +211,10 @@ critical_variable:
   prompt: "Required information:"
   required: true
   result: "{value}"
-```
 
----
+```bash
+
+- --
 
 ### 7. Path Variable
 
@@ -180,9 +223,10 @@ artifacts_folder:
   prompt: "Where should artifacts be stored?"
   default: "{output_folder}/artifacts"
   result: "{project-root}/{value}"
-```
 
----
+```bash
+
+- --
 
 ## Variable Inheritance / Aliasing
 
@@ -195,13 +239,14 @@ primary_artifacts:
   result: "{project-root}/{value}"
 
 # Alias for workflow compatibility
+
 sprint_artifacts:
   inherit: "primary_artifacts"
-```
 
+```bash
 Now `sprint_artifacts` and `primary_artifacts` reference the same value.
 
----
+- --
 
 ## How Variables Become Available
 
@@ -210,25 +255,31 @@ Now `sprint_artifacts` and `primary_artifacts` reference the same value.
 After installation, variables are available in agent frontmatter/context:
 
 ```yaml
-# In agent.agent.yaml or workflow execution
-{variable_name}  # Expands to the user's configured value
-```
 
-**Example:** If the user configured `project_name: "MyApp"`, agents can reference `{project_name}` and it will expand to `"MyApp"`.
+# In agent.agent.yaml or workflow execution
+
+{variable_name}  # Expands to the user's configured value
+
+```bash
+
+- *Example:**If the user configured `project_name: "MyApp"`, agents can reference `{project_name}` and it will expand to `"MyApp"`.
 
 ### To Workflows
 
 Workflows can reference module variables in their step files:
 
 ```yaml
----
-outputFile: '{implementation_artifacts}/my-output.md'
----
-```
 
+- --
+
+outputFile: '{implementation_artifacts}/my-output.md'
+
+- --
+
+```bash
 This expands the `implementation_artifacts` variable from module.yaml.
 
----
+- --
 
 ## Real-World Examples
 
@@ -242,9 +293,13 @@ subheader: "Agent and Workflow Configuration for this module"
 default_selected: true
 
 # Variables from Core Config inserted:
+
 ## user_name
+
 ## communication_language
+
 ## document_output_language
+
 ## output_folder
 
 project_name:
@@ -254,16 +309,24 @@ project_name:
 
 user_skill_level:
   prompt:
+
     - "What is your development experience level?"
     - "This affects how agents explain concepts."
+
   default: "intermediate"
   result: "{value}"
   single-select:
+
     - value: "beginner"
+
       label: "Beginner - Explain concepts clearly"
+
     - value: "intermediate"
+
       label: "Intermediate - Balanced approach"
+
     - value: "expert"
+
       label: "Expert - Direct and technical"
 
 planning_artifacts:
@@ -285,9 +348,10 @@ tea_use_mcp_enhancements:
   prompt: "Enable MCP enhancements in Test Architect?"
   default: false
   result: "{value}"
-```
 
----
+```bash
+
+- --
 
 ### CIS (Creative Innovation Suite) — Minimal Configuration
 
@@ -299,15 +363,19 @@ subheader: "No custom configuration - uses Core settings only"
 default_selected: false
 
 # Variables from Core Config inserted:
-## user_name
-## communication_language
-## document_output_language
-## output_folder
-```
 
+## user_name
+
+## communication_language
+
+## document_output_language
+
+## output_folder
+
+```bash
 Some modules don't need custom variables — core config is enough!
 
----
+- --
 
 ### BMGD (Game Development) — Multi-Select Example
 
@@ -329,21 +397,31 @@ primary_platform:
   required: true
   result: "{value}"
   multi-select:
-    - value: "unity"
-      label: "Unity"
-    - value: "unreal"
-      label: "Unreal Engine"
-    - value: "godot"
-      label: "Godot"
-    - value: "other"
-      label: "Custom / Other"
-```
 
----
+    - value: "unity"
+
+      label: "Unity"
+
+    - value: "unreal"
+
+      label: "Unreal Engine"
+
+    - value: "godot"
+
+      label: "Godot"
+
+    - value: "other"
+
+      label: "Custom / Other"
+
+```bash
+
+- --
 
 ## Best Practices
 
 ### DO:
+
 - Keep prompts clear and concise
 - Provide sensible defaults
 - Use `result: "{project-root}/{value}"` for paths
@@ -351,12 +429,13 @@ primary_platform:
 - Group related variables logically
 
 ### DON'T:
+
 - Overwhelm users with too many questions
 - Ask for information that could be inferred
 - Use technical jargon in prompts
 - Create variables that are never used
 
----
+- --
 
 ## Variable Naming
 
@@ -364,7 +443,7 @@ primary_platform:
 - Descriptive but concise
 - Avoid conflicts with core variables
 
----
+- --
 
 ## Testing Your module.yaml
 
@@ -376,17 +455,26 @@ After creating module.yaml, test it:
 4. Test default values
 5. Validate path templates resolve correctly
 
----
+- --
 
 ## Quick Reference
 
 | Pattern | Use Case |
+
 |---------|----------|
+
 | Simple text input | Names, titles, descriptions |
+
 | Boolean/Flag | Enable/disable features |
+
 | Single select | Experience levels, categories |
+
 | Multi select | Platforms, frameworks, options |
+
 | Multi-line prompt | Complex questions needing context |
+
 | Required | Must-have information |
+
 | Path variable | Directory locations |
+
 | Inherit/Alias | Compatibility, references |

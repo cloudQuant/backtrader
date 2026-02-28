@@ -1,18 +1,20 @@
----
+- --
+
 name: 'step-04-analyze-gaps'
 description: 'Complete Phase 1: Generate coverage matrix with gap analysis'
 nextStepFile: './step-05-gate-decision.md'
 outputFile: '{test_artifacts}/traceability-report.md'
 tempOutputFile: '/tmp/tea-trace-coverage-matrix-{{timestamp}}.json'
----
+
+- --
 
 # Step 4: Complete Phase 1 - Coverage Matrix Generation
 
 ## STEP GOAL
 
-**Phase 1 Final Step:** Analyze coverage gaps (including endpoint/auth/error-path blind spots), generate recommendations, and output complete coverage matrix to temp file for Phase 2 (gate decision).
+- *Phase 1 Final Step:** Analyze coverage gaps (including endpoint/auth/error-path blind spots), generate recommendations, and output complete coverage matrix to temp file for Phase 2 (gate decision).
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -21,7 +23,7 @@ tempOutputFile: '/tmp/tea-trace-coverage-matrix-{{timestamp}}.json'
 - ✅ Output coverage matrix to temp file
 - ❌ Do NOT make gate decision (that's Phase 2 - Step 5)
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -35,30 +37,32 @@ tempOutputFile: '/tmp/tea-trace-coverage-matrix-{{timestamp}}.json'
 - Focus: gap analysis and matrix completion
 - Limits: do not make gate decision (Phase 2 responsibility)
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
 ### 1. Gap Analysis
 
-**Identify uncovered requirements:**
+- *Identify uncovered requirements:**
 
 ```javascript
 const uncoveredRequirements = traceabilityMatrix.filter((req) => req.coverage === 'NONE');
 const partialCoverage = traceabilityMatrix.filter((req) => req.coverage === 'PARTIAL');
 const unitOnlyCoverage = traceabilityMatrix.filter((req) => req.coverage === 'UNIT-ONLY');
-```
 
-**Prioritize gaps by risk:**
+```bash
+
+- *Prioritize gaps by risk:**
 
 ```javascript
 const criticalGaps = uncoveredRequirements.filter((req) => req.priority === 'P0');
 const highGaps = uncoveredRequirements.filter((req) => req.priority === 'P1');
 const mediumGaps = uncoveredRequirements.filter((req) => req.priority === 'P2');
 const lowGaps = uncoveredRequirements.filter((req) => req.priority === 'P3');
-```
 
----
+```bash
+
+- --
 
 ### 2. Coverage Heuristics Checks
 
@@ -66,7 +70,9 @@ Use the heuristics inventory from Step 2 and mapped criteria from Step 3 to flag
 
 ```javascript
 const endpointCoverageGaps = coverageHeuristics?.endpoints_without_tests || [];
+
 const authCoverageGaps = coverageHeuristics?.auth_missing_negative_paths || [];
+
 const errorPathGaps = coverageHeuristics?.criteria_happy_path_only || [];
 
 const heuristicGapCounts = {
@@ -74,15 +80,15 @@ const heuristicGapCounts = {
   auth_missing_negative_paths: authCoverageGaps.length,
   happy_path_only_criteria: errorPathGaps.length,
 };
-```
 
+```bash
 Heuristics are advisory but must influence gap severity and recommendations, especially for P0/P1 criteria.
 
----
+- --
 
 ### 3. Generate Recommendations
 
-**Based on gap analysis:**
+- *Based on gap analysis:**
 
 ```javascript
 const recommendations = [];
@@ -119,6 +125,7 @@ if (endpointCoverageGaps.length > 0) {
     priority: 'HIGH',
     action: `Add API tests for ${endpointCoverageGaps.length} uncovered endpoint(s)`,
     requirements: endpointCoverageGaps.map((r) => r.id || r.endpoint || 'unknown'),
+
   });
 }
 
@@ -127,6 +134,7 @@ if (authCoverageGaps.length > 0) {
     priority: 'HIGH',
     action: `Add negative-path auth/authz tests for ${authCoverageGaps.length} requirement(s)`,
     requirements: authCoverageGaps.map((r) => r.id || 'unknown'),
+
   });
 }
 
@@ -135,6 +143,7 @@ if (errorPathGaps.length > 0) {
     priority: 'MEDIUM',
     action: `Add error/edge scenario tests for ${errorPathGaps.length} happy-path-only criterion/criteria`,
     requirements: errorPathGaps.map((r) => r.id || 'unknown'),
+
   });
 }
 
@@ -144,18 +153,20 @@ recommendations.push({
   action: 'Run /bmad:tea:test-review to assess test quality',
   requirements: [],
 });
-```
 
----
+```bash
+
+- --
 
 ### 4. Calculate Coverage Statistics
 
 ```javascript
 const totalRequirements = traceabilityMatrix.length;
 const coveredRequirements = traceabilityMatrix.filter((r) => r.coverage === 'FULL' || r.coverage === 'PARTIAL').length;
+
 const fullyCovered = traceabilityMatrix.filter((r) => r.coverage === 'FULL').length;
 
-const safePct = (covered, total) => (total > 0 ? Math.round((covered / total) * 100) : 100);
+const safePct = (covered, total) => (total > 0 ? Math.round((covered / total) *100) : 100);
 const coveragePercentage = safePct(fullyCovered, totalRequirements);
 
 // Priority-specific coverage
@@ -172,13 +183,14 @@ const p0CoveragePercentage = safePct(p0Covered, p0Total);
 const p1CoveragePercentage = safePct(p1Covered, p1Total);
 const p2CoveragePercentage = safePct(p2Covered, p2Total);
 const p3CoveragePercentage = safePct(p3Covered, p3Total);
-```
 
----
+```bash
+
+- --
 
 ### 5. Generate Complete Coverage Matrix
 
-**Compile all Phase 1 outputs:**
+- *Compile all Phase 1 outputs:**
 
 ```javascript
 const coverageMatrix = {
@@ -220,47 +232,53 @@ const coverageMatrix = {
 
   recommendations: recommendations,
 };
-```
 
----
+```bash
+
+- --
 
 ### 6. Output Coverage Matrix to Temp File
 
-**Write to temp file for Phase 2:**
+- *Write to temp file for Phase 2:**
 
 ```javascript
 const outputPath = '{tempOutputFile}';
 fs.writeFileSync(outputPath, JSON.stringify(coverageMatrix, null, 2), 'utf8');
 
 console.log(`✅ Phase 1 Complete: Coverage matrix saved to ${outputPath}`);
-```
 
----
+```bash
+
+- --
 
 ### 7. Display Phase 1 Summary
 
-```
+```bash
 ✅ Phase 1 Complete: Coverage Matrix Generated
 
 📊 Coverage Statistics:
+
 - Total Requirements: {totalRequirements}
 - Fully Covered: {fullyCovered} ({coveragePercentage}%)
 - Partially Covered: {partialCoverage.length}
 - Uncovered: {uncoveredRequirements.length}
 
 🎯 Priority Coverage:
+
 - P0: {p0Covered}/{p0Total} ({p0CoveragePercentage}%)
 - P1: {p1Covered}/{p1Total} ({p1CoveragePercentage}%)
 - P2: {p2Covered}/{p2Total} ({p2CoveragePercentage}%)
 - P3: {p3Covered}/{p3Total} ({p3CoveragePercentage}%)
 
 ⚠️ Gaps Identified:
+
 - Critical (P0): {criticalGaps.length}
 - High (P1): {highGaps.length}
 - Medium (P2): {mediumGaps.length}
 - Low (P3): {lowGaps.length}
 
 🔍 Coverage Heuristics:
+
 - Endpoints without tests: {endpointCoverageGaps.length}
 - Auth negative-path gaps: {authCoverageGaps.length}
 - Happy-path-only criteria: {errorPathGaps.length}
@@ -268,13 +286,14 @@ console.log(`✅ Phase 1 Complete: Coverage matrix saved to ${outputPath}`);
 📝 Recommendations: {recommendations.length}
 
 🔄 Phase 2: Gate decision (next step)
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
-**PHASE 1 COMPLETE when:**
+- *PHASE 1 COMPLETE when:**
 
 - ✅ Gap analysis complete
 - ✅ Recommendations generated
@@ -282,22 +301,26 @@ console.log(`✅ Phase 1 Complete: Coverage matrix saved to ${outputPath}`);
 - ✅ Coverage matrix saved to temp file
 - ✅ Summary displayed
 
-**Proceed to Phase 2 (Step 5: Gate Decision)**
+- *Proceed to Phase 2 (Step 5: Gate Decision)**
 
----
+- --
 
 ### 8. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-04-analyze-gaps']
   lastStep: 'step-04-analyze-gaps'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -310,7 +333,7 @@ console.log(`✅ Phase 1 Complete: Coverage matrix saved to ${outputPath}`);
 
 Load next step: `{nextStepFile}`
 
----
+- --
 
 ## 🚨 PHASE 1 SUCCESS METRICS
 
@@ -327,4 +350,4 @@ Load next step: `{nextStepFile}`
 - Gap analysis missing
 - Invalid JSON output
 
-**Master Rule:** Phase 1 MUST output complete coverage matrix to temp file before Phase 2 can proceed.
+- *Master Rule:** Phase 1 MUST output complete coverage matrix to temp file before Phase 2 can proceed.

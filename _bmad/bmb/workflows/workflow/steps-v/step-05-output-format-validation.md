@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-05-output-format-validation'
 description: 'Validate output format compliance - template type, final polish, step-to-output mapping'
 
@@ -7,7 +8,8 @@ targetWorkflowPath: '{workflow_folder_path}'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 outputFormatStandards: '../data/output-format-standards.md'
 workflowPlanFile: '{workflow_folder_path}/workflow-plan.md'
----
+
+- --
 
 # Validation Step 5: Output Format Validation
 
@@ -49,39 +51,41 @@ To validate that the workflow's output format matches the design - correct templ
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Load Output Format Standards
 
 Load {outputFormatStandards} to understand:
 
-**Golden Rule:** Every step MUST output to document BEFORE loading next step.
+- *Golden Rule:** Every step MUST output to document BEFORE loading next step.
 
-**Four Template Types:**
-1. **Free-form** (Recommended) - Minimal structure, progressive append
-2. **Structured** - Required sections, flexible within each
-3. **Semi-structured** - Core sections plus optional additions
-4. **Strict** - Exact format, specific fields (rare)
+- *Four Template Types:**
+1. **Free-form**(Recommended) - Minimal structure, progressive append
 
-**Final Polish Step:**
+2.**Structured**- Required sections, flexible within each
+3.**Semi-structured**- Core sections plus optional additions
+4.**Strict** - Exact format, specific fields (rare)
+
+- *Final Polish Step:**
 - For free-form workflows, include a polish step that optimizes the entire document
 - Loads entire document, reviews for flow, removes duplication
 
 ### 2. Check Design Specification
 
 From {workflowPlanFile}, identify:
+
 - Does this workflow produce a document?
 - If yes, what template type was designed?
 - Is a final polish step needed?
 
 ### 3. Validate Template File
 
-**If workflow produces documents:**
+- *If workflow produces documents:**
 
 1. Load the template file from `templates/` folder
 2. Check it matches the designed type:
 
-**For Free-form (most common):**
+- *For Free-form (most common):**
 - ✅ Has frontmatter with `stepsCompleted: []`
 - ✅ Has `lastStep: ''`
 - ✅ Has `date: ''`
@@ -89,34 +93,34 @@ From {workflowPlanFile}, identify:
 - ✅ Document title header
 - ✅ No rigid section structure (progressive append)
 
-**For Structured:**
+- *For Structured:**
 - ✅ Has clear section headers
 - ✅ Section placeholders with {{variable}} syntax
 - ✅ Consistent structure
 
-**For Semi-structured:**
+- *For Semi-structured:**
 - ✅ Has core required sections
 - ✅ Has optional section placeholders
 
-**For Strict:**
+- *For Strict:**
 - ✅ Has exact field definitions
 - ✅ Validation rules specified
 
 ### 4. Check for Final Polish Step
 
-**If free-form template:**
+- *If free-form template:**
 - ✅ A final polish step should exist in the design
 - ✅ The step loads entire document
 - ✅ The step optimizes flow and coherence
 - ✅ The step removes duplication
 - ✅ The step ensures ## Level 2 headers
 
-**If no final polish step for free-form:**
+- *If no final polish step for free-form:**
 - ⚠️ WARNING - Free-form workflows typically need final polish
 
 ### 5. Validate Step-to-Output Mapping
 
-**DO NOT BE LAZY - For EACH step that outputs to document, launch a subprocess that:**
+- *DO NOT BE LAZY - For EACH step that outputs to document, launch a subprocess that:**
 
 1. Loads that step file
 2. Analyzes frontmatter for `outputFile` variable
@@ -124,15 +128,17 @@ From {workflowPlanFile}, identify:
 4. Checks menu C option saves to output before proceeding
 5. Returns structured findings to parent for aggregation
 
-**SUBPROCESS EXECUTION PATTERN:**
+- *SUBPROCESS EXECUTION PATTERN:**
 
-**For EACH step file, launch a subprocess that:**
+- *For EACH step file, launch a subprocess that:**
 1. Loads the step file
 2. Performs deep analysis of output operations (frontmatter, body, menu options)
 3. Returns findings to parent for aggregation
 
-**RETURN FORMAT:**
+- *RETURN FORMAT:**
+
 Each subprocess should return:
+
 - Step filename
 - Whether output variable exists in frontmatter
 - Whether output is saved before loading next step
@@ -141,12 +147,14 @@ Each subprocess should return:
 - Any issues found
 - Overall status (PASS/FAIL/WARNING)
 
-**Parent aggregates findings into:**
+- *Parent aggregates findings into:**
 
-**Steps should be in ORDER of document appearance:**
+- *Steps should be in ORDER of document appearance:**
 - Step 1 creates doc
 - Step 2 → ## Section 1
+
 - Step 3 → ## Section 2
+
 - Step N → Polish step
 
 ### 6. Document Findings
@@ -167,14 +175,15 @@ Update {validationReportFile} - replace "## Output Format Validation *Pending...
 
 ### 8. Save Report and Auto-Proceed
 
-**CRITICAL:** Save the validation report BEFORE loading next step.
+- *CRITICAL:** Save the validation report BEFORE loading next step.
 
 Then immediately load, read entire file, then execute {nextStepFile}.
 
-**Display:**
+- *Display:**
+
 "**Output Format validation complete.** Proceeding to Validation Design Check..."
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -197,4 +206,4 @@ Then immediately load, read entire file, then execute {nextStepFile}.
 - Not using subprocess optimization for step-to-output validation
 - Loading all step files into parent context instead of per-file subprocess
 
-**Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Check template, polish step, and mapping. Use subprocess optimization for step-to-output validation - per-file subprocess returns analysis, not full content. Auto-proceed through all validation steps.
+- *Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Check template, polish step, and mapping. Use subprocess optimization for step-to-output validation - per-file subprocess returns analysis, not full content. Auto-proceed through all validation steps.

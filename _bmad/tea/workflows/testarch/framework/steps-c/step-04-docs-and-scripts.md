@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-04-docs-and-scripts'
 description: 'Document setup and add package.json scripts'
 nextStepFile: './step-05-validate-and-summary.md'
 outputFile: '{test_dir}/README.md'
 progressFile: '{test_artifacts}/framework-setup-progress.md'
----
+
+- --
 
 # Step 4: Documentation & Scripts
 
@@ -17,7 +19,7 @@ Create test documentation and add build/test scripts appropriate for `{detected_
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -34,7 +36,7 @@ Create test documentation and add build/test scripts appropriate for `{detected_
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. tests/README.md
 
@@ -47,17 +49,17 @@ Create `{outputFile}` and include:
 - CI integration notes
 - Knowledge base references
 
----
+- --
 
 ## 2. Build & Test Scripts
 
-**If {detected_stack} is `frontend` or `fullstack`:**
+- *If {detected_stack} is `frontend` or `fullstack`:**
 
 Add to `package.json` at minimum:
 
 - `test:e2e`: framework execution command (e.g., `npx playwright test`)
 
-**If {detected_stack} is `backend` or `fullstack`:**
+- *If {detected_stack} is `backend` or `fullstack`:**
 
 Add the idiomatic test commands for the detected framework:
 
@@ -67,20 +69,24 @@ Add the idiomatic test commands for the detected framework:
 - **C#/.NET**: Add to CI scripts or `Makefile`: `dotnet test`, `dotnet test --collect:"XPlat Code Coverage"`
 - **Ruby (RSpec)**: Add to `Gemfile` binstubs or `Makefile`: `bundle exec rspec`, `bundle exec rspec spec/integration`
 
----
+- --
 
 ### 3. Save Progress
 
-**Save this step's accumulated work to `{progressFile}`.**
+- *Save this step's accumulated work to `{progressFile}`.**
 
-- **If `{progressFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{progressFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-04-docs-and-scripts']
   lastStep: 'step-04-docs-and-scripts'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -102,4 +108,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

@@ -2,7 +2,7 @@
 
 ## Principle
 
-Use typed HTTP client with built-in schema validation and automatic retry for server errors. The utility handles URL resolution, header management, response parsing, and single-line response validation with proper TypeScript support. **Works without a browser** - ideal for pure API/service testing.
+Use typed HTTP client with built-in schema validation and automatic retry for server errors. The utility handles URL resolution, header management, response parsing, and single-line response validation with proper TypeScript support. **Works without a browser**- ideal for pure API/service testing.
 
 ## Rationale
 
@@ -27,9 +27,9 @@ The `apiRequest` utility provides:
 
 ### Example 1: Basic API Request
 
-**Context**: Making authenticated API requests with automatic retry and type safety.
+- *Context**: Making authenticated API requests with automatic retry and type safety.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
@@ -44,9 +44,10 @@ test('should fetch user data', async ({ apiRequest }) => {
   expect(status).toBe(200);
   expect(body.name).toBe('John Doe'); // TypeScript knows body is User
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Generic type `<User>` provides TypeScript autocomplete for `body`
 - Status and body destructured from response
@@ -55,9 +56,9 @@ test('should fetch user data', async ({ apiRequest }) => {
 
 ### Example 2: Schema Validation (Single Line)
 
-**Context**: Validate API responses match expected schema with single-line syntax.
+- *Context**: Validate API responses match expected schema with single-line syntax.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
@@ -99,9 +100,10 @@ test('should validate response schema (Zod)', async ({ apiRequest }) => {
   expect(status).toBe(200);
   expect(body.email).toContain('@');
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Single `validateSchema` parameter
 - Supports JSON Schema, Zod, YAML files, OpenAPI specs
@@ -110,9 +112,9 @@ test('should validate response schema (Zod)', async ({ apiRequest }) => {
 
 ### Example 3: POST with Body and Retry Configuration
 
-**Context**: Creating resources with custom retry behavior for error testing.
+- *Context**: Creating resources with custom retry behavior for error testing.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 test('should create user', async ({ apiRequest }) => {
@@ -142,9 +144,10 @@ test('should handle 500 errors', async ({ apiRequest }) => {
     }),
   ).rejects.toThrow('Request failed with status 500');
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `body` parameter auto-serializes to JSON
 - Default retry: 5xx errors, 3 retries, exponential backoff
@@ -153,27 +156,27 @@ test('should handle 500 errors', async ({ apiRequest }) => {
 
 ### Example 4: URL Resolution Strategy
 
-**Context**: Flexible URL handling for different environments and test contexts.
+- *Context**: Flexible URL handling for different environments and test contexts.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Strategy 1: Explicit baseUrl (highest priority)
 await apiRequest({
   method: 'GET',
   path: '/users',
-  baseUrl: 'https://api.example.com', // Uses https://api.example.com/users
+  baseUrl: '<https://api.example.com',> // Uses <https://api.example.com/users>
 });
 
 // Strategy 2: Config baseURL (from fixture)
 import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
 
-test.use({ configBaseUrl: 'https://staging-api.example.com' });
+test.use({ configBaseUrl: '<https://staging-api.example.com'> });
 
 test('uses config baseURL', async ({ apiRequest }) => {
   await apiRequest({
     method: 'GET',
-    path: '/users', // Uses https://staging-api.example.com/users
+    path: '/users', // Uses <https://staging-api.example.com/users>
   });
 });
 
@@ -181,25 +184,26 @@ test('uses config baseURL', async ({ apiRequest }) => {
 // playwright.config.ts
 export default defineConfig({
   use: {
-    baseURL: 'https://api.example.com',
+    baseURL: '<https://api.example.com',>
   },
 });
 
 test('uses Playwright baseURL', async ({ apiRequest }) => {
   await apiRequest({
     method: 'GET',
-    path: '/users', // Uses https://api.example.com/users
+    path: '/users', // Uses <https://api.example.com/users>
   });
 });
 
 // Strategy 4: Direct path (full URL)
 await apiRequest({
   method: 'GET',
-  path: 'https://api.example.com/users', // Full URL works too
+  path: '<https://api.example.com/users',> // Full URL works too
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Four-tier resolution: explicit > config > Playwright > direct
 - Trailing slashes normalized automatically
@@ -207,9 +211,9 @@ await apiRequest({
 
 ### Example 5: Integration with Recurse (Polling)
 
-**Context**: Waiting for async operations to complete (background jobs, eventual consistency).
+- *Context**: Waiting for async operations to complete (background jobs, eventual consistency).
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/fixtures';
@@ -233,9 +237,10 @@ test('should poll until job completes', async ({ apiRequest, recurse }) => {
 
   expect(completedJob.body.result).toBeDefined();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `apiRequest` returns full response object
 - `recurse` polls until predicate returns true
@@ -243,15 +248,16 @@ test('should poll until job completes', async ({ apiRequest, recurse }) => {
 
 ### Example 6: Microservice Testing (Multiple Services)
 
-**Context**: Test interactions between microservices without a browser.
+- *Context**: Test interactions between microservices without a browser.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test, expect } from '@seontechnologies/playwright-utils/fixtures';
 
-const USER_SERVICE = process.env.USER_SERVICE_URL || 'http://localhost:3001';
-const ORDER_SERVICE = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
+const USER_SERVICE = process.env.USER_SERVICE_URL || '<http://localhost:3001';>
+
+const ORDER_SERVICE = process.env.ORDER_SERVICE_URL || '<http://localhost:3002';>
 
 test.describe('Microservice Integration', () => {
   test('should validate cross-service user lookup', async ({ apiRequest }) => {
@@ -293,9 +299,10 @@ test.describe('Microservice Integration', () => {
     expect(body.code).toBe('INVALID_USER');
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Test multiple services without browser
 - Use `baseUrl` to target different services
@@ -304,9 +311,9 @@ test.describe('Microservice Integration', () => {
 
 ### Example 7: GraphQL API Testing
 
-**Context**: Test GraphQL endpoints with queries and mutations.
+- *Context**: Test GraphQL endpoints with queries and mutations.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 test.describe('GraphQL API', () => {
@@ -362,9 +369,10 @@ test.describe('GraphQL API', () => {
     expect(body.data.createUser.id).toBeDefined();
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - GraphQL via POST request
 - Variables in request body
@@ -373,9 +381,9 @@ test.describe('GraphQL API', () => {
 
 ### Example 8: Operation-Based Overload (OpenAPI / Code Generators)
 
-**Context**: When using a code generator (orval, openapi-generator, custom scripts) that produces typed operation definitions from an OpenAPI spec, pass the operation object directly to `apiRequest`. This eliminates manual `method`/`path` extraction and `typeof` assertions while preserving full type inference for request body, response, and query parameters. Available since v3.14.0.
+- *Context**: When using a code generator (orval, openapi-generator, custom scripts) that produces typed operation definitions from an OpenAPI spec, pass the operation object directly to `apiRequest`. This eliminates manual `method`/`path` extraction and `typeof` assertions while preserving full type inference for request body, response, and query parameters. Available since v3.14.0.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Generated operation definition — structural typing, no import from playwright-utils needed
@@ -448,9 +456,10 @@ test('should create movie with schema validation', async ({ apiRequest }) => {
 
   expect(body.data.id).toBeDefined();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Pass `operation` instead of `method` + `path` — mutually exclusive at compile time
 - Response body, request body, and query types inferred from operation definition
@@ -463,17 +472,24 @@ test('should create movie with schema validation', async ({ apiRequest }) => {
 ## Comparison with Vanilla Playwright
 
 | Vanilla Playwright                             | playwright-utils apiRequest                                                        |
+
 | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+
 | `const resp = await request.get('/api/users')` | `const { status, body } = await apiRequest({ method: 'GET', path: '/api/users' })` |
+
 | `const body = await resp.json()`               | Response already parsed                                                            |
+
 | `expect(resp.ok()).toBeTruthy()`               | Status code directly accessible                                                    |
+
 | No retry logic                                 | Auto-retry 5xx errors with backoff                                                 |
+
 | No schema validation                           | Built-in multi-format validation                                                   |
+
 | Manual error handling                          | Descriptive error messages                                                         |
 
 ## When to Use
 
-**Use apiRequest for:**
+- *Use apiRequest for:**
 
 - ✅ Pure API/service testing (no browser needed)
 - ✅ Microservice integration testing
@@ -484,7 +500,7 @@ test('should create movie with schema validation', async ({ apiRequest }) => {
 - ✅ Contract testing support
 - ✅ Type-safe API testing with OpenAPI-generated operations (v3.14.0+)
 
-**Stick with vanilla Playwright for:**
+- *Stick with vanilla Playwright for:**
 
 - Simple one-off requests where utility overhead isn't worth it
 - Testing Playwright's native features specifically
@@ -502,7 +518,7 @@ test('should create movie with schema validation', async ({ apiRequest }) => {
 
 ## Anti-Patterns
 
-**❌ Ignoring retry failures:**
+- *❌ Ignoring retry failures:**
 
 ```typescript
 try {
@@ -510,28 +526,32 @@ try {
 } catch {
   // Silent failure - loses retry information
 }
-```
 
-**✅ Let retries happen, handle final failure:**
+```bash
+
+- *✅ Let retries happen, handle final failure:**
 
 ```typescript
 await expect(apiRequest({ method: 'GET', path: '/api/unstable' })).rejects.toThrow(); // Retries happen automatically, then final error caught
-```
 
-**❌ Disabling TypeScript benefits:**
+```bash
+
+- *❌ Disabling TypeScript benefits:**
 
 ```typescript
 const response: any = await apiRequest({ method: 'GET', path: '/users' });
-```
 
-**✅ Use generic types:**
+```bash
+
+- *✅ Use generic types:**
 
 ```typescript
 const { body } = await apiRequest<User[]>({ method: 'GET', path: '/users' });
 // body is typed as User[]
-```
 
-**❌ Mixing operation overload with explicit generics:**
+```bash
+
+- *❌ Mixing operation overload with explicit generics:**
 
 ```typescript
 // Don't pass a generic when using operation — types are inferred from the operation
@@ -539,9 +559,10 @@ const { body } = await apiRequest<MyType>({
   operation: getPersonv2({ customerId }),
   headers: getHeaders(customerId),
 });
-```
 
-**✅ Let the operation infer the types:**
+```bash
+
+- *✅ Let the operation infer the types:**
 
 ```typescript
 const { body } = await apiRequest({
@@ -549,9 +570,10 @@ const { body } = await apiRequest({
   headers: getHeaders(customerId),
 });
 // body type inferred from operation.response
-```
 
-**❌ Mixing operation with method/path:**
+```bash
+
+- *❌ Mixing operation with method/path:**
 
 ```typescript
 // Compile error — operation and method/path are mutually exclusive
@@ -560,4 +582,5 @@ await apiRequest({
   method: 'GET', // Error: method?: never
   path: '/api/person', // Error: path?: never
 });
-```
+
+```bash

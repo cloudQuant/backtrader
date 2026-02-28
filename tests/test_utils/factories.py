@@ -247,9 +247,19 @@ def create_simple_sma_strategy(period: int = 15) -> type:
         )
 
         def __init__(self):
+            """Initialize the strategy with SMA indicator.
+
+            Creates a simple moving average indicator using the configured
+            period parameter.
+            """
             self.sma = bt.indicators.SMA(self.data, period=self.p.period)
 
         def next(self):
+            """Execute trading logic on each bar.
+
+            Buys when close price crosses above SMA and closes position
+            when close price crosses below SMA.
+            """
             if not self.position:
                 if self.data.close[0] > self.sma[0]:
                     self.buy()
@@ -280,10 +290,20 @@ def create_crossover_strategy(period: int = 15) -> type:
         )
 
         def __init__(self):
+            """Initialize the strategy with SMA and CrossOver indicators.
+
+            Creates a simple moving average and a CrossOver indicator to
+            detect when price crosses the SMA.
+            """
             self.sma = bt.indicators.SMA(self.data, period=self.p.period)
             self.cross = bt.indicators.CrossOver(self.data.close, self.sma)
 
         def next(self):
+            """Execute trading logic on each bar.
+
+            Buys when price crosses above SMA (cross > 0) and closes
+            position when price crosses below SMA (cross < 0).
+            """
             if not self.position.size:
                 if self.cross > 0:
                     self.buy()
@@ -307,10 +327,21 @@ def create_buy_and_close_strategy() -> type:
         """Simple buy-once then close strategy for broker testing."""
 
         def __init__(self):
+            """Initialize strategy tracking variables.
+
+            Attributes:
+                order: Reference to the current/last order.
+                bar_count: Counter for bars processed.
+            """
             self.order = None
             self.bar_count = 0
 
         def next(self):
+            """Execute trading logic on each bar.
+
+            Buys once when not in position, then closes the position
+            after 50 bars. Used for testing basic broker functionality.
+            """
             self.bar_count += 1
             if not self.position:
                 self.order = self.buy()

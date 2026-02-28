@@ -1,6 +1,6 @@
 # Game Test Automation - Validation Checklist
 
----
+- --
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@
 - [ ] Source code accessible
 - [ ] Test scenarios available (optional)
 
----
+- --
 
 ## Analysis
 
@@ -18,7 +18,7 @@
 - [ ] Test patterns understood
 - [ ] Coverage gaps identified
 
----
+- --
 
 ## Unit Tests
 
@@ -29,7 +29,7 @@
 - [ ] No external dependencies
 - [ ] Tests are deterministic
 
----
+- --
 
 ## Integration Tests
 
@@ -39,7 +39,7 @@
 - [ ] Cleanup prevents leaks
 - [ ] Tests run independently
 
----
+- --
 
 ## Smoke Tests
 
@@ -49,7 +49,7 @@
 - [ ] Save/load test exists
 - [ ] Tests complete quickly (< 5 min total)
 
----
+- --
 
 ## Code Quality
 
@@ -59,7 +59,7 @@
 - [ ] Test names are descriptive
 - [ ] No duplicate test logic
 
----
+- --
 
 ## Generated Files
 
@@ -68,7 +68,7 @@
 - [ ] Engine-specific syntax correct
 - [ ] Imports/includes complete
 
----
+- --
 
 ## Documentation
 
@@ -77,7 +77,7 @@
 - [ ] Files listed
 - [ ] Next steps provided
 
----
+- --
 
 ## Completion Criteria
 
@@ -86,8 +86,8 @@
 - [ ] No orphan objects after tests
 - [ ] Summary report created
 
----
+- --
 
-**Completed by:** {name}
-**Date:** {date}
-**Tests Generated:** {count}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Tests Generated:** {count}

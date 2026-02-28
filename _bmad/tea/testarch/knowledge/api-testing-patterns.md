@@ -24,25 +24,34 @@ API-first testing provides:
 ## When to Use API Tests vs E2E Tests
 
 | Scenario                  | API Test      | E2E Test      |
+
 | ------------------------- | ------------- | ------------- |
+
 | CRUD operations           | ✅ Primary    | ❌ Overkill   |
+
 | Business logic validation | ✅ Primary    | ❌ Overkill   |
+
 | Error handling (4xx, 5xx) | ✅ Primary    | ⚠️ Supplement |
+
 | Authentication flows      | ✅ Primary    | ⚠️ Supplement |
+
 | Data transformation       | ✅ Primary    | ❌ Overkill   |
+
 | User journeys             | ❌ Can't test | ✅ Primary    |
+
 | Visual regression         | ❌ Can't test | ✅ Primary    |
+
 | Cross-browser issues      | ❌ Can't test | ✅ Primary    |
 
-**Rule of thumb**: If you're testing what the server returns (not how it looks), use API tests.
+- *Rule of thumb**: If you're testing what the server returns (not how it looks), use API tests.
 
 ## Pattern Examples
 
 ### Example 1: Pure API Test (No Browser)
 
-**Context**: Test REST API endpoints directly without any browser context.
+- *Context**: Test REST API endpoints directly without any browser context.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/users.spec.ts
@@ -103,9 +112,10 @@ test.describe('Users API', () => {
     expect(error.details).toContainEqual(expect.objectContaining({ field: 'email', message: expect.any(String) }));
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - No `page` fixture needed - only `request`
 - Tests run without browser overhead
@@ -114,9 +124,9 @@ test.describe('Users API', () => {
 
 ### Example 2: API Test with apiRequest Utility
 
-**Context**: Use enhanced apiRequest for schema validation, retry, and type safety.
+- *Context**: Use enhanced apiRequest for schema validation, retry, and type safety.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/orders.spec.ts
@@ -189,9 +199,10 @@ test.describe('Orders API', () => {
     expect(body.page).toBe(1);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Zod schema for runtime validation AND TypeScript types
 - `validateSchema` throws if response doesn't match
@@ -201,18 +212,20 @@ test.describe('Orders API', () => {
 
 ### Example 3: Microservice-to-Microservice Testing
 
-**Context**: Test service interactions without browser - validate API contracts between services.
+- *Context**: Test service interactions without browser - validate API contracts between services.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/service-integration.spec.ts
 import { test, expect } from '@seontechnologies/playwright-utils/fixtures';
 
 test.describe('Service Integration', () => {
-  const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:3001';
-  const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || 'http://localhost:3002';
-  const INVENTORY_SERVICE_URL = process.env.INVENTORY_SERVICE_URL || 'http://localhost:3003';
+  const USER_SERVICE_URL = process.env.USER_SERVICE_URL || '<http://localhost:3001';>
+
+  const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || '<http://localhost:3002';>
+
+  const INVENTORY_SERVICE_URL = process.env.INVENTORY_SERVICE_URL || '<http://localhost:3003';>
 
   test('order service should validate user exists', async ({ apiRequest }) => {
     // Create user in user-service
@@ -287,9 +300,10 @@ test.describe('Service Integration', () => {
     expect(updatedInventory.quantity).toBe(initialInventory.quantity - 2);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Multiple service URLs for microservice testing
 - Tests service-to-service communication
@@ -298,9 +312,9 @@ test.describe('Service Integration', () => {
 
 ### Example 4: GraphQL API Testing
 
-**Context**: Test GraphQL endpoints with queries and mutations.
+- *Context**: Test GraphQL endpoints with queries and mutations.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/graphql.spec.ts
@@ -421,9 +435,10 @@ test.describe('GraphQL API', () => {
     expect(body.errors[0].extensions.code).toBe('BAD_USER_INPUT');
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - GraphQL queries and mutations via POST
 - Variables passed in request body
@@ -432,9 +447,9 @@ test.describe('GraphQL API', () => {
 
 ### Example 5: Database Seeding and Cleanup via API
 
-**Context**: Use API calls to set up and tear down test data without direct database access.
+- *Context**: Use API calls to set up and tear down test data without direct database access.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/with-data-setup.spec.ts
@@ -494,7 +509,7 @@ test.describe('Orders with Data Setup', () => {
     expect(status).toBe(201);
     expect(body.userId).toBe(testUser.id);
     expect(body.items).toHaveLength(2);
-    expect(body.total).toBe(2 * 29.99 + 49.99);
+    expect(body.total).toBe(2 *29.99 + 49.99);
   });
 
   test('should list user orders', async ({ apiRequest }) => {
@@ -520,9 +535,10 @@ test.describe('Orders with Data Setup', () => {
     expect(body.orders.every((o: any) => o.userId === testUser.id)).toBe(true);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `beforeAll`/`afterAll` for test data setup/cleanup
 - API-based seeding (no direct DB access needed)
@@ -531,9 +547,9 @@ test.describe('Orders with Data Setup', () => {
 
 ### Example 6: Background Job Testing with Recurse
 
-**Context**: Test async operations like background jobs, webhooks, and eventual consistency.
+- *Context**: Test async operations like background jobs, webhooks, and eventual consistency.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/background-jobs.spec.ts
@@ -602,7 +618,7 @@ test.describe('Background Jobs', () => {
       body: {
         userId: 'user-123',
         items: [{ productId: 'prod-1', quantity: 1 }],
-        webhookUrl: 'https://webhook.site/test-endpoint',
+        webhookUrl: '<https://webhook.site/test-endpoint',>
       },
     });
 
@@ -618,9 +634,10 @@ test.describe('Background Jobs', () => {
     expect(webhookStatus.responseStatus).toBe(200);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `recurse` for polling async operations
 - Test both success and failure scenarios
@@ -629,9 +646,9 @@ test.describe('Background Jobs', () => {
 
 ### Example 7: Service Authentication (No Browser)
 
-**Context**: Test authenticated API endpoints using tokens directly - no browser login needed.
+- *Context**: Test authenticated API endpoints using tokens directly - no browser login needed.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/authenticated.spec.ts
@@ -705,9 +722,10 @@ test.describe('Authenticated API Tests', () => {
     expect(status).toBe(403); // Forbidden for non-admin
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Token obtained via API login (no browser)
 - Token reused across all tests in describe block
@@ -716,9 +734,9 @@ test.describe('Authenticated API Tests', () => {
 
 ### Example 8: Operation-Based API Testing (OpenAPI / Code Generators)
 
-**Context**: When your project uses code-generated operation definitions from an OpenAPI spec, leverage the operation-based overload of `apiRequest` (v3.14.0+) instead of manual `method`/`path` extraction. This eliminates `typeof` assertions and provides full type inference for request body, response, and query parameters.
+- *Context**: When your project uses code-generated operation definitions from an OpenAPI spec, leverage the operation-based overload of `apiRequest` (v3.14.0+) instead of manual `method`/`path` extraction. This eliminates `typeof` assertions and provides full type inference for request body, response, and query parameters.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/api/operations.spec.ts
@@ -767,9 +785,10 @@ test.describe('API Tests with Generated Operations', () => {
     );
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `operation` replaces `method` + `path` — mutually exclusive at compile time
 - Types for body, response, and query all inferred from the operation definition
@@ -790,7 +809,8 @@ export default defineConfig({
 
   // No browser needed for API tests
   use: {
-    baseURL: process.env.API_URL || 'http://localhost:3000',
+    baseURL: process.env.API_URL || '<http://localhost:3000',>
+
     extraHTTPHeaders: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
@@ -807,7 +827,8 @@ export default defineConfig({
   // No screenshots/traces needed for API tests
   reporter: [['html'], ['json', { outputFile: 'api-test-results.json' }]],
 });
-```
+
+```bash
 
 ### Separate API Test Project
 
@@ -832,19 +853,28 @@ export default defineConfig({
     },
   ],
 });
-```
+
+```bash
 
 ## Comparison: API Tests vs E2E Tests
 
 | Aspect              | API Test               | E2E Test                    |
+
 | ------------------- | ---------------------- | --------------------------- |
-| **Speed**           | ~50-100ms per test     | ~2-10s per test             |
-| **Stability**       | Very stable            | More flaky (UI timing)      |
-| **Setup**           | Minimal                | Browser, context, page      |
-| **Debugging**       | Clear request/response | DOM, screenshots, traces    |
-| **Coverage**        | Service logic          | User experience             |
-| **Parallelization** | Easy (stateless)       | Complex (browser resources) |
-| **CI Cost**         | Low (no browser)       | High (browser containers)   |
+
+| **Speed**| ~50-100ms per test     | ~2-10s per test             |
+
+|**Stability**| Very stable            | More flaky (UI timing)      |
+
+|**Setup**| Minimal                | Browser, context, page      |
+
+|**Debugging**| Clear request/response | DOM, screenshots, traces    |
+
+|**Coverage**| Service logic          | User experience             |
+
+|**Parallelization**| Easy (stateless)       | Complex (browser resources) |
+
+|**CI Cost**         | Low (no browser)       | High (browser containers)   |
 
 ## Related Fragments
 
@@ -857,7 +887,7 @@ export default defineConfig({
 
 ## Anti-Patterns
 
-**DON'T use E2E for API validation:**
+- *DON'T use E2E for API validation:**
 
 ```typescript
 // Bad: Testing API through UI
@@ -867,9 +897,10 @@ test('validate user creation', async ({ page }) => {
   await page.click('#submit');
   await expect(page.getByText('User created')).toBeVisible();
 });
-```
 
-**DO test APIs directly:**
+```bash
+
+- *DO test APIs directly:**
 
 ```typescript
 // Good: Direct API test
@@ -882,34 +913,37 @@ test('validate user creation', async ({ apiRequest }) => {
   expect(status).toBe(201);
   expect(body.id).toBeDefined();
 });
-```
 
-**DON'T ignore API tests because "E2E covers it":**
+```bash
+
+- *DON'T ignore API tests because "E2E covers it":**
 
 ```typescript
 // Bad thinking: "Our E2E tests create users, so API is tested"
 // Reality: E2E tests one happy path; API tests cover edge cases
-```
 
-**DO have dedicated API test coverage:**
+```bash
+
+- *DO have dedicated API test coverage:**
 
 ```typescript
 // Good: Explicit API test suite
 test.describe('Users API', () => {
   test('creates user', async ({ apiRequest }) => {
-    /* ... */
+    /*...*/
   });
   test('handles duplicate email', async ({ apiRequest }) => {
-    /* ... */
+    /*...*/
   });
   test('validates required fields', async ({ apiRequest }) => {
-    /* ... */
+    /*...*/
   });
   test('handles malformed JSON', async ({ apiRequest }) => {
-    /* ... */
+    /*...*/
   });
   test('rate limits requests', async ({ apiRequest }) => {
-    /* ... */
+    /*...*/
   });
 });
-```
+
+```bash

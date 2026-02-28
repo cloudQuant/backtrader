@@ -1,28 +1,34 @@
----
+- --
+
 name: 'step-04-decisions'
 description: 'Facilitate collaborative architectural decision making for game systems'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-04-decisions.md'
 nextStepFile: './step-05-crosscutting.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Knowledge Bases
+
 decisionCatalog: '{workflow_path}/decision-catalog.yaml'
 architecturePatterns: '{workflow_path}/architecture-patterns.yaml'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Architectural Decisions
 
-**Progress: Step 4 of 9** - Next: Cross-cutting Concerns
+- *Progress: Step 4 of 9**- Next: Cross-cutting Concerns
 
 ## STEP GOAL:
 
@@ -68,61 +74,77 @@ Facilitate collaborative decision-making for all remaining architectural choices
 
 ### 1. Load Decision Framework
 
-**Load decision catalog if available:**
+- *Load decision catalog if available:**
 
 Load `{decisionCatalog}` and `{architecturePatterns}` to guide the decision process.
 
-**Identify required decisions based on game type:**
+- *Identify required decisions based on game type:**
 
 | Category               | Decisions Needed            |
+
 | ---------------------- | --------------------------- |
-| **State Management**   | {{if_applicable}}           |
-| **Data Persistence**   | Save system, config storage |
-| **Networking**         | {{if_multiplayer}}          |
-| **AI Systems**         | {{if_has_ai}}               |
-| **Asset Loading**      | Streaming, caching          |
-| **Scene Structure**    | Scene graph, loading        |
-| **UI Framework**       | In-game, menus              |
-| **Audio Architecture** | Channels, mixing            |
+
+| **State Management**| {{if_applicable}}           |
+
+|**Data Persistence**| Save system, config storage |
+
+|**Networking**| {{if_multiplayer}}          |
+
+|**AI Systems**| {{if_has_ai}}               |
+
+|**Asset Loading**| Streaming, caching          |
+
+|**Scene Structure**| Scene graph, loading        |
+
+|**UI Framework**| In-game, menus              |
+
+|**Audio Architecture** | Channels, mixing            |
 
 ### 2. Prioritize Decisions
 
-**Create decision priority list:**
+- *Create decision priority list:**
 
 "Based on your project, here are the architectural decisions we need to make:
 
-**CRITICAL (blocks everything):**
+- *CRITICAL (blocks everything):**
+
 {{critical_decisions}}
 
-**IMPORTANT (shapes architecture):**
+- *IMPORTANT (shapes architecture):**
+
 {{important_decisions}}
 
-**NICE-TO-HAVE (can defer):**
+- *NICE-TO-HAVE (can defer):**
+
 {{optional_decisions}}
 
 Let's work through these in priority order."
 
 ### 3. Facilitate Each Decision
 
-**For each decision, follow this pattern:**
+- *For each decision, follow this pattern:**
 
 "**Decision: {{decision_name}}**
 
 {{context_about_why_this_matters}}
 
-**Options:**
+- *Options:**
 
 | Option       | Pros     | Cons     |
+
 | ------------ | -------- | -------- |
+
 | {{option_1}} | {{pros}} | {{cons}} |
+
 | {{option_2}} | {{pros}} | {{cons}} |
+
 | {{option_3}} | {{pros}} | {{cons}} |
 
-**Recommendation:** {{recommendation}} because {{reason}}
+- *Recommendation:** {{recommendation}} because {{reason}}
 
 What's your preference? (or 'explain more' for details)"
 
-**After user decides:**
+- *After user decides:**
 
 Record:
 
@@ -133,50 +155,50 @@ Record:
 
 ### 4. Game-Specific Decision Categories
 
-**State Management:**
+- *State Management:**
 
 "How should game state be managed?
 
-**Options:**
+- *Options:**
 
-- **Singleton Pattern** - Simple, global access, harder to test
-- **State Machine** - Clear transitions, good for game modes
-- **ECS (Entity Component System)** - Scalable, decoupled, learning curve
+- **Singleton Pattern**- Simple, global access, harder to test
+- **State Machine**- Clear transitions, good for game modes
+- **ECS (Entity Component System)**- Scalable, decoupled, learning curve
 - **Redux-style** - Predictable, time travel debugging, more boilerplate
 
 For {{game_type}}, {{recommendation}} works well because {{reason}}.
 
 Your choice?"
 
-**Save System:**
+- *Save System:**
 
 "How should player progress be saved?
 
-**Options:**
+- *Options:**
 
-- **Local files** - JSON/binary, works offline
-- **Cloud saves** - Cross-device, requires backend
-- **Hybrid** - Local primary, cloud sync
+- **Local files**- JSON/binary, works offline
+- **Cloud saves**- Cross-device, requires backend
+- **Hybrid**- Local primary, cloud sync
 - **Platform-specific** - Steam Cloud, console saves
 
 Your choice?"
 
-**Asset Loading:**
+- *Asset Loading:**
 
 "How should assets be loaded?
 
-**Options:**
+- *Options:**
 
-- **Preload all** - Simple, longer initial load
-- **Lazy loading** - Fast startup, potential hitches
-- **Streaming** - Seamless, complex implementation
+- **Preload all**- Simple, longer initial load
+- **Lazy loading**- Fast startup, potential hitches
+- **Streaming**- Seamless, complex implementation
 - **Scene-based** - Load per scene, clear boundaries
 
 Your choice?"
 
 ### 5. Handle Version Verification
 
-**For any technology-specific decisions:**
+- *For any technology-specific decisions:**
 
 Search web: "{{technology}} latest stable version {{current_year}}"
 
@@ -191,30 +213,32 @@ Document:
 After all decisions are made, prepare the content:
 
 ```markdown
+
 ## Architectural Decisions
 
 ### Decision Summary
 
 | Category | Decision | Version | Rationale |
+
 | -------- | -------- | ------- | --------- |
 
 {{decision_table_rows}}
 
 ### State Management
 
-**Approach:** {{state_management_choice}}
+- *Approach:** {{state_management_choice}}
 
 {{state_management_details}}
 
 ### Data Persistence
 
-**Save System:** {{save_system_choice}}
+- *Save System:** {{save_system_choice}}
 
 {{save_system_details}}
 
 ### Asset Management
 
-**Loading Strategy:** {{asset_loading_choice}}
+- *Loading Strategy:** {{asset_loading_choice}}
 
 {{asset_loading_details}}
 
@@ -225,7 +249,8 @@ After all decisions are made, prepare the content:
 ### Architecture Decision Records
 
 {{key_decisions_with_context}}
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
@@ -233,19 +258,20 @@ Show the generated content to the user and present:
 
 "I've documented all our architectural decisions.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**Decisions Made:** {{count}} decisions documented
+- *Decisions Made:** {{count}} decisions documented
 
-**Validation Check:**
+- *Validation Check:**
 
 - Are all critical decisions captured?
 - Are versions current and verified?
 - Does the rationale reflect your reasoning?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Challenge decisions, explore alternatives
 [P] Party Mode - Get different perspectives on choices
 [C] Continue - Save this and move to Cross-cutting Concerns (Step 5 of 9)"
@@ -276,7 +302,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [decisions content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -298,4 +324,4 @@ ONLY WHEN [C continue option] is selected and [decisions content saved with fron
 - Not presenting A/P/C menu after decisions
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

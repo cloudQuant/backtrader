@@ -4,7 +4,7 @@
 
 {{minigame_variety}}
 
-**Minigame design:**
+- *Minigame design:**
 
 - Minigame count (launch + DLC)
 - Genre variety (racing, puzzle, reflex, trivia, etc.)
@@ -17,7 +17,7 @@
 
 {{turn_structure}}
 
-**Game flow:**
+- *Game flow:**
 
 - Board game structure (if applicable)
 - Turn order (fixed, random, earned)
@@ -30,7 +30,7 @@
 
 {{scoring_elimination}}
 
-**Competition design:**
+- *Competition design:**
 
 - Points-based (everyone plays to the end)
 - Elimination (last player standing)
@@ -43,7 +43,7 @@
 
 {{local_multiplayer}}
 
-**Couch co-op design:**
+- *Couch co-op design:**
 
 - Controller sharing vs. individual controllers
 - Screen layout (split-screen, shared screen)
@@ -56,7 +56,7 @@
 
 {{accessibility}}
 
-**Inclusive design:**
+- *Inclusive design:**
 
 - Skill floor (easy to understand)
 - Skill ceiling (depth for experienced players)
@@ -69,7 +69,7 @@
 
 {{session_length}}
 
-**Time management:**
+- *Time management:**
 
 - Quick play (5-10 minutes)
 - Standard match (15-30 minutes)

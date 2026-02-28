@@ -45,24 +45,27 @@ Based on the context from Step 1, present framework options:
 <ask response="framework_selection">
 I can help craft your story using these proven narrative frameworks:
 
-**Transformation Narratives:**
+- *Transformation Narratives:**
 
-1. **Hero's Journey** - Classic transformation arc with adventure and return
-2. **Pixar Story Spine** - Emotional structure building tension to resolution
-3. **Customer Journey Story** - Before/after transformation narrative
-4. **Challenge-Overcome Arc** - Dramatic obstacle-to-victory structure
+1. **Hero's Journey**- Classic transformation arc with adventure and return
 
-**Strategic Narratives:**
+2.**Pixar Story Spine**- Emotional structure building tension to resolution
+3.**Customer Journey Story**- Before/after transformation narrative
+4.**Challenge-Overcome Arc** - Dramatic obstacle-to-victory structure
 
-5. **Brand Story** - Values, mission, and unique positioning
-6. **Pitch Narrative** - Persuasive problem-to-solution structure
-7. **Vision Narrative** - Future-focused aspirational story
-8. **Origin Story** - Foundational narrative of how it began
+- *Strategic Narratives:**
 
-**Specialized Narratives:**
+1. **Brand Story**- Values, mission, and unique positioning
 
-9. **Data Storytelling** - Transform insights into compelling narrative
-10. **Emotional Hooks** - Craft powerful opening and touchpoints
+6.**Pitch Narrative**- Persuasive problem-to-solution structure
+7.**Vision Narrative**- Future-focused aspirational story
+8.**Origin Story** - Foundational narrative of how it began
+
+- *Specialized Narratives:**
+
+1. **Data Storytelling**- Transform insights into compelling narrative
+
+10.**Emotional Hooks** - Craft powerful opening and touchpoints
 
 Which framework best fits your purpose? (Enter 1-10, or ask for my recommendation)
 </ask>
@@ -72,7 +75,9 @@ Which framework best fits your purpose? (Enter 1-10, or ask for my recommendatio
   <action>Recommend best-fit framework with clear rationale</action>
   <example>
   Based on your {{story_purpose}} for {{target_audience}}, I recommend:
-  **{{framework_name}}** because {{rationale}}
+
+  - *{{framework_name}}**because {{rationale}}
+
   </example>
 </check>
 
@@ -87,11 +92,13 @@ YOU ARE A MASTER STORYTELLER: Guide through narrative development using the Socr
 </critical>
 
 <storytelling-principles>
+
   - Every great story has conflict/tension - Find the struggle
   - Show, don't tell - Use vivid, concrete details
   - Change is essential - What transforms?
   - Emotion drives memory - Find the feeling
   - Authenticity resonates - Stay true to core truth
+
 </storytelling-principles>
 
 Based on selected framework, gather key story elements:
@@ -165,6 +172,7 @@ Stories stick when they resonate emotionally. Develop the emotional journey:
 - Surprising moments that capture attention
 - Personal stakes that make it matter
 - Satisfying payoffs that create resolution
+
   </guide>
 
 <template-output>emotional_arc, emotional_touchpoints</template-output>
@@ -185,6 +193,7 @@ The first moment determines if they keep reading/listening.
 - Creates immediate relatability
 - Promises valuable payoff
 - Uses vivid, concrete details
+
   </guide>
 
 <template-output>opening_hook</template-output>
@@ -198,6 +207,7 @@ The first moment determines if they keep reading/listening.
 1. Draft the story yourself with my guidance
 2. Have me write the first draft based on what we've discussed
 3. Co-create it iteratively together
+
    </ask>
 
 <if selection="1 or draft themselves">
@@ -232,9 +242,9 @@ Adapt the story for different contexts and lengths:
 
 Based on response, create appropriate variations:
 
-1. **Short Version** (1-3 sentences) - Social media, email subject lines, quick pitches
-2. **Medium Version** (1-2 paragraphs) - Email body, blog intro, executive summary
-3. **Extended Version** (full narrative) - Articles, presentations, case studies, website
+1.**Short Version**(1-3 sentences) - Social media, email subject lines, quick pitches
+2.**Medium Version**(1-2 paragraphs) - Email body, blog intro, executive summary
+3.**Extended Version** (full narrative) - Articles, presentations, case studies, website
 
 <template-output>short_version, medium_version, extended_version</template-output>
 
@@ -253,6 +263,7 @@ Provide strategic guidance for story deployment:
 - Tone/voice consistency with brand
 - Visual or multimedia enhancements
 - Testing and feedback approach
+
   </guide>
 
 <template-output>best_channels, audience_considerations, tone_notes, adaptation_suggestions</template-output>

@@ -25,7 +25,7 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from step-01 are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 - Focus on market size, growth, and industry dynamics
 - Web search capabilities with source verification are enabled
@@ -38,12 +38,12 @@ Conduct industry analysis focusing on market size, growth, and industry dynamics
 
 ### 1. Begin Industry Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different industry areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different industry areas simultaneously and thoroughly.
 
 Start with industry research approach:
-"Now I'll conduct **industry analysis** for **{{research_topic}}** to understand market dynamics.
+"Now I'll conduct **industry analysis**for**{{research_topic}}** to understand market dynamics.
 
-**Industry Analysis Focus:**
+- *Industry Analysis Focus:**
 
 - Market size and valuation metrics
 - Growth rates and market dynamics
@@ -51,18 +51,18 @@ Start with industry research approach:
 - Industry trends and evolution patterns
 - Economic impact and value creation
 
-**Let me search for current industry insights.**"
+- *Let me search for current industry insights.**"
 
 ### 2. Parallel Industry Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} market size value"
 Search the web: "{{research_topic}} market growth rate dynamics"
 Search the web: "{{research_topic}} market segmentation structure"
 Search the web: "{{research_topic}} industry trends evolution"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for recent market research reports and industry analyses
 - Search for authoritative sources (market research firms, industry associations)
@@ -72,26 +72,28 @@ Search the web: "{{research_topic}} industry trends evolution"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate industry findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - Market size and valuation analysis
 - Growth rates and market dynamics
 - Market segmentation and structure
 - Industry trends and evolution patterns
 
-**Cross-Industry Analysis:**
+- *Cross-Industry Analysis:**
+
 [Identify patterns connecting market dynamics, segmentation, and trends]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Industry Analysis Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare industry analysis with web search citations:
 
@@ -100,6 +102,7 @@ Prepare industry analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Industry Analysis
 
 ### Market Size and Valuation
@@ -146,15 +149,16 @@ _Competitive Intensity: [Degree of competition and rivalry]_
 _Barriers to Entry: [Obstacles for new market entrants]_
 _Innovation Pressure: [Rate of innovation and change]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **industry analysis** for {{research_topic}}.
 
-**Key Industry Findings:**
+- *Key Industry Findings:**
 
 - Market size and valuation thoroughly analyzed
 - Growth dynamics and market structure documented
@@ -162,7 +166,8 @@ _Source: [URL]_
 - Competitive dynamics clearly mapped
 - Multiple sources verified for critical insights
 
-**Ready to proceed to competitive landscape analysis?**
+- *Ready to proceed to competitive landscape analysis?**
+
 [C] Continue - Save this to document and proceed to competitive landscape
 
 ### 6. Handle Continue Selection

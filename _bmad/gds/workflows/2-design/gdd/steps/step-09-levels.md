@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-09-levels'
 description: 'Define level design framework and level progression'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-09-levels.md'
 nextStepFile: './step-10-art-audio.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 9: Level Design
 
-**Progress: Step 9 of 14** - Next: Art & Audio
+- *Progress: Step 9 of 14**- Next: Art & Audio
 
 ## STEP GOAL:
 
@@ -71,35 +76,45 @@ Define the level design framework including level types, structure, and how leve
 
 ### 1. Determine Level Structure Type
 
-**First, establish the structural approach:**
+- *First, establish the structural approach:**
 
 "Let's define how {{game_name}} structures its playable content.
 
-**Structure Types:**
+- *Structure Types:**
 
 | Type                 | Description                       | Examples                    |
-| -------------------- | --------------------------------- | --------------------------- |
-| **Linear Levels**    | Distinct stages played in order   | Mario, Celeste              |
-| **Hub-Based**        | Central area connecting levels    | Mario 64, Hollow Knight     |
-| **Open World**       | Large continuous space            | Breath of the Wild, GTA     |
-| **Procedural**       | Generated levels each playthrough | Spelunky, Dead Cells        |
-| **Arena/Match**      | Self-contained competitive spaces | Fighting games, MOBAs       |
-| **Puzzle Sets**      | Collections of puzzles            | Portal, The Witness         |
-| **Narrative Scenes** | Story-driven segments             | Visual novels, adventures   |
-| **Endless**          | Infinite generated content        | Endless runners, idle games |
 
-**For {{game_type}} games, typical structures include:**
+| -------------------- | --------------------------------- | --------------------------- |
+
+| **Linear Levels**| Distinct stages played in order   | Mario, Celeste              |
+
+|**Hub-Based**| Central area connecting levels    | Mario 64, Hollow Knight     |
+
+|**Open World**| Large continuous space            | Breath of the Wild, GTA     |
+
+|**Procedural**| Generated levels each playthrough | Spelunky, Dead Cells        |
+
+|**Arena/Match**| Self-contained competitive spaces | Fighting games, MOBAs       |
+
+|**Puzzle Sets**| Collections of puzzles            | Portal, The Witness         |
+
+|**Narrative Scenes**| Story-driven segments             | Visual novels, adventures   |
+
+|**Endless**          | Infinite generated content        | Endless runners, idle games |
+
+- *For {{game_type}} games, typical structures include:**
+
 {typical_structures_for_game_type}
 
 What structure best fits {{game_name}}?"
 
 ### 2. Level Types Discovery
 
-**Based on structure choice, elicit level types:**
+- *Based on structure choice, elicit level types:**
 
 "Now let's define the types of {levels/areas/stages} in {{game_name}}.
 
-**Questions to consider:**
+- *Questions to consider:**
 
 1. What different environments or settings exist?
 2. Are there tutorial levels? How are they integrated?
@@ -111,22 +126,29 @@ Describe the types of {levels/areas/stages} in {{game_name}}."
 
 ### 3. Level Progression Discovery
 
-**Guide user through progression structure:**
+- *Guide user through progression structure:**
 
 "Now let's define how players progress through {levels/areas/content}.
 
-**Progression Models:**
+- *Progression Models:**
 
 | Model                 | Description                      | Best For               |
-| --------------------- | -------------------------------- | ---------------------- |
-| **Linear Sequence**   | 1 -> 2 -> 3 -> ...               | Story games, tutorials |
-| **Branching Paths**   | Choices lead to different levels | Replayability          |
-| **Open Selection**    | Player chooses order             | Mega Man style         |
-| **Gated Progress**    | Abilities unlock new areas       | Metroidvania           |
-| **Score/Star Unlock** | Performance unlocks levels       | Angry Birds style      |
-| **Story Unlock**      | Narrative triggers unlock        | Adventure games        |
 
-**Questions to consider:**
+| --------------------- | -------------------------------- | ---------------------- |
+
+| **Linear Sequence**| 1 -> 2 -> 3 -> ...               | Story games, tutorials |
+
+|**Branching Paths**| Choices lead to different levels | Replayability          |
+
+|**Open Selection**| Player chooses order             | Mega Man style         |
+
+|**Gated Progress**| Abilities unlock new areas       | Metroidvania           |
+
+|**Score/Star Unlock**| Performance unlocks levels       | Angry Birds style      |
+
+|**Story Unlock**      | Narrative triggers unlock        | Adventure games        |
+
+- *Questions to consider:**
 
 1. How do players unlock new {levels/areas}?
 2. Can players replay previous {levels/areas}?
@@ -153,6 +175,7 @@ These can guide consistent level design throughout development."
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Level Design Framework
 
 ### Structure Type
@@ -192,7 +215,8 @@ Based on the conversation, prepare the content:
 {{if_no_principles}}
 _Level design principles will be established during production._
 {{/if_no_principles}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -200,17 +224,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Level Design Framework based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does the structure support your core loop?
 - Does progression feel rewarding?
 - Are level types varied enough to maintain interest?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into level design specifics
 [P] Party Mode - Get other perspectives on level structure
 [C] Continue - Save this and move to Art & Audio (Step 10 of 14)"
@@ -241,7 +266,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [level design content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -262,4 +287,4 @@ ONLY WHEN [C continue option] is selected and [level design content saved with f
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

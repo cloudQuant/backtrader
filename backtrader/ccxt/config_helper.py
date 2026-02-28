@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """CCXT Configuration Helper Module.
 
 This module provides helper functions for loading CCXT exchange configurations
@@ -12,11 +11,12 @@ Example:
 """
 
 import os
-from typing import Dict, Optional
 from pathlib import Path
+from typing import Dict, Optional
 
 try:
     from dotenv import load_dotenv
+
     HAS_DOTENV = True
 except ImportError:
     HAS_DOTENV = False
@@ -24,53 +24,53 @@ except ImportError:
 
 # Exchange-specific credential mappings
 EXCHANGE_CREDENTIALS = {
-    'okx': {
-        'apiKey': 'OKX_API_KEY',
-        'secret': 'OKX_SECRET',
-        'password': 'OKX_PASSWORD',
+    "okx": {
+        "apiKey": "OKX_API_KEY",
+        "secret": "OKX_SECRET",
+        "password": "OKX_PASSWORD",
     },
-    'binance': {
-        'apiKey': 'BINANCE_API_KEY',
-        'secret': 'BINANCE_SECRET',
+    "binance": {
+        "apiKey": "BINANCE_API_KEY",
+        "secret": "BINANCE_SECRET",
     },
-    'bybit': {
-        'apiKey': 'BYBIT_API_KEY',
-        'secret': 'BYBIT_SECRET',
+    "bybit": {
+        "apiKey": "BYBIT_API_KEY",
+        "secret": "BYBIT_SECRET",
     },
-    'kraken': {
-        'apiKey': 'KRAKEN_API_KEY',
-        'secret': 'KRAKEN_SECRET',
+    "kraken": {
+        "apiKey": "KRAKEN_API_KEY",
+        "secret": "KRAKEN_SECRET",
     },
-    'kucoin': {
-        'apiKey': 'KUCOIN_API_KEY',
-        'secret': 'KUCOIN_SECRET',
-        'password': 'KUCOIN_PASSWORD',
+    "kucoin": {
+        "apiKey": "KUCOIN_API_KEY",
+        "secret": "KUCOIN_SECRET",
+        "password": "KUCOIN_PASSWORD",
     },
-    'coinbase': {
-        'apiKey': 'COINBASE_API_KEY',
-        'secret': 'COINBASE_SECRET',
+    "coinbase": {
+        "apiKey": "COINBASE_API_KEY",
+        "secret": "COINBASE_SECRET",
     },
-    'coinbaseex': {
-        'apiKey': 'COINBASEEX_API_KEY',
-        'secret': 'COINBASEEX_SECRET',
+    "coinbaseex": {
+        "apiKey": "COINBASEEX_API_KEY",
+        "secret": "COINBASEEX_SECRET",
     },
-    'gate': {
-        'apiKey': 'GATE_API_KEY',
-        'secret': 'GATE_SECRET',
+    "gate": {
+        "apiKey": "GATE_API_KEY",
+        "secret": "GATE_SECRET",
     },
-    'huobi': {
-        'apiKey': 'HUOBI_API_KEY',
-        'secret': 'HUOBI_SECRET',
+    "huobi": {
+        "apiKey": "HUOBI_API_KEY",
+        "secret": "HUOBI_SECRET",
     },
-    'kucoinfutures': {
-        'apiKey': 'KUCOIN_API_KEY',
-        'secret': 'KUCOIN_SECRET',
-        'password': 'KUCOIN_PASSWORD',
+    "kucoinfutures": {
+        "apiKey": "KUCOIN_API_KEY",
+        "secret": "KUCOIN_SECRET",
+        "password": "KUCOIN_PASSWORD",
     },
-    'bitget': {
-        'apiKey': 'BITGET_API_KEY',
-        'secret': 'BITGET_SECRET',
-        'password': 'BITGET_PASSWORD',
+    "bitget": {
+        "apiKey": "BITGET_API_KEY",
+        "secret": "BITGET_SECRET",
+        "password": "BITGET_PASSWORD",
     },
 }
 
@@ -95,8 +95,8 @@ def load_dotenv_file(env_path: Optional[str] = None) -> bool:
 
     # Try default locations
     default_paths = [
-        Path.cwd() / '.env',
-        Path(__file__).resolve().parent.parent.parent / '.env',
+        Path.cwd() / ".env",
+        Path(__file__).resolve().parent.parent.parent / ".env",
     ]
 
     for path in default_paths:
@@ -160,14 +160,14 @@ def load_ccxt_config_from_env(
 
     # Build config from environment variables
     config = {
-        'enableRateLimit': enable_rate_limit,
+        "enableRateLimit": enable_rate_limit,
     }
 
     for key, env_var in credentials.items():
         value = os.getenv(env_var)
         if value:
             config[key] = value
-        elif key in ['apiKey', 'secret']:
+        elif key in ["apiKey", "secret"]:
             # These are required
             raise ValueError(
                 f"Missing required credential '{env_var}' for exchange '{exchange}'. "
@@ -176,22 +176,22 @@ def load_ccxt_config_from_env(
 
     # Set sandbox mode if requested
     if sandbox:
-        config['options'] = config.get('options', {})
-        config['options']['defaultType'] = 'swap'
+        config["options"] = config.get("options", {})
+        config["options"]["defaultType"] = "swap"
 
     # OKX-specific: use AWS hostname for better connectivity in China
-    if exchange_lower == 'okx':
+    if exchange_lower == "okx":
         # Check environment variable first
-        use_aws = os.getenv('OKX_USE_AWS', '').lower() in ('true', '1', 'yes') or use_aws_host
+        use_aws = os.getenv("OKX_USE_AWS", "").lower() in ("true", "1", "yes") or use_aws_host
         if use_aws:
-            config['hostname'] = 'aws.okx.com'
-        
+            config["hostname"] = "aws.okx.com"
+
         # Check for proxy configuration
-        proxy = os.getenv('OKX_PROXY') or os.getenv('HTTPS_PROXY')
+        proxy = os.getenv("OKX_PROXY") or os.getenv("HTTPS_PROXY")
         if proxy:
-            config['proxies'] = {'https': proxy, 'http': proxy}
+            config["proxies"] = {"https": proxy, "http": proxy}
             # For aiohttp (WebSocket)
-            config['aiohttp_proxy'] = proxy
+            config["aiohttp_proxy"] = proxy
 
     return config
 
@@ -227,10 +227,8 @@ def get_exchange_credentials(exchange: str) -> Dict[str, str]:
     result = {}
     for key, env_var in credentials.items():
         value = os.getenv(env_var)
-        if not value and key in ['apiKey', 'secret']:
-            raise ValueError(
-                f"Missing required credential '{env_var}' for exchange '{exchange}'."
-            )
+        if not value and key in ["apiKey", "secret"]:
+            raise ValueError(f"Missing required credential '{env_var}' for exchange '{exchange}'.")
         if value:
             result[key] = value
 

@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-04-session-06'
 description: 'Session 6: Quality & Trace - Test review, traceability, quality metrics (45 min)'
 
@@ -8,7 +9,8 @@ sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-06-notes.md'
 nextStepFile: './step-03-session-menu.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Session 6 - Quality & Trace
 
@@ -47,9 +49,9 @@ To teach test quality auditing and requirements traceability using Test Review a
 
 "🧪 **Session 6: Quality & Trace** (45 minutes)
 
-**Objective:** Audit quality and ensure traceability
+- *Objective:** Audit quality and ensure traceability
 
-**What you'll learn:**
+- *What you'll learn:**
 
 - Test Review workflow (quality scoring)
 - 5 dimensions of test quality
@@ -66,82 +68,83 @@ Set session-06-quality-trace `status: 'in-progress'`.
 
 "### 🔍 Test Review Workflow
 
-**Purpose:** Audit test quality with 0-100 scoring
+- *Purpose:** Audit test quality with 0-100 scoring
 
-**5 Dimensions of Quality:**
+- *5 Dimensions of Quality:**
 
-**1. Determinism (0-100)**
+- *1. Determinism (0-100)**
 
 - Tests pass/fail consistently
 - No flakiness, no randomness
 - Proper async handling
 
-**2. Isolation (0-100)**
+- *2. Isolation (0-100)**
 
 - Tests run independently
 - No shared state
 - Parallelizable
 
-**3. Assertions (0-100)**
+- *3. Assertions (0-100)**
 
 - Correct checks for expected behavior
 - Meaningful assertions (not just presence)
 - Fails for the right reasons
 
-**4. Structure (0-100)**
+- *4. Structure (0-100)**
 
 - Readable test code
 - Clear organization and naming
 - Minimal duplication
 
-**5. Performance (0-100)**
+- *5. Performance (0-100)**
 
 - Test execution speed
 - Resource usage
 - Parallel efficiency
 
-**Overall Score = Average of 5 dimensions**
+- *Overall Score = Average of 5 dimensions**
 
 {Role-adapted example}
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-test-review/>"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-test-review/>"
 
 ### 4. Teaching: Trace Workflow
 
 "### 🔗 Trace Workflow: Requirements Traceability
 
-**Purpose:** Map tests to requirements, make release gate decision
+- *Purpose:** Map tests to requirements, make release gate decision
 
-**Trace Workflow:**
+- *Trace Workflow:**
 
-1. **Load Context:** Understand acceptance criteria
-2. **Discover Tests:** Find all test files
-3. **Map Criteria:** Link tests to requirements
-4. **Analyze Gaps:** What's not tested?
-5. **Gate Decision:** GREEN (ship) or RED (block)
+1. **Load Context:**Understand acceptance criteria
 
-**Release Gate Logic:**
+2.**Discover Tests:**Find all test files
+3.**Map Criteria:**Link tests to requirements
+4.**Analyze Gaps:**What's not tested?
+5.**Gate Decision:** GREEN (ship) or RED (block)
 
-- **GREEN:** All P0/P1 criteria have tests, gaps are P2/P3
-- **YELLOW:** Some P1 gaps, assess risk
+- *Release Gate Logic:**
+
+- **GREEN:**All P0/P1 criteria have tests, gaps are P2/P3
+- **YELLOW:**Some P1 gaps, assess risk
 - **RED:** P0 gaps exist, DO NOT SHIP
 
 {Role-adapted example}
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-trace/>"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-trace/>"
 
 ### 5. Teaching: Quality Metrics
 
 "### 📊 Quality Metrics That Matter
 
-**Track:**
+- *Track:**
 
-- **P0/P1 Coverage %** (not total line coverage)
-- **Flakiness Rate** (flaky tests / total tests)
-- **Test Execution Time** (feedback loop speed)
+- **P0/P1 Coverage %**(not total line coverage)
+- **Flakiness Rate**(flaky tests / total tests)
+- **Test Execution Time**(feedback loop speed)
 - **Determinism Score** (from Test Review)
 
-**Don't Track (Vanity Metrics):**
+- *Don't Track (Vanity Metrics):**
 
 - Total line coverage % (tells you nothing about risk)
 - Number of tests (quantity ≠ quality)
@@ -149,11 +152,12 @@ Set session-06-quality-trace `status: 'in-progress'`.
 
 {Role-adapted example}
 
-**Goal:** High P0/P1 coverage, zero flakiness, fast execution."
+- *Goal:** High P0/P1 coverage, zero flakiness, fast execution."
 
 ### 6. Quiz (3 questions)
 
-**Q1:** "What are the 5 dimensions in Test Review workflow?
+- *Q1:** "What are the 5 dimensions in Test Review workflow?
+
 A) Speed, cost, coverage, bugs, time
 B) Determinism, Isolation, Assertions, Structure, Performance
 C) Unit, integration, E2E, manual, exploratory
@@ -161,7 +165,8 @@ D) P0, P1, P2, P3, P4"
 
 Correct: B
 
-**Q2:** "When should the Trace workflow gate decision be RED (block release)?
+- *Q2:** "When should the Trace workflow gate decision be RED (block release)?
+
 A) Any test failures exist
 B) P0 gaps exist (critical requirements not tested)
 C) Code coverage is below 80%
@@ -169,7 +174,8 @@ D) Tests are slow"
 
 Correct: B
 
-**Q3:** "Which metric matters most for quality?
+- *Q3:**"Which metric matters most for quality?
+
 A) Total line coverage %
 B) Number of tests written
 C) P0/P1 coverage %
@@ -192,7 +198,7 @@ Set next_recommended: 'session-07-advanced'.
 
 ### 9. Complete Message
 
-"🎉 **Session 6 Complete!** Score: {score}/100
+"🎉**Session 6 Complete!** Score: {score}/100
 You can now audit quality and ensure traceability!
 Progress: {completion_percentage}%"
 
@@ -202,7 +208,7 @@ Progress: {completion_percentage}%"
 
 Return to {nextStepFile}.
 
----
+- --
 
 ## 🚨 SUCCESS METRICS
 

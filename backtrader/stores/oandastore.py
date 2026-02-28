@@ -25,27 +25,26 @@ import collections
 import warnings
 
 warnings.warn(
-    "backtrader.stores.oandastore uses the deprecated OANDA v1 API (oandapy). "
-    "Consider migrating to CCXT or OANDA v20.",
+    "backtrader.stores.oandastore uses the deprecated OANDA v1 API (oandapy). Consider migrating to CCXT or OANDA v20.",
     DeprecationWarning,
     stacklevel=2,
 )
-import json
-import threading
-import time as _time
-import traceback
-from datetime import datetime, timedelta, timezone
+import json  # noqa: E402
+import threading  # noqa: E402
+import time as _time  # noqa: E402
+import traceback  # noqa: E402
+from datetime import datetime, timedelta, timezone  # noqa: E402
 
-import oandapy
-import requests  # oandapy depdendency
-
-from ..dataseries import TimeFrame
-from ..order import Order
-from ..utils.py3 import queue
+import oandapy  # noqa: E402
+import requests  # noqa: E402  # oandapy dependency
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
-from backtrader.mixins.singleton import ParameterizedSingletonMixin
+from backtrader.mixins.singleton import ParameterizedSingletonMixin  # noqa: E402
+
+from ..dataseries import TimeFrame  # noqa: E402
+from ..order import Order  # noqa: E402
+from ..utils.py3 import queue  # noqa: E402
 
 # Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
 UTC = timezone.utc
@@ -583,9 +582,7 @@ class OandaStore(ParameterizedSingletonMixin):
         t.start()
         return q
 
-    def _t_candles(
-        self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst, q
-    ):
+    def _t_candles(self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst, q):
         granularity = self.get_granularity(timeframe, compression)
         if granularity is None:
             e = OandaTimeFrameError()
@@ -892,10 +889,7 @@ class OandaStore(ParameterizedSingletonMixin):
             # closes an existing position related to order with id -> pid
             # COULD BE DONE: Generate a fake counter-order to gracefully
             # close the existing position
-            msg = (
-                "Received TRADE_CLOSE for unknown order, possibly generated"
-                " over a different client or GUI"
-            )
+            msg = "Received TRADE_CLOSE for unknown order, possibly generated over a different client or GUI"
             self.put_notification(msg, trans)
             return
 

@@ -9,19 +9,26 @@ Certification testing ensures games meet platform holder requirements (Sony TRC,
 ### Major Platforms
 
 | Platform        | Requirements Doc                       | Submission Portal         |
+
 | --------------- | -------------------------------------- | ------------------------- |
+
 | PlayStation     | TRC (Technical Requirements Checklist) | PlayStation Partners      |
+
 | Xbox            | XR (Xbox Requirements)                 | Xbox Partner Center       |
+
 | Nintendo Switch | Guidelines                             | Nintendo Developer Portal |
+
 | Steam           | Guidelines (less strict)               | Steamworks                |
+
 | iOS             | App Store Guidelines                   | App Store Connect         |
+
 | Android         | Play Store Policies                    | Google Play Console       |
 
 ## Common Certification Categories
 
 ### Account and User Management
 
-```
+```bash
 REQUIREMENT: User Switching
   GIVEN user is playing game
   WHEN system-level user switch occurs
@@ -40,11 +47,12 @@ REQUIREMENT: Parental Controls
   WHEN restricted content is accessed
   THEN content is blocked or modified
   AND appropriate messaging shown
-```
+
+```bash
 
 ### System Events
 
-```
+```bash
 REQUIREMENT: Suspend/Resume (PS4/PS5)
   GIVEN game is running
   WHEN console enters rest mode
@@ -66,11 +74,12 @@ REQUIREMENT: Storage Full
   THEN graceful error handling
   AND user informed of issue
   AND no data corruption
-```
+
+```bash
 
 ### Network Requirements
 
-```
+```bash
 REQUIREMENT: PSN/Xbox Live Unavailable
   GIVEN online features
   WHEN platform network is unavailable
@@ -90,11 +99,12 @@ REQUIREMENT: NAT Type Handling
   WHEN multiplayer is attempted
   THEN appropriate feedback on connectivity
   AND fallback options offered
-```
+
+```bash
 
 ### Save Data
 
-```
+```bash
 REQUIREMENT: Save Data Integrity
   GIVEN save data exists
   WHEN save is loaded
@@ -113,39 +123,59 @@ REQUIREMENT: Save Data Portability (PS4→PS5)
   WHEN loaded on current generation
   THEN data migrates correctly
   AND no features lost
-```
+
+```bash
 
 ## Platform-Specific Requirements
 
 ### PlayStation (TRC)
 
 | Requirement | Description                 | Priority |
+
 | ----------- | --------------------------- | -------- |
+
 | TRC R4010   | Suspend/resume handling     | Critical |
+
 | TRC R4037   | User switching              | Critical |
+
 | TRC R4062   | Parental controls           | Critical |
+
 | TRC R4103   | PS VR comfort ratings       | VR only  |
+
 | TRC R4120   | DualSense haptics standards | PS5      |
+
 | TRC R5102   | PSN sign-in requirements    | Online   |
 
 ### Xbox (XR)
 
 | Requirement | Description                   | Priority    |
+
 | ----------- | ----------------------------- | ----------- |
+
 | XR-015      | Title timeout handling        | Critical    |
+
 | XR-045      | User sign-out handling        | Critical    |
+
 | XR-067      | Active user requirement       | Critical    |
+
 | XR-074      | Quick Resume support          | Series X/S  |
+
 | XR-115      | Xbox Accessibility Guidelines | Recommended |
 
 ### Nintendo Switch
 
 | Requirement        | Description         | Priority |
+
 | ------------------ | ------------------- | -------- |
+
 | Docked/Handheld    | Seamless transition | Critical |
+
 | Joy-Con detachment | Controller handling | Critical |
+
 | Home button        | Immediate response  | Critical |
+
 | Screenshots/Video  | Proper support      | Required |
+
 | Sleep mode         | Resume correctly    | Critical |
 
 ## Automated Test Examples
@@ -158,6 +188,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FSuspendResumeTest,
     "Certification.System.SuspendResume",
     EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::ProductFilter
+
 )
 
 bool FSuspendResumeTest::RunTest(const FString& Parameters)
@@ -181,7 +212,8 @@ bool FSuspendResumeTest::RunTest(const FString& Parameters)
 
     return true;
 }
-```
+
+```bash
 
 ```csharp
 // Unity - Controller Disconnect Test
@@ -207,27 +239,32 @@ public IEnumerator ControllerDisconnect_ShowsPauseMenu()
     // Verify prompt appears
     Assert.IsTrue(ReconnectPrompt.IsVisible);
 }
-```
+
+```bash
 
 ```gdscript
+
 # Godot - Save Corruption Test
+
 func test_corrupted_save_handling():
-    # Create corrupted save file
+
+# Create corrupted save file
     var file = FileAccess.open("user://save_corrupt.dat", FileAccess.WRITE)
     file.store_string("CORRUPTED_GARBAGE_DATA")
     file.close()
 
-    # Attempt to load
+# Attempt to load
     var result = SaveManager.load("save_corrupt")
 
-    # Should handle gracefully
+# Should handle gracefully
     assert_null(result, "Should return null for corrupted save")
     assert_false(OS.has_feature("crashed"), "Should not crash")
 
-    # Should show user message
+# Should show user message
     var message_shown = ErrorDisplay.current_message != ""
     assert_true(message_shown, "Should inform user of corruption")
-```
+
+```bash
 
 ## Pre-Submission Checklist
 
@@ -267,13 +304,21 @@ func test_corrupted_save_handling():
 ## Common Certification Failures
 
 | Issue                 | Platform     | Fix                                 |
+
 | --------------------- | ------------ | ----------------------------------- |
+
 | Home button delay     | All consoles | Respond within required time        |
+
 | Controller timeout    | PlayStation  | Handle reactivation properly        |
+
 | Save on suspend       | PlayStation  | Don't save during suspend           |
+
 | User context loss     | Xbox         | Track active user correctly         |
+
 | Joy-Con drift         | Switch       | Proper deadzone handling            |
+
 | Background memory     | Mobile       | Release resources when backgrounded |
+
 | Crash on corrupt data | All          | Validate all loaded data            |
 
 ## Testing Matrix
@@ -281,21 +326,33 @@ func test_corrupted_save_handling():
 ### Build Configurations to Test
 
 | Configuration   | Scenarios               |
+
 | --------------- | ----------------------- |
+
 | First boot      | No save data exists     |
+
 | Return user     | Save data present       |
+
 | Upgrade path    | Previous version save   |
+
 | Fresh install   | After uninstall         |
+
 | Low storage     | Minimum space available |
+
 | Network offline | No connectivity         |
 
 ### Hardware Variants
 
 | Platform    | Variants to Test                |
+
 | ----------- | ------------------------------- |
+
 | PlayStation | PS4, PS4 Pro, PS5               |
+
 | Xbox        | One, One X, Series S, Series X  |
+
 | Switch      | Docked, Handheld, Lite          |
+
 | PC          | Min spec, recommended, high-end |
 
 ## Best Practices

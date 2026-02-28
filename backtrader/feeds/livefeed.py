@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Live Feed Abstract Base Class.
 
 Defines the common interface that all live trading data feed implementations

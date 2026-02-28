@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-10-report-complete'
 description: 'Finalize validation report - check for plan file, summarize all findings, present to user'
 
@@ -6,7 +7,8 @@ targetWorkflowPath: '{workflow_folder_path}'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 workflowPlanFile: '{workflow_folder_path}/workflow-plan.md'
 planValidationStep: './step-11-plan-validation.md'
----
+
+- --
 
 # Validation Step 10: Report Complete
 
@@ -46,14 +48,14 @@ To check if a plan file exists (and run plan validation if it does), then summar
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Check for Plan File
 
 Before finalizing the report, check if a plan file exists:
 
-**Check if {workflowPlanFile} exists:**
-- **IF YES:** Run plan validation first
+- *Check if {workflowPlanFile} exists:**
+- **IF YES:**Run plan validation first
   - Load, read entire file, then execute {planValidationStep}
   - The plan validation will append its findings to the report
   - Then return to this step to finalize the report
@@ -131,7 +133,7 @@ If a plan file exists at {workflowPlanFile}, update its frontmatter to include t
 
 This is the final validation step. User reviews findings and decides whether to make changes. Validation workflow ends here.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -151,4 +153,4 @@ This is the final validation step. User reviews findings and decides whether to 
 - Not updating report status
 - Not giving user clear options for next steps
 
-**Master Rule:** Validation is complete. User reviews findings and decides what changes to make. Provide clear summary and options.
+- *Master Rule:** Validation is complete. User reviews findings and decides what changes to make. Provide clear summary and options.

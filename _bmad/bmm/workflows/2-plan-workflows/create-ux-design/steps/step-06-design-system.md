@@ -53,23 +53,23 @@ Choose appropriate design system approach based on project requirements and cons
 Educate about design system approaches:
 "For {{project_name}}, we need to choose a design system foundation. Think of design systems like LEGO blocks for UI - they provide proven components and patterns, ensuring consistency and speeding development.
 
-**Design System Approaches:**
+- *Design System Approaches:**
 
-**1. Custom Design System**
+- *1. Custom Design System**
 
 - Complete visual uniqueness
 - Full control over every component
 - Higher initial investment
 - Perfect for established brands with unique needs
 
-**2. Established System (Material Design, Ant Design, etc.)**
+- *2. Established System (Material Design, Ant Design, etc.)**
 
 - Fast development with proven patterns
 - Great defaults and accessibility built-in
 - Less visual differentiation
 - Ideal for startups or internal tools
 
-**3. Themeable System (MUI, Chakra UI, Tailwind UI)**
+- *3. Themeable System (MUI, Chakra UI, Tailwind UI)**
 
 - Customizable with strong foundation
 - Brand flexibility with proven components
@@ -83,7 +83,7 @@ Which direction feels right for your project?"
 Guide decision based on project context:
 "**Let's consider your specific needs:**
 
-**Based on our previous conversations:**
+- *Based on our previous conversations:**
 
 - Platform: [platform from step 3]
 - Timeline: [inferred from user conversation]
@@ -91,7 +91,7 @@ Guide decision based on project context:
 - Brand Requirements: [inferred from user conversation]
 - Technical Constraints: [inferred from user conversation]
 
-**Decision Factors:**
+- *Decision Factors:**
 
 - Need for speed vs. need for uniqueness
 - Brand guidelines or existing visual identity
@@ -104,13 +104,13 @@ Guide decision based on project context:
 Dive deeper into relevant options:
 "**Recommended Options Based on Your Needs:**
 
-**For [Your Platform Type]:**
+- *For [Your Platform Type]:**
 
 - [Option 1] - [Key benefit] - [Best for scenario]
 - [Option 2] - [Key benefit] - [Best for scenario]
 - [Option 3] - [Key benefit] - [Best for scenario]
 
-**Considerations:**
+- *Considerations:**
 
 - Component library size and quality
 - Documentation and community support
@@ -137,13 +137,13 @@ Let's evaluate options based on your answers to these questions."
 Confirm and document the decision:
 "Based on our analysis, I recommend [Design System Choice] for {{project_name}}.
 
-**Rationale:**
+- *Rationale:**
 
 - [Reason 1 based on project needs]
 - [Reason 2 based on constraints]
 - [Reason 3 based on team considerations]
 
-**Next Steps:**
+- *Next Steps:**
 
 - We'll customize this system to match your brand and needs
 - Define component strategy for custom components needed
@@ -160,6 +160,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Design System Foundation
 
 ### 1.1 Design System Choice
@@ -177,18 +178,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Customization Strategy
 
 [Customization strategy based on project needs]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated design system content and present choices:
 "I've documented our design system choice for {{project_name}}. This foundation will ensure consistency and speed up development.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine our design system decision
 [P] Party Mode - Bring technical perspectives on design systems
 [C] Continue - Save this to the document and move to defining experience

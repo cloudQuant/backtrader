@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03-risk-and-testability'
 description: 'Perform testability review (system-level) and risk assessment'
 nextStepFile: './step-04-coverage-plan.md'
 outputFile: '{test_artifacts}/test-design-progress.md'
----
+
+- --
 
 # Step 3: Testability & Risk Assessment
 
@@ -17,7 +19,7 @@ Produce a defensible testability review (system-level) and a risk assessment mat
 - ✅ Speak in `{communication_language}`
 - 🎯 Base conclusions on evidence from loaded artifacts
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -34,26 +36,27 @@ Produce a defensible testability review (system-level) and a risk assessment mat
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. System-Level Mode: Testability Review
 
-If **system-level**, evaluate architecture for:
+If**system-level**, evaluate architecture for:
 
-- **Controllability** (state seeding, mockability, fault injection)
-- **Observability** (logs, metrics, traces, deterministic assertions)
+- **Controllability**(state seeding, mockability, fault injection)
+- **Observability**(logs, metrics, traces, deterministic assertions)
 - **Reliability** (isolation, reproducibility, parallel safety)
 
-**Structure output as:**
+- *Structure output as:**
 
-1. **🚨 Testability Concerns** (actionable issues first)
-2. **✅ Testability Assessment Summary** (what is already strong)
+1. **🚨 Testability Concerns**(actionable issues first)
 
-Also identify **ASRs** (Architecturally Significant Requirements):
+2.**✅ Testability Assessment Summary**(what is already strong)
 
-- Mark each as **ACTIONABLE** or **FYI**
+Also identify**ASRs**(Architecturally Significant Requirements):
 
----
+- Mark each as**ACTIONABLE**or**FYI**
+
+- --
 
 ## 2. All Modes: Risk Assessment
 
@@ -66,26 +69,30 @@ Using `risk-governance.md` and `probability-impact.md` (if loaded):
 - Flag high risks (score ≥ 6)
 - Define mitigation, owner, and timeline
 
----
+- --
 
 ## 3. Summarize Risk Findings
 
 Summarize the highest risks and their mitigation priorities.
 
----
+- --
 
 ### 4. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-03-risk-and-testability']
   lastStep: 'step-03-risk-and-testability'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -107,4 +114,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

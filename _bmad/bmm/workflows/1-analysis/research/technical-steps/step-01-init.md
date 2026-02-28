@@ -23,23 +23,23 @@
 ## CONTEXT BOUNDARIES:
 
 - Research type = "technical" is already set
-- **Research topic = "{{research_topic}}"** - discovered from initial discussion
-- **Research goals = "{{research_goals}}"** - captured from initial discussion
+- **Research topic = "{{research_topic}}"**- discovered from initial discussion
+- **Research goals = "{{research_goals}}"**- captured from initial discussion
 - Focus on technical architecture and implementation research
 - Web search is required to verify and supplement your knowledge with current facts
 
 ## YOUR TASK:
 
-Confirm technical research scope and approach for **{{research_topic}}** with the user's goals in mind.
+Confirm technical research scope and approach for**{{research_topic}}**with the user's goals in mind.
 
 ## TECHNICAL SCOPE CONFIRMATION:
 
 ### 1. Begin Scope Confirmation
 
 Start with technical scope understanding:
-"I understand you want to conduct **technical research** for **{{research_topic}}** with these goals: {{research_goals}}
+"I understand you want to conduct**technical research**for**{{research_topic}}** with these goals: {{research_goals}}
 
-**Technical Research Scope:**
+- *Technical Research Scope:**
 
 - **Architecture Analysis**: System design patterns, frameworks, and architectural decisions
 - **Implementation Approaches**: Development methodologies, coding patterns, and best practices
@@ -47,7 +47,7 @@ Start with technical scope understanding:
 - **Integration Patterns**: APIs, communication protocols, and system interoperability
 - **Performance Considerations**: Scalability, optimization, and performance patterns
 
-**Research Approach:**
+- *Research Approach:**
 
 - Current web data with rigorous source verification
 - Multi-source validation for critical technical claims
@@ -61,15 +61,16 @@ Present clear scope confirmation:
 
 For **{{research_topic}}**, I will research:
 
-✅ **Architecture Analysis** - design patterns, frameworks, system architecture
-✅ **Implementation Approaches** - development methodologies, coding patterns
-✅ **Technology Stack** - languages, frameworks, tools, platforms
-✅ **Integration Patterns** - APIs, protocols, interoperability
-✅ **Performance Considerations** - scalability, optimization, patterns
+✅ **Architecture Analysis**- design patterns, frameworks, system architecture
+✅**Implementation Approaches**- development methodologies, coding patterns
+✅**Technology Stack**- languages, frameworks, tools, platforms
+✅**Integration Patterns**- APIs, protocols, interoperability
+✅**Performance Considerations** - scalability, optimization, patterns
 
-**All claims verified against current public sources.**
+- *All claims verified against current public sources.**
 
-**Does this technical research scope and approach align with your goals?**
+- *Does this technical research scope and approach align with your goals?**
+
 [C] Continue - Begin technical research with this scope
 
 ### 3. Handle Continue Selection
@@ -85,12 +86,13 @@ For **{{research_topic}}**, I will research:
 When user selects 'C', append scope confirmation:
 
 ```markdown
+
 ## Technical Research Scope Confirmation
 
-**Research Topic:** {{research_topic}}
-**Research Goals:** {{research_goals}}
+- *Research Topic:** {{research_topic}}
+- *Research Goals:** {{research_goals}}
 
-**Technical Research Scope:**
+- *Technical Research Scope:**
 
 - Architecture Analysis - design patterns, frameworks, system architecture
 - Implementation Approaches - development methodologies, coding patterns
@@ -98,15 +100,16 @@ When user selects 'C', append scope confirmation:
 - Integration Patterns - APIs, protocols, interoperability
 - Performance Considerations - scalability, optimization, patterns
 
-**Research Methodology:**
+- *Research Methodology:**
 
 - Current web data with rigorous source verification
 - Multi-source validation for critical technical claims
 - Confidence level framework for uncertain information
 - Comprehensive technical coverage with architecture-specific insights
 
-**Scope Confirmed:** {{date}}
-```
+- *Scope Confirmed:**{{date}}
+
+```bash
 
 ## SUCCESS METRICS:
 
@@ -126,7 +129,7 @@ When user selects 'C', append scope confirmation:
 ❌ Proceeding without user scope confirmation
 ❌ Not routing to next technical research step
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 

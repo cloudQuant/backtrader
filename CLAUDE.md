@@ -6,110 +6,152 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Backtrader is a Python-based quantitative trading and backtesting framework for mid-to-low frequency strategies. This is a fork that removes metaclass-based metaprogramming in favor of explicit initialization patterns while maintaining API compatibility with the original backtrader.
 
-**Branch Context**:
+- *Branch Context**:
 - `dev` branch: Active development with 45% performance improvement, tick-level testing, C++ integration
 - `master` branch: Stable version aligned with official backtrader
 - `remove-metaprogramming`: Legacy branch for metaclass removal (mostly merged into dev)
 
-**Performance**: The dev branch achieves 45% faster execution through elimination of metaclasses, broker optimization, and Cython-accelerated calculations.
+- *Performance**: The dev branch achieves 45% faster execution through elimination of metaclasses, broker optimization, and Cython-accelerated calculations.
 
 ## Development Commands
 
 ### Installation
+
 ```bash
+
 # Install dependencies
+
 pip install -r requirements.txt
 
 # Compile Cython files (Unix/Mac)
+
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U .
 
 # Compile Cython files (Windows)
+
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
-```
+
+```bash
 
 ### Testing
+
 ```bash
+
 # Run all tests (parallel execution recommended)
+
 pytest tests/ -n 4 -v
 
 # Run only original tests (excluding crypto tests)
+
 pytest tests/original_tests/ -v
 
 # Run indicator tests
+
 pytest tests/add_tests/test_ind*.py tests/original_tests/test_ind*.py -v
 
 # Run strategy tests
+
 pytest tests/add_tests/test_strategy*.py tests/original_tests/test_strategy*.py -v
 
 # Run analyzer tests
+
 pytest tests/add_tests/test_analyzer*.py tests/original_tests/test_analyzer*.py -v
 
 # Run single test with detailed output
+
 pytest tests/path/to/test_file.py::test_function_name -v --tb=short
 
 # Run tests with coverage
+
 make test-coverage
 
 # Run benchmarks
+
 make benchmark
-```
+
+```bash
 
 ### Code Quality
+
 ```bash
+
 # Format code (Black)
+
 make format
 
 # Check formatting
+
 make format-check
 
 # Run linter
+
 make lint
 
 # Type checking
+
 make type-check
 
 # Security checks
+
 make security
 
 # Run all quality checks
+
 make quality-check
 
 # Full code optimization (pyupgrade, isort, black, ruff, then test)
+
 bash scripts/optimize_code.sh
-```
+
+```bash
 
 ### Documentation
+
 ```bash
+
 # Generate all documentation (en + zh)
+
 make docs
 
 # Generate English documentation
+
 make docs-en
 
 # Generate Chinese documentation
+
 make docs-zh
 
 # Build English docs with live reload (for development)
+
 make docs-live
 
 # Open documentation in browser
+
 make docs-view
-```
+
+```bash
 
 ### Development Utilities
+
 ```bash
+
 # See all available commands
+
 make help
 
 # Clean build artifacts
+
 make clean
 
 # Setup git hooks for development
+
 make git-setup
 
 # Analyze metaclass usage in codebase
+
 make analyze-metaprogramming
-```
+
+```bash
 
 ## Architecture Overview
 
@@ -122,21 +164,22 @@ The codebase is transitioning from metaclass-based to mixin-based architecture:
    - `findowner()`: Locates owner objects in the call stack
    - Replaces metaclass logic with explicit method calls
 
-2. **Line System** (bottom-up):
+1. **Line System**(bottom-up):
    - `LineRoot` → `LineBuffer` → `LineSeries` → `LineIterator`
    - `LineRoot`: Base interface for line operations and period management
    - `LineBuffer`: Data storage with circular buffer support (`linebuffer.py:~1950 lines`)
    - `LineSeries`: Time series operations and data access
    - `LineIterator`: Iteration logic, prenext/next/once phase management
 
-3. **Operational Classes**:
+3.**Operational Classes**:
+
    - `Indicator` (lineiterator.py): Technical indicators base class
    - `Observer`: Chart observers (volume, cash, etc.)
    - `Analyzer`: Performance metrics and statistics
    - `Strategy`: Trading strategy base class
    - `Data/Feed`: Data source management
 
-4. **Engine**: `cerebro.py` (~88K lines)
+1. **Engine**: `cerebro.py` (~88K lines)
    - Main orchestration engine
    - Manages strategies, data feeds, brokers, analyzers
    - Handles backtesting execution flow
@@ -144,24 +187,30 @@ The codebase is transitioning from metaclass-based to mixin-based architecture:
 
 ### Critical Initialization Pattern
 
-**After metaclass removal, initialization follows this pattern:**
+- *After metaclass removal, initialization follows this pattern:**
 
 ```python
+
 # Old metaclass way (deprecated):
+
 # __new__ + metaclass magic
 
 # New explicit way:
+
 def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
 def __init__(self, *args, **kwargs):
-    # Initialize attributes early
-    # Call parent class __init__
-    super().__init__(*args, **kwargs)
-```
 
-**Key Points**:
+# Initialize attributes early
+
+# Call parent class __init__
+    super().__init__(*args, **kwargs)
+
+```bash
+
+- *Key Points**:
 - `donew()` method replaces metaclass `__call__`
 - Owner finding happens in `donew()` via `metabase.findowner()`
 - Parameters are initialized before `__init__` is called
@@ -169,36 +218,38 @@ def __init__(self, *args, **kwargs):
 
 ### Indicator Registration System
 
-**Critical**: Indicators must register themselves with their owner's `_lineiterators` list.
+- *Critical**: Indicators must register themselves with their owner's `_lineiterators` list.
 
-**Location**: `lineiterator.py:528-556`
+- *Location**: `lineiterator.py:528-556`
 
-**How it works**:
+- *How it works**:
 1. Indicator sets `_ltype = LineIterator.IndType` (value: 0)
 2. During `__init__`, if indicator has an owner, it auto-registers
 3. Owner's `_next()` method iterates `_lineiterators` to update all indicators
 4. Registration must happen early, before any data processing
 
-**Common Bug**: If indicators aren't registered, they won't update during backtesting.
+- *Common Bug**: If indicators aren't registered, they won't update during backtesting.
 
 ### Parameter System
 
-**Location**: `parameters.py` (~76K lines)
+- *Location**: `parameters.py` (~76K lines)
 
 Parameters use `AutoOrderedDict` and are initialized via `donew()`:
+
 - Parameters defined at class level with `params = (...)` or `params = dict(...)`
 - Values passed as kwargs override defaults
 - Accessed via `self.p.parametername` or `self.params.parametername`
 
-**Critical**: Parameters are NOT available until after `super().__init__()` is called. The initialization chain sets up `self.p` and `self.params` attributes.
+- *Critical**: Parameters are NOT available until after `super().__init__()` is called. The initialization chain sets up `self.p` and `self.params` attributes.
 
 ### Data Flow
 
-```
+```bash
 Data Feed → Cerebro → Strategy → Indicators/Observers/Analyzers
                 ↓
              Broker ← Orders
-```
+
+```bash
 
 1. Cerebro loads data feeds and runs the main loop
 2. Data is fed bar-by-bar (or tick-by-tick in dev branch)
@@ -216,44 +267,51 @@ Backtrader has three execution phases:
 3. **next**: Normal operation after minperiod
 
 Alternative optimized mode uses:
+
 - **once**: Batch processing all bars at once (faster but more complex)
 
 ## Key Files and Their Purposes
 
 ### Core Engine
+
 - `cerebro.py`: Main backtesting engine and orchestrator
 - `broker.py`, `brokers/`: Order execution and portfolio management
 - `strategy.py`: Base class for trading strategies
 
 ### Line System
+
 - `lineroot.py`: Base classes and interfaces
 - `linebuffer.py`: Data storage with circular buffers (~1950 lines)
 - `lineseries.py`: Time series operations (~75K lines)
 - `lineiterator.py`: Iterator logic and execution phases (~94K lines)
 - `dataseries.py`: Data accessor interfaces
 
-**Key Concept**: The Line system is the core data structure. Lines are time series that support:
+- *Key Concept**: The Line system is the core data structure. Lines are time series that support:
 - Circular buffering for memory efficiency
 - Lazy evaluation for indicators
 - Period management (minperiod before valid data)
 - Access patterns like `data.close[0]` (current), `data.close[-1]` (previous)
 
 ### Data Management
+
 - `feed.py`: Base data feed classes
 - `feeds/`: Various data source implementations (CSV, pandas, live feeds)
 - `resamplerfilter.py`: Data resampling and filtering
 
 ### Indicators
+
 - `indicator.py`: Base indicator class
 - `indicators/`: 60+ technical indicators
 - `indicators/contrib/`: Community-contributed indicators
 
 ### Analysis
+
 - `analyzer.py`: Base analyzer class
 - `analyzers/`: Performance metrics (Sharpe, drawdown, returns, etc.)
 - `observer.py`, `observers/`: Chart observers
 
 ### Utilities
+
 - `metabase.py`: Base mixins and owner-finding logic (critical for post-metaclass code)
 - `utils/`: Date handling, performance calculations, logging
 - `utils/*_cython/`: Cython-optimized calculations for `ts` and `cs` modes
@@ -262,6 +320,7 @@ Alternative optimized mode uses:
 - `utils/cal_performance_indicators/`: Performance metrics in Cython
 
 ### Visualization
+
 - `plot/plot_plotly.py`: Interactive charts with zoom, pan, hover (100k+ data points)
 - `plot/`: Matplotlib-based static plotting for papers/reports
 - Supports multiple backends: Plotly, Bokeh, Matplotlib
@@ -269,13 +328,17 @@ Alternative optimized mode uses:
 ## Special Features
 
 ### TS (Time Series) Mode
+
 Fast vectorized backtesting using pandas operations. See `utils/ts_cal_value/` for Cython implementations.
 
 ### CS (Cross-Section) Mode
+
 Multi-asset portfolio backtesting with cross-sectional signals. See `utils/cs_cal_value/` and `utils/cs_long_short_signals/`.
 
 ### Cython Optimization
+
 Performance-critical calculations are implemented in Cython for 10-100x speedup:
+
 - `utils/cal_performance_indicators/`: Performance metrics
 - `utils/ts_cal_value/`: Time series calculations
 - `utils/cs_cal_value/`: Cross-section calculations
@@ -284,18 +347,21 @@ Performance-critical calculations are implemented in Cython for 10-100x speedup:
 ## Testing Notes
 
 ### Test Organization
+
 - `tests/original_tests/`: Core functionality tests (300+ tests)
 - `tests/add_tests/`: Additional test coverage
 - `tests/refactor_tests/`: Tests for metaclass removal refactoring
 - `tests/strategies/`: Strategy-specific test cases
 
 ### Test Configuration
+
 - **pytest.ini**: Configures test discovery and warning filters
 - **conftest.py**: Handles temp directory cleanup (fixes Windows permission issues)
 - Parallel execution via pytest-xdist (`-n` flag) is recommended for speed
 - RuntimeWarning and DeprecationWarning are filtered by default
 
 ### When Writing Tests
+
 - Use fixtures from `conftest.py` if available
 - Test with minimal data (10-20 bars) for unit tests
 - Verify indicator registration via `strategy._lineiterators`
@@ -306,6 +372,7 @@ Performance-critical calculations are implemented in Cython for 10-100x speedup:
 ## Common Tasks
 
 ### Adding a New Indicator
+
 1. Create file in `backtrader/indicators/`
 2. Inherit from `bt.Indicator`
 3. Define `lines = ('output_line',)` for result storage
@@ -315,6 +382,7 @@ Performance-critical calculations are implemented in Cython for 10-100x speedup:
 7. Add to `indicators/__init__.py`
 
 ### Adding a New Strategy
+
 1. Inherit from `bt.Strategy`
 2. Define parameters with `params = (...)`
 3. Implement `__init__()` to set up indicators
@@ -322,6 +390,7 @@ Performance-critical calculations are implemented in Cython for 10-100x speedup:
 5. Use `self.buy()`, `self.sell()`, `self.close()` for orders
 
 ### Debugging Line Issues
+
 - Check `len(obj)` returns expected value
 - Verify `obj._minperiod` is set correctly
 - Ensure `obj._owner` is assigned
@@ -337,6 +406,7 @@ Performance-critical calculations are implemented in Cython for 10-100x speedup:
 - Comments in Chinese and English are both present in the codebase
 
 ### Configuration Files
+
 - `pyproject.toml`: Black (line-length=100), mypy, coverage, bandit, isort, ruff configuration
 - `pytest.ini`: Test discovery and warning filters
 - `.pylintrc`: Pylint rules for code quality checks
@@ -344,18 +414,23 @@ Performance-critical calculations are implemented in Cython for 10-100x speedup:
 ## Important Constraints
 
 ### Metaclass Removal Project
+
 The codebase has removed most metaclass usage. When working on this:
 
-1. **Never introduce new metaclasses** - use mixins with `donew()` pattern instead
-2. **Preserve API compatibility** - existing user code must work unchanged
-3. **Maintain initialization order** - parent `__init__` before accessing `self.p` or lines
-4. **Test on both branches** - ensure consistency between `dev` and `master` when validating fixes
+1. **Never introduce new metaclasses**- use mixins with `donew()` pattern instead
+
+2.**Preserve API compatibility**- existing user code must work unchanged
+3.**Maintain initialization order**- parent `__init__` before accessing `self.p` or lines
+4.**Test on both branches**- ensure consistency between `dev` and `master` when validating fixes
 
 ### Parameter Access
-Always call `super().__init__()` **before** accessing `self.p` or `self.params`. The initialization chain sets up these attributes.
+
+Always call `super().__init__()`**before** accessing `self.p` or `self.params`. The initialization chain sets up these attributes.
 
 ### Owner Assignment
+
 Objects need to know their owner (e.g., indicator needs its strategy/data). This happens via:
+
 - `metabase.findowner()` in `donew()` method
 - Manual assignment if auto-detection fails
 - Owner is needed for indicator registration and data access

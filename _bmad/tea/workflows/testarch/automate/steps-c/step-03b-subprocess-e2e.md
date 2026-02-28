@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03b-subprocess-e2e'
 description: 'Subprocess: Generate E2E tests only'
 subprocess: true
 outputFile: '/tmp/tea-automate-e2e-tests-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 3B: Generate E2E Tests
 
@@ -11,16 +13,16 @@ outputFile: '/tmp/tea-automate-e2e-tests-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with API test generation.
 
-**What you have from parent workflow:**
+- *What you have from parent workflow:**
 
 - Target features/user journeys identified in Step 2
 - Knowledge fragments loaded: fixture-architecture, network-first, selector-resilience
 - Config: test framework, Playwright Utils enabled/disabled
 - Coverage plan: which user journeys need E2E testing
 
-**Your task:** Generate E2E tests ONLY (not API, not fixtures, not other test types).
+- *Your task:** Generate E2E tests ONLY (not API, not fixtures, not other test types).
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -32,7 +34,7 @@ This is an **isolated subprocess** running in parallel with API test generation.
 - ❌ Do NOT run tests (that's step 4)
 - ❌ Do NOT generate fixtures yet (that's step 3C aggregation)
 
----
+- --
 
 ## SUBPROCESS TASK
 
@@ -47,13 +49,15 @@ From the coverage plan (Step 2 output), identify:
 
 ### 2. Browser Interaction (Selector Verification)
 
-**Automation mode:** `config.tea_browser_automation`
+- *Automation mode:**`config.tea_browser_automation`
 
 If `auto` (fall back to MCP if CLI unavailable; if neither available, generate from best practices):
 
 - Open the target page first, then verify selectors with a snapshot:
+
   `playwright-cli -s=tea-automate-{{timestamp}} open <target_url>`
   `playwright-cli -s=tea-automate-{{timestamp}} snapshot` → map refs to Playwright locators
+
   - ref `{role: "button", name: "Submit"}` → `page.getByRole('button', { name: 'Submit' })`
   - ref `{role: "textbox", name: "Email"}` → `page.getByRole('textbox', { name: 'Email' })`
 - `playwright-cli -s=tea-automate-{{timestamp}} close` when done
@@ -61,13 +65,15 @@ If `auto` (fall back to MCP if CLI unavailable; if neither available, generate f
 If `cli` (CLI only — do NOT fall back to MCP; generate from best practices if CLI unavailable):
 
 - Open the target page first, then verify selectors with a snapshot:
+
   `playwright-cli -s=tea-automate-{{timestamp}} open <target_url>`
   `playwright-cli -s=tea-automate-{{timestamp}} snapshot` → map refs to Playwright locators
+
   - ref `{role: "button", name: "Submit"}` → `page.getByRole('button', { name: 'Submit' })`
   - ref `{role: "textbox", name: "Email"}` → `page.getByRole('textbox', { name: 'Email' })`
 - `playwright-cli -s=tea-automate-{{timestamp}} close` when done
 
-> **Session Hygiene:** Always close sessions using `playwright-cli -s=tea-automate-{{timestamp}} close`. Do NOT use `close-all` — it kills every session on the machine and breaks parallel execution.
+>**Session Hygiene:** Always close sessions using `playwright-cli -s=tea-automate-{{timestamp}} close`. Do NOT use `close-all` — it kills every session on the machine and breaks parallel execution.
 
 If `mcp`:
 
@@ -81,7 +87,7 @@ If `none`:
 
 For each user journey, create test file in `tests/e2e/[feature].spec.ts`:
 
-**Test Structure:**
+- *Test Structure:**
 
 ```typescript
 import { test, expect } from '@playwright/test';
@@ -102,9 +108,10 @@ test.describe('[Feature] E2E User Journey', () => {
     // Test edge case scenario
   });
 });
-```
 
-**Requirements:**
+```bash
+
+- *Requirements:**
 
 - ✅ Follow fixture architecture patterns (from fixture-architecture fragment)
 - ✅ Use network-first patterns: intercept before navigate (from network-first fragment)
@@ -123,9 +130,9 @@ Identify fixtures needed for E2E tests:
 - Network mocks/intercepts
 - Test data fixtures
 
-**Do NOT create fixtures yet** - just track what's needed for aggregation step.
+- *Do NOT create fixtures yet** - just track what's needed for aggregation step.
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -164,9 +171,10 @@ Write JSON to temp file: `/tmp/tea-automate-e2e-tests-{{timestamp}}.json`
   "test_count": 15,
   "summary": "Generated 15 E2E test cases covering 5 user journeys"
 }
-```
 
-**On Error:**
+```bash
+
+- *On Error:**
 
 ```json
 {
@@ -174,12 +182,13 @@ Write JSON to temp file: `/tmp/tea-automate-e2e-tests-{{timestamp}}.json`
   "subprocess": "e2e-tests",
   "error": "Error message describing what went wrong",
   "partial_output": {
-    /* any tests generated before error */
+    /*any tests generated before error*/
   }
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -190,9 +199,9 @@ Subprocess completes when:
 - ✅ JSON output written to temp file
 - ✅ Fixture needs tracked
 
-**Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
+- *Subprocess terminates here.** Parent workflow will read output and proceed to aggregation.
 
----
+- --
 
 ## 🚨 SUBPROCESS SUCCESS METRICS
 

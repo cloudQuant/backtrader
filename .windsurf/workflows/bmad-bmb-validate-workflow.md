@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Run validation check on BMAD workflows against best practices'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # validate-workflow
 

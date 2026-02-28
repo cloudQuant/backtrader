@@ -202,11 +202,7 @@ class LiveClient:
         # tabs
         tabs = Tabs(
             tabs=[],
-            sizing_mode=(
-                self._app.scheme.plot_sizing_mode
-                if hasattr(self._app, "scheme")
-                else "stretch_width"
-            ),
+            sizing_mode=(self._app.scheme.plot_sizing_mode if hasattr(self._app, "scheme") else "stretch_width"),
         )
         tabs.name = "tabs"
 

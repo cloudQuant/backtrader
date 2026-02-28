@@ -1,19 +1,23 @@
----
+- --
+
 name: 'step-03-success'
 description: 'Define comprehensive success criteria covering user, business, and technical success'
 
 # File References
+
 nextStepFile: './step-04-journeys.md'
 outputFile: '{planning_artifacts}/prd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 3: Success Criteria Definition
 
-**Progress: Step 3 of 11** - Next: User Journey Mapping
+- *Progress: Step 3 of 11** - Next: User Journey Mapping
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -52,11 +56,14 @@ Define comprehensive success criteria that cover user success, business success,
 
 ### 1. Begin Success Definition Conversation
 
-**Check Input Documents for Success Indicators:**
+- *Check Input Documents for Success Indicators:**
+
 Analyze product brief, research, and brainstorming documents for success criteria already mentioned.
 
-**If Input Documents Contain Success Criteria:**
+- *If Input Documents Contain Success Criteria:**
+
 Guide user to refine existing success criteria:
+
 - Acknowledge what's already documented in their materials
 - Extract key success themes from brief, research, and brainstorming
 - Help user identify gaps and areas for expansion
@@ -64,8 +71,10 @@ Guide user to refine existing success criteria:
 - Ask about emotional success moments and completion scenarios
 - Explore what "worth it" means beyond what's already captured
 
-**If No Success Criteria in Input Documents:**
+- *If No Success Criteria in Input Documents:**
+
 Start with user-centered success exploration:
+
 - Guide conversation toward defining what "worth it" means for users
 - Ask about the moment users realize their problem is solved
 - Explore specific user outcomes and emotional states
@@ -84,6 +93,7 @@ Listen for specific user outcomes and help make them measurable:
 ### 3. Define Business Success
 
 Transition to business metrics:
+
 - Guide conversation to business perspective on success
 - Explore timelines: What does 3-month success look like? 12-month success?
 - Identify key business metrics: revenue, user growth, engagement, or other measures?
@@ -102,6 +112,7 @@ Push for specificity on business metrics:
 ### 5. Connect to Product Differentiator
 
 Tie success metrics back to what makes the product special:
+
 - Connect success criteria to the product's unique differentiator
 - Ensure metrics reflect the specific value proposition
 - Adapt success criteria to domain context:
@@ -114,6 +125,7 @@ Tie success metrics back to what makes the product special:
 ### 6. Smart Scope Negotiation
 
 Guide scope definition through success lens:
+
 - Help user distinguish MVP (must work to be useful) from growth (competitive) and vision (dream)
 - Guide conversation through three scope levels:
   1. MVP: What's essential for proving the concept?
@@ -131,6 +143,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Success Criteria
 
 ### User Success
@@ -162,7 +175,8 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Vision (Future)
 
 [Content about future vision based on conversation]
-```
+
+```bash
 
 ### 8. Present MENU OPTIONS
 
@@ -172,15 +186,17 @@ Present the success criteria content for user review, then display menu:
 - Ask if they'd like to refine further, get other perspectives, or proceed
 - Present menu options naturally as part of the conversation
 
-Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to User Journey Mapping (Step 4 of 11)"
+Display: "**Select:**[A] Advanced Elicitation [P] Party Mode [C] Continue to User Journey Mapping (Step 4 of 11)"
 
 #### Menu Handling Logic:
+
 - IF A: Read fully and follow: {advancedElicitationTask} with the current success criteria content, process the enhanced success metrics that come back, ask user "Accept these improvements to the success criteria? (y/n)", if yes update content with improvements then redisplay menu, if no keep original content then redisplay menu
 - IF P: Read fully and follow: {partyModeWorkflow} with the current success criteria, process the collaborative improvements to metrics and scope, ask user "Accept these changes to the success criteria? (y/n)", if yes update content with improvements then redisplay menu, if no keep original content then redisplay menu
 - IF C: Append the final content to {outputFile}, update frontmatter by adding this step name to the end of the stepsCompleted array, then read fully and follow: {nextStepFile}
 - IF Any other: help user respond, then redisplay menu
 
 #### EXECUTION RULES:
+
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
@@ -207,7 +223,7 @@ When user selects 'C', append the content directly to the document using the str
 ❌ Not presenting A/P/C menu after content generation
 ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 

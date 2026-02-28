@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-01-document-discovery'
 description: 'Discover and inventory all project documents, handling duplicates and organizing file structure'
 
 nextStepFile: './step-02-prd-analysis.md'
 outputFile: '{planning_artifacts}/implementation-readiness-report-{{date}}.md'
 templateFile: '../templates/readiness-report-template.md'
----
+
+- --
 
 # Step 1: Document Discovery
 
@@ -85,17 +87,19 @@ Search for each document type using these patterns:
 
 For each document type found:
 
-```
+```bash
+
 ## [Document Type] Files Found
 
-**Whole Documents:**
+- *Whole Documents:**
 - [filename.md] ([size], [modified date])
 
-**Sharded Documents:**
+- *Sharded Documents:**
 - Folder: [foldername]/
   - index.md
   - [other files in folder]
-```
+
+```bash
 
 ### 4. Identify Critical Issues
 
@@ -103,22 +107,26 @@ For each document type found:
 
 If both whole and sharded versions exist:
 
-```
+```bash
 ⚠️ CRITICAL ISSUE: Duplicate document formats found
+
 - PRD exists as both whole.md AND prd/ folder
 - YOU MUST choose which version to use
 - Remove or rename the other version to avoid confusion
-```
+
+```bash
 
 #### Missing Documents (WARNING)
 
 If required documents not found:
 
-```
+```bash
 ⚠️ WARNING: Required document not found
+
 - Architecture document not found
 - Will impact assessment completeness
-```
+
+```bash
 
 ### 5. Add Initial Report Section
 
@@ -131,21 +139,21 @@ Display findings and ask:
 
 [Show organized file list]
 
-**Issues Found:**
+- *Issues Found:**
 
 - [List any duplicates requiring resolution]
 - [List any missing documents]
 
-**Required Actions:**
+- *Required Actions:**
 
 - If duplicates exist: Please remove/rename one version
 - Confirm which documents to use for assessment
 
-**Ready to proceed?** [C] Continue after resolving issues"
+- *Ready to proceed?**[C] Continue after resolving issues"
 
 ### 7. Present MENU OPTIONS
 
-Display: **Select an Option:** [C] Continue to File Validation
+Display:**Select an Option:** [C] Continue to File Validation
 
 #### EXECUTION RULES:
 
@@ -163,7 +171,7 @@ Display: **Select an Option:** [C] Continue to File Validation
 
 ONLY WHEN C is selected and document inventory is saved will you load {nextStepFile} to begin file validation.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -181,4 +189,4 @@ ONLY WHEN C is selected and document inventory is saved will you load {nextStepF
 - Proceeding without resolving critical issues
 - Not saving document inventory
 
-**Master Rule:** Clear file identification is essential for accurate assessment.
+- *Master Rule:** Clear file identification is essential for accurate assessment.

@@ -4,7 +4,7 @@
 
 {{puzzle_mechanics}}
 
-**Puzzle elements:**
+- *Puzzle elements:**
 
 - Primary puzzle mechanic(s)
 - Supporting mechanics
@@ -15,7 +15,7 @@
 
 {{puzzle_progression}}
 
-**Difficulty progression:**
+- *Difficulty progression:**
 
 - Tutorial/introduction puzzles
 - Core concept puzzles
@@ -27,7 +27,7 @@
 
 {{level_structure}}
 
-**Level organization:**
+- *Level organization:**
 
 - Number of levels/puzzles
 - World/chapter grouping
@@ -38,7 +38,7 @@
 
 {{player_assistance}}
 
-**Help systems:**
+- *Help systems:**
 
 - Hint system
 - Undo/reset mechanics
@@ -49,7 +49,7 @@
 
 {{replayability}}
 
-**Replay elements:**
+- *Replay elements:**
 
 - Par time/move goals
 - Perfect solution challenges

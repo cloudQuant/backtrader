@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-06-docs'
 description: 'Generate README.md, TODO.md, and docs/ folder'
 
 nextStepFile: './step-07-complete.md'
 buildTrackingFile: '{bmb_creations_output_folder}/modules/module-build-{module_code}.md'
 targetLocation: '{build_tracking_targetLocation}'
----
+
+- --
 
 # Step 6: Documentation
 
@@ -30,7 +32,7 @@ Generate README.md, TODO.md, and user documentation in docs/ folder for the modu
 - ✅ TODO tracks remaining work
 - ✅ docs/ provides user-facing documentation
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -39,35 +41,37 @@ Generate README.md, TODO.md, and user documentation in docs/ folder for the modu
 Create `{targetLocation}/README.md`:
 
 ```markdown
+
 # {module_display_name}
 
 {brief_header}
 
 {subheader}
 
----
+- --
 
 ## Overview
 
 {module_overview_from_brief}
 
----
+- --
 
 ## Installation
 
 ```bash
 bmad install {module_code}
-```
 
----
+```bash
+
+- --
 
 ## Quick Start
 
 {quick_start_from_brief}
 
-**For detailed documentation, see [docs/](docs/).**
+- *For detailed documentation, see [docs/](docs/).**
 
----
+- --
 
 ## Components
 
@@ -79,7 +83,7 @@ bmad install {module_code}
 
 {workflow_list_from_brief}
 
----
+- --
 
 ## Configuration
 
@@ -87,11 +91,11 @@ The module supports these configuration options (set during installation):
 
 {config_variables_from_module_yaml}
 
----
+- --
 
 ## Module Structure
 
-```
+```bash
 {module_code}/
 ├── module.yaml
 ├── README.md
@@ -103,19 +107,21 @@ The module supports these configuration options (set during installation):
 │   └── examples.md
 ├── agents/
 └── workflows/
-```
 
----
+```bash
+
+- --
 
 ## Documentation
 
 For detailed user guides and documentation, see the **[docs/](docs/)** folder:
+
 - [Getting Started](docs/getting-started.md)
 - [Agents Reference](docs/agents.md)
 - [Workflows Reference](docs/workflows.md)
 - [Examples](docs/examples.md)
 
----
+- --
 
 ## Development Status
 
@@ -126,47 +132,51 @@ This module is currently in development. The following components are planned:
 
 See TODO.md for detailed status.
 
----
+- --
 
 ## Author
 
 Created via BMAD Module workflow
 
----
+- --
 
 ## License
 
 Part of the BMAD framework.
-```
+
+```bash
 
 ### 2. Generate TODO.md
 
 Create `{targetLocation}/TODO.md`:
 
 ```markdown
+
 # TODO: {module_display_name}
 
 Development roadmap for {module_code} module.
 
----
+- --
 
 ## Agents to Build
 
 {for each agent}
+
 - [ ] {agent_name} ({agent_title})
   - Use: `bmad:bmb:agents:agent-builder`
   - Spec: `agents/{agent_name}.spec.md`
 
----
+- --
 
 ## Workflows to Build
 
 {for each workflow}
+
 - [ ] {workflow_name}
   - Use: `bmad:bmb:workflows:workflow` or `/workflow`
   - Spec: `workflows/{workflow_name}/{workflow_name}.spec.md`
 
----
+- --
 
 ## Installation Testing
 
@@ -174,7 +184,7 @@ Development roadmap for {module_code} module.
 - [ ] Verify module.yaml prompts work correctly
 - [ ] Verify all agents and workflows are discoverable
 
----
+- --
 
 ## Documentation
 
@@ -183,7 +193,7 @@ Development roadmap for {module_code} module.
 - [ ] Add troubleshooting section
 - [ ] Document configuration options
 
----
+- --
 
 ## Next Steps
 
@@ -192,10 +202,11 @@ Development roadmap for {module_code} module.
 3. Test installation and functionality
 4. Iterate based on testing
 
----
+- --
 
 _Last updated: {date}_
-```
+
+```bash
 
 ### 3. Create docs/ Folder
 
@@ -204,17 +215,18 @@ Create `{targetLocation}/docs/` folder with user documentation:
 ### 3.1. getting-started.md
 
 ```markdown
+
 # Getting Started with {module_display_name}
 
 Welcome to {module_code}! This guide will help you get up and running.
 
----
+- --
 
 ## What This Module Does
 
 {module_purpose_from_brief}
 
----
+- --
 
 ## Installation
 
@@ -222,23 +234,23 @@ If you haven't installed the module yet:
 
 ```bash
 bmad install {module_code}
-```
 
+```bash
 Follow the prompts to configure the module for your needs.
 
----
+- --
 
 ## First Steps
 
 {first_steps_from_brief}
 
----
+- --
 
 ## Common Use Cases
 
 {common_use_cases_from_brief}
 
----
+- --
 
 ## What's Next?
 
@@ -246,102 +258,119 @@ Follow the prompts to configure the module for your needs.
 - Browse the [Workflows Reference](workflows.md) to see what you can do
 - See [Examples](examples.md) for real-world usage
 
----
+- --
 
 ## Need Help?
 
 If you run into issues:
+
 1. Check the troubleshooting section in examples.md
 2. Review your module configuration
 3. Consult the broader BMAD documentation
-```
+
+```bash
 
 ### 3.2. agents.md
 
 ```markdown
+
 # Agents Reference
 
 {module_code} includes {agent_count} specialized agents:
 
----
+- --
 
 {for each agent}
+
 ## {agent_title}
 
-**ID:** `{agent_id}`
-**Icon:** {agent_icon}
+- *ID:** `{agent_id}`
+- *Icon:** {agent_icon}
 
-**Role:**
+- *Role:**
+
 {agent_role_from_spec}
 
-**When to Use:**
+- *When to Use:**
+
 {when_to_use_from_spec}
 
-**Key Capabilities:**
+- *Key Capabilities:**
+
 {agent_capabilities_from_spec}
 
-**Menu Trigger(s):**
+- *Menu Trigger(s):**
+
 {menu_triggers_from_spec}
 
----
-```
+- --
+
+```bash
 
 ### 3.3. workflows.md
 
 ```markdown
+
 # Workflows Reference
 
 {module_code} includes {workflow_count} workflows:
 
----
+- --
 
 {for each workflow}
+
 ## {workflow_title}
 
-**ID:** `{workflow_id}`
-**Workflow:** `{workflow_name}`
+- *ID:** `{workflow_id}`
+- *Workflow:** `{workflow_name}`
 
-**Purpose:**
+- *Purpose:**
+
 {workflow_purpose_from_spec}
 
-**When to Use:**
+- *When to Use:**
+
 {when_to_use_from_spec}
 
-**Key Steps:**
+- *Key Steps:**
+
 {workflow_steps_outline_from_spec}
 
-**Agent(s):**
+- *Agent(s):**
+
 {associated_agents_from_spec}
 
----
-```
+- --
+
+```bash
 
 ### 3.4. examples.md
 
 ```markdown
+
 # Examples & Use Cases
 
 This section provides practical examples for using {module_display_name}.
 
----
+- --
 
 ## Example Workflows
 
 {example_workflows_from_brief}
 
----
+- --
 
 ## Common Scenarios
 
 {common_scenarios_from_brief}
 
----
+- --
 
 ## Tips & Tricks
 
 {tips_from_brief}
 
----
+- --
 
 ## Troubleshooting
 
@@ -349,18 +378,20 @@ This section provides practical examples for using {module_display_name}.
 
 {troubleshooting_from_brief}
 
----
+- --
 
 ## Getting More Help
 
 - Review the main BMAD documentation
 - Check module configuration in module.yaml
 - Verify all agents and workflows are properly installed
-```
+
+```bash
 
 ### 4. Update Build Tracking
 
 Update `{buildTrackingFile}`:
+
 - Add 'step-06-docs' to stepsCompleted
 - Note: README.md, TODO.md, and docs/ folder created
 
@@ -379,18 +410,19 @@ Update `{buildTrackingFile}`:
 "**User documentation is valuable even with placeholder agent/workflow specs — users will understand what each component does and how to use them.**"
 
 "**TODO.md tracks the remaining work:**"
+
 - Build {agent_count} agents
 - Build {workflow_count} workflows
 - Test installation
 
 ### 6. MENU OPTIONS
 
-**Select an Option:** [C] Continue
+- *Select an Option:** [C] Continue
 
 - IF C: Update tracking, load `{nextStepFile}`
 - IF Any other: Help, then redisplay menu
 
----
+- --
 
 ## Success Metrics
 

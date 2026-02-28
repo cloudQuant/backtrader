@@ -1,16 +1,18 @@
----
+- --
+
 validationDate: 2026-01-27
 workflowName: testarch-ci
 workflowPath: /Users/murat.ozcan/opensource/bmad-method-test-architecture-enterprise/src/workflows/testarch/ci
 validationStatus: COMPLETE
 completionDate: 2026-01-27 10:03:10
----
+
+- --
 
 # Validation Report: testarch-ci
 
-**Validation Started:** 2026-01-27 09:50:21
-**Validator:** BMAD Workflow Validation System (Codex)
-**Standards Version:** BMAD Workflow Standards
+- *Validation Started:** 2026-01-27 09:50:21
+- *Validator:** BMAD Workflow Validation System (Codex)
+- *Standards Version:** BMAD Workflow Standards
 
 ## File Structure & Size
 
@@ -19,7 +21,7 @@ completionDate: 2026-01-27 10:03:10
 - workflow.yaml present: YES
 - step files found: 7
 
-**Step File Sizes:**
+- *Step File Sizes:**
 
 - steps-c/step-01-preflight.md: 87 lines [GOOD]
 - steps-c/step-02-generate-pipeline.md: 75 lines [GOOD]

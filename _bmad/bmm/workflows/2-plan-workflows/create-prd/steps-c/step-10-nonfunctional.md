@@ -1,19 +1,23 @@
----
+- --
+
 name: 'step-10-nonfunctional'
 description: 'Define quality attributes that matter for this specific product'
 
 # File References
+
 nextStepFile: './step-11-polish.md'
 outputFile: '{planning_artifacts}/prd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 10: Non-Functional Requirements
 
-**Progress: Step 10 of 12** - Next: Polish Document
+- *Progress: Step 10 of 12** - Next: Polish Document
 
 ## MANDATORY EXECUTION RULES (READ FIRST):
 
@@ -53,17 +57,19 @@ Define non-functional requirements that specify quality attributes for the produ
 
 Start by clarifying what NFRs are and why we're selective:
 
-**NFR Purpose:**
+- *NFR Purpose:**
+
 NFRs define HOW WELL the system must perform, not WHAT it must do. They specify quality attributes like performance, security, scalability, etc.
 
-**Selective Approach:**
+- *Selective Approach:**
+
 We only document NFRs that matter for THIS product. If a category doesn't apply, we skip it entirely. This prevents requirement bloat and focuses on what's actually important.
 
 ### 2. Assess Product Context for NFR Relevance
 
 Evaluate which NFR categories matter based on product context:
 
-**Quick Assessment Questions:**
+- *Quick Assessment Questions:**
 
 - **Performance**: Is there user-facing impact of speed?
 - **Security**: Are we handling sensitive data or payments?
@@ -79,6 +85,7 @@ For each relevant category, conduct targeted discovery:
 #### Performance NFRs (If relevant):
 
 Explore performance requirements:
+
 - What parts of the system need to be fast for users to be successful?
 - Are there specific response time expectations?
 - What happens if performance is slower than expected?
@@ -87,6 +94,7 @@ Explore performance requirements:
 #### Security NFRs (If relevant):
 
 Explore security requirements:
+
 - What data needs to be protected?
 - Who should have access to what?
 - What are the security risks we need to mitigate?
@@ -95,6 +103,7 @@ Explore security requirements:
 #### Scalability NFRs (If relevant):
 
 Explore scalability requirements:
+
 - How many users do we expect initially? Long-term?
 - Are there seasonal or event-based traffic spikes?
 - What happens if we exceed our capacity?
@@ -103,6 +112,7 @@ Explore scalability requirements:
 #### Accessibility NFRs (If relevant):
 
 Explore accessibility requirements:
+
 - Are we serving users with visual, hearing, or motor impairments?
 - Are there legal accessibility requirements (WCAG, Section 508)?
 - What accessibility features are most important for our users?
@@ -110,6 +120,7 @@ Explore accessibility requirements:
 #### Integration NFRs (If relevant):
 
 Explore integration requirements:
+
 - What external systems do we need to connect with?
 - Are there APIs or data formats we must support?
 - How reliable do these integrations need to be?
@@ -118,7 +129,7 @@ Explore integration requirements:
 
 For each relevant NFR category, ensure criteria are testable:
 
-**From Vague to Specific:**
+- *From Vague to Specific:**
 
 - NOT: "The system should be fast" → "User actions complete within 2 seconds"
 - NOT: "The system should be secure" → "All data is encrypted at rest and in transit"
@@ -133,6 +144,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections (only include sections that are relevant):
 
 ```markdown
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -154,26 +166,30 @@ When saving to document, append these Level 2 and Level 3 sections (only include
 ### Integration
 
 [Integration requirements based on conversation - only include if relevant]
-```
+
+```bash
 
 ### 6. Present MENU OPTIONS
 
 Present the non-functional requirements for review, then display menu:
+
 - Show defined NFRs (using structure from step 5)
 - Note that only relevant categories were included
 - Emphasize NFRs specify how well the system needs to perform
 - Ask if they'd like to refine further, get other perspectives, or proceed
 - Present menu options naturally as part of conversation
 
-Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Polish Document (Step 11 of 12)"
+Display: "**Select:**[A] Advanced Elicitation [P] Party Mode [C] Continue to Polish Document (Step 11 of 12)"
 
 #### Menu Handling Logic:
+
 - IF A: Read fully and follow: {advancedElicitationTask} with the current NFR content, process the enhanced quality attribute insights that come back, ask user if they accept the improvements, if yes update content then redisplay menu, if no keep original content then redisplay menu
 - IF P: Read fully and follow: {partyModeWorkflow} with the current NFR list, process the collaborative technical validation and additions, ask user if they accept the changes, if yes update content then redisplay menu, if no keep original content then redisplay menu
 - IF C: Append the final content to {outputFile}, update frontmatter by adding this step name to the end of the stepsCompleted array, then read fully and follow: {nextStepFile}
 - IF Any other: help user respond, then redisplay menu
 
 #### EXECUTION RULES:
+
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
@@ -202,33 +218,33 @@ When user selects 'C', append the content directly to the document using the str
 ❌ Not presenting A/P/C menu after content generation
 ❌ Appending content without user selecting 'C'
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 
 ## NFR CATEGORY GUIDANCE:
 
-**Include Performance When:**
+- *Include Performance When:**
 
 - User-facing response times impact success
 - Real-time interactions are critical
 - Performance is a competitive differentiator
 
-**Include Security When:**
+- *Include Security When:**
 
 - Handling sensitive user data
 - Processing payments or financial information
 - Subject to compliance regulations
 - Protecting intellectual property
 
-**Include Scalability When:**
+- *Include Scalability When:**
 
 - Expecting rapid user growth
 - Handling variable traffic patterns
 - Supporting enterprise-scale usage
 - Planning for market expansion
 
-**Include Accessibility When:**
+- *Include Accessibility When:**
 
 - Serving broad public audiences
 - Subject to accessibility regulations

@@ -25,7 +25,7 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 - Focus on key players, market share, and competitive dynamics
 - Web search capabilities with source verification are enabled
@@ -38,12 +38,12 @@ Conduct competitive landscape analysis focusing on key players, market share, an
 
 ### 1. Begin Competitive Landscape Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different competitive areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different competitive areas simultaneously and thoroughly.
 
 Start with competitive research approach:
-"Now I'll conduct **competitive landscape analysis** for **{{research_topic}}** to understand the competitive ecosystem.
+"Now I'll conduct **competitive landscape analysis**for**{{research_topic}}** to understand the competitive ecosystem.
 
-**Competitive Landscape Focus:**
+- *Competitive Landscape Focus:**
 
 - Key players and market leaders
 - Market share and competitive positioning
@@ -51,18 +51,18 @@ Start with competitive research approach:
 - Business models and value propositions
 - Entry barriers and competitive dynamics
 
-**Let me search for current competitive insights.**"
+- *Let me search for current competitive insights.**"
 
 ### 2. Parallel Competitive Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} key players market leaders"
 Search the web: "{{research_topic}} market share competitive landscape"
 Search the web: "{{research_topic}} competitive strategies differentiation"
 Search the web: "{{research_topic}} entry barriers competitive dynamics"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for recent competitive intelligence reports and market analyses
 - Search for company websites, annual reports, and investor presentations
@@ -72,26 +72,28 @@ Search the web: "{{research_topic}} entry barriers competitive dynamics"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate competitive findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - Key players and market leaders analysis
 - Market share and competitive positioning assessment
 - Competitive strategies and differentiation mapping
 - Entry barriers and competitive dynamics evaluation
 
-**Cross-Competitive Analysis:**
+- *Cross-Competitive Analysis:**
+
 [Identify patterns connecting players, strategies, and market dynamics]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Competitive Landscape Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare competitive landscape analysis with web search citations:
 
@@ -100,6 +102,7 @@ Prepare competitive landscape analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Competitive Landscape
 
 ### Key Players and Market Leaders
@@ -155,15 +158,16 @@ _Distribution Channels: [How competitors reach customers]_
 _Technology Partnerships: [Strategic technology alliances]_
 _Ecosystem Control: [Who controls key parts of the value chain]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **competitive landscape analysis** for {{research_topic}}.
 
-**Key Competitive Findings:**
+- *Key Competitive Findings:**
 
 - Key players and market leaders thoroughly identified
 - Market share and competitive positioning clearly mapped
@@ -171,7 +175,8 @@ _Source: [URL]_
 - Business models and value propositions documented
 - Competitive dynamics and entry barriers evaluated
 
-**Ready to proceed to regulatory focus analysis?**
+- *Ready to proceed to regulatory focus analysis?**
+
 [C] Continue - Save this to document and proceed to regulatory focus
 
 ### 6. Handle Continue Selection

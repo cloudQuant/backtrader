@@ -23,7 +23,7 @@
 
 - Current document and frontmatter from main workflow discovery are available
 - Research type = "market" is already set
-- **Research topic = "{{research_topic}}"** - discovered from initial discussion
+- **Research topic = "{{research_topic}}"**- discovered from initial discussion
 - **Research goals = "{{research_goals}}"** - captured from initial discussion
 - Focus on market research scope clarification
 - Web search capabilities are enabled for later steps
@@ -36,26 +36,26 @@ Initialize market research by confirming understanding of {{research_topic}} and
 
 ### 1. Confirm Research Understanding
 
-**INITIALIZE - DO NOT RESEARCH YET**
+- *INITIALIZE - DO NOT RESEARCH YET**
 
 Start with research confirmation:
-"I understand you want to conduct **market research** for **{{research_topic}}** with these goals: {{research_goals}}
+"I understand you want to conduct **market research**for**{{research_topic}}** with these goals: {{research_goals}}
 
-**My Understanding of Your Research Needs:**
+- *My Understanding of Your Research Needs:**
 
 - **Research Topic**: {{research_topic}}
 - **Research Goals**: {{research_goals}}
 - **Research Type**: Market Research
 - **Approach**: Comprehensive market analysis with source verification
 
-**Market Research Areas We'll Cover:**
+- *Market Research Areas We'll Cover:**
 
 - Market size, growth dynamics, and trends
 - Customer insights and behavior analysis
 - Competitive landscape and positioning
 - Strategic recommendations and implementation guidance
 
-**Does this accurately capture what you're looking for?**"
+- *Does this accurately capture what you're looking for?**"
 
 ### 2. Refine Research Scope
 
@@ -70,32 +70,33 @@ Gather any clarifications needed:
 
 ### 3. Document Initial Scope
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Write initial research scope to document:
 
 ```markdown
+
 # Market Research: {{research_topic}}
 
 ## Research Initialization
 
 ### Research Understanding Confirmed
 
-**Topic**: {{research_topic}}
-**Goals**: {{research_goals}}
-**Research Type**: Market Research
-**Date**: {{date}}
+- *Topic**: {{research_topic}}
+- *Goals**: {{research_goals}}
+- *Research Type**: Market Research
+- *Date**: {{date}}
 
 ### Research Scope
 
-**Market Analysis Focus Areas:**
+- *Market Analysis Focus Areas:**
 
 - Market size, growth projections, and dynamics
 - Customer segments, behavior patterns, and insights
 - Competitive landscape and positioning analysis
 - Strategic recommendations and implementation guidance
 
-**Research Methodology:**
+- *Research Methodology:**
 
 - Current web data with source verification
 - Multiple independent sources for critical claims
@@ -104,31 +105,33 @@ Write initial research scope to document:
 
 ### Next Steps
 
-**Research Workflow:**
+- *Research Workflow:**
 
 1. ✅ Initialization and scope setting (current step)
 2. Customer Insights and Behavior Analysis
 3. Competitive Landscape Analysis
 4. Strategic Synthesis and Recommendations
 
-**Research Status**: Scope confirmed, ready to proceed with detailed market analysis
-```
+- *Research Status**: Scope confirmed, ready to proceed with detailed market analysis
+
+```bash
 
 ### 4. Present Confirmation and Continue Option
 
 Show initial scope document and present continue option:
 "I've documented our understanding and initial scope for **{{research_topic}}** market research.
 
-**What I've established:**
+- *What I've established:**
 
 - Research topic and goals confirmed
 - Market analysis focus areas defined
 - Research methodology verification
 - Clear workflow progression
 
-**Document Status:** Initial scope written to research file for your review
+- *Document Status:** Initial scope written to research file for your review
 
-**Ready to begin detailed market research?**
+- *Ready to begin detailed market research?**
+
 [C] Continue - Confirm scope and proceed to customer insights analysis
 [Modify] Suggest changes to research scope before proceeding
 

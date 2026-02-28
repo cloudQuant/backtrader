@@ -53,7 +53,7 @@ Define the core user experience, platform requirements, and what makes the inter
 Start by identifying the most important user interaction:
 "Now let's dig into the heart of the user experience for {{project_name}}.
 
-**Core Experience Questions:**
+- *Core Experience Questions:**
 
 - What's the ONE thing users will do most frequently?
 - What user action is absolutely critical to get right?
@@ -67,7 +67,7 @@ Think about the core loop or primary action that defines your product's value."
 Determine where and how users will interact:
 "Let's define the platform context for {{project_name}}:
 
-**Platform Questions:**
+- *Platform Questions:**
 
 - Web, mobile app, desktop, or multiple platforms?
 - Will this be primarily touch-based or mouse/keyboard?
@@ -102,7 +102,7 @@ Identify the moments that determine success or failure:
 Extract guiding principles from the conversation:
 "Based on our discussion, I'm hearing these core experience principles for {{project_name}}:
 
-**Experience Principles:**
+- *Experience Principles:**
 
 - [Principle 1 based on core action focus]
 - [Principle 2 based on effortless interactions]
@@ -120,6 +120,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Core User Experience
 
 ### Defining Experience
@@ -141,18 +142,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Experience Principles
 
 [Guiding principles for UX decisions based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated core experience content and present choices:
 "I've defined the core user experience for {{project_name}} based on our conversation. This establishes the foundation for all our UX design decisions.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine the core experience definition
 [P] Party Mode - Bring different perspectives on the user experience
 [C] Continue - Save this to the document and move to emotional response definition"

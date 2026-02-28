@@ -59,13 +59,9 @@ class CommInfoBase(ParameterizedBase):
 
     margin = ParameterDescriptor(default=None, doc="Margin amount")
 
-    commtype = ParameterDescriptor(
-        default=None, type_=(int, type(None)), doc="Commission type (COMM_PERC/COMM_FIXED)"
-    )
+    commtype = ParameterDescriptor(default=None, type_=(int, type(None)), doc="Commission type (COMM_PERC/COMM_FIXED)")
 
-    stocklike = _StockLikeDescriptor(
-        default=False, type_=bool, validator=_BoolValidator(), doc="Whether stock type"
-    )
+    stocklike = _StockLikeDescriptor(default=False, type_=bool, validator=_BoolValidator(), doc="Whether stock type")
 
     percabs = BoolParam(default=False, doc="Whether percentage is absolute value")
 
@@ -85,9 +81,7 @@ class CommInfoBase(ParameterizedBase):
         doc="Leverage level",  # Must be positive
     )
 
-    automargin = ParameterDescriptor(
-        default=False, type_=(bool, float), doc="Automatic margin calculation"
-    )
+    automargin = ParameterDescriptor(default=False, type_=(bool, float), doc="Automatic margin calculation")
 
     def __init__(self, **kwargs):
         """Initialize CommInfo object"""

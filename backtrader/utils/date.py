@@ -32,7 +32,6 @@ Example:
 # from backtrader.utils.cython_func import time2num
 # from backtrader.utils.cython_func import num2time
 
-
 from .dateintern import (
     TIME_MAX,
     TIME_MIN,

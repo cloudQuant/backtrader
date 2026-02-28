@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-08-progression'
 description: 'Define player progression systems and game balance'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-08-progression.md'
 nextStepFile: './step-09-levels.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 8: Progression & Balance
 
-**Progress: Step 8 of 14** - Next: Level Design
+- *Progress: Step 8 of 14**- Next: Level Design
 
 ## STEP GOAL:
 
@@ -71,25 +76,33 @@ Define how players progress through the game (skill, power, narrative, etc.), th
 
 ### 1. Player Progression Discovery
 
-**Guide user through progression definition:**
+- *Guide user through progression definition:**
 
 "Let's define how players grow and progress through {{game_name}}.
 
-**Types of Progression:**
+- *Types of Progression:**
 
 | Type           | Description                                | Examples                  |
-| -------------- | ------------------------------------------ | ------------------------- |
-| **Skill**      | Player gets better at the game             | Dark Souls, Celeste       |
-| **Power**      | Character gets stronger (stats, abilities) | RPGs, Metroidvanias       |
-| **Narrative**  | Story unfolds and advances                 | Visual novels, adventures |
-| **Content**    | New levels, areas, or modes unlock         | Most games                |
-| **Collection** | Gathering items, achievements              | Completionist games       |
-| **Social**     | Rank, reputation, community status         | Competitive games         |
 
-**For {{game_type}} games, typical progression includes:**
+| -------------- | ------------------------------------------ | ------------------------- |
+
+| **Skill**| Player gets better at the game             | Dark Souls, Celeste       |
+
+|**Power**| Character gets stronger (stats, abilities) | RPGs, Metroidvanias       |
+
+|**Narrative**| Story unfolds and advances                 | Visual novels, adventures |
+
+|**Content**| New levels, areas, or modes unlock         | Most games                |
+
+|**Collection**| Gathering items, achievements              | Completionist games       |
+
+|**Social**     | Rank, reputation, community status         | Competitive games         |
+
+- *For {{game_type}} games, typical progression includes:**
+
 {typical_progression_for_game_type}
 
-**Questions to consider:**
+- *Questions to consider:**
 
 1. What type(s) of progression does {{game_name}} have?
 2. How long until players feel meaningful progress?
@@ -99,21 +112,27 @@ How do players progress in {{game_name}}?"
 
 ### 2. Difficulty Curve Discovery
 
-**Guide user through difficulty design:**
+- *Guide user through difficulty design:**
 
 "Now let's design the difficulty curve.
 
-**Difficulty Curve Patterns:**
+- *Difficulty Curve Patterns:**
 
 | Pattern               | Description                             | Best For                       |
-| --------------------- | --------------------------------------- | ------------------------------ |
-| **Linear**            | Steady increase in challenge            | Story games, first playthrough |
-| **Sawtooth**          | Build-release pattern (easy after hard) | Level-based games              |
-| **Exponential**       | Gentle start, steep late-game           | RPGs, incremental games        |
-| **Flat**              | Consistent challenge throughout         | Roguelikes, skill games        |
-| **Player-controlled** | User selects difficulty                 | Accessibility-focused          |
 
-**Questions to consider:**
+| --------------------- | --------------------------------------- | ------------------------------ |
+
+| **Linear**| Steady increase in challenge            | Story games, first playthrough |
+
+|**Sawtooth**| Build-release pattern (easy after hard) | Level-based games              |
+
+|**Exponential**| Gentle start, steep late-game           | RPGs, incremental games        |
+
+|**Flat**| Consistent challenge throughout         | Roguelikes, skill games        |
+
+|**Player-controlled** | User selects difficulty                 | Accessibility-focused          |
+
+- *Questions to consider:**
 
 1. How does challenge increase over time?
 2. Are there difficulty spikes (bosses, skill checks)?
@@ -124,7 +143,7 @@ Describe the difficulty curve for {{game_name}}."
 
 ### 3. Economy/Resources Discovery (Optional)
 
-**Ask first:**
+- *Ask first:**
 
 "Does {{game_name}} have an in-game economy or resource system?
 
@@ -137,11 +156,11 @@ Examples:
 
 If yes, we'll define it. If no, we'll skip this section."
 
-**If yes:**
+- *If yes:**
 
 "Let's define the economy/resources:
 
-**Economy Questions:**
+- *Economy Questions:**
 
 1. What resources exist?
 2. How are resources earned?
@@ -157,6 +176,7 @@ Describe the economy in {{game_name}}."
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Progression and Balance
 
 ### Player Progression
@@ -200,7 +220,8 @@ Based on the conversation, prepare the content:
 {{if_no_economy}}
 _This game does not feature an in-game economy or resource system._
 {{/if_no_economy}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -208,17 +229,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Progression & Balance sections based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does progression reinforce your core loop?
 - Is the difficulty curve appropriate for your audience?
 - Does the economy (if any) feel fair?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into balance and pacing
 [P] Party Mode - Test these systems with other perspectives
 [C] Continue - Save this and move to Level Design (Step 9 of 14)"
@@ -249,7 +271,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [progression content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -270,4 +292,4 @@ ONLY WHEN [C continue option] is selected and [progression content saved with fr
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -25,23 +25,24 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - comprehensive technical analysis
-- **Research goals = "{{research_goals}}"** - achieved through exhaustive technical research
+- **Research topic = "{{research_topic}}"**- comprehensive technical analysis
+- **Research goals = "{{research_goals}}"**- achieved through exhaustive technical research
 - All technical research sections have been completed (overview, architecture, implementation)
 - Web search capabilities with source verification are enabled
 - This is the final synthesis step producing the complete technical research document
 
 ## YOUR TASK:
 
-Produce a comprehensive, authoritative technical research document on **{{research_topic}}** with compelling narrative introduction, detailed TOC, and executive summary based on exhaustive technical research.
+Produce a comprehensive, authoritative technical research document on**{{research_topic}}** with compelling narrative introduction, detailed TOC, and executive summary based on exhaustive technical research.
 
 ## COMPREHENSIVE TECHNICAL DOCUMENT SYNTHESIS:
 
 ### 1. Technical Document Structure Planning
 
-**Complete Technical Research Document Structure:**
+- *Complete Technical Research Document Structure:**
 
 ```markdown
+
 # [Compelling Technical Title]: Comprehensive {{research_topic}} Technical Research
 
 ## Executive Summary
@@ -62,11 +63,12 @@ Produce a comprehensive, authoritative technical research document on **{{resear
 - Future Technical Outlook and Innovation Opportunities
 - Technical Research Methodology and Source Documentation
 - Technical Appendices and Reference Materials
-```
+
+```bash
 
 ### 2. Generate Compelling Technical Introduction
 
-**Technical Introduction Requirements:**
+- *Technical Introduction Requirements:**
 
 - Hook reader with compelling technical opening about {{research_topic}}
 - Establish technical research significance and current relevance
@@ -74,12 +76,13 @@ Produce a comprehensive, authoritative technical research document on **{{resear
 - Preview key technical findings and strategic implications
 - Set authoritative, technical expert tone
 
-**Web Search for Technical Introduction Context:**
+- *Web Search for Technical Introduction Context:**
+
 Search the web: "{{research_topic}} technical significance importance"
 
 ### 3. Synthesize All Technical Research Sections
 
-**Technical Section-by-Section Integration:**
+- *Technical Section-by-Section Integration:**
 
 - Combine technical overview from step-02
 - Integrate architectural patterns from step-03
@@ -92,20 +95,21 @@ Search the web: "{{research_topic}} technical significance importance"
 #### Final Technical Document Structure:
 
 ```markdown
+
 # [Compelling Title]: Comprehensive {{research_topic}} Technical Research
 
 ## Executive Summary
 
 [2-3 paragraph compelling summary of the most critical technical findings and strategic implications for {{research_topic}} based on comprehensive current technical research]
 
-**Key Technical Findings:**
+- *Key Technical Findings:**
 
 - [Most significant architectural insights]
 - [Critical implementation considerations]
 - [Important technology trends]
 - [Strategic technical implications]
 
-**Technical Recommendations:**
+- *Technical Recommendations:**
 
 - [Top 3-5 actionable technical recommendations based on research]
 
@@ -145,9 +149,9 @@ _Source: [URL]_
 
 ### Technical Research Goals and Objectives
 
-**Original Technical Goals:** {{research_goals}}
+- *Original Technical Goals:** {{research_goals}}
 
-**Achieved Technical Objectives:**
+- *Achieved Technical Objectives:**
 
 - [Technical Goal 1 achievement with supporting evidence]
 - [Technical Goal 2 achievement with supporting evidence]
@@ -351,7 +355,7 @@ _Open Source Projects: [Key open source projects and communities]_
 _Research Papers and Publications: [Academic and industry research sources]_
 _Technical Communities: [Professional networks and technical communities]_
 
----
+- --
 
 ## Technical Research Conclusion
 
@@ -367,24 +371,25 @@ _Technical Communities: [Professional networks and technical communities]_
 
 [Specific next steps for leveraging this technical research]
 
----
+- --
 
-**Technical Research Completion Date:** {{date}}
-**Research Period:** current comprehensive technical analysis
-**Document Length:** As needed for comprehensive technical coverage
-**Source Verification:** All technical facts cited with current sources
-**Technical Confidence Level:** High - based on multiple authoritative technical sources
+- *Technical Research Completion Date:** {{date}}
+- *Research Period:** current comprehensive technical analysis
+- *Document Length:** As needed for comprehensive technical coverage
+- *Source Verification:** All technical facts cited with current sources
+- *Technical Confidence Level:** High - based on multiple authoritative technical sources
 
 _This comprehensive technical research document serves as an authoritative technical reference on {{research_topic}} and provides strategic technical insights for informed decision-making and implementation._
-```
+
+```bash
 
 ### 5. Present Complete Technical Document and Final Option
 
-**Technical Document Completion Presentation:**
+- *Technical Document Completion Presentation:**
 
-"I've completed the **comprehensive technical research document synthesis** for **{{research_topic}}**, producing an authoritative technical research document with:
+"I've completed the **comprehensive technical research document synthesis**for**{{research_topic}}**, producing an authoritative technical research document with:
 
-**Technical Document Features:**
+- *Technical Document Features:**
 
 - **Compelling Technical Introduction**: Engaging technical opening that establishes research significance
 - **Comprehensive Technical TOC**: Complete navigation structure for technical reference
@@ -393,7 +398,7 @@ _This comprehensive technical research document serves as an authoritative techn
 - **Strategic Technical Recommendations**: Actionable technical insights based on comprehensive research
 - **Complete Technical Source Citations**: Every technical claim verified with current sources
 
-**Technical Research Completeness:**
+- *Technical Research Completeness:**
 
 - Technical landscape and architecture analysis fully documented
 - Implementation approaches and best practices comprehensively covered
@@ -401,7 +406,7 @@ _This comprehensive technical research document serves as an authoritative techn
 - Integration, performance, and security analysis complete
 - Strategic technical insights and implementation guidance provided
 
-**Technical Document Standards Met:**
+- *Technical Document Standards Met:**
 
 - Exhaustive technical research with no critical gaps
 - Professional technical structure and compelling narrative
@@ -409,7 +414,8 @@ _This comprehensive technical research document serves as an authoritative techn
 - Multiple independent technical sources for all claims
 - current technical data throughout with proper citations
 
-**Ready to complete this comprehensive technical research document?**
+- *Ready to complete this comprehensive technical research document?**
+
 [C] Complete Research - Save final comprehensive technical document
 
 ### 6. Handle Final Technical Completion

@@ -21,7 +21,20 @@ from backtrader.feeds.csvgeneric import GenericCSVData
 # ---------------------------------------------------------------------------
 
 def _write_csv(lines, header=True):
-    """Write CSV lines to a temp file and return the path."""
+    """Write CSV lines to a temporary file and return the file path.
+
+    This helper function creates a temporary CSV file with optional header
+    row for testing purposes. The file is automatically cleaned up by the
+    caller or the operating system.
+
+    Args:
+        lines (list of str): List of CSV data lines (without newlines).
+        header (bool, optional): Whether to write a standard header row.
+            Defaults to True.
+
+    Returns:
+        str: Path to the created temporary CSV file.
+    """
     fd, path = tempfile.mkstemp(suffix=".csv")
     with os.fdopen(fd, "w") as f:
         if header:
@@ -32,7 +45,20 @@ def _write_csv(lines, header=True):
 
 
 def _run_feed(path, **kwargs):
-    """Create a Cerebro, add GenericCSVData, run, return data lines."""
+    """Create a Cerebro, add GenericCSVData, run, and return data lines.
+
+    This helper function creates a minimal Cerebro instance with default
+    parameters for CSV data loading, runs the backtest, and returns the
+    data object for validation.
+
+    Args:
+        path (str): Path to the CSV file to load.
+        **kwargs: Optional keyword arguments to override default parameters
+            (e.g., dtformat, datetime column mapping, nullvalue).
+
+    Returns:
+        GenericCSVData: The loaded data object with processed lines.
+    """
     cerebro = bt.Cerebro()
     defaults = dict(
         dataname=path,
@@ -56,6 +82,7 @@ class TestGenericCSVBasic:
     """Basic CSV parsing tests."""
 
     def test_load_simple_csv(self, tmp_path):
+        """Test basic CSV loading with standard format."""
         path = str(tmp_path / "test.csv")
         with open(path, "w") as f:
             f.write("datetime,open,high,low,close,volume,oi\n")
@@ -176,6 +203,7 @@ class TestGenericCSVMultiBar:
     """Multi-bar data loading tests."""
 
     def test_multiple_bars(self, tmp_path):
+        """Test loading multiple bars of data from CSV."""
         path = str(tmp_path / "test.csv")
         with open(path, "w") as f:
             f.write("datetime,open,high,low,close,volume,oi\n")

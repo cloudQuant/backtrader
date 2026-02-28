@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-05-core-gameplay'
 description: 'Define game pillars, core gameplay loop, and win/loss conditions'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-05-core-gameplay.md'
 nextStepFile: './step-06-mechanics.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 5: Core Gameplay
 
-**Progress: Step 5 of 14** - Next: Game Mechanics
+- *Progress: Step 5 of 14**- Next: Game Mechanics
 
 ## STEP GOAL:
 
@@ -72,49 +77,59 @@ Define the fundamental gameplay elements: game pillars (core design tenets), the
 
 ### 1. Game Pillars Discovery
 
-**Guide user through pillar definition:**
+- *Guide user through pillar definition:**
 
 "Now we define the core pillars - the fundamental design principles that every feature must serve.
 
-**What are Game Pillars?**
+- *What are Game Pillars?**
 
 Pillars are 2-4 non-negotiable design tenets. Every mechanic, system, and feature should support at least one pillar. If something doesn't serve a pillar, question whether it belongs.
 
-**Examples of Pillars:**
+- *Examples of Pillars:**
 
 | Game           | Pillars                                            |
-| -------------- | -------------------------------------------------- |
-| **Dark Souls** | Challenge, Discovery, Consequence                  |
-| **Celeste**    | Tight Controls, Accessibility, Emotional Narrative |
-| **Minecraft**  | Creativity, Exploration, Player Agency             |
-| **Dead Cells** | Mastery, Variety, Momentum                         |
 
-**For your {{game_type}} with USPs of {{usps}}:**
+| -------------- | -------------------------------------------------- |
+
+| **Dark Souls**| Challenge, Discovery, Consequence                  |
+
+|**Celeste**| Tight Controls, Accessibility, Emotional Narrative |
+
+|**Minecraft**| Creativity, Exploration, Player Agency             |
+
+|**Dead Cells** | Mastery, Variety, Momentum                         |
+
+- *For your {{game_type}} with USPs of {{usps}}:**
 
 What 2-4 pillars will define every design decision in {{game_name}}?"
 
 ### 2. Core Loop Discovery
 
-**Guide user through loop definition:**
+- *Guide user through loop definition:**
 
 "Now let's define the core gameplay loop - the cycle of actions players repeat throughout the game.
 
-**Core Loop Structure:**
+- *Core Loop Structure:**
 
 A good loop has: **Action -> Feedback -> Reward -> Motivation to repeat**
 
-**Examples:**
+- *Examples:**
 
 | Game          | Core Loop                                                              |
-| ------------- | ---------------------------------------------------------------------- |
-| **Roguelike** | Enter dungeon -> Fight/loot -> Die/extract -> Upgrade -> Enter dungeon |
-| **Puzzle**    | See puzzle -> Analyze -> Attempt -> Succeed/fail -> Next puzzle        |
-| **FPS**       | Engage enemy -> Shoot -> Kill/die -> Respawn/proceed -> Engage         |
 
-**For {{game_type}} games, typical loops include:**
+| ------------- | ---------------------------------------------------------------------- |
+
+| **Roguelike**| Enter dungeon -> Fight/loot -> Die/extract -> Upgrade -> Enter dungeon |
+
+|**Puzzle**| See puzzle -> Analyze -> Attempt -> Succeed/fail -> Next puzzle        |
+
+|**FPS**       | Engage enemy -> Shoot -> Kill/die -> Respawn/proceed -> Engage         |
+
+- *For {{game_type}} games, typical loops include:**
+
 {typical_loops_for_game_type}
 
-**Questions to consider:**
+- *Questions to consider:**
 
 1. What does the player do most of the time?
 2. What makes each loop iteration feel different from the last?
@@ -124,20 +139,25 @@ Describe the core loop for {{game_name}}."
 
 ### 3. Win/Loss Conditions Discovery
 
-**Guide user through win/loss definition:**
+- *Guide user through win/loss definition:**
 
 "Finally, let's define how players succeed and fail.
 
-**Win/Loss Framework:**
+- *Win/Loss Framework:**
 
 | Condition Type | Examples                                                        |
-| -------------- | --------------------------------------------------------------- |
-| **Victory**    | Beat final boss, reach score, complete story, survive time      |
-| **Failure**    | Run out of lives, time expires, resources depleted, story fails |
-| **Soft Fail**  | Lose progress, restart level, dropped loot                      |
-| **No Failure** | Sandbox games, creative tools, walking sims                     |
 
-**Questions to consider:**
+| -------------- | --------------------------------------------------------------- |
+
+| **Victory**| Beat final boss, reach score, complete story, survive time      |
+
+|**Failure**| Run out of lives, time expires, resources depleted, story fails |
+
+|**Soft Fail**| Lose progress, restart level, dropped loot                      |
+
+|**No Failure** | Sandbox games, creative tools, walking sims                     |
+
+- *Questions to consider:**
 
 1. Is there a definitive "win state" or is success ongoing?
 2. What happens when players fail? How punishing is it?
@@ -151,25 +171,28 @@ How do players win and lose in {{game_name}}?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Core Gameplay
 
 ### Game Pillars
 
 {{pillar_list_with_descriptions}}
 
-**Pillar Prioritization:** When pillars conflict, prioritize in this order:
+- *Pillar Prioritization:** When pillars conflict, prioritize in this order:
+
 {{pillar_priority_order}}
 
 ### Core Gameplay Loop
 
 {{loop_description}}
 
-**Loop Diagram:**
+- *Loop Diagram:**
+
 {{text_based_loop_visualization}}
 
-**Loop Timing:** {{typical_loop_duration}}
+- *Loop Timing:** {{typical_loop_duration}}
 
-**Loop Variation:** {{what_makes_each_iteration_different}}
+- *Loop Variation:** {{what_makes_each_iteration_different}}
 
 ### Win/Loss Conditions
 
@@ -184,7 +207,8 @@ Based on the conversation, prepare the content:
 #### Failure Recovery
 
 {{what_happens_on_failure}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -192,17 +216,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Core Gameplay sections based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Do all pillars support your USPs?
 - Does the core loop deliver on your pillars?
 - Do win/loss conditions create appropriate stakes?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Stress test these fundamentals
 [P] Party Mode - Get other perspectives on the core design
 [C] Continue - Save this and move to Game Mechanics (Step 6 of 14)"
@@ -233,7 +258,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [core gameplay content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -256,4 +281,4 @@ ONLY WHEN [C continue option] is selected and [core gameplay content saved with 
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

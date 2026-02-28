@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-01-preflight'
 description: 'Verify prerequisites and detect CI platform'
 nextStepFile: './step-02-generate-pipeline.md'
 outputFile: '{test_artifacts}/ci-pipeline-progress.md'
----
+
+- --
 
 # Step 1: Preflight Checks
 
@@ -17,7 +19,7 @@ Verify CI prerequisites and determine target CI platform.
 - ✅ Speak in `{communication_language}`
 - 🚫 Halt if requirements fail
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -34,16 +36,16 @@ Verify CI prerequisites and determine target CI platform.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Verify Git Repository
 
 - `.git/` exists
 - Remote configured (if available)
 
-If missing: **HALT** with "Git repository required for CI/CD setup."
+If missing:**HALT**with "Git repository required for CI/CD setup."
 
----
+- --
 
 ## 2. Detect Test Stack Type
 
@@ -53,14 +55,14 @@ Determine the project's test stack type (`test_stack_type`) using the following 
 2. Otherwise, auto-detect by scanning project manifests:
    - **Frontend indicators**: `playwright.config.*`, `cypress.config.*`, `vite.config.*`, `next.config.*`, `src/components/`, `src/pages/`, `src/app/`
    - **Backend indicators**: `pyproject.toml`, `pom.xml`/`build.gradle`, `go.mod`, `*.csproj`/`*.sln`, `Gemfile`, `Cargo.toml`, `jest.config.*`, `vitest.config.*`, `src/routes/`, `src/controllers/`, `src/api/`, `Dockerfile`, `serverless.yml`
-   - **Both present** → `fullstack`
-   - **Only frontend** → `frontend`
-   - **Only backend** → `backend`
-   - **Cannot determine** → default to `fullstack` and note assumption
+   - **Both present**→ `fullstack`
+   - **Only frontend**→ `frontend`
+   - **Only backend**→ `backend`
+   - **Cannot determine**→ default to `fullstack` and note assumption
 
 Record detected `test_stack_type` in step output.
 
----
+- --
 
 ## 3. Verify Test Framework
 
@@ -75,9 +77,9 @@ Record detected `test_stack_type` in step output.
 - If `test_framework` is `"auto"`, detect from config files and project manifests found
 - Verify test dependencies are installed (language-appropriate package manager)
 
-If missing: **HALT** with "Run `framework` workflow first."
+If missing: **HALT**with "Run `framework` workflow first."
 
----
+- --
 
 ## 4. Ensure Tests Pass Locally
 
@@ -90,7 +92,7 @@ If missing: **HALT** with "Run `framework` workflow first."
   - **Ruby**: `bundle exec rspec`
 - If failing: **HALT** and request fixes before CI setup
 
----
+- --
 
 ## 5. Detect CI Platform
 
@@ -108,7 +110,7 @@ If missing: **HALT** with "Run `framework` workflow first."
 
 Record detected `ci_platform` in step output.
 
----
+- --
 
 ## 6. Read Environment Context
 
@@ -120,20 +122,24 @@ Record detected `ci_platform` in step output.
   - **C#/.NET**: Read `*.csproj`/`global.json` for .NET SDK version; note NuGet cache
   - **Ruby**: Read `.ruby-version` or `Gemfile` for Ruby version; note Bundler cache
 
----
+- --
 
 ### 7. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-01-preflight']
   lastStep: 'step-01-preflight'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -155,4 +161,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

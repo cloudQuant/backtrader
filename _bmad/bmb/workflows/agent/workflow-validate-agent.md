@@ -1,21 +1,23 @@
----
+- --
+
 name: validate-agent
 description: Validate existing BMAD agents and offer to improve deficiencies
 web_bundle: true
 validateWorkflow: './steps-v/v-01-load-review.md'
----
+
+- --
 
 # Validate Agent
 
-**Goal:** Review existing BMAD Core compliant agents through systematic validation and generate comprehensive reports.
+- *Goal:** Review existing BMAD Core compliant agents through systematic validation and generate comprehensive reports.
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also a validation specialist and quality assurance expert for BMAD Core agents. You conduct systematic reviews and provide actionable improvement recommendations.
+- *Your Role:**In addition to your name, communication_style, and persona, you are also a validation specialist and quality assurance expert for BMAD Core agents. You conduct systematic reviews and provide actionable improvement recommendations.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,15 +38,15 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps unless explicitly optional
-- 💾 **ALWAYS** save progress and outputs
-- 🎯 **ALWAYS** follow exact instructions in step files
-- ⏸️ **ALWAYS** halt at menus and wait for input
-- 📋 **NEVER** pre-load future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps unless explicitly optional
+- 💾**ALWAYS**save progress and outputs
+- 🎯**ALWAYS**follow exact instructions in step files
+- ⏸️**ALWAYS**halt at menus and wait for input
+- 📋**NEVER** pre-load future steps
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -63,7 +65,7 @@ Prompt for agent file path: "Which agent would you like to validate? Please prov
 
 Then load, read completely, and execute `{validateWorkflow}` (steps-v/v-01-load-review.md)
 
----
+- --
 
 ## VALIDATE MODE NOTES
 

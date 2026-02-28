@@ -6,11 +6,11 @@ Risk governance transforms subjective "should we ship?" debates into objective, 
 
 ## Rationale
 
-**The Problem**: Without formal risk governance, releases become political—loud voices win, quiet risks hide, and teams discover critical issues in production. "We thought it was fine" isn't a release strategy.
+- *The Problem**: Without formal risk governance, releases become political—loud voices win, quiet risks hide, and teams discover critical issues in production. "We thought it was fine" isn't a release strategy.
 
-**The Solution**: Risk scoring (1-3 scale for probability and impact, total 1-9) creates shared language. Scores ≥6 demand documented mitigation. Scores = 9 mandate gate failure. Every acceptance criterion maps to a test, and gaps require explicit waivers with owners and expiry dates.
+- *The Solution**: Risk scoring (1-3 scale for probability and impact, total 1-9) creates shared language. Scores ≥6 demand documented mitigation. Scores = 9 mandate gate failure. Every acceptance criterion maps to a test, and gaps require explicit waivers with owners and expiry dates.
 
-**Why This Matters**:
+- *Why This Matters**:
 
 - Removes ambiguity from release decisions (objective scores vs subjective opinions)
 - Creates audit trail for compliance (FDA, SOC2, ISO require documented risk management)
@@ -21,9 +21,9 @@ Risk governance transforms subjective "should we ship?" debates into objective, 
 
 ### Example 1: Risk Scoring Matrix with Automated Classification (TypeScript)
 
-**Context**: Calculate risk scores automatically from test results and categorize by risk type
+- *Context**: Calculate risk scores automatically from test results and categorize by risk type
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // risk-scoring.ts - Risk classification and scoring system
@@ -44,12 +44,15 @@ export type RiskScore = {
   title: string;
   description: string;
   probability: 1 | 2 | 3; // 1=Low, 2=Medium, 3=High
+
   impact: 1 | 2 | 3; // 1=Low, 2=Medium, 3=High
+
   score: number; // probability × impact (1-9)
   owner: string;
   mitigationPlan?: string;
   deadline?: Date;
   status: 'OPEN' | 'MITIGATED' | 'WAIVED' | 'ACCEPTED';
+
   waiverReason?: string;
   waiverApprover?: string;
   waiverExpiry?: Date;
@@ -57,7 +60,8 @@ export type RiskScore = {
 
 // Risk scoring rules
 export function calculateRiskScore(probability: 1 | 2 | 3, impact: 1 | 2 | 3): number {
-  return probability * impact;
+
+  return probability *impact;
 }
 
 export function requiresMitigation(score: number): boolean {
@@ -69,6 +73,7 @@ export function isCriticalBlocker(score: number): boolean {
 }
 
 export function classifyRiskLevel(score: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
+
   if (score === 9) return 'CRITICAL';
   if (score >= 6) return 'HIGH';
   if (score >= 4) return 'MEDIUM';
@@ -88,6 +93,7 @@ export function assessTestFailureRisk(failure: {
 
   // Impact based on business context
   let impact: 1 | 2 | 3 = 1;
+
   if (failure.securityVulnerability) impact = 3;
   else if (failure.revenueImpact > 10000) impact = 3;
   else if (failure.affectedUsers > 1000) impact = 2;
@@ -107,22 +113,23 @@ export function assessTestFailureRisk(failure: {
     status: score === 9 ? 'OPEN' : 'OPEN',
   };
 }
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Objective scoring**: Probability (1-3) × Impact (1-3) = Score (1-9)
 - **Clear thresholds**: Score ≥6 requires mitigation, score = 9 blocks release
 - **Business context**: Revenue, users, security drive impact calculation
 - **Status tracking**: OPEN → MITIGATED → WAIVED → ACCEPTED lifecycle
 
----
+- --
 
 ### Example 2: Gate Decision Engine with Traceability Validation
 
-**Context**: Automated gate decision based on risk scores and test coverage
+- *Context**: Automated gate decision based on risk scores and test coverage
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // gate-decision-engine.ts
@@ -157,6 +164,7 @@ export function evaluateGate(params: { risks: RiskScore[]; coverageGaps: Coverag
 
   // FAIL: Critical blockers (score=9) or missing coverage
   if (criticalRisks.length > 0 || unresolvedGaps.length > 0) {
+
     decision = 'FAIL';
   }
   // WAIVED: All risks waived by authorized approver
@@ -205,9 +213,10 @@ function generateSummary(decision: GateDecision, risks: RiskScore[], gaps: Cover
 
   return `Gate Decision: ${decision}. Total Risks: ${total} (${critical} critical, ${high} high). Coverage Gaps: ${gaps.length}.`;
 }
-```
 
-**Usage Example**:
+```bash
+
+- *Usage Example**:
 
 ```typescript
 // Example: Running gate check before deployment
@@ -252,22 +261,23 @@ console.log(gateResult.recommendations);
 //   "🚨 1 CRITICAL risk(s) must be mitigated before release",
 //   "📋 1 acceptance criteria lack test coverage"
 // ]
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Automated decision**: No human interpretation required
 - **Clear criteria**: FAIL = critical risks or gaps, CONCERNS = high risks with plans, PASS = low risks
 - **Actionable output**: Recommendations drive next steps
 - **Audit trail**: Timestamp, decision, and context for compliance
 
----
+- --
 
 ### Example 3: Risk Mitigation Workflow with Owner Tracking
 
-**Context**: Track risk mitigation from identification to resolution
+- *Context**: Track risk mitigation from identification to resolution
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // risk-mitigation.ts
@@ -277,6 +287,7 @@ export type MitigationAction = {
   owner: string;
   deadline: Date;
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'BLOCKED';
+
   completedAt?: Date;
   blockedReason?: string;
 };
@@ -303,6 +314,7 @@ export class RiskMitigationTracker {
     if (!risk) throw new Error(`Risk ${action.riskId} not found`);
 
     const existingActions = this.actions.get(action.riskId) || [];
+
     existingActions.push(action);
     this.actions.set(action.riskId, existingActions);
 
@@ -335,7 +347,7 @@ export class RiskMitigationTracker {
     risk.status = 'WAIVED';
     risk.waiverReason = reason;
     risk.waiverApprover = approver;
-    risk.waiverExpiry = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+    risk.waiverExpiry = new Date(Date.now() + expiryDays *24*60*60* 1000);
 
     this.logHistory(riskId, `⚠️  Waiver granted by ${approver}. Expires: ${risk.waiverExpiry}`);
   }
@@ -360,20 +372,22 @@ export class RiskMitigationTracker {
     if (critical.length > 0) {
       report += `## 🚨 Critical Risks (BLOCKERS)\n\n`;
       critical.forEach((r) => {
-        report += `- **${r.title}** (${r.category})\n`;
+        report += `- **${r.title}**(${r.category})\n`;
         report += `  - Score: ${r.score} (Probability: ${r.probability}, Impact: ${r.impact})\n`;
         report += `  - Owner: ${r.owner}\n`;
         report += `  - Mitigation: ${r.mitigationPlan || 'NOT ASSIGNED'}\n\n`;
+
       });
     }
 
     if (high.length > 0) {
       report += `## ⚠️  High Risks\n\n`;
       high.forEach((r) => {
-        report += `- **${r.title}** (${r.category})\n`;
+        report += `-**${r.title}** (${r.category})\n`;
         report += `  - Score: ${r.score}\n`;
         report += `  - Owner: ${r.owner}\n`;
         report += `  - Deadline: ${r.deadline?.toISOString().split('T')[0] || 'NOT SET'}\n\n`;
+
       });
     }
 
@@ -388,9 +402,10 @@ export class RiskMitigationTracker {
     return this.history.filter((h) => h.riskId === riskId).map((h) => ({ event: h.event, timestamp: h.timestamp }));
   }
 }
-```
 
-**Usage Example**:
+```bash
+
+- *Usage Example**:
 
 ```typescript
 const tracker = new RiskMitigationTracker();
@@ -439,22 +454,23 @@ console.log(tracker.getHistory('risk-001'));
 //   { event: 'Mitigation action added: Add parameterized queries...', timestamp: ... },
 //   { event: 'Mitigation completed: Add parameterized queries...', timestamp: ... }
 // ]
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Ownership enforcement**: Every risk >4 requires owner assignment
 - **Deadline tracking**: Mitigation actions have explicit deadlines
 - **Audit trail**: Complete history of risk lifecycle (registered → mitigated)
 - **Automated reports**: Markdown output for Confluence/GitHub wikis
 
----
+- --
 
 ### Example 4: Coverage Traceability Matrix (Test-to-Requirement Mapping)
 
-**Context**: Validate that every acceptance criterion maps to at least one test
+- *Context**: Validate that every acceptance criterion maps to at least one test
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // coverage-traceability.ts
@@ -463,6 +479,7 @@ export type AcceptanceCriterion = {
   story: string;
   criterion: string;
   priority: 'P0' | 'P1' | 'P2' | 'P3';
+
 };
 
 export type TestCase = {
@@ -535,28 +552,35 @@ export function generateTraceabilityReport(matrix: CoverageMatrix[]): string {
   if (gaps.length > 0) {
     report += `## ❌ Coverage Gaps (MUST RESOLVE)\n\n`;
     report += `| Story | Criterion | Priority | Tests |\n`;
+
     report += `|-------|-----------|----------|-------|\n`;
+
     gaps.forEach((m) => {
       report += `| ${m.criterion.story} | ${m.criterion.criterion} | ${m.criterion.priority} | None |\n`;
+
     });
     report += `\n`;
   }
 
   report += `## ✅ Covered Criteria\n\n`;
   report += `| Story | Criterion | Tests |\n`;
+
   report += `|-------|-----------|-------|\n`;
+
   matrix
     .filter((m) => m.covered)
     .forEach((m) => {
       const testList = m.tests.map((t) => `\`${t.file}\``).join(', ');
       report += `| ${m.criterion.story} | ${m.criterion.criterion} | ${testList} |\n`;
+
     });
 
   return report;
 }
-```
 
-**Usage Example**:
+```bash
+
+- *Usage Example**:
 
 ```typescript
 // Define acceptance criteria
@@ -582,16 +606,17 @@ console.log(`Gaps: ${gaps.length}`); // "Gaps: 1" (AC-004 has no test)
 const report = generateTraceabilityReport(matrix);
 console.log(report);
 // Markdown table showing coverage gaps
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Bidirectional traceability**: Criteria → Tests and Tests → Criteria
 - **Gap detection**: Automatically identifies missing coverage
 - **Priority awareness**: P0 gaps are critical blockers
 - **Waiver support**: Allow explicit waivers for low-priority gaps
 
----
+- --
 
 ## Risk Governance Checklist
 

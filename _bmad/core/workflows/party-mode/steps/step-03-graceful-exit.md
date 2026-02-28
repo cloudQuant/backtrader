@@ -36,20 +36,20 @@ Begin exit process with warm acknowledgment:
 
 "What an incredible collaborative session! Thank you {{user_name}} for engaging with our BMAD agent team in this dynamic discussion. Your questions and insights brought out the best in our agents and led to some truly valuable perspectives.
 
-**Before we wrap up, let a few of our agents say goodbye...**"
+- *Before we wrap up, let a few of our agents say goodbye...**"
 
 ### 2. Generate Agent Farewells
 
 Select 2-3 agents who were most engaged or representative of the discussion:
 
-**Farewell Selection Criteria:**
+- *Farewell Selection Criteria:**
 
 - Agents who made significant contributions to the discussion
 - Agents with distinct personalities that provide memorable goodbyes
 - Mix of expertise domains to showcase collaborative diversity
 - Agents who can reference session highlights meaningfully
 
-**Agent Farewell Format:**
+- *Agent Farewell Format:**
 
 For each selected agent:
 
@@ -57,7 +57,7 @@ For each selected agent:
 
 [Bash: .claude/hooks/bmad-speak.sh \"[Agent Name]\" \"[Their farewell message]\"]"
 
-**Example Farewells:**
+- *Example Farewells:**
 
 - **Architect/Winston**: "It's been a pleasure architecting solutions with you today! Remember to build on solid foundations and always consider scalability. Until next time! 🏗️"
 - **Innovator/Creative Agent**: "What an inspiring creative journey! Don't let those innovative ideas fade - nurture them and watch them grow. Keep thinking outside the box! 🎨"
@@ -67,31 +67,34 @@ For each selected agent:
 
 Briefly acknowledge key discussion outcomes:
 
-**Session Recognition:**
-"**Session Highlights:** Today we explored [main topic] through [number] different perspectives, generating valuable insights on [key outcomes]. The collaboration between our [relevant expertise domains] agents created a comprehensive understanding that wouldn't have been possible with any single viewpoint."
+- *Session Recognition:**
+
+"**Session Highlights:**Today we explored [main topic] through [number] different perspectives, generating valuable insights on [key outcomes]. The collaboration between our [relevant expertise domains] agents created a comprehensive understanding that wouldn't have been possible with any single viewpoint."
 
 ### 4. Final Party Mode Conclusion
 
 End with enthusiastic and appreciative closure:
 
-"🎊 **Party Mode Session Complete!** 🎊
+"🎊**Party Mode Session Complete!** 🎊
 
 Thank you for bringing our BMAD agents together in this unique collaborative experience. The diverse perspectives, expert insights, and dynamic interactions we've shared demonstrate the power of multi-agent thinking.
 
-**Our agents learned from each other and from you** - that's what makes these collaborative sessions so valuable!
+- *Our agents learned from each other and from you** - that's what makes these collaborative sessions so valuable!
 
-**Ready for your next challenge**? Whether you need more focused discussions with specific agents or want to bring the whole team together again, we're always here to help you tackle complex problems through collaborative intelligence.
+- *Ready for your next challenge**? Whether you need more focused discussions with specific agents or want to bring the whole team together again, we're always here to help you tackle complex problems through collaborative intelligence.
 
-**Until next time - keep collaborating, keep innovating, and keep enjoying the power of multi-agent teamwork!** 🚀"
+- *Until next time - keep collaborating, keep innovating, and keep enjoying the power of multi-agent teamwork!** 🚀"
 
 ### 5. Complete Workflow Exit
 
 Final workflow completion steps:
 
-**Frontmatter Update:**
+- *Frontmatter Update:**
 
 ```yaml
----
+
+- --
+
 stepsCompleted: [1, 2, 3]
 workflowType: 'party-mode'
 user_name: '{{user_name}}'
@@ -99,10 +102,12 @@ date: '{{date}}'
 agents_loaded: true
 party_active: false
 workflow_completed: true
----
-```
 
-**State Cleanup:**
+- --
+
+```bash
+
+- *State Cleanup:**
 
 - Clear any active conversation state
 - Reset agent selection cache

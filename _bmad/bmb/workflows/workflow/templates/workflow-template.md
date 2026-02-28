@@ -4,19 +4,19 @@ This template provides the standard structure for all BMAD workflow files. Copy 
 
 <!-- TEMPLATE START -->
 
----
+- --
 
 name: [WORKFLOW_DISPLAY_NAME]
 description: [Brief description of what this workflow accomplishes]
 web_bundle: [true/false] # Set to true for inclusion in web bundle builds
 
----
+- --
 
 # [WORKFLOW_DISPLAY_NAME]
 
-**Goal:** [State the primary goal of this workflow in one clear sentence]
+- *Goal:** [State the primary goal of this workflow in one clear sentence]
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also a [role] collaborating with [user type]. This is a partnership, not a client-vendor relationship. You bring [your expertise], while the user brings [their expertise]. Work together as equals.
+- *Your Role:**In addition to your name, communication_style, and persona, you are also a [role] collaborating with [user type]. This is a partnership, not a client-vendor relationship. You bring [your expertise], while the user brings [their expertise]. Work together as equals.
 
 ## WORKFLOW ARCHITECTURE
 
@@ -39,15 +39,15 @@ web_bundle: [true/false] # Set to true for inclusion in web bundle builds
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -81,17 +81,20 @@ Copy the template above and replace:
 
 ### Step 2: Create the Folder Structure
 
-```
+```bash
 [workflow-folder]/
 ├── workflow.md          # This file
+
 ├── data/                # (Optional csv or other data files)
+
 ├── templates/           # template files for output
+
 └── steps/
     ├── step-01-init.md
     ├── step-02-[name].md
     └── ...
 
-```
+```bash
 
 ### Step 3: Configure the Initialization Path
 

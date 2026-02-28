@@ -38,9 +38,11 @@ Run `/bmad:gds:workflows:sprint-planning` to generate it, then rerun sprint-stat
   <action>Read the FULL file: {sprint_status_file}</action>
   <action>Parse fields: generated, project, project_key, tracking_system, story_location</action>
   <action>Parse development_status map. Classify keys:</action>
+
   - Epics: keys starting with "epic-" (and not ending with "-retrospective")
   - Retrospectives: keys ending with "-retrospective"
   - Stories: everything else (e.g., 1-2-login-form)
+
   <action>Map legacy story status "drafted" → "ready-for-dev"</action>
   <action>Count story statuses: backlog, ready-for-dev, in-progress, review, done</action>
   <action>Map legacy epic status "contexted" → "in-progress"</action>
@@ -59,13 +61,15 @@ Run `/bmad:gds:workflows:sprint-planning` to generate it, then rerun sprint-stat
 {{#each invalid_entries}}
 
 - `{{key}}`: "{{status}}" (not recognized)
+
   {{/each}}
 
-**Valid statuses:**
+- *Valid statuses:**
 
 - Stories: backlog, ready-for-dev, in-progress, review, done
 - Epics: backlog, in-progress, done
 - Retrospectives: optional, done
+
   </output>
   <ask>How should these be corrected?
   {{#each invalid_entries}}
@@ -87,39 +91,46 @@ Enter corrections (e.g., "1=in-progress, 2=backlog") or "skip" to continue witho
 - IF `generated` timestamp is more than 7 days old: warn "sprint-status.yaml may be stale"
 - IF any story key doesn't match an epic pattern (e.g., story "5-1-..." but no "epic-5"): warn "orphaned story detected"
 - IF any epic has status in-progress but has no associated stories: warn "in-progress epic has no stories"
+
   </step>
 
 <step n="3" goal="Select next action recommendation">
   <action>Pick the next recommended workflow using priority:</action>
   <note>When selecting "first" story: sort by epic number, then story number (e.g., 1-1 before 1-2 before 2-1)</note>
+
   1. If any story status == in-progress → recommend `dev-story` for the first in-progress story
   2. Else if any story status == review → recommend `code-review` for the first review story
   3. Else if any story status == ready-for-dev → recommend `dev-story`
   4. Else if any story status == backlog → recommend `create-story`
   5. Else if any retrospective status == optional → recommend `retrospective`
   6. Else → All implementation items done; congratulate the user - you both did amazing work together!
+
   <action>Store selected recommendation as: next_story_id, next_workflow_id, next_agent (SM/DEV as appropriate)</action>
 </step>
 
 <step n="4" goal="Display summary">
   <output>
+
 ## 📊 Sprint Status
 
 - Project: {{project}} ({{project_key}})
 - Tracking: {{tracking_system}}
 - Status file: {sprint_status_file}
 
-**Stories:** backlog {{count_backlog}}, ready-for-dev {{count_ready}}, in-progress {{count_in_progress}}, review {{count_review}}, done {{count_done}}
+- *Stories:** backlog {{count_backlog}}, ready-for-dev {{count_ready}}, in-progress {{count_in_progress}}, review {{count_review}}, done {{count_done}}
 
-**Epics:** backlog {{epic_backlog}}, in-progress {{epic_in_progress}}, done {{epic_done}}
+- *Epics:** backlog {{epic_backlog}}, in-progress {{epic_in_progress}}, done {{epic_done}}
 
-**Next Recommendation:** /bmad:gds:workflows:{{next_workflow_id}} ({{next_story_id}})
+- *Next Recommendation:** /bmad:gds:workflows:{{next_workflow_id}} ({{next_story_id}})
 
 {{#if risks}}
-**Risks:**
+
+- *Risks:**
+
 {{#each risks}}
 
 - {{this}}
+
   {{/each}}
   {{/if}}
 
@@ -141,12 +152,15 @@ If the command targets a story, set `story_key={{next_story_id}}` when prompted.
 
   <check if="choice == 2">
     <output>
+
 ### Stories by Status
+
 - In Progress: {{stories_in_progress}}
 - Review: {{stories_in_review}}
 - Ready for Dev: {{stories_ready_for_dev}}
 - Backlog: {{stories_backlog}}
 - Done: {{stories_done}}
+
     </output>
   </check>
 
@@ -216,6 +230,7 @@ If the command targets a story, set `story_key={{next_story_id}}` when prompted.
 - Stories: backlog, ready-for-dev, in-progress, review, done (legacy: drafted)
 - Epics: backlog, in-progress, done (legacy: contexted)
 - Retrospectives: optional, done
+
   <check if="any invalid status found">
   <template-output>is_valid = false</template-output>
   <template-output>error = "Invalid status values: {{invalid_entries}}"</template-output>

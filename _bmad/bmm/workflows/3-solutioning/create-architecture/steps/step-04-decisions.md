@@ -54,30 +54,35 @@ Facilitate collaborative architectural decision making, leveraging existing tech
 
 ### 1. Load Decision Framework & Check Existing Preferences
 
-**Review Technical Preferences from Step 3:**
+- *Review Technical Preferences from Step 3:**
+
 "Based on our technical preferences discussion in step 3, let's build on those foundations:
 
-**Your Technical Preferences:**
+- *Your Technical Preferences:**
+
 {{user_technical_preferences_from_step_3}}
 
-**Starter Template Decisions:**
+- *Starter Template Decisions:**
+
 {{starter_template_decisions}}
 
-**Project Context Technical Rules:**
+- *Project Context Technical Rules:**
+
 {{project_context_technical_rules}}"
 
-**Identify Remaining Decisions:**
+- *Identify Remaining Decisions:**
+
 Based on technical preferences, starter template choice, and project context, identify remaining critical decisions:
 
-**Already Decided (Don't re-decide these):**
+- *Already Decided (Don't re-decide these):**
 
 - {{starter_template_decisions}}
 - {{user_technology_preferences}}
 - {{project_context_technical_rules}}
 
-**Critical Decisions:** Must be decided before implementation can proceed
-**Important Decisions:** Shape the architecture significantly
-**Nice-to-Have:** Can be deferred if needed
+- *Critical Decisions:** Must be decided before implementation can proceed
+- *Important Decisions:** Shape the architecture significantly
+- *Nice-to-Have:** Can be deferred if needed
 
 ### 2. Decision Categories by Priority
 
@@ -125,17 +130,20 @@ Based on technical preferences, starter template choice, and project context, id
 
 For each category, facilitate collaborative decision making:
 
-**Present the Decision:**
+- *Present the Decision:**
+
 Based on user skill level and project context:
 
-**Expert Mode:**
+- *Expert Mode:**
+
 "{{Decision_Category}}: {{Specific_Decision}}
 
 Options: {{concise_option_list_with_tradeoffs}}
 
 What's your preference for this decision?"
 
-**Intermediate Mode:**
+- *Intermediate Mode:**
+
 "Next decision: {{Human_Friendly_Category}}
 
 We need to choose {{Specific_Decision}}.
@@ -145,7 +153,8 @@ Common options:
 
 For your project, I'd lean toward {{recommendation}} because {{reason}}. What are your thoughts?"
 
-**Beginner Mode:**
+- *Beginner Mode:**
+
 "Let's talk about {{Human_Friendly_Category}}.
 
 {{Educational_Context_About_Why_This_Matters}}
@@ -160,25 +169,28 @@ This is good for you because {{beginner_friendly_reason}}.
 
 What feels right to you?"
 
-**Verify Technology Versions:**
+- *Verify Technology Versions:**
+
 If decision involves specific technology:
 
-```
+```bash
 Search the web: "{{technology}} latest stable version"
 Search the web: "{{technology}} current LTS version"
 Search the web: "{{technology}} production readiness"
-```
 
-**Get User Input:**
+```bash
+
+- *Get User Input:**
+
 "What's your preference? (or 'explain more' for details)"
 
-**Handle User Response:**
+- *Handle User Response:**
 
 - If user wants more info: Provide deeper explanation
 - If user has preference: Discuss implications and record decision
 - If user wants alternatives: Explore other options
 
-**Record the Decision:**
+- *Record the Decision:**
 
 - Category: {{category}}
 - Decision: {{user_choice}}
@@ -203,17 +215,21 @@ After facilitating all decision categories, prepare the content to append:
 #### Content Structure:
 
 ```markdown
+
 ## Core Architectural Decisions
 
 ### Decision Priority Analysis
 
-**Critical Decisions (Block Implementation):**
+- *Critical Decisions (Block Implementation):**
+
 {{critical_decisions_made}}
 
-**Important Decisions (Shape Architecture):**
+- *Important Decisions (Shape Architecture):**
+
 {{important_decisions_made}}
 
-**Deferred Decisions (Post-MVP):**
+- *Deferred Decisions (Post-MVP):**
+
 {{decisions_deferred_with_rationale}}
 
 ### Data Architecture
@@ -238,12 +254,15 @@ After facilitating all decision categories, prepare the content to append:
 
 ### Decision Impact Analysis
 
-**Implementation Sequence:**
+- *Implementation Sequence:**
+
 {{ordered_list_of_decisions_for_implementation}}
 
-**Cross-Component Dependencies:**
+- *Cross-Component Dependencies:**
+
 {{how_decisions_affect_each_other}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -251,11 +270,12 @@ Show the generated decisions content and present choices:
 
 "I've documented all the core architectural decisions we've made together.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Explore innovative approaches to any specific decisions
 [P] Party Mode - Review decisions from multiple perspectives
 [C] Continue - Save these decisions and move to implementation patterns"

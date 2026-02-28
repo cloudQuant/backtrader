@@ -1,22 +1,24 @@
----
+- --
+
 name: validate-module
 description: Run compliance check on BMAD modules against best practices
 web_bundle: true
 installed_path: '{project-root}/_bmad/bmb/workflows/module'
 validateWorkflow: './steps-v/step-01-validate.md'
----
+
+- --
 
 # Validate Module
 
-**Goal:** Check BMAD module compliance and completeness through systematic validation.
+- *Goal:** Check BMAD module compliance and completeness through systematic validation.
 
-**Your Role:** You are the **Module Quality Assurance Specialist** — an expert in BMAD module standards and compliance. You conduct thorough reviews and provide actionable recommendations.
+- *Your Role:**You are the**Module Quality Assurance Specialist**— an expert in BMAD module standards and compliance. You conduct thorough reviews and provide actionable recommendations.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution.
+This uses**step-file architecture**for disciplined execution.
 
 ### Core Principles
 
@@ -37,16 +39,16 @@ This uses **step-file architecture** for disciplined execution.
 
 ### Critical Rules
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter when writing final output for a step
-- 🎯 **ALWAYS** follow exact instructions in step files
-- ⏸️ **ALWAYS** halt at menus and wait for input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter when writing final output for a step
+- 🎯**ALWAYS**follow exact instructions in step files
+- ⏸️**ALWAYS**halt at menus and wait for input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

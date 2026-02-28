@@ -188,9 +188,7 @@ class Indicator(IndicatorBase):
         # This handles indicators that only set up line bindings without defining next/once
         from .lineroot import LineRoot
 
-        if hasattr(LineRoot, "once") and getattr(cls, "once", None) == getattr(
-            LineRoot, "once", None
-        ):
+        if hasattr(LineRoot, "once") and getattr(cls, "once", None) == getattr(LineRoot, "once", None):
             # LineRoot.once is a no-op, so always use once_via_next
             cls.once = cls.once_via_next
             cls.preonce = cls.preonce_via_prenext

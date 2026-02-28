@@ -1,6 +1,6 @@
 # Game Test Design - Validation Checklist
 
----
+- --
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@
 - [ ] Target platforms known
 - [ ] Risk areas assessed
 
----
+- --
 
 ## Context Gathering
 
@@ -19,7 +19,7 @@
 - [ ] Multiplayer requirements known (if applicable)
 - [ ] Platform certification needs identified
 
----
+- --
 
 ## Test Categories
 
@@ -51,7 +51,7 @@
 - [ ] Performance criteria established
 - [ ] Accessibility tests defined
 
----
+- --
 
 ## Scenario Quality
 
@@ -62,7 +62,7 @@
 - [ ] No duplicate scenarios
 - [ ] Edge cases considered
 
----
+- --
 
 ## Prioritization
 
@@ -71,7 +71,7 @@
 - [ ] Priority distribution is reasonable
 - [ ] Risk-based ordering applied
 
----
+- --
 
 ## Documentation
 
@@ -82,7 +82,7 @@
 - [ ] Automation recommendations provided
 - [ ] Next steps defined
 
----
+- --
 
 ## Completion Criteria
 
@@ -91,8 +91,8 @@
 - [ ] Document is ready for team review
 - [ ] Automation candidates identified
 
----
+- --
 
-**Completed by:** {name}
-**Date:** {date}
-**Scenario Count:** {count}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Scenario Count:** {count}

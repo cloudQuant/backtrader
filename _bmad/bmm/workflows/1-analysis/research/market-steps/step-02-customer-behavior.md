@@ -27,7 +27,7 @@
 - Focus on customer behavior patterns and demographic analysis
 - Web search capabilities with source verification are enabled
 - Previous step confirmed research scope and goals
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 
 ## YOUR TASK:
@@ -38,12 +38,12 @@ Conduct customer behavior and segment analysis with emphasis on patterns and dem
 
 ### 1. Begin Customer Behavior Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different customer behavior areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different customer behavior areas simultaneously and thoroughly.
 
 Start with customer behavior research approach:
-"Now I'll conduct **customer behavior analysis** for **{{research_topic}}** to understand customer patterns.
+"Now I'll conduct **customer behavior analysis**for**{{research_topic}}** to understand customer patterns.
 
-**Customer Behavior Focus:**
+- *Customer Behavior Focus:**
 
 - Customer behavior patterns and preferences
 - Demographic profiles and segmentation
@@ -51,18 +51,18 @@ Start with customer behavior research approach:
 - Behavior drivers and influences
 - Customer interaction patterns and engagement
 
-**Let me search for current customer behavior insights.**"
+- *Let me search for current customer behavior insights.**"
 
 ### 2. Parallel Customer Behavior Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} customer behavior patterns"
 Search the web: "{{research_topic}} customer demographics"
 Search the web: "{{research_topic}} psychographic profiles"
 Search the web: "{{research_topic}} customer behavior drivers"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for customer behavior studies and research reports
 - Search for demographic segmentation and analysis
@@ -72,11 +72,11 @@ Search the web: "{{research_topic}} customer behavior drivers"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate customer behavior findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - Customer behavior patterns and preferences
 - Demographic profiles and segmentation
@@ -84,15 +84,17 @@ Search the web: "{{research_topic}} customer behavior drivers"
 - Behavior drivers and influences
 - Customer interaction patterns and engagement
 
-**Cross-Behavior Analysis:**
+- *Cross-Behavior Analysis:**
+
 [Identify patterns connecting demographics, psychographics, and behaviors]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Customer Behavior Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare customer behavior analysis with web search citations:
 
@@ -101,6 +103,7 @@ Prepare customer behavior analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Customer Behavior and Segments
 
 ### Customer Behavior Patterns
@@ -154,15 +157,16 @@ _Purchase Decision Process: [Steps in purchase decision making]_
 _Post-Purchase Behavior: [After-purchase engagement patterns]_
 _Loyalty and Retention: [Factors driving customer loyalty]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **customer behavior analysis** for {{research_topic}}, focusing on customer patterns.
 
-**Key Customer Behavior Findings:**
+- *Key Customer Behavior Findings:**
 
 - Customer behavior patterns clearly identified with drivers
 - Demographic segmentation thoroughly analyzed
@@ -170,7 +174,8 @@ _Source: [URL]_
 - Customer interaction patterns captured
 - Multiple sources verified for critical insights
 
-**Ready to proceed to customer pain points?**
+- *Ready to proceed to customer pain points?**
+
 [C] Continue - Save this to document and proceed to pain points analysis
 
 ### 6. Handle Continue Selection

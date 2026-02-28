@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """Live Broker Abstract Base Class.
 
 Defines the common interface that all live trading broker implementations

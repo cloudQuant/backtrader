@@ -1,10 +1,13 @@
----
+- --
+
 name: 'step-01b-continue'
 description: 'Resume the product brief workflow from where it was left off, ensuring smooth continuation'
 
 # File References
+
 outputFile: '{planning_artifacts}/product-brief-{{project_name}}-{{date}}.md'
----
+
+- --
 
 # Step 1B: Product Brief Continuation
 
@@ -55,7 +58,8 @@ Resume the product brief workflow from where it was left off, ensuring smooth co
 
 ### 1. Analyze Current State
 
-**State Assessment:**
+- *State Assessment:**
+
 Review the frontmatter to understand:
 
 - `stepsCompleted`: Which steps are already done
@@ -65,7 +69,7 @@ Review the frontmatter to understand:
 
 ### 2. Restore Context Documents
 
-**Context Reloading:**
+- *Context Reloading:**
 
 - For each document in `inputDocuments`, load the complete file
 - This ensures you have full context for continuation
@@ -74,16 +78,17 @@ Review the frontmatter to understand:
 
 ### 3. Present Current Progress
 
-**Progress Report to User:**
+- *Progress Report to User:**
+
 "Welcome back {{user_name}}! I'm resuming our product brief collaboration for {{project_name}}.
 
-**Current Progress:**
+- *Current Progress:**
 
 - Steps completed: {stepsCompleted}
 - Last worked on: Step {lastStep}
 - Context documents available: {len(inputDocuments)} files
 
-**Document Status:**
+- *Document Status:**
 
 - Current product brief is ready with all completed sections
 - Ready to continue from where we left off
@@ -92,7 +97,8 @@ Does this look right, or do you want to make any adjustments before we proceed?"
 
 ### 4. Determine Continuation Path
 
-**Next Step Logic:**
+- *Next Step Logic:**
+
 Based on `lastStep` value, determine which step to load next:
 
 - If `lastStep = 1` → Load `./step-02-vision.md`
@@ -103,7 +109,8 @@ Based on `lastStep` value, determine which step to load next:
 
 ### 5. Handle Workflow Completion
 
-**If workflow already complete (`lastStep = 6`):**
+- *If workflow already complete (`lastStep = 6`):**
+
 "Great news! It looks like we've already completed the product brief workflow for {{project_name}}.
 
 The final document is ready at `{outputFile}` with all sections completed through step 6.
@@ -118,10 +125,11 @@ What would be most helpful?"
 
 ### 6. Present MENU OPTIONS
 
-**If workflow not complete:**
+- *If workflow not complete:**
+
 Display: "Ready to continue with Step {nextStepNumber}: {nextStepTitle}?
 
-**Select an Option:** [C] Continue to Step {nextStepNumber}"
+- *Select an Option:** [C] Continue to Step {nextStepNumber}"
 
 #### Menu Handling Logic:
 
@@ -138,7 +146,7 @@ Display: "Ready to continue with Step {nextStepNumber}: {nextStepTitle}?
 
 ONLY WHEN [C continue option] is selected and [current state confirmed], will you then read fully and follow the appropriate next step file to resume the workflow.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -158,4 +166,4 @@ ONLY WHEN [C continue option] is selected and [current state confirmed], will yo
 - Proceeding without user confirmation of current state
 - Not maintaining context consistency from previous session
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

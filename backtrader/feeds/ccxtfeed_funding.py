@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """CCXT Feed with Funding Rate via WebSocket.
 
 This module extends the standard CCXTFeed to include funding rate data
@@ -29,21 +28,21 @@ Note:
     an error will be raised. Install ccxt.pro: pip install ccxtpro
 """
 
-import time
 import threading
+import time
 from datetime import datetime, timedelta, timezone
-from collections import deque
 
 from backtrader.feed import DataBase
 from backtrader.stores import ccxtstore
 from backtrader.utils.py3 import queue
-from ..utils import date2num
 
+from ..utils import date2num
 
 # Import enhancement modules
 try:
     from ..ccxt.threading import ThreadedDataManager
     from ..ccxt.websocket import CCXTWebSocketManager
+
     HAS_CCXT_ENHANCEMENTS = True
 except ImportError:
     HAS_CCXT_ENHANCEMENTS = False
@@ -53,6 +52,7 @@ except ImportError:
 
 class WebSocketRequiredError(Exception):
     """Raised when WebSocket is required but not available."""
+
     pass
 
 
@@ -79,7 +79,7 @@ class CCXTFeedWithFunding(DataBase):
     """
 
     # Define additional lines for funding data
-    lines = ('funding_rate', 'mark_price', 'next_funding_time', 'predicted_funding_rate')
+    lines = ("funding_rate", "mark_price", "next_funding_time", "predicted_funding_rate")
 
     params = (
         ("historical", False),
@@ -89,15 +89,15 @@ class CCXTFeedWithFunding(DataBase):
         ("drop_newest", False),
         ("debug", False),
         # WebSocket params
-        ("use_websocket", True),          # Enable WebSocket by default (REQUIRED)
+        ("use_websocket", True),  # Enable WebSocket by default (REQUIRED)
         ("use_threaded_data", False),
         ("hist_start_date", None),
         ("ws_reconnect_delay", 5.0),
         ("ws_max_reconnect_delay", 60.0),
-        ("ws_startup_timeout", 10),       # WebSocket startup timeout
+        ("ws_startup_timeout", 10),  # WebSocket startup timeout
         # Funding rate specific params
         ("include_funding", True),
-        ("funding_history_days", 3),      # 3 days history for startup
+        ("funding_history_days", 3),  # 3 days history for startup
     )
 
     _store = ccxtstore.CCXTStore
@@ -111,7 +111,7 @@ class CCXTFeedWithFunding(DataBase):
         Raises:
             WebSocketRequiredError: If ccxt.pro is not installed or WebSocket is disabled.
         """
-        super(CCXTFeedWithFunding, self).__init__()
+        super().__init__()
 
         self._state = None
         if store is not None:
@@ -121,17 +121,17 @@ class CCXTFeedWithFunding(DataBase):
 
         self._data = queue.Queue(maxsize=1000)
         self._last_id = ""
-        self._last_ts = self.utc_to_ts(datetime.utcnow())
+        self._last_ts = self.utc_to_ts(datetime.now(timezone.utc))
         self._last_update_bar_time = 0
 
         # Funding rate data storage (thread-safe)
         self._funding_lock = threading.Lock()
         self._current_funding = {
-            'funding_rate': 0.0,
-            'predicted_funding_rate': 0.0,
-            'mark_price': 0.0,
-            'next_funding_time': 0,
-            'timestamp': 0
+            "funding_rate": 0.0,
+            "predicted_funding_rate": 0.0,
+            "mark_price": 0.0,
+            "next_funding_time": 0,
+            "timestamp": 0,
         }
 
         # Historical funding cache for bar matching
@@ -156,14 +156,12 @@ class CCXTFeedWithFunding(DataBase):
 
         if not HAS_CCXT_ENHANCEMENTS:
             raise WebSocketRequiredError(
-                "WebSocket enhancements not available. "
-                "Please install ccxt.pro: pip install ccxtpro"
+                "WebSocket enhancements not available. Please install ccxt.pro: pip install ccxtpro"
             )
 
         if CCXTWebSocketManager is None:
             raise WebSocketRequiredError(
-                "CCXTWebSocketManager is not available. "
-                "Please install ccxt.pro: pip install ccxtpro"
+                "CCXTWebSocketManager is not available. Please install ccxt.pro: pip install ccxtpro"
             )
 
     def utc_to_ts(self, dt):
@@ -214,24 +212,21 @@ class CCXTFeedWithFunding(DataBase):
         try:
             # Try to use shared WebSocket manager from store
             self._ws_is_shared = False
-            if hasattr(self.store, 'get_websocket_manager'):
+            if hasattr(self.store, "get_websocket_manager"):
                 self._websocket_manager = self.store.get_websocket_manager()
                 if self._websocket_manager:
                     self._ws_is_shared = True
 
             # Fallback: create a per-feed WebSocket manager
             if self._websocket_manager is None:
-                config = getattr(self.store.exchange, 'config', {})
-                markets = getattr(self.store.exchange, 'markets', None)
-                self._websocket_manager = CCXTWebSocketManager(
-                    self.store.exchange_id,
-                    config,
-                    markets=markets
-                )
+                config = getattr(self.store.exchange, "config", {})
+                markets = getattr(self.store.exchange, "markets", None)
+                self._websocket_manager = CCXTWebSocketManager(self.store.exchange_id, config, markets=markets)
                 self._websocket_manager.start()
 
             # Wait for connection with timeout
             import time as t
+
             timeout = self.p.ws_startup_timeout
             start_wait = t.time()
             while not self._websocket_manager.is_connected():
@@ -247,25 +242,15 @@ class CCXTFeedWithFunding(DataBase):
 
             # Subscribe to OHLCV updates
             granularity = self.store.get_granularity(self._timeframe, self._compression)
-            self._websocket_manager.subscribe_ohlcv(
-                self.p.dataname,
-                granularity,
-                self._on_websocket_ohlcv
-            )
+            self._websocket_manager.subscribe_ohlcv(self.p.dataname, granularity, self._on_websocket_ohlcv)
 
             if self.p.debug:
                 print(f"[WS] Subscribed to OHLCV for {self.p.dataname}")
 
             # Subscribe to funding rate updates
             if self.p.include_funding:
-                self._websocket_manager.subscribe_funding_rate(
-                    self.p.dataname,
-                    self._on_websocket_funding
-                )
-                self._websocket_manager.subscribe_mark_price(
-                    self.p.dataname,
-                    self._on_websocket_mark_price
-                )
+                self._websocket_manager.subscribe_funding_rate(self.p.dataname, self._on_websocket_funding)
+                self._websocket_manager.subscribe_mark_price(self.p.dataname, self._on_websocket_mark_price)
 
                 if self.p.debug:
                     print(f"[WS] Subscribed to Funding Rate for {self.p.dataname}")
@@ -294,10 +279,10 @@ class CCXTFeedWithFunding(DataBase):
                         if bar[0] >= self._last_ts:
                             # Augment bar with funding rate data
                             with self._funding_lock:
-                                funding = self._current_funding['funding_rate']
-                                mark_price = self._current_funding['mark_price']
-                                next_time = self._current_funding['next_funding_time']
-                                predicted = self._current_funding['predicted_funding_rate']
+                                funding = self._current_funding["funding_rate"]
+                                mark_price = self._current_funding["mark_price"]
+                                next_time = self._current_funding["next_funding_time"]
+                                predicted = self._current_funding["predicted_funding_rate"]
 
                             # Create extended bar with funding data
                             extended_bar = list(bar) + [funding, mark_price, next_time, predicted]
@@ -310,7 +295,9 @@ class CCXTFeedWithFunding(DataBase):
                 self._ws_connected = True
 
             if self.p.debug:
-                print(f"[WS OHLCV] Received {len(ohlcv_data)} bars, latest timestamp: {ohlcv_data[-1][0] if ohlcv_data else 0}")
+                print(
+                    f"[WS OHLCV] Received {len(ohlcv_data)} bars, latest timestamp: {ohlcv_data[-1][0] if ohlcv_data else 0}"
+                )
 
         except Exception as e:
             if self.p.debug:
@@ -333,38 +320,40 @@ class CCXTFeedWithFunding(DataBase):
 
         try:
             with self._funding_lock:
-                timestamp = funding_data.get('timestamp')
+                timestamp = funding_data.get("timestamp")
                 if timestamp:
-                    self._current_funding['timestamp'] = timestamp
+                    self._current_funding["timestamp"] = timestamp
 
                 # Extract funding rate - different exchanges use different field names
-                rate = funding_data.get('fundingRate')
+                rate = funding_data.get("fundingRate")
                 if rate is None:
-                    rate = funding_data.get('rate')
+                    rate = funding_data.get("rate")
                 if rate is None:
-                    rate = funding_data.get('info', {}).get('fundingRate')
+                    rate = funding_data.get("info", {}).get("fundingRate")
                 if rate is not None:
-                    self._current_funding['funding_rate'] = float(rate)
+                    self._current_funding["funding_rate"] = float(rate)
 
                 # Predicted rate
-                predicted = funding_data.get('info', {}).get('predictedFundingRate')
+                predicted = funding_data.get("info", {}).get("predictedFundingRate")
                 if predicted is not None:
-                    self._current_funding['predicted_funding_rate'] = float(predicted)
+                    self._current_funding["predicted_funding_rate"] = float(predicted)
 
                 # Next funding time
-                next_time = funding_data.get('nextFundingTime')
+                next_time = funding_data.get("nextFundingTime")
                 if next_time is not None:
-                    self._current_funding['next_funding_time'] = int(next_time)
+                    self._current_funding["next_funding_time"] = int(next_time)
 
                 # Also store in history for bar matching
-                self._current_funding['timestamp'] = timestamp or int(time.time() * 1000)
-                self._funding_history[self._current_funding['timestamp']] = self._current_funding.copy()
+                self._current_funding["timestamp"] = timestamp or int(time.time() * 1000)
+                self._funding_history[self._current_funding["timestamp"]] = self._current_funding.copy()
 
                 self._ws_funding_connected = True
 
                 if self.p.debug:
-                    print(f"[FUNDING WS] Rate: {self._current_funding['funding_rate']:.8f}, "
-                          f"Mark: {self._current_funding['mark_price']:.8f}")
+                    print(
+                        f"[FUNDING WS] Rate: {self._current_funding['funding_rate']:.8f}, "
+                        f"Mark: {self._current_funding['mark_price']:.8f}"
+                    )
 
         except Exception as e:
             if self.p.debug:
@@ -381,23 +370,23 @@ class CCXTFeedWithFunding(DataBase):
         try:
             with self._funding_lock:
                 # Update mark price
-                mark_price = mark_data.get('markPrice')
+                mark_price = mark_data.get("markPrice")
                 if mark_price is not None:
-                    self._current_funding['mark_price'] = float(mark_price)
+                    self._current_funding["mark_price"] = float(mark_price)
 
                 # Binance mark price stream also contains funding rate
-                info = mark_data.get('info', {})
+                info = mark_data.get("info", {})
                 if isinstance(info, dict):
                     # Extract funding rate from Binance mark price stream
-                    last_funding_rate = info.get('lastFundingRate')
+                    last_funding_rate = info.get("lastFundingRate")
                     if last_funding_rate is not None:
-                        self._current_funding['funding_rate'] = float(last_funding_rate)
+                        self._current_funding["funding_rate"] = float(last_funding_rate)
 
-                    next_funding_time = info.get('nextFundingTime')
+                    next_funding_time = info.get("nextFundingTime")
                     if next_funding_time is not None:
-                        self._current_funding['next_funding_time'] = int(next_funding_time)
+                        self._current_funding["next_funding_time"] = int(next_funding_time)
 
-                self._current_funding['timestamp'] = mark_data.get('timestamp', time.time() * 1000)
+                self._current_funding["timestamp"] = mark_data.get("timestamp", time.time() * 1000)
 
                 # Mark price data also counts as funding connected
                 self._ws_funding_connected = True
@@ -421,28 +410,28 @@ class CCXTFeedWithFunding(DataBase):
                 print(f"[FUNDING] Fetching historical funding rates for {symbol}...")
 
             # Try to fetch funding rate history
-            if hasattr(exchange, 'fetch_funding_rate_history'):
+            if hasattr(exchange, "fetch_funding_rate_history"):
                 rates = exchange.fetch_funding_rate_history(symbol, since=since, limit=500)
                 for rate in rates:
-                    ts = rate.get('timestamp', 0)
+                    ts = rate.get("timestamp", 0)
                     if ts:
                         self._funding_history[ts] = {
-                            'funding_rate': float(rate.get('rate', 0)),
-                            'mark_price': 0.0,
-                            'predicted_funding_rate': 0.0,
-                            'next_funding_time': rate.get('nextFundingTime', ts + 28800000),
-                            'timestamp': ts
+                            "funding_rate": float(rate.get("rate", 0)),
+                            "mark_price": 0.0,
+                            "predicted_funding_rate": 0.0,
+                            "next_funding_time": rate.get("nextFundingTime", ts + 28800000),
+                            "timestamp": ts,
                         }
 
                 # Initialize current funding with latest
                 if rates:
                     latest = rates[-1]
                     self._current_funding = {
-                        'funding_rate': float(latest.get('rate', 0)),
-                        'mark_price': 0.0,
-                        'predicted_funding_rate': 0.0,
-                        'next_funding_time': latest.get('nextFundingTime', 0),
-                        'timestamp': latest.get('timestamp', 0)
+                        "funding_rate": float(latest.get("rate", 0)),
+                        "mark_price": 0.0,
+                        "predicted_funding_rate": 0.0,
+                        "next_funding_time": latest.get("nextFundingTime", 0),
+                        "timestamp": latest.get("timestamp", 0),
                     }
 
             if self.p.debug:
@@ -557,10 +546,10 @@ class CCXTFeedWithFunding(DataBase):
                     # Attach current funding rate to historical bars
                     funding_data = self._get_funding_for_bar(tstamp)
                     extended_bar = list(bar) + [
-                        funding_data['funding_rate'],
-                        funding_data['mark_price'],
-                        funding_data['next_funding_time'],
-                        funding_data['predicted_funding_rate']
+                        funding_data["funding_rate"],
+                        funding_data["mark_price"],
+                        funding_data["next_funding_time"],
+                        funding_data["predicted_funding_rate"],
                     ]
                     self._data.put(tuple(extended_bar))
                     self._last_ts = tstamp
@@ -594,13 +583,13 @@ class CCXTFeedWithFunding(DataBase):
             # Standard bar, use current funding
             tstamp, open_, high, low, close, volume = bar
             with self._funding_lock:
-                funding_rate = self._current_funding['funding_rate']
-                mark_price = self._current_funding['mark_price']
-                next_funding_time = self._current_funding['next_funding_time']
-                predicted_funding_rate = self._current_funding['predicted_funding_rate']
+                funding_rate = self._current_funding["funding_rate"]
+                mark_price = self._current_funding["mark_price"]
+                next_funding_time = self._current_funding["next_funding_time"]
+                predicted_funding_rate = self._current_funding["predicted_funding_rate"]
 
         # Set standard OHLCV data
-        dtime = datetime.utcfromtimestamp(tstamp // 1000)
+        dtime = datetime.fromtimestamp(tstamp / 1000, tz=timezone.utc).replace(tzinfo=None)
         self.lines.datetime[0] = date2num(dtime)
         self.lines.open[0] = open_
         self.lines.high[0] = high
@@ -615,7 +604,7 @@ class CCXTFeedWithFunding(DataBase):
 
             # Convert next funding time to date num
             if next_funding_time:
-                next_dt = datetime.utcfromtimestamp(next_funding_time // 1000)
+                next_dt = datetime.fromtimestamp(next_funding_time / 1000, tz=timezone.utc).replace(tzinfo=None)
                 self.lines.next_funding_time[0] = date2num(next_dt)
             else:
                 self.lines.next_funding_time[0] = 0
@@ -634,7 +623,7 @@ class CCXTFeedWithFunding(DataBase):
 
     def stop(self):
         """Stop the data feed and cleanup resources."""
-        if self._websocket_manager and not getattr(self, '_ws_is_shared', False):
+        if self._websocket_manager and not getattr(self, "_ws_is_shared", False):
             self._websocket_manager.stop()
             print("[WS] WebSocket stopped")
         self._websocket_manager = None

@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03b-subprocess-isolation'
 description: 'Subprocess: Check test isolation (no shared state/dependencies)'
 subprocess: true
 outputFile: '/tmp/tea-test-review-isolation-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 3B: Isolation Quality Check
 
@@ -11,9 +13,9 @@ outputFile: '/tmp/tea-test-review-isolation-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other quality dimension checks.
 
-**Your task:** Analyze test files for ISOLATION violations only.
+- *Your task:** Analyze test files for ISOLATION violations only.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -22,29 +24,29 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 - ❌ Do NOT check determinism, maintainability, coverage, or performance
 - ❌ Do NOT modify test files (read-only analysis)
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Identify Isolation Violations
 
-**Scan test files for isolation issues:**
+- *Scan test files for isolation issues:**
 
-**HIGH SEVERITY Violations**:
+- *HIGH SEVERITY Violations**:
 
 - Global state mutations (global variables modified)
 - Test order dependencies (test B depends on test A running first)
 - Shared database records without cleanup
 - beforeAll/afterAll with side effects leaking to other tests
 
-**MEDIUM SEVERITY Violations**:
+- *MEDIUM SEVERITY Violations**:
 
 - Missing test cleanup (created data not deleted)
 - Shared fixtures that mutate state
 - Tests that assume specific execution order
 - Environment variables modified without restoration
 
-**LOW SEVERITY Violations**:
+- *LOW SEVERITY Violations**:
 
 - Tests sharing test data (but not mutating)
 - Missing test.describe grouping
@@ -58,9 +60,10 @@ const failedChecks = violations.length;
 const severityWeights = { HIGH: 10, MEDIUM: 5, LOW: 2 };
 const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.severity], 0);
 const score = Math.max(0, 100 - totalPenalty);
-```
 
----
+```bash
+
+- --
 
 ## OUTPUT FORMAT
 
@@ -78,7 +81,7 @@ const score = Math.max(0, 100 - totalPenalty);
       "category": "test-order-dependency",
       "description": "Test depends on previous test creating user record",
       "suggestion": "Each test should create its own test data in beforeEach",
-      "code_snippet": "test('should update user', async () => { /* assumes user exists */ });"
+      "code_snippet": "test('should update user', async () => { /*assumes user exists*/ });"
     }
   ],
   "passed_checks": 14,
@@ -96,9 +99,10 @@ const score = Math.max(0, 100 - totalPenalty);
   ],
   "summary": "Tests are well isolated with 1 HIGH severity violation"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
@@ -108,9 +112,9 @@ Subprocess completes when:
 - ✅ Score calculated
 - ✅ JSON output written to temp file
 
-**Subprocess terminates here.**
+- *Subprocess terminates here.**
 
----
+- --
 
 ## 🚨 SUBPROCESS SUCCESS METRICS
 

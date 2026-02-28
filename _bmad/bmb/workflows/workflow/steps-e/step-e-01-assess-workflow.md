@@ -1,13 +1,16 @@
----
+- --
+
 name: 'step-e-01-assess-workflow'
 description: 'Load target workflow, check compliance, check for validation report, offer validation if needed'
 
 # File References
+
 nextStepFile: './step-e-02-discover-edits.md'
 editPlan: '{bmb_creations_output_folder}/edit-plan-{workflow_name}.md'
 validationWorkflow: '../steps-v/step-01-validate.md'
 conversionStep: '../steps-c/step-00-conversion.md'
----
+
+- --
 
 # Edit Step 1: Assess Workflow
 
@@ -45,21 +48,22 @@ Load the target workflow, check if it follows BMAD step-file architecture, check
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Get Workflow Path
 
 From the user input provided by workflow.md routing, extract:
+
 - `targetWorkflowPath` - path to workflow.md file
 - `workflowName` - derived from path
 
-**If path was not provided:**
+- *If path was not provided:**
 
 "Which workflow would you like to edit? Please provide the path to the workflow.md file."
 
 ### 2. Load Workflow Completely
 
-**Load these files:**
+- *Load these files:**
 
 1. `{targetWorkflowPath}/workflow.md` - Must exist - if the user indicates is something else, ask if this is a conversion to the compliant v6 format
 2. Check for step folders: `steps*`
@@ -68,15 +72,15 @@ From the user input provided by workflow.md routing, extract:
 
 ### 3. Compliance Check
 
-**Determine if workflow is BMAD-compliant:**
+- *Determine if workflow is BMAD-compliant:**
 
-**Compliant workflow has:**
+- *Compliant workflow has:**
 - ✅ workflow.md file exists at root
 - ✅ At least one step folder exists (steps-c/, steps-v/, or steps-e/)
 - ✅ Step files use markdown format (.md)
 - ✅ workflow.md has frontmatter (name, description)
 
-**Non-compliant workflow:**
+- *Non-compliant workflow:**
 - ❌ No workflow.md file
 - ❌ Has workflow.yaml or instructions.md (legacy format)
 - ❌ No step folders
@@ -84,20 +88,22 @@ From the user input provided by workflow.md routing, extract:
 
 ### 4. Route Based on Compliance
 
-**IF NON-COMPLIANT:**
+- *IF NON-COMPLIANT:**
 
 "**Workflow Assessment Result: Non-Compliant Format**
 
 I found that this workflow does not follow BMAD step-file architecture:
+
 - [Describe what was found - e.g., legacy format, missing workflow.md, etc.]
 
-**Recommendation:** This workflow should be converted using the create workflow process. The create workflow can use your existing workflow as input discovery material to build a new compliant workflow.
+- *Recommendation:** This workflow should be converted using the create workflow process. The create workflow can use your existing workflow as input discovery material to build a new compliant workflow.
 
-**Would you like to:**
+- *Would you like to:**
 
-1. **[C]onvert to Compliant Workflow** - Use existing workflow as input to build compliant version
-2. **[E]xplore manual conversion** - I can explain what needs to change
-3. **[X] Exit** - Cancel this operation
+1. **[C]onvert to Compliant Workflow**- Use existing workflow as input to build compliant version
+
+2.**[E]xplore manual conversion**- I can explain what needs to change
+3.**[X] Exit** - Cancel this operation
 
 #### Menu Handling Logic:
 
@@ -106,11 +112,12 @@ I found that this workflow does not follow BMAD step-file architecture:
 - IF X: Exit with guidance
 - IF Any other: help user, then redisplay menu"
 
-**IF COMPLIANT:**
+- *IF COMPLIANT:**
 
 "**Workflow Assessment Result: Compliant Format**
 
 This workflow follows BMAD step-file architecture:
+
 - ✅ workflow.md found
 - ✅ Step folders: [list which ones exist]
 - ✅ Data folder: [yes/no]
@@ -120,18 +127,18 @@ Continue to step 5.
 
 ### 5. Check for Validation Report
 
-**Look for validation report:**
+- *Look for validation report:**
 - Check `{targetWorkflowPath}/validation-report-{workflow_name}.md`
 - Check if report exists and read completion status
 
-**IF NO VALIDATION REPORT EXISTS:**
+- *IF NO VALIDATION REPORT EXISTS:**
 
 "This workflow has not been validated yet.
 
-**Recommendation:** Running validation first can help identify issues before editing. Would you like to:
+- *Recommendation:**Running validation first can help identify issues before editing. Would you like to:
 
-1. **[V]alidate first** - Run comprehensive validation, then proceed with edits
-2. **[S]kip validation** - Proceed directly to editing
+1.**[V]alidate first**- Run comprehensive validation, then proceed with edits
+2.**[S]kip validation** - Proceed directly to editing
 
 #### Menu Handling Logic:
 
@@ -139,9 +146,10 @@ Continue to step 5.
 - IF S: Proceed directly to step 6 (Discover Edits)
 - IF Any other: help user, then redisplay menu"
 
-**IF VALIDATION REPORT EXISTS:**
+- *IF VALIDATION REPORT EXISTS:**
 
 Read the validation report and note:
+
 - Overall status (COMPLETE/INCOMPLETE)
 - Critical issues count
 - Warning issues count
@@ -158,46 +166,51 @@ Continue to step 6.
 
 ### 6. Create Edit Plan Document
 
-**Initialize edit plan:**
+- *Initialize edit plan:**
 
 ```markdown
----
+
+- --
+
 mode: edit
 targetWorkflowPath: '{targetWorkflowPath}'
 workflowName: '{workflow_name}'
 editSessionDate: '{current-date}'
 stepsCompleted:
+
   - step-e-01-assess-workflow.md
+
 hasValidationReport: [true/false]
 validationStatus: [from report if exists]
----
+
+- --
 
 # Edit Plan: {workflow_name}
 
 ## Workflow Snapshot
 
-**Path:** {targetWorkflowPath}
-**Format:** BMAD Compliant ✅
-**Step Folders:** [list found]
+- *Path:** {targetWorkflowPath}
+- *Format:** BMAD Compliant ✅
+- *Step Folders:** [list found]
 
 ## Validation Status
 
 [If report exists: summary of validation status]
 [If no report: No validation run yet]
 
----
+- --
 
 ## Edit Goals
 
-*To be populated in next step*
+- To be populated in next step*
 
----
+- --
 
 ## Edits Applied
 
-*To track changes made*
-```
+- To track changes made*
 
+```bash
 Write to `{editPlan}`.
 
 ### 7. Present MENU OPTIONS
@@ -213,7 +226,7 @@ Display: "**Assessment Complete. Select an Option:** [C] Continue to Discovery"
 
 ONLY WHEN user selects [C] and edit plan is created, will you then load and read fully `{nextStepFile}` to execute and begin edit discovery.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -234,4 +247,4 @@ ONLY WHEN user selects [C] and edit plan is created, will you then load and read
 - Not checking for validation report
 - Not creating edit plan
 
-**Master Rule:** Assessment must be thorough. Non-compliant workflows MUST be routed to create flow. Always check for validation report before editing.
+- *Master Rule:** Assessment must be thorough. Non-compliant workflows MUST be routed to create flow. Always check for validation report before editing.

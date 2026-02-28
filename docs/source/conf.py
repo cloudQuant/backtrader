@@ -35,7 +35,26 @@ extensions = [
     'sphinx.ext.coverage',          # Check documentation coverage
     'sphinx.ext.inheritance_diagram',  # Generate inheritance diagrams
     'sphinx_copybutton',            # Copy button for code blocks
+    'myst_parser',                 # Markdown support (MyST Parser)
 ]
+
+# MyST Parser configuration for Markdown
+myst_enable_extensions = [
+    "colon_fence",
+    "deflist",
+    "dollarmath",
+    "fieldlist",
+    "html_admonition",
+    "html_image",
+    "replacements",
+    "smartquotes",
+    "substitution",
+    "tasklist",
+]
+
+# Allow parsing of Markdown files in any directory
+myst_parser_silent_implicit_level = True
+myst_link_text_unquoted_syntax = True
 
 # Autosummary settings
 autosummary_generate = True

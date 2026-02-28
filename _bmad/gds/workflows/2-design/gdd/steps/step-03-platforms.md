@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-03-platforms'
 description: 'Define target platforms and target audience for the game'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-03-platforms.md'
 nextStepFile: './step-04-vision.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 3: Platforms & Audience
 
-**Progress: Step 3 of 14** - Next: Goals & Vision
+- *Progress: Step 3 of 14**- Next: Goals & Vision
 
 ## STEP GOAL:
 
@@ -71,23 +76,29 @@ Define the target platform(s) for the game and establish a clear picture of the 
 
 ### 1. Platform Discovery
 
-**Guide user through platform selection:**
+- *Guide user through platform selection:**
 
 "Now let's talk about where players will experience {{game_name}}.
 
-**Platform Options to Consider:**
+- *Platform Options to Consider:**
 
 | Platform                     | Considerations                                                           |
+
 | ---------------------------- | ------------------------------------------------------------------------ |
-| **PC (Steam/Epic)**          | Full keyboard/mouse, highest specs, Steam achievements, workshop support |
-| **Web Browser**              | Instant access, limited performance, broad reach, touch/mouse hybrid     |
-| **Mobile (iOS/Android)**     | Touch controls, short sessions, IAP monetization, battery/thermal limits |
-| **Console (Switch/PS/Xbox)** | Controller-first, certification requirements, couch multiplayer          |
-| **VR (Quest/PCVR)**          | Motion controls, comfort considerations, presence                        |
 
-**For {{game_type}} games, common platform choices include:** {platform_suggestions_from_game_type}
+| **PC (Steam/Epic)**| Full keyboard/mouse, highest specs, Steam achievements, workshop support |
 
-**Questions to consider:**
+|**Web Browser**| Instant access, limited performance, broad reach, touch/mouse hybrid     |
+
+|**Mobile (iOS/Android)**| Touch controls, short sessions, IAP monetization, battery/thermal limits |
+
+|**Console (Switch/PS/Xbox)**| Controller-first, certification requirements, couch multiplayer          |
+
+|**VR (Quest/PCVR)**          | Motion controls, comfort considerations, presence                        |
+
+- *For {{game_type}} games, common platform choices include:** {platform_suggestions_from_game_type}
+
+- *Questions to consider:**
 
 1. Where do your target players primarily game?
 2. Does your core gameplay work well with {platform} input methods?
@@ -97,7 +108,7 @@ What platform(s) are you targeting?"
 
 ### 2. Capture Platform Details
 
-**After user responds:**
+- *After user responds:**
 
 Document:
 
@@ -108,25 +119,26 @@ Document:
 
 ### 3. Audience Discovery
 
-**Guide user through audience definition:**
+- *Guide user through audience definition:**
 
 "Now let's define who {{game_name}} is for.
 
-**Demographics to Consider:**
+- *Demographics to Consider:**
 
-- **Age Range:** What ages are you designing for? (affects content, complexity, monetization)
-- **Gaming Experience:** Casual, core, or hardcore gamers?
-- **Genre Familiarity:** Do they know {{game_type}} conventions, or are they new to the genre?
+- **Age Range:**What ages are you designing for? (affects content, complexity, monetization)
+- **Gaming Experience:**Casual, core, or hardcore gamers?
+- **Genre Familiarity:**Do they know {{game_type}} conventions, or are they new to the genre?
 - **Session Length:** Quick mobile sessions (5-15 min) or deep PC sessions (1+ hour)?
 
-**For {{game_type}} games, typical audiences include:**
+- *For {{game_type}} games, typical audiences include:**
+
 {audience_suggestions_from_game_type}
 
 Tell me about your ideal player. Who is this game for?"
 
 ### 4. Capture Audience Details
 
-**After user responds:**
+- *After user responds:**
 
 Document:
 
@@ -141,6 +153,7 @@ Document:
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Target Platform(s)
 
 ### Primary Platform
@@ -155,7 +168,7 @@ Based on the conversation, prepare the content:
 
 {{control_scheme_for_platform}}
 
----
+- --
 
 ## Target Audience
 
@@ -178,7 +191,8 @@ Based on the conversation, prepare the content:
 ### Player Motivations
 
 {{what_draws_this_audience_to_this_game}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -186,11 +200,12 @@ Show the generated content to the user and present:
 
 "I've drafted the Platforms & Audience sections based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore platform/audience deeper
 [P] Party Mode - Get other perspectives on these decisions
 [C] Continue - Save this and move to Goals & Vision (Step 4 of 14)"
@@ -221,7 +236,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [platforms and audience content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -243,4 +258,4 @@ ONLY WHEN [C continue option] is selected and [platforms and audience content sa
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

@@ -194,18 +194,43 @@ def test_2_1_UT_002_strategy_indicator_registration(cerebro_with_data):
     """
     # Arrange - Create strategy that validates indicators
     class IndicatorValidationStrategy(bt.Strategy):
+        """Strategy for validating indicator registration and calculation.
+
+        This strategy verifies that:
+        1. Indicators are properly registered in the _lineiterators list
+        2. Indicator values are calculated correctly during backtesting
+        """
+
         def __init__(self):
+            """Initialize the strategy with an SMA indicator.
+
+            Sets up the 15-period SMA indicator and initializes the
+            registration flag to False.
+            """
             self.sma = bt.indicators.SMA(self.data, period=15)
             # Verify indicator is registered in lineiterators
             self.indicator_registered = False
 
         def start(self):
+            """Verify SMA indicator is registered in _lineiterators.
+
+            Checks the _lineiterators list to confirm the SMA indicator
+            was properly registered during initialization.
+            """
             # Check if SMA is in _lineiterators
             for item in self._lineiterators[0]:
                 if hasattr(item, 'alias') and 'sma' in str(item.alias):
                     self.indicator_registered = True
 
         def next(self):
+            """Verify indicator values are calculated each bar.
+
+            After the warmup period (15 bars), asserts that the SMA
+            indicator produces positive values.
+
+            Raises:
+                AssertionError: If SMA value is not positive after warmup.
+            """
             # Verify indicator values are calculated
             if len(self) >= 15:
                 assert self.sma[0] > 0, "SMA value should be positive"
@@ -230,15 +255,35 @@ def test_2_2_UT_001_strategy_parameters(cerebro_with_data):
     """
     # Arrange - Create strategy with custom parameters
     class ParamStrategy(bt.Strategy):
+        """Strategy demonstrating custom parameter usage.
+
+        This strategy validates that custom parameters passed to the strategy
+        are properly set and accessible via self.p or self.params.
+
+        Attributes:
+            params: Tuple of (name, default_value) pairs for strategy parameters.
+        """
         params = (
             ("period", 20),
             ("multiplier", 2.0),
         )
 
         def __init__(self):
+            """Initialize the strategy using custom period parameter.
+
+            Creates an SMA indicator using the period parameter value.
+            """
             self.sma = bt.indicators.SMA(self.data, period=self.p.period)
 
         def next(self):
+            """Execute trading logic for each bar.
+
+            After the warmup period, verifies the SMA indicator produces
+            positive values.
+
+            Raises:
+                AssertionError: If SMA value is not positive after warmup.
+            """
             if len(self) >= self.p.period:
                 assert self.sma[0] > 0
 
@@ -254,13 +299,36 @@ def test_2_2_UT_001_strategy_parameters(cerebro_with_data):
 
 
 class _OptSMAStrategy(bt.Strategy):
-    """Module-level strategy class for optimization test (must be picklable)."""
+    """Module-level strategy class for optimization test (must be picklable).
+
+    This strategy implements a simple crossover system where it buys when
+    price crosses above the SMA and closes when price crosses below.
+
+    Note:
+        This class is defined at module level (not inside a test function)
+        to ensure it can be pickled for multiprocessing during optimization.
+
+    Attributes:
+        params: Tuple containing the configurable period parameter.
+    """
     params = (("period", 15),)
 
     def __init__(self):
+        """Initialize the strategy with SMA indicator.
+
+        Creates an SMA indicator using the configurable period parameter.
+        """
         self.sma = bt.indicators.SMA(self.data, period=self.p.period)
 
     def next(self):
+        """Execute simple crossover trading logic.
+
+        Buy Logic:
+            - Buy when close price crosses above SMA (no existing position)
+
+        Exit Logic:
+            - Close position when close price crosses below SMA
+        """
         if not self.position:
             if self.data.close[0] > self.sma[0]:
                 self.buy()
@@ -312,11 +380,31 @@ def test_3_1_UT_001_sma_indicator_calculation(sample_data):
     cerebro.adddata(sample_data)
 
     class TestStrategy(bt.Strategy):
+        """Strategy for testing SMA indicator calculation.
+
+        Collects SMA values after the warmup period to verify the indicator
+        is calculated correctly throughout the backtest.
+
+        Attributes:
+            sma: 15-period Simple Moving Average indicator.
+            values_at_end: List storing SMA values during backtest.
+        """
+
         def __init__(self):
+            """Initialize the strategy with SMA indicator.
+
+            Creates a 15-period SMA indicator and initializes an empty list
+            to collect indicator values.
+            """
             self.sma = bt.indicators.SMA(self.data, period=15)
             self.values_at_end = []
 
         def next(self):
+            """Collect SMA values after warmup period.
+
+            After 15 bars of data, stores the current SMA value for
+            verification in the test assertions.
+            """
             if len(self) >= 15:
                 self.values_at_end.append(self.sma[0])
 
@@ -347,10 +435,31 @@ def test_3_2_UT_001_ema_indicator(sample_data):
     cerebro.adddata(sample_data)
 
     class TestStrategy(bt.Strategy):
+        """Strategy for testing EMA indicator calculation.
+
+        Verifies that the Exponential Moving Average indicator is
+        calculated correctly and produces valid values.
+
+        Attributes:
+            ema: 15-period Exponential Moving Average indicator.
+        """
+
         def __init__(self):
+            """Initialize the strategy with EMA indicator.
+
+            Creates a 15-period EMA indicator.
+            """
             self.ema = bt.indicators.EMA(self.data, period=15)
 
         def next(self):
+            """Verify EMA produces valid values.
+
+            After the warmup period, asserts the EMA indicator produces
+            positive values.
+
+            Raises:
+                AssertionError: If EMA value is not positive after warmup.
+            """
             if len(self) >= 15:
                 assert self.ema[0] > 0
 
@@ -379,10 +488,31 @@ def test_3_3_UT_001_macd_indicator(sample_data):
     cerebro.adddata(sample_data)
 
     class TestStrategy(bt.Strategy):
+        """Strategy for testing MACD indicator calculation.
+
+        Verifies that the MACD (Moving Average Convergence Divergence)
+        indicator is properly initialized with all its component lines.
+
+        Attributes:
+            macd: MACD indicator with macd, signal, and histogram lines.
+        """
+
         def __init__(self):
+            """Initialize the strategy with MACD indicator.
+
+            Creates a standard MACD indicator using default parameters.
+            """
             self.macd = bt.indicators.MACD(self.data)
 
         def next(self):
+            """Verify MACD structure after warmup period.
+
+            After 35 bars of warmup data, verifies the MACD indicator
+            has all expected component lines (macd, signal, histogram).
+
+            Raises:
+                AssertionError: If MACD components are missing.
+            """
             if len(self) >= 35:  # MACD requires warmup
                 # MACD has multiple lines: macd, signal, histo
                 assert hasattr(self.macd, 'macd')
@@ -598,8 +728,11 @@ def test_isolation_001_test_state_cleanup():
 def main():
     """Run tests in standalone mode for backward compatibility.
 
-    This allows running tests directly:
+    This allows running tests directly without pytest discovery:
         python tests/examples/test_improved_examples.py
+
+    The function configures pytest with verbose output and short traceback
+    format for cleaner error reporting.
     """
     pytest.main([__file__, "-v", "--tb=short"])
 

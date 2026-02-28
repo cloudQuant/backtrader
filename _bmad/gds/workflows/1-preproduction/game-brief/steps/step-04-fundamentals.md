@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-04-fundamentals'
 description: 'Define core gameplay pillars, mechanics, and player experience goals'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-04-fundamentals.md'
 nextStepFile: './step-05-scope.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Game Fundamentals
 
-**Progress: Step 4 of 8** - Next: Scope & Constraints
+- *Progress: Step 4 of 8**- Next: Scope & Constraints
 
 ## STEP GOAL:
 
@@ -65,20 +70,25 @@ Define the core gameplay pillars (fundamental design tenets), primary mechanics 
 
 ### 1. Core Pillars Discovery
 
-**Guide user through pillar definition:**
+- *Guide user through pillar definition:**
 
 "Let's define the core pillars for {{game_name}} - the 2-4 fundamental design tenets that everything must serve.
 
-**Examples of Great Pillars:**
+- *Examples of Great Pillars:**
 
 | Game               | Pillars                                                   |
-| ------------------ | --------------------------------------------------------- |
-| **Hollow Knight**  | Tight controls, challenging combat, rewarding exploration |
-| **Celeste**        | Precision movement, accessibility, emotional narrative    |
-| **Dead Cells**     | Mastery, variety, momentum                                |
-| **Stardew Valley** | Relaxation, progression, community                        |
 
-**Questions to consider:**
+| ------------------ | --------------------------------------------------------- |
+
+| **Hollow Knight**| Tight controls, challenging combat, rewarding exploration |
+
+|**Celeste**| Precision movement, accessibility, emotional narrative    |
+
+|**Dead Cells**| Mastery, variety, momentum                                |
+
+|**Stardew Valley** | Relaxation, progression, community                        |
+
+- *Questions to consider:**
 
 - If a feature doesn't serve a pillar, should it be in the game?
 - When pillars conflict, which wins?
@@ -87,11 +97,11 @@ What are the 2-4 core pillars for {{game_name}}?"
 
 ### 2. Primary Mechanics Discovery
 
-**Explore what players actually do:**
+- *Explore what players actually do:**
 
 "Now let's define what players actually DO in {{game_name}}.
 
-**Think in verbs - what actions define the experience?**
+- *Think in verbs - what actions define the experience?**
 
 Examples:
 
@@ -101,7 +111,7 @@ Examples:
 - Talk, choose, influence (social)
 - Collect, trade, manage (economy)
 
-**Questions to consider:**
+- *Questions to consider:**
 
 - What's the core action players repeat most often?
 - What actions create the most satisfying moments?
@@ -111,22 +121,29 @@ What are the primary mechanics in {{game_name}}?"
 
 ### 3. Experience Goals Discovery
 
-**Define the emotional targets:**
+- *Define the emotional targets:**
 
 "Finally, let's define the player experience goals - what feelings are you designing for?
 
-**Emotional Experience Framework:**
+- *Emotional Experience Framework:**
 
 | Emotion                   | Examples                               |
-| ------------------------- | -------------------------------------- |
-| **Tension/Relief**        | Horror games, difficult boss fights    |
-| **Mastery/Growth**        | Skill-based games, RPG progression     |
-| **Creativity/Expression** | Sandbox games, character customization |
-| **Discovery/Surprise**    | Exploration games, mystery narratives  |
-| **Connection/Belonging**  | Multiplayer, community-driven games    |
-| **Relaxation/Flow**       | Cozy games, rhythm games               |
 
-**Questions to consider:**
+| ------------------------- | -------------------------------------- |
+
+| **Tension/Relief**| Horror games, difficult boss fights    |
+
+|**Mastery/Growth**| Skill-based games, RPG progression     |
+
+|**Creativity/Expression**| Sandbox games, character customization |
+
+|**Discovery/Surprise**| Exploration games, mystery narratives  |
+
+|**Connection/Belonging**| Multiplayer, community-driven games    |
+
+|**Relaxation/Flow**       | Cozy games, rhythm games               |
+
+- *Questions to consider:**
 
 - What feeling do you want players to have after a session?
 - What emotional journey happens during play?
@@ -139,27 +156,30 @@ What are the player experience goals for {{game_name}}?"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Game Fundamentals
 
 ### Core Gameplay Pillars
 
 {{pillars_with_descriptions}}
 
-**Pillar Priority:** When pillars conflict, prioritize:
+- *Pillar Priority:** When pillars conflict, prioritize:
+
 {{pillar_priority_order}}
 
 ### Primary Mechanics
 
 {{mechanics_list_with_descriptions}}
 
-**Core Loop:** {{how_mechanics_combine_into_loop}}
+- *Core Loop:** {{how_mechanics_combine_into_loop}}
 
 ### Player Experience Goals
 
 {{experience_goals}}
 
-**Emotional Journey:** {{what_players_feel_during_play}}
-```
+- *Emotional Journey:** {{what_players_feel_during_play}}
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -167,17 +187,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Game Fundamentals section based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Do all pillars support your vision?
 - Do mechanics serve the pillars?
 - Do experience goals match your audience?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Stress test these fundamentals
 [P] Party Mode - Get other perspectives on core design
 [C] Continue - Save this and move to Scope & Constraints (Step 5 of 8)"
@@ -208,7 +229,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [fundamentals content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -229,4 +250,4 @@ ONLY WHEN [C continue option] is selected and [fundamentals content saved with f
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

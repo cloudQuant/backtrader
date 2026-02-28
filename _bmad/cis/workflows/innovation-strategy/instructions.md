@@ -8,12 +8,14 @@
 
 <facilitation-principles>
   YOU ARE A STRATEGIC INNOVATION ADVISOR:
+
   - Demand brutal truth about market realities before innovation exploration
   - Challenge assumptions ruthlessly - comfortable illusions kill strategies
   - Balance bold vision with pragmatic execution
   - Focus on sustainable competitive advantage, not clever features
   - Push for evidence-based decisions over hopeful guesses
   - Celebrate strategic clarity when achieved
+
 </facilitation-principles>
 
 <workflow>
@@ -51,10 +53,10 @@ Review market analysis frameworks from {innovation_frameworks} (category: market
 
 Offer selected frameworks with guidance on what each reveals. Common options:
 
-- **TAM SAM SOM Analysis** - For sizing opportunity
-- **Five Forces Analysis** - For industry structure
-- **Competitive Positioning Map** - For differentiation analysis
-- **Market Timing Assessment** - For innovation timing
+- **TAM SAM SOM Analysis**- For sizing opportunity
+- **Five Forces Analysis**- For industry structure
+- **Competitive Positioning Map**- For differentiation analysis
+- **Market Timing Assessment**- For innovation timing
 
 Key questions to explore:
 
@@ -85,10 +87,10 @@ Review business model frameworks from {innovation_frameworks} (category: busines
 
 Offer selected frameworks. Common options:
 
-- **Business Model Canvas** - For comprehensive mapping
-- **Value Proposition Canvas** - For product-market fit
-- **Revenue Model Innovation** - For monetization analysis
-- **Cost Structure Innovation** - For efficiency opportunities
+- **Business Model Canvas**- For comprehensive mapping
+- **Value Proposition Canvas**- For product-market fit
+- **Revenue Model Innovation**- For monetization analysis
+- **Cost Structure Innovation**- For efficiency opportunities
 
 Critical questions:
 
@@ -115,10 +117,10 @@ Review disruption frameworks from {innovation_frameworks} (category: disruption)
 
 Offer selected frameworks with context. Common options:
 
-- **Disruptive Innovation Theory** - For finding overlooked segments
-- **Jobs to be Done** - For unmet needs analysis
-- **Blue Ocean Strategy** - For uncontested market space
-- **Platform Revolution** - For network effect plays
+- **Disruptive Innovation Theory**- For finding overlooked segments
+- **Jobs to be Done**- For unmet needs analysis
+- **Blue Ocean Strategy**- For uncontested market space
+- **Platform Revolution**- For network effect plays
 
 Provocative questions:
 
@@ -149,10 +151,10 @@ Review strategic and value_chain frameworks from {innovation_frameworks} (catego
 
 Offer selected frameworks. Common options:
 
-- **Three Horizons Framework** - For portfolio balance
-- **Value Chain Analysis** - For activity selection
-- **Partnership Strategy** - For ecosystem thinking
-- **Business Model Patterns** - For proven approaches
+- **Three Horizons Framework**- For portfolio balance
+- **Value Chain Analysis**- For activity selection
+- **Partnership Strategy**- For ecosystem thinking
+- **Business Model Patterns**- For proven approaches
 
 Generate 5-10 specific innovation opportunities addressing:
 
@@ -254,8 +256,8 @@ Establish measurement framework and risk management.
 
 Define success metrics:
 
-- **Leading indicators** - Early signals of strategy working (engagement, adoption, efficiency)
-- **Lagging indicators** - Business outcomes (revenue, market share, profitability)
+- **Leading indicators**- Early signals of strategy working (engagement, adoption, efficiency)
+- **Lagging indicators**- Business outcomes (revenue, market share, profitability)
 - **Decision gates** - Go/no-go criteria at key milestones
 
 Identify and mitigate key risks:

@@ -1,19 +1,21 @@
----
+- --
+
 name: 'step-03-execute'
 description: 'Execute implementation - iterate through tasks, write code, run tests'
 
 workflow_path: '{project-root}/_bmad/gds/workflows/gds-quick-flow/quick-dev'
 thisStepFile: './step-03-execute.md'
 nextStepFile: './step-04-self-check.md'
----
+
+- --
 
 # Step 3: Execute Implementation
 
-**Goal:** Implement all tasks, write tests, follow patterns, handle errors.
+- *Goal:** Implement all tasks, write tests, follow patterns, handle errors.
 
-**Critical:** Continue through ALL tasks without stopping for milestones.
+- *Critical:** Continue through ALL tasks without stopping for milestones.
 
----
+- --
 
 ## AVAILABLE STATE
 
@@ -29,7 +31,7 @@ From context:
 - Mode A: Tasks and AC extracted from tech-spec
 - Mode B: Tasks and AC from step-02 mental plan
 
----
+- --
 
 ## EXECUTION LOOP
 
@@ -59,41 +61,41 @@ For each task:
 - Check off task: `- [x] Task N`
 - Continue to next task immediately
 
----
+- --
 
 ## HALT CONDITIONS
 
-**HALT and request guidance if:**
+- *HALT and request guidance if:**
 
 - 3 consecutive failures on same task
 - Tests fail and fix is not obvious
 - Blocking dependency discovered
 - Ambiguity that requires user decision
 
-**Do NOT halt for:**
+- *Do NOT halt for:**
 
 - Minor issues that can be noted and continued
 - Warnings that don't block functionality
 - Style preferences (follow existing patterns)
 
----
+- --
 
 ## CONTINUOUS EXECUTION
 
-**Critical:** Do not stop between tasks for approval.
+- *Critical:** Do not stop between tasks for approval.
 
 - Execute all tasks in sequence
 - Only halt for blocking issues
 - Tests failing = fix before continuing
 - Track all completed work for self-check
 
----
+- --
 
 ## NEXT STEP
 
 When ALL tasks are complete (or halted on blocker), load `step-04-self-check.md`.
 
----
+- --
 
 ## SUCCESS METRICS
 

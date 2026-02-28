@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-v-13-report-complete'
 description: 'Validation Report Complete - Finalize report, summarize findings, present to user, offer next steps'
 
 # File references (ONLY variables used in this step)
+
 validationReportPath: '{validation_report_path}'
 prdFile: '{prd_file_path}'
----
+
+- --
 
 # Step 13: Validation Report Complete
 
@@ -56,13 +59,14 @@ Finalize validation report, summarize all findings from steps 1-12, present summ
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Complete Validation Report
 
 Read the entire validation report from {validationReportPath}
 
 Extract all findings from:
+
 - Format Detection (Step 2)
 - Parity Analysis (Step 2B, if applicable)
 - Information Density (Step 3)
@@ -81,7 +85,9 @@ Extract all findings from:
 Update validation report frontmatter:
 
 ```yaml
----
+
+- --
+
 validationTarget: '{prd_path}'
 validationDate: '{current_date}'
 inputDocuments: [list of documents]
@@ -89,18 +95,20 @@ validationStepsCompleted: ['step-v-01-discovery', 'step-v-02-format-detection', 
 validationStatus: COMPLETE
 holisticQualityRating: '{rating from step 11}'
 overallStatus: '{Pass/Warning/Critical based on all findings}'
----
-```
+
+- --
+
+```bash
 
 ### 3. Create Summary of Findings
 
-**Overall Status:**
+- *Overall Status:**
 - Determine from all validation findings
-- **Pass:** All critical checks pass, minor warnings acceptable
-- **Warning:** Some issues found but PRD is usable
+- **Pass:**All critical checks pass, minor warnings acceptable
+- **Warning:**Some issues found but PRD is usable
 - **Critical:** Major issues that prevent PRD from being fit for purpose
 
-**Quick Results Table:**
+- *Quick Results Table:**
 - Format: [classification]
 - Information Density: [severity]
 - Measurability: [severity]
@@ -112,14 +120,14 @@ overallStatus: '{Pass/Warning/Critical based on all findings}'
 - Holistic Quality: [rating/5]
 - Completeness: [percentage]
 
-**Critical Issues:** List from all validation steps
-**Warnings:** List from all validation steps
-**Strengths:** List positives from all validation steps
+- *Critical Issues:** List from all validation steps
+- *Warnings:** List from all validation steps
+- *Strengths:** List positives from all validation steps
 
-**Holistic Quality Rating:** From step 11
-**Top 3 Improvements:** From step 11
+- *Holistic Quality Rating:** From step 11
+- *Top 3 Improvements:** From step 11
 
-**Recommendation:** Based on overall status
+- *Recommendation:** Based on overall status
 
 ### 4. Present Summary to User Conversationally
 
@@ -127,43 +135,49 @@ Display:
 
 "**✓ PRD Validation Complete**
 
-**Overall Status:** {Pass/Warning/Critical}
+- *Overall Status:** {Pass/Warning/Critical}
 
-**Quick Results:**
+- *Quick Results:**
+
 {Present quick results table with key findings}
 
-**Critical Issues:** {count or "None"}
+- *Critical Issues:** {count or "None"}
+
 {If any, list briefly}
 
-**Warnings:** {count or "None"}
+- *Warnings:** {count or "None"}
+
 {If any, list briefly}
 
-**Strengths:**
+- *Strengths:**
+
 {List key strengths}
 
-**Holistic Quality:** {rating}/5 - {label}
+- *Holistic Quality:** {rating}/5 - {label}
 
-**Top 3 Improvements:**
+- *Top 3 Improvements:**
 1. {Improvement 1}
 2. {Improvement 2}
 3. {Improvement 3}
 
-**Recommendation:**
+- *Recommendation:**
+
 {Based on overall status:
+
 - Pass: "PRD is in good shape. Address minor improvements to make it great."
 - Warning: "PRD is usable but has issues that should be addressed. Review warnings and improve where needed."
 - Critical: "PRD has significant issues that should be fixed before use. Focus on critical issues above."}
 
-**What would you like to do next?**"
+- *What would you like to do next?**"
 
 ### 5. Present MENU OPTIONS
 
 Display:
 
-**[R] Review Detailed Findings** - Walk through validation report section by section
-**[E] Use Edit Workflow** - Use validation report with Edit workflow for systematic improvements
-**[F] Fix Simpler Items** - Immediate fixes for simple issues (anti-patterns, leakage, missing headers)
-**[X] Exit** - Exit and Suggest Next Steps.
+- *[R] Review Detailed Findings** - Walk through validation report section by section
+- *[E] Use Edit Workflow** - Use validation report with Edit workflow for systematic improvements
+- *[F] Fix Simpler Items** - Immediate fixes for simple issues (anti-patterns, leakage, missing headers)
+- *[X] Exit**- Exit and Suggest Next Steps.
 
 #### EXECUTION RULES:
 
@@ -196,12 +210,12 @@ Display:
 
 - **IF X (Exit):**
   - Display: "**Validation Report Saved:** {validationReportPath}"
-  - Display: "**Summary:** {overall status} - {recommendation}"
+  - Display: "**Summary:**{overall status} - {recommendation}"
   - PRD Validation complete. Read fully and follow: `_bmad/core/tasks/help.md` with argument `Validate PRD`.
 
 - **IF Any other:** Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -228,4 +242,4 @@ Display:
 - Missing menu options
 - Unclear next steps
 
-**Master Rule:** User needs clear summary and actionable next steps. Edit workflow is best for complex issues; immediate fixes available for simpler ones.
+- *Master Rule:** User needs clear summary and actionable next steps. Edit workflow is best for complex issues; immediate fixes available for simpler ones.

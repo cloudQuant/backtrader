@@ -1,21 +1,25 @@
----
+- --
+
 name: 'step-e-03-fix-validation'
 description: 'Systematically fix validation issues from validation report'
 
 # File References
+
 nextStepFile: './step-e-05-apply-edit.md'
 editPlan: '{bmb_creations_output_folder}/edit-plan-{workflow_name}.md'
 targetWorkflowPath: '{targetWorkflowPath}'
 validationReport: '{targetWorkflowPath}/validation-report-{workflow_name}.md'
 
 # Standards References
+
 architecture: '../data/architecture.md'
 stepFileRules: '../data/step-file-rules.md'
 frontmatterStandards: '../data/frontmatter-standards.md'
 menuHandlingStandards: '../data/menu-handling-standards.md'
 outputFormatStandards: '../data/output-format-standards.md'
 stepTypePatterns: '../data/step-type-patterns.md'
----
+
+- --
 
 # Edit Step 3: Fix Validation Issues
 
@@ -55,34 +59,41 @@ Systematically fix all issues identified in the validation report, working throu
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Read Context Files
 
-**Load these files first:**
+- *Load these files first:**
 1. `{editPlan}` - Review fix goals
 2. `{validationReport}` - Get full list of issues
 
 ### 2. Organize Issues by Type
 
-**From validation report, categorize issues:**
+- *From validation report, categorize issues:**
 
 | Issue Type | Standard File | Count |
+
 |------------|---------------|-------|
+
 | workflow.md violations | {architecture} | |
+
 | Step file structure | {stepFileRules} | |
+
 | Frontmatter issues | {frontmatterStandards} | |
+
 | Menu handling | {menuHandlingStandards} | |
+
 | Output format | {outputFormatStandards} | |
+
 | Step type issues | {stepTypePatterns} | |
 
 ### 3. Work Through Issues Systematically
 
-**For EACH issue in order of severity (Critical → Warning):**
+- *For EACH issue in order of severity (Critical → Warning):**
 
 #### A. Load Relevant Standard
 
-**Before proposing fix, load the relevant standard file:**
+- *Before proposing fix, load the relevant standard file:**
 - If workflow.md issue → Load {architecture}
 - If step file issue → Load {stepFileRules}
 - If frontmatter issue → Load {frontmatterStandards}
@@ -94,13 +105,16 @@ Systematically fix all issues identified in the validation report, working throu
 
 "**Issue: [{issue type}] {file}:{location if applicable}**
 
-**What the validation found:**
+- *What the validation found:**
+
 {Quote the validation finding}
 
-**Why this is a problem:**
+- *Why this is a problem:**
+
 {Explain the impact based on the standard}
 
-**Standard reference:**
+- *Standard reference:**
+
 {Cite the specific standard from the loaded file}"
 
 #### C. Propose Fix
@@ -108,105 +122,116 @@ Systematically fix all issues identified in the validation report, working throu
 "**Proposed fix:**
 {Specific change needed}
 
-**This will:**
+- *This will:**
 - ✅ Fix the compliance issue
 - ✅ Align with: {specific standard}
 - ⚠️ Potential impact: {any side effects}
 
-**Should I apply this fix?**"
+- *Should I apply this fix?**"
 
 #### D. Get User Approval
 
 Wait for user response:
-- **Yes/Y** - Apply the fix
-- **No/N** - Skip this issue (document why)
-- **Modify** - User suggests alternative approach
+
+- **Yes/Y**- Apply the fix
+- **No/N**- Skip this issue (document why)
+- **Modify**- User suggests alternative approach
 - **Explain** - Provide more detail
 
 #### E. Apply Fix (If Approved)
 
-**Load the target file, make the change:**
+- *Load the target file, make the change:**
 
 ```markdown
-**Applying fix to: {file}**
 
-**Before:**
+- *Applying fix to: {file}**
+
+- *Before:**
+
 {show relevant section}
 
-**After:**
+- *After:**
+
 {show modified section}
 
-**Fix applied.** ✅"
-```
+- *Fix applied.** ✅"
 
-**Update editPlan:**
+```bash
+
+- *Update editPlan:**
+
 ```markdown
+
 ### Fixes Applied
 
-**[{issue type}]** {file}
+- *[{issue type}]** {file}
 - ✅ Fixed: {description}
 - Standard: {standard reference}
 - User approved: Yes
-```
+
+```bash
 
 ### 4. Handle Skip/Modify Responses
 
-**IF user skips an issue:**
+- *IF user skips an issue:**
 
 "**Issue skipped.**
 
 Documenting in edit plan:
+
 - [{issue type}] {file} - SKIPPED per user request
 - Reason: {user's reason if provided}
 
-**Note:** This issue will remain in the validation report.
+- *Note:** This issue will remain in the validation report.
 
 Continue to next issue?"
 
-**IF user wants to modify the fix:**
+- *IF user wants to modify the fix:**
 
 Discuss alternative approach, get agreement, then apply modified fix.
 
 ### 5. After All Issues Complete
 
-**Present summary:**
+- *Present summary:**
 
 "**Validation Fix Summary:**
 
-**Total Issues Found:** {count}
-**Fixed:** {count}
-**Skipped:** {count}
-**Modified:** {count}
+- *Total Issues Found:** {count}
+- *Fixed:** {count}
+- *Skipped:** {count}
+- *Modified:** {count}
 
-**Remaining Issues:** {list any skipped or remaining warnings}
+- *Remaining Issues:** {list any skipped or remaining warnings}
 
-**Files Modified:**
+- *Files Modified:**
 - {file1}
 - {file2}
 - etc."
 
 ### 6. Check for Direct Edit Goals
 
-**Load editPlan and check:**
+- *Load editPlan and check:**
 
-**IF edit plan includes direct change goals (beyond validation fixes):**
+- *IF edit plan includes direct change goals (beyond validation fixes):**
 
 "Your edit plan also includes direct changes. After we apply these validation fixes, we'll proceed to those changes."
 
 Update editPlan frontmatter:
+
 ```yaml
 validationFixesComplete: true
-```
 
+```bash
 Then route to {nextStepFile} for direct edits.
 
-**ELSE (no direct changes - validation fixes only):**
+- *ELSE (no direct changes - validation fixes only):**
 
 "Validation fixes are complete! Would you like to:
 
-1. **[R]e-run validation** - Verify all fixes are working
-2. **[C]omplete** - Finish editing with these fixes
-3. **[M]ake additional changes** - Add more edits"
+1. **[R]e-run validation**- Verify all fixes are working
+
+2.**[C]omplete**- Finish editing with these fixes
+3.**[M]ake additional changes** - Add more edits"
 
 #### Menu Handling Logic:
 
@@ -228,7 +253,7 @@ Display: "**Validation Fixes Applied. Select an Option:** [C] Continue"
 
 ONLY WHEN all validation issues are addressed (fixed, skipped, or documented) and user confirms, will you then route to the appropriate next step.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -249,4 +274,4 @@ ONLY WHEN all validation issues are addressed (fixed, skipped, or documented) an
 - Not documenting fixes in edit plan
 - Applying fixes incorrectly
 
-**Master Rule:** Work through issues systematically. Load standards for each issue type. Get explicit approval before applying any fix.
+- *Master Rule:** Work through issues systematically. Load standards for each issue type. Get explicit approval before applying any fix.

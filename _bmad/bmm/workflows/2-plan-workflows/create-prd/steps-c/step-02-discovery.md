@@ -1,23 +1,28 @@
----
+- --
+
 name: 'step-02-discovery'
 description: 'Discover project type, domain, and context through collaborative dialogue'
 
 # File References
+
 nextStepFile: './step-02b-vision.md'
 outputFile: '{planning_artifacts}/prd.md'
 
 # Data Files
+
 projectTypesCSV: '../data/project-types.csv'
 domainComplexityCSV: '../data/domain-complexity.csv'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Project Discovery
 
-**Progress: Step 2 of 13** - Next: Product Vision
+- *Progress: Step 2 of 13**- Next: Product Vision
 
 ## STEP GOAL:
 
@@ -66,6 +71,7 @@ Discover and classify the project - understand what type of product this is, wha
 ## YOUR TASK:
 
 Discover and classify the project through natural conversation:
+
 - What type of product is this? (web app, API, mobile, etc.)
 - What domain does it operate in? (healthcare, fintech, e-commerce, etc.)
 - What's the project context? (greenfield new product vs brownfield existing system)
@@ -76,14 +82,16 @@ Discover and classify the project through natural conversation:
 ### 1. Check Document State
 
 Read the frontmatter from `{outputFile}` to get document counts:
+
 - `briefCount` - Product briefs available
 - `researchCount` - Research documents available
 - `brainstormingCount` - Brainstorming docs available
 - `projectDocsCount` - Existing project documentation
 
-**Announce your understanding:**
+- *Announce your understanding:**
 
 "From step 1, I have loaded:
+
 - Product briefs: {{briefCount}}
 - Research: {{researchCount}}
 - Brainstorming: {{brainstormingCount}}
@@ -93,33 +101,37 @@ Read the frontmatter from `{outputFile}` to get document counts:
 
 ### 2. Load Classification Data
 
-**Attempt subprocess data lookup:**
+- *Attempt subprocess data lookup:**
 
-**Project Type Lookup:**
+- *Project Type Lookup:**
+
 "Your task: Lookup data in {projectTypesCSV}
 
-**Search criteria:**
+- *Search criteria:**
 - Find row where project_type matches {{detectedProjectType}}
 
-**Return format:**
+- *Return format:**
+
 Return ONLY the matching row as a YAML-formatted object with these fields:
 project_type, detection_signals
 
-**Do NOT return the entire CSV - only the matching row.**"
+- *Do NOT return the entire CSV - only the matching row.**"
 
-**Domain Complexity Lookup:**
+- *Domain Complexity Lookup:**
+
 "Your task: Lookup data in {domainComplexityCSV}
 
-**Search criteria:**
+- *Search criteria:**
 - Find row where domain matches {{detectedDomain}}
 
-**Return format:**
+- *Return format:**
+
 Return ONLY the matching row as a YAML-formatted object with these fields:
 domain, complexity, typical_concerns, compliance_requirements
 
-**Do NOT return the entire CSV - only the matching row.**"
+- *Do NOT return the entire CSV - only the matching row.**"
 
-**Graceful degradation (if Task tool unavailable):**
+- *Graceful degradation (if Task tool unavailable):**
 - Load the CSV files directly
 - Find the matching rows manually
 - Extract required fields
@@ -127,29 +139,32 @@ domain, complexity, typical_concerns, compliance_requirements
 
 ### 3. Begin Discovery Conversation
 
-**Start with what you know:**
+- *Start with what you know:**
 
 If the user has a product brief or project docs, acknowledge them and share your understanding. Then ask clarifying questions to deepen your understanding.
 
 If this is a greenfield project with no docs, start with open-ended discovery:
+
 - What problem does this solve?
 - Who's it for?
 - What excites you about building this?
 
-**Listen for classification signals:**
+- *Listen for classification signals:**
 
 As the user describes their product, match against:
-- **Project type signals** (API, mobile, SaaS, etc.)
-- **Domain signals** (healthcare, fintech, education, etc.)
-- **Complexity indicators** (regulated industries, novel technology, etc.)
+
+- **Project type signals**(API, mobile, SaaS, etc.)
+- **Domain signals**(healthcare, fintech, education, etc.)
+- **Complexity indicators**(regulated industries, novel technology, etc.)
 
 ### 4. Confirm Classification
 
 Once you have enough understanding, share your classification:
 
 "I'm hearing this as:
-- **Project Type:** {{detectedType}}
-- **Domain:** {{detectedDomain}}
+
+- **Project Type:**{{detectedType}}
+- **Domain:**{{detectedDomain}}
 - **Complexity:** {{complexityLevel}}
 
 Does this sound right to you?"
@@ -159,13 +174,15 @@ Let the user confirm or refine your classification.
 ### 5. Save Classification to Frontmatter
 
 When user selects 'C', update frontmatter with classification:
+
 ```yaml
 classification:
   projectType: {{projectType}}
   domain: {{domain}}
   complexity: {{complexityLevel}}
   projectContext: {{greenfield|brownfield}}
-```
+
+```bash
 
 ### N. Present MENU OPTIONS
 
@@ -173,24 +190,26 @@ Present the project classification for review, then display menu:
 
 "Based on our conversation, I've discovered and classified your project.
 
-**Here's the classification:**
+- *Here's the classification:**
 
-**Project Type:** {{detectedType}}
-**Domain:** {{detectedDomain}}
-**Complexity:** {{complexityLevel}}
-**Project Context:** {{greenfield|brownfield}}
+- *Project Type:** {{detectedType}}
+- *Domain:** {{detectedDomain}}
+- *Complexity:** {{complexityLevel}}
+- *Project Context:** {{greenfield|brownfield}}
 
-**What would you like to do?**"
+- *What would you like to do?**"
 
 Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Product Vision (Step 2b of 13)"
 
 #### Menu Handling Logic:
+
 - IF A: Read fully and follow: {advancedElicitationTask} with the current classification, process the enhanced insights that come back, ask user if they accept the improvements, if yes update classification then redisplay menu, if no keep original classification then redisplay menu
 - IF P: Read fully and follow: {partyModeWorkflow} with the current classification, process the collaborative insights, ask user if they accept the changes, if yes update classification then redisplay menu, if no keep original classification then redisplay menu
 - IF C: Save classification to {outputFile} frontmatter, add this step name to the end of stepsCompleted array, then read fully and follow: {nextStepFile}
 - IF Any other: help user respond, then redisplay menu
 
 #### EXECUTION RULES:
+
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
@@ -199,7 +218,7 @@ Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue to Pr
 
 ONLY WHEN [C continue option] is selected and [classification saved to frontmatter], will you then read fully and follow: `{nextStepFile}` to explore product vision.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -221,4 +240,4 @@ ONLY WHEN [C continue option] is selected and [classification saved to frontmatt
 - Being prescriptive instead of having natural conversation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** This is classification and understanding only. No content generation yet. Build on what the user already has. Have natural conversations, don't follow scripts.
+- *Master Rule:** This is classification and understanding only. No content generation yet. Build on what the user already has. Have natural conversations, don't follow scripts.

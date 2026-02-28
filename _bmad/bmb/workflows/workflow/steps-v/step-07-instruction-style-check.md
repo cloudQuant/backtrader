@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-07-instruction-style-check'
 description: 'Check instruction style - intent-based vs prescriptive, appropriate for domain'
 
@@ -7,7 +8,8 @@ targetWorkflowPath: '{workflow_folder_path}'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 intentVsPrescriptive: '../data/intent-vs-prescriptive-spectrum.md'
 workflowPlanFile: '{workflow_folder_path}/workflow-plan.md'
----
+
+- --
 
 # Validation Step 7: Instruction Style Check
 
@@ -49,20 +51,20 @@ To validate that workflow instructions use appropriate style - intent-based for 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Load Instruction Style Standards
 
 Load {intentVsPrescriptive} to understand:
 
-**Intent-Based (Default):**
+- *Intent-Based (Default):**
 - Use for: Most workflows - creative, exploratory, collaborative
 - Step instruction describes goals and principles
 - AI adapts conversation naturally
 - More flexible and responsive
 - Example: "Guide user to define requirements through open-ended discussion"
 
-**Prescriptive (Exception):**
+- *Prescriptive (Exception):**
 - Use for: Compliance, safety, legal, medical, regulated industries
 - Step provides exact instructions
 - More controlled and predictable
@@ -72,13 +74,13 @@ Load {intentVsPrescriptive} to understand:
 
 From {workflowPlanFile}, identify the workflow domain:
 
-**Intent-Based Domains (Default):**
+- *Intent-Based Domains (Default):**
 - Creative work (writing, design, brainstorming)
 - Personal development (planning, goals, reflection)
 - Exploration (research, discovery)
 - Collaboration (facilitation, coaching)
 
-**Prescriptive Domains (Exception):**
+- *Prescriptive Domains (Exception):**
 - Legal/Compliance (contracts, regulations)
 - Medical (health assessments, triage)
 - Financial (tax, regulatory compliance)
@@ -86,19 +88,20 @@ From {workflowPlanFile}, identify the workflow domain:
 
 ### 3. Check EACH Step's Instruction Style
 
-**DO NOT BE LAZY - For EACH step file, launch a subprocess that:**
+- *DO NOT BE LAZY - For EACH step file, launch a subprocess that:**
 
 1. Loads that step file
 2. Reads the instruction sections (MANDATORY SEQUENCE)
 3. Analyzes and classifies instruction style deeply
-4. **EITHER** updates validation report directly with findings
-5. **OR** returns structured analysis findings to parent for aggregation
+4. **EITHER**updates validation report directly with findings
 
-**SUBPROCESS ANALYSIS PATTERN:**
+5.**OR** returns structured analysis findings to parent for aggregation
+
+- *SUBPROCESS ANALYSIS PATTERN:**
 
 Each subprocess performs deep analysis of instruction prose to classify style:
 
-**Intent-Based Indicators:**
+- *Intent-Based Indicators:**
 - ✅ Describes goals/outcomes, not exact wording
 - ✅ Uses "think about" language
 - ✅ Multi-turn conversation encouraged
@@ -106,18 +109,20 @@ Each subprocess performs deep analysis of instruction prose to classify style:
 - ✅ "Probe to understand deeper"
 - ✅ Flexible: "guide user through..." not "say exactly..."
 
-**Prescriptive Indicators:**
+- *Prescriptive Indicators:**
 - Exact questions specified
 - Specific wording required
 - Sequence that must be followed precisely
 - "Say exactly:" or "Ask precisely:"
 
-**Mixed Style:**
+- *Mixed Style:**
 - Some steps prescriptive (critical/required)
 - Others intent-based (creative/facilitative)
 
-**RETURN FORMAT:**
+- *RETURN FORMAT:**
+
 Each subprocess should return findings including:
+
 - Step file identifier
 - Instruction style classification (Intent-based/Prescriptive/Mixed)
 - Style indicators observed
@@ -125,15 +130,15 @@ Each subprocess should return findings including:
 - Specific notes and observations
 - Examples of good and concerning instruction patterns
 
-**Parent aggregates all subprocess findings into unified report section.**
+- *Parent aggregates all subprocess findings into unified report section.**
 
 ### 4. Validate Appropriateness
 
-**For Intent-Based Domains:**
+- *For Intent-Based Domains:**
 - ✅ Instructions should be intent-based
 - ❌ Prescriptive instructions inappropriate (unless specific section requires it)
 
-**For Prescriptive Domains:**
+- *For Prescriptive Domains:**
 - ✅ Instructions should be prescriptive where compliance matters
 - ⚠️ May have intent-based sections for creative elements
 
@@ -143,31 +148,31 @@ After ALL subprocesses have analyzed their respective step files, aggregate find
 
 Document the following:
 
-**Workflow Domain Assessment:**
+- *Workflow Domain Assessment:**
 - Document the domain type (creative/interactive vs compliance/legal)
 - State the appropriate instruction style for this domain
 
-**Instruction Style Findings:**
+- *Instruction Style Findings:**
 - List each step and its instruction style classification (intent-based/prescriptive/mixed)
 - Note whether the style is appropriate for the domain
 - Document specific examples of instruction language that demonstrate the style
 - Identify any steps with inappropriate style (e.g., prescriptive in creative domain)
 
-**Issues Identified:**
+- *Issues Identified:**
 - List any steps that are overly prescriptive for their domain
 - List any steps that should be more prescriptive (for compliance domains)
 - Note any style inconsistencies across steps
 
-**Positive Findings:**
+- *Positive Findings:**
 - Highlight steps with excellent instruction style
 - Note effective use of intent-based facilitation language
 - Identify appropriate use of prescriptive instructions (if applicable)
 
-**Overall Status:**
+- *Overall Status:**
 - Provide final assessment (PASS/FAIL/WARN)
 - Summarize key findings
 
-**Context Savings Note:** Using subprocess pattern (Pattern 2: per-file deep analysis), parent context receives only structured analysis findings (~50-100 lines per file) instead of full file contents (~200+ lines per file). For 10 steps: ~500-1000 lines received vs ~2000+ lines if loading all files in parent.
+- *Context Savings Note:** Using subprocess pattern (Pattern 2: per-file deep analysis), parent context receives only structured analysis findings (~50-100 lines per file) instead of full file contents (~200+ lines per file). For 10 steps: ~500-1000 lines received vs ~2000+ lines if loading all files in parent.
 
 ### 6. Update Report with Aggregated Findings
 
@@ -175,14 +180,15 @@ Update {validationReportFile} - replace "## Instruction Style Check *Pending...*
 
 ### 7. Save Report and Auto-Proceed
 
-**CRITICAL:** Save the validation report BEFORE loading next step.
+- *CRITICAL:** Save the validation report BEFORE loading next step.
 
 Then immediately load, read entire file, then execute {nextStepFile}.
 
-**Display:**
+- *Display:**
+
 "**Instruction Style check complete.** Proceeding to Collaborative Experience Check..."
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -206,4 +212,4 @@ Then immediately load, read entire file, then execute {nextStepFile}.
 - Not aggregating subprocess findings
 - Not saving report before proceeding
 
-**Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. For EACH step file, launch a subprocess to analyze instruction style deeply. Aggregate findings. Auto-proceed through all validation steps. Use graceful fallback if subprocess unavailable.
+- *Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. For EACH step file, launch a subprocess to analyze instruction style deeply. Aggregate findings. Auto-proceed through all validation steps. Use graceful fallback if subprocess unavailable.

@@ -1,158 +1,182 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/Backtesting
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### Backtesting.py项目简介
-Backtesting.py是一个轻量级的Python回测框架，具有以下核心特点：
+### Backtesting.py 项目简介
+
+Backtesting.py 是一个轻量级的 Python 回测框架，具有以下核心特点：
+
 - **极简设计**: 代码量小，易于理解
 - **快速回测**: 向量化操作，回测速度快
-- **交互可视化**: 基于Bokeh的交互式可视化
+- **交互可视化**: 基于 Bokeh 的交互式可视化
 - **参数优化**: 内置参数优化功能
-- **Pandas友好**: 与pandas无缝集成
-- **Jupyter支持**: 完美支持Jupyter notebook
+- **Pandas 友好**: 与 pandas 无缝集成
+- **Jupyter 支持**: 完美支持 Jupyter notebook
 
 ### 重点借鉴方向
-1. **向量化回测**: 向量化计算提升性能
-2. **交互可视化**: Bokeh交互式图表
-3. **参数优化**: 网格搜索和优化
-4. **简洁API**: 极简的策略编写接口
-5. **Statistics**: 统计指标计算
-6. **HTML报告**: HTML格式回测报告
 
----
+1. **向量化回测**: 向量化计算提升性能
+2. **交互可视化**: Bokeh 交互式图表
+3. **参数优化**: 网格搜索和优化
+4. **简洁 API**: 极简的策略编写接口
+5. **Statistics**: 统计指标计算
+6. **HTML 报告**: HTML 格式回测报告
+
+- --
 
 ## 框架对比分析
 
 ### 架构设计对比
 
 | 维度 | backtrader | Time_Series_Backtesting |
+
 |------|-----------|------------------------|
-| **核心定位** | 通用回测框架 | 增强型回测工具集 |
-| **策略编写** | 事件驱动 (next()) | 信号驱动 + 事件驱动 |
-| **可视化** | Matplotlib静态图 | Bokeh交互式图表 |
-| **参数优化** | 内置 optstrategy | 自定义网格搜索 |
-| **统计指标** | Analyzer分析器 | Empirical + 自定义 |
-| **报告输出** | 控制台/绘图 | HTML/Bokeh交互 |
-| **信号生成** | 策略内部计算 | Pandas向量化预计算 |
-| **分析工具** | 基础分析器 | 蒙特卡洛、热力图等 |
 
-### backtrader的优势
-1. **成熟稳定**: 经过多年验证的生产级框架
-2. **功能全面**: 60+指标、多种数据源、实盘支持
-3. **社区活跃**: 大量文档、示例和第三方扩展
-4. **灵活性强**: 支持复杂的交易逻辑和多策略
-5. **性能优化**: LineBuffer高效内存管理、Cython加速
+| **核心定位**| 通用回测框架 | 增强型回测工具集 |
 
-### Time_Series_Backtesting的优势
+|**策略编写**| 事件驱动 (next()) | 信号驱动 + 事件驱动 |
+
+|**可视化**| Matplotlib 静态图 | Bokeh 交互式图表 |
+
+|**参数优化**| 内置 optstrategy | 自定义网格搜索 |
+
+|**统计指标**| Analyzer 分析器 | Empirical + 自定义 |
+
+|**报告输出**| 控制台/绘图 | HTML/Bokeh 交互 |
+
+|**信号生成**| 策略内部计算 | Pandas 向量化预计算 |
+
+|**分析工具**| 基础分析器 | 蒙特卡洛、热力图等 |
+
+### backtrader 的优势
+
+1.**成熟稳定**: 经过多年验证的生产级框架
+
+1. **功能全面**: 60+指标、多种数据源、实盘支持
+2. **社区活跃**: 大量文档、示例和第三方扩展
+3. **灵活性强**: 支持复杂的交易逻辑和多策略
+4. **性能优化**: LineBuffer 高效内存管理、Cython 加速
+
+### Time_Series_Backtesting 的优势
+
 1. **信号驱动**: 策略信号与执行分离，更清晰的逻辑
-2. **Bokeh可视化**: 交互式图表，支持缩放、悬停等
+2. **Bokeh 可视化**: 交互式图表，支持缩放、悬停等
 3. **参数优化**: 内置网格搜索和热力图可视化
-4. **统计分析**: 使用empirical库，指标更丰富
+4. **统计分析**: 使用 empirical 库，指标更丰富
 5. **蒙特卡洛**: 内置蒙特卡洛分析功能
-6. **多频率支持**: 支持从1分钟到8小时的多时间周期
+6. **多频率支持**: 支持从 1 分钟到 8 小时的多时间周期
 
----
+- --
 
 ## 需求规格文档
 
-### 需求1: 信号驱动策略框架
+### 需求 1: 信号驱动策略框架
 
-**需求描述**:
+- *需求描述**:
+
 实现信号驱动与事件驱动结合的策略框架，支持向量化信号预计算。
 
-**功能需求**:
-1. **信号生成函数**: 独立于策略的信号生成函数，使用Pandas向量化计算
+- *功能需求**:
+1. **信号生成函数**: 独立于策略的信号生成函数，使用 Pandas 向量化计算
 2. **信号数据源**: 支持将信号列作为额外数据输入策略
 3. **策略模板**: 提供基于信号的标准策略模板
-4. **调试信息**: 自动记录每根K线的策略状态
+4. **调试信息**: 自动记录每根 K 线的策略状态
 
-**非功能需求**:
+- *非功能需求**:
 - 向后兼容: 现有策略无需修改
-- 性能要求: 信号计算性能提升30%以上
+- 性能要求: 信号计算性能提升 30%以上
 
-### 需求2: Bokeh交互式可视化
+### 需求 2: Bokeh 交互式可视化
 
-**需求描述**:
-使用Bokeh库替代Matplotlib，提供交互式可视化功能。
+- *需求描述**:
 
-**功能需求**:
+使用 Bokeh 库替代 Matplotlib，提供交互式可视化功能。
+
+- *功能需求**:
 1. **多图表联动**: 净值、回撤、收益分布等图表联动展示
 2. **交互功能**: 支持缩放、平移、悬停显示详细信息
 3. **信号标记**: 在价格图上标记买入卖出信号
-4. **绩效面板**: HTML格式的绩效指标表格
-5. **导出功能**: 支持导出为HTML文件
+4. **绩效面板**: HTML 格式的绩效指标表格
+5. **导出功能**: 支持导出为 HTML 文件
 
-**非功能需求**:
-- 渲染性能: 支持10万+数据点流畅显示
-- 可选功能: 不影响现有Matplotlib绘图
+- *非功能需求**:
+- 渲染性能: 支持 10 万+数据点流畅显示
+- 可选功能: 不影响现有 Matplotlib 绘图
 
-### 需求3: 增强参数优化
+### 需求 3: 增强参数优化
 
-**需求描述**:
+- *需求描述**:
+
 增强参数优化功能，支持网格搜索和结果可视化。
 
-**功能需求**:
+- *功能需求**:
 1. **网格搜索**: 支持多参数网格组合搜索
 2. **并行优化**: 多进程并行执行参数组合
 3. **结果可视化**: 单参数曲线图、双参数热力图
 4. **指标选择**: 支持多种优化指标（夏普、收益、回撤等）
-5. **结果导出**: 优化结果导出为CSV/Excel
+5. **结果导出**: 优化结果导出为 CSV/Excel
 
-**非功能需求**:
-- 性能要求: 利用多核CPU加速
+- *非功能需求**:
+- 性能要求: 利用多核 CPU 加速
 - 内存控制: 每个进程内存占用可控
 
-### 需求4: 增强统计分析
+### 需求 4: 增强统计分析
 
-**需求描述**:
-使用empirical库增强统计指标计算，提供更丰富的分析功能。
+- *需求描述**:
 
-**功能需求**:
-1. **丰富指标**: 夏普、索提诺、卡尔马等30+指标
+使用 empirical 库增强统计指标计算，提供更丰富的分析功能。
+
+- *功能需求**:
+1. **丰富指标**: 夏普、索提诺、卡尔马等 30+指标
 2. **多频率支持**: 自动识别不同数据频率的年化系数
 3. **蒙特卡洛**: 蒙特卡洛模拟分析
 4. **收益分布**: 日/周/月收益分布分析
 5. **回撤分析**: 详细回撤统计和恢复时间
 
-**非功能需求**:
-- 计算精度: 与empirical库结果一致
-- 可选功能: 不影响现有Analyzer
+- *非功能需求**:
+- 计算精度: 与 empirical 库结果一致
+- 可选功能: 不影响现有 Analyzer
 
-### 需求5: 策略净值管理
+### 需求 5: 策略净值管理
 
-**需求描述**:
+- *需求描述**:
+
 提供策略净值序列的导出和管理功能。
 
-**功能需求**:
+- *功能需求**:
 1. **净值序列**: 策略自动记录净值序列
-2. **导出功能**: 支持导出为Excel/CSV格式
-3. **调试信息**: 记录每根K线的详细交易状态
+2. **导出功能**: 支持导出为 Excel/CSV 格式
+3. **调试信息**: 记录每根 K 线的详细交易状态
 4. **多资产支持**: 支持多资产组合净值分析
 
-**非功能需求**:
+- *非功能需求**:
 - 内存占用: 净值序列内存占用可控
 - 格式兼容: 导出格式与其他工具兼容
 
-### 需求6: HTML报告生成
+### 需求 6: HTML 报告生成
 
-**需求描述**:
-生成包含所有分析结果的HTML报告。
+- *需求描述**:
 
-**功能需求**:
+生成包含所有分析结果的 HTML 报告。
+
+- *功能需求**:
 1. **完整报告**: 包含图表、指标、交易记录等
-2. **样式美化**: 使用CSS美化报告样式
-3. **交互图表**: 嵌入Bokeh交互图表
-4. **一键生成**: 自动生成完整HTML文件
+2. **样式美化**: 使用 CSS 美化报告样式
+3. **交互图表**: 嵌入 Bokeh 交互图表
+4. **一键生成**: 自动生成完整 HTML 文件
 
-**非功能需求**:
+- *非功能需求**:
 - 文件大小: 报告文件大小合理
 - 浏览器兼容: 主流浏览器兼容
 
----
+- --
 
 ## 设计文档
 
@@ -161,6 +185,7 @@ Backtesting.py是一个轻量级的Python回测框架，具有以下核心特点
 #### 1.1 策略模板
 
 ```python
+
 # backtrader/strategy/signal_strategy.py
 
 from typing import Dict, List, Optional
@@ -171,12 +196,12 @@ from ..feeds import PandasData
 class SignalData(PandasData):
     """带信号的数据源
 
-    支持额外的信号列，与OHLCV数据一起提供给策略
+    支持额外的信号列，与 OHLCV 数据一起提供给策略
     """
     lines = ('signal',)
 
     params = (
-        ('signal', -1),  # signal列在数据中的位置
+        ('signal', -1),  # signal 列在数据中的位置
     )
 
 
@@ -194,18 +219,19 @@ class SignalStrategy(Strategy):
     )
 
     def __init__(self):
-        # 订单跟踪
+
+# 订单跟踪
         self.orders: Dict[str, Optional[Order]] = {}
         self.trade_counts: Dict[str, int] = {}
 
-        # 净值序列记录
+# 净值序列记录
         self.value_series = []
         self.datetime_series = []
 
-        # 调试信息记录
+# 调试信息记录
         self.debug_info = []
 
-        # 初始化每个数据源的跟踪
+# 初始化每个数据源的跟踪
         for data in self.datas:
             name = self._get_data_name(data)
             self.orders[name] = None
@@ -217,46 +243,51 @@ class SignalStrategy(Strategy):
 
     def next(self):
         """主逻辑：根据信号执行交易"""
-        # 记录净值
+
+# 记录净值
         current_value = self.broker.getvalue()
         current_datetime = self.datas[0].datetime.datetime(0)
         self.value_series.append(current_value)
         self.datetime_series.append(current_datetime)
 
-        # 遍历所有数据源
+# 遍历所有数据源
         for data in self.datas:
             name = self._get_data_name(data)
             self._process_data(data, name, current_datetime, current_value)
 
     def _process_data(self, data, name: str, datetime, value: float):
         """处理单个数据源"""
-        # 获取当前持仓
+
+# 获取当前持仓
         position = self.getposition(data)
         position_size = position.size
 
-        # 获取信号（如果数据源有signal线）
+# 获取信号（如果数据源有 signal 线）
         signal = data.signal[0] if hasattr(data, 'signal') else 0
 
-        # 记录调试信息
+# 记录调试信息
         self._log_debug_info(datetime, name, data, position_size, signal, value)
 
-        # 根据信号和持仓执行交易
+# 根据信号和持仓执行交易
         if signal == self.params.signal_long and position_size == 0:
-            # 开多仓
+
+# 开多仓
             size = self._calculate_position_size(data)
             if size > 0:
                 self.orders[name] = self.buy(data=data, size=size)
                 self.trade_counts[name] += 1
 
         elif signal == self.params.signal_short and position_size == 0:
-            # 开空仓（如果支持）
+
+# 开空仓（如果支持）
             size = self._calculate_position_size(data)
             if size > 0:
                 self.orders[name] = self.sell(data=data, size=size)
                 self.trade_counts[name] += 1
 
         elif signal == self.params.signal_exit and position_size != 0:
-            # 平仓
+
+# 平仓
             self.orders[name] = self.close(data=data)
             self.trade_counts[name] += 1
 
@@ -299,13 +330,15 @@ class SignalStrategy(Strategy):
         }).set_index('datetime')
 
     def get_debug_df(self) -> pd.DataFrame:
-        """获取调试信息DataFrame"""
+        """获取调试信息 DataFrame"""
         return pd.DataFrame(self.debug_info)
-```
+
+```bash
 
 #### 1.2 信号生成函数模板
 
 ```python
+
 # backtrader/strategy/signal_generator.py
 
 from typing import Dict, Tuple
@@ -318,7 +351,7 @@ def generate_ema_signals(
     window_short: int = 20,
     window_long: int = 40
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
-    """生成EMA交叉信号
+    """生成 EMA 交叉信号
 
     Args:
         target_assets: 资产代码列表
@@ -327,26 +360,27 @@ def generate_ema_signals(
         window_long: 长周期窗口
 
     Returns:
-        (results, full_info) - results包含信号列，full_info包含完整计算
+        (results, full_info) - results 包含信号列，full_info 包含完整计算
     """
     results = {}
     full_info = {}
 
     for code in target_assets:
-        # 读取数据
+
+# 读取数据
         file_path = f"{data_paths['daily']}/{code}.csv"
         df = pd.read_csv(file_path, index_col=0)
         df.index = pd.to_datetime(df.index)
 
-        # 计算指标
+# 计算指标
         df['short_ma'] = df['close'].ewm(span=window_short, adjust=False).mean()
         df['long_ma'] = df['close'].ewm(span=window_long, adjust=False).mean()
         df['diff'] = df['short_ma'] - df['long_ma']
 
-        # 生成信号: 1为做多，-1为平仓/做空
+# 生成信号: 1 为做多，-1 为平仓/做空
         df['signal'] = np.where(df['diff'] > 0, 1, -1)
 
-        # 保存结果
+# 保存结果
         results[code] = df[['open', 'high', 'low', 'close', 'volume', 'signal']].dropna()
         full_info[code] = df
 
@@ -361,12 +395,12 @@ def generate_rsi_signals(
     overbought: float = 90,
     ma_period: int = 200
 ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, pd.DataFrame]]:
-    """生成RSI策略信号
+    """生成 RSI 策略信号
 
     Args:
         target_assets: 资产代码列表
         data_paths: 数据路径字典
-        rsi_period: RSI周期
+        rsi_period: RSI 周期
         oversold: 超卖阈值
         overbought: 超买阈值
         ma_period: 均线周期
@@ -378,38 +412,41 @@ def generate_rsi_signals(
     full_info = {}
 
     for code in target_assets:
-        # 读取数据
+
+# 读取数据
         file_path = f"{data_paths['daily']}/{code}.csv"
         df = pd.read_csv(file_path, index_col=0)
         df.index = pd.to_datetime(df.index)
 
-        # 计算RSI
+# 计算 RSI
         delta = df['close'].diff()
         gain = (delta.where(delta > 0, 0)).rolling(window=rsi_period).mean()
         loss = (-delta.where(delta < 0, 0)).rolling(window=rsi_period).mean()
         rs = gain / loss
         df['rsi'] = 100 - (100 / (1 + rs))
 
-        # 计算均线
+# 计算均线
         df['ma'] = df['close'].rolling(window=ma_period).mean()
 
-        # 生成信号
+# 生成信号
         df['signal'] = 0
         df.loc[(df['rsi'] <= oversold) & (df['close'] > df['ma']), 'signal'] = 1
         df.loc[df['rsi'] >= overbought, 'signal'] = -1
 
-        # 保存结果
+# 保存结果
         results[code] = df[['open', 'high', 'low', 'close', 'volume', 'signal']].dropna()
         full_info[code] = df
 
     return results, full_info
-```
 
-### 2. Bokeh交互式可视化设计
+```bash
 
-#### 2.1 Bokeh绘图引擎
+### 2. Bokeh 交互式可视化设计
+
+#### 2.1 Bokeh 绘图引擎
 
 ```python
+
 # backtrader/plotting/bokeh_plotter.py
 
 from typing import Dict, List, Optional, Tuple
@@ -425,7 +462,7 @@ from bokeh.models.transforms import cumsum
 from ..strategy.signal_strategy import SignalStrategy
 
 class BokehPlotter:
-    """Bokeh交互式绘图器
+    """Bokeh 交互式绘图器
 
     提供丰富的交互式可视化功能
     """
@@ -460,43 +497,44 @@ class BokehPlotter:
             drawdown: 回撤序列
             returns: 收益率序列
             metrics: 绩效指标字典
-            output_path: HTML输出路径
+            output_path: HTML 输出路径
         """
-        # 准备数据
+
+# 准备数据
         price_data = price_data.copy()
         price_data.index = pd.to_datetime(price_data.index)
 
-        # 创建各种图表
+# 创建各种图表
         plots = []
 
-        # 1. 价格与信号图
+# 1. 价格与信号图
         p_price = self._create_price_plot(price_data, strategy)
         plots.append(p_price)
 
-        # 2. 净值曲线图
+# 2. 净值曲线图
         p_value = self._create_value_plot(portfolio_value)
         plots.append(p_value)
 
-        # 3. 回撤图
+# 3. 回撤图
         p_dd = self._create_drawdown_plot(drawdown)
         plots.append(p_dd)
 
-        # 4. 累计收益图
+# 4. 累计收益图
         p_cum = self._create_cumulative_return_plot(returns)
         plots.append(p_cum)
 
-        # 5. 收益分布直方图
+# 5. 收益分布直方图
         p_hist = self._create_return_distribution_plot(returns)
         plots.append(p_hist)
 
-        # 6. 绩效指标表格
+# 6. 绩效指标表格
         metrics_div = self._create_metrics_table(metrics)
         plots.append(metrics_div)
 
-        # 组合布局
+# 组合布局
         layout = column(*plots)
 
-        # 输出
+# 输出
         if output_path:
             output_file(output_path, title="Backtesting Report")
         show(layout)
@@ -514,12 +552,12 @@ class BokehPlotter:
         )
         p.grid.grid_line_alpha = 0.3
 
-        # 价格线
+# 价格线
         source = ColumnDataSource(price_data)
         p.line('index', 'close', source=source, color='blue',
                line_width=1, legend_label='收盘价')
 
-        # 买入卖出信号标记
+# 买入卖出信号标记
         debug_df = strategy.get_debug_df()
         if not debug_df.empty:
             buy_signals = debug_df[debug_df['signal'] == 1]
@@ -537,7 +575,7 @@ class BokehPlotter:
                           size=10, color='red', alpha=0.8,
                           legend_label='卖出信号')
 
-        # 悬停工具
+# 悬停工具
         hover = HoverTool(
             tooltips=[
                 ("日期", "@index{%F}"),
@@ -564,7 +602,7 @@ class BokehPlotter:
         )
         p.grid.grid_line_alpha = 0.3
 
-        # 标准化净值
+# 标准化净值
         normalized_value = portfolio_value / portfolio_value.iloc[0]
 
         source = ColumnDataSource(data={
@@ -576,7 +614,7 @@ class BokehPlotter:
         p.line('datetime', 'value', source=source,
                color='navy', line_width=2, legend_label='净值')
 
-        # 悬停工具
+# 悬停工具
         hover = HoverTool(
             tooltips=[
                 ("日期", "@datetime{%F}"),
@@ -609,12 +647,12 @@ class BokehPlotter:
         p.line('datetime', 'drawdown', source=source,
                color='red', line_width=1, legend_label='回撤')
 
-        # 添加零线
+# 添加零线
         zero_line = Span(location=0, dimension='width',
                         line_color='black', line_dash='dashed')
         p.add_layout(zero_line)
 
-        # 添加最大回撤标注
+# 添加最大回撤标注
         max_dd_idx = drawdown.idxmin()
         max_dd_val = drawdown.min()
         label = Label(x=max_dd_idx, y=max_dd_val,
@@ -649,7 +687,7 @@ class BokehPlotter:
         p.line('datetime', 'cum_return', source=source,
                color='green', line_width=2, legend_label='累计收益')
 
-        # 添加零线
+# 添加零线
         zero_line = Span(location=0, dimension='width',
                         line_color='gray', line_alpha=0.5)
         p.add_layout(zero_line)
@@ -722,13 +760,15 @@ class BokehPlotter:
         """
 
         return Div(text=metrics_html, width=self.width, height=200)
-```
+
+```bash
 
 ### 3. 参数优化设计
 
 #### 3.1 网格搜索优化器
 
 ```python
+
 # backtrader/optimize/grid_search.py
 
 from typing import Dict, List, Callable, Any, Optional
@@ -789,14 +829,15 @@ class GridSearchOptimizer:
 
         Args:
             parameter_grid: 参数网格 {参数名: [值列表]}
-            n_jobs: 并行进程数，-1表示使用所有CPU
+            n_jobs: 并行进程数，-1 表示使用所有 CPU
             show_progress: 是否显示进度条
             visualize: 是否可视化结果
 
         Returns:
-            优化结果DataFrame
+            优化结果 DataFrame
         """
-        # 生成参数组合
+
+# 生成参数组合
         param_names = list(parameter_grid.keys())
         param_values = [parameter_grid[name] for name in param_names]
         param_combinations = [
@@ -806,20 +847,20 @@ class GridSearchOptimizer:
 
         print(f"共有 {len(param_combinations)} 个参数组合需要测试")
 
-        # 并行执行
+# 并行执行
         if n_jobs == -1:
             n_jobs = cpu_count()
 
         results = self._run_optimization(param_combinations, n_jobs, show_progress)
 
-        # 转换为DataFrame
+# 转换为 DataFrame
         results_df = pd.DataFrame(results)
         results_df = results_df.dropna()
 
-        # 按优化指标排序
+# 按优化指标排序
         results_df = results_df.sort_values(self.metric, ascending=False)
 
-        # 可视化
+# 可视化
         if visualize and len(param_names) <= 2:
             self._plot_results(results_df, param_names)
 
@@ -835,14 +876,16 @@ class GridSearchOptimizer:
         results = []
 
         if n_jobs == 1:
-            # 单进程
+
+# 单进程
             for params in param_combinations:
                 result = self._evaluate_params(params)
                 results.append(result)
                 if show_progress:
                     print(f"完成: {params}")
         else:
-            # 多进程
+
+# 多进程
             with Pool(n_jobs) as pool:
                 if show_progress:
                     from tqdm import tqdm
@@ -858,14 +901,17 @@ class GridSearchOptimizer:
     def _evaluate_params(self, params: Dict) -> Dict:
         """评估单个参数组合"""
         try:
-            # 生成信号
+
+# 生成信号
             signal_results, full_info = self.signal_function(
                 self.target_assets,
                 self.data_paths,
-                **params
+
+                - *params
+
             )
 
-            # 运行回测
+# 运行回测
             from ..run_backtest import run_backtest
             strategy = run_backtest(
                 self.strategy_class,
@@ -876,16 +922,16 @@ class GridSearchOptimizer:
                 self.slippage
             )
 
-            # 获取净值序列
+# 获取净值序列
             pv = strategy.get_net_value_series()
 
-            # 计算绩效指标
+# 计算绩效指标
             from ..analyzing_tools import AnalyzingTools
             at = AnalyzingTools()
             portfolio_value, returns, drawdown_ts, metrics = \
                 at.performance_analysis(pv)
 
-            # 合并参数和指标
+# 合并参数和指标
             result = params.copy()
             result.update(metrics)
 
@@ -903,7 +949,8 @@ class GridSearchOptimizer:
     def _plot_results(self, results_df: pd.DataFrame, param_names: List[str]):
         """可视化优化结果"""
         if len(param_names) == 1:
-            # 单参数：折线图
+
+# 单参数：折线图
             param = param_names[0]
             plt.figure(figsize=(10, 6))
             plt.plot(results_df[param], results_df[self.metric],
@@ -916,7 +963,8 @@ class GridSearchOptimizer:
             plt.show()
 
         elif len(param_names) == 2:
-            # 双参数：热力图
+
+# 双参数：热力图
             param1, param2 = param_names
             pivot_table = results_df.pivot(
                 index=param1, columns=param2, values=self.metric
@@ -933,13 +981,15 @@ class GridSearchOptimizer:
             plt.yticks(rotation=0)
             plt.tight_layout()
             plt.show()
-```
+
+```bash
 
 ### 4. 统计分析增强设计
 
 #### 4.1 分析工具类
 
 ```python
+
 # backtrader/analyzing_tools.py
 
 from typing import Dict, Tuple, Optional
@@ -951,19 +1001,19 @@ from scipy import stats
 class PerformanceAnalyzer:
     """增强的绩效分析器
 
-    使用empirical库提供更丰富的统计指标
+    使用 empirical 库提供更丰富的统计指标
     """
 
-    # 年化系数映射
+# 年化系数映射
     ANNUAL_FACTORS = {
-        '1m': 365 * 24 * 60,
-        '5m': 365 * 24 * 12,
-        '15m': 365 * 24 * 4,
-        '30m': 365 * 24 * 2,
-        '1H': 365 * 24,
-        '2H': 365 * 12,
-        '4H': 365 * 6,
-        '8H': 365 * 3,
+        '1m': 365 *24*60,
+        '5m': 365*24*12,
+        '15m': 365*24*4,
+        '30m': 365*24*2,
+        '1H': 365*24,
+        '2H': 365*12,
+        '4H': 365*6,
+        '8H': 365*3,
         'D': 252,
         'W': 52,
         'M': 12,
@@ -993,19 +1043,20 @@ class PerformanceAnalyzer:
         Returns:
             (portfolio_value, returns, drawdown, metrics)
         """
-        # 计算收益率
+
+# 计算收益率
         returns = portfolio_value.pct_change().dropna()
 
-        # 获取年化系数
+# 获取年化系数
         annual_factor = self.ANNUAL_FACTORS.get(freq, 252)
 
-        # 计算各项指标
+# 计算各项指标
         metrics = self._calculate_metrics(returns, annual_factor)
 
-        # 计算回撤序列
+# 计算回撤序列
         drawdown = self._calculate_drawdown(returns)
 
-        # 如果有基准，计算相对指标
+# 如果有基准，计算相对指标
         if benchmark is not None:
             benchmark_returns = benchmark.pct_change().dropna()
             metrics.update(self._calculate_relative_metrics(
@@ -1020,11 +1071,12 @@ class PerformanceAnalyzer:
         annual_factor: int
     ) -> Dict[str, float]:
         """计算绩效指标"""
-        # 基础收益指标
+
+# 基础收益指标
         total_return = ep.cum_returns_final(returns)
         annual_return = ep.annual_return(returns, period=annual_factor)
 
-        # 风险指标
+# 风险指标
         annual_volatility = ep.annual_volatility(returns, period=annual_factor)
         downside_risk = ep.downside_risk(
             returns,
@@ -1032,7 +1084,7 @@ class PerformanceAnalyzer:
             period=annual_factor
         )
 
-        # 风险调整收益指标
+# 风险调整收益指标
         sharpe_ratio = ep.sharpe_ratio(
             returns,
             period=annual_factor,
@@ -1044,21 +1096,21 @@ class PerformanceAnalyzer:
             period=annual_factor
         )
 
-        # 回撤指标
+# 回撤指标
         max_drawdown = ep.max_drawdown(returns)
         calmar_ratio = ep.calmar_ratio(returns, period=annual_factor)
 
-        # 其他指标
+# 其他指标
         win_rate = (returns >= 0).mean()
         avg_win = returns[returns > 0].mean() if (returns > 0).any() else 0
         avg_loss = returns[returns < 0].mean() if (returns < 0).any() else 0
         profit_loss_ratio = abs(avg_win / avg_loss) if avg_loss != 0 else np.inf
 
-        # 尾部风险
+# 尾部风险
         var_95 = ep.value_at_risk(returns, 0.95)
         cvar_95 = ep.conditional_value_at_risk(returns, 0.95)
 
-        # Omega比率
+# Omega 比率
         omega_ratio = ep.omega_ratio(
             returns,
             required_return=self.risk_free_rate,
@@ -1090,26 +1142,27 @@ class PerformanceAnalyzer:
         annual_factor: int
     ) -> Dict[str, float]:
         """计算相对指标"""
-        # 对齐时间序列
+
+# 对齐时间序列
         aligned_returns, aligned_benchmark = returns.align(benchmark_returns, join='inner')
 
-        # 超额收益
+# 超额收益
         excess_returns = aligned_returns - aligned_benchmark
 
-        # 信息比率
-        tracking_error = excess_returns.std() * np.sqrt(annual_factor)
-        information_ratio = excess_returns.mean() * annual_factor / tracking_error \
+# 信息比率
+        tracking_error = excess_returns.std()*np.sqrt(annual_factor)
+        information_ratio = excess_returns.mean()*annual_factor / tracking_error \
             if tracking_error != 0 else 0
 
-        # Beta
+# Beta
         covariance = np.cov(aligned_returns, aligned_benchmark)[0, 1]
         benchmark_variance = aligned_benchmark.var()
         beta = covariance / benchmark_variance if benchmark_variance != 0 else 0
 
-        # Alpha
-        benchmark_annual_return = aligned_benchmark.mean() * annual_factor
-        strategy_annual_return = aligned_returns.mean() * annual_factor
-        alpha = strategy_annual_return - beta * benchmark_annual_return
+# Alpha
+        benchmark_annual_return = aligned_benchmark.mean()*annual_factor
+        strategy_annual_return = aligned_returns.mean()*annual_factor
+        alpha = strategy_annual_return - beta*benchmark_annual_return
 
         return {
             'information_ratio': information_ratio,
@@ -1148,19 +1201,20 @@ class PerformanceAnalyzer:
         if seed is not None:
             np.random.seed(seed)
 
-        # 计算收益率统计量
+# 计算收益率统计量
         mean_return = returns.mean()
         std_return = returns.std()
 
-        # 模拟
+# 模拟
         simulations = np.zeros((num_simulations, num_days))
 
         for i in range(num_simulations):
-            # 生成随机收益率
-            sim_returns = np.random.normal(mean_return, std_return, num_days)
-            simulations[i] = initial_value * (1 + sim_returns).cumprod()
 
-        # 计算统计
+# 生成随机收益率
+            sim_returns = np.random.normal(mean_return, std_return, num_days)
+            simulations[i] = initial_value* (1 + sim_returns).cumprod()
+
+# 计算统计
         final_values = simulations[:, -1]
         percentiles = np.percentile(final_values, [5, 25, 50, 75, 95])
 
@@ -1185,11 +1239,11 @@ class PerformanceAnalyzer:
 
         plt.figure(figsize=(12, 6))
 
-        # 绘制部分模拟路径
+# 绘制部分模拟路径
         for i in range(min(num_display, len(simulations))):
             plt.plot(simulations[i], color='blue', alpha=0.1, linewidth=0.5)
 
-        # 绘制百分位线
+# 绘制百分位线
         days = len(simulations[0])
         plt.axhline(y=percentiles[0], color='red', linestyle='--',
                    label=f'5th: {percentiles[0]:.2f}')
@@ -1205,13 +1259,15 @@ class PerformanceAnalyzer:
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
         plt.show()
-```
 
-### 5. HTML报告生成设计
+```bash
+
+### 5. HTML 报告生成设计
 
 #### 5.1 报告生成器
 
 ```python
+
 # backtrader/reporting/html_reporter.py
 
 from typing import Dict, List, Optional
@@ -1221,16 +1277,16 @@ import base64
 from io import BytesIO
 
 class HTMLReporter:
-    """HTML报告生成器
+    """HTML 报告生成器
 
-    生成包含完整回测结果的HTML报告
+    生成包含完整回测结果的 HTML 报告
     """
 
     def __init__(self, template_path: Optional[str] = None):
         """初始化报告生成器
 
         Args:
-            template_path: 自定义HTML模板路径
+            template_path: 自定义 HTML 模板路径
         """
         self.template_path = template_path
 
@@ -1245,7 +1301,7 @@ class HTMLReporter:
         plots: Optional[List[str]] = None,
         output_path: str = 'backtest_report.html'
     ):
-        """生成HTML报告
+        """生成 HTML 报告
 
         Args:
             strategy_name: 策略名称
@@ -1254,7 +1310,7 @@ class HTMLReporter:
             drawdown: 回撤序列
             metrics: 绩效指标
             trades: 交易记录
-            plots: 图表HTML片段列表
+            plots: 图表 HTML 片段列表
             output_path: 输出文件路径
         """
         html_content = self._generate_html(
@@ -1277,9 +1333,9 @@ class HTMLReporter:
         trades: pd.DataFrame,
         plots: Optional[List[str]]
     ) -> str:
-        """生成HTML内容"""
+        """生成 HTML 内容"""
 
-        # 基础样式
+# 基础样式
         css = """
         <style>
             body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px;
@@ -1310,7 +1366,7 @@ class HTMLReporter:
         </style>
         """
 
-        # 页头
+# 页头
         header = f"""
         <div class="container">
             <h1>{strategy_name} 回测报告</h1>
@@ -1319,7 +1375,7 @@ class HTMLReporter:
             </p>
         """
 
-        # 绩效指标卡片
+# 绩效指标卡片
         metrics_html = "<h2>绩效指标</h2><div class='metrics-grid'>"
 
         metric_config = {
@@ -1336,7 +1392,7 @@ class HTMLReporter:
                 value = metrics[key]
                 value_str = fmt.format(value)
 
-                # 判断正负颜色
+# 判断正负颜色
                 if key == 'max_drawdown':
                     card_class = 'negative' if value < 0 else 'metric-card'
                 elif key in ['total_return', 'annual_return', 'sharpe_ratio', 'win_rate']:
@@ -1353,7 +1409,7 @@ class HTMLReporter:
 
         metrics_html += "</div>"
 
-        # 交易记录表
+# 交易记录表
         trades_html = "<h2>交易记录</h2>"
         if not trades.empty:
             trades_html += "<table><thead><tr>"
@@ -1378,14 +1434,14 @@ class HTMLReporter:
         else:
             trades_html += "<p>无交易记录</p>"
 
-        # 图表
+# 图表
         plots_html = ""
         if plots:
             plots_html = "<h2>图表</h2>"
             for plot_html in plots:
                 plots_html += plot_html
 
-        # 页脚
+# 页脚
         footer = f"""
         <div class="footer">
             <p>Generated by Backtrader Enhanced Framework</p>
@@ -1393,7 +1449,7 @@ class HTMLReporter:
         </div>
         """
 
-        # 组合HTML
+# 组合 HTML
         html = f"""
         <!DOCTYPE html>
         <html lang="zh-CN">
@@ -1414,22 +1470,25 @@ class HTMLReporter:
         """
 
         return html
-```
+
+```bash
 
 ### 6. 实施计划
 
 #### 6.1 实施优先级
 
-1. **高优先级** (第一阶段)
+1. **高优先级**(第一阶段)
    - 信号驱动策略框架 - 核心功能
    - 增强统计分析 - 提供更丰富的指标
 
-2. **中优先级** (第二阶段)
-   - 参数优化 - 提升策略开发效率
-   - HTML报告生成 - 便于结果分享
+2.**中优先级**(第二阶段)
 
-3. **可选优先级** (第三阶段)
-   - Bokeh交互式可视化 - 增强用户体验
+   - 参数优化 - 提升策略开发效率
+   - HTML 报告生成 - 便于结果分享
+
+3.**可选优先级** (第三阶段)
+
+   - Bokeh 交互式可视化 - 增强用户体验
    - 蒙特卡洛分析 - 高级分析功能
 
 #### 6.2 向后兼容性保证
@@ -1437,21 +1496,27 @@ class HTMLReporter:
 所有新功能都是**可选的**，现有代码无需修改即可继续使用：
 
 ```python
+
 # 现有用法继续支持
+
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy)
 results = cerebro.run()
 
 # 新用法
+
 # 信号驱动策略
+
 from backtrader.strategy.signal_strategy import SignalStrategy, SignalData
 from backtrader.strategy.signal_generator import generate_ema_signals
 
 # 生成信号
+
 signals, _ = generate_ema_signals(assets, paths, window_short=20, window_long=40)
 
 # 使用信号数据
+
 for code, df in signals.items():
     data = SignalData(dataname=df)
     data._name = code
@@ -1460,51 +1525,67 @@ for code, df in signals.items():
 cerebro.addstrategy(SignalStrategy, size_pct=0.95)
 
 # 统计分析
+
 from backtrader.analyzing_tools import PerformanceAnalyzer
 analyzer = PerformanceAnalyzer()
 pv, returns, dd, metrics = analyzer.analyze(portfolio_value)
 
 # 参数优化
+
 from backtrader.optimize.grid_search import GridSearchOptimizer
 optimizer = GridSearchOptimizer(MyStrategy, signal_func, assets, paths)
 results = optimizer.optimize({'window_short': [10,20,30], 'window_long': [30,40,50]})
-```
+
+```bash
 
 #### 6.3 目录结构
 
-```
+```bash
 backtrader/
 ├── __init__.py
 ├── cerebro.py              # 核心引擎 (保持不变)
+
 ├── strategy/               # 策略模块
+
 │   ├── __init__.py
 │   ├── signal_strategy.py # 新增: 信号驱动策略
+
 │   └── signal_generator.py # 新增: 信号生成函数
+
 ├── plotting/               # 新增: 绘图模块
+
 │   ├── __init__.py
-│   ├── bokeh_plotter.py   # Bokeh绘图器
-│   └── matplotlib_plotter.py  # Matplotlib绘图器(保留)
+│   ├── bokeh_plotter.py   # Bokeh 绘图器
+
+│   └── matplotlib_plotter.py  # Matplotlib 绘图器(保留)
+
 ├── optimize/               # 新增: 优化模块
+
 │   ├── __init__.py
 │   └── grid_search.py     # 网格搜索优化器
-├── analyzing_tools.py     # 新增: 统计分析工具
-├── reporting/              # 新增: 报告模块
-│   ├── __init__.py
-│   └── html_reporter.py   # HTML报告生成器
-└── run_backtest.py         # 新增: 回测运行函数
-```
 
----
+├── analyzing_tools.py     # 新增: 统计分析工具
+
+├── reporting/              # 新增: 报告模块
+
+│   ├── __init__.py
+│   └── html_reporter.py   # HTML 报告生成器
+
+└── run_backtest.py         # 新增: 回测运行函数
+
+```bash
+
+- --
 
 ## 总结
 
-通过借鉴 Time_Series_Backtesting 项目的设计思想，backtrader可以在保持通用性的同时，获得以下改进：
+通过借鉴 Time_Series_Backtesting 项目的设计思想，backtrader 可以在保持通用性的同时，获得以下改进：
 
 1. **信号驱动**: 策略信号与执行分离，逻辑更清晰，便于向量化计算
-2. **Bokeh可视化**: 交互式图表，支持缩放、悬停等高级功能
+2. **Bokeh 可视化**: 交互式图表，支持缩放、悬停等高级功能
 3. **参数优化**: 网格搜索和热力图可视化，提升参数调优效率
-4. **丰富统计**: 使用empirical库，提供30+专业绩效指标
+4. **丰富统计**: 使用 empirical 库，提供 30+专业绩效指标
 5. **蒙特卡洛**: 内置蒙特卡洛模拟分析功能
-6. **HTML报告**: 一键生成专业的HTML格式回测报告
+6. **HTML 报告**: 一键生成专业的 HTML 格式回测报告
 
 这些改进都是**向后兼容**的，用户可以按需使用新功能，不影响现有策略代码。Time_Series_Backtesting 展示了如何增强 backtrader 的实用功能，特别是在可视化、参数优化和统计分析方面的优秀实践经验。

@@ -1,4 +1,5 @@
----
+- --
+
 name: 'e-06-commands-menu'
 description: 'Review and plan command/menu edits'
 
@@ -8,7 +9,8 @@ agentMenuPatterns: ../data/agent-menu-patterns.md
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Edit Step 6: Commands Menu
 
@@ -37,7 +39,7 @@ Review the agent's command menu and plan any additions, modifications, or remova
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Reference Documents
 
@@ -46,22 +48,23 @@ Read `{agentMenuPatterns}` to understand menu structure requirements.
 ### 2. Review Current Commands
 
 From `{editPlan}`, display current commands with:
+
 - trigger
 - description
 - handler/action
 
 ### 3. Discuss Command Edits
 
-**For additions:**
+- *For additions:**
 - Define trigger (clear, intuitive, following conventions)
 - Define description (concise, one line)
 - Define handler/action (references capability)
 
-**For modifications:**
+- *For modifications:**
 - Update trigger, description, or handler
 - Ensure still follows menu patterns
 
-**For removals:**
+- *For removals:**
 - Identify commands to remove
 - Confirm impact on agent functionality
 
@@ -72,15 +75,21 @@ Append to `{editPlan}`:
 ```yaml
 commandEdits:
   additions:
+
     - trigger: {trigger}
+
       description: {description}
       handler: {handler}
   modifications:
+
     - command: {existing-command}
+
       changes: {what-to-change}
   removals:
+
     - command: {command-to-remove}
-```
+
+```bash
 
 ### 5. Present MENU OPTIONS
 
@@ -103,7 +112,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ONLY WHEN [C continue option] is selected and [command changes documented], will you then load and read fully `{nextStepFile}` to execute and begin activation planning.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -119,4 +128,4 @@ ONLY WHEN [C continue option] is selected and [command changes documented], will
 - Commands missing required elements
 - Changes not documented to edit plan
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

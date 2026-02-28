@@ -1,10 +1,10 @@
 # Architecture Document Validation Checklist
 
-**Purpose**: Validate the architecture document itself is complete, implementable, and provides clear guidance for AI agents.
+- *Purpose**: Validate the architecture document itself is complete, implementable, and provides clear guidance for AI agents.
 
-**Note**: This checklist validates the ARCHITECTURE DOCUMENT only. For cross-workflow validation (PRD → Architecture → Stories alignment), use the implementation-readiness workflow.
+- *Note**: This checklist validates the ARCHITECTURE DOCUMENT only. For cross-workflow validation (PRD → Architecture → Stories alignment), use the implementation-readiness workflow.
 
----
+- --
 
 ## 1. Decision Completeness
 
@@ -23,7 +23,7 @@
 - [ ] Deployment target selected
 - [ ] All functional requirements have architectural support
 
----
+- --
 
 ## 2. Version Specificity
 
@@ -41,7 +41,7 @@
 - [ ] LTS vs. latest versions considered and documented
 - [ ] Breaking changes between versions noted if relevant
 
----
+- --
 
 ## 3. Starter Template Integration (if applicable)
 
@@ -66,7 +66,7 @@
 - [ ] If accepted: MCP capabilities and setup instructions included in Development Environment
 - [ ] If declined: Note that MCPs can be added later
 
----
+- --
 
 ## 4. Novel Pattern Design (if applicable)
 
@@ -92,7 +92,7 @@
 - [ ] Clear boundaries between components
 - [ ] Explicit integration points with standard patterns
 
----
+- --
 
 ## 5. Implementation Patterns
 
@@ -114,7 +114,7 @@
 - [ ] No gaps where agents would have to guess
 - [ ] Implementation patterns don't conflict with each other
 
----
+- --
 
 ## 6. Technology Compatibility
 
@@ -133,7 +133,7 @@
 - [ ] File storage solution integrates with framework
 - [ ] Background job system compatible with infrastructure
 
----
+- --
 
 ## 7. Document Structure
 
@@ -158,7 +158,7 @@
 - [ ] No unnecessary explanations or justifications
 - [ ] Focused on WHAT and HOW, not WHY (rationale is brief)
 
----
+- --
 
 ## 8. AI Agent Clarity
 
@@ -180,7 +180,7 @@
 - [ ] Error handling patterns specified
 - [ ] Testing patterns documented
 
----
+- --
 
 ## 9. Practical Considerations
 
@@ -200,7 +200,7 @@
 - [ ] Background job processing defined if async work needed
 - [ ] Novel patterns scalable for production use
 
----
+- --
 
 ## 10. Common Issues to Check
 
@@ -219,7 +219,7 @@
 - [ ] Future migration paths not blocked
 - [ ] Novel patterns follow architectural principles
 
----
+- --
 
 ## Validation Summary
 
@@ -238,10 +238,10 @@
 
 { list actions }
 
----
+- --
 
-**Next Step**: Run the **implementation-readiness** workflow to validate alignment between PRD, Architecture, and Stories before beginning implementation.
+- *Next Step**: Run the **implementation-readiness** workflow to validate alignment between PRD, Architecture, and Stories before beginning implementation.
 
----
+- --
 
 _This checklist validates architecture document quality only. Use implementation-readiness for comprehensive readiness validation._

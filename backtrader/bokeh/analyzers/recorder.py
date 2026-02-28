@@ -82,9 +82,7 @@ class RecorderAnalyzer(bt.Analyzer):
                     self._data[name]["high"].append(data.high[0])
                     self._data[name]["low"].append(data.low[0])
                     self._data[name]["close"].append(data.close[0])
-                    self._data[name]["volume"].append(
-                        data.volume[0] if hasattr(data, "volume") else 0
-                    )
+                    self._data[name]["volume"].append(data.volume[0] if hasattr(data, "volume") else 0)
                 except Exception:
                     pass
 

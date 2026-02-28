@@ -12,9 +12,9 @@ Environment-specific configuration prevents hardcoded URLs, timeouts, and creden
 
 ### Example 1: Environment-Based Configuration
 
-**Context**: When testing against multiple environments (local, staging, production), use a central config map that loads environment-specific settings and fails fast if `TEST_ENV` is invalid.
+- *Context**: When testing against multiple environments (local, staging, production), use a central config map that loads environment-specific settings and fails fast if `TEST_ENV` is invalid.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright.config.ts - Central config loader
@@ -45,7 +45,8 @@ if (!Object.keys(envConfigMap).includes(environment)) {
 console.log(`✅ Running tests against: ${environment.toUpperCase()}`);
 
 export default envConfigMap[environment as keyof typeof envConfigMap];
-```
+
+```bash
 
 ```typescript
 // playwright/config/base.config.ts - Shared base configuration
@@ -75,7 +76,8 @@ export const baseConfig = defineConfig({
   timeout: 60000,
   expect: { timeout: 10000 },
 });
-```
+
+```bash
 
 ```typescript
 // playwright/config/local.config.ts - Local environment
@@ -86,17 +88,18 @@ export default defineConfig({
   ...baseConfig,
   use: {
     ...baseConfig.use,
-    baseURL: 'http://localhost:3000',
+    baseURL: '<http://localhost:3000',>
     video: 'off', // No video locally for speed
   },
   webServer: {
     command: 'npm run dev',
-    url: 'http://localhost:3000',
+    url: '<http://localhost:3000',>
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },
 });
-```
+
+```bash
 
 ```typescript
 // playwright/config/staging.config.ts - Staging environment
@@ -107,11 +110,12 @@ export default defineConfig({
   ...baseConfig,
   use: {
     ...baseConfig.use,
-    baseURL: 'https://staging.example.com',
+    baseURL: '<https://staging.example.com',>
     ignoreHTTPSErrors: true, // Allow self-signed certs in staging
   },
 });
-```
+
+```bash
 
 ```typescript
 // playwright/config/production.config.ts - Production environment
@@ -123,20 +127,24 @@ export default defineConfig({
   retries: 3, // More retries in production
   use: {
     ...baseConfig.use,
-    baseURL: 'https://example.com',
+    baseURL: '<https://example.com',>
     video: 'on', // Always record production failures
   },
 });
-```
 
 ```bash
+
+```bash
+
 # .env.example - Template for developers
+
 TEST_ENV=local
 API_KEY=your_api_key_here
 DATABASE_URL=postgresql://localhost:5432/test_db
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Central `envConfigMap` prevents environment misconfiguration
 - Fail-fast validation with clear error message (available envs listed)
@@ -147,9 +155,9 @@ DATABASE_URL=postgresql://localhost:5432/test_db
 
 ### Example 2: Timeout Standards
 
-**Context**: When tests fail due to inconsistent timeout settings, standardize timeouts across all tests: action 15s, navigation 30s, expect 10s, test 60s. Expose overrides through fixtures rather than inline literals.
+- *Context**: When tests fail due to inconsistent timeout settings, standardize timeouts across all tests: action 15s, navigation 30s, expect 10s, test 60s. Expose overrides through fixtures rather than inline literals.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/config/base.config.ts - Standardized timeouts
@@ -172,7 +180,8 @@ export default defineConfig({
     timeout: 10000,
   },
 });
-```
+
+```bash
 
 ```typescript
 // playwright/support/fixtures/timeout-fixture.ts - Timeout override fixture
@@ -196,7 +205,8 @@ export const test = base.extend<TimeoutOptions>({
 });
 
 export { expect } from '@playwright/test';
-```
+
+```bash
 
 ```typescript
 // Usage in tests - Standard timeouts (implicit)
@@ -209,7 +219,8 @@ test('user can log in', async ({ page }) => {
 
   await expect(page.getByText('Welcome')).toBeVisible(); // Uses 10s expect timeout
 });
-```
+
+```bash
 
 ```typescript
 // Usage in tests - Per-test timeout override
@@ -227,7 +238,8 @@ test('slow data processing operation', async ({ page, extendedTimeout }) => {
     timeout: 120000, // 2 minutes for assertion
   });
 });
-```
+
+```bash
 
 ```typescript
 // Per-assertion timeout override (inline)
@@ -240,9 +252,10 @@ test('API returns quickly', async ({ page }) => {
   // Override expect timeout for slow external API
   await expect(page.getByTestId('weather-widget')).toBeVisible({ timeout: 20000 }); // 20s instead of 10s
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Standardized timeouts**: action 15s, navigation 30s, expect 10s, test 60s (global defaults)
 - Fixture-based override (`extendedTimeout`) for slow tests (preferred over inline)
@@ -252,9 +265,9 @@ test('API returns quickly', async ({ page }) => {
 
 ### Example 3: Artifact Output Configuration
 
-**Context**: When debugging failures in CI, configure artifacts (screenshots, videos, traces, HTML reports) to be captured on failure and stored in consistent locations for upload.
+- *Context**: When debugging failures in CI, configure artifacts (screenshots, videos, traces, HTML reports) to be captured on failure and stored in consistent locations for upload.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright.config.ts - Artifact configuration
@@ -298,7 +311,8 @@ export default defineConfig({
     ['list'],
   ],
 });
-```
+
+```bash
 
 ```typescript
 // playwright/support/fixtures/artifact-fixture.ts - Custom artifact capture
@@ -329,10 +343,13 @@ export const test = base.extend({
     }
   },
 });
-```
+
+```bash
 
 ```yaml
+
 # .github/workflows/e2e.yml - CI artifact upload
+
 name: E2E Tests
 on: [push, pull_request]
 
@@ -340,24 +357,31 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+
         with:
           node-version-file: '.nvmrc'
 
       - name: Install dependencies
+
         run: npm ci
 
       - name: Install Playwright browsers
+
         run: npx playwright install --with-deps
 
       - name: Run tests
+
         run: npm run test
         env:
           TEST_ENV: staging
 
-      # Upload test artifacts on failure
+# Upload test artifacts on failure
+
       - name: Upload test results
+
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -366,13 +390,15 @@ jobs:
           retention-days: 30
 
       - name: Upload Playwright report
+
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
-```
+
+```bash
 
 ```typescript
 // Example: Custom screenshot on specific condition
@@ -391,9 +417,10 @@ test('capture screenshot on specific error', async ({ page }) => {
     throw error;
   }
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `screenshot: 'only-on-failure'` saves space (not every test)
 - `video: 'retain-on-failure'` captures full flow on failures
@@ -405,9 +432,9 @@ test('capture screenshot on specific error', async ({ page }) => {
 
 ### Example 4: Parallelization Configuration
 
-**Context**: When tests run slowly in CI, configure parallelization with worker count, sharding, and fully parallel execution to maximize speed while maintaining stability.
+- *Context**: When tests run slowly in CI, configure parallelization with worker count, sharding, and fully parallel execution to maximize speed while maintaining stability.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright.config.ts - Parallelization settings
@@ -438,10 +465,13 @@ export default defineConfig({
         }
       : undefined,
 });
-```
+
+```bash
 
 ```yaml
+
 # .github/workflows/e2e-parallel.yml - Sharded CI execution
+
 name: E2E Tests (Parallel)
 on: [push, pull_request]
 
@@ -453,18 +483,23 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4] # Split tests across 4 machines
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+
         with:
           node-version-file: '.nvmrc'
 
       - name: Install dependencies
+
         run: npm ci
 
       - name: Install Playwright browsers
+
         run: npx playwright install --with-deps
 
       - name: Run tests (shard ${{ matrix.shard }})
+
         run: npm run test
         env:
           SHARD_INDEX: ${{ matrix.shard }}
@@ -472,12 +507,14 @@ jobs:
           TEST_ENV: staging
 
       - name: Upload test results
+
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-shard-${{ matrix.shard }}
           path: test-results/
-```
+
+```bash
 
 ```typescript
 // playwright/config/serial.config.ts - Serial execution for flaky tests
@@ -493,7 +530,8 @@ export default defineConfig({
 
   // Used for: authentication flows, database-dependent tests, feature flag tests
 });
-```
+
+```bash
 
 ```typescript
 // Usage: Force serial execution for specific tests
@@ -511,7 +549,8 @@ test.describe('Authentication Flow', () => {
     // Depends on previous test (serial)
   });
 });
-```
+
+```bash
 
 ```typescript
 // Usage: Parallel execution for independent tests (default)
@@ -526,9 +565,10 @@ test.describe('Product Catalog', () => {
     // Runs in parallel with other tests
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `fullyParallel: true` enables parallel execution within single test file
 - Workers: 1 in CI (stability), N-1 CPUs locally (speed)
@@ -539,9 +579,9 @@ test.describe('Product Catalog', () => {
 
 ### Example 5: Project Configuration
 
-**Context**: When testing across multiple browsers, devices, or configurations, use Playwright projects to run the same tests against different environments (chromium, firefox, webkit, mobile).
+- *Context**: When testing across multiple browsers, devices, or configurations, use Playwright projects to run the same tests against different environments (chromium, firefox, webkit, mobile).
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright.config.ts - Multiple browser projects
@@ -580,7 +620,8 @@ export default defineConfig({
     },
   ],
 });
-```
+
+```bash
 
 ```typescript
 // playwright.config.ts - Authenticated vs. unauthenticated projects
@@ -612,7 +653,8 @@ export default defineConfig({
     },
   ],
 });
-```
+
+```bash
 
 ```typescript
 // playwright/support/global-setup.ts - Setup project for auth
@@ -624,7 +666,7 @@ async function globalSetup(config: FullConfig) {
   const page = await browser.newPage();
 
   // Perform authentication
-  await page.goto('http://localhost:3000/login');
+  await page.goto('<http://localhost:3000/login');>
   await page.fill('[data-testid="email"]', 'test@example.com');
   await page.fill('[data-testid="password"]', 'password123');
   await page.click('[data-testid="login-button"]');
@@ -641,20 +683,26 @@ async function globalSetup(config: FullConfig) {
 }
 
 export default globalSetup;
-```
 
 ```bash
+
+```bash
+
 # Run specific project
+
 npx playwright test --project=chromium
 npx playwright test --project=mobile-chrome
 npx playwright test --project=authenticated
 
 # Run multiple projects
+
 npx playwright test --project=chromium --project=firefox
 
 # Run all projects (default)
+
 npx playwright test
-```
+
+```bash
 
 ```typescript
 // Usage: Project-specific test
@@ -671,10 +719,13 @@ test('mobile navigation works', async ({ page, isMobile }) => {
   await page.click('[data-testid="products-link"]');
   await expect(page).toHaveURL(/.*products/);
 });
-```
+
+```bash
 
 ```yaml
+
 # .github/workflows/e2e-cross-browser.yml - CI cross-browser testing
+
 name: E2E Tests (Cross-Browser)
 on: [push, pull_request]
 
@@ -686,16 +737,19 @@ jobs:
       matrix:
         project: [chromium, firefox, webkit, mobile-chrome]
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: npm ci
       - run: npx playwright install --with-deps
 
       - name: Run tests (${{ matrix.project }})
-        run: npx playwright test --project=${{ matrix.project }}
-```
 
-**Key Points**:
+        run: npx playwright test --project=${{ matrix.project }}
+
+```bash
+
+- *Key Points**:
 
 - Projects enable testing across browsers, devices, and configurations
 - `devices` from `@playwright/test` provide preset configurations (Pixel 5, iPhone 13, etc.)
@@ -716,7 +770,7 @@ jobs:
 
 ## Configuration Checklist
 
-**Before deploying tests, verify**:
+- *Before deploying tests, verify**:
 
 - [ ] Environment config map with fail-fast validation
 - [ ] Standardized timeouts (action 15s, navigation 30s, expect 10s, test 60s)

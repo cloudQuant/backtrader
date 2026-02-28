@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03c-subprocess-maintainability'
 description: 'Subprocess: Check test maintainability (readability, structure, DRY)'
 subprocess: true
 outputFile: '/tmp/tea-test-review-maintainability-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 3C: Maintainability Quality Check
 
@@ -11,9 +13,9 @@ outputFile: '/tmp/tea-test-review-maintainability-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other quality dimension checks.
 
-**Your task:** Analyze test files for MAINTAINABILITY violations only.
+- *Your task:** Analyze test files for MAINTAINABILITY violations only.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -21,13 +23,13 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 - ✅ Output structured JSON to temp file
 - ❌ Do NOT check determinism, isolation, coverage, or performance
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Identify Maintainability Violations
 
-**HIGH SEVERITY Violations**:
+- *HIGH SEVERITY Violations**:
 
 - Tests >100 lines (too complex)
 - No test.describe grouping
@@ -35,14 +37,14 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 - Unclear test names (no Given/When/Then structure)
 - Magic numbers/strings without constants
 
-**MEDIUM SEVERITY Violations**:
+- *MEDIUM SEVERITY Violations**:
 
 - Tests missing comments for complex logic
 - Inconsistent naming conventions
 - Excessive nesting (>3 levels)
 - Large setup/teardown blocks
 
-**LOW SEVERITY Violations**:
+- *LOW SEVERITY Violations**:
 
 - Minor code style issues
 - Could benefit from helper functions
@@ -54,9 +56,10 @@ This is an **isolated subprocess** running in parallel with other quality dimens
 const severityWeights = { HIGH: 10, MEDIUM: 5, LOW: 2 };
 const totalPenalty = violations.reduce((sum, v) => sum + severityWeights[v.severity], 0);
 const score = Math.max(0, 100 - totalPenalty);
-```
 
----
+```bash
+
+- --
 
 ## OUTPUT FORMAT
 
@@ -74,7 +77,7 @@ const score = Math.max(0, 100 - totalPenalty);
       "category": "test-too-long",
       "description": "Test file is 250 lines - too complex to maintain",
       "suggestion": "Split into multiple smaller test files by feature area",
-      "code_snippet": "test.describe('Complex flow', () => { /* 250 lines */ });"
+      "code_snippet": "test.describe('Complex flow', () => { /*250 lines*/ });"
     }
   ],
   "passed_checks": 10,
@@ -91,12 +94,13 @@ const score = Math.max(0, 100 - totalPenalty);
   ],
   "summary": "Tests have maintainability issues - 5 violations (2 HIGH)"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
 Subprocess completes when JSON output written to temp file.
 
-**Subprocess terminates here.**
+- *Subprocess terminates here.**

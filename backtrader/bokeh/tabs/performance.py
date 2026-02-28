@@ -256,7 +256,7 @@ class PerformanceTab(BokehTab):
 
         html = f"""
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">
-                {''.join(cards)}
+                {"".join(cards)}
             </div>
         """
         return html

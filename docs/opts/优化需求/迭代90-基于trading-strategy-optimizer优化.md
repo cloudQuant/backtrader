@@ -1,13 +1,18 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/trading-strategy-optimizer
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### trading-strategy-optimizer项目简介
-trading-strategy-optimizer是一个策略参数优化框架，具有以下核心特点：
+### trading-strategy-optimizer 项目简介
+
+trading-strategy-optimizer 是一个策略参数优化框架，具有以下核心特点：
+
 - **参数优化**: 策略参数优化
 - **网格搜索**: 网格搜索优化
 - **贝叶斯优化**: 贝叶斯优化方法
@@ -16,6 +21,7 @@ trading-strategy-optimizer是一个策略参数优化框架，具有以下核心
 - **可视化**: 优化结果可视化
 
 ### 重点借鉴方向
+
 1. **优化算法**: 优化算法实现
 2. **网格搜索**: 网格搜索优化
 3. **贝叶斯优化**: 贝叶斯优化
@@ -23,7 +29,7 @@ trading-strategy-optimizer是一个策略参数优化框架，具有以下核心
 5. **目标函数**: 目标函数设计
 6. **结果分析**: 优化结果分析
 
----
+- --
 
 # 分析与设计文档
 
@@ -32,41 +38,52 @@ trading-strategy-optimizer是一个策略参数优化框架，具有以下核心
 ### 1.1 backtrader vs trading-strategy-optimizer 对比
 
 | 维度 | backtrader (原生) | trading-strategy-optimizer |
+
 |------|------------------|---------------------------|
-| **定位** | 通用回测框架 | 策略参数优化框架 |
-| **优化方法** | cerebro.optstrategy（简单网格） | 多阶段网格搜索 + 启发式评分 |
-| **并行计算** | 基础多进程 | 队列式任务调度 + SQLite状态管理 |
-| **目标函数** | 单一指标排序 | 多目标复合评分 |
-| **结果分析** | 基本分析器 | 多维度排名 + 可视化 |
-| **参数空间** | 简单枚举 | 分阶段优化 + 智能范围 |
-| **任务管理** | 无 | Web界面 + 任务队列 |
-| **结果存储** | 内存 | JSON + 数据库 |
+
+| **定位**| 通用回测框架 | 策略参数优化框架 |
+
+|**优化方法**| cerebro.optstrategy（简单网格） | 多阶段网格搜索 + 启发式评分 |
+
+|**并行计算**| 基础多进程 | 队列式任务调度 + SQLite 状态管理 |
+
+|**目标函数**| 单一指标排序 | 多目标复合评分 |
+
+|**结果分析**| 基本分析器 | 多维度排名 + 可视化 |
+
+|**参数空间**| 简单枚举 | 分阶段优化 + 智能范围 |
+
+|**任务管理**| 无 | Web 界面 + 任务队列 |
+
+|**结果存储**| 内存 | JSON + 数据库 |
 
 ### 1.2 可借鉴的核心优势
 
-1. **分阶段优化**: 将高维参数空间分解为多个低维子问题
-2. **复合评分系统**: Profit Factor × Sharpe × (1-Drawdown) 综合评分
-3. **任务队列架构**: multiprocessing.Queue + SQLite状态跟踪
-4. **智能参数范围**: 基于历史分析缩小搜索空间
-5. **Web界面管理**: Flask服务器提供可视化优化控制
-6. **结果持久化**: JSON格式保存完整优化结果
+1.**分阶段优化**: 将高维参数空间分解为多个低维子问题
 
----
+1. **复合评分系统**: Profit Factor × Sharpe × (1-Drawdown) 综合评分
+2. **任务队列架构**: multiprocessing.Queue + SQLite 状态跟踪
+3. **智能参数范围**: 基于历史分析缩小搜索空间
+4. **Web 界面管理**: Flask 服务器提供可视化优化控制
+5. **结果持久化**: JSON 格式保存完整优化结果
+
+- --
 
 ## 二、需求规格文档
 
 ### 2.1 高级优化器框架
 
-**需求描述**: 创建一个统一的策略参数优化框架，支持多种优化算法和并行计算。
+- *需求描述**: 创建一个统一的策略参数优化框架，支持多种优化算法和并行计算。
 
-**功能要求**:
+- *功能要求**:
 - 支持网格搜索、随机搜索、贝叶斯优化等算法
 - 分阶段优化能力（逐步缩小参数范围）
 - 多目标优化（收益率、夏普比率、最大回撤等）
 - 参数约束和依赖关系处理
 - 优化进度实时跟踪
 
-**接口定义**:
+- *接口定义**:
+
 ```python
 class OptimizerBase:
     def optimize(self, strategy, data, param_space, objective=None):
@@ -79,26 +96,28 @@ class OptimizerBase:
             objective: 目标函数或指标名称
 
         Returns:
-            OptimizationResult对象
+            OptimizationResult 对象
         """
         pass
 
     def get_progress(self):
         """获取优化进度"""
         pass
-```
+
+```bash
 
 ### 2.2 多阶段优化
 
-**需求描述**: 支持将复杂参数空间分解为多个阶段，逐步优化。
+- *需求描述**: 支持将复杂参数空间分解为多个阶段，逐步优化。
 
-**功能要求**:
+- *功能要求**:
 - 定义优化阶段序列
 - 每个阶段使用前一阶段最优参数作为起点
 - 支持阶段间参数传递
 - 可配置每阶段的搜索范围
 
-**阶段定义示例**:
+- *阶段定义示例**:
+
 ```python
 STAGES = [
     {
@@ -116,13 +135,14 @@ STAGES = [
         }
     }
 ]
-```
+
+```bash
 
 ### 2.3 并行任务调度
 
-**需求描述**: 实现高效的任务调度系统，支持多进程并行优化。
+- *需求描述**: 实现高效的任务调度系统，支持多进程并行优化。
 
-**功能要求**:
+- *功能要求**:
 - 任务队列管理
 - 进程池动态调整
 - 任务失败重试机制
@@ -131,31 +151,36 @@ STAGES = [
 
 ### 2.4 多目标优化
 
-**需求描述**: 支持同时优化多个性能指标，提供帕累托前沿分析。
+- *需求描述**: 支持同时优化多个性能指标，提供帕累托前沿分析。
 
-**功能要求**:
+- *功能要求**:
 - 多目标权重配置
 - 帕累托最优解集计算
 - 自定义复合评分函数
 - 约束条件处理（如最小交易数）
 
-**评分函数示例**:
+- *评分函数示例**:
+
 ```python
 def composite_score(metrics):
-    # 盈利因子
+
+# 盈利因子
     pf = metrics.get('profit_factor', 0)
-    # 夏普比率
+
+# 夏普比率
     sharpe = max(0, metrics.get('sharpe_ratio', 0))
-    # 回撤惩罚
+
+# 回撤惩罚
     dd_factor = 1 - (metrics.get('max_drawdown_pct', 100) / 100)
-    return pf * sharpe * dd_factor
-```
+    return pf *sharpe*dd_factor
+
+```bash
 
 ### 2.5 智能参数搜索
 
-**需求描述**: 基于优化历史动态调整参数搜索范围。
+- *需求描述**: 基于优化历史动态调整参数搜索范围。
 
-**功能要求**:
+- *功能要求**:
 - 参数敏感性分析
 - 自动范围缩窄
 - 参数相关性检测
@@ -163,24 +188,25 @@ def composite_score(metrics):
 
 ### 2.6 优化结果分析
 
-**需求描述**: 提供全面的优化结果分析和可视化。
+- *需求描述**: 提供全面的优化结果分析和可视化。
 
-**功能要求**:
+- *功能要求**:
 - 多维度排序（按不同指标）
 - 参数重要性分析
 - 优化过程可视化
 - 结果对比报告
 - 最优参数推荐
 
----
+- --
 
 ## 三、详细设计文档
 
 ### 3.1 优化器框架核心
 
-**设计思路**: 采用策略模式，将不同优化算法封装为独立的Optimizer类。
+- *设计思路**: 采用策略模式，将不同优化算法封装为独立的 Optimizer 类。
 
 ```python
+
 # backtrader/optimizers/__init__.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -196,12 +222,14 @@ logger = logging.getLogger(__name__)
 
 
 # 优化结果数据结构
+
 OptimizationResult = namedtuple('OptimizationResult', [
     'best_params',      # 最优参数
     'best_score',       # 最优得分
     'all_results',      # 所有结果
     'optimization_time', # 优化耗时
     'total_runs',       # 总运行次数
+
 ])
 
 
@@ -209,10 +237,12 @@ class ParamSpace:
     """参数空间定义
 
     支持多种参数类型：
+
     - 固定值: value=10
     - 离散列表: values=[1, 2, 3, 4, 5]
     - 范围: range=(1, 10, 1)  # start, stop, step
     - 对数范围: log_range=(0.001, 1.0, 10)
+
     """
 
     def __init__(self, **params):
@@ -230,24 +260,28 @@ class ParamSpace:
 
             if isinstance(spec, (list, tuple)):
                 if len(spec) == 3 and spec[0] == 'log':
-                    # 对数范围
+
+# 对数范围
                     import numpy as np
                     start, stop, num = spec[1], spec[2], spec[3]
                     param_values.append(np.logspace(start, stop, num).tolist())
                 elif isinstance(spec[0], (int, float)):
-                    # 范围 (start, stop, step)
+
+# 范围 (start, stop, step)
                     param_values.append(list(range(*spec)))
                 else:
-                    # 离散列表
+
+# 离散列表
                     param_values.append(spec)
             else:
-                # 固定值
+
+# 固定值
                 param_values.append([spec])
 
-        # 生成所有组合
+# 生成所有组合
         combinations = list(itertools.product(*param_values))
 
-        # 转换为字典列表
+# 转换为字典列表
         return [dict(zip(param_names, combo)) for combo in combinations]
 
     def sample(self, n_samples):
@@ -263,9 +297,11 @@ class ObjectiveFunction:
     """目标函数基类
 
     支持多种目标函数类型：
+
     - 单指标优化: maximize='sharpe_ratio'
     - 加权组合: weights={'sharpe': 0.5, 'return': 0.3, 'drawdown': -0.2}
-    - 自定义函数: custom_func=lambda metrics: metrics['pf'] * metrics['sharpe']
+    - 自定义函数: custom_func=lambda metrics: metrics['pf'] *metrics['sharpe']
+
     """
 
     def __init__(self, maximize=None, weights=None, custom_func=None,
@@ -289,21 +325,22 @@ class ObjectiveFunction:
             metrics: 性能指标字典
 
         Returns:
-            (score, valid) 元组，valid表示是否满足约束
+            (score, valid) 元组，valid 表示是否满足约束
         """
-        # 检查约束条件
+
+# 检查约束条件
         for constraint in self.constraints:
             if not constraint.check(metrics):
                 return float('-inf'), False
 
-        # 计算得分
+# 计算得分
         if self.custom_func:
             score = self.custom_func(metrics)
         elif self.maximize:
             score = metrics.get(self.maximize, float('-inf'))
         elif self.weights:
             score = sum(
-                metrics.get(k, 0) * v
+                metrics.get(k, 0)*v
                 for k, v in self.weights.items()
             )
         else:
@@ -352,7 +389,7 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
                  callback=None, timeout=None):
         """
         Args:
-            cerebro_factory: 创建cerebro实例的函数
+            cerebro_factory: 创建 cerebro 实例的函数
             objective: 目标函数
             n_jobs: 并行任务数
             callback: 进度回调函数
@@ -377,10 +414,10 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
         """执行优化"""
         start_time = time.time()
 
-        # 执行优化
+# 执行优化
         self._optimize(param_space)
 
-        # 返回结果
+# 返回结果
         return OptimizationResult(
             best_params=self._best_params,
             best_score=self._best_score,
@@ -398,11 +435,13 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
         Returns:
             (score, metrics, valid) 元组
         """
-        # 创建cerebro
+
+# 创建 cerebro
         cerebro = self.cerebro_factory(params)
 
         try:
-            # 执行回测
+
+# 执行回测
             if self.timeout:
                 import signal
 
@@ -415,10 +454,10 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
             strats = cerebro.run()
             signal.alarm(0)  # 取消超时
 
-            # 提取指标
+# 提取指标
             metrics = self._extract_metrics(strats[0])
 
-            # 评估
+# 评估
             score, valid = self.objective.evaluate(metrics)
 
             return score, metrics, valid
@@ -431,32 +470,32 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
         """从策略中提取性能指标"""
         metrics = {}
 
-        # 基础指标
+# 基础指标
         if hasattr(strategy, 'portfolio_values'):
             import numpy as np
             values = strategy.portfolio_values
             if values:
                 metrics['final_value'] = values[-1]
-                metrics['total_return'] = (values[-1] - values[0]) / values[0] * 100
+                metrics['total_return'] = (values[-1] - values[0]) / values[0]*100
 
                 returns = np.diff(values) / values[:-1]
-                metrics['volatility'] = np.std(returns) * np.sqrt(252) * 100
+                metrics['volatility'] = np.std(returns)*np.sqrt(252)*100
                 metrics['sharpe_ratio'] = (
-                    np.mean(returns) / np.std(returns) * np.sqrt(252)
+                    np.mean(returns) / np.std(returns)*np.sqrt(252)
                     if np.std(returns) > 0 else 0
                 )
 
-        # 交易指标
+# 交易指标
         if hasattr(strategy, 'trades'):
             metrics['trades'] = strategy.trades
             metrics['wins'] = getattr(strategy, 'wins', 0)
             metrics['losses'] = getattr(strategy, 'losses', 0)
             metrics['win_rate'] = (
-                metrics['wins'] / metrics['trades'] * 100
+                metrics['wins'] / metrics['trades']*100
                 if metrics['trades'] > 0 else 0
             )
 
-        # 盈亏指标
+# 盈亏指标
         if hasattr(strategy, 'gross_profit'):
             metrics['gross_profit'] = strategy.gross_profit
             metrics['gross_loss'] = abs(getattr(strategy, 'gross_loss', 1))
@@ -465,7 +504,7 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
                 if metrics['gross_loss'] > 0 else float('inf')
             )
 
-        # 回撤指标
+# 回撤指标
         if hasattr(strategy, 'max_drawdown_pct'):
             metrics['max_drawdown_pct'] = strategy.max_drawdown_pct
 
@@ -477,23 +516,25 @@ class OptimizerBase(six.with_metaclass(ABCMeta, object)):
             self._best_score = score
             self._best_params = params.copy()
 
-        # 记录结果
+# 记录结果
         self._results.append({
             'params': params.copy(),
             'score': score,
             'metrics': metrics.copy()
         })
 
-        # 回调
+# 回调
         if self.callback:
             self.callback(params, score, metrics)
-```
+
+```bash
 
 ### 3.2 网格搜索优化器
 
-**设计思路**: 实现基础网格搜索，支持分阶段优化。
+- *设计思路**: 实现基础网格搜索，支持分阶段优化。
 
 ```python
+
 # backtrader/optimizers/grid_search.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -519,11 +560,13 @@ class GridSearchOptimizer(OptimizerBase):
 
     def _optimize(self, param_space):
         """执行网格搜索"""
-        # 生成参数组合
+
+# 生成参数组合
         if isinstance(param_space, ParamSpace):
             combinations = param_space.generate_combinations()
         else:
-            # 兼容字典格式
+
+# 兼容字典格式
             ps = ParamSpace(**param_space)
             combinations = ps.generate_combinations()
 
@@ -531,7 +574,7 @@ class GridSearchOptimizer(OptimizerBase):
         logger.info(f'Starting grid search with {total} combinations '
                    f'(stage: {self.stage_name or "default"})')
 
-        # 并行执行
+# 并行执行
         if self.n_jobs > 1:
             self._parallel_evaluate(combinations)
         else:
@@ -553,13 +596,14 @@ class GridSearchOptimizer(OptimizerBase):
     def _parallel_evaluate(self, combinations):
         """并行评估"""
         with ProcessPoolExecutor(max_workers=self.n_jobs) as executor:
-            # 提交所有任务
+
+# 提交所有任务
             futures = {
                 executor.submit(self._evaluate_params, params): params
                 for params in combinations
             }
 
-            # 收集结果
+# 收集结果
             completed = 0
             for future in as_completed(futures):
                 params = futures[future]
@@ -584,7 +628,7 @@ class MultiStageOptimizer:
     def __init__(self, cerebro_factory, stages, objective=None, n_jobs=1):
         """
         Args:
-            cerebro_factory: cerebro工厂函数
+            cerebro_factory: cerebro 工厂函数
             stages: 优化阶段列表
             objective: 目标函数
             n_jobs: 并行数
@@ -607,22 +651,22 @@ class MultiStageOptimizer:
 
             logger.info(f'=== {stage_name} ===')
 
-            # 创建工厂函数，使用当前最优参数
+# 创建工厂函数，使用当前最优参数
             def factory(params_override):
                 cerebro = self.cerebro_factory({**current_params, **params_override})
                 return cerebro
 
-            # 执行阶段优化
+# 执行阶段优化
             optimizer = GridSearchOptimizer(
                 factory, self.objective, self.n_jobs,
                 stage_name=stage_name
             )
 
-            # 合并当前参数
+# 合并当前参数
             param_space = ParamSpace(**stage_params)
             result = optimizer.optimize(param_space)
 
-            # 更新最优参数
+# 更新最优参数
             current_params.update(result.best_params)
             self.stage_results.append({
                 'stage': stage_name,
@@ -643,13 +687,15 @@ class MultiStageOptimizer:
     def get_stage_results(self):
         """获取各阶段结果"""
         return self.stage_results
-```
+
+```bash
 
 ### 3.3 贝叶斯优化器
 
-**设计思路**: 使用高斯过程代理模型，智能选择下一组评估参数。
+- *设计思路**: 使用高斯过程代理模型，智能选择下一组评估参数。
 
 ```python
+
 # backtrader/optimizers/bayesian.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -671,13 +717,13 @@ class BayesianOptimizer(OptimizerBase):
                  init_points=5, acq='ei', kappa=2.576):
         """
         Args:
-            cerebro_factory: cerebro工厂函数
+            cerebro_factory: cerebro 工厂函数
             objective: 目标函数
             n_jobs: 并行数
             n_iter: 迭代次数
             init_points: 初始随机采样点数
             acq: 采集函数类型 ('ei', 'ucb', 'poi')
-            kappa: UCB的探索参数
+            kappa: UCB 的探索参数
         """
         super().__init__(cerebro_factory, objective, n_jobs, callback, timeout)
         self.n_iter = n_iter
@@ -685,16 +731,17 @@ class BayesianOptimizer(OptimizerBase):
         self.acq = acq
         self.kappa = kappa
 
-        # 观测历史
+# 观测历史
         self._X = []  # 参数
         self._y = []  # 目标值
 
-        # 参数空间（用于归一化）
+# 参数空间（用于归一化）
         self._bounds = {}
 
     def _optimize(self, param_space):
         """执行贝叶斯优化"""
-        # 设置参数空间
+
+# 设置参数空间
         if isinstance(param_space, ParamSpace):
             self._setup_bounds(param_space)
         else:
@@ -702,19 +749,20 @@ class BayesianOptimizer(OptimizerBase):
 
         total = self.init_points + self.n_iter
 
-        # 初始随机采样
+# 初始随机采样
         logger.info(f'Initial random sampling ({self.init_points} points)')
         for _ in range(self.init_points):
             x = self._random_sample()
             self._evaluate_and_record(x)
 
-        # 贝叶斯优化迭代
+# 贝叶斯优化迭代
         logger.info(f'Bayesian optimization ({self.n_iter} iterations)')
         for i in range(self.n_iter):
-            # 选择下一个点
+
+# 选择下一个点
             x = self._suggest_next()
 
-            # 评估
+# 评估
             self._evaluate_and_record(x)
 
             if (i + 1) % 10 == 0:
@@ -742,12 +790,13 @@ class BayesianOptimizer(OptimizerBase):
         score, metrics, valid = self._evaluate_params(params)
 
         if valid:
-            # 记录
+
+# 记录
             x = self._params_to_vector(params)
             self._X.append(x)
             self._y.append(score)
 
-            # 更新最优
+# 更新最优
             self._update_best(params, score, metrics)
 
     def _params_to_vector(self, params):
@@ -763,10 +812,10 @@ class BayesianOptimizer(OptimizerBase):
         if len(self._X) < 2:
             return self._random_sample()
 
-        # 拟合高斯过程
+# 拟合高斯过程
         mu, sigma = self._fit_gp()
 
-        # 优化采集函数
+# 优化采集函数
         x_next = self._optimize_acquisition(mu, sigma)
 
         return self._vector_to_params(x_next)
@@ -779,19 +828,19 @@ class BayesianOptimizer(OptimizerBase):
         X = np.array(self._X)
         y = np.array(self._y)
 
-        # 核函数
-        kernel = ConstantKernel(1.0) * RBF(length_scale=1.0)
+# 核函数
+        kernel = ConstantKernel(1.0) *RBF(length_scale=1.0)
 
-        # GP模型
+# GP 模型
         gp = GaussianProcessRegressor(kernel=kernel, alpha=1e-6,
                                      normalize_y=True)
         gp.fit(X, y)
 
-        # 预测整个空间的均值和方差
+# 预测整个空间的均值和方差
         x_min = np.array([v[0] for v in self._bounds.values()])
         x_max = np.array([v[1] for v in self._bounds.values()])
 
-        # 生成网格点
+# 生成网格点
         n_grid = 100
         x_grid = np.random.uniform(x_min, x_max, (n_grid, len(x_min)))
 
@@ -802,21 +851,24 @@ class BayesianOptimizer(OptimizerBase):
     def _optimize_acquisition(self, gp, x_grid, mu, sigma):
         """优化采集函数"""
         if self.acq == 'ei':
-            # Expected Improvement
+
+# Expected Improvement
             y_max = np.max(self._y)
             with np.errstate(divide='warn'):
                 imp = mu - y_max - self.kappa
                 Z = imp / sigma
-                ei = imp * norm.cdf(Z) + sigma * norm.pdf(Z)
+                ei = imp*norm.cdf(Z) + sigma*norm.pdf(Z)
                 ei[sigma == 0.0] = 0.0
             scores = ei
 
         elif self.acq == 'ucb':
-            # Upper Confidence Bound
-            scores = mu + self.kappa * sigma
+
+# Upper Confidence Bound
+            scores = mu + self.kappa*sigma
 
         elif self.acq == 'poi':
-            # Probability of Improvement
+
+# Probability of Improvement
             y_max = np.max(self._y)
             with np.errstate(divide='warn'):
                 Z = (mu - y_max - self.kappa) / sigma
@@ -826,16 +878,18 @@ class BayesianOptimizer(OptimizerBase):
         else:
             raise ValueError(f'Unknown acquisition function: {self.acq}')
 
-        # 返回得分最高的点
+# 返回得分最高的点
         best_idx = np.argmax(scores)
         return x_grid[best_idx]
-```
+
+```bash
 
 ### 3.4 并行任务调度器
 
-**设计思路**: 实现基于队列的任务调度，支持动态进程池和状态跟踪。
+- *设计思路**: 实现基于队列的任务调度，支持动态进程池和状态跟踪。
 
 ```python
+
 # backtrader/optimizers/scheduler.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -881,16 +935,18 @@ class TaskScheduler:
     """任务调度器
 
     特性：
+
     - 基于队列的任务分发
     - 动态进程池
     - 任务状态跟踪
     - 失败重试
+
     """
 
     def __init__(self, n_workers=None, max_retries=2, timeout=300):
         """
         Args:
-            n_workers: 工作进程数（默认CPU核心数）
+            n_workers: 工作进程数（默认 CPU 核心数）
             max_retries: 最大重试次数
             timeout: 任务超时时间（秒）
         """
@@ -898,16 +954,16 @@ class TaskScheduler:
         self.max_retries = max_retries
         self.timeout = timeout
 
-        # 任务队列
+# 任务队列
         self.task_queue = mp.Queue()
         self.result_queue = mp.Queue()
 
-        # 状态跟踪
+# 状态跟踪
         self.tasks = {}
         self.task_counter = 0
         self._lock = threading.Lock()
 
-        # 进程管理
+# 进程管理
         self.workers = []
         self.running = False
 
@@ -937,7 +993,7 @@ class TaskScheduler:
         if task.status == TaskStatus.COMPLETED:
             return task.result
 
-        # 等待完成
+# 等待完成
         start = time.time()
         while task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
             if timeout and (time.time() - start) > timeout:
@@ -953,7 +1009,7 @@ class TaskScheduler:
 
         self.running = True
 
-        # 启动工作进程
+# 启动工作进程
         for i in range(self.n_workers):
             p = mp.Process(
                 target=_worker_main,
@@ -963,7 +1019,7 @@ class TaskScheduler:
             p.start()
             self.workers.append(p)
 
-        # 启动结果收集线程
+# 启动结果收集线程
         self.collector_thread = threading.Thread(target=self._collect_results)
         self.collector_thread.daemon = True
         self.collector_thread.start()
@@ -974,7 +1030,7 @@ class TaskScheduler:
         """停止调度器"""
         self.running = False
 
-        # 终止工作进程
+# 终止工作进程
         for p in self.workers:
             if p.is_alive():
                 p.terminate()
@@ -999,7 +1055,7 @@ class TaskScheduler:
                             task.status = TaskStatus.FAILED
                             task.error = error
 
-                            # 重试
+# 重试
                             if task.error_count < self.max_retries:
                                 task.error_count += 1
                                 task.status = TaskStatus.PENDING
@@ -1050,7 +1106,7 @@ def _worker_main(task_queue, result_queue, worker_id, timeout):
         try:
             task_id, params = task_queue.get(timeout=1)
 
-            # 执行任务
+# 执行任务
             try:
                 signal.alarm(timeout)
                 result = _execute_backtest(params)
@@ -1074,16 +1130,20 @@ def _worker_main(task_queue, result_queue, worker_id, timeout):
 
 def _execute_backtest(params):
     """执行回测（需要在子进程中重新导入）"""
-    # 这里需要用户提供自己的回测执行函数
-    # 或者使用cerebro工厂函数
+
+# 这里需要用户提供自己的回测执行函数
+
+# 或者使用 cerebro 工厂函数
     raise NotImplementedError('Use custom executor or provide cerebro_factory')
-```
+
+```bash
 
 ### 3.5 优化结果分析器
 
-**设计思路**: 提供多维度结果分析和可视化。
+- *设计思路**: 提供多维度结果分析和可视化。
 
 ```python
+
 # backtrader/optimizers/analysis.py
 
 from __future__ import (absolute_import, division, print_function,
@@ -1100,10 +1160,12 @@ class OptimizationAnalyzer:
     """优化结果分析器
 
     提供：
+
     - 多维度排序
     - 参数重要性分析
     - 帕累托前沿分析
     - 结果对比
+
     """
 
     def __init__(self, results):
@@ -1115,7 +1177,7 @@ class OptimizationAnalyzer:
         self.df = None
 
     def to_dataframe(self):
-        """转换为DataFrame"""
+        """转换为 DataFrame"""
         import pandas as pd
 
         if self.df is None:
@@ -1131,12 +1193,12 @@ class OptimizationAnalyzer:
         return self.df
 
     def get_top_n(self, n=10, sort_by='score'):
-        """获取前N个结果"""
+        """获取前 N 个结果"""
         df = self.to_dataframe()
         return df.nlargest(n, sort_by)
 
     def get_bottom_n(self, n=10, sort_by='score'):
-        """获取后N个结果"""
+        """获取后 N 个结果"""
         df = self.to_dataframe()
         return df.nsmallest(n, sort_by)
 
@@ -1161,10 +1223,11 @@ class OptimizationAnalyzer:
 
         for param in param_cols:
             if param in df.columns:
-                # 按参数值分组
+
+# 按参数值分组
                 groups = df.groupby(param)['score'].apply(list)
 
-                # 单因素方差分析
+# 单因素方差分析
                 if len(groups) > 1:
                     try:
                         f_stat, p_value = stats.f_oneway(*groups.values)
@@ -1176,7 +1239,7 @@ class OptimizationAnalyzer:
                     except:
                         pass
 
-        # 按重要性排序
+# 按重要性排序
         sorted_importance = sorted(
             importance.items(),
             key=lambda x: x[1]['importance'],
@@ -1201,7 +1264,7 @@ class OptimizationAnalyzer:
 
         df = self.to_dataframe()
 
-        # 提取目标值
+# 提取目标值
         points = []
         for _, row in df.iterrows():
             point = []
@@ -1214,7 +1277,7 @@ class OptimizationAnalyzer:
 
         points = np.array(points)
 
-        # 计算帕累托前沿
+# 计算帕累托前沿
         is_pareto = np.ones(len(points), dtype=bool)
 
         for i in range(len(points)):
@@ -1233,7 +1296,7 @@ class OptimizationAnalyzer:
         """分析参数相关性"""
         df = self.to_dataframe()
 
-        # 只选择数值列
+# 只选择数值列
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         corr = df[numeric_cols].corr()
 
@@ -1262,8 +1325,8 @@ class OptimizationAnalyzer:
         """绘制优化曲面
 
         Args:
-            param1: X轴参数
-            param2: Y轴参数
+            param1: X 轴参数
+            param2: Y 轴参数
             metric: 颜色映射指标
         """
         import matplotlib.pyplot as plt
@@ -1271,7 +1334,7 @@ class OptimizationAnalyzer:
 
         df = self.to_dataframe()
 
-        # 创建透视表
+# 创建透视表
         pivot = df.pivot_table(
             values=metric,
             index=param2,
@@ -1279,17 +1342,17 @@ class OptimizationAnalyzer:
             aggfunc='mean'
         )
 
-        # 绘制热力图
+# 绘制热力图
         fig, ax = plt.subplots(figsize=(10, 8))
         im = ax.imshow(pivot.values, cmap='viridis', aspect='auto')
 
-        # 设置坐标轴
+# 设置坐标轴
         ax.set_xticks(range(len(pivot.columns)))
         ax.set_yticks(range(len(pivot.index)))
         ax.set_xticklabels(pivot.columns)
         ax.set_yticklabels(pivot.index)
 
-        # 颜色条
+# 颜色条
         plt.colorbar(im, ax=ax, label=metric)
 
         ax.set_xlabel(param1)
@@ -1303,7 +1366,7 @@ class OptimizationAnalyzer:
         """绘制参数分布
 
         Args:
-            param: 参数名，None则绘制所有参数
+            param: 参数名，None 则绘制所有参数
             bins: 直方图箱数
         """
         import matplotlib.pyplot as plt
@@ -1319,7 +1382,8 @@ class OptimizationAnalyzer:
             ax.set_title(f'Distribution of {param}')
             return fig
         else:
-            # 绘制所有参数分布
+
+# 绘制所有参数分布
             param_cols = [c for c in df.columns
                          if c not in ['score', 'metrics'] and not c.startswith('_')]
 
@@ -1335,17 +1399,19 @@ class OptimizationAnalyzer:
                     axes[i].set_xlabel(col)
                     axes[i].set_ylabel('Frequency')
 
-            # 隐藏多余子图
+# 隐藏多余子图
             for i in range(len(param_cols), len(axes)):
                 axes[i].set_visible(False)
 
             plt.tight_layout()
             return fig
-```
+
+```bash
 
 ### 3.6 使用示例
 
 ```python
+
 # 使用优化器的完整示例
 
 import backtrader as bt
@@ -1357,6 +1423,7 @@ from backtrader.optimizers import (
 
 
 # 1. 定义策略
+
 class MyStrategy(bt.Strategy):
     params = dict(
         ema_fast=10,
@@ -1379,24 +1446,25 @@ class MyStrategy(bt.Strategy):
                 self.sell()
 
 
-# 2. 定义cerebro工厂函数
+# 2. 定义 cerebro 工厂函数
+
 def create_cerebro(params_override=None):
     cerebro = bt.Cerebro()
 
-    # 添加数据
+# 添加数据
     data = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data)
 
-    # 添加策略
+# 添加策略
     if params_override:
         cerebro.addstrategy(MyStrategy, **params_override)
     else:
         cerebro.addstrategy(MyStrategy)
 
-    # 设置初始资金
+# 设置初始资金
     cerebro.broker.setcash(10000)
 
-    # 添加分析器
+# 添加分析器
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
@@ -1405,6 +1473,7 @@ def create_cerebro(params_override=None):
 
 
 # 3. 定义参数空间
+
 param_space = ParamSpace(
     ema_fast=[8, 10, 12, 14, 16],
     ema_slow=[18, 20, 24, 28, 32],
@@ -1413,6 +1482,7 @@ param_space = ParamSpace(
 
 
 # 4. 定义目标函数
+
 objective = ObjectiveFunction(
     custom_func=lambda m: m.get('profit_factor', 0) * max(0, m.get('sharpe_ratio', 0)),
     constraints=[
@@ -1422,6 +1492,7 @@ objective = ObjectiveFunction(
 
 
 # 5. 执行网格搜索
+
 optimizer = GridSearchOptimizer(
     cerebro_factory=create_cerebro,
     objective=objective,
@@ -1435,6 +1506,7 @@ print(f"Best score: {result.best_score:.4f}")
 
 
 # 6. 多阶段优化
+
 stages = [
     {
         'name': 'Stage1_EMA',
@@ -1463,6 +1535,7 @@ print(f"Final params: {multi_optimizer.get_final_params()}")
 
 
 # 7. 结果分析
+
 from backtrader.optimizers import OptimizationAnalyzer
 
 analyzer = OptimizationAnalyzer(result.all_results)
@@ -1474,33 +1547,45 @@ for param, imp in analyzer.analyze_parameter_importance():
     print(f"  {param}: {imp['importance']:.4f}")
 
 # 生成报告
-analyzer.generate_report('optimization_report.json')
-```
 
----
+analyzer.generate_report('optimization_report.json')
+
+```bash
+
+- --
 
 ## 四、目录结构
 
-```
+```bash
 backtrader/
 ├── optimizers/
 │   ├── __init__.py                 # 优化器模块导出
+
 │   ├── base.py                     # 基础类和接口
+
 │   ├── grid_search.py              # 网格搜索优化器
+
 │   ├── bayesian.py                 # 贝叶斯优化器
+
 │   ├── random_search.py            # 随机搜索优化器
+
 │   ├── genetic.py                  # 遗传算法优化器
+
 │   ├── scheduler.py                # 并行任务调度器
+
 │   └── analysis.py                 # 结果分析器
+
 │
 ├── utils/
 │   └── opt_utils.py                # 优化工具函数
+
 │
 └── analyzers/
     └── opt_analyzer.py             # 优化专用分析器
-```
 
----
+```bash
+
+- --
 
 ## 五、实施计划
 
@@ -1512,72 +1597,84 @@ backtrader/
    - 实现`ObjectiveFunction`目标函数类
    - 实现约束条件系统
 
-2. **网格搜索优化器**
+1. **网格搜索优化器**
    - 实现`GridSearchOptimizer`
    - 支持并行执行
    - 进度回调
 
-3. **结果分析器**
+1. **结果分析器**
    - 实现`OptimizationAnalyzer`
    - 多维度排序
    - 参数重要性分析
 
 ### 第二阶段（中优先级）
 
-4. **多阶段优化**
+1. **多阶段优化**
    - 实现`MultiStageOptimizer`
    - 阶段间参数传递
    - 阶段结果聚合
 
-5. **并行任务调度**
+1. **并行任务调度**
    - 实现`TaskScheduler`
    - 动态进程池
    - 失败重试机制
 
-6. **高级优化算法**
+1. **高级优化算法**
    - 实现贝叶斯优化器
    - 实现随机搜索
    - 实现遗传算法
 
 ### 第三阶段（可选）
 
-7. **可视化和报告**
+1. **可视化和报告**
    - 优化曲面可视化
    - 参数分布图
-   - HTML报告生成
-   - 交互式Web界面
+   - HTML 报告生成
+   - 交互式 Web 界面
 
-8. **高级功能**
+1. **高级功能**
    - 早停机制
    - 参数相关性分析
    - 自动参数范围推荐
    - 超参数迁移学习
 
----
+- --
 
 ## 六、向后兼容性
 
-所有新增功能均为**可选扩展**，不影响现有backtrader代码：
+所有新增功能均为**可选扩展**，不影响现有 backtrader 代码：
 
 1. 优化器作为独立模块，通过`backtrader.optimizers`导入
 2. 现有`cerebro.optstrategy`继续工作
 3. 新的优化框架提供更多算法和功能
 4. 用户可按需选择使用哪种优化方式
 
----
+- --
 
 ## 七、与现有功能对比
 
 | 功能 | cerebro.optstrategy | 新优化框架 |
+
 |------|---------------------|-----------|
+
 | 网格搜索 | ✅ | ✅ 增强版 |
+
 | 随机搜索 | ❌ | ✅ |
+
 | 贝叶斯优化 | ❌ | ✅ |
+
 | 遗传算法 | ❌ | ✅ |
+
 | 多阶段优化 | ❌ | ✅ |
+
 | 并行执行 | ✅ | ✅ 增强版 |
+
 | 多目标优化 | ❌ | ✅ |
+
 | 约束条件 | ❌ | ✅ |
+
 | 结果分析 | 基础 | ✅ 高级分析 |
+
 | 进度跟踪 | ❌ | ✅ 回调+状态 |
+
 | 参数空间定义 | 简单 | ✅ 灵活定义 |

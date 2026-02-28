@@ -1,6 +1,6 @@
 # Playtest Planning - Validation Checklist
 
----
+- --
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@
 - [ ] Test objectives defined
 - [ ] Participant criteria established
 
----
+- --
 
 ## Planning
 
@@ -18,7 +18,7 @@
 - [ ] Participant count sufficient (5+ for patterns)
 - [ ] Team roles assigned
 
----
+- --
 
 ## Session Structure
 
@@ -42,7 +42,7 @@
 - [ ] Questions are open-ended
 - [ ] Time allocated for open feedback
 
----
+- --
 
 ## Observation Guide
 
@@ -51,7 +51,7 @@
 - [ ] Quantitative metrics listed
 - [ ] All observers aligned on what to watch
 
----
+- --
 
 ## Documentation
 
@@ -60,7 +60,7 @@
 - [ ] Note-taking template included
 - [ ] Report template prepared
 
----
+- --
 
 ## Logistics
 
@@ -69,7 +69,7 @@
 - [ ] Recording equipment checked (if applicable)
 - [ ] Quiet space secured
 
----
+- --
 
 ## Post-Playtest
 
@@ -77,7 +77,7 @@
 - [ ] Report deadline set
 - [ ] Action item review planned
 
----
+- --
 
 ## Completion Criteria
 
@@ -86,8 +86,8 @@
 - [ ] Templates are ready to use
 - [ ] Build is stable for session
 
----
+- --
 
-**Completed by:** {name}
-**Date:** {date}
-**Session Date:** {playtest_date}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Session Date:** {playtest_date}

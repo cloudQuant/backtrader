@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Run compliance check on BMAD modules against best practices'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # validate-module
 

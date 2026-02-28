@@ -1,14 +1,18 @@
----
+- --
+
 name: 'step-e-02-review'
 description: 'Deep Review & Analysis - Thoroughly review existing PRD and prepare detailed change plan'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-e-03-edit.md'
 prdFile: '{prd_file_path}'
 validationReport: '{validation_report_path}'  # If provided
+
 prdPurpose: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/create-prd/data/prd-purpose.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
----
+
+- --
 
 # Step E-2: Deep Review & Analysis
 
@@ -59,28 +63,28 @@ Thoroughly review the existing PRD, analyze validation report findings (if provi
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Attempt Sub-Process Deep Review
 
-**Try to use Task tool with sub-agent:**
+- *Try to use Task tool with sub-agent:**
 
 "Perform deep PRD review and change planning:
 
-**Context from step e-01:**
+- *Context from step e-01:**
 - User's edit requirements: {user_requirements}
 - PRD format: {BMAD/legacy}
 - Validation report provided: {yes/no}
 - Conversion mode: {restructure/targeted/both} (if legacy)
 
-**IF validation report provided:**
+- *IF validation report provided:**
 1. Extract all findings from validation report
 2. Map findings to specific PRD sections
 3. Prioritize by severity: Critical > Warning > Informational
 4. For each critical issue: identify specific fix needed
 5. For user's manual edit goals: identify where in PRD to apply
 
-**IF no validation report:**
+- *IF no validation report:**
 1. Read entire PRD thoroughly
 2. Analyze against BMAD standards (from prd-purpose.md)
 3. Identify issues in:
@@ -90,9 +94,9 @@ Thoroughly review the existing PRD, analyze validation report findings (if provi
    - Measurability (unmeasurable requirements)
    - Traceability (broken chains)
    - Implementation leakage
-4. Map user's edit goals to specific sections
+1. Map user's edit goals to specific sections
 
-**Output:**
+- *Output:**
 - Section-by-section analysis
 - Specific changes needed for each section
 - Prioritized action list
@@ -100,7 +104,7 @@ Thoroughly review the existing PRD, analyze validation report findings (if provi
 
 Return detailed change plan with section breakdown."
 
-**Graceful degradation (if no Task tool):**
+- *Graceful degradation (if no Task tool):**
 - Manually read PRD sections
 - Manually analyze validation report findings (if provided)
 - Build section-by-section change plan
@@ -108,16 +112,16 @@ Return detailed change plan with section breakdown."
 
 ### 2. Build Change Plan
 
-**Organize by PRD section:**
+- *Organize by PRD section:**
 
-**For each section (in order):**
-- **Current State:** Brief description of what exists
-- **Issues Identified:** [List from validation report or manual analysis]
-- **Changes Needed:** [Specific changes required]
-- **Priority:** [Critical/High/Medium/Low]
+- *For each section (in order):**
+- **Current State:**Brief description of what exists
+- **Issues Identified:**[List from validation report or manual analysis]
+- **Changes Needed:**[Specific changes required]
+- **Priority:**[Critical/High/Medium/Low]
 - **User Requirements Met:** [Which user edit goals address this section]
 
-**Include:**
+- *Include:**
 - Sections to add (if missing)
 - Sections to update (if present but needs work)
 - Content to remove (if incorrect/leakage)
@@ -125,21 +129,22 @@ Return detailed change plan with section breakdown."
 
 ### 3. Prepare Change Plan Summary
 
-**Summary sections:**
+- *Summary sections:**
 
-**Changes by Type:**
-- **Additions:** {count} sections to add
-- **Updates:** {count} sections to update
-- **Removals:** {count} items to remove
+- *Changes by Type:**
+- **Additions:**{count} sections to add
+- **Updates:**{count} sections to update
+- **Removals:**{count} items to remove
 - **Restructuring:** {yes/no} if format conversion needed
 
-**Priority Distribution:**
-- **Critical:** {count} changes (must fix)
-- **High:** {count} changes (important)
-- **Medium:** {count} changes (nice to have)
+- *Priority Distribution:**
+- **Critical:**{count} changes (must fix)
+- **High:**{count} changes (important)
+- **Medium:**{count} changes (nice to have)
 - **Low:** {count} changes (optional)
 
-**Estimated Effort:**
+- *Estimated Effort:**
+
 [Quick/Moderate/Substantial] based on scope and complexity
 
 ### 4. Present Change Plan to User
@@ -148,45 +153,50 @@ Display:
 
 "**Deep Review Complete - Change Plan**
 
-**PRD Analysis:**
+- *PRD Analysis:**
+
 {Brief summary of PRD current state}
 
 {If validation report provided:}
-**Validation Findings:**
+
+- *Validation Findings:**
+
 {count} issues identified: {critical} critical, {warning} warnings
 
-**Your Edit Requirements:**
+- *Your Edit Requirements:**
+
 {summary of what user wants to edit}
 
-**Proposed Change Plan:**
+- *Proposed Change Plan:**
 
-**By Section:**
+- *By Section:**
+
 {Present section-by-section breakdown}
 
-**By Priority:**
+- *By Priority:**
 - Critical: {count} items
 - High: {count} items
 - Medium: {count} items
 
-**Estimated Effort:** {effort level}
+- *Estimated Effort:** {effort level}
 
-**Questions:**
+- *Questions:**
 1. Does this change plan align with what you had in mind?
 2. Any sections I should add/remove/reprioritize?
 3. Any concerns before I proceed with edits?
 
-**Review the plan and let me know if you'd like any adjustments.**"
+- *Review the plan and let me know if you'd like any adjustments.**"
 
 ### 5. Get User Confirmation
 
 Wait for user to review and provide feedback.
 
-**If user wants adjustments:**
+- *If user wants adjustments:**
 - Discuss requested changes
 - Revise change plan accordingly
 - Represent for confirmation
 
-**If user approves:**
+- *If user approves:**
 - Note: "Change plan approved. Proceeding to edit step."
 - Continue to step 6
 
@@ -194,23 +204,23 @@ Wait for user to review and provide feedback.
 
 Store approved change plan for next step:
 
-- **Approved changes:** Section-by-section list
-- **Priority order:** Sequence to apply changes
+- **Approved changes:**Section-by-section list
+- **Priority order:**Sequence to apply changes
 - **User confirmed:** Yes
 
 Display: "**Change Plan Approved**
 
 {Brief summary of approved plan}
 
-**Proceeding to edit step...**"
+- *Proceeding to edit step...**"
 
 Read fully and follow: {nextStepFile} (step-e-03-edit.md)
 
 ### 7. Present MENU OPTIONS (If User Wants Discussion)
 
-**[A] Advanced Elicitation** - Get additional perspectives on change plan
-**[P] Party Mode** - Discuss with team for more ideas
-**[C] Continue to Edit** - Proceed with approved plan
+- *[A] Advanced Elicitation** - Get additional perspectives on change plan
+- *[P] Party Mode** - Discuss with team for more ideas
+- *[C] Continue to Edit** - Proceed with approved plan
 
 #### EXECUTION RULES:
 
@@ -224,7 +234,7 @@ Read fully and follow: {nextStepFile} (step-e-03-edit.md)
 - IF C: Document approval, then load {nextStepFile}
 - IF Any other: discuss, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -246,4 +256,4 @@ Read fully and follow: {nextStepFile} (step-e-03-edit.md)
 - Not prioritizing changes
 - Proceeding without user approval
 
-**Master Rule:** Plan before editing. Thorough analysis ensures we make the right changes in the right order. User approval prevents misalignment.
+- *Master Rule:** Plan before editing. Thorough analysis ensures we make the right changes in the right order. User approval prevents misalignment.

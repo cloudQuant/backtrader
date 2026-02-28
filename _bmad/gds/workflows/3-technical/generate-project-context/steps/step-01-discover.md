@@ -42,27 +42,27 @@ First, check if project context already exists:
 
 Load and analyze project files to identify technologies:
 
-**Architecture Document:**
+- *Architecture Document:**
 
 - Look for `{output_folder}/game-architecture.md` or `{planning_artifacts}/architecture.md`
 - Extract engine choice with specific version (Unity, Unreal, Godot, custom)
 - Note architectural decisions that affect implementation
 
-**Engine-Specific Files:**
+- *Engine-Specific Files:**
 
 - Unity: Check for `ProjectSettings/ProjectVersion.txt`, `Packages/manifest.json`
 - Unreal: Check for `.uproject` files, `Config/DefaultEngine.ini`
 - Godot: Check for `project.godot`, `export_presets.cfg`
 - Custom: Check for engine config files, build scripts
 
-**Package/Dependency Files:**
+- *Package/Dependency Files:**
 
 - Unity: `Packages/manifest.json`, NuGet packages
 - Unreal: `.Build.cs` files, plugin configs
 - Godot: `addons/` directory, GDExtension configs
 - Web-based: `package.json`, `requirements.txt`
 
-**Configuration Files:**
+- *Configuration Files:**
 
 - Build tool configs
 - Linting and formatting configs
@@ -73,21 +73,21 @@ Load and analyze project files to identify technologies:
 
 Search through existing codebase for patterns:
 
-**Naming Conventions:**
+- *Naming Conventions:**
 
 - Script/class naming patterns
 - Asset naming conventions
 - Scene/level naming patterns
 - Test file naming patterns
 
-**Code Organization:**
+- *Code Organization:**
 
 - How components/scripts are structured
 - Where utilities and helpers are placed
 - How systems are organized
 - Folder hierarchy patterns
 
-**Engine-Specific Patterns:**
+- *Engine-Specific Patterns:**
 
 - Unity: MonoBehaviour patterns, ScriptableObject usage, serialization rules
 - Unreal: Actor/Component patterns, Blueprint integration, UE macros
@@ -97,27 +97,27 @@ Search through existing codebase for patterns:
 
 Look for rules that AI agents might miss:
 
-**Engine-Specific Rules:**
+- *Engine-Specific Rules:**
 
 - Unity: Assembly definitions, Unity lifecycle methods, coroutine patterns
 - Unreal: UPROPERTY/UFUNCTION usage, garbage collection rules, tick patterns
 - Godot: `_ready` vs `_enter_tree`, node ownership, scene instancing
 
-**Performance Rules:**
+- *Performance Rules:**
 
 - Frame budget constraints
 - Memory allocation patterns
 - Hot path optimization requirements
 - Object pooling patterns
 
-**Platform-Specific Rules:**
+- *Platform-Specific Rules:**
 
 - Target platform constraints
 - Input handling conventions
 - Platform-specific code patterns
 - Build configuration rules
 
-**Testing Rules:**
+- *Testing Rules:**
 
 - Test structure requirements
 - Mock usage conventions
@@ -134,14 +134,18 @@ Copy template from `{installed_path}/project-context-template.md` to `{output_fo
 Initialize frontmatter with:
 
 ```yaml
----
+
+- --
+
 project_name: '{{project_name}}'
 user_name: '{{user_name}}'
 date: '{{date}}'
 sections_completed: ['technology_stack']
 existing_patterns_found: { { number_of_patterns_discovered } }
----
-```
+
+- --
+
+```bash
 
 #### B. Existing Document Update
 
@@ -154,24 +158,27 @@ Report findings to user:
 
 "Welcome {{user_name}}! I've analyzed your game project for {{project_name}} to discover the context that AI agents need.
 
-**Game Engine & Stack Discovered:**
+- *Game Engine & Stack Discovered:**
+
 {{engine_and_version}}
 {{list_of_technologies_with_versions}}
 
-**Existing Patterns Found:**
+- *Existing Patterns Found:**
 
 - {{number_of_patterns}} implementation patterns
 - {{number_of_conventions}} coding conventions
 - {{number_of_rules}} critical rules
 
-**Key Areas for Context Rules:**
+- *Key Areas for Context Rules:**
 
 - {{area_1}} (e.g., Engine lifecycle and patterns)
 - {{area_2}} (e.g., Performance and optimization)
 - {{area_3}} (e.g., Platform-specific requirements)
 
 {if_existing_context}
-**Existing Context:** Found {{sections}} sections already defined. We can update or add to these.
+
+- *Existing Context:** Found {{sections}} sections already defined. We can update or add to these.
+
 {/if_existing_context}
 
 Ready to create/update your project context. This will help AI agents implement game code consistently with your project's standards.

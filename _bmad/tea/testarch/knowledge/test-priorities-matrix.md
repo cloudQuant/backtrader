@@ -8,7 +8,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 
 ### P0 - Critical (Must Test)
 
-**Criteria:**
+- *Criteria:**
 
 - Revenue-impacting functionality
 - Security-critical paths
@@ -16,7 +16,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 - Regulatory compliance requirements
 - Previously broken functionality (regression prevention)
 
-**Examples:**
+- *Examples:**
 
 - Payment processing
 - Authentication/authorization
@@ -24,7 +24,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 - Financial calculations
 - GDPR/privacy compliance
 
-**Testing Requirements:**
+- *Testing Requirements:**
 
 - Comprehensive coverage at all levels
 - Both happy and unhappy paths
@@ -33,7 +33,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 
 ### P1 - High (Should Test)
 
-**Criteria:**
+- *Criteria:**
 
 - Core user journeys
 - Frequently used features
@@ -41,7 +41,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 - Integration points between systems
 - Features affecting user experience
 
-**Examples:**
+- *Examples:**
 
 - User registration flow
 - Search functionality
@@ -49,7 +49,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 - Notification systems
 - Dashboard displays
 
-**Testing Requirements:**
+- *Testing Requirements:**
 
 - Primary happy paths required
 - Key error scenarios
@@ -58,7 +58,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 
 ### P2 - Medium (Nice to Test)
 
-**Criteria:**
+- *Criteria:**
 
 - Secondary features
 - Admin functionality
@@ -66,7 +66,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 - Configuration options
 - UI polish and aesthetics
 
-**Examples:**
+- *Examples:**
 
 - Admin settings panels
 - Report generation
@@ -74,7 +74,7 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 - Help documentation
 - Analytics tracking
 
-**Testing Requirements:**
+- *Testing Requirements:**
 
 - Happy path coverage
 - Basic error handling
@@ -82,21 +82,21 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 
 ### P3 - Low (Test if Time Permits)
 
-**Criteria:**
+- *Criteria:**
 
 - Rarely used features
 - Nice-to-have functionality
 - Cosmetic issues
 - Non-critical optimizations
 
-**Examples:**
+- *Examples:**
 
 - Advanced preferences
 - Legacy feature support
 - Experimental features
 - Debug utilities
 
-**Testing Requirements:**
+- *Testing Requirements:**
 
 - Smoke tests only
 - Can rely on manual testing
@@ -127,22 +127,28 @@ Guide for prioritizing test scenarios based on risk, criticality, and business i
 ## Test Coverage by Priority
 
 | Priority | Unit Coverage | Integration Coverage | E2E Coverage       |
+
 | -------- | ------------- | -------------------- | ------------------ |
+
 | P0       | >90%          | >80%                 | All critical paths |
+
 | P1       | >80%          | >60%                 | Main happy paths   |
+
 | P2       | >60%          | >40%                 | Smoke tests        |
+
 | P3       | Best effort   | Best effort          | Manual only        |
 
 ## Priority Assignment Rules
 
-1. **Start with business impact** - What happens if this fails?
-2. **Consider probability** - How likely is failure?
-3. **Factor in detectability** - Would we know if it failed?
-4. **Account for recoverability** - Can we fix it quickly?
+1. **Start with business impact**- What happens if this fails?
+
+2.**Consider probability**- How likely is failure?
+3.**Factor in detectability**- Would we know if it failed?
+4.**Account for recoverability** - Can we fix it quickly?
 
 ## Priority Decision Tree
 
-```
+```bash
 Is it revenue-critical?
 ├─ YES → P0
 └─ NO → Does it affect core user journey?
@@ -154,7 +160,8 @@ Is it revenue-critical?
         └─ NO → Is it customer-facing?
             ├─ YES → P2
             └─ NO → P3
-```
+
+```bash
 
 ## Test Execution Order
 
@@ -173,7 +180,7 @@ Review and adjust priorities based on:
 - Test failure history
 - Business priority changes
 
----
+- --
 
 ## Automated Priority Classification
 
@@ -186,23 +193,30 @@ export type Priority = 'P0' | 'P1' | 'P2' | 'P3';
 
 export type PriorityFactors = {
   revenueImpact: 'critical' | 'high' | 'medium' | 'low' | 'none';
+
   userImpact: 'all' | 'majority' | 'some' | 'few' | 'minimal';
+
   securityRisk: boolean;
   complianceRequired: boolean;
   previousFailure: boolean;
   complexity: 'high' | 'medium' | 'low';
+
   usage: 'frequent' | 'regular' | 'occasional' | 'rare';
+
 };
 
 /**
- * Calculate test priority based on multiple factors
- * Mirrors the priority decision tree with objective criteria
- */
+
+ - Calculate test priority based on multiple factors
+ - Mirrors the priority decision tree with objective criteria
+ - /
+
 export function calculatePriority(factors: PriorityFactors): Priority {
   const { revenueImpact, userImpact, securityRisk, complianceRequired, previousFailure, complexity, usage } = factors;
 
   // P0: Revenue-critical, security, or compliance
   if (revenueImpact === 'critical' || securityRisk || complianceRequired || (previousFailure && revenueImpact === 'high')) {
+
     return 'P0';
   }
 
@@ -213,18 +227,22 @@ export function calculatePriority(factors: PriorityFactors): Priority {
 
   // P1: Core user journey (majority impacted + frequent usage)
   if (userImpact === 'all' || userImpact === 'majority') {
+
     if (usage === 'frequent' || complexity === 'high') {
+
       return 'P1';
     }
   }
 
   // P1: High revenue OR high complexity with regular usage
   if ((revenueImpact === 'high' && usage === 'regular') || (complexity === 'high' && usage === 'frequent')) {
+
     return 'P1';
   }
 
   // P2: Secondary features (some impact, occasional usage)
   if (userImpact === 'some' || usage === 'occasional') {
+
     return 'P2';
   }
 
@@ -233,8 +251,10 @@ export function calculatePriority(factors: PriorityFactors): Priority {
 }
 
 /**
- * Generate priority justification (for audit trail)
- */
+
+ - Generate priority justification (for audit trail)
+ - /
+
 export function justifyPriority(factors: PriorityFactors): string {
   const priority = calculatePriority(factors);
   const reasons: string[] = [];
@@ -244,6 +264,7 @@ export function justifyPriority(factors: PriorityFactors): string {
   if (factors.complianceRequired) reasons.push('compliance requirement');
   if (factors.previousFailure) reasons.push('regression prevention');
   if (factors.userImpact === 'all' || factors.userImpact === 'majority') {
+
     reasons.push(`impacts ${factors.userImpact} users`);
   }
   if (factors.complexity === 'high') reasons.push('high complexity');
@@ -253,8 +274,10 @@ export function justifyPriority(factors: PriorityFactors): string {
 }
 
 /**
- * Example: Payment scenario priority calculation
- */
+
+ - Example: Payment scenario priority calculation
+ - /
+
 const paymentScenario: PriorityFactors = {
   revenueImpact: 'critical',
   userImpact: 'all',
@@ -268,7 +291,8 @@ const paymentScenario: PriorityFactors = {
 console.log(calculatePriority(paymentScenario)); // 'P0'
 console.log(justifyPriority(paymentScenario));
 // 'P0: critical revenue impact, security-critical, compliance requirement, impacts all users, high complexity, frequently used'
-```
+
+```bash
 
 ### Example: Test Suite Tagging Strategy
 
@@ -317,37 +341,48 @@ test.describe('Checkout Flow', () => {
     await expect(page.getByTestId('order-summary')).toContainText('Happy Birthday!');
   });
 });
-```
-
-**Run tests by priority:**
 
 ```bash
+
+- *Run tests by priority:**
+
+```bash
+
 # P0 only (smoke tests, 2-5 min)
+
 npx playwright test --grep @p0
 
 # P0 + P1 (core functionality, 10-15 min)
+
 npx playwright test --grep "@p0|@p1"
 
 # Full regression (all priorities, 30+ min)
-npx playwright test
-```
 
----
+npx playwright test
+
+```bash
+
+- --
 
 ## Integration with Risk Scoring
 
 Priority should align with risk score from `probability-impact.md`:
 
 | Risk Score | Typical Priority | Rationale                                  |
+
 | ---------- | ---------------- | ------------------------------------------ |
+
 | 9          | P0               | Critical blocker (probability=3, impact=3) |
+
 | 6-8        | P0 or P1         | High risk (requires mitigation)            |
+
 | 4-5        | P1 or P2         | Medium risk (monitor closely)              |
+
 | 1-3        | P2 or P3         | Low risk (document and defer)              |
 
-**Example**: Risk score 9 (checkout API failure) → P0 priority → comprehensive coverage required.
+- *Example**: Risk score 9 (checkout API failure) → P0 priority → comprehensive coverage required.
 
----
+- --
 
 ## Priority Checklist
 

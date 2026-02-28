@@ -7,10 +7,15 @@ Smoke testing (Build Verification Testing) validates that a build's critical fun
 ## Purpose
 
 | Goal                | Description                                    |
+
 | ------------------- | ---------------------------------------------- |
+
 | Fast feedback       | Know within minutes if build is viable         |
+
 | Block bad builds    | Prevent broken builds from reaching QA/players |
+
 | Critical path focus | Test only what matters most                    |
+
 | CI/CD integration   | Automated gate before deployment               |
 
 ## Smoke Test Principles
@@ -26,11 +31,17 @@ Smoke testing (Build Verification Testing) validates that a build's critical fun
 ### What to Include
 
 | Category          | Examples                       |
+
 | ----------------- | ------------------------------ |
+
 | Boot sequence     | Game launches without crash    |
+
 | Core loop         | Player can perform main action |
+
 | Save/Load         | Data persists correctly        |
+
 | Critical UI       | Menus are navigable            |
+
 | Platform services | Connects to required services  |
 
 ### What NOT to Include
@@ -45,7 +56,7 @@ Smoke testing (Build Verification Testing) validates that a build's critical fun
 
 ### Boot and Load
 
-```
+```bash
 TEST: Game Launches
   WHEN game executable is started
   THEN main menu appears within 60 seconds
@@ -63,11 +74,12 @@ TEST: Continue Game
   WHEN "Continue" is selected
   THEN correct save loads
   AND game state matches saved state
-```
+
+```bash
 
 ### Core Gameplay
 
-```
+```bash
 TEST: Player Movement
   GIVEN player in game world
   WHEN movement input applied
@@ -81,15 +93,17 @@ TEST: Core Action (Game-Specific)
   AND expected results occur
 
   Examples:
+
   - Shooter: Can fire weapon, bullets hit targets
   - RPG: Can attack enemy, damage is applied
   - Puzzle: Can interact with puzzle elements
   - Platformer: Can jump, platforms are solid
-```
+
+```bash
 
 ### Save System
 
-```
+```bash
 TEST: Save Creates File
   GIVEN player makes progress
   WHEN save is triggered
@@ -101,11 +115,12 @@ TEST: Load Restores State
   WHEN load is triggered
   THEN saved state is restored
   AND gameplay can continue
-```
+
+```bash
 
 ### Critical UI
 
-```
+```bash
 TEST: Menu Navigation
   GIVEN main menu is displayed
   WHEN each menu option is selected
@@ -116,7 +131,8 @@ TEST: Settings Persist
   GIVEN settings are changed
   WHEN game is restarted
   THEN settings remain changed
-```
+
+```bash
 
 ## Automated Smoke Test Examples
 
@@ -214,7 +230,8 @@ public class SmokeTests
         Assert.AreEqual(100f, player.transform.position.x, 1f);
     }
 }
-```
+
+```bash
 
 ### Unreal
 
@@ -224,6 +241,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FGameLaunchTest,
     "Smoke.Launch.MainMenu",
     EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter
+
 )
 
 bool FGameLaunchTest::RunTest(const FString& Parameters)
@@ -245,6 +263,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(
     FPlayerMovementTest,
     "Smoke.Gameplay.Movement",
     EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter
+
 )
 
 bool FPlayerMovementTest::RunTest(const FString& Parameters)
@@ -263,21 +282,25 @@ bool FPlayerMovementTest::RunTest(const FString& Parameters)
 
     return true;
 }
-```
+
+```bash
 
 ### Godot
 
 ```gdscript
+
 # test_smoke.gd
+
 extends GutTest
 
 func test_game_launches():
-    # Switch to main menu
+
+# Switch to main menu
     get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
     await get_tree().process_frame
     await get_tree().create_timer(2.0).timeout
 
-    # Verify main menu loaded
+# Verify main menu loaded
     var menu = get_tree().current_scene
     assert_not_null(menu, "Main menu should load")
     assert_eq(menu.name, "MainMenu", "Should be main menu scene")
@@ -286,13 +309,13 @@ func test_new_game_starts():
     get_tree().change_scene_to_file("res://scenes/main_menu.tscn")
     await get_tree().process_frame
 
-    # Find and click new game button
+# Find and click new game button
     var button = get_tree().current_scene.get_node("NewGameButton")
     button.pressed.emit()
 
     await get_tree().create_timer(5.0).timeout
 
-    # Verify gameplay loaded
+# Verify gameplay loaded
     var scene = get_tree().current_scene
     assert_eq(scene.name, "GameWorld", "Should load gameplay scene")
 
@@ -306,7 +329,7 @@ func test_player_can_move():
     var player = get_tree().current_scene.get_node("Player")
     var start_pos = player.position
 
-    # Simulate input
+# Simulate input
     Input.action_press("move_right")
     await get_tree().create_timer(0.5).timeout
     Input.action_release("move_right")
@@ -320,19 +343,20 @@ func test_save_load_works():
     var player = get_tree().current_scene.get_node("Player")
     player.position = Vector2(500, 300)
 
-    # Save
+# Save
     SaveManager.save_game("smoke_test")
     await get_tree().process_frame
 
-    # Reset
+# Reset
     player.position = Vector2.ZERO
 
-    # Load
+# Load
     SaveManager.load_game("smoke_test")
     await get_tree().process_frame
 
     assert_almost_eq(player.position.x, 500.0, 1.0, "Position should restore")
-```
+
+```bash
 
 ## CI/CD Integration
 
@@ -349,38 +373,49 @@ jobs:
     timeout-minutes: 20
 
     steps:
+
       - uses: actions/checkout@v4
 
       - name: Build Game
+
         run: ./build.sh --configuration Release
 
       - name: Run Smoke Tests
+
         run: |
+
           ./game --headless --run-tests=Smoke --test-timeout=600
 
       - name: Upload Results
+
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-test-results
           path: test-results/
-```
+
+```bash
 
 ### Test Execution Order
 
-1. **Build verification** - Binary exists and is valid
-2. **Launch test** - Game starts without crash
-3. **Menu navigation** - Can navigate to gameplay
-4. **Core loop** - Primary mechanic works
-5. **Save/Load** - Persistence functions
-6. **Cleanup** - No resource leaks
+1. **Build verification**- Binary exists and is valid
+
+2.**Launch test**- Game starts without crash
+3.**Menu navigation**- Can navigate to gameplay
+4.**Core loop**- Primary mechanic works
+5.**Save/Load**- Persistence functions
+6.**Cleanup** - No resource leaks
 
 ## Smoke Test Metrics
 
 | Metric         | Target   | Action if Failed   |
+
 | -------------- | -------- | ------------------ |
+
 | Pass rate      | 100%     | Block deployment   |
+
 | Execution time | < 15 min | Optimize tests     |
+
 | Flakiness      | 0%       | Fix or remove test |
 
 ## Best Practices

@@ -1,11 +1,13 @@
----
+- --
+
 last-redoc-date: 2025-09-28
----
+
+- --
 
 # Problem Solving Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+- *Type:** Interactive Document Workflow
+- *Module:**Creative Intelligence System (CIS)
 
 ## Purpose
 
@@ -21,12 +23,16 @@ Applies systematic problem-solving methodologies to crack complex challenges. Gu
 ## Usage
 
 ```bash
+
 # Basic invocation
+
 workflow problem-solving
 
 # With problem context
+
 workflow problem-solving --data /path/to/problem-brief.md
-```
+
+```bash
 
 ## Inputs
 
@@ -37,9 +43,9 @@ workflow problem-solving --data /path/to/problem-brief.md
 
 ## Outputs
 
-**File:** `{output_folder}/problem-solution-{date}.md`
+- *File:** `{output_folder}/problem-solution-{date}.md`
 
-**Structure:**
+- *Structure:**
 
 - Problem diagnosis and symptom analysis
 - Root cause identification using analytical frameworks

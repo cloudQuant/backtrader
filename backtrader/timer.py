@@ -63,34 +63,16 @@ class Timer(ParameterizedBase):
     tid = ParameterDescriptor(default=None, doc="Timer ID")
     owner = ParameterDescriptor(default=None, doc="Owner object of the timer")
     strats = ParameterDescriptor(default=False, type_=bool, doc="Whether to notify strategies")
-    when = ParameterDescriptor(
-        default=None, doc="When to trigger the timer (time, SESSION_START, or SESSION_END)"
-    )
-    offset = ParameterDescriptor(
-        default=timedelta(), type_=timedelta, doc="Time offset for the timer"
-    )
-    repeat = ParameterDescriptor(
-        default=timedelta(), type_=timedelta, doc="Repeat interval for the timer"
-    )
-    weekdays = ParameterDescriptor(
-        default=[], type_=list, doc="List of weekdays when timer is active"
-    )
-    weekcarry = ParameterDescriptor(
-        default=False, type_=bool, doc="Whether to carry over to next weekday if missed"
-    )
-    monthdays = ParameterDescriptor(
-        default=[], type_=list, doc="List of month days when timer is active"
-    )
-    monthcarry = ParameterDescriptor(
-        default=True, type_=bool, doc="Whether to carry over to next month day if missed"
-    )
-    allow = ParameterDescriptor(
-        default=None, doc="Callback function to allow/disallow timer on specific dates"
-    )
+    when = ParameterDescriptor(default=None, doc="When to trigger the timer (time, SESSION_START, or SESSION_END)")
+    offset = ParameterDescriptor(default=timedelta(), type_=timedelta, doc="Time offset for the timer")
+    repeat = ParameterDescriptor(default=timedelta(), type_=timedelta, doc="Repeat interval for the timer")
+    weekdays = ParameterDescriptor(default=[], type_=list, doc="List of weekdays when timer is active")
+    weekcarry = ParameterDescriptor(default=False, type_=bool, doc="Whether to carry over to next weekday if missed")
+    monthdays = ParameterDescriptor(default=[], type_=list, doc="List of month days when timer is active")
+    monthcarry = ParameterDescriptor(default=True, type_=bool, doc="Whether to carry over to next month day if missed")
+    allow = ParameterDescriptor(default=None, doc="Callback function to allow/disallow timer on specific dates")
     tzdata = ParameterDescriptor(default=None, doc="Timezone data for the timer")
-    cheat = ParameterDescriptor(
-        default=False, type_=bool, doc="Whether timer can cheat (execute before broker)"
-    )
+    cheat = ParameterDescriptor(default=False, type_=bool, doc="Whether timer can cheat (execute before broker)")
 
     # Values of these three constants
     SESSION_TIME, SESSION_START, SESSION_END = range(3)

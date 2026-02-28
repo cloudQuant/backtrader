@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-05-plan-review'
 description: 'Review the complete workflow plan and approve before design'
 
@@ -6,7 +7,8 @@ nextStepFile: './step-06-design.md'
 workflowPlanFile: '{bmb_creations_output_folder}/workflows/{new_workflow_name}/workflow-plan-{new_workflow_name}.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 5: Plan Review and Approval
 
@@ -54,7 +56,7 @@ To present the complete workflow plan (discovery, classification, requirements, 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Initialize Review
 
@@ -68,89 +70,93 @@ Load and present from `{workflowPlanFile}`:
 
 "**Complete Workflow Plan: {workflow-name}**
 
----
+- --
 
-**1. DISCOVERY** (from Step 1)
+- *1. DISCOVERY** (from Step 1)
 
-**Your Vision:**
+- *Your Vision:**
+
 [Present user's vision]
 
-**Who It's For:**
+- *Who It's For:**
+
 [Present users/audience]
 
-**Key Insights:**
+- *Key Insights:**
+
 [Present important context]
 
----
+- --
 
-**2. CLASSIFICATION** (from Step 2)
+- *2. CLASSIFICATION** (from Step 2)
 
-**The 4 Key Decisions:**
-1. **Document Output:** {true/false} - [what it produces]
-2. **Module Affiliation:** {standalone/module} - {target path}
-3. **Session Type:** {single-session/continuable} - [implications]
-4. **Lifecycle Support:** {create-only/tri-modal} - [implications]
+- *The 4 Key Decisions:**
+1. **Document Output:**{true/false} - [what it produces]
 
-**Workflow Name:** {name}
-**Target Location:** {path}
+2.**Module Affiliation:**{standalone/module} - {target path}
+3.**Session Type:**{single-session/continuable} - [implications]
+4.**Lifecycle Support:** {create-only/tri-modal} - [implications]
 
----
+- *Workflow Name:** {name}
+- *Target Location:** {path}
 
-**3. REQUIREMENTS** (from Step 3)
+- --
 
-**Flow Structure:**
+- *3. REQUIREMENTS** (from Step 3)
+
+- *Flow Structure:**
 - Pattern: {linear/looping/branching/repeating}
 - Phases: {list major phases}
 - Estimated steps: {count}
 
-**User Interaction:**
+- *User Interaction:**
 - Style: {collaborative/autonomous/guided/mixed}
 - Decision points: {where user must choose}
 
-**Inputs:** {required and optional}
-**Output:** {type and format}
-**Success Criteria:** {what success looks like}
-**Instruction Style:** {intent/prescriptive/mixed}
+- *Inputs:** {required and optional}
+- *Output:** {type and format}
+- *Success Criteria:** {what success looks like}
+- *Instruction Style:** {intent/prescriptive/mixed}
 
----
+- --
 
-**4. TOOLS CONFIGURATION** (from Step 4)
+- *4. TOOLS CONFIGURATION** (from Step 4)
 
-**Core Tools:**
+- *Core Tools:**
 - Party Mode: {included/excluded} - {integration point}
 - Advanced Elicitation: {included/excluded} - {integration point}
 - Brainstorming: {included/excluded} - {integration point}
 
-**LLM Features:**
+- *LLM Features:**
 - Web-Browsing: {included/excluded}
 - File I/O: {included/excluded}
 - Sub-Agents: {included/excluded}
 - Sub-Processes: {included/excluded}
 
-**Memory:** {continuable/single-session}
+- *Memory:** {continuable/single-session}
 
----
+- --
 
 ### 3. Detailed Review by Section
 
 "**Let's go through this systematically. I want your feedback on each area:**"
 
-**A. Vision and Scope (Discovery)**
+- *A. Vision and Scope (Discovery)**
 - "Does the 'Your Vision' section capture what you're trying to build?"
 - "Anything we missed in the key insights?"
 
-**B. Structural Decisions (Classification)**
+- *B. Structural Decisions (Classification)**
 - "Do the 4 key decisions still feel right?"
 - "Any second thoughts on continuable vs single-session?"
 - "Create-only or tri-modal - still the right call?"
 
-**C. Requirements (Details)**
+- *C. Requirements (Details)**
 - "Does the flow structure match what you envisioned?"
 - "Are the interaction style and decision points accurate?"
 - "Input/output specifications complete?"
 - "Success criteria clear?"
 
-**D. Tools (Integrations)**
+- *D. Tools (Integrations)**
 - "Do the selected tools make sense?"
 - "Integration points feel right?"
 - "Any tools we should add or remove?"
@@ -160,12 +166,13 @@ Load and present from `{workflowPlanFile}`:
 "**Your feedback:**
 
 For each section above, tell me:
+
 1. What looks good and should stay as-is
 2. What needs modification or refinement
 3. What's missing that should be added
 4. Anything unclear or confusing
 
-**Take your time - this is our last chance to make changes before we start designing the actual workflow.**"
+- *Take your time - this is our last chance to make changes before we start designing the actual workflow.**"
 
 ### 5. Process Feedback and Refine
 
@@ -199,7 +206,8 @@ Update `{workflowPlanFile}` frontmatter:
 ```yaml
 status: APPROVED_FOR_DESIGN
 approvedDate: [current date]
-```
+
+```bash
 
 ### 8. Present MENU OPTIONS
 
@@ -218,7 +226,7 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - IF C: Update plan frontmatter with approval, then load `{nextStepFile}`
 - IF Any other: Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -239,4 +247,4 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Proceeding without explicit approval
 - Not updating plan status
 
-**Master Rule:** The plan must be complete and approved before design. This is the gatekeeper step.
+- *Master Rule:** The plan must be complete and approved before design. This is the gatekeeper step.

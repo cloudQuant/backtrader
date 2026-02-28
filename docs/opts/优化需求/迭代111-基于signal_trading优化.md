@@ -1,13 +1,18 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/signal_trading
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### signal_trading项目简介
-signal_trading是一个交易信号生成和管理框架，具有以下核心特点：
+### signal_trading 项目简介
+
+signal_trading 是一个交易信号生成和管理框架，具有以下核心特点：
+
 - **信号生成**: 交易信号生成
 - **信号管理**: 信号管理系统
 - **信号聚合**: 多信号聚合
@@ -16,6 +21,7 @@ signal_trading是一个交易信号生成和管理框架，具有以下核心特
 - **信号订阅**: 信号订阅分发
 
 ### 重点借鉴方向
+
 1. **信号系统**: 信号系统设计
 2. **信号定义**: 信号定义标准
 3. **信号聚合**: 多信号聚合
@@ -23,57 +29,86 @@ signal_trading是一个交易信号生成和管理框架，具有以下核心特
 5. **信号分发**: 信号分发机制
 6. **信号存储**: 信号持久化
 
----
+- --
 
-# signal_trading项目分析与backtrader优化设计文档
+# signal_trading 项目分析与 backtrader 优化设计文档
 
-## 一、signal_trading项目分析
+## 一、signal_trading 项目分析
 
 ### 1.1 项目概述
 
-signal_trading是一个基于backtrader构建的加密货币交易信号生成和管理框架，具有以下特点：
+signal_trading 是一个基于 backtrader 构建的加密货币交易信号生成和管理框架，具有以下特点：
 
 | 特性 | 描述 |
+
 |------|------|
-| **架构模式** | 基于backtrader的策略模式实现 |
-| **CLI工具** | 使用Click框架提供命令行接口 |
-| **数据源** | 支持CCXT加密货币交易所数据 |
-| **存储** | SQLAlchemy ORM用于交易记录持久化 |
-| **日志** | 使用loguru进行结构化日志记录 |
-| **参数优化** | 支持多参数组合并行回测 |
+
+| **架构模式**| 基于 backtrader 的策略模式实现 |
+
+|**CLI 工具**| 使用 Click 框架提供命令行接口 |
+
+|**数据源**| 支持 CCXT 加密货币交易所数据 |
+
+|**存储**| SQLAlchemy ORM 用于交易记录持久化 |
+
+|**日志**| 使用 loguru 进行结构化日志记录 |
+
+|**参数优化** | 支持多参数组合并行回测 |
 
 ### 1.2 项目结构分析
 
-```
+```bash
 signal_trading/
 ├── signal_trading.py          # 主入口，启动横幅显示
+
 ├── cli/                       # 命令行接口模块
-│   ├── cli.py                # Click命令组路由
+
+│   ├── cli.py                # Click 命令组路由
+
 │   ├── back_strategy.py      # 回测命令实现
+
 │   ├── live_trading.py       # 实盘交易命令
-│   ├── candles.py            # K线数据获取
+
+│   ├── candles.py            # K 线数据获取
+
 │   └── utils.py              # 工具函数和结果处理
+
 ├── strategy/                 # 交易策略实现
+
 │   ├── SMA.py               # 简单移动平均策略
+
 │   ├── EMA.py               # 指数移动平均策略
-│   ├── EMACross.py          # EMA交叉策略
+
+│   ├── EMACross.py          # EMA 交叉策略
+
 │   ├── Busy.py              # 均值回归策略
+
 │   ├── Oscillation.py       # RSI+布林带震荡策略
+
 │   └── AscendWave.py        # 趋势跟踪策略
+
 ├── broker/                   # 经纪商实现
-│   ├── CCXTBroker.py        # CCXT交易所适配器
-│   ├── CCXTData.py          # CCXT数据源
+
+│   ├── CCXTBroker.py        # CCXT 交易所适配器
+
+│   ├── CCXTData.py          # CCXT 数据源
+
 │   ├── CCXTStore.py         # 存储实现
-│   └── OKXData.py           # OKX交易所专用
+
+│   └── OKXData.py           # OKX 交易所专用
+
 ├── analyzer/                 # 分析器
+
 │   └── PositionReturn.py    # 持仓收益分析
+
 └── model/                    # 数据模型
-    └── TradeModel.py        # SQLAlchemy交易模型
-```
+    └── TradeModel.py        # SQLAlchemy 交易模型
+
+```bash
 
 ### 1.3 核心设计模式分析
 
-#### 1.3.1 状态机模式（Busy策略）
+#### 1.3.1 状态机模式（Busy 策略）
 
 ```python
 class Busy(bt.Strategy):
@@ -87,13 +122,15 @@ class Busy(bt.Strategy):
             return  # 有未完成订单，不生成新信号
 
         if self.op == bt.Order.Buy:
-            # 生成买入信号
-            if self.data.close[0] <= self.short_ma[0] * (1 - self.params.below):
+
+# 生成买入信号
+            if self.data.close[0] <= self.short_ma[0] *(1 - self.params.below):
                 self._open_order = True
                 self.buy(...)
         elif self.op == bt.Order.Sell:
-            # 生成卖出信号
-            if self.data.close[0] >= self.buy_price * (1 + self.params.net_profit):
+
+# 生成卖出信号
+            if self.data.close[0] >= self.buy_price*(1 + self.params.net_profit):
                 self._open_order = True
                 self.sell(...)
 
@@ -101,36 +138,40 @@ class Busy(bt.Strategy):
         if order.status == bt.Order.Completed:
             self._open_order = False
             self.op = bt.Order.Sell if order.isbuy() else bt.Order.Buy
-```
 
-**设计优点**：
+```bash
+
+- *设计优点**：
 - 清晰的状态转换逻辑
 - 防止在未完成订单时生成新信号
 - 状态切换由订单完成事件驱动
 
-#### 1.3.2 多指标确认机制（Oscillation策略）
+#### 1.3.2 多指标确认机制（Oscillation 策略）
 
 ```python
 class Oscillation(bt.Strategy):
     def handle_oscillating_market(self):
-        # 多指标组合确认
+
+# 多指标组合确认
         recent_rsi_list = np.array([self.rsi[-i] for i in range(1, 5)])
         is_rsi_downward = np.all(np.diff(recent_rsi_list) < 0)
 
         close_values = np.array([self.data.close[-i] for i in range(3)])
         close_trend = np.all(np.diff(close_values) >= 0)
 
-        # 买入信号需要多个条件同时满足
+# 买入信号需要多个条件同时满足
         if (self.rsi[0] < self.p.rsi_buy_signal and
             is_rsi_downward and
             current_close > self.data.close[-1]):
-            # 生成买入信号
-            self._sumit_buy_order(...)
-```
 
-**设计优点**：
+# 生成买入信号
+            self._sumit_buy_order(...)
+
+```bash
+
+- *设计优点**：
 - 多指标相互验证，提高信号可靠性
-- 趋势判断使用numpy数组操作提高效率
+- 趋势判断使用 numpy 数组操作提高效率
 - 可配置的信号阈值参数
 
 #### 1.3.3 风险管理框架
@@ -140,23 +181,27 @@ class Oscillation(bt.Strategy):
     def risk_management(self):
         if self._op == bt.Order.Sell:
             current_price = self.data.close[0]
-            # 动态止损检查
-            if current_price < (self._buy_price * (1 - self.p.stop_loss)):
+
+# 动态止损检查
+            if current_price < (self._buy_price *(1 - self.p.stop_loss)):
                 self._sumit_sell_order(current_price, size, bt.Order.Limit)
 
     def next(self):
-        # 先检查风险管理
-        self.risk_management()
-        # 再处理交易信号
-        self.handle_oscillating_market()
-```
 
-**设计优点**：
+# 先检查风险管理
+        self.risk_management()
+
+# 再处理交易信号
+        self.handle_oscillating_market()
+
+```bash
+
+- *设计优点**：
 - 风险检查优先于信号生成
 - 止损基于入场价格动态计算
 - 独立的风险管理方法，便于测试和维护
 
-#### 1.3.4 参数化CLI工具
+#### 1.3.4 参数化 CLI 工具
 
 ```python
 @click.group()
@@ -172,18 +217,20 @@ def back_strategy(ctx, cash, filepath, opt):
 @click.option('--long_period', type=COMMA_SEPARATED_LIST_INT, required=True)
 @click.option('--below', type=COMMA_SEPARATED_LIST, required=True)
 def sma_busy(ctx, short_period, long_period, below):
-    # 支持多参数组合
+
+# 支持多参数组合
     cerebro.optstrategy(Busy,
                         short_period=short_period,
                         long_period=long_period,
                         below=below)
     results = cerebro.run()
-```
 
-**设计优点**：
+```bash
+
+- *设计优点**：
 - 命令行接口清晰，参数可配置
 - 支持逗号分隔的多参数值进行优化
-- 结果自动导出为Excel格式
+- 结果自动导出为 Excel 格式
 
 #### 1.3.5 交易记录持久化
 
@@ -199,12 +246,13 @@ class TradeRecord(Base):
     side = Column(String(20), nullable=False)
     executed_price = Column(String(200), default='0')
     executed_size = Column(String(200), default='0')
-    fee = Column(JSON)  # 支持JSON格式存储复杂费用结构
-```
+    fee = Column(JSON)  # 支持 JSON 格式存储复杂费用结构
 
-**设计优点**：
+```bash
+
+- *设计优点**：
 - 完整的交易记录结构
-- JSON字段支持复杂的费用结构
+- JSON 字段支持复杂的费用结构
 - 时区感知的时间戳处理
 
 ### 1.4 信号系统特点总结
@@ -212,21 +260,32 @@ class TradeRecord(Base):
 #### 1.4.1 信号生成特点
 
 | 特点 | 实现 |
+
 |------|------|
-| **条件触发** | 基于技术指标阈值触发信号 |
-| **多指标确认** | 组合多个指标进行信号验证 |
-| **趋势判断** | 使用numpy数组操作判断价格趋势 |
-| **状态管理** | 状态机模式管理买入/卖出状态 |
-| **订单跟踪** | 跟踪未完成订单防止重复信号 |
+
+| **条件触发**| 基于技术指标阈值触发信号 |
+
+|**多指标确认**| 组合多个指标进行信号验证 |
+
+|**趋势判断**| 使用 numpy 数组操作判断价格趋势 |
+
+|**状态管理**| 状态机模式管理买入/卖出状态 |
+
+|**订单跟踪**| 跟踪未完成订单防止重复信号 |
 
 #### 1.4.2 信号管理特点
 
 | 特点 | 实现 |
+
 |------|------|
-| **订单状态跟踪** | `_open_order`标志跟踪订单状态 |
-| **操作状态管理** | `op`变量管理期望操作方向 |
-| **入场价格记录** | `buy_price`记录用于止损止盈计算 |
-| **执行结果统计** | 胜率、盈亏比等统计指标 |
+
+|**订单状态跟踪**| `_open_order`标志跟踪订单状态 |
+
+|**操作状态管理**| `op`变量管理期望操作方向 |
+
+|**入场价格记录**| `buy_price`记录用于止损止盈计算 |
+
+|**执行结果统计** | 胜率、盈亏比等统计指标 |
 
 #### 1.4.3 信号评估特点
 
@@ -251,32 +310,43 @@ def generate_combinations_report(self):
         "总亏损": self.TotalLoss,
         "净利润": self.TotalProfit - self.TotalLoss - self.commission,
     }
-```
 
-### 1.5 与backtrader的对比分析
+```bash
 
-| 特性 | backtrader现状 | signal_trading实现 |
+### 1.5 与 backtrader 的对比分析
+
+| 特性 | backtrader 现状 | signal_trading 实现 |
+
 |------|---------------|-------------------|
-| **信号系统** | 内置于Strategy中 | 独立的信号生成/管理模块 |
-| **状态管理** | 由用户自行实现 | 标准化的状态机模式 |
-| **风险管理** | 通过订单管理 | 独立的风险管理方法 |
-| **CLI工具** | 无 | 完整的Click CLI |
-| **参数优化** | `optstrategy` | CLI参数+Excel导出 |
-| **交易记录** | 内存中 | SQLAlchemy持久化 |
-| **日志系统** | 标准logging | loguru结构化日志 |
-| **统计报告** | Analyzer分析器 | 策略内置统计 |
+
+| **信号系统**| 内置于 Strategy 中 | 独立的信号生成/管理模块 |
+
+|**状态管理**| 由用户自行实现 | 标准化的状态机模式 |
+
+|**风险管理**| 通过订单管理 | 独立的风险管理方法 |
+
+|**CLI 工具**| 无 | 完整的 Click CLI |
+
+|**参数优化**| `optstrategy` | CLI 参数+Excel 导出 |
+
+|**交易记录**| 内存中 | SQLAlchemy 持久化 |
+
+|**日志系统**| 标准 logging | loguru 结构化日志 |
+
+|**统计报告**| Analyzer 分析器 | 策略内置统计 |
 
 ### 1.6 可借鉴的核心优势
 
-1. **标准化状态管理**：统一的状态机模式处理买入/卖出转换
-2. **独立风险管理**：将风险检查与信号生成分离
-3. **多指标确认机制**：提高信号可靠性的组合指标方法
-4. **CLI工具链**：完整的命令行工作流支持
-5. **交易记录持久化**：完整的交易历史存储方案
-6. **结构化日志**：loguru提供更好的日志体验
-7. **参数优化工作流**：从回测到结果导出的完整流程
+1.**标准化状态管理**：统一的状态机模式处理买入/卖出转换
 
----
+1. **独立风险管理**：将风险检查与信号生成分离
+2. **多指标确认机制**：提高信号可靠性的组合指标方法
+3. **CLI 工具链**：完整的命令行工作流支持
+4. **交易记录持久化**：完整的交易历史存储方案
+5. **结构化日志**：loguru 提供更好的日志体验
+6. **参数优化工作流**：从回测到结果导出的完整流程
+
+- --
 
 ## 二、需求规格说明
 
@@ -284,128 +354,128 @@ def generate_combinations_report(self):
 
 #### FR1: 信号系统基础架构
 
-**描述**：为backtrader构建一个标准化的交易信号系统，提供信号生成、状态管理和生命周期管理的统一接口。
+- *描述**：为 backtrader 构建一个标准化的交易信号系统，提供信号生成、状态管理和生命周期管理的统一接口。
 
-**需求详情**：
+- *需求详情**：
 - FR1.1: 定义`Signal`基类，包含信号类型、强度、触发条件等属性
 - FR1.2: 实现`SignalGenerator`抽象基类，定义信号生成接口
 - FR1.3: 实现`SignalManager`类，管理信号状态和生命周期
 - FR1.4: 支持信号优先级和信号过滤机制
 - FR1.5: 提供信号历史记录功能
 
-**验收标准**：
-- 信号系统与现有Strategy类兼容
+- *验收标准**：
+- 信号系统与现有 Strategy 类兼容
 - 信号状态转换正确无误
 - 支持多种信号类型（买入、卖出、平仓、持仓调整）
 
 #### FR2: 信号状态管理
 
-**描述**：实现标准化的信号状态机，管理从生成到执行完成的完整生命周期。
+- *描述**：实现标准化的信号状态机，管理从生成到执行完成的完整生命周期。
 
-**需求详情**：
+- *需求详情**：
 - FR2.1: 定义信号状态枚举（PENDING, SUBMITTED, FILLED, CANCELLED, REJECTED）
 - FR2.2: 实现状态转换逻辑和验证
 - FR2.3: 支持信号超时自动取消
 - FR2.4: 提供信号状态查询接口
 - FR2.5: 支持信号依赖关系（前置信号完成才触发后续信号）
 
-**验收标准**：
+- *验收标准**：
 - 状态转换遵循预定义规则
 - 异常状态能够正确处理
 - 状态查询响应时间<1ms
 
 #### FR3: 多指标信号确认
 
-**描述**：支持多个技术指标组合确认，提高信号可靠性。
+- *描述**：支持多个技术指标组合确认，提高信号可靠性。
 
-**需求详情**：
+- *需求详情**：
 - FR3.1: 实现`SignalConfirmator`基类
 - FR3.2: 提供常用确认策略（AND、OR、加权投票、机器学习）
 - FR3.3: 支持自定义确认函数
 - FR3.4: 提供指标权重配置
 - FR3.5: 支持动态确认阈值调整
 
-**验收标准**：
-- 支持至少3种确认策略
+- *验收标准**：
+- 支持至少 3 种确认策略
 - 确认延迟<100ms
-- 支持最多10个指标组合确认
+- 支持最多 10 个指标组合确认
 
 #### FR4: 风险管理系统
 
-**描述**：将风险管理从信号生成中分离，提供独立的风险检查和决策模块。
+- *描述**：将风险管理从信号生成中分离，提供独立的风险检查和决策模块。
 
-**需求详情**：
+- *需求详情**：
 - FR4.1: 实现`RiskManager`基类
 - FR4.2: 提供常用风险策略（止损、止盈、仓位控制、最大回撤）
-- FR4.3: 支持动态止损（移动止损、ATR止损）
+- FR4.3: 支持动态止损（移动止损、ATR 止损）
 - FR4.4: 支持组合级别风险控制
 - FR4.5: 提供风险事件日志和统计
 
-**验收标准**：
+- *验收标准**：
 - 风险检查在信号生成前执行
-- 支持至少5种风险策略
+- 支持至少 5 种风险策略
 - 风险事件记录完整
 
 #### FR5: 信号评估系统
 
-**描述**：提供信号有效性评估和统计功能，支持策略优化。
+- *描述**：提供信号有效性评估和统计功能，支持策略优化。
 
-**需求详情**：
+- *需求详情**：
 - FR5.1: 实现信号执行率统计
 - FR5.2: 计算信号胜率、盈亏比
 - FR5.3: 提供信号分布分析（按时间段、市场状态）
 - FR5.4: 支持信号归因分析
 - FR5.5: 提供信号质量评分
 
-**验收标准**：
-- 提供至少10种评估指标
+- *验收标准**：
+- 提供至少 10 种评估指标
 - 统计结果准确率>99.9%
 - 支持历史信号回溯分析
 
 #### FR6: 信号持久化
 
-**描述**：提供信号存储和查询功能，支持信号历史分析和审计。
+- *描述**：提供信号存储和查询功能，支持信号历史分析和审计。
 
-**需求详情**：
+- *需求详情**：
 - FR6.1: 实现信号数据模型
 - FR6.2: 支持多种存储后端（SQLite、PostgreSQL、MongoDB）
 - FR6.3: 提供信号查询接口
 - FR6.4: 支持信号导出（CSV、Excel、JSON）
 - FR6.5: 提供信号数据清理和归档功能
 
-**验收标准**：
-- 支持至少3种存储后端
+- *验收标准**：
+- 支持至少 3 种存储后端
 - 信号写入延迟<10ms
 - 支持百万级信号查询
 
-#### FR7: CLI工具链
+#### FR7: CLI 工具链
 
-**描述**：提供完整的命令行工具，支持策略开发、回测、优化和部署。
+- *描述**：提供完整的命令行工具，支持策略开发、回测、优化和部署。
 
-**需求详情**：
+- *需求详情**：
 - FR7.1: 实现策略回测命令
 - FR7.2: 实现参数优化命令
 - FR7.3: 实现信号分析命令
 - FR7.4: 实现策略部署命令
 - FR7.5: 提供配置文件支持（TOML/YAML）
 
-**验收标准**：
-- 命令行操作符合Unix惯例
+- *验收标准**：
+- 命令行操作符合 Unix 惯例
 - 命令执行有清晰提示
 - 错误信息友好可读
 
 #### FR8: 结构化日志
 
-**描述**：集成结构化日志系统，提供更好的调试和监控能力。
+- *描述**：集成结构化日志系统，提供更好的调试和监控能力。
 
-**需求详情**：
-- FR8.1: 集成loguru或类似日志库
+- *需求详情**：
+- FR8.1: 集成 loguru 或类似日志库
 - FR8.2: 支持日志级别动态调整
-- FR8.3: 提供结构化日志输出（JSON格式）
+- FR8.3: 提供结构化日志输出（JSON 格式）
 - FR8.4: 支持日志轮转和归档
 - FR8.5: 集成信号事件日志
 
-**验收标准**：
+- *验收标准**：
 - 日志不影响策略性能（<5%开销）
 - 支持日志查询和过滤
 - 日志格式统一规范
@@ -416,7 +486,7 @@ def generate_combinations_report(self):
 
 - 信号生成延迟 < 1ms
 - 信号管理开销 < 2%
-- 支持每秒1000+信号处理
+- 支持每秒 1000+信号处理
 - 内存占用增长线性可控
 
 #### NFR2: 可扩展性
@@ -428,9 +498,9 @@ def generate_combinations_report(self):
 
 #### NFR3: 兼容性
 
-- 与现有backtrader API完全兼容
-- 支持Python 3.8+
-- 支持Windows/Linux/macOS
+- 与现有 backtrader API 完全兼容
+- 支持 Python 3.8+
+- 支持 Windows/Linux/macOS
 
 #### NFR4: 可靠性
 
@@ -438,7 +508,7 @@ def generate_combinations_report(self):
 - 异常处理完善，不导致主流程中断
 - 提供信号校验机制
 
----
+- --
 
 ## 三、系统设计
 
@@ -446,7 +516,7 @@ def generate_combinations_report(self):
 
 #### 3.1.1 整体架构
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────┐
 │                         Application Layer                       │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
@@ -470,49 +540,75 @@ def generate_combinations_report(self):
 │  │    Cerebro     │  │  Strategy  │  │  Analyzer  │           │
 │  └────────────────┘  └────────────┘  └────────────┘           │
 └─────────────────────────────────────────────────────────────────┘
-```
+
+```bash
 
 #### 3.1.2 模块组织
 
-```
+```bash
 backtrader/
 ├── signals/                    # 信号系统模块
+
 │   ├── __init__.py
 │   ├── base.py                 # 信号基类和枚举
+
 │   ├── generator.py            # 信号生成器
+
 │   ├── manager.py              # 信号管理器
+
 │   ├── confirmator.py          # 信号确认器
+
 │   ├── evaluator.py            # 信号评估器
+
 │   └── registry.py             # 信号注册表
+
 ├── risk/                       # 风险管理模块
+
 │   ├── __init__.py
 │   ├── base.py                 # 风险管理基类
+
 │   ├── managers.py             # 风险管理器实现
+
 │   ├── limits.py               # 风险限制器
+
 │   └── events.py               # 风险事件
+
 ├── storage/                    # 存储模块
+
 │   ├── __init__.py
 │   ├── base.py                 # 存储基类
+
 │   ├── signal_store.py         # 信号存储
+
 │   ├── models.py               # 数据模型
+
 │   └── backends.py             # 存储后端
-├── cli/                        # CLI工具模块
+
+├── cli/                        # CLI 工具模块
+
 │   ├── __init__.py
 │   ├── main.py                 # 主命令入口
+
 │   ├── backtest.py             # 回测命令
+
 │   ├── optimize.py             # 优化命令
+
 │   ├── analyze.py              # 分析命令
+
 │   └── utils.py                # 工具函数
+
 └── utils/
     ├── logger.py               # 日志配置
     └── formatters.py           # 格式化工具
-```
+
+```bash
 
 ### 3.2 详细设计
 
 #### 3.2.1 信号基类设计
 
 ```python
+
 # backtrader/signals/base.py
 
 from enum import Enum, auto
@@ -557,38 +653,38 @@ class SignalPriority(Enum):
 class Signal:
     """信号数据类"""
 
-    # 基本信息
+# 基本信息
     signal_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     signal_type: SignalType = SignalType.HOLD
     status: SignalStatus = SignalStatus.PENDING
 
-    # 目标信息
+# 目标信息
     data_name: str = ''           # 数据源名称
     target_symbol: str = ''       # 目标标的
 
-    # 价格和数量
+# 价格和数量
     price: Optional[float] = None
     size: Optional[float] = None
     order_type: str = 'market'    # market, limit, stop, stop_limit
 
-    # 元数据
+# 元数据
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     expires_at: Optional[datetime] = None
     priority: SignalPriority = SignalPriority.NORMAL
 
-    # 信号来源
+# 信号来源
     generator: str = ''           # 生成器名称
-    strategy_id: str = ''         # 策略ID
+    strategy_id: str = ''         # 策略 ID
 
-    # 上下文信息
+# 上下文信息
     context: Dict[str, Any] = field(default_factory=dict)
 
-    # 确认信息
+# 确认信息
     confirmations: List[str] = field(default_factory=list)
     rejection_reason: Optional[str] = None
 
-    # 关联信息
+# 关联信息
     parent_signal_id: Optional[str] = None
     child_signal_ids: List[str] = field(default_factory=list)
 
@@ -671,11 +767,13 @@ class SignalStateError(SignalException):
 class SignalExpiredError(SignalException):
     """信号过期异常"""
     pass
-```
+
+```bash
 
 #### 3.2.2 信号管理器设计
 
 ```python
+
 # backtrader/signals/manager.py
 
 from typing import Dict, List, Optional, Callable, Any
@@ -693,17 +791,18 @@ class SignalManager:
     """信号管理器 - 管理信号生命周期和状态"""
 
     def __init__(self):
-        # 信号存储
+
+# 信号存储
         self._signals: Dict[str, Signal] = {}
         self._lock = Lock()
 
-        # 索引
+# 索引
         self._by_status: Dict[SignalStatus, List[str]] = defaultdict(list)
         self._by_type: Dict[SignalType, List[str]] = defaultdict(list)
         self._by_strategy: Dict[str, List[str]] = defaultdict(list)
         self._by_data: Dict[str, List[str]] = defaultdict(list)
 
-        # 状态机转换规则
+# 状态机转换规则
         self._state_transitions = {
             SignalStatus.PENDING: [
                 SignalStatus.CONFIRMING,
@@ -731,25 +830,27 @@ class SignalManager:
                 SignalStatus.FILLED,
                 SignalStatus.CANCELLED,
             ],
-            # FILLED, CANCELLED, REJECTED, EXPIRED 是终态
+
+# FILLED, CANCELLED, REJECTED, EXPIRED 是终态
         }
 
-        # 回调函数
+# 回调函数
         self._callbacks: Dict[SignalStatus, List[Callable]] = defaultdict(list)
 
     def add_signal(self, signal: Signal) -> bool:
         """添加新信号"""
         with self._lock:
-            # 验证信号
+
+# 验证信号
             if not self._validate_signal(signal):
                 return False
 
-            # 检查重复
+# 检查重复
             if signal.signal_id in self._signals:
                 logger.warning(f"Signal {signal.signal_id} already exists")
                 return False
 
-            # 存储信号
+# 存储信号
             self._signals[signal.signal_id] = signal
             self._update_indexes(signal, True)
 
@@ -757,7 +858,7 @@ class SignalManager:
                        f"type={signal.signal_type.name} "
                        f"strategy={signal.strategy_id}")
 
-            # 触发回调
+# 触发回调
             self._trigger_callbacks(signal.status, signal)
 
             return True
@@ -775,13 +876,13 @@ class SignalManager:
                 logger.warning(f"Signal {signal_id} not found")
                 return False
 
-            # 验证状态转换
+# 验证状态转换
             if new_status not in self._state_transitions.get(signal.status, []):
                 raise SignalStateError(
                     f"Invalid state transition: {signal.status.name} -> {new_status.name}"
                 )
 
-            # 更新索引
+# 更新索引
             self._update_indexes(signal, False)
             old_status = signal.status
             signal.status = new_status
@@ -796,7 +897,7 @@ class SignalManager:
 
             logger.info(f"Signal {signal_id} status: {old_status.name} -> {new_status.name}")
 
-            # 触发回调
+# 触发回调
             self._trigger_callbacks(new_status, signal)
 
             return True
@@ -884,7 +985,8 @@ class SignalManager:
     def _validate_signal(self, signal: Signal) -> bool:
         """验证信号"""
         try:
-            # 基本字段验证
+
+# 基本字段验证
             if not signal.data_name:
                 logger.error("Signal validation failed: missing data_name")
                 return False
@@ -924,11 +1026,13 @@ class SignalManager:
                 callback(signal)
             except Exception as e:
                 logger.error(f"Callback error for status {status.name}: {e}")
-```
+
+```bash
 
 #### 3.2.3 信号生成器设计
 
 ```python
+
 # backtrader/signals/generator.py
 
 from abc import ABC, abstractmethod
@@ -966,10 +1070,10 @@ class SignalGenerator(ABC):
         self.manager = manager or SignalManager()
         self.config = config or GeneratorConfig()
 
-        # 确认器列表
+# 确认器列表
         self.confirmators: List[SignalConfirmator] = []
 
-        # 统计信息
+# 统计信息
         self.stats = {
             'generated': 0,
             'confirmed': 0,
@@ -988,7 +1092,9 @@ class SignalGenerator(ABC):
         size: Optional[float] = None,
         order_type: str = 'market',
         context: Optional[Dict[str, Any]] = None,
-        **kwargs
+
+        - *kwargs
+
     ) -> Optional[Signal]:
         """生成买入信号"""
         return self._create_signal(
@@ -998,7 +1104,9 @@ class SignalGenerator(ABC):
             size=size,
             order_type=order_type,
             context=context or {},
-            **kwargs
+
+            - *kwargs
+
         )
 
     def generate_sell_signal(
@@ -1008,7 +1116,9 @@ class SignalGenerator(ABC):
         size: Optional[float] = None,
         order_type: str = 'market',
         context: Optional[Dict[str, Any]] = None,
-        **kwargs
+
+        - *kwargs
+
     ) -> Optional[Signal]:
         """生成卖出信号"""
         return self._create_signal(
@@ -1018,7 +1128,9 @@ class SignalGenerator(ABC):
             size=size,
             order_type=order_type,
             context=context or {},
-            **kwargs
+
+            - *kwargs
+
         )
 
     def generate_short_signal(
@@ -1028,7 +1140,9 @@ class SignalGenerator(ABC):
         size: Optional[float] = None,
         order_type: str = 'market',
         context: Optional[Dict[str, Any]] = None,
-        **kwargs
+
+        - *kwargs
+
     ) -> Optional[Signal]:
         """生成做空信号"""
         return self._create_signal(
@@ -1038,7 +1152,9 @@ class SignalGenerator(ABC):
             size=size,
             order_type=order_type,
             context=context or {},
-            **kwargs
+
+            - *kwargs
+
         )
 
     def generate_cover_signal(
@@ -1048,7 +1164,9 @@ class SignalGenerator(ABC):
         size: Optional[float] = None,
         order_type: str = 'market',
         context: Optional[Dict[str, Any]] = None,
-        **kwargs
+
+        - *kwargs
+
     ) -> Optional[Signal]:
         """生成平空信号"""
         return self._create_signal(
@@ -1058,7 +1176,9 @@ class SignalGenerator(ABC):
             size=size,
             order_type=order_type,
             context=context or {},
-            **kwargs
+
+            - *kwargs
+
         )
 
     def _create_signal(
@@ -1069,23 +1189,26 @@ class SignalGenerator(ABC):
         size: Optional[float],
         order_type: str,
         context: Dict[str, Any],
-        **kwargs
+
+        - *kwargs
+
     ) -> Optional[Signal]:
         """创建信号"""
-        # 获取数据源
+
+# 获取数据源
         data = self._get_data(data_name)
         if data is None:
             logger.error(f"Data feed {data_name} not found")
             return None
 
-        # 计算默认价格和数量
+# 计算默认价格和数量
         if price is None:
             price = data.close[0] if order_type != 'market' else None
 
         if size is None:
             size = self._calculate_default_size(signal_type, data)
 
-        # 创建信号
+# 创建信号
         signal = Signal(
             signal_type=signal_type,
             data_name=data_name,
@@ -1097,16 +1220,18 @@ class SignalGenerator(ABC):
             generator=self.__class__.__name__,
             strategy_id=getattr(self.strategy, '_strategy_id', 'unknown'),
             context=context,
-            **kwargs
+
+            - *kwargs
+
         )
 
         self.stats['generated'] += 1
 
-        # 添加到管理器
+# 添加到管理器
         if not self.manager.add_signal(signal):
             return None
 
-        # 处理确认
+# 处理确认
         if self.config.enable_confirmation and self.confirmators:
             self.manager.update_signal_status(
                 signal.signal_id,
@@ -1119,7 +1244,7 @@ class SignalGenerator(ABC):
                 SignalStatus.CONFIRMED
             )
 
-        # 自动提交
+# 自动提交
         if signal.status == SignalStatus.CONFIRMED and self.config.auto_submit:
             self._submit_signal(signal)
 
@@ -1218,7 +1343,7 @@ class SignalGenerator(ABC):
             return 0
 
         if price > 0:
-            return cash / price * 0.95  # 使用95%的现金
+            return cash / price *0.95  # 使用 95%的现金
         return 0
 
     def _get_order_type_code(self, order_type: str):
@@ -1234,13 +1359,15 @@ class SignalGenerator(ABC):
 
     @abstractmethod
     def next(self):
-        """每根K线调用，生成信号"""
+        """每根 K 线调用，生成信号"""
         pass
-```
+
+```bash
 
 #### 3.2.4 信号确认器设计
 
 ```python
+
 # backtrader/signals/confirmator.py
 
 from abc import ABC, abstractmethod
@@ -1323,7 +1450,8 @@ class TrendConfirmator(SignalConfirmator):
         close_values = [data.close[-i] for i in range(self.period)]
 
         if signal.signal_type in (SignalType.BUY, SignalType.COVER):
-            # 买入信号需要上升趋势
+
+# 买入信号需要上升趋势
             is_upward = all(close_values[i] >= close_values[i+1]
                            for i in range(len(close_values)-1))
             return ConfirmationResult(
@@ -1332,7 +1460,8 @@ class TrendConfirmator(SignalConfirmator):
                 score=1.0 if is_upward else 0.3
             )
         else:
-            # 卖出信号需要下降趋势
+
+# 卖出信号需要下降趋势
             is_downward = all(close_values[i] <= close_values[i+1]
                              for i in range(len(close_values)-1))
             return ConfirmationResult(
@@ -1343,30 +1472,32 @@ class TrendConfirmator(SignalConfirmator):
 
 
 class RSIDirectionConfirmator(SignalConfirmator):
-    """RSI方向确认器"""
+    """RSI 方向确认器"""
 
     def __init__(self, period: int = 4, weight: float = 1.0):
         super().__init__("RSIDirectionConfirmator", weight)
         self.period = period
 
     def confirm(self, signal: Signal, strategy) -> ConfirmationResult:
-        """确认RSI方向"""
+        """确认 RSI 方向"""
         import numpy as np
 
-        rsi = strategy.rsi  # 假设策略有rsi指标
+        rsi = strategy.rsi  # 假设策略有 rsi 指标
         recent_rsi = np.array([rsi[-i] for i in range(1, self.period + 1)])
         is_descending = np.all(np.diff(recent_rsi) < 0)
         is_ascending = np.all(np.diff(recent_rsi) > 0)
 
         if signal.signal_type in (SignalType.BUY, SignalType.COVER):
-            # 买入信号：RSI下降表示超卖
+
+# 买入信号：RSI 下降表示超卖
             return ConfirmationResult(
                 confirmed=is_descending,
                 reason=f"RSI direction: {'descending' if is_descending else 'not descending'}",
                 score=1.0 if is_descending else 0.5
             )
         else:
-            # 卖出信号：RSI上升表示超买
+
+# 卖出信号：RSI 上升表示超买
             return ConfirmationResult(
                 confirmed=is_ascending,
                 reason=f"RSI direction: {'ascending' if is_ascending else 'not ascending'}",
@@ -1437,7 +1568,7 @@ class CompositeConfirmator(SignalConfirmator):
 
         elif self.strategy == 'WEIGHTED':
             weighted_score = sum(
-                r.score * c.weight for r, c in zip(results, self.confirmators)
+                r.score*c.weight for r, c in zip(results, self.confirmators)
             ) / total_weight if total_weight > 0 else 0
             confirmed = weighted_score >= self.min_score
             score = weighted_score
@@ -1458,11 +1589,13 @@ class CompositeConfirmator(SignalConfirmator):
             reason=f"Composite ({self.strategy}): " + "; ".join(reasons),
             score=score
         )
-```
+
+```bash
 
 #### 3.2.5 风险管理器设计
 
 ```python
+
 # backtrader/risk/managers.py
 
 from abc import ABC, abstractmethod
@@ -1526,13 +1659,14 @@ class StopLossRiskManager(RiskManager):
     def check_signal(self, signal: Signal, strategy) -> RiskCheckResult:
         """检查是否触发止损"""
         if signal.signal_type in (SignalType.BUY, SignalType.SHORT):
-            # 记录入场价格
+
+# 记录入场价格
             if signal.price:
                 self.entry_prices[signal.data_name] = signal.price
                 self.peak_prices[signal.data_name] = signal.price
             return RiskCheckResult(action=RiskAction.ALLOW)
 
-        # 检查止损条件
+# 检查止损条件
         data = self._get_data(signal, strategy)
         if data is None:
             return RiskCheckResult(action=RiskAction.ALLOW)
@@ -1547,12 +1681,12 @@ class StopLossRiskManager(RiskManager):
         if position.size > 0:  # 多头持仓
             loss_pct = (entry_price - current_price) / entry_price
 
-            # 更新移动止损
+# 更新移动止损
             if self.trailing_stop and current_price > self.peak_prices.get(signal.data_name, entry_price):
                 self.peak_prices[signal.data_name] = current_price
-                stop_price = current_price * (1 - self.trailing_pct)
+                stop_price = current_price*(1 - self.trailing_pct)
             else:
-                stop_price = entry_price * (1 - self.stop_loss_pct)
+                stop_price = entry_price*(1 - self.stop_loss_pct)
 
             if current_price <= stop_price:
                 return RiskCheckResult(
@@ -1566,9 +1700,9 @@ class StopLossRiskManager(RiskManager):
 
             if self.trailing_stop and current_price < self.peak_prices.get(signal.data_name, entry_price):
                 self.peak_prices[signal.data_name] = current_price
-                stop_price = current_price * (1 + self.trailing_pct)
+                stop_price = current_price*(1 + self.trailing_pct)
             else:
-                stop_price = entry_price * (1 + self.stop_loss_pct)
+                stop_price = entry_price*(1 + self.stop_loss_pct)
 
             if current_price >= stop_price:
                 return RiskCheckResult(
@@ -1666,11 +1800,11 @@ class PositionSizeRiskManager(RiskManager):
             return RiskCheckResult(action=RiskAction.ALLOW)
 
         current_price = data.close[0] if signal.price is None else signal.price
-        position_value = signal.size * current_price
+        position_value = signal.size*current_price
 
-        # 单笔仓位检查
-        if position_value > cash * self.max_position_pct:
-            modified_size = (cash * self.max_position_pct) / current_price
+# 单笔仓位检查
+        if position_value > cash*self.max_position_pct:
+            modified_size = (cash*self.max_position_pct) / current_price
             return RiskCheckResult(
                 action=RiskAction.MODIFY,
                 reason=f"Position size exceeds {self.max_position_pct:.0%} of cash",
@@ -1678,15 +1812,15 @@ class PositionSizeRiskManager(RiskManager):
                 risk_level=position_value / cash
             )
 
-        # 总仓位检查
+# 总仓位检查
         total_position = sum(
-            abs(strategy.getposition(d).size * d.close[0])
+            abs(strategy.getposition(d).size*d.close[0])
             for d in strategy.datas
         )
         new_total_position = total_position + position_value
 
-        if new_total_position > value * self.max_total_position_pct:
-            max_allowed = (value * self.max_total_position_pct) - total_position
+        if new_total_position > value*self.max_total_position_pct:
+            max_allowed = (value* self.max_total_position_pct) - total_position
             modified_size = max(max_allowed / current_price, 0)
             return RiskCheckResult(
                 action=RiskAction.MODIFY if modified_size > 0 else RiskAction.REJECT,
@@ -1717,7 +1851,7 @@ class MaxDrawdownRiskManager(RiskManager):
         """检查回撤"""
         current_value = strategy.broker.getvalue()
 
-        # 更新峰值
+# 更新峰值
         if current_value > self.peak_value:
             self.peak_value = current_value
 
@@ -1754,11 +1888,11 @@ class CompositeRiskManager:
 
             result = manager.check_signal(signal, strategy)
 
-            # 更新风险等级
+# 更新风险等级
             if result.risk_level > max_risk_level:
                 max_risk_level = result.risk_level
 
-            # 确定动作优先级
+# 确定动作优先级
             action_priority = {
                 RiskAction.REJECT: 4,
                 RiskAction.CLOSE_POSITION: 3,
@@ -1773,7 +1907,7 @@ class CompositeRiskManager:
                 if result.modified_size is not None:
                     modified_size = result.modified_size
 
-        # 记录风险事件
+# 记录风险事件
         if highest_risk_action != RiskAction.ALLOW:
             self.risk_events.append({
                 'timestamp': strategy.datetime.datetime(0) if hasattr(strategy, 'datetime') else None,
@@ -1789,11 +1923,13 @@ class CompositeRiskManager:
             modified_size=modified_size,
             risk_level=max_risk_level
         )
-```
 
-#### 3.2.6 CLI工具设计
+```bash
+
+#### 3.2.6 CLI 工具设计
 
 ```python
+
 # backtrader/cli/main.py
 
 import click
@@ -1865,7 +2001,7 @@ def cli(ctx, debug, log_file):
     ctx.obj['debug'] = debug
     ctx.obj['log_file'] = log_file
 
-    # 设置日志
+# 设置日志
     setup_logger(debug=debug, log_file=log_file)
 
 
@@ -1888,28 +2024,28 @@ def run(ctx, data, strategy, module, cash, commission, fromdate, todate,
     """Run a single backtest"""
     from ..utils.cerebro_factory import CerebroFactory
 
-    # 创建Cerebro
+# 创建 Cerebro
     cerebro = CerebroFactory.create_default(
         cash=cash,
         commission=commission
     )
 
-    # 加载数据
+# 加载数据
     df = pd.read_csv(data, index_col='datetime', parse_dates=True)
     data_feed = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data_feed)
 
-    # 加载策略
+# 加载策略
     strategy_class = _load_strategy_class(module, strategy)
     cerebro.addstrategy(strategy_class)
 
-    # 运行
+# 运行
     results = cerebro.run()
 
-    # 输出结果
+# 输出结果
     _print_results(results, output)
 
-    # 绘图
+# 绘图
     if plot:
         cerebro.plot()
 
@@ -1932,17 +2068,17 @@ def optimize(ctx, data, strategy, module, cash, commission,
     """Run strategy optimization"""
     cerebro = bt.Cerebro(runonce=True, preload=True, optreturn=False, maxcpus=maxcpus)
 
-    # 加载数据
+# 加载数据
     df = pd.read_csv(data, index_col='datetime', parse_dates=True)
     data_feed = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data_feed)
     cerebro.broker.setcash(cash)
     cerebro.broker.setcommission(commission=commission)
 
-    # 加载策略进行优化
+# 加载策略进行优化
     strategy_class = _load_strategy_class(module, strategy)
 
-    # 构建参数网格
+# 构建参数网格
     opt_params = {}
     if short_period:
         opt_params['short_period'] = short_period
@@ -1951,10 +2087,10 @@ def optimize(ctx, data, strategy, module, cash, commission,
 
     cerebro.optstrategy(strategy_class, **opt_params)
 
-    # 运行优化
+# 运行优化
     results = cerebro.run()
 
-    # 输出结果
+# 输出结果
     _print_optimization_results(results, strategy, output)
 
 
@@ -1968,14 +2104,15 @@ def optimize(ctx, data, strategy, module, cash, commission,
 @click.pass_context
 def analyze(ctx, data, config, signal_stats, trade_stats):
     """Analyze backtest results"""
-    # 加载配置
+
+# 加载配置
     if config:
         import toml
         cfg = toml.load(config)
     else:
         cfg = {}
 
-    # 分析逻辑
+# 分析逻辑
     click.echo("Analysis results...")
 
 
@@ -1989,13 +2126,13 @@ def _print_results(results, output: Optional[str] = None):
     """打印回测结果"""
     strat = results[0][0]
 
-    click.echo("\n" + "=" * 50)
+    click.echo("\n" + "=" *50)
     click.echo("Backtest Results")
-    click.echo("=" * 50)
+    click.echo("="*50)
 
     click.echo(f"Final Value: {strat.broker.getvalue():.2f}")
 
-    # 获取分析器结果
+# 获取分析器结果
     for analyzer in strat.analyzers:
         result = analyzer.get_analysis()
         click.echo(f"\n{analyzer.__class__.__name__}:")
@@ -2016,16 +2153,18 @@ def _print_optimization_results(results, strategy_name: str, output: Optional[st
             final_value = strat.broker.getvalue()
 
             results_list.append({
-                **params,
+
+                - *params,
+
                 'final_value': final_value,
             })
 
     df = pd.DataFrame(results_list)
     df = df.sort_values('final_value', ascending=False)
 
-    click.echo("\n" + "=" * 50)
+    click.echo("\n" + "=" *50)
     click.echo(f"Optimization Results: {strategy_name}")
-    click.echo("=" * 50)
+    click.echo("="*50)
     click.echo(df.to_string(index=False))
 
     if output:
@@ -2041,13 +2180,13 @@ def _save_results(results, output: str):
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 准备数据
+# 准备数据
     data = {
         'final_value': results[0][0].broker.getvalue(),
         'params:': results[0][0].params.__dict__,
     }
 
-    # 保存
+# 保存
     if output.endswith('.json'):
         with open(output, 'w') as f:
             json.dump(data, f, indent=2)
@@ -2058,11 +2197,13 @@ def _save_results(results, output: str):
 
 if __name__ == '__main__':
     cli()
-```
+
+```bash
 
 #### 3.2.7 日志工具设计
 
 ```python
+
 # backtrader/utils/logger.py
 
 import sys
@@ -2081,37 +2222,42 @@ class SignalLogger:
 
     def _setup_logger(self):
         """配置日志"""
-        # 移除默认处理器
+
+# 移除默认处理器
         logger.remove()
 
-        # 控制台输出
+# 控制台输出
         log_level = "DEBUG" if self.debug else "INFO"
         logger.add(
             sys.stderr,
             format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+
                    "<level>{level: <8}</level> | "
+
                    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
+
                    "<level>{message}</level>",
             level=log_level,
             colorize=True,
         )
 
-        # 文件输出
+# 文件输出
         if self.log_file:
             log_path = Path(self.log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # 普通日志
+# 普通日志
             logger.add(
                 self.log_file,
                 format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} | {message}",
+
                 level="DEBUG",
                 rotation="100 MB",
                 retention="30 days",
                 compression="zip",
             )
 
-            # 结构化JSON日志
+# 结构化 JSON 日志
             json_log = self.log_file.replace('.log', '.json')
             logger.add(
                 json_log,
@@ -2128,6 +2274,7 @@ class SignalLogger:
 
 
 # 全局日志配置
+
 _logger_config: Optional[SignalLogger] = None
 
 
@@ -2145,18 +2292,23 @@ def get_logger(name: str):
 
 
 # 信号事件专用日志
+
 def log_signal_event(
     event_type: str,
     signal_id: str,
     signal_type: str,
-    **kwargs
+
+    - *kwargs
+
 ):
     """记录信号事件"""
     logger.bind(
         event_type=event_type,
         signal_id=signal_id,
         signal_type=signal_type,
-        **kwargs
+
+        - *kwargs
+
     ).info(f"Signal event: {event_type} for signal {signal_id}")
 
 
@@ -2166,7 +2318,9 @@ def log_risk_event(
     action: str,
     reason: str,
     risk_level: float,
-    **kwargs
+
+    - *kwargs
+
 ):
     """记录风险事件"""
     logger.bind(
@@ -2175,15 +2329,19 @@ def log_risk_event(
         action=action,
         reason=reason,
         risk_level=risk_level,
-        **kwargs
+
+        - *kwargs
+
     ).warning(f"Risk event: {action} for signal {signal_id} - {reason}")
-```
+
+```bash
 
 ### 3.3 使用示例
 
 #### 3.3.1 基础信号策略
 
 ```python
+
 # examples/signal_strategy_example.py
 
 import backtrader as bt
@@ -2212,15 +2370,16 @@ class MySignalStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 指标
+
+# 指标
         self.short_ma = bt.indicators.EMA(self.data.close, period=self.params.short_period)
         self.long_ma = bt.indicators.EMA(self.data.close, period=self.params.long_period)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
 
-        # 信号生成器
+# 信号生成器
         self.signal_gen = SignalGenerator(strategy=self)
 
-        # 信号确认器
+# 信号确认器
         confirmator = CompositeConfirmator(
             confirmators=[
                 TrendConfirmator(period=3),
@@ -2230,20 +2389,22 @@ class MySignalStrategy(bt.Strategy):
         )
         self.signal_gen.add_confirmator(confirmator)
 
-        # 风险管理器
+# 风险管理器
         self.risk_manager = CompositeRiskManager([
             StopLossRiskManager(stop_loss_pct=self.params.stop_loss),
             TakeProfitRiskManager(take_profit_pct=self.params.take_profit),
             PositionSizeRiskManager(max_position_pct=0.95),
         ])
 
-        # 状态
+# 状态
         self._op = bt.Order.Buy
 
     def next(self):
-        # 风险检查
+
+# 风险检查
         if self._op == bt.Order.Sell:
-            # 创建平仓信号进行风险检查
+
+# 创建平仓信号进行风险检查
             from backtrader.signals.base import Signal, SignalType
             check_signal = Signal(
                 signal_type=SignalType.SELL,
@@ -2260,13 +2421,14 @@ class MySignalStrategy(bt.Strategy):
         if len(self.data) < self.params.long_period:
             return
 
-        # 生成交易信号
+# 生成交易信号
         if self._op == bt.Order.Buy:
-            # 买入条件
-            if self.data.close[0] < self.short_ma[0] * 0.98:
+
+# 买入条件
+            if self.data.close[0] < self.short_ma[0] *0.98:
                 signal = self.signal_gen.generate_buy_signal(self.data._name)
 
-                # 检查风险
+# 检查风险
                 if signal:
                     risk_result = self.risk_manager.check_signal(signal, self)
                     if risk_result.action.name == 'REJECT':
@@ -2280,8 +2442,9 @@ class MySignalStrategy(bt.Strategy):
                         signal.size = risk_result.modified_size
 
         elif self._op == bt.Order.Sell:
-            # 卖出条件
-            if self.data.close[0] > self.short_ma[0] * 1.02:
+
+# 卖出条件
+            if self.data.close[0] > self.short_ma[0]* 1.02:
                 self.signal_gen.generate_sell_signal(self.data._name)
                 self._op = bt.Order.Buy
 
@@ -2294,87 +2457,95 @@ class MySignalStrategy(bt.Strategy):
 
 
 # 运行
+
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
 
-    # 添加数据
+# 添加数据
     data = bt.feeds.PandasData(dataname=df)
     cerebro.adddata(data)
 
-    # 添加策略
+# 添加策略
     cerebro.addstrategy(MySignalStrategy)
 
-    # 运行
+# 运行
     results = cerebro.run()
     cerebro.plot()
-```
-
-#### 3.3.2 CLI使用
 
 ```bash
+
+#### 3.3.2 CLI 使用
+
+```bash
+
 # 基础回测
+
 python -m backtrader.cli run \
-    --data data.csv \
-    --strategy MySignalStrategy \
-    --module examples.signal_strategy_example \
-    --cash 10000 \
-    --plot
+
+    - -data data.csv \
+    - -strategy MySignalStrategy \
+    - -module examples.signal_strategy_example \
+    - -cash 10000 \
+    - -plot
 
 # 参数优化
-python -m backtrader.cli optimize \
-    --data data.csv \
-    --strategy MySignalStrategy \
-    --module examples.signal_strategy_example \
-    --short-period 30,40,50,60 \
-    --long-period 150,180,200,220 \
-    --output optimization_results.xlsx
-```
 
----
+python -m backtrader.cli optimize \
+
+    - -data data.csv \
+    - -strategy MySignalStrategy \
+    - -module examples.signal_strategy_example \
+    - -short-period 30,40,50,60 \
+    - -long-period 150,180,200,220 \
+    - -output optimization_results.xlsx
+
+```bash
+
+- --
 
 ## 四、实施计划
 
-### 第一阶段：信号基础架构 (2周)
+### 第一阶段：信号基础架构 (2 周)
 
-1. 实现Signal基类和枚举
-2. 实现SignalManager
+1. 实现 Signal 基类和枚举
+2. 实现 SignalManager
 3. 编写单元测试
 
-### 第二阶段：信号生成与确认 (2周)
+### 第二阶段：信号生成与确认 (2 周)
 
-1. 实现SignalGenerator
-2. 实现各种SignalConfirmator
+1. 实现 SignalGenerator
+2. 实现各种 SignalConfirmator
 3. 集成测试
 
-### 第三阶段：风险管理系统 (2周)
+### 第三阶段：风险管理系统 (2 周)
 
-1. 实现各种RiskManager
-2. 实现CompositeRiskManager
+1. 实现各种 RiskManager
+2. 实现 CompositeRiskManager
 3. 风险事件记录
 
-### 第四阶段：CLI工具 (1周)
+### 第四阶段：CLI 工具 (1 周)
 
-1. 实现基础CLI命令
+1. 实现基础 CLI 命令
 2. 参数优化功能
 3. 结果导出功能
 
-### 第五阶段：集成与文档 (1周)
+### 第五阶段：集成与文档 (1 周)
 
-1. 与现有backtrader集成
+1. 与现有 backtrader 集成
 2. 编写使用文档
 3. 性能优化
 
----
+- --
 
 ## 五、总结
 
-本设计文档借鉴了signal_trading项目的以下核心优势：
+本设计文档借鉴了 signal_trading 项目的以下核心优势：
 
-1. **标准化状态管理**：通过SignalManager统一管理信号状态
+1. **标准化状态管理**：通过 SignalManager 统一管理信号状态
 2. **独立风险管理**：将风险检查从策略逻辑中分离
-3. **多指标确认机制**：通过Confirmator提高信号可靠性
-4. **CLI工具链**：完整的命令行工作流
-5. **结构化日志**：使用loguru提供更好的调试体验
+3. **多指标确认机制**：通过 Confirmator 提高信号可靠性
+4. **CLI 工具链**：完整的命令行工作流
+5. **结构化日志**：使用 loguru 提供更好的调试体验
 6. **信号评估系统**：完整的信号统计和分析功能
 
-这些改进将使backtrader成为一个更加专业、可靠的量化交易框架，特别适合生产环境的算法交易应用。
+这些改进将使 backtrader 成为一个更加专业、可靠的量化交易框架，特别适合生产环境的算法交易应用。

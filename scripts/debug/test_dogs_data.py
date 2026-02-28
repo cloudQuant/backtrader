@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""DOGS/USDT 现货数据加载测试.
+"""DOGS/USDT spot data loading test.
 
-这个脚本用于测试 DOGS/USDT 现货数据是否能正确加载。
+This script tests whether DOGS/USDT spot data can be loaded correctly.
 """
 
 import sys
@@ -18,28 +18,31 @@ from backtrader.ccxt import load_ccxt_config_from_env
 
 
 def test_dogs_usdt_data():
-    """测试 DOGS/USDT 现货数据加载"""
+    """Test DOGS/USDT spot data loading.
 
-    # 加载环境变量
+    Returns:
+        bool: True if data loading successful, False otherwise.
+    """
+    # Load environment variables
     env_path = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_path)
 
     print("=" * 80)
-    print("DOGS/USDT 现货数据加载测试")
+    print("DOGS/USDT Spot Data Loading Test")
     print("=" * 80)
 
-    # 加载 OKX 配置
+    # Load OKX configuration
     try:
         config = load_ccxt_config_from_env('okx')
-        print("[OK] API配置加载成功")
+        print("[OK] API configuration loaded successfully")
     except ValueError as e:
-        print(f"[FAIL] API配置失败: {e}")
+        print(f"[FAIL] API configuration failed: {e}")
         return False
 
-    # 创建 Cerebro
+    # Create Cerebro
     cerebro = bt.Cerebro()
 
-    # 创建 store
+    # Create store
     store = CCXTStore(
         exchange='okx',
         currency='USDT',
@@ -48,8 +51,8 @@ def test_dogs_usdt_data():
         debug=False
     )
 
-    # 获取现货数据
-    print("\n正在加载 DOGS/USDT 现货数据...")
+    # Get spot data
+    print("\nLoading DOGS/USDT spot data...")
     data = store.getdata(
         dataname='DOGS/USDT',
         name='DOGS/USDT',
@@ -66,64 +69,70 @@ def test_dogs_usdt_data():
 
     cerebro.adddata(data)
 
-    # 创建简单的数据检查策略
+    # Create simple data check strategy
     class TestDataStrategy(bt.Strategy):
+        """Strategy to verify data reception and display OHLCV values."""
+
         def __init__(self):
+            """Initialize test strategy counters."""
             self.bar_count = 0
             self.data_start = None
 
         def start(self):
+            """Record data start time."""
             self.data_start = datetime.now()
-            print(f"数据开始时间: {self.data_start}")
+            print(f"Data start time: {self.data_start}")
 
         def next(self):
+            """Process each bar and print data periodically."""
             self.bar_count += 1
 
-            # 每10根打印一次
+            # Print every 10 bars
             if self.bar_count % 10 == 0:
-                print(f"已接收 {self.bar_count} 根K线")
+                print(f"Received {self.bar_count} bars")
 
-            # 显示前3根和每30根的详细信息
+            # Show detailed info for first 3 bars and every 30 bars
             if self.bar_count <= 3 or self.bar_count % 30 == 0:
                 print(f"\n--- Bar #{self.bar_count} ---")
-                print(f"时间: {self.data.datetime.datetime(0)}")
-                print(f"开盘: ${self.data.open[0]:.6f}")
-                print(f"最高: ${self.data.high[0]:.6f}")
-                print(f"最低: ${self.data.low[0]:.6f}")
-                print(f"收盘: ${self.data.close[0]:.6f}")
-                print(f"成交量: {self.data.volume[0]:.0f}")
+                print(f"Time: {self.data.datetime.datetime(0)}")
+                print(f"Open: ${self.data.open[0]:.6f}")
+                print(f"High: ${self.data.high[0]:.6f}")
+                print(f"Low: ${self.data.low[0]:.6f}")
+                print(f"Close: ${self.data.close[0]:.6f}")
+                print(f"Volume: {self.data.volume[0]:.0f}")
 
-            # 收集65根后停止
+            # Stop after collecting 65 bars
             if self.bar_count >= 65:
-                print(f"\n数据收集完成！共 {self.bar_count} 根K线")
+                print(f"\nData collection complete! Total {self.bar_count} bars")
                 elapsed = (datetime.now() - self.data_start).total_seconds()
-                print(f"耗时: {elapsed:.2f} 秒")
+                print(f"Elapsed time: {elapsed:.2f} seconds")
                 self.stop()
 
     cerebro.addstrategy(TestDataStrategy)
 
-    print("\n开始加载数据...")
+    print("\nStarting data load...")
     try:
         cerebro.run()
-        print("\n[OK] 数据加载测试完成！")
+        print("\n[OK] Data loading test complete!")
         return True
     except Exception as e:
-        print(f"\n[FAIL] 数据加载失败: {e}")
+        print(f"\n[FAIL] Data loading failed: {e}")
         import traceback
         traceback.print_exc()
         return False
 
 
 if __name__ == '__main__':
+    """Run the DOGS/USDT data loading test."""
     success = test_dogs_usdt_data()
     print("\n" + "=" * 80)
     if success:
-        print("[SUCCESS] 可以正常运行策略了！")
-        print("\n运行命令:")
+        print("[SUCCESS] Ready to run strategy!")
+        print("\nRun command:")
         print("python examples/backtrader_ccxt_okx_dogs_bollinger.py")
     else:
-        print("[ERROR] 数据加载失败，请检查：")
-        print("1. API 配置是否正确")
-        print("2. 网络连接是否正常")
-        print("3. DOGS/USDT 交易对是否可用")
+        print("[ERROR] Data loading failed, please check:")
+        print("1. API configuration is correct")
+        print("2. Network connection is working")
+        print("3. DOGS/USDT trading pair is available")
     print("=" * 80)

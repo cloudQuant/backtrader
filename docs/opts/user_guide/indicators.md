@@ -7,71 +7,92 @@
 ### 1. 趋势指标
 
 #### 移动平均线
+
 ```python
+
 # 简单移动平均线 (SMA)
+
 sma = bt.indicators.SimpleMovingAverage(period=20)
 
 # 指数移动平均线 (EMA)
+
 ema = bt.indicators.ExponentialMovingAverage(period=20)
 
 # 加权移动平均线 (WMA)
+
 wma = bt.indicators.WeightedMovingAverage(period=20)
 
 # 自适应移动平均线 (AMA)
+
 ama = bt.indicators.AdaptiveMovingAverage(period=20)
-```
+
+```bash
 
 #### 趋势跟踪
+
 ```python
+
 # MACD
+
 macd = bt.indicators.MACD(
     period_me1=12,    # 快线周期
     period_me2=26,    # 慢线周期
     period_signal=9   # 信号线周期
+
 )
 
 # 抛物线转向 (SAR)
+
 sar = bt.indicators.ParabolicSAR(
     period=2,
     af=0.02,
     afmax=0.2
 )
-```
+
+```bash
 
 ### 2. 震荡指标
 
 #### 相对强弱指数 (RSI)
+
 ```python
 rsi = bt.indicators.RSI(
     period=14,
     upperband=70,
     lowerband=30
 )
-```
+
+```bash
 
 #### 随机指标 (KD)
+
 ```python
 stoch = bt.indicators.Stochastic(
     period=14,
     period_dfast=3,
     period_dslow=3
 )
-```
+
+```bash
 
 ### 3. 波动率指标
 
 #### 布林带
+
 ```python
 bbands = bt.indicators.BollingerBands(
     period=20,
     devfactor=2.0
 )
-```
+
+```bash
 
 #### 平均真实波幅 (ATR)
+
 ```python
 atr = bt.indicators.ATR(period=14)
-```
+
+```bash
 
 ## 自定义指标
 
@@ -79,77 +100,90 @@ atr = bt.indicators.ATR(period=14)
 
 ```python
 class MyIndicator(bt.Indicator):
-    # 定义生成的线
+
+# 定义生成的线
     lines = ('myline',)
-    
-    # 定义参数
+
+# 定义参数
     params = (
         ('period', 20),
         ('factor', 2.0),
     )
-    
+
     def __init__(self):
-        # 初始化代码
+
+# 初始化代码
         super(MyIndicator, self).__init__()
-        
+
     def next(self):
-        # 计算逻辑
+
+# 计算逻辑
         self.lines.myline[0] = self.data[0]
-```
+
+```bash
 
 ### 2. 计算方法
 
 #### 使用 next() 方法
+
 ```python
 class SimpleIndicator(bt.Indicator):
     lines = ('result',)
     params = (('period', 20),)
-    
+
     def next(self):
         datasum = 0
         for i in range(self.p.period):
             datasum += self.data[-i]
         self.lines.result[0] = datasum / self.p.period
-```
+
+```bash
 
 #### 使用 once() 方法
+
 ```python
 class FastIndicator(bt.Indicator):
     lines = ('result',)
     params = (('period', 20),)
-    
+
     def once(self, start, end):
         for i in range(start, end):
             datasum = sum(self.data.get(size=self.p.period, ago=i))
             self.lines.result[i] = datasum / self.p.period
-```
+
+```bash
 
 ### 3. 指标优化
 
 #### 缓存计算结果
+
 ```python
 class CachedIndicator(bt.Indicator):
     lines = ('result',)
     params = (('period', 20),)
-    
+
     def __init__(self):
         super(CachedIndicator, self).__init__()
         self._cache = {}
-        
+
     def next(self):
         key = tuple(self.data.get(size=self.p.period))
         if key in self._cache:
             self.lines.result[0] = self._cache[key]
             return
-            
+
         result = self._calculate(key)
         self._cache[key] = result
         self.lines.result[0] = result
-```
+
+```bash
 
 #### 使用 Cython
+
 ```python
+
 # myindicator.pyx
+
 cdef class FastIndicator:
     cdef double calculate(self, double[:] data):
         cdef double sum = 0
@@ -157,7 +191,8 @@ cdef class FastIndicator:
         for i in range(len(data)):
             sum += data[i]
         return sum / len(data)
-```
+
+```bash
 
 ## 指标组合
 
@@ -166,11 +201,11 @@ cdef class FastIndicator:
 ```python
 class CombinedIndicator(bt.Indicator):
     lines = ('signal',)
-    
+
     def __init__(self):
         self.sma = bt.indicators.SMA(period=20)
         self.rsi = bt.indicators.RSI(period=14)
-        
+
     def next(self):
         if self.sma[0] > self.data[0] and self.rsi[0] < 30:
             self.lines.signal[0] = 1
@@ -178,7 +213,8 @@ class CombinedIndicator(bt.Indicator):
             self.lines.signal[0] = -1
         else:
             self.lines.signal[0] = 0
-```
+
+```bash
 
 ### 2. 指标继承
 
@@ -186,11 +222,12 @@ class CombinedIndicator(bt.Indicator):
 class EnhancedSMA(bt.indicators.SMA):
     lines = ('trigger',)
     params = (('trigger_level', 0),)
-    
+
     def __init__(self):
         super(EnhancedSMA, self).__init__()
         self.lines.trigger = self.lines.sma > self.p.trigger_level
-```
+
+```bash
 
 ## 指标绘图
 
@@ -209,20 +246,21 @@ class PlottableIndicator(bt.Indicator):
         line1=dict(color='red'),
         line2=dict(color='blue')
     )
-```
+
+```bash
 
 ### 2. 高级绘图
 
 ```python
 class AdvancedPlotIndicator(bt.Indicator):
     lines = ('upper', 'middle', 'lower')
-    
+
     plotinfo = dict(
         plot=True,
         subplot=False,
         plotlinelabels=True
     )
-    
+
     plotlines = dict(
         upper=dict(
             _name='Upper',
@@ -240,7 +278,8 @@ class AdvancedPlotIndicator(bt.Indicator):
             ls='--'
         )
     )
-```
+
+```bash
 
 ## 最佳实践
 
@@ -248,18 +287,21 @@ class AdvancedPlotIndicator(bt.Indicator):
 
 ```python
 class OptimizedIndicator(bt.Indicator):
-    # 使用 __slots__ 减少内存使用
+
+# 使用 __slots__ 减少内存使用
     __slots__ = ['_cache']
-    
-    # 预计算常用值
+
+# 预计算常用值
     def __init__(self):
         self._cache = {}
         self._precompute()
-        
+
     def _precompute(self):
-        # 预计算常用值
+
+# 预计算常用值
         pass
-```
+
+```bash
 
 ### 2. 错误处理
 
@@ -267,13 +309,15 @@ class OptimizedIndicator(bt.Indicator):
 class RobustIndicator(bt.Indicator):
     def next(self):
         try:
-            # 计算逻辑
+
+# 计算逻辑
             pass
         except ZeroDivisionError:
             self.lines.result[0] = float('nan')
         except Exception as e:
             self.error(f"指标计算错误: {e}")
-```
+
+```bash
 
 ### 3. 文档和测试
 
@@ -281,21 +325,25 @@ class RobustIndicator(bt.Indicator):
 class WellDocumentedIndicator(bt.Indicator):
     """
     指标描述
-    
+
     参数:
+
         - period (int): 计算周期
         - factor (float): 计算因子
-    
+
     线:
+
         - result: 计算结果
+
     """
-    
+
     def next(self):
         """
         计算当前值
         """
         pass
-```
+
+```bash
 
 ## 常见问题
 
@@ -304,12 +352,12 @@ class WellDocumentedIndicator(bt.Indicator):
    - 实现缓存机制
    - 使用 Cython 优化
 
-2. **内存使用高**
+1. **内存使用高**
    - 使用 __slots__
    - 清理缓存数据
    - 优化数据结构
 
-3. **绘图问题**
+1. **绘图问题**
    - 检查 plotinfo 设置
    - 验证数据有效性
    - 调整绘图参数

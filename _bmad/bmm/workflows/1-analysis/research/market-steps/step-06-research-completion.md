@@ -24,24 +24,24 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - comprehensive market analysis
-- **Research goals = "{{research_goals}}"** - achieved through exhaustive market research
+- **Research topic = "{{research_topic}}"**- comprehensive market analysis
+- **Research goals = "{{research_goals}}"**- achieved through exhaustive market research
 - All market research sections have been completed (customer behavior, pain points, decisions, competitive analysis)
 - Web search capabilities with source verification are enabled
 - This is the final synthesis step producing the complete market research document
 
 ## YOUR TASK:
 
-Produce a comprehensive, authoritative market research document on **{{research_topic}}** with compelling narrative introduction, detailed TOC, and executive summary based on exhaustive market research.
+Produce a comprehensive, authoritative market research document on**{{research_topic}}**with compelling narrative introduction, detailed TOC, and executive summary based on exhaustive market research.
 
 ## MARKET RESEARCH COMPLETION SEQUENCE:
 
 ### 1. Begin Strategic Synthesis
 
 Start with strategic synthesis approach:
-"Now I'll complete our market research with **strategic synthesis and recommendations** .
+"Now I'll complete our market research with**strategic synthesis and recommendations** .
 
-**Strategic Synthesis Focus:**
+- *Strategic Synthesis Focus:**
 
 - Integrated insights from market, customer, and competitive analysis
 - Strategic recommendations based on research findings
@@ -49,14 +49,14 @@ Start with strategic synthesis approach:
 - Risk assessment and mitigation approaches
 - Actionable next steps and implementation guidance
 
-**Let me search for current strategic insights and best practices.**"
+- *Let me search for current strategic insights and best practices.**"
 
 ### 2. Web Search for Market Entry Strategies
 
 Search for current market strategies:
 Search the web: "market entry strategies best practices"
 
-**Strategy focus:**
+- *Strategy focus:**
 
 - Market entry timing and approaches
 - Go-to-market strategies and frameworks
@@ -68,7 +68,7 @@ Search the web: "market entry strategies best practices"
 Search for current risk approaches:
 Search the web: "market research risk assessment frameworks"
 
-**Risk focus:**
+- *Risk focus:**
 
 - Market risks and uncertainty management
 - Competitive threats and mitigation strategies
@@ -82,6 +82,7 @@ Prepare comprehensive market research document with full structure:
 #### Complete Document Structure:
 
 ```markdown
+
 # [Compelling Title]: Comprehensive {{research_topic}} Market Research
 
 ## Executive Summary
@@ -106,7 +107,8 @@ Prepare comprehensive market research document with full structure:
 
 ### Market Research Significance
 
-**Compelling market narrative about why {{research_topic}} research is critical now**
+- *Compelling market narrative about why {{research_topic}} research is critical now**
+
 _Market Importance: [Strategic market significance with up-to-date context]_
 _Business Impact: [Business implications of market research]_
 _Source: [URL]_
@@ -123,9 +125,9 @@ _Source: [URL]_
 
 ### Market Research Goals and Objectives
 
-**Original Market Goals:** {{research_goals}}
+- *Original Market Goals:** {{research_goals}}
 
-**Achieved Market Objectives:**
+- *Achieved Market Objectives:**
 
 - [Market Goal 1 achievement with supporting evidence]
 - [Market Goal 2 achievement with supporting evidence]
@@ -325,7 +327,7 @@ _Market Research Reports: [Authoritative market research reports and publication
 _Industry Associations: [Key industry organizations and market resources]_
 _Market Analysis Tools: [Tools and resources for ongoing market analysis]_
 
----
+- --
 
 ## Market Research Conclusion
 
@@ -341,24 +343,25 @@ _Market Analysis Tools: [Tools and resources for ongoing market analysis]_
 
 [Specific next steps for leveraging this market research]
 
----
+- --
 
-**Market Research Completion Date:** {{date}}
-**Research Period:** current comprehensive market analysis
-**Document Length:** As needed for comprehensive market coverage
-**Source Verification:** All market facts cited with current sources
-**Market Confidence Level:** High - based on multiple authoritative market sources
+- *Market Research Completion Date:** {{date}}
+- *Research Period:** current comprehensive market analysis
+- *Document Length:** As needed for comprehensive market coverage
+- *Source Verification:** All market facts cited with current sources
+- *Market Confidence Level:** High - based on multiple authoritative market sources
 
 _This comprehensive market research document serves as an authoritative market reference on {{research_topic}} and provides strategic market insights for informed decision-making._
-```
+
+```bash
 
 ### 5. Present Complete Market Research Document and Final Option
 
-**Market Research Document Completion Presentation:**
+- *Market Research Document Completion Presentation:**
 
-"I've completed the **comprehensive market research document synthesis** for **{{research_topic}}**, producing an authoritative market research document with:
+"I've completed the **comprehensive market research document synthesis**for**{{research_topic}}**, producing an authoritative market research document with:
 
-**Document Features:**
+- *Document Features:**
 
 - **Compelling Market Introduction**: Engaging opening that establishes market research significance
 - **Comprehensive Market TOC**: Complete navigation structure for market reference
@@ -367,14 +370,14 @@ _This comprehensive market research document serves as an authoritative market r
 - **Strategic Market Recommendations**: Actionable market insights based on comprehensive research
 - **Complete Market Source Citations**: Every market claim verified with current sources
 
-**Market Research Completeness:**
+- *Market Research Completeness:**
 
 - Market analysis and dynamics fully documented
 - Customer insights and behavior analysis comprehensively covered
 - Competitive landscape and positioning detailed
 - Strategic market recommendations and implementation guidance provided
 
-**Document Standards Met:**
+- *Document Standards Met:**
 
 - Exhaustive market research with no critical gaps
 - Professional market structure and compelling narrative
@@ -382,7 +385,8 @@ _This comprehensive market research document serves as an authoritative market r
 - Multiple independent sources for all market claims
 - current market data throughout with proper citations
 
-**Ready to complete this comprehensive market research document?**
+- *Ready to complete this comprehensive market research document?**
+
 [C] Complete Research - Save final comprehensive market research document
 
 ### 6. Handle Complete Selection

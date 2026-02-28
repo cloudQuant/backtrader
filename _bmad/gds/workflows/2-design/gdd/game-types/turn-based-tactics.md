@@ -2,17 +2,19 @@
 
 <narrative-workflow-recommended>
 This game type is **narrative-moderate to heavy**. Consider running the Narrative Design workflow after completing the GDD to create:
+
 - Campaign story and mission briefings
 - Character backstories and development
 - Faction lore and motivations
 - Mission narratives
+
 </narrative-workflow-recommended>
 
 ### Grid System and Movement
 
 {{grid_movement}}
 
-**Spatial design:**
+- *Spatial design:**
 
 - Grid type (square, hex, free-form)
 - Movement range calculation
@@ -25,7 +27,7 @@ This game type is **narrative-moderate to heavy**. Consider running the Narrativ
 
 {{unit_classes}}
 
-**Unit design:**
+- *Unit design:**
 
 - Class roster (warrior, archer, mage, healer, etc.)
 - Class abilities and specializations
@@ -38,7 +40,7 @@ This game type is **narrative-moderate to heavy**. Consider running the Narrativ
 
 {{action_economy}}
 
-**Turn structure:**
+- *Turn structure:**
 
 - Action points system (fixed, variable, pooled)
 - Action types (move, attack, ability, item, wait)
@@ -51,7 +53,7 @@ This game type is **narrative-moderate to heavy**. Consider running the Narrativ
 
 {{positioning_tactics}}
 
-**Strategic depth:**
+- *Strategic depth:**
 
 - Flanking mechanics
 - High ground advantage
@@ -65,7 +67,7 @@ This game type is **narrative-moderate to heavy**. Consider running the Narrativ
 
 {{terrain_effects}}
 
-**Map design:**
+- *Map design:**
 
 - Terrain types (grass, water, lava, ice, etc.)
 - Terrain effects (defense bonus, movement penalty, damage)
@@ -78,7 +80,7 @@ This game type is **narrative-moderate to heavy**. Consider running the Narrativ
 
 {{campaign}}
 
-**Mission design:**
+- *Mission design:**
 
 - Campaign length and pacing
 - Mission variety (defeat all, survive, escort, capture, etc.)

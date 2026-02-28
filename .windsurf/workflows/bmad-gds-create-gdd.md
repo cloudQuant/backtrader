@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Creates a comprehensive Game Design Document through collaborative step-by-step discovery between game designer and user.'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # create-gdd
 

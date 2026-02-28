@@ -1,27 +1,33 @@
----
+- --
+
 name: 'step-07-patterns'
 description: 'Design implementation patterns and novel architectural patterns for consistency'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-07-patterns.md'
 nextStepFile: './step-08-validation.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Knowledge Bases
+
 patternCategories: '{workflow_path}/pattern-categories.csv'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 7: Implementation Patterns
 
-**Progress: Step 7 of 9** - Next: Validation
+- *Progress: Step 7 of 9**- Next: Validation
 
 ## STEP GOAL:
 
@@ -69,28 +75,29 @@ Define implementation patterns that ensure multiple AI agents write compatible, 
 
 "First, let's identify if your game needs any custom architectural patterns.
 
-**Novel patterns are needed when:**
+- *Novel patterns are needed when:**
 
 - Standard patterns don't fit your gameplay
 - You have unique mechanics not found in other games
 - Multiple systems interact in non-standard ways
 
-**From your GDD, I identified these potentially novel concepts:**
+- *From your GDD, I identified these potentially novel concepts:**
+
 {{list_of_unique_features}}
 
 Do any of these need custom architectural patterns?"
 
 ### 2. Design Novel Patterns (if needed)
 
-**For each novel pattern:**
+- *For each novel pattern:**
 
 "**Novel Pattern: {{pattern_name}}**
 
 Let's design this pattern together.
 
-**The challenge:** {{what_makes_this_unique}}
+- *The challenge:** {{what_makes_this_unique}}
 
-**Questions to answer:**
+- *Questions to answer:**
 
 1. What components are involved?
 2. How do they communicate?
@@ -100,34 +107,37 @@ Let's design this pattern together.
 
 Walk me through how you envision {{pattern_name}} working."
 
-**After user explains:**
+- *After user explains:**
 
 "Based on your description, here's the pattern design:
 
-**{{pattern_name}} Pattern**
+- *{{pattern_name}} Pattern**
 
-**Components:**
+- *Components:**
+
 {{component_list_with_responsibilities}}
 
-**Data Flow:**
+- *Data Flow:**
+
 {{sequence_or_diagram}}
 
-**State Management:**
+- *State Management:**
+
 {{state_approach}}
 
-**Example Usage:**
+- *Example Usage:**
 
 ```{{language}}
 {{code_example}}
-```
 
+```bash
 Does this capture your vision?"
 
 ### 3. Define Standard Implementation Patterns
 
 "Now let's define standard implementation patterns for consistency.
 
-**These patterns ensure all AI agents:**
+- *These patterns ensure all AI agents:**
 
 - Name things the same way
 - Structure code identically
@@ -141,11 +151,11 @@ Let's go through each category."
 
 How should game objects communicate?
 
-**Options:**
+- *Options:**
 
-- **Direct references** - Simple but coupled
-- **Event-based** - Decoupled but indirect
-- **Service locator** - Central registry
+- **Direct references**- Simple but coupled
+- **Event-based**- Decoupled but indirect
+- **Service locator**- Central registry
 - **Dependency injection** - Explicit dependencies
 
 For game systems, what's your preferred approach?"
@@ -156,11 +166,11 @@ For game systems, what's your preferred approach?"
 
 How should game entities (enemies, items, etc.) be created?
 
-**Options:**
+- *Options:**
 
-- **Factory pattern** - Centralized creation
-- **Prefab instantiation** - Engine-native
-- **Object pooling** - Performance-focused
+- **Factory pattern**- Centralized creation
+- **Prefab instantiation**- Engine-native
+- **Object pooling**- Performance-focused
 - **Builder pattern** - Complex configuration
 
 What's your entity creation approach?"
@@ -171,11 +181,11 @@ What's your entity creation approach?"
 
 How should entities handle state changes?
 
-**Options:**
+- *Options:**
 
-- **State machine** - Explicit states and transitions
-- **Behavior tree** - AI-focused hierarchy
-- **Blackboard** - Shared data approach
+- **State machine**- Explicit states and transitions
+- **Behavior tree**- AI-focused hierarchy
+- **Blackboard**- Shared data approach
 - **Flag-based** - Simple boolean states
 
 What state management pattern for entities?"
@@ -186,11 +196,11 @@ What state management pattern for entities?"
 
 How should systems access game data?
 
-**Options:**
+- *Options:**
 
-- **Direct file access** - Simple but scattered
-- **Data manager** - Centralized access
-- **Scriptable objects** - Engine-native (Unity)
+- **Direct file access**- Simple but scattered
+- **Data manager**- Centralized access
+- **Scriptable objects**- Engine-native (Unity)
 - **Resources/Autoload** - Engine-native (Godot)
 
 How should data be accessed?"
@@ -200,6 +210,7 @@ How should data be accessed?"
 Based on the conversation, prepare the content:
 
 ````markdown
+
 ## Implementation Patterns
 
 These patterns ensure consistent implementation across all AI agents.
@@ -210,73 +221,83 @@ These patterns ensure consistent implementation across all AI agents.
 
 #### {{novel_pattern_name}}
 
-**Purpose:** {{what_it_solves}}
+- *Purpose:** {{what_it_solves}}
 
-**Components:**
+- *Components:**
+
 {{component_list}}
 
-**Data Flow:**
+- *Data Flow:**
+
 {{flow_description}}
 
-**Implementation Guide:**
+- *Implementation Guide:**
 
 ```{{language}}
 {{implementation_example}}
-```
+
+```bash
+
 ````
 
-**Usage:**
+- *Usage:**
+
 {{when_to_use}}
 {{/if_novel_patterns}}
 
 ### Communication Patterns
 
-**Pattern:** {{communication_pattern}}
+- *Pattern:** {{communication_pattern}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{communication_example}}
-```
+
+```bash
 
 ### Entity Patterns
 
-**Creation:** {{creation_pattern}}
+- *Creation:** {{creation_pattern}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{creation_example}}
-```
+
+```bash
 
 ### State Patterns
 
-**Pattern:** {{state_pattern}}
+- *Pattern:** {{state_pattern}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{state_example}}
-```
+
+```bash
 
 ### Data Patterns
 
-**Access:** {{data_pattern}}
+- *Access:** {{data_pattern}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{data_example}}
-```
+
+```bash
 
 ### Consistency Rules
 
 | Pattern | Convention | Enforcement |
+
 | ------- | ---------- | ----------- |
 
 {{consistency_rules_table}}
 
-```
+```bash
 
 ### 9. Present Content and Menu
 
@@ -284,20 +305,21 @@ Show the generated content to the user and present:
 
 "I've documented all implementation patterns.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 8]
 
-**Patterns Defined:**
+- *Patterns Defined:**
 - {{count}} standard patterns
 - {{novel_count}} novel patterns
 
-**Validation Check:**
+- *Validation Check:**
 - Are examples clear enough for AI agents?
 - Do patterns cover all major coding scenarios?
 - Are novel patterns fully documented?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Explore alternative patterns
 [P] Party Mode - Get perspectives on patterns
 [C] Continue - Save this and move to Validation (Step 8 of 9)"
@@ -305,18 +327,21 @@ Show the generated content to the user and present:
 ### 10. Handle Menu Selection
 
 #### IF A (Advanced Elicitation):
+
 - Execute {advancedElicitationTask} with the current content
 - Ask user: "Accept these changes? (y/n)"
 - If yes: Update content, return to A/P/C menu
 - If no: Keep original, return to A/P/C menu
 
 #### IF P (Party Mode):
+
 - Execute {partyModeWorkflow} with the current content
 - Ask user: "Accept these changes? (y/n)"
 - If yes: Update content, return to A/P/C menu
 - If no: Keep original, return to A/P/C menu
 
 #### IF C (Continue):
+
 - Append the final content to `{outputFile}`
 - Update frontmatter: `stepsCompleted: [1, 2, 3, 4, 5, 6, 7]`
 - Load `{nextStepFile}`
@@ -325,7 +350,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [patterns content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -346,5 +371,6 @@ ONLY WHEN [C continue option] is selected and [patterns content saved with front
 - Not presenting A/P/C menu after patterns
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
-```
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+
+```bash

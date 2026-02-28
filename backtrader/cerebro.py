@@ -355,45 +355,25 @@ class Cerebro(ParameterizedBase):
     """
 
     # Parameter descriptors using new system
-    preload = ParameterDescriptor(
-        default=True, type_=bool, doc="Whether to preload the different data feeds"
-    )
+    preload = ParameterDescriptor(default=True, type_=bool, doc="Whether to preload the different data feeds")
     runonce = ParameterDescriptor(default=True, type_=bool, doc="Run Indicators in vectorized mode")
     maxcpus = ParameterDescriptor(default=None, doc="How many cores to use for optimization")
     stdstats = ParameterDescriptor(default=True, type_=bool, doc="Add default Observers")
-    oldbuysell = ParameterDescriptor(
-        default=False, type_=bool, doc="Use old BuySell observer behavior"
-    )
-    oldtrades = ParameterDescriptor(
-        default=False, type_=bool, doc="Use old Trades observer behavior"
-    )
+    oldbuysell = ParameterDescriptor(default=False, type_=bool, doc="Use old BuySell observer behavior")
+    oldtrades = ParameterDescriptor(default=False, type_=bool, doc="Use old Trades observer behavior")
     lookahead = ParameterDescriptor(default=0, type_=int, doc="Lookahead parameter")
     exactbars = ParameterDescriptor(default=False, doc="Memory usage control for lines objects")
-    optdatas = ParameterDescriptor(
-        default=True, type_=bool, doc="Optimize data preloading during optimization"
-    )
-    optreturn = ParameterDescriptor(
-        default=True, type_=bool, doc="Return simplified objects during optimization"
-    )
-    objcache = ParameterDescriptor(
-        default=False, type_=bool, doc="Cache lines objects to reduce memory"
-    )
+    optdatas = ParameterDescriptor(default=True, type_=bool, doc="Optimize data preloading during optimization")
+    optreturn = ParameterDescriptor(default=True, type_=bool, doc="Return simplified objects during optimization")
+    objcache = ParameterDescriptor(default=False, type_=bool, doc="Cache lines objects to reduce memory")
     live = ParameterDescriptor(default=False, type_=bool, doc="Run in live mode")
     writer = ParameterDescriptor(default=False, type_=bool, doc="Add a default WriterFile")
-    tradehistory = ParameterDescriptor(
-        default=False, type_=bool, doc="Activate trade history logging"
-    )
+    tradehistory = ParameterDescriptor(default=False, type_=bool, doc="Activate trade history logging")
     oldsync = ParameterDescriptor(default=False, type_=bool, doc="Use old synchronization behavior")
     tz = ParameterDescriptor(default=None, doc="Global timezone for strategies")
-    cheat_on_open = ParameterDescriptor(
-        default=False, type_=bool, doc="Enable cheat-on-open execution"
-    )
-    broker_coo = ParameterDescriptor(
-        default=True, type_=bool, doc="Auto-activate broker cheat-on-open"
-    )
-    quicknotify = ParameterDescriptor(
-        default=False, type_=bool, doc="Deliver broker notifications quickly"
-    )
+    cheat_on_open = ParameterDescriptor(default=False, type_=bool, doc="Enable cheat-on-open execution")
+    broker_coo = ParameterDescriptor(default=True, type_=bool, doc="Auto-activate broker cheat-on-open")
+    quicknotify = ParameterDescriptor(default=False, type_=bool, doc="Deliver broker notifications quickly")
 
     def __init__(self, **kwargs):
         """Initialize Cerebro with optional parameter overrides.
@@ -911,6 +891,120 @@ class Cerebro(ParameterizedBase):
         """
         pass
 
+    def dispatch_channel_event(self, event):
+        """Dispatch a channel event to all running strategies.
+
+        Routes tick, orderbook, funding, and bar events from the channel
+        system (StreamingEventQueue / LiveEventQueue) to the appropriate
+        ``notify_*`` callbacks on each strategy.
+
+        Args:
+            event: Event wrapper with ``.data`` and ``.channel_type`` attrs.
+        """
+        data = event.data
+        channel_type = event.channel_type
+
+        for strat in self.runningstrats:
+            strat._event_count += 1
+
+            if channel_type == "tick":
+                strat._tick_count += 1
+                strat._last_tick[getattr(data, "symbol", "")] = data
+                strat.notify_tick(data)
+            elif channel_type == "orderbook":
+                strat._last_ob[getattr(data, "symbol", "")] = data
+                strat.notify_orderbook(data)
+            elif channel_type == "funding":
+                strat._last_funding[getattr(data, "symbol", "")] = data
+                strat.notify_funding(data)
+            elif channel_type == "bar":
+                strat.notify_bar(data)
+
+    # ------------------------------------------------------------------
+    # Channel mode implementation (called from run(channel=...))
+    # ------------------------------------------------------------------
+    def _run_channel(self, channel, **kwargs):
+        """Internal: run strategies in channel event mode.
+
+        ``channel`` may be:
+        * An iterable of ``Event`` objects – events are processed in a
+          loop, dispatched to broker and strategies.
+        * ``True`` – strategies are instantiated and returned immediately
+          without entering an event loop (for external async drivers).
+        """
+        # Override params
+        pkeys = self.params._getkeys()
+        for key, val in kwargs.items():
+            if key in pkeys:
+                setattr(self.params, key, val)
+
+        # --- strategy instantiation (simplified, no bar-data required) ---
+        self._init_stcount()
+        self.runningstrats = runstrats = list()
+
+        # Start broker
+        self._broker.start()
+
+        # Instantiate each strategy class added via addstrategy()
+        iterstrats = itertools.product(*self.strats)
+        for iterstrat in iterstrats:
+            for stratcls, sargs, skwargs in iterstrat:
+                try:
+                    with OwnerContext.set_owner(self):
+                        if hasattr(stratcls, "_create_strategy_safely"):
+                            strat = stratcls._create_strategy_safely(*sargs, **skwargs)
+                        else:
+                            strat = stratcls(*sargs, **skwargs)
+                except Exception:
+                    continue
+                runstrats.append(strat)
+
+        # Call user's start() hook on each strategy
+        for strat in runstrats:
+            strat.start()
+
+        # If channel is just True, return strategies for external event loops
+        if channel is True:
+            self.runstrats = [runstrats]
+            return runstrats
+
+        # --- channel event loop ---
+        for event in channel:
+            if self._event_stop:
+                break
+
+            # 1. Let the broker process the raw event data
+            ch = event.channel_type
+            evdata = event.data
+            if ch == "tick" and hasattr(self._broker, "process_tick"):
+                self._broker.process_tick(evdata)
+            elif ch == "orderbook" and hasattr(self._broker, "process_orderbook"):
+                self._broker.process_orderbook(evdata)
+            elif ch == "bar" and hasattr(self._broker, "process_bar"):
+                self._broker.process_bar(evdata)
+
+            # 2. Deliver broker order-fill notifications to strategies
+            while True:
+                order = self._broker.get_notification()
+                if order is None:
+                    break
+                owner = order.owner
+                if owner is None and runstrats:
+                    owner = runstrats[0]
+                if owner is not None:
+                    owner.notify_order(order)
+
+            # 3. Dispatch channel event to strategies
+            self.dispatch_channel_event(event)
+
+        # --- teardown ---
+        for strat in runstrats:
+            strat.stop()
+
+        self._broker.stop()
+        self.runstrats = [runstrats]
+        return runstrats
+
     def adddata(self, data, name: str = None):
         """
         Adds a ``Data Feed`` instance to the mix.
@@ -1240,7 +1334,25 @@ class Cerebro(ParameterizedBase):
         will affect the value of the standard parameters ``Cerebro`` was
         instantiated with.
 
-        If `cerebro` has no data, the method will immediately bail out.
+        If `cerebro` has no data **and** no ``channel`` is given, the method
+        will immediately bail out.
+
+        Extra keyword arguments
+        -----------------------
+        channel : iterable or True, optional
+            When provided the engine runs in **channel mode** instead of the
+            traditional bar-based mode.
+
+            * *iterable* – an ``Event`` stream (``StreamingEventQueue``,
+              ``LiveEventQueue``, or any iterable yielding ``Event``
+              objects).  Events are dispatched to the broker and then to
+              every strategy via their ``notify_*`` callbacks.
+            * ``True`` – strategies are instantiated and returned
+              immediately **without** entering an event loop.  This is
+              useful when an external async loop drives the data (e.g.
+              ``ccxt.pro`` watchers calling ``strategy.notify_tick()``
+              directly).  Call ``cerebro.runstop()`` when done to tear
+              down brokers and strategies.
 
         It has different return values:
 
@@ -1251,6 +1363,12 @@ class Cerebro(ParameterizedBase):
             Strategy classes added with ``addstrategy``
         """
         self._event_stop = False  # Stop is requested
+
+        # --- channel mode ---------------------------------------------------
+        channel = kwargs.pop("channel", None)
+        if channel is not None:
+            return self._run_channel(channel, **kwargs)
+
         # If no data, return empty list immediately
         if not self.datas:
             return []  # nothing can be run
@@ -1591,9 +1709,7 @@ class Cerebro(ParameterizedBase):
                         if attrname.startswith("data"):
                             setattr(a, attrname, None)
 
-                oreturn = OptReturn(
-                    strat.params, analyzers=strat.analyzers, strategycls=type(strat)
-                )
+                oreturn = OptReturn(strat.params, analyzers=strat.analyzers, strategycls=type(strat))
                 results.append(oreturn)
 
             return results
@@ -1871,9 +1987,7 @@ class Cerebro(ParameterizedBase):
                     if onlyresample or noresample:
                         dt0 = min(d for d in dts if d is not None)
                     else:
-                        dt0 = min(
-                            (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
-                        )
+                        dt0 = min((d for i, d in enumerate(dts) if d is not None and i not in rsonly))
                     # TODO: dt0 < 1 is wrong, needs modification
                     if dt0 < 1:
                         return
@@ -2078,9 +2192,7 @@ class Cerebro(ParameterizedBase):
                                             # Also set _idx for all other lines in the data
                                             if hasattr(data.lines, "lines"):
                                                 for line in data.lines.lines:
-                                                    if hasattr(line, "_idx") and hasattr(
-                                                        line, "array"
-                                                    ):
+                                                    if hasattr(line, "_idx") and hasattr(line, "array"):
                                                         if i < len(line.array):
                                                             line._idx = i
                                             break
@@ -2142,9 +2254,7 @@ class Cerebro(ParameterizedBase):
         self.addanalyzer(analyzers.AnnualReturn, _name="annualreturn")
         self.addanalyzer(analyzers.TimeReturn, _name="timereturn", timeframe=TimeFrame.Days)
 
-    def generate_report(
-        self, output_path, format="html", template="default", user=None, memo=None, **kwargs
-    ):
+    def generate_report(self, output_path, format="html", template="default", user=None, memo=None, **kwargs):
         """Generate backtest report.
 
         Args:

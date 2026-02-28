@@ -12,23 +12,24 @@ Running the entire test suite on every commit wastes time and resources. Smart t
 
 ### Example 1: Tag-Based Execution with Priority Levels
 
-**Context**: Organize tests by risk priority and execution stage using grep/tag patterns.
+- *Context**: Organize tests by risk priority and execution stage using grep/tag patterns.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/checkout.spec.ts
 import { test, expect } from '@playwright/test';
 
 /**
- * Tag-based test organization
- * - @smoke: Critical path tests (run on every commit, < 5 min)
- * - @regression: Full test suite (run pre-merge, < 30 min)
- * - @p0: Critical business functions (payment, auth, data integrity)
- * - @p1: Core features (primary user journeys)
- * - @p2: Secondary features (supporting functionality)
- * - @p3: Nice-to-have (cosmetic, non-critical)
- */
+
+ - Tag-based test organization
+ - - @smoke: Critical path tests (run on every commit, < 5 min)
+ - - @regression: Full test suite (run pre-merge, < 30 min)
+ - - @p0: Critical business functions (payment, auth, data integrity)
+ - - @p1: Core features (primary user journeys)
+ - - @p2: Secondary features (supporting functionality)
+ - - @p3: Nice-to-have (cosmetic, non-critical)
+ - /
 
 test.describe('Checkout Flow', () => {
   // P0 + Smoke: Must run on every commit
@@ -72,9 +73,10 @@ test.describe('Checkout Flow', () => {
     expect(analyticsEvents).toBeDefined();
   });
 });
-```
 
-**package.json scripts**:
+```bash
+
+- *package.json scripts**:
 
 ```json
 {
@@ -83,15 +85,17 @@ test.describe('Checkout Flow', () => {
     "test:smoke": "playwright test --grep '@smoke'",
     "test:p0": "playwright test --grep '@p0'",
     "test:p0-p1": "playwright test --grep '@p0|@p1'",
+
     "test:regression": "playwright test --grep '@regression'",
     "test:nightly": "playwright test --grep '@nightly'",
     "test:not-slow": "playwright test --grep-invert '@slow'",
     "test:critical-smoke": "playwright test --grep '@smoke.*@p0'"
   }
 }
-```
 
-**Cypress equivalent**:
+```bash
+
+- *Cypress equivalent**:
 
 ```javascript
 // cypress/e2e/checkout.cy.ts
@@ -116,6 +120,7 @@ export default defineConfig({
   e2e: {
     env: {
       grepTags: process.env.GREP_TAGS || '',
+
       grepFilterSpecs: true,
     },
     setupNodeEvents(on, config) {
@@ -124,23 +129,31 @@ export default defineConfig({
     },
   },
 });
-```
-
-**Usage**:
 
 ```bash
+
+- *Usage**:
+
+```bash
+
 # Playwright
+
 npm run test:smoke                    # Run all @smoke tests
+
 npm run test:p0                       # Run all P0 tests
+
 npm run test -- --grep "@smoke.*@p0"  # Run tests with BOTH tags
 
 # Cypress (with @cypress/grep plugin)
+
 npx cypress run --env grepTags="@smoke"
 npx cypress run --env grepTags="@p0+@smoke"  # AND logic
-npx cypress run --env grepTags="@p0 @p1"     # OR logic
-```
 
-**Key Points**:
+npx cypress run --env grepTags="@p0 @p1"     # OR logic
+
+```bash
+
+- *Key Points**:
 
 - **Multiple tags per test**: Combine priority (@p0) with stage (@smoke)
 - **AND/OR logic**: Grep supports complex filtering
@@ -148,17 +161,20 @@ npx cypress run --env grepTags="@p0 @p1"     # OR logic
 - **Fast feedback**: @smoke runs < 5 min, full suite < 30 min
 - **CI integration**: Different jobs run different tag combinations
 
----
+- --
 
 ### Example 2: Spec Filter Pattern (File-Based Selection)
 
-**Context**: Run tests by file path pattern or directory for targeted execution.
+- *Context**: Run tests by file path pattern or directory for targeted execution.
 
-**Implementation**:
+- *Implementation**:
 
 ```bash
-#!/bin/bash
+
+# !/bin/bash
+
 # scripts/selective-spec-runner.sh
+
 # Run tests based on spec file patterns
 
 set -e
@@ -173,14 +189,17 @@ echo "Environment: $TEST_ENV"
 echo ""
 
 # Pattern examples and their use cases
+
 case "$PATTERN" in
   "**/checkout*")
     echo "📦 Running checkout-related tests"
     npx playwright test --grep-files="**/checkout*"
     ;;
   "**/auth*"|"**/login*"|"**/signup*")
+
     echo "🔐 Running authentication tests"
     npx playwright test --grep-files="**/auth*|**/login*|**/signup*"
+
     ;;
   "tests/e2e/**")
     echo "🌐 Running all E2E tests"
@@ -194,14 +213,17 @@ case "$PATTERN" in
     echo "🧩 Running all component tests"
     npx playwright test tests/component/
     ;;
-  *)
+
+  - )
+
     echo "🔍 Running tests matching pattern: $PATTERN"
     npx playwright test "$PATTERN"
     ;;
 esac
-```
 
-**Playwright config for file filtering**:
+```bash
+
+- *Playwright config for file filtering**:
 
 ```typescript
 // playwright.config.ts
@@ -234,16 +256,18 @@ export default defineConfig({
     },
   ],
 });
-```
 
-**Advanced pattern matching**:
+```bash
+
+- *Advanced pattern matching**:
 
 ```typescript
 // scripts/run-by-component.ts
 /**
- * Run tests related to specific component(s)
- * Usage: npm run test:component UserProfile,Settings
- */
+
+ - Run tests related to specific component(s)
+ - Usage: npm run test:component UserProfile,Settings
+ - /
 
 import { execSync } from 'child_process';
 
@@ -269,9 +293,10 @@ try {
 } catch (error) {
   process.exit(1);
 }
-```
 
-**package.json scripts**:
+```bash
+
+- *package.json scripts**:
 
 ```json
 {
@@ -285,9 +310,10 @@ try {
     "test:smoke-project": "playwright test --project smoke"
   }
 }
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Glob patterns**: Wildcards match file paths flexibly
 - **Project isolation**: Separate projects have different configs
@@ -295,17 +321,20 @@ try {
 - **Directory-based**: Organize tests by type (e2e, integration, component)
 - **CI optimization**: Run subsets in parallel CI jobs
 
----
+- --
 
 ### Example 3: Diff-Based Test Selection (Changed Files Only)
 
-**Context**: Run only tests affected by code changes for maximum speed.
+- *Context**: Run only tests affected by code changes for maximum speed.
 
-**Implementation**:
+- *Implementation**:
 
 ```bash
-#!/bin/bash
+
+# !/bin/bash
+
 # scripts/test-changed-files.sh
+
 # Intelligent test selection based on git diff
 
 set -e
@@ -320,84 +349,106 @@ echo "Environment: $TEST_ENV"
 echo ""
 
 # Get changed files
+
 CHANGED_FILES=$(git diff --name-only $BASE_BRANCH...HEAD)
 
-if [ -z "$CHANGED_FILES" ]; then
+if [-z "$CHANGED_FILES"]; then
   echo "✅ No files changed. Skipping tests."
   exit 0
 fi
 
 echo "Changed files:"
 echo "$CHANGED_FILES" | sed 's/^/  - /'
+
 echo ""
 
 # Arrays to collect test specs
+
 DIRECT_TEST_FILES=()
 RELATED_TEST_FILES=()
 RUN_ALL_TESTS=false
 
 # Process each changed file
+
 while IFS= read -r file; do
   case "$file" in
-    # Changed test files: run them directly
-    *.spec.ts|*.spec.js|*.test.ts|*.test.js|*.cy.ts|*.cy.js)
+
+# Changed test files: run them directly
+
+    - .spec.ts|*.spec.js|*.test.ts|*.test.js|*.cy.ts|*.cy.js)
+
       DIRECT_TEST_FILES+=("$file")
       ;;
 
-    # Critical config changes: run ALL tests
+# Critical config changes: run ALL tests
     package.json|package-lock.json|playwright.config.ts|cypress.config.ts|tsconfig.json|.github/workflows/*)
+
       echo "⚠️  Critical file changed: $file"
       RUN_ALL_TESTS=true
       break
       ;;
 
-    # Component changes: find related tests
+# Component changes: find related tests
     src/components/*.tsx|src/components/*.jsx)
+
       COMPONENT_NAME=$(basename "$file" | sed 's/\.[^.]*$//')
+
       echo "🧩 Component changed: $COMPONENT_NAME"
 
-      # Find tests matching component name
+# Find tests matching component name
       FOUND_TESTS=$(find tests -name "*${COMPONENT_NAME}*.spec.ts" -o -name "*${COMPONENT_NAME}*.cy.ts" 2>/dev/null || true)
-      if [ -n "$FOUND_TESTS" ]; then
+
+      if [-n "$FOUND_TESTS"]; then
         while IFS= read -r test_file; do
           RELATED_TEST_FILES+=("$test_file")
         done <<< "$FOUND_TESTS"
       fi
       ;;
 
-    # Utility/lib changes: run integration + unit tests
+# Utility/lib changes: run integration + unit tests
     src/utils/*|src/lib/*|src/helpers/*)
+
       echo "⚙️  Utility file changed: $file"
       RELATED_TEST_FILES+=($(find tests/unit tests/integration -name "*.spec.ts" 2>/dev/null || true))
+
       ;;
 
-    # API changes: run integration + e2e tests
+# API changes: run integration + e2e tests
     src/api/*|src/services/*|src/controllers/*)
+
       echo "🔌 API file changed: $file"
       RELATED_TEST_FILES+=($(find tests/integration tests/e2e -name "*.spec.ts" 2>/dev/null || true))
+
       ;;
 
-    # Type changes: run all TypeScript tests
-    *.d.ts|src/types/*)
+# Type changes: run all TypeScript tests
+
+    - .d.ts|src/types/*)
+
       echo "📝 Type definition changed: $file"
       RUN_ALL_TESTS=true
       break
       ;;
 
-    # Documentation only: skip tests
-    *.md|docs/*|README*)
+# Documentation only: skip tests
+
+    - .md|docs/*|README*)
+
       echo "📄 Documentation changed: $file (no tests needed)"
       ;;
 
-    *)
+    - )
+
       echo "❓ Unclassified change: $file (running smoke tests)"
       RELATED_TEST_FILES+=($(find tests -name "*smoke*.spec.ts" 2>/dev/null || true))
+
       ;;
   esac
 done <<< "$CHANGED_FILES"
 
 # Execute tests based on analysis
-if [ "$RUN_ALL_TESTS" = true ]; then
+
+if ["$RUN_ALL_TESTS" = true]; then
   echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo "🚨 Running FULL test suite (critical changes detected)"
@@ -407,6 +458,7 @@ if [ "$RUN_ALL_TESTS" = true ]; then
 fi
 
 # Combine and deduplicate test files
+
 ALL_TEST_FILES=(${DIRECT_TEST_FILES[@]} ${RELATED_TEST_FILES[@]})
 UNIQUE_TEST_FILES=($(echo "${ALL_TEST_FILES[@]}" | tr ' ' '\n' | sort -u))
 
@@ -428,12 +480,15 @@ done
 
 echo ""
 npm run test -- "${UNIQUE_TEST_FILES[@]}"
-```
 
-**GitHub Actions integration**:
+```bash
+
+- *GitHub Actions integration**:
 
 ```yaml
+
 # .github/workflows/test-changed.yml
+
 name: Test Changed Files
 on:
   pull_request:
@@ -443,33 +498,44 @@ jobs:
   detect-and-test:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
+
         with:
           fetch-depth: 0 # Full history for accurate diff
 
       - name: Get changed files
+
         id: changed-files
         uses: tj-actions/changed-files@v40
         with:
           files: |
+
             src/**
             tests/**
-            *.config.ts
+
+            - .config.ts
+
           files_ignore: |
-            **/*.md
+
+            - */*.md
+
             docs/**
 
       - name: Run tests for changed files
+
         if: steps.changed-files.outputs.any_changed == 'true'
         run: |
+
           echo "Changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
           bash scripts/test-changed-files.sh
         env:
           BASE_BRANCH: ${{ github.base_ref }}
           TEST_ENV: staging
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Intelligent mapping**: Code changes → related tests
 - **Critical file detection**: Config changes = full suite
@@ -477,20 +543,21 @@ jobs:
 - **Fast feedback**: Run only what's needed (< 2 min typical)
 - **Safety net**: Unrecognized changes run smoke tests
 
----
+- --
 
 ### Example 4: Promotion Rules (Pre-Commit → CI → Staging → Production)
 
-**Context**: Progressive test execution strategy across deployment stages.
+- *Context**: Progressive test execution strategy across deployment stages.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // scripts/test-promotion-strategy.ts
 /**
- * Test Promotion Strategy
- * Defines which tests run at each stage of the development lifecycle
- */
+
+ - Test Promotion Strategy
+ - Defines which tests run at each stage of the development lifecycle
+ - /
 
 export type TestStage = 'pre-commit' | 'ci-pr' | 'ci-merge' | 'staging' | 'production';
 
@@ -501,6 +568,7 @@ export type TestPromotion = {
   timebudget: string; // minutes
   required: boolean;
   failureAction: 'block' | 'warn' | 'alert';
+
 };
 
 export const TEST_PROMOTION_RULES: Record<TestStage, TestPromotion> = {
@@ -547,15 +615,19 @@ export const TEST_PROMOTION_RULES: Record<TestStage, TestPromotion> = {
 };
 
 /**
- * Get tests to run for a specific stage
- */
+
+ - Get tests to run for a specific stage
+ - /
+
 export function getTestsForStage(stage: TestStage): TestPromotion {
   return TEST_PROMOTION_RULES[stage];
 }
 
 /**
- * Validate if tests can be promoted to next stage
- */
+
+ - Validate if tests can be promoted to next stage
+ - /
+
 export function canPromote(currentStage: TestStage, testsPassed: boolean): boolean {
   const promotion = TEST_PROMOTION_RULES[currentStage];
 
@@ -565,20 +637,24 @@ export function canPromote(currentStage: TestStage, testsPassed: boolean): boole
 
   return testsPassed;
 }
-```
-
-**Husky pre-commit hook**:
 
 ```bash
-#!/bin/bash
+
+- *Husky pre-commit hook**:
+
+```bash
+
+# !/bin/bash
+
 # .husky/pre-commit
+
 # Run smoke tests before allowing commit
 
 echo "🔍 Running pre-commit tests..."
 
 npm run test:smoke
 
-if [ $? -ne 0 ]; then
+if [$? -ne 0]; then
   echo ""
   echo "❌ Pre-commit tests failed!"
   echo "Please fix failures before committing."
@@ -588,12 +664,15 @@ if [ $? -ne 0 ]; then
 fi
 
 echo "✅ Pre-commit tests passed"
-```
 
-**GitHub Actions workflow**:
+```bash
+
+- *GitHub Actions workflow**:
 
 ```yaml
+
 # .github/workflows/test-promotion.yml
+
 name: Test Promotion Strategy
 on:
   pull_request:
@@ -602,75 +681,94 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Stage 1: PR tests (changed + P0-P1)
+
+# Stage 1: PR tests (changed + P0-P1)
   pr-tests:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+
       - uses: actions/checkout@v4
       - name: Run PR-level tests
+
         run: |
+
           npm run test:changed
           npm run test:p0-p1
 
-  # Stage 2: Full regression (pre-merge)
+# Stage 2: Full regression (pre-merge)
   regression-tests:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
+
       - uses: actions/checkout@v4
       - name: Run full regression
+
         run: npm run test:regression
 
-  # Stage 3: Staging validation (post-deploy)
+# Stage 3: Staging validation (post-deploy)
   staging-smoke:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+
       - uses: actions/checkout@v4
       - name: Run staging smoke tests
+
         run: npm run test:e2e -- --grep "@smoke"
         env:
           TEST_ENV: staging
 
-  # Stage 4: Production smoke (post-deploy, non-blocking)
+# Stage 4: Production smoke (post-deploy, non-blocking)
   production-smoke:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     continue-on-error: true # Don't fail deployment if smoke tests fail
     steps:
+
       - uses: actions/checkout@v4
       - name: Run production smoke tests
+
         run: npm run test:e2e:prod -- --grep "@smoke.*@p0"
         env:
           TEST_ENV: production
 
       - name: Alert on failure
+
         if: failure()
         uses: 8398a7/action-slack@v3
         with:
           status: ${{ job.status }}
           text: '🚨 Production smoke tests failed!'
           webhook_url: ${{ secrets.SLACK_WEBHOOK }}
-```
 
-**Selection strategy documentation**:
+```bash
+
+- *Selection strategy documentation**:
 
 ````markdown
+
 # Test Selection Strategy
 
 ## Test Promotion Stages
 
 | Stage      | Tests Run           | Time Budget | Blocks Deploy | Failure Action |
+
 | ---------- | ------------------- | ----------- | ------------- | -------------- |
+
 | Pre-Commit | Smoke (@smoke)      | 2 min       | ✅ Yes        | Block commit   |
+
 | CI PR      | Changed + P0-P1     | 10 min      | ✅ Yes        | Block merge    |
+
 | CI Merge   | Full regression     | 30 min      | ✅ Yes        | Block deploy   |
+
 | Staging    | E2E smoke           | 15 min      | ✅ Yes        | Rollback       |
+
 | Production | Critical smoke only | 5 min       | ❌ No         | Alert team     |
 
 ## When Full Regression Runs
@@ -694,20 +792,23 @@ Skip tests (emergency only):
 
 ```bash
 git commit --no-verify  # Skip pre-commit hook
+
 gh pr merge --admin     # Force merge (requires admin)
-```
+
+```bash
+
 ````
 
-```
+```bash
 
-**Key Points**:
+- *Key Points**:
 - **Progressive validation**: More tests at each stage
 - **Time budgets**: Clear expectations per stage
 - **Blocking vs. alerting**: Production tests don't block deploy
 - **Documentation**: Team knows when full regression runs
 - **Emergency overrides**: Documented but discouraged
 
----
+- --
 
 ## Test Selection Strategy Checklist
 
@@ -729,4 +830,5 @@ Before implementing selective testing, verify:
 - Selection tools: Playwright --grep, Cypress @cypress/grep, git diff
 
 _Source: 32+ selective testing strategies blog, Murat testing philosophy, SEON CI optimization_
-```
+
+```bash

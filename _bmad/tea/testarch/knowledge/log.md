@@ -33,15 +33,16 @@ await log.success('Operation completed');
 await log.warning('Something to note');
 await log.error('Something went wrong');
 await log.debug('Debug information');
-```
+
+```bash
 
 ## Pattern Examples
 
 ### Example 1: Basic Logging Levels
 
-**Context**: Log different types of messages throughout test execution.
+- *Context**: Log different types of messages throughout test execution.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { log } from '@seontechnologies/playwright-utils';
@@ -67,9 +68,10 @@ test('logging demo', async ({ page }) => {
     throw error;
   }
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `step()` creates collapsible steps in Playwright UI
 - `info()`, `success()`, `warning()` for different message types
@@ -79,9 +81,9 @@ test('logging demo', async ({ page }) => {
 
 ### Example 2: Object and Array Logging
 
-**Context**: Log structured data for debugging without cluttering console.
+- *Context**: Log structured data for debugging without cluttering console.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 test('object logging', async ({ apiRequest }) => {
@@ -113,9 +115,10 @@ test('object logging', async ({ apiRequest }) => {
     },
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Objects auto-formatted as pretty JSON
 - Arrays handled gracefully
@@ -124,9 +127,9 @@ test('object logging', async ({ apiRequest }) => {
 
 ### Example 3: Test Step Organization
 
-**Context**: Organize test execution into collapsible steps for better readability in reports.
+- *Context**: Organize test execution into collapsible steps for better readability in reports.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 test('organized with steps', async ({ page, apiRequest }) => {
@@ -148,9 +151,10 @@ test('organized with steps', async ({ page, apiRequest }) => {
 
   // In Playwright UI, each step is collapsible
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `log.step()` creates collapsible sections
 - Organize by Arrange-Act-Assert
@@ -159,9 +163,9 @@ test('organized with steps', async ({ page, apiRequest }) => {
 
 ### Example 4: Test Step Decorators
 
-**Context**: Create collapsible test steps in Playwright UI using decorators.
+- *Context**: Create collapsible test steps in Playwright UI using decorators.
 
-**Page Object Methods with @methodTestStep:**
+- *Page Object Methods with @methodTestStep:**
 
 ```typescript
 import { methodTestStep } from '@seontechnologies/playwright-utils';
@@ -189,9 +193,10 @@ class TodoPage {
     return this.page.getByTestId('todo-title');
   }
 }
-```
 
-**Function Helpers with functionTestStep:**
+```bash
+
+- *Function Helpers with functionTestStep:**
 
 ```typescript
 import { functionTestStep } from '@seontechnologies/playwright-utils';
@@ -217,13 +222,14 @@ const checkNumberOfTodosInLocalStorage = functionTestStep('Check total todos cou
   await log.success(`Verified todo count: ${expected}`);
   return result;
 });
-```
+
+```bash
 
 ### Example 5: File Logging
 
-**Context**: Enable file logging for persistent logs.
+- *Context**: Enable file logging for persistent logs.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/fixtures.ts
@@ -250,13 +256,14 @@ export const test = base.extend({
     { auto: true },
   ],
 });
-```
+
+```bash
 
 ### Example 6: Integration with Auth and API
 
-**Context**: Log authenticated API requests with tokens (safely).
+- *Context**: Log authenticated API requests with tokens (safely).
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/fixtures';
@@ -264,6 +271,7 @@ import { test } from '@seontechnologies/playwright-utils/fixtures';
 // Helper to create safe token preview
 function createTokenPreview(token: string): string {
   if (!token || token.length < 10) return '[invalid]';
+
   return `${token.slice(0, 6)}...${token.slice(-4)}`;
 }
 
@@ -287,9 +295,10 @@ test('should log auth flow', async ({ authToken, apiRequest }) => {
 
   await log.success('Protected resource accessed successfully');
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Never log full tokens (security risk)
 - Use preview functions for sensitive data
@@ -298,7 +307,7 @@ test('should log auth flow', async ({ authToken, apiRequest }) => {
 
 ## Configuration
 
-**Defaults:** console logging enabled, file logging disabled.
+- *Defaults:** console logging enabled, file logging disabled.
 
 ```typescript
 // Enable file logging in config
@@ -316,20 +325,26 @@ await log.info('Message', {
   console: { enabled: false },
   fileLogging: { enabled: true },
 });
-```
+
+```bash
 
 ### Environment Variables
 
 ```bash
+
 # Disable all logging
+
 SILENT=true
 
 # Disable only file logging
+
 DISABLE_FILE_LOGS=true
 
 # Disable only console logging
+
 DISABLE_CONSOLE_LOGS=true
-```
+
+```bash
 
 ### Level Filtering
 
@@ -340,7 +355,8 @@ log.configure({
 
 // Available levels (in priority order):
 // debug < info < step < success < warning < error
-```
+
+```bash
 
 ### Sync Methods
 
@@ -351,27 +367,41 @@ For non-test contexts (global setup, utility functions):
 log.infoSync('Initializing configuration');
 log.successSync('Environment configured');
 log.errorSync('Setup failed');
-```
+
+```bash
 
 ## Log Levels Guide
 
 | Level     | When to Use                         | Shows in Report   | Shows in Console |
+
 | --------- | ----------------------------------- | ----------------- | ---------------- |
+
 | `step`    | Test organization, major actions    | Collapsible steps | Yes              |
+
 | `info`    | General information, state changes  | Yes               | Yes              |
+
 | `success` | Successful operations               | Yes               | Yes              |
+
 | `warning` | Non-critical issues, skipped checks | Yes               | Yes              |
+
 | `error`   | Failures, exceptions                | Yes               | Configurable     |
+
 | `debug`   | Detailed data, objects              | Yes (attached)    | Configurable     |
 
 ## Comparison with console.log
 
 | console.log             | log Utility               |
+
 | ----------------------- | ------------------------- |
+
 | Not in reports          | Appears in reports        |
+
 | No test steps           | Creates collapsible steps |
+
 | Manual JSON.stringify() | Auto-formats objects      |
+
 | No log levels           | 6 log levels              |
+
 | Lost in CI output       | Preserved in artifacts    |
 
 ## Related Fragments
@@ -383,44 +413,50 @@ log.errorSync('Setup failed');
 
 ## Anti-Patterns
 
-**DON'T log objects in steps:**
+- *DON'T log objects in steps:**
 
 ```typescript
 await log.step({ user: 'test', action: 'create' }); // Shows empty in UI
-```
 
-**DO use strings for steps, objects for debug:**
+```bash
+
+- *DO use strings for steps, objects for debug:**
 
 ```typescript
 await log.step('Creating user: test'); // Readable in UI
 await log.debug({ user: 'test', action: 'create' }); // Detailed data
-```
 
-**DON'T log sensitive data:**
+```bash
+
+- *DON'T log sensitive data:**
 
 ```typescript
 await log.info(`Password: ${password}`); // Security risk!
 await log.info(`Token: ${authToken}`); // Full token exposed!
-```
 
-**DO use previews or omit sensitive data:**
+```bash
+
+- *DO use previews or omit sensitive data:**
 
 ```typescript
 await log.info('User authenticated successfully'); // No sensitive data
 await log.debug({ tokenPreview: token.slice(0, 6) + '...' });
-```
 
-**DON'T log excessively in loops:**
+```bash
+
+- *DON'T log excessively in loops:**
 
 ```typescript
 for (const item of items) {
   await log.info(`Processing ${item.id}`); // 100 log entries!
 }
-```
 
-**DO log summary or use debug level:**
+```bash
+
+- *DO log summary or use debug level:**
 
 ```typescript
 await log.step(`Processing ${items.length} items`);
 await log.debug({ itemIds: items.map((i) => i.id) }); // One log entry
-```
+
+```bash

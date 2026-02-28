@@ -67,9 +67,7 @@ class AnalyzerTab(BokehTab):
             data = self._flatten_analysis(analysis)
 
             if data:
-                source = ColumnDataSource(
-                    data={"key": list(data.keys()), "value": [str(v) for v in data.values()]}
-                )
+                source = ColumnDataSource(data={"key": list(data.keys()), "value": [str(v) for v in data.values()]})
 
                 columns = [
                     TableColumn(field="key", title="Metric"),

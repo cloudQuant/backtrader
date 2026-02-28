@@ -11,11 +11,11 @@
 
 <action>Display explanation to user:
 
-**How Project Type Detection Works:**
+- *How Project Type Detection Works:**
 
 This workflow uses a single comprehensive CSV file to intelligently document your project:
 
-**documentation-requirements.csv** ({documentation_requirements_csv})
+- *documentation-requirements.csv**({documentation_requirements_csv})
 
 - Contains 12 project types (web, mobile, backend, cli, library, desktop, game, data, extension, infra, embedded)
 - 24-column schema combining project type detection AND documentation requirements
@@ -25,12 +25,13 @@ This workflow uses a single comprehensive CSV file to intelligently document you
 - Acts as a "scan guide" - tells the workflow WHERE to look and WHAT to document
 - Example: For project_type_id="web", key_file_patterns includes "package.json;tsconfig.json;\*.config.js" and requires_api_scan=true
 
-**When Documentation Requirements are Loaded:**
+- *When Documentation Requirements are Loaded:**
 
 - **Fresh Start (initial_scan)**: Load all 12 rows → detect type using key_file_patterns → use that row's requirements
 - **Resume**: Load ONLY the doc requirements row(s) for cached project_type_id(s)
 - **Full Rescan**: Same as fresh start (may re-detect project type)
 - **Deep Dive**: Load ONLY doc requirements for the part being deep-dived
+
   </action>
 
 <action>Now loading documentation requirements data for fresh start...</action>
@@ -53,9 +54,10 @@ This workflow uses a single comprehensive CSV file to intelligently document you
 
 What would you like to do?
 
-1. **Re-scan entire project** - Update all documentation with latest changes
-2. **Deep-dive into specific area** - Generate detailed documentation for a particular feature/module/folder
-3. **Cancel** - Keep existing documentation as-is
+1. **Re-scan entire project**- Update all documentation with latest changes
+
+2.**Deep-dive into specific area**- Generate detailed documentation for a particular feature/module/folder
+3.**Cancel** - Keep existing documentation as-is
 
 Your choice [1/2/3]:
 </ask>
@@ -88,21 +90,21 @@ Your choice [1/2/3]:
 <check if="workflow_mode == initial_scan OR workflow_mode == full_rescan">
   <ask>Choose your scan depth level:
 
-**1. Quick Scan** (2-5 minutes) [DEFAULT]
+- *1. Quick Scan** (2-5 minutes) [DEFAULT]
 
 - Pattern-based analysis without reading source files
 - Scans: Config files, package manifests, directory structure
 - Best for: Quick project overview, initial understanding
 - File reading: Minimal (configs, README, package.json, etc.)
 
-**2. Deep Scan** (10-30 minutes)
+- *2. Deep Scan** (10-30 minutes)
 
 - Reads files in critical directories based on project type
 - Scans: All critical paths from documentation requirements
 - Best for: Comprehensive documentation for brownfield PRD
 - File reading: Selective (key files in critical directories)
 
-**3. Exhaustive Scan** (30-120 minutes)
+- *3. Exhaustive Scan**(30-120 minutes)
 
 - Reads ALL source files in project
 - Scans: Every source file (excludes node_modules, dist, build)
@@ -157,6 +159,7 @@ Your choice [1/2/3] (default: 1):
 - Directory structure (presence of client/, server/, api/, src/, app/, etc.)
 - Key files (package.json, go.mod, requirements.txt, etc.)
 - Technology markers matching detection_keywords from project-types.csv
+
   </action>
 
 <action>Detect if project is:
@@ -164,6 +167,7 @@ Your choice [1/2/3] (default: 1):
 - **Monolith**: Single cohesive codebase
 - **Monorepo**: Multiple parts in one repository
 - **Multi-part**: Separate client/server or similar architecture
+
   </action>
 
 <check if="multiple distinct parts detected (e.g., client/ and server/ folders)">
@@ -209,6 +213,7 @@ Does this look correct? [y/n/edit]
 - This cached data prevents reloading all CSV files on resume - we can load just the needed documentation_requirements row(s)
 - Update last_updated timestamp
 - Write state file
+
   </action>
 
 <action>PURGE detailed scan results from memory, keep only summary: "{{repository_type}}, {{parts_count}} parts, {{primary_tech}}"</action>
@@ -216,12 +221,14 @@ Does this look correct? [y/n/edit]
 
 <step n="2" goal="Discover existing documentation and gather user context" if="workflow_mode != deep_dive">
 <action>For each part, scan for existing documentation using patterns:
+
 - README.md, README.rst, README.txt
 - CONTRIBUTING.md, CONTRIBUTING.rst
 - ARCHITECTURE.md, ARCHITECTURE.txt, docs/architecture/
 - DEPLOYMENT.md, DEPLOY.md, docs/deployment/
 - API.md, docs/api/
 - Any files in docs/, documentation/, .github/ folders
+
 </action>
 
 <action>Create inventory of existing_docs with:
@@ -229,6 +236,7 @@ Does this look correct? [y/n/edit]
 - File path
 - File type (readme, architecture, api, etc.)
 - Which part it belongs to (if multi-part)
+
   </action>
 
 <ask>I found these existing documentation files:
@@ -247,6 +255,7 @@ Are there any other important documents or key areas I should focus on while ana
 - Add to completed_steps: {"step": "step_2", "status": "completed", "timestamp": "{{now}}", "summary": "Found {{existing_docs_count}} existing docs"}
 - Update current_step = "step_3"
 - Update last_updated timestamp
+
   </action>
 
 <action>PURGE detailed doc contents from memory, keep only: "{{existing_docs_count}} docs found"</action>
@@ -254,11 +263,13 @@ Are there any other important documents or key areas I should focus on while ana
 
 <step n="3" goal="Analyze technology stack for each part" if="workflow_mode != deep_dive">
 <action>For each part in project_parts:
+
   - Load key_file_patterns from documentation_requirements
   - Scan part root for these patterns
   - Parse technology manifest files (package.json, go.mod, requirements.txt, etc.)
   - Extract: framework, language, version, database, dependencies
   - Build technology_table with columns: Category, Technology, Version, Justification
+
 </action>
 
 <action>Determine architecture pattern based on detected tech stack:
@@ -267,6 +278,7 @@ Are there any other important documents or key areas I should focus on while ana
 - Consider framework patterns (e.g., React → component hierarchy, Express → middleware pipeline)
 - Note architectural style in technology table
 - Store as {{architecture_pattern}} for each part
+
   </action>
 
 <template-output>technology_stack</template-output>
@@ -278,6 +290,7 @@ Are there any other important documents or key areas I should focus on while ana
 - Update current_step = "step_4"
 - Update findings.technology_stack with summary per part
 - Update last_updated timestamp
+
   </action>
 
 <action>PURGE detailed tech analysis from memory, keep only: "{{framework}} on {{language}}"</action>
@@ -371,6 +384,7 @@ findings.batches_completed: [
 <check if="requires_hardware_docs == true">
   <action>Look for hardware schematics using hardware_interface_patterns</action>
   <ask>This appears to be an embedded/hardware project. Do you have:
+
   - Pinout diagrams
   - Hardware schematics
   - PCB layouts
@@ -398,6 +412,7 @@ If yes, please provide paths or links. [Provide paths or type 'none']
 - async_event_patterns → Event-driven architecture
 - ci_cd_patterns → CI/CD pipeline details
 - localization_patterns → i18n/l10n support
+
   </action>
 
 <action>Apply scan_level strategy to each pattern scan (quick=glob only, deep/exhaustive=read files)</action>
@@ -410,6 +425,7 @@ If yes, please provide paths or links. [Provide paths or type 'none']
 - Update current_step = "step_5"
 - Update last_updated timestamp
 - List all outputs_generated
+
   </action>
 
 <action>PURGE all detailed scan results from context. Keep only summaries:
@@ -417,6 +433,7 @@ If yes, please provide paths or links. [Provide paths or type 'none']
 - "APIs: {{api_count}} endpoints"
 - "Data: {{table_count}} tables"
 - "Components: {{component_count}} components"
+
   </action>
   </step>
 
@@ -429,26 +446,34 @@ If yes, please provide paths or links. [Provide paths or type 'none']
 - Entry points marked
 - Key file locations highlighted
 - Integration points noted (for multi-part projects)
+
   </action>
 
 <action if="multi-part project">Show how parts are organized and where they interface</action>
 
 <action>Create formatted source tree with descriptions:
 
-```
+```bash
 project-root/
 ├── client/          # React frontend (Part: client)
+
 │   ├── src/
 │   │   ├── components/  # Reusable UI components
+
 │   │   ├── pages/       # Route-based pages
+
 │   │   └── api/         # API client layer → Calls server/
+
 ├── server/          # Express API backend (Part: api)
+
 │   ├── src/
 │   │   ├── routes/      # REST API endpoints
-│   │   ├── models/      # Database models
-│   │   └── services/    # Business logic
-```
 
+│   │   ├── models/      # Database models
+
+│   │   └── services/    # Business logic
+
+```bash
 </action>
 
 <template-output>source_tree_analysis</template-output>
@@ -461,18 +486,21 @@ project-root/
 - Add to completed_steps: {"step": "step_5", "status": "completed", "timestamp": "{{now}}", "summary": "Source tree documented"}
 - Update current_step = "step_6"
 - Add output: "source-tree-analysis.md"
+
   </action>
   <action>PURGE detailed tree from context, keep only: "Source tree with {{folder_count}} critical folders"</action>
   </step>
 
 <step n="6" goal="Extract development and operational information" if="workflow_mode != deep_dive">
 <action>Scan for development setup using key_file_patterns and existing docs:
+
 - Prerequisites (Node version, Python version, etc.)
 - Installation steps (npm install, etc.)
 - Environment setup (.env files, config)
 - Build commands (npm run build, make, etc.)
 - Run commands (npm start, go run, etc.)
 - Test commands using test_file_patterns
+
 </action>
 
 <action>Look for deployment configuration using ci_cd_patterns:
@@ -482,14 +510,17 @@ project-root/
 - CI/CD pipelines (.github/workflows/, .gitlab-ci.yml)
 - Deployment scripts
 - Infrastructure as Code (terraform/, pulumi/)
+
   </action>
 
 <action if="CONTRIBUTING.md or similar found">
   <action>Extract contribution guidelines:
+
     - Code style rules
     - PR process
     - Commit conventions
     - Testing requirements
+
   </action>
 </action>
 
@@ -502,15 +533,18 @@ project-root/
 - Add to completed_steps: {"step": "step_6", "status": "completed", "timestamp": "{{now}}", "summary": "Dev/deployment guides written"}
 - Update current_step = "step_7"
 - Add generated outputs to list
+
   </action>
   <action>PURGE detailed instructions, keep only: "Dev setup and deployment documented"</action>
   </step>
 
 <step n="7" goal="Detect multi-part integration architecture" if="workflow_mode != deep_dive and project has multiple parts">
 <action>Analyze how parts communicate:
+
 - Scan integration_scan_patterns across parts
 - Identify: REST calls, GraphQL queries, gRPC, message queues, shared databases
 - Document: API contracts between parts, data flow, authentication flow
+
 </action>
 
 <action>Create integration_points array with:
@@ -519,6 +553,7 @@ project-root/
 - to: target part
 - type: REST API, GraphQL, gRPC, Event Bus, etc.
 - details: Endpoints, protocols, data formats
+
   </action>
 
 <action>IMMEDIATELY write integration-architecture.md to disk</action>
@@ -530,32 +565,39 @@ project-root/
 
 - Add to completed_steps: {"step": "step_7", "status": "completed", "timestamp": "{{now}}", "summary": "Integration architecture documented"}
 - Update current_step = "step_8"
+
   </action>
   <action>PURGE integration details, keep only: "{{integration_count}} integration points"</action>
   </step>
 
 <step n="8" goal="Generate architecture documentation for each part" if="workflow_mode != deep_dive">
 <action>For each part in project_parts:
+
   - Use matched architecture template from Step 3 as base structure
   - Fill in all sections with discovered information:
-    * Executive Summary
-    * Technology Stack (from Step 3)
-    * Architecture Pattern (from registry match)
-    * Data Architecture (from Step 4 data models scan)
-    * API Design (from Step 4 API scan if applicable)
-    * Component Overview (from Step 4 component scan if applicable)
-    * Source Tree (from Step 5)
-    * Development Workflow (from Step 6)
-    * Deployment Architecture (from Step 6)
-    * Testing Strategy (from test patterns)
+    - Executive Summary
+    - Technology Stack (from Step 3)
+    - Architecture Pattern (from registry match)
+    - Data Architecture (from Step 4 data models scan)
+    - API Design (from Step 4 API scan if applicable)
+    - Component Overview (from Step 4 component scan if applicable)
+    - Source Tree (from Step 5)
+    - Development Workflow (from Step 6)
+    - Deployment Architecture (from Step 6)
+    - Testing Strategy (from test patterns)
+
 </action>
 
 <action if="single part project">
+
   - Generate: architecture.md (no part suffix)
+
 </action>
 
 <action if="multi-part project">
+
   - Generate: architecture-{part_id}.md for each part
+
 </action>
 
 <action>For each architecture file generated:
@@ -564,6 +606,7 @@ project-root/
 - Validate against architecture template schema
 - Update state file with output
 - PURGE detailed architecture from context, keep only: "Architecture for {{part_id}} written"
+
   </action>
 
 <template-output>architecture_document</template-output>
@@ -572,17 +615,20 @@ project-root/
 
 - Add to completed_steps: {"step": "step_8", "status": "completed", "timestamp": "{{now}}", "summary": "Architecture docs written for {{parts_count}} parts"}
 - Update current_step = "step_9"
+
   </action>
   </step>
 
 <step n="9" goal="Generate supporting documentation files" if="workflow_mode != deep_dive">
 <action>Generate project-overview.md with:
+
 - Project name and purpose (from README or user input)
 - Executive summary
 - Tech stack summary table
 - Architecture type classification
 - Repository structure (monolith/monorepo/multi-part)
 - Links to detailed docs
+
 </action>
 
 <action>Generate source-tree-analysis.md with:
@@ -591,6 +637,7 @@ project-root/
 - Critical folders explained
 - Entry points documented
 - Multi-part structure (if applicable)
+
   </action>
 
 <action>IMMEDIATELY write project-overview.md to disk</action>
@@ -605,6 +652,7 @@ project-root/
 - Categorized by type
 - Reusable vs specific components
 - Design system elements (if found)
+
   </action>
   <action>IMMEDIATELY write each component inventory to disk and validate</action>
 
@@ -616,55 +664,66 @@ project-root/
 - Build process
 - Testing approach and commands
 - Common development tasks
+
   </action>
   <action>IMMEDIATELY write each development guide to disk and validate</action>
 
 <action if="deployment configuration found">
   <action>Generate deployment-guide.md with:
+
     - Infrastructure requirements
     - Deployment process
     - Environment configuration
     - CI/CD pipeline details
+
   </action>
   <action>IMMEDIATELY write to disk and validate</action>
 </action>
 
 <action if="contribution guidelines found">
   <action>Generate contribution-guide.md with:
+
     - Code style and conventions
     - PR process
     - Testing requirements
     - Documentation standards
+
   </action>
   <action>IMMEDIATELY write to disk and validate</action>
 </action>
 
 <action if="API contracts documented">
   <action>Generate api-contracts.md (or per-part) with:
+
     - All API endpoints
     - Request/response schemas
     - Authentication requirements
     - Example requests
+
   </action>
   <action>IMMEDIATELY write to disk and validate</action>
 </action>
 
 <action if="Data models documented">
   <action>Generate data-models.md (or per-part) with:
+
     - Database schema
     - Table relationships
     - Data models and entities
     - Migration strategy
+
   </action>
   <action>IMMEDIATELY write to disk and validate</action>
 </action>
 
 <action if="multi-part project">
   <action>Generate integration-architecture.md with:
+
     - How parts communicate
     - Integration points diagram/description
     - Data flow between parts
     - Shared dependencies
+
   </action>
   <action>IMMEDIATELY write to disk and validate</action>
 
@@ -672,8 +731,8 @@ project-root/
 `json
     {
       "repository_type": "monorepo",
-      "parts": [ ... ],
-      "integration_points": [ ... ]
+      "parts": [...],
+      "integration_points": [...]
     }
     `
 </action>
@@ -687,6 +746,7 @@ project-root/
 - Add to completed_steps: {"step": "step_9", "status": "completed", "timestamp": "{{now}}", "summary": "All supporting docs written"}
 - Update current_step = "step_10"
 - List all newly generated outputs
+
   </action>
 
 <action>PURGE all document contents from context, keep only list of files generated</action>
@@ -702,28 +762,33 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 - Example: - [API Contracts - Server](./api-contracts-server.md) _(To be generated)_
 - This allows Step 11 to detect and offer to complete these items
 - ALWAYS use this exact format for consistency and automated detection
+
   </critical>
 
 <action>Create index.md with intelligent navigation based on project structure</action>
 
 <action if="single part project">
   <action>Generate simple index with:
+
     - Project name and type
     - Quick reference (tech stack, architecture type)
     - Links to all generated docs
     - Links to discovered existing docs
     - Getting started section
+
   </action>
 </action>
 
 <action if="multi-part project">
   <action>Generate comprehensive index with:
+
     - Project overview and structure summary
     - Part-based navigation section
     - Quick reference by part
     - Cross-part integration links
     - Links to all generated and existing docs
     - Getting started per part
+
   </action>
 </action>
 
@@ -733,25 +798,27 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 
 ### Project Overview
 
-- **Type:** {{repository_type}} {{#if multi-part}}with {{parts.length}} parts{{/if}}
-- **Primary Language:** {{primary_language}}
-- **Architecture:** {{architecture_type}}
+- **Type:**{{repository_type}} {{#if multi-part}}with {{parts.length}} parts{{/if}}
+- **Primary Language:**{{primary_language}}
+- **Architecture:**{{architecture_type}}
 
 ### Quick Reference
 
 {{#if single_part}}
 
-- **Tech Stack:** {{tech_stack_summary}}
-- **Entry Point:** {{entry_point}}
-- **Architecture Pattern:** {{architecture_pattern}}
+- **Tech Stack:**{{tech_stack_summary}}
+- **Entry Point:**{{entry_point}}
+- **Architecture Pattern:**{{architecture_pattern}}
+
   {{else}}
   {{#each parts}}
 
 #### {{part_name}} ({{part_id}})
 
-- **Type:** {{project_type}}
-- **Tech Stack:** {{tech_stack}}
+- **Type:**{{project_type}}
+- **Tech Stack:**{{tech_stack}}
 - **Root:** {{root_path}}
+
   {{/each}}
   {{/if}}
 
@@ -762,6 +829,7 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 - [Source Tree Analysis](./source-tree-analysis.md)
 - [Component Inventory](./component-inventory{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless component_inventory_exists}} (To be generated) {{/unless}}
 - [Development Guide](./development-guide{{#if multi-part}}-{part\*id}{{/if}}.md){{#unless dev_guide_exists}} (To be generated) {{/unless}}
+
   {{#if deployment_found}}- [Deployment Guide](./deployment-guide.md){{#unless deployment_guide_exists}} (To be generated) {{/unless}}{{/if}}
   {{#if contribution_found}}- [Contribution Guide](./contribution-guide.md){{/if}}
   {{#if api_documented}}- [API Contracts](./api-contracts{{#if multi-part}}-{part_id}{{/if}}.md){{#unless api_contracts_exists}} (To be generated) {{/unless}}{{/if}}
@@ -773,6 +841,7 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 {{#each existing_docs}}
 
 - [{{title}}]({{relative_path}}) - {{description}}
+
   {{/each}}
 
 ### Getting Started
@@ -786,6 +855,7 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 - Set existence flags: architecture_file_exists, component_inventory_exists, dev_guide_exists, etc.
 - These flags determine whether to add the _(To be generated)_ marker
 - Track which files are missing in {{missing_docs_list}} for reporting
+
   </action>
 
 <action>IMMEDIATELY write index.md to disk with appropriate _(To be generated)_ markers for missing files</action>
@@ -798,6 +868,7 @@ When a document SHOULD be generated but wasn't (due to quick scan, missing data,
 - Add to completed_steps: {"step": "step_10", "status": "completed", "timestamp": "{{now}}", "summary": "Master index generated"}
 - Update current_step = "step_11"
 - Add output: "index.md"
+
   </action>
 
 <action>PURGE index content from context</action>
@@ -820,7 +891,8 @@ Generated in {{output_folder}}/:
    - _(Coming soon)_
    - _(Not yet generated)_
    - _(Pending)_
-3. Extract document metadata from each match for user selection
+1. Extract document metadata from each match for user selection
+
    </critical>
 
 <action>Read {output_folder}/index.md</action>
@@ -834,6 +906,7 @@ Step 3: Parse line to extract:
 - File path (from markdown link or inferable from title)
 - Document type (infer from filename: architecture, api-contracts, data-models, component-inventory, development-guide, deployment-guide, integration-architecture)
 - Part ID if applicable (extract from filename like "architecture-server.md" → part_id: "server")
+
   Step 4: Add to {{incomplete_docs_strict}} array
   </action>
 
@@ -843,6 +916,7 @@ For each fuzzy match:
 
 - Extract same metadata as strict scan
 - Add to {{incomplete_docs_fuzzy}} array with fuzzy_match flag
+
   </action>
 
 <action>Combine results:
@@ -873,7 +947,7 @@ Summary:
 I found {{incomplete_docs_list.length}} item(s) marked as incomplete:
 
 {{#each incomplete_docs_list}}
-{{@index + 1}}. **{{title}}** ({{doc_type}}{{#if part_id}} for {{part_id}}{{/if}}){{#if fuzzy_match}} ⚠️ [non-standard marker]{{/if}}
+{{@index + 1}}. **{{title}}**({{doc_type}}{{#if part_id}} for {{part_id}}{{/if}}){{#if fuzzy_match}} ⚠️ [non-standard marker]{{/if}}
 {{/each}}
 
 {{/if}}
@@ -882,16 +956,20 @@ Would you like to:
 
 {{#if incomplete_docs_list.length > 0}}
 
-1. **Generate incomplete documentation** - Complete any of the {{incomplete_docs_list.length}} items above
-2. Review any specific section [type section name]
-3. Add more detail to any area [type area name]
-4. Generate additional custom documentation [describe what]
-5. Finalize and complete [type 'done']
+1.**Generate incomplete documentation**- Complete any of the {{incomplete_docs_list.length}} items above
+
+1. Review any specific section [type section name]
+2. Add more detail to any area [type area name]
+3. Generate additional custom documentation [describe what]
+4. Finalize and complete [type 'done']
+
    {{else}}
-6. Review any specific section [type section name]
-7. Add more detail to any area [type area name]
-8. Generate additional documentation [describe what]
-9. Finalize and complete [type 'done']
+
+1. Review any specific section [type section name]
+2. Add more detail to any area [type area name]
+3. Generate additional documentation [describe what]
+4. Finalize and complete [type 'done']
+
    {{/if}}
 
 Your choice:
@@ -913,20 +991,22 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 - If "all", set {{selected_items}} = all items in {{incomplete_docs_list}}
 - If comma-separated numbers, extract selected items by index
 - Store result in {{selected_items}} array
+
   </action>
 
   <action>Display: "Generating {{selected_items.length}} document(s)..."</action>
 
   <action>For each item in {{selected_items}}:
 
-1. **Identify the part and requirements:**
+1.**Identify the part and requirements:**
+
    - Extract part_id from item (if exists)
    - Look up part data in project_parts array from state file
    - Load documentation_requirements for that part's project_type_id
 
-2. **Route to appropriate generation substep based on doc_type:**
+1. **Route to appropriate generation substep based on doc_type:**
 
-   **If doc_type == "architecture":**
+   - *If doc_type == "architecture":**
    - Display: "Generating architecture documentation for {{part_id}}..."
    - Load architecture_match for this part from state file (Step 3 cache)
    - Re-run Step 8 architecture generation logic ONLY for this specific part
@@ -934,7 +1014,7 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
    - Write architecture-{{part_id}}.md to disk
    - Validate completeness
 
-   **If doc_type == "api-contracts":**
+   - *If doc_type == "api-contracts":**
    - Display: "Generating API contracts for {{part_id}}..."
    - Load part data and documentation_requirements
    - Re-run Step 4 API scan substep targeting ONLY this part
@@ -942,62 +1022,64 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
    - Generate api-contracts-{{part_id}}.md
    - Validate document structure
 
-   **If doc_type == "data-models":**
+   - *If doc_type == "data-models":**
    - Display: "Generating data models documentation for {{part_id}}..."
    - Re-run Step 4 data models scan substep targeting ONLY this part
    - Use schema_migration_patterns from documentation_requirements
    - Generate data-models-{{part_id}}.md
    - Validate completeness
 
-   **If doc_type == "component-inventory":**
+   - *If doc_type == "component-inventory":**
    - Display: "Generating component inventory for {{part_id}}..."
    - Re-run Step 9 component inventory generation for this specific part
    - Scan components/, ui/, widgets/ folders
    - Generate component-inventory-{{part_id}}.md
    - Validate structure
 
-   **If doc_type == "development-guide":**
+   - *If doc_type == "development-guide":**
    - Display: "Generating development guide for {{part_id}}..."
    - Re-run Step 9 development guide generation for this specific part
    - Use key_file_patterns and test_file_patterns from documentation_requirements
    - Generate development-guide-{{part_id}}.md
    - Validate completeness
 
-   **If doc_type == "deployment-guide":**
+   - *If doc_type == "deployment-guide":**
    - Display: "Generating deployment guide..."
    - Re-run Step 6 deployment configuration scan
    - Re-run Step 9 deployment guide generation
    - Generate deployment-guide.md
    - Validate structure
 
-   **If doc_type == "integration-architecture":**
+   - *If doc_type == "integration-architecture":**
    - Display: "Generating integration architecture..."
    - Re-run Step 7 integration analysis for all parts
    - Generate integration-architecture.md
    - Validate completeness
 
-3. **Post-generation actions:**
+1. **Post-generation actions:**
    - Confirm file was written successfully
    - Update state file with newly generated output
    - Add to {{newly_generated_docs}} tracking list
    - Display: "✓ Generated: {{file_path}}"
 
-4. **Handle errors:**
+1. **Handle errors:**
    - If generation fails, log error and continue with next item
    - Track failed items in {{failed_generations}} list
+
      </action>
 
 <action>After all selected items are processed:
 
-**Update index.md to remove markers:**
+- *Update index.md to remove markers:**
 
 1. Read current index.md content
 2. For each item in {{newly_generated_docs}}:
    - Find the line containing the file link and marker
    - Remove the _(To be generated)_ or fuzzy marker text
    - Leave the markdown link intact
-3. Write updated index.md back to disk
-4. Update state file to record index.md modification
+1. Write updated index.md back to disk
+2. Update state file to record index.md modification
+
    </action>
 
 <action>Display generation summary:
@@ -1006,21 +1088,26 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 
 ✓ **Documentation Generation Complete!**
 
-**Successfully Generated:**
+- *Successfully Generated:**
+
 {{#each newly_generated_docs}}
 
 - {{title}} → {{file_path}}
+
   {{/each}}
 
 {{#if failed_generations.length > 0}}
-**Failed to Generate:**
+
+- *Failed to Generate:**
+
 {{#each failed_generations}}
 
 - {{title}} ({{error_message}})
+
   {{/each}}
   {{/if}}
 
-**Updated:** index.md (removed incomplete markers)
+- *Updated:** index.md (removed incomplete markers)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 </action>
@@ -1035,17 +1122,21 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 
 <check if="not finalizing">
   <action>Update state file:
+
 - Add to completed_steps: {"step": "step_11_iteration", "status": "completed", "timestamp": "{{now}}", "summary": "Review iteration complete"}
 - Keep current_step = "step_11" (for loop back)
 - Update last_updated timestamp
+
   </action>
   <action>Loop back to beginning of Step 11 (re-scan for remaining incomplete docs)</action>
 </check>
 
 <check if="finalizing">
   <action>Update state file:
+
 - Add to completed_steps: {"step": "step_11", "status": "completed", "timestamp": "{{now}}", "summary": "Validation and review complete"}
 - Update current_step = "step_12"
+
   </action>
   <action>Proceed to Step 12</action>
 </check>
@@ -1054,9 +1145,11 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 <step n="12" goal="Finalize and provide next steps" if="workflow_mode != deep_dive">
 <action>Create final summary report</action>
 <action>Compile verification recap variables:
+
   - Set {{verification_summary}} to the concrete tests, validations, or scripts you executed (or "none run").
   - Set {{open_risks}} to any remaining risks or TODO follow-ups (or "none").
   - Set {{next_checks}} to recommended actions before merging/deploying (or "none").
+
 </action>
 
 <action>Display completion message:
@@ -1065,15 +1158,17 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 
 ## Project Documentation Complete! ✓
 
-**Location:** {{output_folder}}/
+- *Location:** {{output_folder}}/
 
-**Master Index:** {{output_folder}}/index.md
+- *Master Index:** {{output_folder}}/index.md
+
 👆 This is your primary entry point for AI-assisted development
 
-**Generated Documentation:**
+- *Generated Documentation:**
+
 {{generated_files_list}}
 
-**Next Steps:**
+- *Next Steps:**
 
 1. Review the index.md to familiarize yourself with the documentation structure
 2. When creating a brownfield PRD, point the PRD workflow to: {{output_folder}}/index.md
@@ -1081,13 +1176,14 @@ Enter number(s) separated by commas (e.g., "1,3,5"), or type 'all':
 4. For API-only features: Reference {{output_folder}}/architecture-{{api_part_id}}.md
 5. For full-stack features: Reference both part architectures + integration-architecture.md
 
-**Verification Recap:**
+- *Verification Recap:**
 
 - Tests/extractions executed: {{verification_summary}}
 - Outstanding risks or follow-ups: {{open_risks}}
 - Recommended next checks before PR: {{next_checks}}
 
-**Brownfield PRD Command:**
+- *Brownfield PRD Command:**
+
 When ready to plan new features, run the PRD workflow and provide this index as input.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -1099,6 +1195,7 @@ When ready to plan new features, run the PRD workflow and provide this index as 
 - Update timestamps.completed = "{{now}}"
 - Update current_step = "completed"
 - Write final state file
+
   </action>
 
 <action>Display: "State file saved: {{output_folder}}/project-scan-report.json"</action>

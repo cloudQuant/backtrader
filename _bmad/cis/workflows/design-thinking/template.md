@@ -1,16 +1,16 @@
 # Design Thinking Session: {{project_name}}
 
-**Date:** {{date}}
-**Facilitator:** {{user_name}}
-**Design Challenge:** {{design_challenge}}
+- *Date:** {{date}}
+- *Facilitator:** {{user_name}}
+- *Design Challenge:** {{design_challenge}}
 
----
+- --
 
 ## 🎯 Design Challenge
 
 {{challenge_statement}}
 
----
+- --
 
 ## 👥 EMPATHIZE: Understanding Users
 
@@ -26,7 +26,7 @@
 
 {{empathy_map}}
 
----
+- --
 
 ## 🎨 DEFINE: Frame the Problem
 
@@ -42,7 +42,7 @@
 
 {{problem_insights}}
 
----
+- --
 
 ## 💡 IDEATE: Generate Solutions
 
@@ -58,7 +58,7 @@
 
 {{top_concepts}}
 
----
+- --
 
 ## 🛠️ PROTOTYPE: Make Ideas Tangible
 
@@ -74,7 +74,7 @@
 
 {{features_to_test}}
 
----
+- --
 
 ## ✅ TEST: Validate with Users
 
@@ -90,7 +90,7 @@
 
 {{key_learnings}}
 
----
+- --
 
 ## 🚀 Next Steps
 
@@ -106,6 +106,6 @@
 
 {{success_metrics}}
 
----
+- --
 
 _Generated using BMAD Creative Intelligence Suite - Design Thinking Workflow_

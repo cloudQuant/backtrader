@@ -1,27 +1,31 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""OKX 配置检查工具.
+"""OKX Configuration Check Tool.
 
-这个脚本会检查：
-1. API 密钥配置是否正确
-2. 账户余额是否充足
-3. DOGS/USDT 合约是否可用
-4. 最小交易金额要求
-5. 模拟下单测试
+This script checks:
+1. API key configuration
+2. Account balance sufficiency
+3. DOGS/USDT contract availability
+4. Minimum trading amount requirements
+5. Simulated order placement test
 """
 
 import sys
 from pathlib import Path
 import ccxt
 
-# 添加项目路径
+# Add project path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from backtrader.ccxt import load_ccxt_config_from_env
 
 
 def check_api_config():
-    """检查 API 配置"""
+    """Check API configuration.
+
+    Returns:
+        dict or None: Configuration dict if successful, None otherwise.
+    """
     print("=" * 80)
     print("1. Check API Configuration")
     print("=" * 80)
@@ -43,186 +47,222 @@ def check_api_config():
 
 
 def check_api_connection(config):
-    """检查 API 连接"""
+    """Check API connection.
+
+    Args:
+        config: Exchange configuration dictionary.
+
+    Returns:
+        tuple: (exchange, balance) if successful, (None, None) otherwise.
+    """
     print("\n" + "=" * 80)
-    print("2. 检查 API 连接")
+    print("2. Check API Connection")
     print("=" * 80)
 
     try:
         exchange = ccxt.okx(config)
 
-        # 测试获取账户余额
+        # Test fetching account balance
         balance = exchange.fetch_balance()
-        print("✓ API 连接成功")
+        print("API connection successful")
 
-        # 检查 USDT 余额
+        # Check USDT balance
         if 'USDT' in balance['total']:
             usdt_balance = balance['total']['USDT']
             usdt_free = balance['free']['USDT']
             usdt_used = balance['used']['USDT']
-            print(f"  - USDT 总额: {usdt_balance:.2f}")
-            print(f"  - USDT 可用: {usdt_free:.2f}")
-            print(f"  - USDT 冻结: {usdt_used:.2f}")
+            print(f"  - USDT Total: {usdt_balance:.2f}")
+            print(f"  - USDT Available: {usdt_free:.2f}")
+            print(f"  - USDT Frozen: {usdt_used:.2f}")
 
-            # 检查合约账户
+            # Check futures account
             if 'USDT:USDT' in balance.get('total', {}):
                 swap_balance = balance['total']['USDT:USDT']
-                print(f"  - 合约账户余额: {swap_balance:.2f} USDT")
+                print(f"  - Futures Account Balance: {swap_balance:.2f} USDT")
         else:
-            print("  ⚠ 未找到 USDT 余额")
+            print("  Warning: No USDT balance found")
 
         return exchange, balance
 
     except Exception as e:
-        print(f"✗ API 连接失败: {e}")
+        print(f"API connection failed: {e}")
         return None, None
 
 
 def check_dogs_swap_market(exchange):
-    """检查 DOGS/USDT 永续合约市场"""
+    """Check DOGS/USDT perpetual contract market.
+
+    Args:
+        exchange: CCXT exchange instance.
+
+    Returns:
+        tuple: (success, market, current_price, buy_amount) where:
+            - success (bool): True if market check passed
+            - market (dict or None): Market information if successful
+            - current_price (float or None): Current DOGS price
+            - buy_amount (float or None): Amount of DOGS buyable with 0.4 USDT
+    """
     print("\n" + "=" * 80)
-    print("3. 检查 DOGS/USDT 永续合约")
+    print("3. Check DOGS/USDT Perpetual Contract")
     print("=" * 80)
 
     try:
-        # 加载市场
+        # Load markets
         markets = exchange.load_markets()
 
-        # 检查 DOGS/USDT:USDT (永续合约)
+        # Check DOGS/USDT:USDT (perpetual contract)
         symbol = 'DOGS/USDT:USDT'
 
         if symbol not in markets:
-            print(f"✗ 未找到 {symbol} 交易对")
-            print("\n可用的 DOGS 交易对:")
+            print(f"Trading pair not found: {symbol}")
+            print("\nAvailable DOGS trading pairs:")
             dogs_pairs = [s for s in markets.keys() if 'DOGS' in s]
             for pair in dogs_pairs:
                 print(f"  - {pair}")
-            return False
+            return False, None, None, None
 
         market = markets[symbol]
-        print(f"✓ 找到 {symbol} 永续合约")
+        print(f"Found {symbol} perpetual contract")
 
-        # 获取交易对信息
-        print(f"  - 基础货币: {market['base']}")
-        print(f"  - 报价货币: {market['quote']}")
-        print(f"  - 类型: {market['type']}")
-        print(f"  - 活跃: {market['active']}")
+        # Get trading pair information
+        print(f"  - Base Currency: {market['base']}")
+        print(f"  - Quote Currency: {market['quote']}")
+        print(f"  - Type: {market['type']}")
+        print(f"  - Active: {market['active']}")
 
-        # 获取当前价格
+        # Get current price
         ticker = exchange.fetch_ticker(symbol)
         current_price = ticker['last']
-        print(f"  - 当前价格: ${current_price:.6f}")
+        print(f"  - Current Price: ${current_price:.6f}")
 
-        # 获取交易限制
+        # Get trading limits
         limits = market['limits']
         min_amount = limits['amount']['min']
         min_cost = limits['cost']['min']
 
-        print(f"\n交易限制:")
-        print(f"  - 最小数量: {min_amount}")
-        print(f"  - 最小金额: ${min_cost}")
+        print("\nTrading Limits:")
+        print(f"  - Minimum Amount: {min_amount}")
+        print(f"  - Minimum Cost: ${min_cost}")
 
-        # 计算 0.4 USDT 可买入的数量
+        # Calculate amount of DOGS buyable with 0.4 USDT
         order_size = 0.4  # USDT
         buy_amount = order_size / current_price
-        print(f"\n下单测试:")
-        print(f"  - 下单金额: ${order_size} USDT")
-        print(f"  - 可买数量: {buy_amount:.2f} DOGS")
+        print("\nOrder Test:")
+        print(f"  - Order Size: ${order_size} USDT")
+        print(f"  - Buyable Amount: {buy_amount:.2f} DOGS")
 
-        # 检查是否满足最小交易要求
+        # Check if minimum trading requirement is met
         if buy_amount >= min_amount:
-            print(f"  ✓ 满足最小交易要求 (>= {min_amount})")
+            print(f"  Meets minimum trading requirement (>= {min_amount})")
         else:
-            print(f"  ✗ 不满足最小交易要求 (需要 >= {min_amount})")
+            print(f"  Does not meet minimum trading requirement (need >= {min_amount})")
 
-        # 计算手续费
-        maker_fee = 0.0002  # OKX 合约 maker 费率
-        taker_fee = 0.0005  # OKX 合约 taker 费率
+        # Calculate trading fees
+        maker_fee = 0.0002  # OKX futures maker fee rate
+        taker_fee = 0.0005  # OKX futures taker fee rate
         fee_maker = order_size * maker_fee
         fee_taker = order_size * taker_fee
 
-        print(f"\n手续费估算:")
-        print(f"  - Maker 费率: 0.02%")
-        print(f"  - Taker 费率: 0.05%")
-        print(f"  - Maker 手续费: ${fee_maker:.6f} USDT")
-        print(f"  - Taker 手续费: ${fee_taker:.6f} USDT")
-        print(f"  - 手续费占比: {(fee_taker / order_size * 100):.2f}%")
+        print("\nFee Estimation:")
+        print(f"  - Maker Rate: 0.02%")
+        print(f"  - Taker Rate: 0.05%")
+        print(f"  - Maker Fee: ${fee_maker:.6f} USDT")
+        print(f"  - Taker Fee: ${fee_taker:.6f} USDT")
+        print(f"  - Fee Percentage: {(fee_taker / order_size * 100):.2f}%")
 
         return True, market, current_price, buy_amount
 
     except Exception as e:
-        print(f"✗ 检查失败: {e}")
+        print(f"Check failed: {e}")
         import traceback
         traceback.print_exc()
         return False, None, None, None
 
 
 def check_sandbox_mode():
-    """建议使用沙盒模式测试"""
+    """Recommend using sandbox mode for testing.
+
+    Prints recommendations for testing environments including
+    sandbox, backtesting, and small live trading.
+    """
     print("\n" + "=" * 80)
-    print("4. 测试环境建议")
+    print("4. Testing Environment Recommendations")
     print("=" * 80)
 
-    print("\n⚠️  重要提示:")
-    print("建议先在以下环境测试策略：")
-    print("\n1. OKX 沙盒环境（测试网）:")
-    print("   - 网址: https://www.okx.com/demo-trading")
-    print("   - 提供测试 API 密钥")
-    print("   - 不使用真实资金")
+    print("\nImportant Notice:")
+    print("Recommend testing strategy in the following environments first:")
+    print("\n1. OKX Sandbox Environment (Testnet):")
+    print("   - URL: https://www.okx.com/demo-trading")
+    print("   - Provides test API keys")
+    print("   - No real funds required")
 
-    print("\n2. 回测模式:")
-    print("   - 使用历史数据测试")
-    print("   - 不需要连接交易所")
+    print("\n2. Backtesting Mode:")
+    print("   - Test with historical data")
+    print("   - No exchange connection needed")
 
-    print("\n3. 小额实盘:")
-    print("   - 使用最小金额（0.4 USDT）")
-    print("   - 验证策略逻辑")
+    print("\n3. Small Live Trading:")
+    print("   - Use minimum amount (0.4 USDT)")
+    print("   - Verify strategy logic")
 
 
 def print_summary(config_ok, connection_ok, market_ok):
-    """打印总结"""
+    """Print summary of all checks.
+
+    Args:
+        config_ok (bool): API configuration check status.
+        connection_ok (bool): API connection check status.
+        market_ok (bool): Market availability check status.
+    """
     print("\n" + "=" * 80)
-    print("检查总结")
+    print("Check Summary")
     print("=" * 80)
 
     checks = [
-        ("API 配置", config_ok),
-        ("API 连接", connection_ok),
-        ("DOGS/USDT 合约", market_ok),
+        ("API Configuration", config_ok),
+        ("API Connection", connection_ok),
+        ("DOGS/USDT Contract", market_ok),
     ]
 
     all_ok = True
     for name, status in checks:
         if status:
-            print(f"✓ {name}: 正常")
+            print(f"OK {name}: Pass")
         else:
-            print(f"✗ {name}: 失败")
+            print(f"FAIL {name}: Failed")
             all_ok = False
 
     print("\n" + "=" * 80)
 
     if all_ok:
-        print("✓ 所有检查通过！可以运行策略了")
-        print("\n运行命令:")
+        print("All checks passed! Ready to run strategy")
+        print("\nRun command:")
         print("python examples/backtrader_ccxt_okx_dogs_bollinger.py")
     else:
-        print("✗ 部分检查失败，请先解决上述问题")
+        print("Some checks failed, please resolve the issues above")
 
     print("=" * 80)
 
 
 def main():
-    """主函数"""
+    """Main function to run all OKX configuration checks.
+
+    Executes the following checks in sequence:
+    1. API configuration validation
+    2. API connection and balance check
+    3. DOGS/USDT contract market verification
+    4. Testing environment recommendations
+    5. Summary report
+    """
     print("\n")
     print("╔" + "=" * 78 + "╗")
-    print("║" + " " * 20 + "OKX DOGS/USDT 策略配置检查" + " " * 28 + "║")
+    print("║" + " " * 20 + "OKX DOGS/USDT Strategy Configuration Check" + " " * 20 + "║")
     print("╚" + "=" * 78 + "╝")
 
-    # 1. 检查 API 配置
+    # 1. Check API configuration
     config = check_api_config()
     config_ok = config is not None
 
-    # 2. 检查 API 连接
+    # 2. Check API connection
     if config_ok:
         exchange, balance = check_api_connection(config)
         connection_ok = exchange is not None
@@ -230,16 +270,16 @@ def main():
         exchange, balance = None, None
         connection_ok = False
 
-    # 3. 检查 DOGS/USDT 合约
+    # 3. Check DOGS/USDT contract
     if connection_ok:
         market_ok, market, price, amount = check_dogs_swap_market(exchange)
     else:
         market_ok = False
 
-    # 4. 测试环境建议
+    # 4. Testing environment recommendations
     check_sandbox_mode()
 
-    # 5. 打印总结
+    # 5. Print summary
     print_summary(config_ok, connection_ok, market_ok)
 
 

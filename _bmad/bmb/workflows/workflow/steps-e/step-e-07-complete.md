@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-e-07-complete'
 description: 'Complete the edit session with summary and next steps'
 
 # File References
+
 editPlan: '{bmb_creations_output_folder}/edit-plan-{workflow_name}.md'
 targetWorkflowPath: '{targetWorkflowPath}'
 validationReport: '{targetWorkflowPath}/validation-report-{workflow_name}.md'
----
+
+- --
 
 # Edit Step 7: Complete
 
@@ -42,11 +45,11 @@ Complete the edit session with a comprehensive summary of changes made and provi
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Read Edit Plan and Validation Report
 
-**Load both files:**
+- *Load both files:**
 1. `{editPlan}` - Full edit session history
 2. `{validationReport}` - Final validation status (if exists)
 
@@ -56,34 +59,37 @@ Complete the edit session with a comprehensive summary of changes made and provi
 
 # Edit Session Complete
 
-**Workflow:** {workflow_name}
-**Path:** {targetWorkflowPath}
-**Session Date:** {editSessionDate}
+- *Workflow:** {workflow_name}
+- *Path:** {targetWorkflowPath}
+- *Session Date:** {editSessionDate}
 
----
+- --
 
 ## Changes Made
 
-**Validation Fixes Applied:** {count}
+- *Validation Fixes Applied:** {count}
+
 {list from edit plan}
 
-**Direct Changes Applied:** {count}
+- *Direct Changes Applied:** {count}
+
 {list from edit plan}
 
-**Files Modified:**
+- *Files Modified:**
+
 {List all files that were changed}
 
----
+- --
 
 ## Final Validation Status
 
-**Status:** {status from report or 'Not run'}
+- *Status:** {status from report or 'Not run'}
 
-**Issues:**
+- *Issues:**
 - Critical: {count}
 - Warnings: {count}
 
----
+- --
 
 ## Edit Session Summary
 
@@ -91,45 +97,48 @@ Your workflow has been successfully edited. Here's what was accomplished:
 
 {Summarize the transformation in 2-3 sentences}
 
-**━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**"
+- *━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━**"
 
 ### 3. Update Edit Plan with Completion
 
-**Append final completion section to editPlan:**
+- *Append final completion section to editPlan:**
 
 ```markdown
+
 ## Completion Summary
 
-**Completed:** {current-date}
-**Session Duration:** {from start to end}
+- *Completed:** {current-date}
+- *Session Duration:** {from start to end}
 
-**Total Edits:** {count}
+- *Total Edits:** {count}
 - Validation Fixes: {count}
 - Direct Changes: {count}
 
-**Files Modified:** {count}
-**Final Validation Status:** {status}
+- *Files Modified:** {count}
+- *Final Validation Status:** {status}
 
-**Workflow is ready for:** {use/testing/production with caveats}
-```
+- *Workflow is ready for:** {use/testing/production with caveats}
+
+```bash
 
 ### 4. Provide Next Steps Guidance
 
 "**Next Steps for Your Workflow:**
 
-1. **Test the workflow** - Run through the workflow end-to-end to verify changes
-2. **Get user feedback** - If this is for others, have them test it
-3. **Monitor for issues** - Watch for any problems in actual use
-4. **Re-validate periodically** - Run validation again after future changes
+1. **Test the workflow**- Run through the workflow end-to-end to verify changes
 
-**Resources:**
+2.**Get user feedback**- If this is for others, have them test it
+3.**Monitor for issues**- Watch for any problems in actual use
+4.**Re-validate periodically** - Run validation again after future changes
+
+- *Resources:**
 - Edit this workflow again: Edit workflow mode
 - Run validation: Validate workflow mode
 - Build new workflow: Create workflow mode
 
----
+- --
 
-**Thank you for using BMAD Workflow Creator!**
+- *Thank you for using BMAD Workflow Creator!**
 
 Your edit session for **{workflow_name}** is complete. ✅"
 
@@ -137,9 +146,9 @@ Your edit session for **{workflow_name}** is complete. ✅"
 
 "**Edit Session Complete.**
 
-**[F]inish** - End the edit session
-**[S]ave summary** - Save a copy of the edit summary to your output folder
-**[R]eview** - Review the full edit plan one more time"
+- *[F]inish** - End the edit session
+- *[S]ave summary** - Save a copy of the edit summary to your output folder
+- *[R]eview** - Review the full edit plan one more time"
 
 #### Menu Handling Logic:
 
@@ -150,16 +159,17 @@ Your edit session for **{workflow_name}** is complete. ✅"
 
 ### 6. Save Summary (If Requested)
 
-**IF user selects [S]ave summary:**
+- *IF user selects [S]ave summary:**
 
 Create summary file at `{output_folder}/workflow-edit-summary-{workflow_name}-{date}.md`:
 
 ```markdown
+
 # Workflow Edit Summary
 
-**Workflow:** {workflow_name}
-**Path:** {targetWorkflowPath}
-**Edit Date:** {current-date}
+- *Workflow:** {workflow_name}
+- *Path:** {targetWorkflowPath}
+- *Edit Date:** {current-date}
 
 ## Changes Made
 
@@ -176,15 +186,15 @@ Create summary file at `{output_folder}/workflow-edit-summary-{workflow_name}-{d
 ## Next Steps
 
 {Recommendations}
-```
 
+```bash
 "**Summary saved to:** {output_folder}/workflow-edit-summary-{workflow_name}-{date}.md"
 
 ## CRITICAL STEP COMPLETION NOTE
 
 This is the final step. Ensure edit plan is complete, summary is presented, and user has all information needed. End session gracefully.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -203,4 +213,4 @@ This is the final step. Ensure edit plan is complete, summary is presented, and 
 - Not providing next steps
 - Ending without user confirmation
 
-**Master Rule:** Provide complete summary of all changes. Document everything. Give clear next steps. End on a positive note.
+- *Master Rule:** Provide complete summary of all changes. Document everything. Give clear next steps. End on a positive note.

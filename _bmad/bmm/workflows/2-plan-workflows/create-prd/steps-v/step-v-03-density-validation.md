@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-v-03-density-validation'
 description: 'Information Density Check - Scan for anti-patterns that violate information density principles'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-04-brief-coverage-validation.md'
 prdFile: '{prd_file_path}'
 validationReportPath: '{validation_report_path}'
----
+
+- --
 
 # Step 3: Information Density Validation
 
@@ -55,11 +58,11 @@ Validate PRD meets BMAD information density standards by scanning for conversati
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Attempt Sub-Process Validation
 
-**Try to use Task tool to spawn a subprocess:**
+- *Try to use Task tool to spawn a subprocess:**
 
 "Perform information density validation on this PRD:
 
@@ -68,8 +71,8 @@ Validate PRD meets BMAD information density standards by scanning for conversati
    - Conversational filler phrases (examples: 'The system will allow users to...', 'It is important to note that...', 'In order to')
    - Wordy phrases (examples: 'Due to the fact that', 'In the event of', 'For the purpose of')
    - Redundant phrases (examples: 'Future plans', 'Absolutely essential', 'Past history')
-3. Count violations by category with line numbers
-4. Classify severity: Critical (>10 violations), Warning (5-10), Pass (<5)
+1. Count violations by category with line numbers
+2. Classify severity: Critical (>10 violations), Warning (5-10), Pass (<5)
 
 Return structured findings with counts and examples."
 
@@ -77,7 +80,7 @@ Return structured findings with counts and examples."
 
 If Task tool unavailable, perform analysis directly:
 
-**Scan for conversational filler patterns:**
+- *Scan for conversational filler patterns:**
 - "The system will allow users to..."
 - "It is important to note that..."
 - "In order to"
@@ -85,14 +88,14 @@ If Task tool unavailable, perform analysis directly:
 - "With regard to"
 - Count occurrences and note line numbers
 
-**Scan for wordy phrases:**
+- *Scan for wordy phrases:**
 - "Due to the fact that" (use "because")
 - "In the event of" (use "if")
 - "At this point in time" (use "now")
 - "In a manner that" (use "how")
 - Count occurrences and note line numbers
 
-**Scan for redundant phrases:**
+- *Scan for redundant phrases:**
 - "Future plans" (just "plans")
 - "Past history" (just "history")
 - "Absolutely essential" (just "essential")
@@ -101,15 +104,15 @@ If Task tool unavailable, perform analysis directly:
 
 ### 3. Classify Severity
 
-**Calculate total violations:**
+- *Calculate total violations:**
 - Conversational filler count
 - Wordy phrases count
 - Redundant phrases count
 - Total = sum of all categories
 
-**Determine severity:**
-- **Critical:** Total > 10 violations
-- **Warning:** Total 5-10 violations
+- *Determine severity:**
+- **Critical:**Total > 10 violations
+- **Warning:**Total 5-10 violations
 - **Pass:** Total < 5 violations
 
 ### 4. Report Density Findings to Validation Report
@@ -117,28 +120,34 @@ If Task tool unavailable, perform analysis directly:
 Append to validation report:
 
 ```markdown
+
 ## Information Density Validation
 
-**Anti-Pattern Violations:**
+- *Anti-Pattern Violations:**
 
-**Conversational Filler:** {count} occurrences
+- *Conversational Filler:** {count} occurrences
+
 [If count > 0, list examples with line numbers]
 
-**Wordy Phrases:** {count} occurrences
+- *Wordy Phrases:** {count} occurrences
+
 [If count > 0, list examples with line numbers]
 
-**Redundant Phrases:** {count} occurrences
+- *Redundant Phrases:** {count} occurrences
+
 [If count > 0, list examples with line numbers]
 
-**Total Violations:** {total}
+- *Total Violations:** {total}
 
-**Severity Assessment:** [Critical/Warning/Pass]
+- *Severity Assessment:** [Critical/Warning/Pass]
 
-**Recommendation:**
+- *Recommendation:**
+
 [If Critical] "PRD requires significant revision to improve information density. Every sentence should carry weight without filler."
 [If Warning] "PRD would benefit from reducing wordiness and eliminating filler phrases."
 [If Pass] "PRD demonstrates good information density with minimal violations."
-```
+
+```bash
 
 ### 5. Display Progress and Auto-Proceed
 
@@ -146,11 +155,11 @@ Display: "**Information Density Validation Complete**
 
 Severity: {Critical/Warning/Pass}
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile} (step-v-04-brief-coverage-validation.md)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -171,4 +180,4 @@ Without delay, read fully and follow: {nextStepFile} (step-v-04-brief-coverage-v
 - Pausing for user input (should auto-proceed)
 - Not attempting subprocess architecture
 
-**Master Rule:** Information density validation runs autonomously. Scan, classify, report, auto-proceed. No user interaction needed.
+- *Master Rule:** Information density validation runs autonomously. Scan, classify, report, auto-proceed. No user interaction needed.

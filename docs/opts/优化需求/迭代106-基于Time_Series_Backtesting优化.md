@@ -1,189 +1,206 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/Time_Series_Backtesting
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### Time_Series_Backtesting项目简介
-Time_Series_Backtesting是一个时间序列回测框架，具有以下核心特点：
+### Time_Series_Backtesting 项目简介
+
+Time_Series_Backtesting 是一个时间序列回测框架，具有以下核心特点：
+
 - **时间序列**: 专注于时间序列分析
 - **交叉验证**: 时间序列交叉验证
-- **Walk-forward**: Walk-forward分析
+- **Walk-forward**: Walk-forward 分析
 - **过拟合检测**: 过拟合检测方法
 - **统计检验**: 统计显著性检验
 - **稳健性测试**: 策略稳健性测试
 
 ### 重点借鉴方向
+
 1. **时序验证**: 时间序列验证方法
 2. **交叉验证**: 时序交叉验证
-3. **Walk-forward**: Walk-forward分析
+3. **Walk-forward**: Walk-forward 分析
 4. **过拟合检测**: 过拟合检测
 5. **稳健性**: 稳健性测试方法
 6. **统计检验**: 统计显著性检验
 
----
+- --
 
 ## 项目对比分析
 
 ### Backtrader vs Time_Series_Backtesting
 
 | 维度 | Backtrader | Time_Series_Backtesting |
+
 |------|-----------|-------------------------|
-| **核心定位** | 通用回测框架 | 时间序列分析专用框架 |
-| **交叉验证** | 无内置支持 | 固定窗口回测 |
-| **Walk-forward** | 无 | 无（但框架设计支持） |
-| **过拟合检测** | 基础 | 蒙特卡洛模拟 |
-| **统计检验** | 无 | Bootstrap检验 |
-| **稳健性测试** | 基础 | 多资产/多频率测试 |
-| **前瞻偏差预防** | 用户自行处理 | 严格数据分离 |
-| **参数敏感性** | 无 | 参数敏感性分析 |
-| **多频率支持** | 支持 | 1分钟-8小时全支持 |
 
-### Backtrader可借鉴的优势
+| **核心定位**| 通用回测框架 | 时间序列分析专用框架 |
 
-1. **时间序列交叉验证**：K-fold时序交叉验证、滚动窗口验证
-2. **Walk-forward分析**：动态参数优化、滚动回测
-3. **过拟合检测体系**：White's Reality Check、PCS检验
-4. **统计显著性检验**：Bootstrap、Permutation Test
-5. **稳健性测试框架**：市场环境切换、交易成本敏感性
-6. **前瞻偏差预防**：数据分片器、严格数据管道
-7. **参数敏感性分析**：热力图、扰动分析
+|**交叉验证**| 无内置支持 | 固定窗口回测 |
 
----
+|**Walk-forward**| 无 | 无（但框架设计支持） |
+
+|**过拟合检测**| 基础 | 蒙特卡洛模拟 |
+
+|**统计检验**| 无 | Bootstrap 检验 |
+
+|**稳健性测试**| 基础 | 多资产/多频率测试 |
+
+|**前瞻偏差预防**| 用户自行处理 | 严格数据分离 |
+
+|**参数敏感性**| 无 | 参数敏感性分析 |
+
+|**多频率支持**| 支持 | 1 分钟-8 小时全支持 |
+
+### Backtrader 可借鉴的优势
+
+1.**时间序列交叉验证**：K-fold 时序交叉验证、滚动窗口验证
+
+1. **Walk-forward 分析**：动态参数优化、滚动回测
+2. **过拟合检测体系**：White's Reality Check、PCS 检验
+3. **统计显著性检验**：Bootstrap、Permutation Test
+4. **稳健性测试框架**：市场环境切换、交易成本敏感性
+5. **前瞻偏差预防**：数据分片器、严格数据管道
+6. **参数敏感性分析**：热力图、扰动分析
+
+- --
 
 ## 功能需求文档
 
 ### FR-01 时间序列交叉验证器 [高优先级]
 
-**描述**: 实现专门针对时间序列的交叉验证方法
+- *描述**: 实现专门针对时间序列的交叉验证方法
 
-**需求**:
-- FR-01.1 K-fold时序交叉验证
+- *需求**:
+- FR-01.1 K-fold 时序交叉验证
 - FR-01.2 滚动窗口交叉验证
 - FR-01.3 扩展窗口交叉验证
 - FR-01.4 自定义分割策略
 - FR-01.5 分割结果可视化
 
-**验收标准**:
-- 支持3种以上时序交叉验证方法
+- *验收标准**:
+- 支持 3 种以上时序交叉验证方法
 - 确保无数据泄露
 - 支持多资产并行验证
 
-### FR-02 Walk-forward分析引擎 [高优先级]
+### FR-02 Walk-forward 分析引擎 [高优先级]
 
-**描述**: 实现Walk-forward滚动分析功能
+- *描述**: 实现 Walk-forward 滚动分析功能
 
-**需求**:
+- *需求**:
 - FR-02.1 滚动优化窗口
 - FR-02.2 滚动测试窗口
 - FR-02.3 动态参数再优化
-- FR-02.4 Walk-forward绩效统计
+- FR-02.4 Walk-forward 绩效统计
 - FR-02.5 参数稳定性分析
 
-**验收标准**:
+- *验收标准**:
 - 支持自定义窗口大小和步长
 - 每期参数独立优化
-- 生成完整Walk-forward报告
+- 生成完整 Walk-forward 报告
 
 ### FR-03 过拟合检测系统 [高优先级]
 
-**描述**: 建立完整的过拟合检测体系
+- *描述**: 建立完整的过拟合检测体系
 
-**需求**:
+- *需求**:
 - FR-03.1 White's Reality Check
-- FR-03.2 依赖调整的PCS检验
+- FR-03.2 依赖调整的 PCS 检验
 - FR-03.3 蒙特卡洛模拟
 - FR-03.4 参数敏感性分析
 - FR-03.5 训练/测试性能对比
 
-**验收标准**:
-- 支持3种以上过拟合检测方法
-- 输出p值和置信区间
+- *验收标准**:
+- 支持 3 种以上过拟合检测方法
+- 输出 p 值和置信区间
 - 可视化过拟合风险
 
 ### FR-04 统计显著性检验 [中优先级]
 
-**描述**: 实现策略绩效的统计检验
+- *描述**: 实现策略绩效的统计检验
 
-**需求**:
-- FR-04.1 Bootstrap置信区间
+- *需求**:
+- FR-04.1 Bootstrap 置信区间
 - FR-04.2 Permutation Test
 - FR-04.3 多重比较修正（Bonferroni/BH）
-- FR-04.4 Sharpe比率显著性检验
+- FR-04.4 Sharpe 比率显著性检验
 - FR-04.5 收益率分布检验
 
-**验收标准**:
-- 支持5种以上统计检验方法
-- 输出95%置信区间
-- FDR控制
+- *验收标准**:
+- 支持 5 种以上统计检验方法
+- 输出 95%置信区间
+- FDR 控制
 
 ### FR-05 稳健性测试框架 [中优先级]
 
-**描述**: 测试策略在不同条件下的稳健性
+- *描述**: 测试策略在不同条件下的稳健性
 
-**需求**:
+- *需求**:
 - FR-05.1 牛熊市切换测试
 - FR-05.2 交易成本敏感性
 - FR-05.3 滑点敏感性
 - FR-05.4 数据频率敏感性
 - FR-05.5 参数扰动测试
 
-**验收标准**:
-- 支持5种以上稳健性测试
+- *验收标准**:
+- 支持 5 种以上稳健性测试
 - 生成稳健性评分
 - 可视化稳健性结果
 
 ### FR-06 前瞻偏差预防器 [高优先级]
 
-**描述**: 防止回测中的前瞻偏差
+- *描述**: 防止回测中的前瞻偏差
 
-**需求**:
+- *需求**:
 - FR-06.1 严格数据分片器
 - FR-06.2 信号延迟模拟
 - FR-06.3 未来信息检测
 - FR-06.4 数据泄露检测
 - FR-06.5 时间戳验证
 
-**验收标准**:
+- *验收标准**:
 - 自动检测潜在前瞻偏差
 - 阻止使用未来数据
 - 生成偏差报告
 
 ### FR-07 参数优化器 [中优先级]
 
-**描述**: 智能参数优化工具
+- *描述**: 智能参数优化工具
 
-**需求**:
+- *需求**:
 - FR-07.1 网格搜索
 - FR-07.2 贝叶斯优化
 - FR-07.3 遗传算法
 - FR-07.4 参数重要性分析
 - FR-07.5 过拟合防护机制
 
-**验收标准**:
-- 支持3种以上优化算法
+- *验收标准**:
+- 支持 3 种以上优化算法
 - 自动检测过拟合
 - 生成参数报告
 
 ### FR-08 绩效分析增强 [中优先级]
 
-**描述**: 增强绩效分析功能
+- *描述**: 增强绩效分析功能
 
-**需求**:
+- *需求**:
 - FR-08.1 月度/年度绩效分解
 - FR-08.2 滚动绩效指标
 - FR-08.3 相对基准分析
 - FR-08.4 尾部风险分析
 - FR-08.5 增量收益分析
 
-**验收标准**:
-- 支持15+项绩效指标
+- *验收标准**:
+- 支持 15+项绩效指标
 - 滚动窗口计算
 - 多基准对比
 
----
+- --
 
 ## 设计文档
 
@@ -235,7 +252,7 @@ class TimeSeriesCV:
         生成时间序列分割
 
         Args:
-            data: 包含datetime索引的数据
+            data: 包含 datetime 索引的数据
 
         Returns:
             分割结果列表
@@ -256,24 +273,24 @@ class TimeSeriesCV:
         """滚动窗口分割"""
         splits = []
 
-        # 计算窗口大小
+# 计算窗口大小
         if self.train_size is None:
             train_size = n_samples // (self.n_splits + 1)
         else:
             train_size = int(self.train_size if self.train_size > 1
-                            else self.train_size * n_samples)
+                            else self.train_size *n_samples)
 
         if self.test_size is None:
             test_size = train_size
         else:
             test_size = int(self.test_size if self.test_size > 1
-                           else self.test_size * n_samples)
+                           else self.test_size*n_samples)
 
-        # 计算步长
+# 计算步长
         step = max(1, (n_samples - train_size - test_size) // self.n_splits)
 
         for i in range(self.n_splits):
-            train_start = i * step
+            train_start = i*step
             train_end = train_start + train_size
             test_start = train_end + self.gap
             test_end = test_start + test_size
@@ -301,7 +318,7 @@ class TimeSeriesCV:
             test_size = n_samples // (self.n_splits + 1)
         else:
             test_size = int(self.test_size if self.test_size > 1
-                           else self.test_size * n_samples)
+                           else self.test_size*n_samples)
 
         train_end = n_samples // (self.n_splits + 1)
 
@@ -321,21 +338,21 @@ class TimeSeriesCV:
                 test_indices=slice(test_start, test_end)
             ))
 
-            # 扩展训练集
+# 扩展训练集
             train_end = test_end
 
         return splits
 
     def _kfold_split(self, n_samples: int,
                      index: pd.DatetimeIndex) -> List[TimeSeriesSplit]:
-        """K-fold时序分割"""
+        """K-fold 时序分割"""
         splits = []
 
         fold_size = n_samples // (self.n_splits + 1)
 
         for i in range(1, self.n_splits + 1):
-            train_end = i * fold_size
-            test_end = (i + 1) * fold_size if i < self.n_splits else n_samples
+            train_end = i*fold_size
+            test_end = (i + 1)*fold_size if i < self.n_splits else n_samples
 
             splits.append(TimeSeriesSplit(
                 train_start=index[0],
@@ -353,15 +370,16 @@ class TimeSeriesCV:
         import matplotlib.pyplot as plt
 
         splits = self.split(data)
-        fig, ax = plt.subplots(figsize=(12, len(splits) * 0.5))
+        fig, ax = plt.subplots(figsize=(12, len(splits)*0.5))
 
         for i, split in enumerate(splits):
-            # 训练集
+
+# 训练集
             train_data = data.iloc[split.train_indices]
             ax.barh(i, len(train_data), left=0,
                    height=0.8, color='blue', alpha=0.3, label='Train' if i == 0 else '')
 
-            # 测试集
+# 测试集
             test_data = data.iloc[split.test_indices]
             ax.barh(i, len(test_data), left=split.test_indices.start,
                    height=0.8, color='red', alpha=0.3, label='Test' if i == 0 else '')
@@ -376,9 +394,10 @@ class TimeSeriesCV:
         if save_path:
             plt.savefig(save_path)
         plt.show()
-```
 
-### 2. Walk-forward分析引擎设计
+```bash
+
+### 2. Walk-forward 分析引擎设计
 
 ```python
 from typing import Dict, List, Any, Callable, Optional
@@ -390,7 +409,7 @@ from concurrent.futures import ProcessPoolExecutor
 
 @dataclass
 class WalkForwardResult:
-    """单次Walk-forward结果"""
+    """单次 Walk-forward 结果"""
     period: int
     train_start: datetime
     train_end: datetime
@@ -402,14 +421,14 @@ class WalkForwardResult:
 
 @dataclass
 class WalkForwardSummary:
-    """Walk-forward汇总结果"""
+    """Walk-forward 汇总结果"""
     results: List[WalkForwardResult]
     aggregate_metrics: Dict[str, float]
     param_stability: Dict[str, float]
     performance_consistency: Dict[str, float]
 
 class WalkForwardAnalyzer:
-    """Walk-forward分析引擎"""
+    """Walk-forward 分析引擎"""
 
     def __init__(self,
                  train_size: int = 252,
@@ -432,23 +451,26 @@ class WalkForwardAnalyzer:
             data: pd.DataFrame,
             strategy_class: type,
             param_grid: Dict[str, List[Any]],
-            **kwargs) -> WalkForwardSummary:
+
+            - *kwargs) -> WalkForwardSummary:
+
         """
-        执行Walk-forward分析
+        执行 Walk-forward 分析
 
         Args:
             data: 回测数据
             strategy_class: 策略类
             param_grid: 参数网格
-            **kwargs: 其他回测参数
+
+            - *kwargs: 其他回测参数
 
         Returns:
-            Walk-forward汇总结果
+            Walk-forward 汇总结果
         """
         results = []
         period = 0
 
-        # 计算总窗口数
+# 计算总窗口数
         total_length = len(data)
         max_start = total_length - self.train_size - self.test_size
 
@@ -462,16 +484,16 @@ class WalkForwardAnalyzer:
 
             period += 1
 
-            # 分割数据
+# 分割数据
             train_data = data.iloc[train_start:train_end]
             test_data = data.iloc[test_start:test_end]
 
-            # 参数优化
+# 参数优化
             best_params, train_metrics = self._optimize_parameters(
                 train_data, strategy_class, param_grid, **kwargs
             )
 
-            # 测试期验证
+# 测试期验证
             test_metrics = self._test_period(
                 test_data, strategy_class, best_params, **kwargs
             )
@@ -487,7 +509,7 @@ class WalkForwardAnalyzer:
                 test_metrics=test_metrics
             ))
 
-        # 计算汇总统计
+# 计算汇总统计
         summary = self._compute_summary(results)
 
         return summary
@@ -496,9 +518,12 @@ class WalkForwardAnalyzer:
                            train_data: pd.DataFrame,
                            strategy_class: type,
                            param_grid: Dict[str, List[Any]],
-                           **kwargs) -> tuple:
+
+                           - *kwargs) -> tuple:
+
         """优化参数"""
-        # 生成参数组合
+
+# 生成参数组合
         param_names = list(param_grid.keys())
         param_values = list(param_grid.values())
         param_combinations = list(product(*param_values))
@@ -507,17 +532,18 @@ class WalkForwardAnalyzer:
         best_params = None
         best_metrics = None
 
-        # 网格搜索
+# 网格搜索
         for params in param_combinations:
             param_dict = dict(zip(param_names, params))
 
             try:
-                # 运行回测
+
+# 运行回测
                 metrics = self._run_backtest(
                     train_data, strategy_class, param_dict, **kwargs
                 )
 
-                # 获取优化目标
+# 获取优化目标
                 score = metrics.get(self.optimization_metric, -np.inf)
 
                 if score > best_score:
@@ -534,7 +560,9 @@ class WalkForwardAnalyzer:
                    test_data: pd.DataFrame,
                    strategy_class: type,
                    params: Dict[str, Any],
-                   **kwargs) -> Dict[str, float]:
+
+                   - *kwargs) -> Dict[str, float]:
+
         """在测试期验证"""
         metrics = self._run_backtest(
             test_data, strategy_class, params, **kwargs
@@ -545,32 +573,34 @@ class WalkForwardAnalyzer:
                      data: pd.DataFrame,
                      strategy_class: type,
                      params: Dict[str, Any],
-                     **kwargs) -> Dict[str, float]:
+
+                     - *kwargs) -> Dict[str, float]:
+
         """运行单次回测"""
         cerebro = bt.Cerebro()
 
-        # 添加策略
+# 添加策略
         cerebro.addstrategy(strategy_class, **params)
 
-        # 添加数据
+# 添加数据
         data_feed = bt.feeds.PandasData(dataname=data)
         cerebro.adddata(data_feed)
 
-        # 设置初始资金和手续费
+# 设置初始资金和手续费
         cerebro.broker.setcash(kwargs.get('cash', 100000))
         cerebro.broker.setcommission(kwargs.get('commission', 0.001))
 
-        # 添加分析器
+# 添加分析器
         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
         cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-        # 运行
+# 运行
         results = cerebro.run()
         strat = results[0]
 
-        # 提取指标
+# 提取指标
         sharpe = strat.analyzers.sharpe.get_analysis()
         drawdown = strat.analyzers.drawdown.get_analysis()
         returns = strat.analyzers.returns.get_analysis()
@@ -586,7 +616,8 @@ class WalkForwardAnalyzer:
 
     def _compute_summary(self, results: List[WalkForwardResult]) -> WalkForwardSummary:
         """计算汇总统计"""
-        # 提取测试期指标
+
+# 提取测试期指标
         test_returns = [r.test_metrics.get('total_return', 0) for r in results]
         test_sharpe = [r.test_metrics.get('sharpe', 0) for r in results]
         test_dd = [r.test_metrics.get('max_drawdown', 0) for r in results]
@@ -599,10 +630,10 @@ class WalkForwardAnalyzer:
             'win_rate': sum(r > 0 for r in test_returns) / len(test_returns)
         }
 
-        # 参数稳定性分析
+# 参数稳定性分析
         param_stability = self._analyze_param_stability(results)
 
-        # 性能一致性
+# 性能一致性
         performance_consistency = {
             'return_consistency': np.std(test_returns) / (np.abs(np.mean(test_returns)) + 1e-6),
             'sharpe_consistency': np.std(test_sharpe) / (np.abs(np.mean(test_sharpe)) + 1e-6)
@@ -618,7 +649,8 @@ class WalkForwardAnalyzer:
     def _analyze_param_stability(self,
                                  results: List[WalkForwardResult]) -> Dict[str, float]:
         """分析参数稳定性"""
-        # 收集所有参数
+
+# 收集所有参数
         all_params = {}
         for result in results:
             for key, value in result.best_params.items():
@@ -626,17 +658,19 @@ class WalkForwardAnalyzer:
                     all_params[key] = []
                 all_params[key].append(value)
 
-        # 计算变异系数
+# 计算变异系数
         stability = {}
         for key, values in all_params.items():
             if len(set(values)) > 1:
-                # 参数变化的比例
+
+# 参数变化的比例
                 stability[key] = len(set(values)) / len(values)
             else:
                 stability[key] = 0  # 完全稳定
 
         return stability
-```
+
+```bash
 
 ### 3. 过拟合检测系统设计
 
@@ -682,21 +716,23 @@ class OverfittingDetector:
         Returns:
             过拟合检测结果
         """
-        # 原策略的最大收益（或夏普比率）
+
+# 原策略的最大收益（或夏普比率）
         original_stat = np.mean(strategy_returns) / (np.std(strategy_returns) + 1e-6)
 
-        # 生成零分布
+# 生成零分布
         null_distribution = []
 
         for _ in range(self.n_simulations):
-            # 随机打乱收益率
+
+# 随机打乱收益率
             shuffled_returns = np.random.permutation(strategy_returns)
             test_stat = np.mean(shuffled_returns) / (np.std(shuffled_returns) + 1e-6)
             null_distribution.append(test_stat)
 
         null_distribution = np.array(null_distribution)
 
-        # 计算p值
+# 计算 p 值
         if alternative == 'two-sided':
             p_value = np.mean(np.abs(null_distribution) >= np.abs(original_stat))
         elif alternative == 'greater':
@@ -704,7 +740,7 @@ class OverfittingDetector:
         else:  # 'less'
             p_value = np.mean(null_distribution <= original_stat)
 
-        # 置信区间
+# 置信区间
         ci_lower = np.percentile(null_distribution, 2.5)
         ci_upper = np.percentile(null_distribution, 97.5)
 
@@ -721,7 +757,7 @@ class OverfittingDetector:
                       metric: str = 'sharpe',
                       alpha: float = 0.05) -> OverfittingResult:
         """
-        Bootstrap检验
+        Bootstrap 检验
 
         Args:
             returns: 收益率序列
@@ -731,7 +767,8 @@ class OverfittingDetector:
         Returns:
             过拟合检测结果
         """
-        # 计算原始指标
+
+# 计算原始指标
         if metric == 'sharpe':
             original_stat = np.mean(returns) / (np.std(returns) + 1e-6)
         elif metric == 'mean':
@@ -743,7 +780,7 @@ class OverfittingDetector:
         else:
             original_stat = np.mean(returns)
 
-        # Bootstrap重采样
+# Bootstrap 重采样
         bootstrap_stats = []
         for _ in range(self.n_simulations):
             bootstrap_sample = np.random.choice(returns, size=len(returns), replace=True)
@@ -763,11 +800,11 @@ class OverfittingDetector:
 
         bootstrap_stats = np.array(bootstrap_stats)
 
-        # 计算置信区间
-        ci_lower = np.percentile(bootstrap_stats, alpha / 2 * 100)
-        ci_upper = np.percentile(bootstrap_stats, (1 - alpha / 2) * 100)
+# 计算置信区间
+        ci_lower = np.percentile(bootstrap_stats, alpha / 2 *100)
+        ci_upper = np.percentile(bootstrap_stats, (1 - alpha / 2)*100)
 
-        # 计算p值
+# 计算 p 值
         if original_stat >= 0:
             p_value = np.mean(bootstrap_stats >= original_stat)
         else:
@@ -798,16 +835,18 @@ class OverfittingDetector:
         Returns:
             过拟合检测结果
         """
-        # 原始差异
+
+# 原始差异
         original_diff = np.mean(strategy_returns) - np.mean(benchmark_returns)
 
-        # 生成零分布
+# 生成零分布
         null_distribution = []
         combined = np.concatenate([strategy_returns, benchmark_returns])
         n = len(strategy_returns)
 
         for _ in range(n_simulations):
-            # 随机分配
+
+# 随机分配
             np.random.shuffle(combined)
             perm_strategy = combined[:n]
             perm_benchmark = combined[n:]
@@ -817,10 +856,10 @@ class OverfittingDetector:
 
         null_distribution = np.array(null_distribution)
 
-        # 计算p值（双尾）
+# 计算 p 值（双尾）
         p_value = np.mean(np.abs(null_distribution) >= np.abs(original_diff))
 
-        # 置信区间
+# 置信区间
         ci_lower = np.percentile(null_distribution, 2.5)
         ci_upper = np.percentile(null_distribution, 97.5)
 
@@ -845,13 +884,14 @@ class OverfittingDetector:
         Returns:
             参数敏感性得分
         """
-        # 提取指标值
+
+# 提取指标值
         values = [r.get(metric, 0) for r in results.values()]
 
         if len(values) < 2:
             return {}
 
-        # 计算变异系数
+# 计算变异系数
         sensitivity = {
             'coefficient_of_variation': np.std(values) / (np.abs(np.mean(values)) + 1e-6),
             'range': np.max(values) - np.min(values),
@@ -885,7 +925,7 @@ class OverfittingDetector:
                 gap = train_val - test_val
                 gaps[key] = gap
 
-                # 判断是否过拟合
+# 判断是否过拟合
                 if key == 'sharpe' and gap > 0.5:
                     overfitting_signals.append(f"{key}: 训练集显著优于测试集")
                 elif key == 'total_return' and gap > 0.1:
@@ -898,7 +938,8 @@ class OverfittingDetector:
             'is_overfitted': len(overfitting_signals) > 0,
             'signals': overfitting_signals
         }
-```
+
+```bash
 
 ### 4. 统计显著性检验设计
 
@@ -920,7 +961,7 @@ class SignificanceTester:
         """
         夏普比率显著性检验
 
-        使用Jobson & Korkie方法检验夏普比率是否显著大于0
+        使用 Jobson & Korkie 方法检验夏普比率是否显著大于 0
 
         Args:
             returns: 收益率序列
@@ -930,33 +971,34 @@ class SignificanceTester:
         Returns:
             检验结果
         """
-        # 计算年化夏普比率
+
+# 计算年化夏普比率
         excess_returns = returns - risk_free_rate / periods_per_year
         sharpe = np.mean(excess_returns) / (np.std(excess_returns) + 1e-6)
-        sharpe_annual = sharpe * np.sqrt(periods_per_year)
+        sharpe_annual = sharpe*np.sqrt(periods_per_year)
 
-        # 计算标准误差
+# 计算标准误差
         n = len(returns)
-        sharpe_std_err = np.sqrt((1 + 0.5 * sharpe**2) / n)
+        sharpe_std_err = np.sqrt((1 + 0.5* sharpe**2) / n)
 
-        # t统计量
+# t 统计量
         t_stat = sharpe / sharpe_std_err
 
-        # p值（双尾）
-        p_value = 2 * (1 - stats.t.cdf(abs(t_stat), df=n - 1))
+# p 值（双尾）
+        p_value = 2 *(1 - stats.t.cdf(abs(t_stat), df=n - 1))
 
-        # 置信区间
+# 置信区间
         t_critical = stats.t.ppf(0.975, df=n - 1)
-        ci_lower = sharpe - t_critical * sharpe_std_err
-        ci_upper = sharpe + t_critical * sharpe_std_err
+        ci_lower = sharpe - t_critical*sharpe_std_err
+        ci_upper = sharpe + t_critical*sharpe_std_err
 
         return {
             'sharpe_ratio': sharpe_annual,
             't_statistic': t_stat,
             'p_value': p_value,
             'is_significant': p_value < 0.05,
-            'confidence_interval': (ci_lower * np.sqrt(periods_per_year),
-                                  ci_upper * np.sqrt(periods_per_year)),
+            'confidence_interval': (ci_lower*np.sqrt(periods_per_year),
+                                  ci_upper*np.sqrt(periods_per_year)),
             'standard_error': sharpe_std_err
         }
 
@@ -966,18 +1008,19 @@ class SignificanceTester:
                                      alpha: float = 0.05,
                                      n_bootstrap: int = 10000) -> Dict[str, float]:
         """
-        Bootstrap置信区间
+        Bootstrap 置信区间
 
         Args:
             returns: 收益率序列
             metric: 估计指标
             alpha: 显著性水平
-            n_bootstrap: Bootstrap次数
+            n_bootstrap: Bootstrap 次数
 
         Returns:
             置信区间结果
         """
-        # 计算原始估计
+
+# 计算原始估计
         if metric == 'mean':
             original_estimate = np.mean(returns)
         elif metric == 'sharpe':
@@ -989,7 +1032,7 @@ class SignificanceTester:
         else:
             original_estimate = np.mean(returns)
 
-        # Bootstrap重采样
+# Bootstrap 重采样
         bootstrap_estimates = []
         for _ in range(n_bootstrap):
             bootstrap_sample = np.random.choice(returns, size=len(returns), replace=True)
@@ -1009,14 +1052,14 @@ class SignificanceTester:
 
         bootstrap_estimates = np.array(bootstrap_estimates)
 
-        # 计算置信区间（percentile方法）
-        ci_lower = np.percentile(bootstrap_estimates, alpha / 2 * 100)
-        ci_upper = np.percentile(bootstrap_estimates, (1 - alpha / 2) * 100)
+# 计算置信区间（percentile 方法）
+        ci_lower = np.percentile(bootstrap_estimates, alpha / 2*100)
+        ci_upper = np.percentile(bootstrap_estimates, (1 - alpha / 2)*100)
 
-        # 计算标准误差
+# 计算标准误差
         std_err = np.std(bootstrap_estimates)
 
-        # 偏差校正
+# 偏差校正
         bias = np.mean(bootstrap_estimates) - original_estimate
 
         return {
@@ -1031,10 +1074,10 @@ class SignificanceTester:
                              p_values: List[float],
                              alpha: float = 0.05) -> Dict[str, any]:
         """
-        Bonferroni多重比较修正
+        Bonferroni 多重比较修正
 
         Args:
-            p_values: p值列表
+            p_values: p 值列表
             alpha: 显著性水平
 
         Returns:
@@ -1044,7 +1087,7 @@ class SignificanceTester:
         corrected_alpha = alpha / n_tests
 
         significant = [p < corrected_alpha for p in p_values]
-        adjusted_p = [p * n_tests for p in p_values]
+        adjusted_p = [p*n_tests for p in p_values]
 
         return {
             'original_alpha': alpha,
@@ -1058,42 +1101,42 @@ class SignificanceTester:
                           p_values: List[float],
                           q: float = 0.05) -> Dict[str, any]:
         """
-        Benjamini-Hochberg FDR控制
+        Benjamini-Hochberg FDR 控制
 
         Args:
-            p_values: p值列表
-            q: FDR水平
+            p_values: p 值列表
+            q: FDR 水平
 
         Returns:
-            FDR控制结果
+            FDR 控制结果
         """
         n_tests = len(p_values)
 
-        # 排序p值
+# 排序 p 值
         sorted_indices = sorted(range(n_tests), key=lambda i: p_values[i])
         sorted_p = [p_values[i] for i in sorted_indices]
 
-        # 找到最大显著p值
+# 找到最大显著 p 值
         threshold = None
         for rank, p in enumerate(sorted_p, 1):
-            if p <= (rank / n_tests) * q:
+            if p <= (rank / n_tests)*q:
                 threshold = p
             else:
                 break
 
-        # 判断显著性
+# 判断显著性
         if threshold is not None:
             significant = [p <= threshold for p in p_values]
         else:
-            significant = [False] * n_tests
+            significant = [False]*n_tests
 
-        # 计算q值
+# 计算 q 值
         q_values = []
         for i, p in enumerate(sorted_p, 1):
-            q_value = min(p * n_tests / i, 1.0)
+            q_value = min(p*n_tests / i, 1.0)
             q_values.append(q_value)
 
-        # 恢复原始顺序
+# 恢复原始顺序
         adjusted_q = [q_values[sorted_indices.index(i)] for i in range(n_tests)]
 
         return {
@@ -1121,7 +1164,7 @@ class SignificanceTester:
         results = {}
         p_values = []
 
-        # 先计算各策略的p值
+# 先计算各策略的 p 值
         for name, returns in returns_dict.items():
             perm_result = self.permutation_test(returns, benchmark_returns)
             p_values.append(perm_result.p_value)
@@ -1131,13 +1174,13 @@ class SignificanceTester:
                 'sharpe': np.mean(returns) / (np.std(returns) + 1e-6)
             }
 
-        # Bonferroni修正
+# Bonferroni 修正
         bonf_result = self.bonferroni_correction(p_values)
         for i, name in enumerate(returns_dict.keys()):
             results[name]['bonferroni_significant'] = bonf_result['significant'][i]
             results[name]['bonferroni_adjusted_p'] = bonf_result['adjusted_p_values'][i]
 
-        # BH修正
+# BH 修正
         bh_result = self.benjamini_hochberg(p_values)
         for i, name in enumerate(returns_dict.keys()):
             results[name]['bh_significant'] = bh_result['significant'][i]
@@ -1160,10 +1203,11 @@ class SignificanceTester:
         Returns:
             检验结果
         """
-        # 原始差异
+
+# 原始差异
         original_diff = np.mean(strategy_returns) - np.mean(benchmark_returns)
 
-        # 生成零分布
+# 生成零分布
         null_distribution = []
         combined = np.concatenate([strategy_returns, benchmark_returns])
         n = len(strategy_returns)
@@ -1178,10 +1222,10 @@ class SignificanceTester:
 
         null_distribution = np.array(null_distribution)
 
-        # 计算p值（双尾）
+# 计算 p 值（双尾）
         p_value = np.mean(np.abs(null_distribution) >= np.abs(original_diff))
 
-        # 置信区间
+# 置信区间
         ci_lower = np.percentile(null_distribution, 2.5)
         ci_upper = np.percentile(null_distribution, 97.5)
 
@@ -1192,7 +1236,8 @@ class SignificanceTester:
             'confidence_interval': (ci_lower, ci_upper),
             'test_statistic': original_diff / (np.std(null_distribution) + 1e-6)
         }
-```
+
+```bash
 
 ### 5. 稳健性测试框架设计
 
@@ -1246,17 +1291,17 @@ class RobustnessTester:
         """
         results = {}
 
-        # 检测市场状态
+# 检测市场状态
         regimes = self._detect_market_regimes(data)
 
         for regime, regime_data in regimes.items():
             if len(regime_data) < 50:  # 数据不足
                 continue
 
-            # 在该市场状态下回测
+# 在该市场状态下回测
             metrics = self._run_backtest(regime_data, strategy_class, params)
 
-            # 计算与基准的差异
+# 计算与基准的差异
             baseline_diff = {}
             if self.baseline_metrics:
                 for key in self.baseline_metrics:
@@ -1295,13 +1340,14 @@ class RobustnessTester:
         results = []
 
         for cost in cost_scenarios:
-            # 运行回测
+
+# 运行回测
             metrics = self._run_backtest(
                 data, strategy_class, params,
                 commission=cost
             )
 
-            # 计算与基准的差异
+# 计算与基准的差异
             baseline_diff = {}
             if self.baseline_metrics:
                 for key in self.baseline_metrics:
@@ -1340,13 +1386,14 @@ class RobustnessTester:
         results = []
 
         for slippage in slippage_scenarios:
-            # 运行回测
+
+# 运行回测
             metrics = self._run_backtest(
                 data, strategy_class, params,
                 slippage_perc=slippage
             )
 
-            # 计算与基准的差异
+# 计算与基准的差异
             baseline_diff = {}
             if self.baseline_metrics:
                 for key in self.baseline_metrics:
@@ -1383,18 +1430,19 @@ class RobustnessTester:
 
         for param_name, param_value in base_params.items():
             if isinstance(param_value, (int, float)):
-                # 向上扰动
+
+# 向上扰动
                 params_plus = base_params.copy()
-                params_plus[param_name] = param_value * (1 + perturbation_pct)
+                params_plus[param_name] = param_value*(1 + perturbation_pct)
                 metrics_plus = self._run_backtest(data, strategy_class, params_plus)
 
-                # 向下扰动
+# 向下扰动
                 params_minus = base_params.copy()
-                params_minus[param_name] = param_value * (1 - perturbation_pct)
+                params_minus[param_name] = param_value*(1 - perturbation_pct)
                 metrics_minus = self._run_backtest(data, strategy_class, params_minus)
 
-                # 敏感性得分
-                sensitivity = abs(metrics_plus['sharpe'] - metrics_minus['sharpe']) / (2 * perturbation_pct)
+# 敏感性得分
+                sensitivity = abs(metrics_plus['sharpe'] - metrics_minus['sharpe']) / (2* perturbation_pct)
 
                 results[param_name] = RobustnessResult(
                     scenario_name=f"{param_name} ±{perturbation_pct*100:.0f}%",
@@ -1409,36 +1457,36 @@ class RobustnessTester:
         """检测市场状态"""
         regimes = {}
 
-        # 计算趋势
+# 计算趋势
         data['sma_50'] = data['close'].rolling(50).mean()
         data['sma_200'] = data['close'].rolling(200).mean()
 
-        # 计算波动率
+# 计算波动率
         data['volatility'] = data['close'].pct_change().rolling(20).std()
 
-        # 牛市：短期均线上穿长期均线
+# 牛市：短期均线上穿长期均线
         bull_mask = (data['sma_50'] > data['sma_200]) & (data['close'] > data['sma_50'])
         if bull_mask.sum() > 50:
             regimes[MarketRegime.BULL] = data[bull_mask]
 
-        # 熊市：短期均线下穿长期均线
+# 熊市：短期均线下穿长期均线
         bear_mask = (data['sma_50'] < data['sma_200']) & (data['close'] < data['sma_50'])
         if bear_mask.sum() > 50:
             regimes[MarketRegime.BEAR] = data[bear_mask]
 
-        # 震荡：价格在均线附近
+# 震荡：价格在均线附近
         sideways_mask = (abs(data['close'] - data['sma_50']) / data['sma_50'] < 0.02)
         if sideways_mask.sum() > 50:
             regimes[MarketRegime.SIDEWAYS] = data[sideways_mask]
 
-        # 高波动
+# 高波动
         vol_median = data['volatility'].median()
-        high_vol_mask = data['volatility'] > vol_median * 1.5
+        high_vol_mask = data['volatility'] > vol_median *1.5
         if high_vol_mask.sum() > 50:
             regimes[MarketRegime.HIGH_VOL] = data[high_vol_mask]
 
-        # 低波动
-        low_vol_mask = data['volatility'] < vol_median * 0.5
+# 低波动
+        low_vol_mask = data['volatility'] < vol_median*0.5
         if low_vol_mask.sum() > 50:
             regimes[MarketRegime.LOW_VOL] = data[low_vol_mask]
 
@@ -1448,7 +1496,9 @@ class RobustnessTester:
                      data: pd.DataFrame,
                      strategy_class: type,
                      params: Dict[str, Any],
-                     **kwargs) -> Dict[str, float]:
+
+                     - *kwargs) -> Dict[str, float]:
+
         """运行单次回测"""
         import backtrader as bt
 
@@ -1461,7 +1511,7 @@ class RobustnessTester:
         cerebro.broker.setcash(kwargs.get('cash', 100000))
         cerebro.broker.setcommission(kwargs.get('commission', 0.001))
 
-        # 设置滑点
+# 设置滑点
         if 'slippage_perc' in kwargs:
             cerebro.broker.set_slippage_perc(slippage_perc=kwargs['slippage_perc'])
 
@@ -1499,26 +1549,26 @@ class RobustnessTester:
         sharpe_values = [r.metrics.get('sharpe', 0) for r in results]
         return_values = [r.metrics.get('total_return', 0) for r in results]
 
-        # 计算变异系数（越小越稳健）
+# 计算变异系数（越小越稳健）
         sharpe_cv = np.std(sharpe_values) / (np.abs(np.mean(sharpe_values)) + 1e-6)
         return_cv = np.std(return_values) / (np.abs(np.mean(return_values)) + 1e-6)
 
-        # 最差情况表现
+# 最差情况表现
         worst_sharpe = min(sharpe_values)
         worst_return = min(return_values)
 
-        # 胜率（表现优于基准的比例）
+# 胜率（表现优于基准的比例）
         if self.baseline_metrics:
             baseline_sharpe = self.baseline_metrics.get('sharpe', 0)
             win_rate = sum(s > baseline_sharpe for s in sharpe_values) / len(sharpe_values)
         else:
             win_rate = 0.5
 
-        # 综合稳健性得分（0-100，越高越稳健）
+# 综合稳健性得分（0-100，越高越稳健）
         robustness_score = (
-            (1 - min(sharpe_cv, 2) / 2) * 30 +  # 变异系数得分
-            min(max(worst_sharpe, -1), 2) / 2 * 30 +  # 最差情况得分
-            win_rate * 40  # 胜率得分
+            (1 - min(sharpe_cv, 2) / 2) *30 +  # 变异系数得分
+            min(max(worst_sharpe, -1), 2) / 2*30 +  # 最差情况得分
+            win_rate*40  # 胜率得分
         )
 
         return {
@@ -1529,7 +1579,8 @@ class RobustnessTester:
             'worst_return': worst_return,
             'win_rate': win_rate
         }
-```
+
+```bash
 
 ### 6. 前瞻偏差预防器设计
 
@@ -1561,15 +1612,15 @@ class LookaheadBiasDetector:
         """
         violations = []
 
-        # 检查信号是否使用了未来数据
+# 检查信号是否使用了未来数据
         for i in range(1, len(data)):
             current_signal = data[signal_column].iloc[i]
 
-            # 如果信号完美预测未来收益，可能存在泄露
+# 如果信号完美预测未来收益，可能存在泄露
             future_return = (data['close'].iloc[min(i + 5, len(data) - 1)] /
                            data['close'].iloc[i] - 1)
 
-            # 检查信号方向与未来收益的相关性
+# 检查信号方向与未来收益的相关性
             if pd.notna(current_signal) and pd.notna(future_return):
                 if (current_signal > 0 and future_return > 0.05) or \
                    (current_signal < 0 and future_return < -0.05):
@@ -1600,7 +1651,7 @@ class LookaheadBiasDetector:
         """
         violations = []
 
-        # 计算指标与价格的相关性（不同滞后阶数）
+# 计算指标与价格的相关性（不同滞后阶数）
         max_lag = 5
         correlations = []
 
@@ -1609,7 +1660,7 @@ class LookaheadBiasDetector:
             correlation = data[price_column].corr(shifted_indicator)
             correlations.append((lag, correlation))
 
-        # 如果最大相关性出现在滞后>0的位置，说明指标滞后
+# 如果最大相关性出现在滞后>0 的位置，说明指标滞后
         best_lag, best_corr = max(correlations, key=lambda x: abs(x[1]))
 
         if best_lag > 0 and abs(best_corr) > 0.8:
@@ -1642,7 +1693,7 @@ class LookaheadBiasDetector:
             if col not in df.columns:
                 continue
 
-            # 检查是否有未来函数
+# 检查是否有未来函数
             if 'future' in col.lower():
                 violations.append({
                     'column': col,
@@ -1650,9 +1701,10 @@ class LookaheadBiasDetector:
                     'message': f'列名包含"future"关键字'
                 })
 
-            # 检查是否完美预测未来收益
+# 检查是否完美预测未来收益
             if 'return' in col.lower():
-                # 计算该列与未来收益的相关性
+
+# 计算该列与未来收益的相关性
                 future_returns = df['close'].pct_change().shift(-1)
                 correlation = df[col].corr(future_returns)
 
@@ -1697,8 +1749,8 @@ class DataSplitter:
         """
         n_samples = len(data)
 
-        train_end = int(n_samples * self.train_ratio)
-        val_end = int(n_samples * (self.train_ratio + self.val_ratio))
+        train_end = int(n_samples*self.train_ratio)
+        val_end = int(n_samples*(self.train_ratio + self.val_ratio))
 
         return {
             'train': data.iloc[:train_end].copy(),
@@ -1721,9 +1773,9 @@ class DataSplitter:
         """
         n_samples = len(data)
 
-        train_end = int(n_samples * self.train_ratio)
+        train_end = int(n_samples*self.train_ratio)
         val_start = train_end + gap_days
-        val_end = int(n_samples * (self.train_ratio + self.val_ratio)) + gap_days
+        val_end = int(n_samples* (self.train_ratio + self.val_ratio)) + gap_days
         test_start = val_end + gap_days
 
         return {
@@ -1736,7 +1788,7 @@ class SafeDataFeed(bt.feeds.PandasData):
     """安全的数据源，防止前瞻偏差"""
 
     params = (
-        ('signal_delay', 0),  # 信号延迟bar数
+        ('signal_delay', 0),  # 信号延迟 bar 数
         ('validate', True),   # 是否验证数据
     )
 
@@ -1748,18 +1800,19 @@ class SafeDataFeed(bt.feeds.PandasData):
 
     def _validate_data(self):
         """验证数据"""
-        # 检查日期索引
-        if not isinstance(self.data.index, pd.DatetimeIndex):
-            raise ValueError("数据必须使用Datetime索引")
 
-        # 检查重复日期
+# 检查日期索引
+        if not isinstance(self.data.index, pd.DatetimeIndex):
+            raise ValueError("数据必须使用 Datetime 索引")
+
+# 检查重复日期
         if self.data.index.duplicated().any():
             raise ValueError(f"发现{self.data.index.duplicated().sum()}个重复日期")
 
-        # 检查缺失值
+# 检查缺失值
         missing_pct = self.data.isnull().sum() / len(self.data)
         if (missing_pct > 0.1).any():
-            raise ValueError(f"列缺失值超过10%: {missing_pct[missing_pct > 0.1].to_dict()}")
+            raise ValueError(f"列缺失值超过 10%: {missing_pct[missing_pct > 0.1].to_dict()}")
 
     def _get_delayed_signal(self, signal_col: str):
         """获取延迟的信号"""
@@ -1781,9 +1834,10 @@ class LookaheadBiasPreventer(bt.Observer):
         self.signals_generated = []
 
     def next(self):
-        """每个bar检查"""
+        """每个 bar 检查"""
         if self.p.check_signals:
-            # 记录当前bar的信号
+
+# 记录当前 bar 的信号
             current_data = {
                 'date': self.datas[0].datetime.date(0),
                 'close': self.datas[0].close[0],
@@ -1793,23 +1847,25 @@ class LookaheadBiasPreventer(bt.Observer):
 
     def stop(self):
         """回测结束检查"""
-        # 检查信号是否存在前瞻偏差
+
+# 检查信号是否存在前瞻偏差
         if len(self.signals_generated) > 10:
             df = pd.DataFrame(self.signals_generated)
             violations = self.detector.check_signal_leakage(df, 'strategy_position')
 
             if violations:
                 print(f"警告: 检测到{len(violations)}个潜在前瞻偏差问题")
-```
 
-### 7. 整合到Backtrader
+```bash
+
+### 7. 整合到 Backtrader
 
 ```python
 import backtrader as bt
 from typing import Dict, List, Optional, Any
 
 class EnhancedCerebro(bt.Cerebro):
-    """增强的Cerebro，集成验证功能"""
+    """增强的 Cerebro，集成验证功能"""
 
     def __init__(self):
         super().__init__()
@@ -1834,7 +1890,7 @@ class EnhancedCerebro(bt.Cerebro):
                        test_size: int = 63,
                        step_size: int = 21) -> WalkForwardSummary:
         """
-        运行Walk-forward分析
+        运行 Walk-forward 分析
 
         Args:
             param_grid: 参数网格
@@ -1843,7 +1899,7 @@ class EnhancedCerebro(bt.Cerebro):
             step_size: 步长
 
         Returns:
-            Walk-forward汇总结果
+            Walk-forward 汇总结果
         """
         analyzer = WalkForwardAnalyzer(
             train_size=train_size,
@@ -1851,14 +1907,14 @@ class EnhancedCerebro(bt.Cerebro):
             step_size=step_size
         )
 
-        # 获取数据
+# 获取数据
         data = self._get_combined_data()
 
-        # 获取策略类
+# 获取策略类
         strategy_class = self._get_strategy_class()
         strategy_params = self._get_strategy_params()
 
-        # 运行Walk-forward
+# 运行 Walk-forward
         self.walkforward_results = analyzer.run(
             data, strategy_class, param_grid
         )
@@ -1883,11 +1939,11 @@ class EnhancedCerebro(bt.Cerebro):
             n_splits=n_splits
         )
 
-        # 获取数据
+# 获取数据
         data = self._get_combined_data()
         splits = cv.split(data)
 
-        # 获取策略类和参数
+# 获取策略类和参数
         strategy_class = self._get_strategy_class()
         strategy_params = self._get_strategy_params()
 
@@ -1896,10 +1952,10 @@ class EnhancedCerebro(bt.Cerebro):
             train_data = data.iloc[split.train_indices]
             test_data = data.iloc[split.test_indices]
 
-            # 训练集验证
+# 训练集验证
             train_metrics = self._run_single_backtest(train_data, strategy_class, strategy_params)
 
-            # 测试集验证
+# 测试集验证
             test_metrics = self._run_single_backtest(test_data, strategy_class, strategy_params)
 
             results.append({
@@ -1959,21 +2015,21 @@ class EnhancedCerebro(bt.Cerebro):
         data = self._get_combined_data()
         strategy_class = self._get_strategy_class()
 
-        # 首先获取基准指标
+# 首先获取基准指标
         baseline_metrics = self._run_single_backtest(data, strategy_class, baseline_params)
 
         tester = RobustnessTester(baseline_metrics)
 
-        # 交易成本测试
+# 交易成本测试
         cost_results = tester.test_transaction_costs(data, strategy_class, baseline_params)
 
-        # 滑点测试
+# 滑点测试
         slippage_results = tester.test_slippage_scenarios(data, strategy_class, baseline_params)
 
-        # 参数扰动测试
+# 参数扰动测试
         perturbation_results = tester.test_parameter_perturbation(data, strategy_class, baseline_params)
 
-        # 计算稳健性得分
+# 计算稳健性得分
         all_results = cost_results + slippage_results
         robustness_score = tester.calculate_robustness_score(all_results)
 
@@ -1986,7 +2042,8 @@ class EnhancedCerebro(bt.Cerebro):
 
     def _get_combined_data(self) -> pd.DataFrame:
         """获取合并后的数据"""
-        # 收集所有数据源
+
+# 收集所有数据源
         all_data = []
         for feed in self.datas:
             df = self._feed_to_dataframe(feed)
@@ -1995,7 +2052,7 @@ class EnhancedCerebro(bt.Cerebro):
         if not all_data:
             raise ValueError("没有数据源")
 
-        # 使用第一个数据源
+# 使用第一个数据源
         return all_data[0]
 
     def _get_strategy_class(self) -> type:
@@ -2012,7 +2069,8 @@ class EnhancedCerebro(bt.Cerebro):
 
     def _get_benchmark_returns(self) -> Optional[np.ndarray]:
         """获取基准收益率"""
-        # 可以从配置中获取或计算
+
+# 可以从配置中获取或计算
         return None
 
     def _run_single_backtest(self,
@@ -2043,113 +2101,123 @@ class EnhancedCerebro(bt.Cerebro):
         }
 
     def _feed_to_dataframe(self, feed) -> pd.DataFrame:
-        """将数据源转换为DataFrame"""
-        # 简化实现
-        return pd.DataFrame()
-```
+        """将数据源转换为 DataFrame"""
 
----
+# 简化实现
+        return pd.DataFrame()
+
+```bash
+
+- --
 
 ## 实施计划
 
-### 第一阶段：交叉验证器（1周）
+### 第一阶段：交叉验证器（1 周）
 
-1. 实现TimeSeriesCV类
-2. 实现rolling/expanding/kfold分割
+1. 实现 TimeSeriesCV 类
+2. 实现 rolling/expanding/kfold 分割
 3. 单元测试
 4. 可视化功能
 
-### 第二阶段：Walk-forward分析（2周）
+### 第二阶段：Walk-forward 分析（2 周）
 
-1. 实现WalkForwardAnalyzer
+1. 实现 WalkForwardAnalyzer
 2. 参数优化引擎
 3. 结果汇总统计
 4. 报告生成
 
-### 第三阶段：过拟合检测（2周）
+### 第三阶段：过拟合检测（2 周）
 
-1. 实现White's Reality Check
-2. 实现Bootstrap检验
-3. 实现Permutation Test
+1. 实现 White's Reality Check
+2. 实现 Bootstrap 检验
+3. 实现 Permutation Test
 4. 参数敏感性分析
 
-### 第四阶段：统计检验（1周）
+### 第四阶段：统计检验（1 周）
 
 1. 实现夏普比率检验
 2. 实现多重比较修正
 3. 实现置信区间计算
 4. 多策略联合检验
 
-### 第五阶段：稳健性测试（1周）
+### 第五阶段：稳健性测试（1 周）
 
-1. 实现RobustnessTester
+1. 实现 RobustnessTester
 2. 市场状态检测
 3. 成本/滑点敏感性
 4. 参数扰动测试
 
-### 第六阶段：前瞻偏差预防（1周）
+### 第六阶段：前瞻偏差预防（1 周）
 
-1. 实现LookaheadBiasDetector
-2. 实现DataSplitter
-3. 实现SafeDataFeed
-4. 集成到Cerebro
+1. 实现 LookaheadBiasDetector
+2. 实现 DataSplitter
+3. 实现 SafeDataFeed
+4. 集成到 Cerebro
 
-### 第七阶段：整合与文档（1周）
+### 第七阶段：整合与文档（1 周）
 
-1. 实现EnhancedCerebro
+1. 实现 EnhancedCerebro
 2. 集成测试
 3. 用户文档
 4. 示例代码
 
----
+- --
 
-## API兼容性保证
+## API 兼容性保证
 
 1. **新增功能独立模块**：所有新增功能作为独立模块
-2. **保持原有API不变**：不影响现有回测代码
+2. **保持原有 API 不变**：不影响现有回测代码
 3. **可选集成**：用户可以选择性使用验证功能
 4. **渐进式增强**：可以逐步添加验证步骤
 
----
+- --
 
 ## 使用示例
 
-### 示例1：时间序列交叉验证
+### 示例 1：时间序列交叉验证
 
 ```python
 from backtrader.validation import TimeSeriesCV, EnhancedCerebro
 
-# 创建增强的Cerebro
+# 创建增强的 Cerebro
+
 cerebro = EnhancedCerebro()
 
 # 添加数据和策略
+
 cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy, param1=10, param2=20)
 
 # 运行交叉验证
+
 cv_results = cerebro.run_cross_validation(
     method='rolling',
     n_splits=5
 )
 
 # 查看结果
+
 for i, result in enumerate(cv_results):
     print(f"Fold {i+1}:")
     print(f"  Train Sharpe: {result['train_metrics']['sharpe']:.2f}")
     print(f"  Test Sharpe: {result['test_metrics']['sharpe']:.2f}")
     print(f"  Generalization Gap: {result['generalization_gap']['sharpe']:.2f}")
-```
 
-### 示例2：Walk-forward分析
+```bash
+
+### 示例 2：Walk-forward 分析
 
 ```python
+
 # 定义参数网格
+
 param_grid = {
     'fast_period': [5, 10, 15],
     'slow_period': [20, 30, 40]
 }
 
-# 运行Walk-forward
+# 运行 Walk-forward
+
 wf_result = cerebro.run_walkforward(
     param_grid=param_grid,
     train_size=252,
@@ -2158,61 +2226,75 @@ wf_result = cerebro.run_walkforward(
 )
 
 # 查看结果
+
 print(f"平均收益率: {wf_result.aggregate_metrics['mean_return']:.2%}")
 print(f"胜率: {wf_result.aggregate_metrics['win_rate']:.2%}")
 print(f"参数稳定性: {wf_result.param_stability}")
-```
 
-### 示例3：过拟合检测
+```bash
+
+### 示例 3：过拟合检测
 
 ```python
 from backtrader.validation import OverfittingDetector
 
 # 获取策略收益率
+
 returns = strategy.get_returns()
 
 # 创建检测器
+
 detector = OverfittingDetector()
 
 # White's Reality Check
+
 wrc_result = detector.whites_reality_check(returns)
 print(f"p-value: {wrc_result.p_value:.4f}")
 print(f"是否过拟合: {wrc_result.is_overfitted}")
 
-# Bootstrap检验
+# Bootstrap 检验
+
 bs_result = detector.bootstrap_test(returns, metric='sharpe')
 print(f"95% CI: [{bs_result.confidence_interval[0]:.2f}, {bs_result.confidence_interval[1]:.2f}]")
-```
 
-### 示例4：稳健性测试
+```bash
+
+### 示例 4：稳健性测试
 
 ```python
 from backtrader.validation import RobustnessTester
 
 # 创建测试器
+
 tester = RobustnessTester(baseline_metrics={'sharpe': 1.5})
 
 # 测试交易成本敏感性
+
 cost_results = tester.test_transaction_costs(data, MyStrategy, params)
 
 # 测试滑点敏感性
+
 slippage_results = tester.test_slippage_scenarios(data, MyStrategy, params)
 
 # 计算稳健性得分
+
 score = tester.calculate_robustness_score(cost_results)
 print(f"稳健性得分: {score['robustness_score']:.1f}/100")
-```
 
-### 示例5：前瞻偏差预防
+```bash
+
+### 示例 5：前瞻偏差预防
 
 ```python
 from backtrader.validation import DataSplitter, LookaheadBiasDetector
 
 # 分割数据
+
 splitter = DataSplitter(train_ratio=0.7, val_ratio=0.15, test_ratio=0.15)
 splits = splitter.split(data)
 
 # 检测前瞻偏差
+
 detector = LookaheadBiasDetector()
 violations = detector.check_future_information(data, ['signal', 'future_return'])
 
@@ -2220,31 +2302,39 @@ if violations:
     print(f"检测到{len(violations)}个前瞻偏差问题")
 else:
     print("未检测到前瞻偏差")
-```
 
-### 示例6：完整验证流程
+```bash
+
+### 示例 6：完整验证流程
 
 ```python
-# 创建增强的Cerebro
+
+# 创建增强的 Cerebro
+
 cerebro = EnhancedCerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy)
 
 # 1. 交叉验证
+
 cv_results = cerebro.run_cross_validation(n_splits=5)
 
-# 2. Walk-forward分析
+# 2. Walk-forward 分析
+
 param_grid = {'period': [10, 20, 30]}
 wf_results = cerebro.run_walkforward(param_grid)
 
 # 3. 过拟合检测
+
 returns = np.array([r['test_metrics']['total_return'] for r in cv_results])
 of_results = cerebro.test_overfitting(returns)
 
 # 4. 稳健性测试
+
 robust_results = cerebro.test_robustness({'period': 20})
 
 # 5. 生成完整报告
+
 generate_validation_report(
     cv_results=cv_results,
     wf_results=wf_results,
@@ -2252,4 +2342,5 @@ generate_validation_report(
     robust_results=robust_results,
     output_path='validation_report.html'
 )
-```
+
+```bash

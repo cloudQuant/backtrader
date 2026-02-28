@@ -76,8 +76,8 @@
 <step n="2" goal="Choose collaboration mode">
 <ask>How would you like to work through the brief?
 
-**1. Interactive Mode** - We'll work through each section together, discussing and refining as we go
-**2. YOLO Mode** - I'll generate a complete draft based on our conversation so far, then we'll refine it together
+- *1. Interactive Mode** - We'll work through each section together, discussing and refining as we go
+- *2. YOLO Mode** - I'll generate a complete draft based on our conversation so far, then we'll refine it together
 
 Which approach works best for you?</ask>
 
@@ -278,6 +278,7 @@ Which approach works best for you?</ask>
 <step n="13" goal="Create executive summary">
 <action>Synthesize all sections into a compelling executive summary</action>
 <action>Include:
+
 - Game concept in 1-2 sentences
 - Target audience and market
 - Core gameplay pillars
@@ -311,7 +312,7 @@ Which approach works best for you?</ask>
 
 This brief will serve as the primary input for creating the Game Design Document (GDD).
 
-**Recommended next steps:**
+- *Recommended next steps:**
 
 - Create prototype of core mechanic
 - Proceed to GDD workflow: `workflow gdd`
@@ -340,24 +341,28 @@ This brief will serve as the primary input for creating the Game Design Document
 
 <output>**✅ Game Brief Complete, {user_name}!**
 
-**Brief Document:**
+- *Brief Document:**
 
 - Game brief saved to {output_folder}/bmm-game-brief-{{game_name}}-{{date}}.md
 
 {{#if standalone_mode != true}}
-**Status Updated:**
+
+- *Status Updated:**
 
 - Progress tracking updated: game-brief marked complete
 - Next workflow: {{next_workflow}}
+
   {{else}}
-  **Note:** Running in standalone mode (no progress tracking)
+
+  - *Note:** Running in standalone mode (no progress tracking)
+
   {{/if}}
 
-**Next Steps:**
+- *Next Steps:**
 
 {{#if standalone_mode != true}}
 
-- **Next workflow:** {{next_workflow}} ({{next_agent}} agent)
+- **Next workflow:**{{next_workflow}} ({{next_agent}} agent)
 - **Optional:** Consider creating a prototype of core mechanic or validating assumptions with target players before proceeding
 
 Check status anytime with: `workflow-status`
@@ -366,6 +371,7 @@ Since no workflow is in progress:
 
 - Refer to the BMM workflow guide if unsure what to do next
 - Or run `workflow-init` to create a workflow path and get guided next steps
+
   {{/if}}
   </output>
   </step>

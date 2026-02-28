@@ -624,9 +624,7 @@ class ParameterManager:
                             # Keep current values
                             pass
                         elif conflict_resolution in ("error", "raise"):
-                            raise ValueError(
-                                f"Parameter '{name}' conflicts between parent and child"
-                            )
+                            raise ValueError(f"Parameter '{name}' conflicts between parent and child")
                     elif parent_has_value and not child_has_value:
                         # Parent has value, child has default - inherit from parent
                         self._descriptors[name] = parent._descriptors[name]
@@ -668,9 +666,7 @@ class ParameterManager:
                             # Keep current values
                             pass
                         elif conflict_resolution in ("error", "raise"):
-                            raise ValueError(
-                                f"Parameter '{name}' conflicts between parent and child"
-                            )
+                            raise ValueError(f"Parameter '{name}' conflicts between parent and child")
                     else:
                         # No conflict, add parameter
                         self._descriptors[name] = parent._descriptors[name]
@@ -700,11 +696,7 @@ class ParameterManager:
 
         # Check if parameter is inherited (not in _modified set and has different value than default)
         current_value = self.get(name)
-        is_inherited = (
-            name not in self._modified
-            and current_value != descriptor.default
-            and name in self._values
-        )
+        is_inherited = name not in self._modified and current_value != descriptor.default and name in self._values
 
         return {
             "name": name,
@@ -810,9 +802,7 @@ class ParameterManager:
             self._invalidate_cache(name)
 
     # Change callbacks
-    def add_change_callback(
-        self, callback: Callable[[str, Any, Any], None], param_name: Optional[str] = None
-    ) -> None:
+    def add_change_callback(self, callback: Callable[[str, Any, Any], None], param_name: Optional[str] = None) -> None:
         """
         Add a callback function that will be called when parameters change.
 
@@ -902,9 +892,7 @@ class ParameterManager:
             sorted_history = sorted_history[:limit]
 
         # Convert to tuple format (old_value, new_value, timestamp)
-        return [
-            (entry["old_value"], entry["new_value"], entry["timestamp"]) for entry in sorted_history
-        ]
+        return [(entry["old_value"], entry["new_value"], entry["timestamp"]) for entry in sorted_history]
 
     def clear_history(self, name: Optional[str] = None) -> None:
         """
@@ -1189,9 +1177,7 @@ class ParameterizedBase:
                             param_name, param_default = param_def[0], param_def[1]
                             # More specific classes override less specific ones
                             # Since we process from least to most specific, always update
-                            all_params[param_name] = ParameterDescriptor(
-                                default=param_default, name=param_name
-                            )
+                            all_params[param_name] = ParameterDescriptor(default=param_default, name=param_name)
 
         # STEP 2: Add descriptors from the current class (highest precedence)
         # These override any inherited parameters with the same name
@@ -1212,9 +1198,7 @@ class ParameterizedBase:
                     if isinstance(param_def, (tuple, list)) and len(param_def) >= 2:
                         param_name, param_default = param_def[0], param_def[1]
                         # Current class params override inherited ones
-                        all_params[param_name] = ParameterDescriptor(
-                            default=param_default, name=param_name
-                        )
+                        all_params[param_name] = ParameterDescriptor(default=param_default, name=param_name)
 
         # STEP 4: Set the final descriptors for this class and mark as computed
         cls._parameter_descriptors = all_params
@@ -1262,9 +1246,7 @@ class ParameterizedBase:
         """
         return self.__class__._compute_parameter_descriptors()
 
-    def _init_with_metaparams_compatibility(
-        self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]
-    ):
+    def _init_with_metaparams_compatibility(self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]):
         """
         Initialize with MetaParams compatibility mode.
 
@@ -1273,9 +1255,7 @@ class ParameterizedBase:
             kwargs: Initialization keyword arguments
         """
         # Initialize the new parameter manager
-        self._param_manager = ParameterManager(
-            descriptors, enable_history=True, enable_callbacks=True
-        )
+        self._param_manager = ParameterManager(descriptors, enable_history=True, enable_callbacks=True)
 
         # Handle inheritance from MetaParams-based classes
         if self._has_metaparams_heritage:
@@ -1286,12 +1266,8 @@ class ParameterizedBase:
                         for param_name, param_default in base.params._getitems():
                             if param_name not in descriptors:
                                 # Create a descriptor for the MetaParams parameter
-                                descriptors[param_name] = ParameterDescriptor(
-                                    default=param_default, name=param_name
-                                )
-                                self._param_manager._descriptors[param_name] = descriptors[
-                                    param_name
-                                ]
+                                descriptors[param_name] = ParameterDescriptor(default=param_default, name=param_name)
+                                self._param_manager._descriptors[param_name] = descriptors[param_name]
                                 self._param_manager._defaults[param_name] = param_default
                                 self._inheritance_sources[param_name] = base
                     except (AttributeError, TypeError):
@@ -1318,9 +1294,7 @@ class ParameterizedBase:
         # Return other kwargs for parent class initialization
         return other_kwargs
 
-    def _init_with_new_system(
-        self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]
-    ):
+    def _init_with_new_system(self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]):
         """
         Initialize with the new parameter system only.
 
@@ -1328,9 +1302,7 @@ class ParameterizedBase:
             descriptors: Parameter descriptors
             kwargs: Initialization keyword arguments
         """
-        self._param_manager = ParameterManager(
-            descriptors, enable_history=True, enable_callbacks=True
-        )
+        self._param_manager = ParameterManager(descriptors, enable_history=True, enable_callbacks=True)
 
         # Separate parameter kwargs from other kwargs
         param_kwargs = {}
@@ -1529,10 +1501,7 @@ class ParameterizedBase:
 
         # Copy parameters
         for name in param_names:
-            if (
-                name in self._param_manager._descriptors
-                and name in other._param_manager._descriptors
-            ):
+            if name in self._param_manager._descriptors and name in other._param_manager._descriptors:
                 try:
                     value = other._param_manager.get(name)
                     self._param_manager.set(name, value)
@@ -1748,9 +1717,7 @@ def Int(min_val: Optional[int] = None, max_val: Optional[int] = None) -> Callabl
     return _IntValidator(min_val, max_val)
 
 
-def Float(
-    min_val: Optional[float] = None, max_val: Optional[float] = None
-) -> Callable[[Any], bool]:
+def Float(min_val: Optional[float] = None, max_val: Optional[float] = None) -> Callable[[Any], bool]:
     """
     Create a float validator function.
 
@@ -1769,9 +1736,7 @@ def FloatParam(
     default=None, min_val: Optional[float] = None, max_val: Optional[float] = None, doc: str = None
 ) -> ParameterDescriptor:
     """Create a float parameter descriptor with validation."""
-    return ParameterDescriptor(
-        default=default, type_=float, validator=Float(min_val, max_val), doc=doc
-    )
+    return ParameterDescriptor(default=default, type_=float, validator=Float(min_val, max_val), doc=doc)
 
 
 def BoolParam(default=None, doc: str = None) -> ParameterDescriptor:
@@ -1786,14 +1751,10 @@ def StringParam(
     doc: str = None,
 ) -> ParameterDescriptor:
     """Create a string parameter descriptor with length validation."""
-    return ParameterDescriptor(
-        default=default, type_=str, validator=String(min_length, max_length), doc=doc
-    )
+    return ParameterDescriptor(default=default, type_=str, validator=String(min_length, max_length), doc=doc)
 
 
-def String(
-    min_length: Optional[int] = None, max_length: Optional[int] = None
-) -> Callable[[Any], bool]:
+def String(min_length: Optional[int] = None, max_length: Optional[int] = None) -> Callable[[Any], bool]:
     """
     Create a string validator function.
 

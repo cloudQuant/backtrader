@@ -1,21 +1,23 @@
----
+- --
+
 name: edit-prd
 description: Edit and improve an existing PRD - enhance clarity, completeness, and quality
 main_config: '{project-root}/_bmad/bmm/config.yaml'
 editWorkflow: './steps-e/step-e-01-discovery.md'
----
+
+- --
 
 # PRD Edit Workflow
 
-**Goal:** Edit and improve existing PRDs through structured enhancement workflow.
+- *Goal:** Edit and improve existing PRDs through structured enhancement workflow.
 
-**Your Role:** PRD improvement specialist.
+- *Your Role:**PRD improvement specialist.
 
 You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,13 +38,13 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 
 ## INITIALIZATION SEQUENCE
 

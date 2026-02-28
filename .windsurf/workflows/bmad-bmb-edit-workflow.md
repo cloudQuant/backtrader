@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Edit existing BMAD workflows while maintaining integrity'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # edit-workflow
 

@@ -1,11 +1,13 @@
----
+- --
+
 stepsCompleted: []
 inputDocuments: []
 workflowType: 'architecture'
 project_name: '{{project_name}}'
 user_name: '{{user_name}}'
 date: '{{date}}'
----
+
+- --
 
 # Architecture Decision Document
 

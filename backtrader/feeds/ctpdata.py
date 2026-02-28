@@ -47,8 +47,8 @@ class CTPData(DataBase):
     params = (
         ("historical", False),
         ("num_init_backfill", 100),
-        ("tick_mode", False),        # C2: emit raw ticks instead of bars
-        ("backfill_retries", 2),     # C4: number of backfill retry attempts
+        ("tick_mode", False),  # C2: emit raw ticks instead of bars
+        ("backfill_retries", 2),  # C4: number of backfill retry attempts
     )
 
     _store = CTPStore
@@ -61,6 +61,16 @@ class CTPData(DataBase):
         return True
 
     def __init__(self, **kwargs):
+        """Initialize the CTPData feed.
+
+        Args:
+            **kwargs: Keyword arguments passed to parent DataBase and CTPStore.
+                Common parameters include dataname, historical, num_init_backfill,
+                tick_mode, and backfill_retries.
+
+        Raises:
+            Exception: If CTPStore connection or registration fails.
+        """
         super().__init__(**kwargs)
         CTPStore.DataCls = self.__class__
 
@@ -68,7 +78,7 @@ class CTPData(DataBase):
         self.o = self._store(**kwargs)
         # Register tick queue for this instrument
         self.qlive = self.o.register(self)
-        self._instrument = self.p.dataname.split('.')[0] if '.' in self.p.dataname else self.p.dataname
+        self._instrument = self.p.dataname.split(".")[0] if "." in self.p.dataname else self.p.dataname
 
         # Bar aggregation state
         self._bar_compression_secs = self._calc_bar_seconds()
@@ -93,6 +103,12 @@ class CTPData(DataBase):
             return 60  # default 1 minute
 
     def start(self):
+        """Start the CTP data feed.
+
+        Subscribes to market data for the configured instrument and initiates
+        historical backfill. Sets initial state to ST_HISTORBACK for loading
+        historical data before transitioning to live mode.
+        """
         super().start()
         # Subscribe to market data via store
         self.o.subscribe(self.p.dataname)
@@ -113,23 +129,27 @@ class CTPData(DataBase):
         for attempt in range(retries + 1):
             try:
                 import akshare as ak
+
                 symbol = self._instrument
                 if self._timeframe == 4:
-                    futures_sina_df = ak.futures_zh_minute_sina(
-                        symbol=symbol, period=str(self._compression)
-                    ).tail(self.p.num_init_backfill)
+                    futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period=str(self._compression)).tail(
+                        self.p.num_init_backfill
+                    )
                 elif self._timeframe == 5:
                     futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
                 else:
-                    futures_sina_df = ak.futures_zh_minute_sina(
-                        symbol=symbol, period="1"
-                    ).tail(self.p.num_init_backfill)
+                    futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(self.p.num_init_backfill)
 
                 # C4: Flexible column mapping (handle akshare API changes)
                 if len(futures_sina_df.columns) >= 7:
                     futures_sina_df.columns = [
-                        "datetime", "OpenPrice", "HighPrice", "LowPrice",
-                        "LastPrice", "BarVolume", "hold",
+                        "datetime",
+                        "OpenPrice",
+                        "HighPrice",
+                        "LowPrice",
+                        "LastPrice",
+                        "BarVolume",
+                        "hold",
                     ]
                 else:
                     logger.warning(f"[CTPData] Unexpected columns: {list(futures_sina_df.columns)}")
@@ -159,24 +179,49 @@ class CTPData(DataBase):
                 break  # no point retrying
             except Exception as e:
                 if attempt < retries:
-                    logger.warning(f"[CTPData] Backfill attempt {attempt+1} failed: {e}, retrying...")
+                    logger.warning(f"[CTPData] Backfill attempt {attempt + 1} failed: {e}, retrying...")
                     import time
+
                     time.sleep(1)
                 else:
-                    logger.warning(f"[CTPData] Backfill failed after {retries+1} attempts: {e}")
+                    logger.warning(f"[CTPData] Backfill failed after {retries + 1} attempts: {e}")
 
         self.qhist.put({})
         return True
 
     def stop(self):
+        """Stop the CTP data feed and release resources.
+
+        Calls parent stop method and notifies the CTPStore to stop
+        streaming data for this instrument. Safe to call with multiple
+        feeds as the store tracks feed count internally.
+        """
         super().stop()
         # Store tracks feed_count; safe to call even with multiple feeds
         self.o.stop()
 
     def haslivedata(self):
+        """Check if live data is available in the tick queue.
+
+        Returns:
+            bool: True if there are ticks waiting to be processed in the
+                live queue, False otherwise.
+        """
         return not self.qlive.empty()
 
     def _load(self):
+        """Load the next bar from either historical or live data sources.
+
+        Implements a finite state machine with three states:
+        - ST_OVER: Data feed is complete, return False.
+        - ST_LIVE: Load from live tick queue via _load_live().
+        - ST_HISTORBACK: Load from historical backfill queue; transitions
+          to ST_LIVE when backfill is complete or ST_OVER if historical-only.
+
+        Returns:
+            bool: True if a bar was successfully loaded, False if the feed
+                is complete or disconnected.
+        """
         if self._state == self._ST_OVER:
             return False
 
@@ -213,12 +258,11 @@ class CTPData(DataBase):
             if tick is None:
                 continue
 
-            last_price = tick.get('last_price', 0.0)
-            tick_volume = tick.get('volume', 0)
-            open_interest = tick.get('open_interest', 0.0)
-            update_time = tick.get('update_time', '')
-            action_day = tick.get('action_day', '')
-            update_ms = tick.get('update_millisec', 0)
+            last_price = tick.get("last_price", 0.0)
+            tick_volume = tick.get("volume", 0)
+            open_interest = tick.get("open_interest", 0.0)
+            update_time = tick.get("update_time", "")
+            action_day = tick.get("action_day", "")
 
             if last_price == 0.0 or last_price >= 1e300:
                 continue
@@ -226,9 +270,7 @@ class CTPData(DataBase):
             # Parse tick datetime
             try:
                 if action_day and update_time:
-                    tick_dt = datetime.strptime(
-                        f"{action_day} {update_time}", "%Y%m%d %H:%M:%S"
-                    )
+                    tick_dt = datetime.strptime(f"{action_day} {update_time}", "%Y%m%d %H:%M:%S")
                 else:
                     tick_dt = datetime.now()
                 tick_dt = CHINA_TZ.localize(tick_dt)
@@ -304,11 +346,11 @@ class CTPData(DataBase):
     # C3: Trading session boundaries for bar alignment
     # Each tuple is (start_hour, start_min, end_hour, end_min)
     _TRADING_SESSIONS = [
-        (21, 0, 23, 0),    # Night session part 1
-        (23, 0, 2, 30),    # Night session part 2 (crosses midnight)
-        (9, 0, 10, 15),    # Morning session 1
+        (21, 0, 23, 0),  # Night session part 1
+        (23, 0, 2, 30),  # Night session part 2 (crosses midnight)
+        (9, 0, 10, 15),  # Morning session 1
         (10, 30, 11, 30),  # Morning session 2
-        (13, 30, 15, 0),   # Afternoon session
+        (13, 30, 15, 0),  # Afternoon session
     ]
 
     def _align_bar_time(self, tick_dt):
@@ -325,7 +367,7 @@ class CTPData(DataBase):
         bar_end = bar_start + timedelta(seconds=bar_secs)
 
         # C3: Clamp bar_end to next session boundary if it crosses a break
-        h, m = tick_dt.hour, tick_dt.minute
+        _h, _m = tick_dt.hour, tick_dt.minute  # noqa: F841
         # Session end times that could clip the current bar
         session_ends = [
             tick_dt.replace(hour=10, minute=15, second=0, microsecond=0),

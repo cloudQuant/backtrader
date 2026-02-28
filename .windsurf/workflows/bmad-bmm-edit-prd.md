@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Edit and improve an existing PRD - enhance clarity, completeness, and quality'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # edit-prd
 

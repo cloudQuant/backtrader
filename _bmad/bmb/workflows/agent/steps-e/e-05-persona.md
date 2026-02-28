@@ -1,4 +1,5 @@
----
+- --
+
 name: 'e-05-persona'
 description: 'Review and plan persona edits'
 
@@ -10,7 +11,8 @@ communicationPresets: ../data/communication-presets.csv
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Edit Step 5: Persona
 
@@ -39,7 +41,7 @@ Review the agent's persona and plan any changes using the four-field persona sys
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Reference Documents
 
@@ -48,28 +50,29 @@ Read `{personaProperties}`, `{principlesCrafting}`, `{communicationPresets}` to 
 ### 2. Review Current Persona
 
 From `{editPlan}`, display current persona:
-- **role:** What they do
-- **identity:** Who they are
-- **communication_style:** How they speak
+
+- **role:**What they do
+- **identity:**Who they are
+- **communication_style:**How they speak
 - **principles:** Why they act (decision framework)
 
 ### 3. Discuss Persona Edits
 
 For each field the user wants to change:
 
-**Role edits:**
+- *Role edits:**
 - Ensure functional definition (not personality)
 - Define expertise domain and capabilities
 
-**Identity edits:**
+- *Identity edits:**
 - Ensure personality definition (not job description)
 - Define character, attitude, worldview
 
-**Communication_style edits:**
+- *Communication_style edits:**
 - Ensure speech pattern definition (not expertise)
 - Define tone, formality, voice
 
-**Principles edits:**
+- *Principles edits:**
 - First principle must activate expert knowledge
 - Other principles guide decision-making
 - Follow principlesCrafting.md guidance
@@ -92,7 +95,8 @@ personaEdits:
   principles:
     from: {current}
     to: {target}
-```
+
+```bash
 
 ### 5. Present MENU OPTIONS
 
@@ -115,7 +119,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ONLY WHEN [C continue option] is selected and [persona changes documented with field purity maintained], will you then load and read fully `{nextStepFile}` to execute and begin commands menu planning.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -131,4 +135,4 @@ ONLY WHEN [C continue option] is selected and [persona changes documented with f
 - Field purity violated (mixed concepts)
 - Changes not documented to edit plan
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

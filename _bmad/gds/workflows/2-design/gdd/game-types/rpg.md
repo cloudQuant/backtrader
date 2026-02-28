@@ -4,7 +4,7 @@
 
 {{character_system}}
 
-**Character attributes:**
+- *Character attributes:**
 
 - Stats (Strength, Dexterity, Intelligence, etc.)
 - Classes/roles
@@ -15,7 +15,7 @@
 
 {{inventory_equipment}}
 
-**Equipment system:**
+- *Equipment system:**
 
 - Item types (weapons, armor, accessories)
 - Rarity tiers
@@ -26,7 +26,7 @@
 
 {{quest_system}}
 
-**Quest structure:**
+- *Quest structure:**
 
 - Main story quests
 - Side quests
@@ -38,7 +38,7 @@
 
 {{world_exploration}}
 
-**World design:**
+- *World design:**
 
 - Map structure (open world, hub-based, linear)
 - Towns and safe zones
@@ -50,7 +50,7 @@
 
 {{npc_dialogue}}
 
-**NPC interaction:**
+- *NPC interaction:**
 
 - Dialogue trees
 - Relationship/reputation system
@@ -61,7 +61,7 @@
 
 {{combat_system}}
 
-**Combat mechanics:**
+- *Combat mechanics:**
 
 - Combat style (real-time, turn-based, tactical)
 - Ability system

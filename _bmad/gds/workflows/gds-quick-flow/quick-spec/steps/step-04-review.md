@@ -1,14 +1,16 @@
----
+- --
+
 name: 'step-04-review'
 description: 'Review and finalize the tech-spec'
 
 workflow_path: '{project-root}/_bmad/gds/workflows/gds-quick-flow/quick-spec'
 wipFile: '{implementation_artifacts}/tech-spec-wip.md'
----
+
+- --
 
 # Step 4: Review & Finalize
 
-**Progress: Step 4 of 4** - Final Step
+- *Progress: Step 4 of 4**- Final Step
 
 ## RULES:
 
@@ -19,7 +21,7 @@ wipFile: '{implementation_artifacts}/tech-spec-wip.md'
 
 ## CONTEXT:
 
-- Requires `{wipFile}` from Step 3. 
+- Requires `{wipFile}` from Step 3.
 - MUST present COMPLETE spec content. Iterate until user is satisfied.
 - **Criteria**: The spec MUST meet the **READY FOR DEVELOPMENT** standard defined in `workflow.md`.
 
@@ -27,9 +29,9 @@ wipFile: '{implementation_artifacts}/tech-spec-wip.md'
 
 ### 1. Load and Present Complete Spec
 
-**Read `{wipFile}` completely and extract `slug` from frontmatter for later use.**
+- *Read `{wipFile}` completely and extract `slug` from frontmatter for later use.**
 
-**Present to user:**
+- *Present to user:**
 
 "Here's your complete tech-spec. Please review:"
 
@@ -41,17 +43,18 @@ wipFile: '{implementation_artifacts}/tech-spec-wip.md'
 - {ac_count} acceptance criteria to verify
 - {files_count} files to modify"
 
-**Present review menu:**
+- *Present review menu:**
 
-```
+```bash
 [y] Approve - finalize the spec
 [c] Changes - request modifications
 [q] Questions - ask about any section
 [a] Advanced Elicitation - dig deeper before approving
 [p] Party Mode - get expert feedback before approving
-```
 
-**HALT and wait for user selection.**
+```bash
+
+- *HALT and wait for user selection.**
 
 #### Menu Handling:
 
@@ -84,19 +87,24 @@ c) **If user has questions:**
 
 ### 3. Finalize the Spec
 
-**When user confirms the spec is good AND it meets the "Ready for Development" standard:**
+- *When user confirms the spec is good AND it meets the "Ready for Development" standard:**
 
 a) Update `{wipFile}` frontmatter:
 
    ```yaml
-   ---
-   # ... existing values ...
+
+   - --
+
+# ... existing values ...
    status: 'ready-for-dev'
    stepsCompleted: [1, 2, 3, 4]
-   ---
+
+   - --
+
    ```
 
 b) **Rename WIP file to final filename:**
+
    - Using the `slug` extracted in Section 1
    - Rename `{wipFile}` → `{implementation_artifacts}/tech-spec-{slug}.md`
    - Store this as `finalFile` for use in menus below
@@ -105,14 +113,15 @@ b) **Rename WIP file to final filename:**
 
 a) **Display completion message and menu:**
 
-```
-**Tech-Spec Complete!**
+```bash
+
+- *Tech-Spec Complete!**
 
 Saved to: {finalFile}
 
----
+- --
 
-**Next Steps:**
+- *Next Steps:**
 
 [a] Advanced Elicitation - refine further
 [r] Adversarial Review - critique of the spec (highly recommended)
@@ -120,9 +129,9 @@ Saved to: {finalFile}
 [d] Done - exit workflow
 [p] Party Mode - get expert feedback before dev
 
----
+- --
 
-Once you are fully satisfied with the spec (ideally after **Adversarial Review** and maybe a few rounds of **Advanced Elicitation**), it is recommended to run implementation in a FRESH CONTEXT for best results.
+Once you are fully satisfied with the spec (ideally after **Adversarial Review**and maybe a few rounds of**Advanced Elicitation**), it is recommended to run implementation in a FRESH CONTEXT for best results.
 
 Copy this prompt to start dev:
 
@@ -131,8 +140,8 @@ quick-dev {finalFile}
 \`\`\`
 
 This ensures the dev agent has clean context focused solely on implementation.
-```
 
+```bash
 b) **HALT and wait for user selection.**
 
 #### Menu Handling:
@@ -143,12 +152,14 @@ b) **HALT and wait for user selection.**
 - **[p]**: Load and execute `{party_mode_exec}`, then return here and redisplay menu
 - **[r]**: Execute Adversarial Review:
     1. **Invoke Adversarial Review Task**:
+
        > With `{finalFile}` constructed, invoke the review task. If possible, use information asymmetry: run this task, and only it, in a separate subagent or process with read access to the project, but no context except the `{finalFile}`.
        <invoke-task>Review {finalFile} using {project-root}/_bmad/core/tasks/review-adversarial-general.xml</invoke-task>
-       > **Platform fallback:** If task invocation not available, load the task file and execute its instructions inline, passing `{finalFile}` as the content.
+       > **Platform fallback:**If task invocation not available, load the task file and execute its instructions inline, passing `{finalFile}` as the content.
        > The task should: review `{finalFile}` and return a list of findings.
 
-    2. **Process Findings**:
+    2.**Process Findings**:
+
        > Capture the findings from the task output.
        > **If zero findings:** HALT - this is suspicious. Re-analyze or request user guidance.
        > Evaluate severity (Critical, High, Medium, Low) and validity (real, noise, undecided).
@@ -157,25 +168,25 @@ b) **HALT and wait for user selection.**
        > Number the ordered findings (F1, F2, F3, etc.).
        > If TodoWrite or similar tool is available, turn each finding into a TODO, include ID, severity, validity, and description in the TODO; otherwise present findings as a table with columns: ID, Severity, Validity, Description
 
-    3. Return here and redisplay menu.
+    1. Return here and redisplay menu.
 
 ### 5. Exit Workflow
 
-**When user selects [d]:**
+- *When user selects [d]:**
 
-"**All done!** Your tech-spec is ready at:
+"**All done!**Your tech-spec is ready at:
 
 `{finalFile}`
 
 When you're ready to implement, run:
 
-```
+```bash
 quick-dev {finalFile}
-```
 
+```bash
 Ship it!"
 
----
+- --
 
 ## REQUIRED OUTPUTS:
 
@@ -187,5 +198,5 @@ Ship it!"
 
 - [ ] Complete spec presented for review.
 - [ ] Requested changes implemented.
-- [ ] Spec verified against **READY FOR DEVELOPMENT** standard.
+- [ ] Spec verified against**READY FOR DEVELOPMENT** standard.
 - [ ] `stepsCompleted: [1, 2, 3, 4]` set and file renamed.

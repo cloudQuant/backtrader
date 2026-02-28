@@ -16,11 +16,13 @@
 <check-item id="1.2">
 <prompt>Define the core problem precisely</prompt>
 <action>Categorize issue type:</action>
+
   - Technical limitation discovered during implementation
   - New requirement emerged from stakeholders
   - Misunderstanding of original requirements
   - Strategic pivot or market change
   - Failed approach requiring different solution
+
 <action>Write clear problem statement</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
 </check-item>
@@ -51,10 +53,12 @@
 <check-item id="2.2">
 <prompt>Determine required epic-level changes</prompt>
 <action>Check each scenario:</action>
+
   - Modify existing epic scope or acceptance criteria
   - Add new epic to address the issue
   - Remove or defer epic that's no longer viable
   - Completely redefine epic based on new understanding
+
 <action>Document specific epic changes needed</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
 </check-item>
@@ -95,12 +99,14 @@
 <check-item id="3.2">
 <prompt>Review Architecture document for conflicts</prompt>
 <action>Check each area for impact:</action>
+
   - System components and their interactions
   - Architectural patterns and design decisions
   - Technology stack choices
   - Data models and schemas
   - API designs and contracts
   - Integration points
+
 <action>Document specific architecture sections requiring updates</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
 </check-item>
@@ -108,11 +114,13 @@
 <check-item id="3.3">
 <prompt>Examine UI/UX specifications for conflicts</prompt>
 <action>Check for impact on:</action>
+
   - User interface components
   - User flows and journeys
   - Wireframes or mockups
   - Interaction patterns
   - Accessibility considerations
+
 <action>Note specific UI/UX sections needing revision</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
 </check-item>
@@ -120,12 +128,14 @@
 <check-item id="3.4">
 <prompt>Consider impact on other artifacts</prompt>
 <action>Review additional artifacts for impact:</action>
+
   - Deployment scripts
   - Infrastructure as Code (IaC)
   - Monitoring and observability setup
   - Testing strategies
   - Documentation
   - CI/CD pipelines
+
 <action>Document any secondary artifacts requiring updates</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
 </check-item>
@@ -169,11 +179,13 @@
 <prompt>Select recommended path forward</prompt>
 <action>Based on analysis of all options, choose the best path</action>
 <action>Provide clear rationale considering:</action>
+
   - Implementation effort and timeline impact
   - Technical risk and complexity
   - Impact on team morale and momentum
   - Long-term sustainability and maintainability
   - Stakeholder expectations and business value
+
 <action>Selected approach: [Option 1 / Option 2 / Option 3 / Hybrid]</action>
 <action>Justification: [Document reasoning]</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
@@ -217,9 +229,11 @@
 <check-item id="5.5">
 <prompt>Establish agent handoff plan</prompt>
 <action>Identify which roles/agents will execute the changes:</action>
+
   - Development team (for implementation)
   - Product Owner / Scrum Master (for backlog changes)
   - Product Manager / Architect (for strategic changes)
+
 <action>Define responsibilities for each role</action>
 <status>[ ] Done / [ ] N/A / [ ] Action-needed</status>
 </check-item>

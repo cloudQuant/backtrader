@@ -1,18 +1,18 @@
 # {{target_name}} - Deep Dive Documentation
 
-**Generated:** {{date}}
-**Scope:** {{target_path}}
-**Files Analyzed:** {{file_count}}
-**Lines of Code:** {{total_loc}}
-**Workflow Mode:** Exhaustive Deep-Dive
+- *Generated:** {{date}}
+- *Scope:** {{target_path}}
+- *Files Analyzed:** {{file_count}}
+- *Lines of Code:** {{total_loc}}
+- *Workflow Mode:** Exhaustive Deep-Dive
 
 ## Overview
 
 {{target_description}}
 
-**Purpose:** {{target_purpose}}
-**Key Responsibilities:** {{responsibilities}}
-**Integration Points:** {{integration_summary}}
+- *Purpose:** {{target_purpose}}
+- *Key Responsibilities:** {{responsibilities}}
+- *Integration Points:** {{integration_summary}}
 
 ## Complete File Inventory
 
@@ -20,75 +20,87 @@
 
 ### {{file_path}}
 
-**Purpose:** {{purpose}}
-**Lines of Code:** {{loc}}
-**File Type:** {{file_type}}
+- *Purpose:** {{purpose}}
+- *Lines of Code:** {{loc}}
+- *File Type:** {{file_type}}
 
-**What Future Contributors Must Know:** {{contributor_note}}
+- *What Future Contributors Must Know:** {{contributor_note}}
 
-**Exports:**
+- *Exports:**
+
 {{#each exports}}
 
 - `{{signature}}` - {{description}}
+
   {{/each}}
 
-**Dependencies:**
+- *Dependencies:**
+
 {{#each imports}}
 
 - `{{import_path}}` - {{reason}}
+
   {{/each}}
 
-**Used By:**
+- *Used By:**
+
 {{#each dependents}}
 
 - `{{dependent_path}}`
+
   {{/each}}
 
-**Key Implementation Details:**
+- *Key Implementation Details:**
 
 ```{{language}}
 {{key_code_snippet}}
-```
 
+```bash
 {{implementation_notes}}
 
-**Patterns Used:**
+- *Patterns Used:**
+
 {{#each patterns}}
 
 - {{pattern_name}}: {{pattern_description}}
+
   {{/each}}
 
-**State Management:** {{state_approach}}
+- *State Management:** {{state_approach}}
 
-**Side Effects:**
+- *Side Effects:**
+
 {{#each side_effects}}
 
 - {{effect_type}}: {{effect_description}}
+
   {{/each}}
 
-**Error Handling:** {{error_handling_approach}}
+- *Error Handling:** {{error_handling_approach}}
 
-**Testing:**
+- *Testing:**
 
 - Test File: {{test_file_path}}
 - Coverage: {{coverage_percentage}}%
 - Test Approach: {{test_approach}}
 
-**Comments/TODOs:**
+- *Comments/TODOs:**
+
 {{#each todos}}
 
 - Line {{line_number}}: {{todo_text}}
+
   {{/each}}
 
----
+- --
 
 {{/each}}
 
 ## Contributor Checklist
 
-- **Risks & Gotchas:** {{risks_notes}}
-- **Pre-change Verification Steps:** {{verification_steps}}
-- **Suggested Tests Before PR:** {{suggested_tests}}
+- **Risks & Gotchas:**{{risks_notes}}
+- **Pre-change Verification Steps:**{{verification_steps}}
+- **Suggested Tests Before PR:**{{suggested_tests}}
 
 ## Architecture & Design Patterns
 
@@ -101,6 +113,7 @@
 {{#each design_patterns}}
 
 - **{{pattern_name}}**: {{usage_description}}
+
   {{/each}}
 
 ### State Management Strategy
@@ -124,6 +137,7 @@
 {{#each entry_points}}
 
 - **{{entry_name}}**: {{entry_description}}
+
   {{/each}}
 
 ### Data Transformations
@@ -131,6 +145,7 @@
 {{#each transformations}}
 
 - **{{transformation_name}}**: {{transformation_description}}
+
   {{/each}}
 
 ### Data Exit Points
@@ -138,6 +153,7 @@
 {{#each exit_points}}
 
 - **{{exit_name}}**: {{exit_description}}
+
   {{/each}}
 
 ## Integration Points
@@ -150,6 +166,7 @@
   - Method: {{method}}
   - Authentication: {{auth_requirement}}
   - Response: {{response_schema}}
+
     {{/each}}
 
 ### APIs Exposed
@@ -160,6 +177,7 @@
   - Method: {{method}}
   - Request: {{request_schema}}
   - Response: {{response_schema}}
+
     {{/each}}
 
 ### Shared State
@@ -169,6 +187,7 @@
 - **{{state_name}}**: {{state_description}}
   - Type: {{state_type}}
   - Accessed By: {{accessors}}
+
     {{/each}}
 
 ### Events
@@ -178,6 +197,7 @@
 - **{{event_name}}**: {{event_description}}
   - Type: {{publish_or_subscribe}}
   - Payload: {{payload_schema}}
+
     {{/each}}
 
 ### Database Access
@@ -187,6 +207,7 @@
 - **{{table_name}}**: {{operation_type}}
   - Queries: {{query_patterns}}
   - Indexes Used: {{indexes}}
+
     {{/each}}
 
 ## Dependency Graph
@@ -198,6 +219,7 @@
 {{#each entry_point_files}}
 
 - {{file_path}}
+
   {{/each}}
 
 ### Leaf Nodes (Don't Import Others in Scope)
@@ -205,6 +227,7 @@
 {{#each leaf_files}}
 
 - {{file_path}}
+
   {{/each}}
 
 ### Circular Dependencies
@@ -214,6 +237,7 @@
 {{#each circular_deps}}
 
 - {{cycle_description}}
+
   {{/each}}
   {{else}}
   ✓ No circular dependencies detected
@@ -223,10 +247,10 @@
 
 ### Test Coverage Summary
 
-- **Statements:** {{statements_coverage}}%
-- **Branches:** {{branches_coverage}}%
-- **Functions:** {{functions_coverage}}%
-- **Lines:** {{lines_coverage}}%
+- **Statements:**{{statements_coverage}}%
+- **Branches:**{{branches_coverage}}%
+- **Functions:**{{functions_coverage}}%
+- **Lines:**{{lines_coverage}}%
 
 ### Test Files
 
@@ -236,6 +260,7 @@
   - Tests: {{test_count}}
   - Approach: {{test_approach}}
   - Mocking Strategy: {{mocking_strategy}}
+
     {{/each}}
 
 ### Test Utilities Available
@@ -243,6 +268,7 @@
 {{#each test_utilities}}
 
 - `{{utility_name}}`: {{utility_description}}
+
   {{/each}}
 
 ### Testing Gaps
@@ -250,6 +276,7 @@
 {{#each testing_gaps}}
 
 - {{gap_description}}
+
   {{/each}}
 
 ## Related Code & Reuse Opportunities
@@ -258,18 +285,20 @@
 
 {{#each similar_features}}
 
-- **{{feature_name}}** (`{{feature_path}}`)
+- **{{feature_name}}**(`{{feature_path}}`)
   - Similarity: {{similarity_description}}
   - Can Reference For: {{reference_use_case}}
+
     {{/each}}
 
 ### Reusable Utilities Available
 
 {{#each reusable_utilities}}
 
-- **{{utility_name}}** (`{{utility_path}}`)
+- **{{utility_name}}**(`{{utility_path}}`)
   - Purpose: {{utility_purpose}}
   - How to Use: {{usage_example}}
+
     {{/each}}
 
 ### Patterns to Follow
@@ -277,6 +306,7 @@
 {{#each patterns_to_follow}}
 
 - **{{pattern_name}}**: Reference `{{reference_file}}` for implementation
+
   {{/each}}
 
 ## Implementation Notes
@@ -286,6 +316,7 @@
 {{#each quality_observations}}
 
 - {{observation}}
+
   {{/each}}
 
 ### TODOs and Future Work
@@ -293,6 +324,7 @@
 {{#each all_todos}}
 
 - **{{file_path}}:{{line_number}}**: {{todo_text}}
+
   {{/each}}
 
 ### Known Issues
@@ -300,6 +332,7 @@
 {{#each known_issues}}
 
 - {{issue_description}}
+
   {{/each}}
 
 ### Optimization Opportunities
@@ -307,6 +340,7 @@
 {{#each optimizations}}
 
 - {{optimization_suggestion}}
+
   {{/each}}
 
 ### Technical Debt
@@ -314,6 +348,7 @@
 {{#each tech_debt_items}}
 
 - {{debt_description}}
+
   {{/each}}
 
 ## Modification Guidance
@@ -335,9 +370,10 @@
 {{#each testing_checklist_items}}
 
 - [ ] {{checklist_item}}
+
       {{/each}}
 
----
+- --
 
 _Generated by `document-project` workflow (deep-dive mode)_
 _Base Documentation: docs/index.md_

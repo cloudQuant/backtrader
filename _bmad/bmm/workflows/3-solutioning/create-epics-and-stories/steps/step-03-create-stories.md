@@ -1,23 +1,29 @@
----
+- --
+
 name: 'step-03-create-stories'
 description: 'Generate all epics with their stories following the template structure'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
 
 # File References
+
 thisStepFile: './step-03-create-stories.md'
 nextStepFile: './step-04-final-validation.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{planning_artifacts}/epics.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 # Template References
+
 epicsTemplate: '{workflow_path}/templates/epics-template.md'
----
+
+- --
 
 # Step 3: Generate Epics and Stories
 
@@ -71,7 +77,7 @@ Load {outputFile} and review:
 
 ### 2. Explain Story Creation Approach
 
-**STORY CREATION GUIDELINES:**
+- *STORY CREATION GUIDELINES:**
 
 For each epic, create stories that:
 
@@ -81,13 +87,15 @@ For each epic, create stories that:
 - Include specific acceptance criteria
 - Reference requirements being fulfilled
 
-**🚨 DATABASE/ENTITY CREATION PRINCIPLE:**
+- *🚨 DATABASE/ENTITY CREATION PRINCIPLE:**
+
 Create tables/entities ONLY when needed by the story:
 
 - ❌ WRONG: Epic 1 Story 1 creates all 50 database tables
 - ✅ RIGHT: Each story creates/alters ONLY the tables it needs
 
-**🔗 STORY DEPENDENCY PRINCIPLE:**
+- *🔗 STORY DEPENDENCY PRINCIPLE:**
+
 Stories must be independently completable in sequence:
 
 - ❌ WRONG: Story 1.2 requires Story 1.3 to be completed first
@@ -95,24 +103,26 @@ Stories must be independently completable in sequence:
 - ❌ WRONG: "Wait for Story 1.4 to be implemented before this works"
 - ✅ RIGHT: "This story works independently and enables future stories"
 
-**STORY FORMAT (from template):**
+- *STORY FORMAT (from template):**
 
-```
+```bash
+
 ### Story {N}.{M}: {story_title}
 
 As a {user_type},
 I want {capability},
 So that {value_benefit}.
 
-**Acceptance Criteria:**
+- *Acceptance Criteria:**
 
-**Given** {precondition}
-**When** {action}
-**Then** {expected_outcome}
-**And** {additional_criteria}
-```
+- *Given** {precondition}
+- *When** {action}
+- *Then** {expected_outcome}
+- *And** {additional_criteria}
 
-**✅ GOOD STORY EXAMPLES:**
+```bash
+
+- *✅ GOOD STORY EXAMPLES:**
 
 _Epic 1: User Authentication_
 
@@ -126,7 +136,7 @@ _Epic 2: Content Creation_
 - Story 2.2: Edit Existing Blog Post
 - Story 2.3: Publish Blog Post
 
-**❌ BAD STORY EXAMPLES:**
+- *❌ BAD STORY EXAMPLES:**
 
 - Story: "Set up database" (no user value)
 - Story: "Create all models" (too large, no user value)
@@ -163,7 +173,7 @@ For each story in the epic:
 2. **User Story**: Complete the As a/I want/So that format
 3. **Acceptance Criteria**: Write specific, testable criteria
 
-**AC Writing Guidelines:**
+- *AC Writing Guidelines:**
 
 - Use Given/When/Then format
 - Each AC should be independently testable
@@ -213,11 +223,13 @@ After all epics and stories are generated:
 
 The final {outputFile} must follow this structure exactly:
 
-1. **Overview** section with project name
-2. **Requirements Inventory** with all three subsections populated
-3. **FR Coverage Map** showing requirement to epic mapping
-4. **Epic List** with approved epic structure
-5. **Epic sections** for each epic (N = 1, 2, 3...)
+1. **Overview**section with project name
+
+2.**Requirements Inventory**with all three subsections populated
+3.**FR Coverage Map**showing requirement to epic mapping
+4.**Epic List**with approved epic structure
+5.**Epic sections** for each epic (N = 1, 2, 3...)
+
    - Epic title and goal
    - All stories for that epic (M = 1, 2, 3...)
      - Story title and user story
@@ -247,7 +259,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 
 ONLY WHEN [C continue option] is selected and [all epics and stories saved to document following the template structure exactly], will you then read fully and follow: `{nextStepFile}` to begin final validation phase.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -269,4 +281,4 @@ ONLY WHEN [C continue option] is selected and [all epics and stories saved to do
 - Missing acceptance criteria
 - Not following proper formatting
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

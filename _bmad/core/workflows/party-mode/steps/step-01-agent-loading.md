@@ -36,7 +36,7 @@ Begin agent loading process:
 
 "Now initializing **Party Mode** with our complete BMAD agent roster! Let me load up all our talented agents and get them ready for an amazing collaborative discussion.
 
-**Agent Manifest Loading:**"
+- *Agent Manifest Loading:**"
 
 Load and parse the agent manifest CSV from `{project-root}/_bmad/_config/agent-manifest.csv`
 
@@ -44,24 +44,24 @@ Load and parse the agent manifest CSV from `{project-root}/_bmad/_config/agent-m
 
 Parse CSV to extract complete agent information for each entry:
 
-**Agent Data Points:**
+- *Agent Data Points:**
 
-- **name** (agent identifier for system calls)
-- **displayName** (agent's persona name for conversations)
-- **title** (formal position and role description)
-- **icon** (visual identifier emoji)
-- **role** (capabilities and expertise summary)
-- **identity** (background and specialization details)
-- **communicationStyle** (how they communicate and express themselves)
-- **principles** (decision-making philosophy and values)
-- **module** (source module organization)
+- **name**(agent identifier for system calls)
+- **displayName**(agent's persona name for conversations)
+- **title**(formal position and role description)
+- **icon**(visual identifier emoji)
+- **role**(capabilities and expertise summary)
+- **identity**(background and specialization details)
+- **communicationStyle**(how they communicate and express themselves)
+- **principles**(decision-making philosophy and values)
+- **module**(source module organization)
 - **path** (file location reference)
 
 ### 3. Build Agent Roster
 
 Create complete agent roster with merged personalities:
 
-**Roster Building Process:**
+- *Roster Building Process:**
 
 - Combine manifest data with agent file configurations
 - Merge personality traits, capabilities, and communication styles
@@ -76,17 +76,17 @@ Generate enthusiastic party mode introduction:
 
 Welcome {{user_name}}! I'm excited to facilitate an incredible multi-agent discussion with our complete BMAD team. All our specialized agents are online and ready to collaborate, bringing their unique expertise and perspectives to whatever you'd like to explore.
 
-**Our Collaborating Agents Include:**
+- *Our Collaborating Agents Include:**
 
 [Display 3-4 diverse agents to showcase variety]:
 
-- [Icon Emoji] **[Agent Name]** ([Title]): [Brief role description]
-- [Icon Emoji] **[Agent Name]** ([Title]): [Brief role description]
-- [Icon Emoji] **[Agent Name]** ([Title]): [Brief role description]
+- [Icon Emoji] **[Agent Name]**([Title]): [Brief role description]
+- [Icon Emoji]**[Agent Name]**([Title]): [Brief role description]
+- [Icon Emoji]**[Agent Name]** ([Title]): [Brief role description]
 
-**[Total Count] agents** are ready to contribute their expertise!
+- *[Total Count] agents** are ready to contribute their expertise!
 
-**What would you like to discuss with the team today?**"
+- *What would you like to discuss with the team today?**"
 
 ### 5. Present Continue Option
 
@@ -94,7 +94,8 @@ After agent loading and introduction:
 
 "**Agent roster loaded successfully!** All our BMAD experts are excited to collaborate with you.
 
-**Ready to start the discussion?**
+- *Ready to start the discussion?**
+
 [C] Continue - Begin multi-agent conversation
 
 ### 6. Handle Continue Selection

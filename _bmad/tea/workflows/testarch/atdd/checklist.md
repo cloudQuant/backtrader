@@ -12,9 +12,9 @@ Before starting this workflow, verify:
 - [ ] Test framework configuration available (playwright.config.ts or cypress.config.ts)
 - [ ] Package.json has test dependencies installed (Playwright or Cypress)
 
-**Halt if missing:** Framework scaffolding or story acceptance criteria
+- *Halt if missing:**Framework scaffolding or story acceptance criteria
 
----
+- --
 
 ## Step 1: Story Context and Requirements
 
@@ -33,7 +33,7 @@ Before starting this workflow, verify:
   - [ ] `network-first.md`
   - [ ] `test-quality.md`
 
----
+- --
 
 ## Step 2: Test Level Selection and Strategy
 
@@ -48,7 +48,7 @@ Before starting this workflow, verify:
 - [ ] Primary test level set in `primary_level` variable (typically E2E or API)
 - [ ] Test levels documented in ATDD checklist
 
----
+- --
 
 ## Step 3: Failing Tests Generated
 
@@ -100,7 +100,7 @@ Before starting this workflow, verify:
 - [ ] No test interdependencies (tests can run in any order)
 - [ ] Tests are deterministic (same input always produces same result)
 
----
+- --
 
 ## Step 4: Data Infrastructure Built
 
@@ -139,7 +139,7 @@ Before starting this workflow, verify:
 - [ ] Each data-testid has clear description of element it targets
 - [ ] data-testid list included in ATDD checklist for DEV team
 
----
+- --
 
 ## Step 5: Implementation Checklist Created
 
@@ -164,7 +164,7 @@ Before starting this workflow, verify:
   - [ ] Debug specific test
 - [ ] Estimated effort included (hours or story points)
 
----
+- --
 
 ## Step 6: Deliverables Generated
 
@@ -212,7 +212,7 @@ Before starting this workflow, verify:
   - [ ] Output file path
   - [ ] Knowledge base references applied
 
----
+- --
 
 ## Quality Checks
 
@@ -241,7 +241,7 @@ Before starting this workflow, verify:
 - [ ] Imports are organized and correct
 - [ ] Code follows project style guide
 
----
+- --
 
 ## Integration Points
 
@@ -272,38 +272,38 @@ Before starting this workflow, verify:
 - [ ] Risk assessment from test-design considered in test coverage
 - [ ] Coverage strategy from test-design aligned with ATDD tests
 
----
+- --
 
 ## Completion Criteria
 
 All of the following must be true before marking this workflow as complete:
 
-- [ ] **Story acceptance criteria analyzed** and mapped to appropriate test levels
-- [ ] **Failing tests created** at all appropriate levels (E2E, API, Component)
-- [ ] **Given-When-Then format** used consistently across all tests
-- [ ] **RED phase verified** by local test run (all tests failing as expected)
-- [ ] **Network-first pattern** applied to E2E tests with network requests
-- [ ] **Data factories created** using faker (no hardcoded test data)
-- [ ] **Fixtures created** with auto-cleanup in teardown
-- [ ] **Mock requirements documented** for external services
-- [ ] **data-testid attributes listed** for DEV team
-- [ ] **Implementation checklist created** mapping tests to code tasks
-- [ ] **Red-green-refactor workflow documented** in ATDD checklist
-- [ ] **Execution commands provided** and verified to work
-- [ ] **ATDD checklist document created** and saved to correct location
-- [ ] **Output file formatted correctly** using template structure
-- [ ] **Knowledge base references applied** and documented in summary
-- [ ] **No test quality issues** (flaky patterns, race conditions, hardcoded data)
+- [ ]**Story acceptance criteria analyzed**and mapped to appropriate test levels
+- [ ]**Failing tests created**at all appropriate levels (E2E, API, Component)
+- [ ]**Given-When-Then format**used consistently across all tests
+- [ ]**RED phase verified**by local test run (all tests failing as expected)
+- [ ]**Network-first pattern**applied to E2E tests with network requests
+- [ ]**Data factories created**using faker (no hardcoded test data)
+- [ ]**Fixtures created**with auto-cleanup in teardown
+- [ ]**Mock requirements documented**for external services
+- [ ]**data-testid attributes listed**for DEV team
+- [ ]**Implementation checklist created**mapping tests to code tasks
+- [ ]**Red-green-refactor workflow documented**in ATDD checklist
+- [ ]**Execution commands provided**and verified to work
+- [ ]**ATDD checklist document created**and saved to correct location
+- [ ]**Output file formatted correctly**using template structure
+- [ ]**Knowledge base references applied**and documented in summary
+- [ ]**No test quality issues** (flaky patterns, race conditions, hardcoded data)
 
----
+- --
 
 ## Common Issues and Resolutions
 
 ### Issue: Tests pass before implementation
 
-**Problem:** A test passes even though no implementation code exists yet.
+- *Problem:** A test passes even though no implementation code exists yet.
 
-**Resolution:**
+- *Resolution:**
 
 - Review test to ensure it's testing actual behavior, not mocked/stubbed behavior
 - Check if test is accidentally using existing functionality
@@ -312,9 +312,9 @@ All of the following must be true before marking this workflow as complete:
 
 ### Issue: Network-first pattern not applied
 
-**Problem:** Route interception happens after navigation, causing race conditions.
+- *Problem:** Route interception happens after navigation, causing race conditions.
 
-**Resolution:**
+- *Resolution:**
 
 - Move `await page.route()` calls BEFORE `await page.goto()`
 - Review `network-first.md` knowledge fragment
@@ -322,9 +322,9 @@ All of the following must be true before marking this workflow as complete:
 
 ### Issue: Hardcoded test data in tests
 
-**Problem:** Tests use hardcoded strings/numbers instead of factories.
+- *Problem:** Tests use hardcoded strings/numbers instead of factories.
 
-**Resolution:**
+- *Resolution:**
 
 - Replace all hardcoded data with factory function calls
 - Use `faker` for all random data generation
@@ -332,9 +332,9 @@ All of the following must be true before marking this workflow as complete:
 
 ### Issue: Fixtures missing auto-cleanup
 
-**Problem:** Fixtures create data but don't clean it up in teardown.
+- *Problem:** Fixtures create data but don't clean it up in teardown.
 
-**Resolution:**
+- *Resolution:**
 
 - Add cleanup logic after `await use(data)` in fixture
 - Call deletion/cleanup functions in teardown
@@ -342,9 +342,9 @@ All of the following must be true before marking this workflow as complete:
 
 ### Issue: Tests have multiple assertions
 
-**Problem:** Tests verify multiple behaviors in single test (not atomic).
+- *Problem:** Tests verify multiple behaviors in single test (not atomic).
 
-**Resolution:**
+- *Resolution:**
 
 - Split into separate tests (one assertion per test)
 - Each test should verify exactly one behavior
@@ -352,23 +352,23 @@ All of the following must be true before marking this workflow as complete:
 
 ### Issue: Tests depend on execution order
 
-**Problem:** Tests fail when run in isolation or different order.
+- *Problem:** Tests fail when run in isolation or different order.
 
-**Resolution:**
+- *Resolution:**
 
 - Remove shared state between tests
 - Each test should create its own test data
 - Use fixtures for consistent setup across tests
 - Verify tests can run with `.only` flag
 
----
+- --
 
 ## Notes for TEA Agent
 
-- **Preflight halt is critical:** Do not proceed if story has no acceptance criteria or framework is missing
-- **RED phase verification is mandatory:** Tests must fail before sharing with DEV team
-- **Network-first pattern:** Route interception BEFORE navigation prevents race conditions
-- **One assertion per test:** Atomic tests provide clear failure diagnosis
-- **Auto-cleanup is non-negotiable:** Every fixture must clean up data in teardown
-- **Use knowledge base:** Load relevant fragments (fixture-architecture, data-factories, network-first, component-tdd, test-quality) for guidance
+- **Preflight halt is critical:**Do not proceed if story has no acceptance criteria or framework is missing
+- **RED phase verification is mandatory:**Tests must fail before sharing with DEV team
+- **Network-first pattern:**Route interception BEFORE navigation prevents race conditions
+- **One assertion per test:**Atomic tests provide clear failure diagnosis
+- **Auto-cleanup is non-negotiable:**Every fixture must clean up data in teardown
+- **Use knowledge base:**Load relevant fragments (fixture-architecture, data-factories, network-first, component-tdd, test-quality) for guidance
 - **Share with DEV agent:** ATDD checklist provides implementation roadmap from red to green

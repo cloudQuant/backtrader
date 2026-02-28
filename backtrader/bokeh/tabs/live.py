@@ -51,9 +51,7 @@ class LiveTab(BokehTab):
 
         # Lookback settings
         lookback_value = getattr(self._client, "lookback", 100) if self._client else 100
-        lookback_slider = Slider(
-            start=10, end=500, value=lookback_value, step=10, title="Lookback (candles)", width=300
-        )
+        lookback_slider = Slider(start=10, end=500, value=lookback_value, step=10, title="Lookback (candles)", width=300)
 
         def on_lookback_change(attr, old, new):
             if self._client is not None:
@@ -96,9 +94,7 @@ class LiveTab(BokehTab):
         widgets.append(refresh_btn)
 
         # Status info
-        status_text = (
-            "Running" if self._client and not getattr(self._client, "_paused", True) else "Paused"
-        )
+        status_text = "Running" if self._client and not getattr(self._client, "_paused", True) else "Paused"
         status_div = Div(
             text=f'<p style="color: {text_color};">Status: <strong>{status_text}</strong></p>',
             sizing_mode="stretch_width",

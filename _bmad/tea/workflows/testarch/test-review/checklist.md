@@ -2,7 +2,7 @@
 
 Use this checklist to validate that the test quality review workflow completed successfully and all quality criteria were properly evaluated.
 
----
+- --
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Coverage analysis is out of scope for this workflow. Use `trace` for coverage me
 - [ ] Acceptance criteria extracted from story (if available)
 - [ ] Priority context (P0/P1/P2/P3) extracted from test-design (if available)
 
----
+- --
 
 ## Process Steps
 
@@ -47,7 +47,7 @@ Coverage analysis is out of scope for this workflow. Use `trace` for coverage me
 
 ### Step 2: Test File Parsing
 
-**For Each Test File:**
+- *For Each Test File:**
 
 - [ ] File read successfully
 - [ ] File size measured (lines, KB)
@@ -57,7 +57,7 @@ Coverage analysis is out of scope for this workflow. Use `trace` for coverage me
 - [ ] Imports analyzed
 - [ ] Dependencies identified
 
-**Test Structure Analysis:**
+- *Test Structure Analysis:**
 
 - [ ] Describe block count calculated
 - [ ] It/test block count calculated
@@ -75,7 +75,7 @@ Coverage analysis is out of scope for this workflow. Use `trace` for coverage me
 
 Coverage criteria are intentionally excluded from this checklist.
 
-**For Each Enabled Criterion:**
+- *For Each Enabled Criterion:**
 
 #### BDD Format (if `check_given_when_then: true`)
 
@@ -179,11 +179,11 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Status assigned (PASS/WARN/FAIL)
 - [ ] Violations recorded with recommended fixes
 
----
+- --
 
 ### Step 4: Quality Score Calculation
 
-**Violation Counting:**
+- *Violation Counting:**
 
 - [ ] Critical (P0) violations counted
 - [ ] High (P1) violations counted
@@ -191,7 +191,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Low (P3) violations counted
 - [ ] Violation breakdown by criterion recorded
 
-**Score Calculation:**
+- *Score Calculation:**
 
 - [ ] Starting score: 100
 - [ ] Critical violations deducted (-10 each)
@@ -207,7 +207,7 @@ Coverage criteria are intentionally excluded from this checklist.
   - [ ] All test IDs present (+5 if applicable)
 - [ ] Final score calculated: max(0, min(100, Starting - Violations + Bonus))
 
-**Quality Grade:**
+- *Quality Grade:**
 
 - [ ] Grade assigned based on score:
   - 90-100: A+ (Excellent)
@@ -216,11 +216,11 @@ Coverage criteria are intentionally excluded from this checklist.
   - 60-69: C (Needs Improvement)
   - <60: F (Critical Issues)
 
----
+- --
 
 ### Step 5: Review Report Generation
 
-**Report Sections Created:**
+- *Report Sections Created:**
 
 - [ ] **Header Section**:
   - [ ] Test file(s) reviewed listed
@@ -253,33 +253,33 @@ Coverage criteria are intentionally excluded from this checklist.
   - [ ] Recommended improvement provided with code example
   - [ ] Knowledge base reference provided
 
-- [ ] **Best Practices Examples** (if good patterns found):
+- [ ] **Best Practices Examples**(if good patterns found):
   - [ ] Good patterns highlighted from tests
   - [ ] Knowledge base fragments referenced
   - [ ] Examples provided for others to follow
 
-- [ ] **Knowledge Base References**:
+- [ ]**Knowledge Base References**:
   - [ ] All fragments consulted listed
   - [ ] Links to detailed guidance provided
 
----
+- --
 
 ### Step 6: Optional Outputs Generation
 
-**Inline Comments** (if `generate_inline_comments: true`):
+- *Inline Comments** (if `generate_inline_comments: true`):
 
 - [ ] Inline comments generated at violation locations
 - [ ] Comment format: `// TODO (TEA Review): [Issue] - See test-review-{filename}.md`
 - [ ] Comments added to test files (no logic changes)
 - [ ] Test files remain valid and executable
 
-**Quality Badge** (if `generate_quality_badge: true`):
+- *Quality Badge** (if `generate_quality_badge: true`):
 
 - [ ] Badge created with quality score (e.g., "Test Quality: 87/100 (A)")
 - [ ] Badge format suitable for README or documentation
 - [ ] Badge saved to output folder
 
-**Story Update** (if `append_to_story: true` and story file exists):
+- *Story Update** (if `append_to_story: true` and story file exists):
 
 - [ ] "Test Quality Review" section created
 - [ ] Quality score included
@@ -287,11 +287,11 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Link to full review report provided
 - [ ] Story file updated successfully
 
----
+- --
 
 ### Step 7: Save and Notify
 
-**Outputs Saved:**
+- *Outputs Saved:**
 
 - [ ] Review report saved to `{output_file}`
 - [ ] Inline comments written to test files (if enabled)
@@ -299,7 +299,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Story file updated (if enabled)
 - [ ] All outputs are valid and readable
 
-**Summary Message Generated:**
+- *Summary Message Generated:**
 
 - [ ] Quality score and grade included
 - [ ] Critical issue count stated
@@ -307,7 +307,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Next steps clarified
 - [ ] Message displayed to user
 
----
+- --
 
 ## Output Validation
 
@@ -336,7 +336,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Code examples are correct and runnable
 - [ ] Recommendation (Approve/Request changes) is clear
 
----
+- --
 
 ## Quality Checks
 
@@ -368,7 +368,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Edge cases acknowledged
 - [ ] Recommendations are pragmatic, not dogmatic
 
----
+- --
 
 ## Integration Points
 
@@ -393,7 +393,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Fragments applied correctly to validation
 - [ ] Fragment references in report are accurate
 
----
+- --
 
 ## Edge Cases and Special Situations
 
@@ -424,7 +424,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Report acknowledges justified patterns
 - [ ] Score not penalized for justified violations
 
----
+- --
 
 ## Final Validation
 
@@ -460,7 +460,7 @@ Coverage criteria are intentionally excluded from this checklist.
 - [ ] Review ready for developer consumption
 - [ ] Follow-up actions identified (if any)
 
----
+- --
 
 ## Notes
 

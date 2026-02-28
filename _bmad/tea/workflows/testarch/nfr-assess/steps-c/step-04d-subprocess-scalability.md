@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04d-subprocess-scalability'
 description: 'Subprocess: Scalability NFR assessment'
 subprocess: true
 outputFile: '/tmp/tea-nfr-scalability-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 4D: Scalability NFR Assessment
 
@@ -11,43 +13,43 @@ outputFile: '/tmp/tea-nfr-scalability-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other NFR domain assessments.
 
-**Your task:** Assess SCALABILITY NFR domain only.
+- *Your task:** Assess SCALABILITY NFR domain only.
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Scalability Assessment Categories
 
-**A) Horizontal Scaling:**
+- *A) Horizontal Scaling:**
 
 - Stateless architecture
 - Load balancer configuration
 - Container orchestration (K8s)
 - Auto-scaling policies
 
-**B) Vertical Scaling:**
+- *B) Vertical Scaling:**
 
 - Resource allocation
 - Database size limits
 - Memory management
 - CPU optimization
 
-**C) Data Scaling:**
+- *C) Data Scaling:**
 
 - Database partitioning/sharding
 - Read replicas
 - Caching layers
 - Data archival strategy
 
-**D) Traffic Handling:**
+- *D) Traffic Handling:**
 
 - CDN for static assets
 - Rate limiting
 - Queue systems for async work
 - WebSocket scaling
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -79,9 +81,10 @@ This is an **isolated subprocess** running in parallel with other NFR domain ass
   "priority_actions": ["Design database sharding strategy for future growth", "Implement read replicas for read-heavy workloads"],
   "summary": "Scalability is good up to 1M users, concerns for 10M+ users"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 

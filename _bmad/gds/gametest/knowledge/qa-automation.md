@@ -6,7 +6,7 @@ Automated testing in games requires different approaches than traditional softwa
 
 ## Testing Pyramid for Games
 
-```
+```bash
         /\
        /  \     Manual Playtesting
       /----\    (Experience, Feel, Fun)
@@ -16,7 +16,8 @@ Automated testing in games requires different approaches than traditional softwa
   /------------\
  /              \ Unit Tests
 /________________\ (Pure Logic, Math, Data)
-```
+
+```bash
 
 ### Unit Tests (Foundation)
 
@@ -67,7 +68,8 @@ public IEnumerator PlayerJump_WhenGrounded_BecomesAirborne()
     yield return new WaitForFixedUpdate();
     Assert.IsFalse(player.IsGrounded);
 }
-```
+
+```bash
 
 ### Unreal Engine
 
@@ -83,57 +85,61 @@ bool FDamageTest::RunTest(const FString& Parameters)
     TestEqual("Critical hit doubles damage", Result, 200.f);
     return true;
 }
-```
+
+```bash
 
 ### Godot
 
 ```gdscript
+
 # GUT Testing Framework
+
 func test_damage_critical_hit():
     var base_damage = 100
     var result = DamageCalculator.calculate(base_damage, true)
     assert_eq(result, 200, "Critical hit should double damage")
-```
+
+```bash
 
 ## What to Automate
 
 ### High Value Targets
 
-- **Save/Load** - Data integrity is critical
-- **Economy** - Currency, items, progression math
-- **Combat Math** - Damage, stats, modifiers
-- **Localization** - String loading, formatting
-- **Network Serialization** - Message encoding/decoding
+- **Save/Load**- Data integrity is critical
+- **Economy**- Currency, items, progression math
+- **Combat Math**- Damage, stats, modifiers
+- **Localization**- String loading, formatting
+- **Network Serialization**- Message encoding/decoding
 
 ### Medium Value Targets
 
-- **State Machines** - Character states, game states
-- **Pathfinding** - Known scenarios
-- **Spawning** - Wave generation, loot tables
-- **UI Data Binding** - Correct values displayed
+- **State Machines**- Character states, game states
+- **Pathfinding**- Known scenarios
+- **Spawning**- Wave generation, loot tables
+- **UI Data Binding**- Correct values displayed
 
 ### Low Value / Avoid
 
-- **Visual Quality** - Screenshots drift, hard to maintain
-- **Input Feel** - Timing-sensitive, needs human judgment
-- **Audio** - Subjective, context-dependent
-- **Fun** - Cannot be automated
+- **Visual Quality**- Screenshots drift, hard to maintain
+- **Input Feel**- Timing-sensitive, needs human judgment
+- **Audio**- Subjective, context-dependent
+- **Fun**- Cannot be automated
 
 ## Continuous Integration for Games
 
 ### Build Pipeline
 
-1. **Compile** - Build game executable
-2. **Unit Tests** - Fast, isolated tests
-3. **Integration Tests** - Longer, system tests
-4. **Smoke Test** - Can the game launch and reach main menu?
-5. **Nightly** - Extended test suites, performance benchmarks
+1.**Compile**- Build game executable
+2.**Unit Tests**- Fast, isolated tests
+3.**Integration Tests**- Longer, system tests
+4.**Smoke Test**- Can the game launch and reach main menu?
+5.**Nightly**- Extended test suites, performance benchmarks
 
 ### CI Gotchas for Games
 
-- **Long build times** - Games take longer than web apps
-- **GPU requirements** - Some tests need graphics hardware
-- **Asset dependencies** - Large files, binary formats
+- **Long build times**- Games take longer than web apps
+- **GPU requirements**- Some tests need graphics hardware
+- **Asset dependencies**- Large files, binary formats
 - **Platform builds** - Multiple targets to maintain
 
 ## Regression Testing
@@ -154,7 +160,7 @@ func test_damage_critical_hit():
 
 ### Test Fixtures
 
-```
+```bash
 tests/
 ├── fixtures/
 │   ├── save_files/
@@ -165,7 +171,8 @@ tests/
 │   │   └── test_balance.json
 │   └── scenarios/
 │       └── boss_fight_setup.scene
-```
+
+```bash
 
 ### Deterministic Testing
 

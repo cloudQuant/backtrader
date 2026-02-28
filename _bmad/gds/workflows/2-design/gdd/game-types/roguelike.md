@@ -4,7 +4,7 @@
 
 {{run_structure}}
 
-**Run design:**
+- *Run design:**
 
 - Run length (time, stages)
 - Starting conditions
@@ -15,7 +15,7 @@
 
 {{procedural_generation}}
 
-**Generation systems:**
+- *Generation systems:**
 
 - Level generation algorithm
 - Enemy placement
@@ -27,7 +27,7 @@
 
 {{permadeath_progression}}
 
-**Death mechanics:**
+- *Death mechanics:**
 
 - Permadeath rules
 - What persists between runs
@@ -38,7 +38,7 @@
 
 {{item_upgrade_system}}
 
-**Item mechanics:**
+- *Item mechanics:**
 
 - Item types (passive, active, consumable)
 - Rarity system
@@ -50,7 +50,7 @@
 
 {{character_selection}}
 
-**Playable characters:**
+- *Playable characters:**
 
 - Starting characters
 - Unlockable characters
@@ -61,7 +61,7 @@
 
 {{difficulty_modifiers}}
 
-**Challenge systems:**
+- *Challenge systems:**
 
 - Difficulty tiers
 - Modifiers/curses

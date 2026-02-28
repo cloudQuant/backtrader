@@ -2,10 +2,10 @@
 
 # Test Design and Risk Assessment
 
-**Workflow ID**: `_bmad/tea/testarch/test-design`
-**Version**: 5.0 (Step-File Architecture)
+- *Workflow ID**: `_bmad/tea/testarch/test-design`
+- *Version**: 5.0 (Step-File Architecture)
 
----
+- --
 
 ## Overview
 
@@ -16,11 +16,11 @@ Plans comprehensive test coverage strategy with risk assessment, priority classi
 
 The workflow auto-detects which mode to use based on project phase and user intent.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This workflow uses **step-file architecture** for disciplined execution:
+This workflow uses **step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,7 +36,7 @@ This workflow uses **step-file architecture** for disciplined execution:
 3. **WAIT FOR INPUT**: Halt when user input is required
 4. **LOAD NEXT**: Only load the next step file when directed
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -53,12 +53,12 @@ Load, read completely, and execute:
 
 ### 3. Resume Support
 
-If the user selects **Resume** mode, load, read completely, and execute:
+If the user selects **Resume**mode, load, read completely, and execute:
 `{project-root}/_bmad/tea/workflows/testarch/test-design/steps-c/step-01b-resume.md`
 
 This checks the output document for progress tracking frontmatter and routes to the next incomplete step.
 
----
+- --
 
 ## OUTPUT GENERATION GUIDANCE
 

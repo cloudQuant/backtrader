@@ -25,8 +25,8 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
-- **Research goals = "{{research_goals}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
+- **Research goals = "{{research_goals}}"**- established from initial discussion
 - Focus on architectural patterns and design decisions
 - Web search capabilities with source verification are enabled
 
@@ -39,9 +39,9 @@ Conduct comprehensive architectural patterns analysis with emphasis on design de
 ### 1. Begin Architectural Patterns Analysis
 
 Start with architectural research approach:
-"Now I'll focus on **architectural patterns and design decisions** for effective architecture approaches for [technology/domain].
+"Now I'll focus on**architectural patterns and design decisions** for effective architecture approaches for [technology/domain].
 
-**Architectural Patterns Focus:**
+- *Architectural Patterns Focus:**
 
 - System architecture patterns and their trade-offs
 - Design principles and best practices
@@ -49,14 +49,14 @@ Start with architectural research approach:
 - Integration and communication patterns
 - Security and performance architectural considerations
 
-**Let me search for current architectural patterns and approaches.**"
+- *Let me search for current architectural patterns and approaches.**"
 
 ### 2. Web Search for System Architecture Patterns
 
 Search for current architecture patterns:
 Search the web: "system architecture patterns best practices"
 
-**Architecture focus:**
+- *Architecture focus:**
 
 - Microservices, monolithic, and serverless patterns
 - Event-driven and reactive architectures
@@ -68,7 +68,7 @@ Search the web: "system architecture patterns best practices"
 Search for current design principles:
 Search the web: "software design principles patterns"
 
-**Design focus:**
+- *Design focus:**
 
 - SOLID principles and their application
 - Clean architecture and hexagonal architecture
@@ -80,7 +80,7 @@ Search the web: "software design principles patterns"
 Search for current scalability approaches:
 Search the web: "scalability architecture patterns"
 
-**Scalability focus:**
+- *Scalability focus:**
 
 - Horizontal vs vertical scaling patterns
 - Load balancing and caching strategies
@@ -96,6 +96,7 @@ Prepare architectural analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Architectural Patterns and Design
 
 ### System Architecture Patterns
@@ -132,14 +133,15 @@ _Source: [URL]_
 
 [Deployment architecture analysis with source citations]
 _Source: [URL]_
-```
+
+```bash
 
 ### 6. Present Analysis and Continue Option
 
 Show the generated architectural patterns and present continue option:
 "I've completed the **architectural patterns analysis** for effective architecture approaches.
 
-**Key Architectural Findings:**
+- *Key Architectural Findings:**
 
 - System architecture patterns and trade-offs clearly mapped
 - Design principles and best practices thoroughly documented
@@ -147,7 +149,8 @@ Show the generated architectural patterns and present continue option:
 - Integration and communication patterns analyzed
 - Security and data architecture considerations captured
 
-**Ready to proceed to implementation research?**
+- *Ready to proceed to implementation research?**
+
 [C] Continue - Save this to the document and move to implementation research
 
 ### 7. Handle Continue Selection

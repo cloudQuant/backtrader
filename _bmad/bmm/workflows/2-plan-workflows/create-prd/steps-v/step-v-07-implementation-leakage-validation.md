@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-v-07-implementation-leakage-validation'
 description: 'Implementation Leakage Check - Ensure FRs and NFRs don\'t include implementation details'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-08-domain-compliance-validation.md'
 prdFile: '{prd_file_path}'
 validationReportPath: '{validation_report_path}'
----
+
+- --
 
 # Step 7: Implementation Leakage Validation
 
@@ -56,22 +59,22 @@ Ensure Functional Requirements and Non-Functional Requirements don't include imp
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Attempt Sub-Process Validation
 
-**Try to use Task tool to spawn a subprocess:**
+- *Try to use Task tool to spawn a subprocess:**
 
 "Perform implementation leakage validation on this PRD:
 
-**Scan for:**
+- *Scan for:**
 1. Technology names (React, Vue, Angular, PostgreSQL, MongoDB, AWS, GCP, Azure, Docker, Kubernetes, etc.)
 2. Library names (Redux, axios, lodash, Express, Django, Rails, Spring, etc.)
 3. Data structures (JSON, XML, CSV) unless relevant to capability
 4. Architecture patterns (MVC, microservices, serverless) unless business requirement
 5. Protocol names (HTTP, REST, GraphQL, WebSockets) - check if capability-relevant
 
-**For each term found:**
+- *For each term found:**
 - Is this capability-relevant? (e.g., 'API consumers can access...' - API is capability)
 - Or is this implementation detail? (e.g., 'React component for...' - implementation)
 
@@ -83,39 +86,46 @@ Return structured findings with leakage counts and examples."
 
 If Task tool unavailable, perform analysis directly:
 
-**Implementation leakage terms to scan for:**
+- *Implementation leakage terms to scan for:**
 
-**Frontend Frameworks:**
+- *Frontend Frameworks:**
+
 React, Vue, Angular, Svelte, Solid, Next.js, Nuxt, etc.
 
-**Backend Frameworks:**
+- *Backend Frameworks:**
+
 Express, Django, Rails, Spring, Laravel, FastAPI, etc.
 
-**Databases:**
+- *Databases:**
+
 PostgreSQL, MySQL, MongoDB, Redis, DynamoDB, Cassandra, etc.
 
-**Cloud Platforms:**
+- *Cloud Platforms:**
+
 AWS, GCP, Azure, Cloudflare, Vercel, Netlify, etc.
 
-**Infrastructure:**
+- *Infrastructure:**
+
 Docker, Kubernetes, Terraform, Ansible, etc.
 
-**Libraries:**
+- *Libraries:**
+
 Redux, Zustand, axios, fetch, lodash, jQuery, etc.
 
-**Data Formats:**
+- *Data Formats:**
+
 JSON, XML, YAML, CSV (unless capability-relevant)
 
-**For each term found in FRs/NFRs:**
+- *For each term found in FRs/NFRs:**
 - Determine if it's capability-relevant or implementation leakage
 - Example: "API consumers can access data via REST endpoints" - API/REST is capability
 - Example: "React components fetch data using Redux" - implementation leakage
 
-**Count violations and note line numbers**
+- *Count violations and note line numbers**
 
 ### 3. Tally Implementation Leakage
 
-**By category:**
+- *By category:**
 - Frontend framework leakage: count
 - Backend framework leakage: count
 - Database leakage: count
@@ -124,51 +134,61 @@ JSON, XML, YAML, CSV (unless capability-relevant)
 - Library leakage: count
 - Other implementation details: count
 
-**Total implementation leakage violations:** sum
+- *Total implementation leakage violations:** sum
 
 ### 4. Report Implementation Leakage Findings to Validation Report
 
 Append to validation report:
 
 ```markdown
+
 ## Implementation Leakage Validation
 
 ### Leakage by Category
 
-**Frontend Frameworks:** {count} violations
+- *Frontend Frameworks:** {count} violations
+
 {If violations, list examples with line numbers}
 
-**Backend Frameworks:** {count} violations
+- *Backend Frameworks:** {count} violations
+
 {If violations, list examples with line numbers}
 
-**Databases:** {count} violations
+- *Databases:** {count} violations
+
 {If violations, list examples with line numbers}
 
-**Cloud Platforms:** {count} violations
+- *Cloud Platforms:** {count} violations
+
 {If violations, list examples with line numbers}
 
-**Infrastructure:** {count} violations
+- *Infrastructure:** {count} violations
+
 {If violations, list examples with line numbers}
 
-**Libraries:** {count} violations
+- *Libraries:** {count} violations
+
 {If violations, list examples with line numbers}
 
-**Other Implementation Details:** {count} violations
+- *Other Implementation Details:** {count} violations
+
 {If violations, list examples with line numbers}
 
 ### Summary
 
-**Total Implementation Leakage Violations:** {total}
+- *Total Implementation Leakage Violations:** {total}
 
-**Severity:** [Critical if >5 violations, Warning if 2-5, Pass if <2]
+- *Severity:** [Critical if >5 violations, Warning if 2-5, Pass if <2]
 
-**Recommendation:**
+- *Recommendation:**
+
 [If Critical] "Extensive implementation leakage found. Requirements specify HOW instead of WHAT. Remove all implementation details - these belong in architecture, not PRD."
 [If Warning] "Some implementation leakage detected. Review violations and remove implementation details from requirements."
 [If Pass] "No significant implementation leakage found. Requirements properly specify WHAT without HOW."
 
-**Note:** API consumers, GraphQL (when required), and other capability-relevant terms are acceptable when they describe WHAT the system must do, not HOW to build it.
-```
+- *Note:** API consumers, GraphQL (when required), and other capability-relevant terms are acceptable when they describe WHAT the system must do, not HOW to build it.
+
+```bash
 
 ### 5. Display Progress and Auto-Proceed
 
@@ -176,11 +196,11 @@ Display: "**Implementation Leakage Validation Complete**
 
 Total Violations: {count} ({severity})
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile} (step-v-08-domain-compliance-validation.md)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -202,4 +222,4 @@ Without delay, read fully and follow: {nextStepFile} (step-v-08-domain-complianc
 - Not reporting findings to validation report
 - Not auto-proceeding
 
-**Master Rule:** Requirements specify WHAT, not HOW. Implementation details belong in architecture documents, not PRDs.
+- *Master Rule:** Requirements specify WHAT, not HOW. Implementation details belong in architecture documents, not PRDs.

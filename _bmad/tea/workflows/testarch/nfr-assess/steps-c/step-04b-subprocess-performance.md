@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04b-subprocess-performance'
 description: 'Subprocess: Performance NFR assessment'
 subprocess: true
 outputFile: '/tmp/tea-nfr-performance-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 4B: Performance NFR Assessment
 
@@ -11,40 +13,40 @@ outputFile: '/tmp/tea-nfr-performance-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other NFR domain assessments.
 
-**Your task:** Assess PERFORMANCE NFR domain only.
+- *Your task:** Assess PERFORMANCE NFR domain only.
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Performance Assessment Categories
 
-**A) Response Times:**
+- *A) Response Times:**
 
 - API response times (<200ms target)
 - Page load times (<2s target)
 - Time to interactive (<3s target)
 
-**B) Throughput:**
+- *B) Throughput:**
 
 - Requests per second capacity
 - Concurrent user support
 - Database query performance
 
-**C) Resource Usage:**
+- *C) Resource Usage:**
 
 - Memory consumption
 - CPU utilization
 - Database connection pooling
 
-**D) Optimization:**
+- *D) Optimization:**
 
 - Caching strategies
 - CDN usage
 - Code splitting/lazy loading
 - Database indexing
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -75,9 +77,10 @@ This is an **isolated subprocess** running in parallel with other NFR domain ass
   "priority_actions": ["Implement CDN for static assets", "Add database query caching for frequent reads"],
   "summary": "Performance is acceptable with minor optimization opportunities"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 

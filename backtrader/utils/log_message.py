@@ -87,11 +87,16 @@ class SpdLogManager:
             at_time = None
             if self.rotation_hour or self.rotation_minute:
                 from datetime import time
+
                 at_time = time(self.rotation_hour, self.rotation_minute)
 
             fh = TimedRotatingFileHandler(
-                self.file_name, when="midnight", interval=1,
-                backupCount=30, encoding="utf-8", atTime=at_time,
+                self.file_name,
+                when="midnight",
+                interval=1,
+                backupCount=30,
+                encoding="utf-8",
+                atTime=at_time,
             )
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(formatter)

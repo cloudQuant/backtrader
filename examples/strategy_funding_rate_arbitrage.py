@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""资金费率套利策略 - WebSocket 实时版.
+"""Funding Rate Arbitrage Strategy - WebSocket Real-time Version.
 
-策略说明：
-1. 通过 WebSocket 实时获取资金费率
-2. 当资金费率过高时（多头支付空头），做空合约套利
-3. 当资金费率过低时（空头支付多头），做多合约套利
-4. 资金费率数据已整合到每根 K 线中
+This strategy implements a funding rate arbitrage trading system for perpetual
+futures using real-time WebSocket data streams.
 
-数据来源：
-- K线价格: WebSocket OHLCV 流
-- 资金费率: WebSocket Funding Rate 流
-- 标记价格: WebSocket Mark Price 流
+Strategy Description:
+    1. Fetches funding rates in real-time via WebSocket
+    2. When funding rate is high (longs pay shorts), opens short arbitrage position
+    3. When funding rate is low (shorts pay longs), opens long arbitrage position
+    4. Funding rate data is integrated into each candle bar
 
-使用方法：
+Data Sources:
+    - OHLCV prices: WebSocket OHLCV stream
+    - Funding rate: WebSocket Funding Rate stream
+    - Mark price: WebSocket Mark Price stream
+
+Usage:
     python strategy_funding_rate_arbitrage.py
 """
 
@@ -27,56 +30,68 @@ from dotenv import load_dotenv
 import backtrader as bt
 from backtrader import Order
 
-# 导入带 WebSocket 资金费率的数据源
+# Import data feed with WebSocket funding rate support
 from backtrader.feeds.ccxtfeed_funding import CCXTFeedWithFunding, WebSocketRequiredError
 from backtrader.stores.ccxtstore import CCXTStore
 from backtrader.ccxt import load_ccxt_config_from_env
 
 
 class FundingRateMonitor(bt.Strategy):
-    """资金费率监控策略 - 实时打印费率信息."""
+    """Funding rate monitoring strategy - prints rate information.
+
+    This strategy monitors and displays funding rate information in real-time
+    without executing trades. Useful for observing market conditions.
+
+    Attributes:
+        print_interval: Number of bars between print outputs (default: 10).
+    """
 
     params = (
-        ('print_interval', 10),  # 每 N 根 K 线打印一次
+        ('print_interval', 10),  # Print every N bars
     )
 
     def __init__(self):
-        """初始化策略"""
-        # 检查数据源
+        """Initialize the strategy."""
+        # Verify data source
         if not hasattr(self.data, 'funding_rate'):
-            raise ValueError("请使用 CCXTFeedWithFunding 数据源")
+            raise ValueError("Please use CCXTFeedWithFunding data source")
 
         self.bar_count = 0
         self.is_live = False
 
     def notify_data(self, data, status):
-        """监听数据状态变化"""
+        """Listen for data status changes.
+
+        Args:
+            data: The data object that triggered the notification.
+            status: The new status of the data feed.
+        """
         if status == data.LIVE and not self.is_live:
             self.is_live = True
             print('\n' + '=' * 70)
-            print('[LIVE] 进入实时交易模式！')
-            print('[LIVE] 资金费率通过 WebSocket 实时更新')
+            print('[LIVE] Entering real-time trading mode!')
+            print('[LIVE] Funding rates update via WebSocket in real-time')
             print('=' * 70 + '\n')
 
     def next(self):
-        """每根 K 线调用"""
+        """Called on each bar."""
         if not self.is_live:
             if self.bar_count % 100 == 0:
-                print(f"[HIST] 正在加载历史数据... {self.bar_count} bars")
+                print(f"[HIST] Loading historical data... {self.bar_count} bars")
             self.bar_count += 1
             return
 
         self.bar_count += 1
 
-        # 按间隔打印信息
+        # Print at intervals
         if self.bar_count % self.p.print_interval != 0:
             return
 
-        # 获取数据
+        # Get data
         price = self.data.close[0]
         funding = self.data.funding_rate[0]
 
-        # 获取标记价格（如果可用）
+        # Get mark price if available
         if hasattr(self.data, 'mark_price'):
             mark_price = self.data.mark_price[0]
             premium = (mark_price - price) / price * 100 if price > 0 else 0
@@ -84,73 +99,93 @@ class FundingRateMonitor(bt.Strategy):
             mark_price = price
             premium = 0
 
-        # 获取预测费率
+        # Get predicted funding rate
         if hasattr(self.data, 'predicted_funding_rate'):
             predicted = self.data.predicted_funding_rate[0]
         else:
             predicted = 0
 
-        # 计算年化费率（每天 3 次，365 天）
+        # Calculate annualized rate (3 times per day, 365 days)
         annual_rate = funding * 3 * 365 * 100
 
-        # 判断信号
-        signal = "中性"
+        # Determine signal
+        signal = "Neutral"
         if funding > 0.0005:
-            signal = "做空信号 (费率过高)"
+            signal = "Short Signal (rate too high)"
         elif funding < -0.0005:
-            signal = "做多信号 (费率过低)"
+            signal = "Long Signal (rate too low)"
 
-        # 输出
+        # Output
         bar_time = self.data.datetime.datetime(0)
         print(f"\n{'='*70}")
         print(f"[FUNDING] {bar_time}")
         print(f"{'='*70}")
-        print(f"  价格:      ${price:.6f}")
-        print(f"  标记价格:  ${mark_price:.6f} (溢价: {premium:+.4f}%)")
-        print(f"  资金费率:  {funding:.8f} ({funding*100:.4f}%)")
+        print(f"  Price:           ${price:.6f}")
+        print(f"  Mark Price:      ${mark_price:.6f} (premium: {premium:+.4f}%)")
+        print(f"  Funding Rate:    {funding:.8f} ({funding*100:.4f}%)")
         if predicted != 0:
-            print(f"  预测费率:  {predicted:.8f} ({predicted*100:.4f}%)")
-        print(f"  年化费率:  {annual_rate:.2f}%")
-        print(f"  信号:      {signal}")
+            print(f"  Predicted Rate:  {predicted:.8f} ({predicted*100:.4f}%)")
+        print(f"  Annualized Rate: {annual_rate:.2f}%")
+        print(f"  Signal:          {signal}")
         print(f"{'='*70}\n")
 
 
 class FundingArbitrage(bt.Strategy):
-    """资金费率套利策略."""
+    """Funding rate arbitrage strategy.
+
+    This strategy executes trades based on funding rate arbitrage opportunities.
+    Opens positions when funding rates deviate significantly from zero and
+    closes when rates normalize.
+
+    Attributes:
+        funding_high: Threshold above which to open short arbitrage (default: 0.0005).
+        funding_low: Threshold below which to open long arbitrage (default: -0.0005).
+        exit_threshold: Rate level to close positions (default: 0.0001).
+        position_size: Order size in USDT (default: 1.0).
+    """
 
     params = (
-        ('funding_high', 0.0005),    # 0.05% 以上做空
-        ('funding_low', -0.0005),    # -0.05% 以下做多
-        ('exit_threshold', 0.0001),  # 回归到此值时平仓
-        ('position_size', 1.0),      # 下单金额 (USDT)
+        ('funding_high', 0.0005),    # Short when above 0.05%
+        ('funding_low', -0.0005),    # Long when below -0.05%
+        ('exit_threshold', 0.0001),  # Close position when rate returns to this level
+        ('position_size', 1.0),      # Order amount (USDT)
     )
 
     def __init__(self):
-        """初始化策略"""
+        """Initialize the strategy."""
         if not hasattr(self.data, 'funding_rate'):
-            raise ValueError("请使用 CCXTFeedWithFunding 数据源")
+            raise ValueError("Please use CCXTFeedWithFunding data source")
 
         self.order = None
         self.entry_funding = None
         self.is_live = False
 
     def notify_data(self, data, status):
-        """监听数据状态变化"""
+        """Listen for data status changes.
+
+        Args:
+            data: The data object that triggered the notification.
+            status: The new status of the data feed.
+        """
         if status == data.LIVE and not self.is_live:
             self.is_live = True
-            print('[LIVE] 进入实时模式！')
+            print('[LIVE] Entering real-time mode!')
 
     def log(self, msg):
-        """日志输出"""
+        """Output log message.
+
+        Args:
+            msg: Message to log.
+        """
         dt = datetime.now(timezone.utc).astimezone()
         print(f'{dt.strftime("%H:%M:%S")} {msg}')
 
     def next(self):
-        """策略主逻辑"""
+        """Main strategy logic."""
         if not self.is_live:
             return
 
-        # 有待处理订单时等待
+        # Wait for pending orders
         if self.order:
             return
 
@@ -158,117 +193,125 @@ class FundingArbitrage(bt.Strategy):
         position = self.getposition()
         price = self.data.close[0]
 
-        # 无持仓时的开仓逻辑
+        # Entry logic when no position
         if position.size == 0:
-            # 高费率 = 多头支付空头 = 做空套利
+            # High rate = longs pay shorts = short arbitrage
             if funding > self.p.funding_high:
                 size = int(self.p.position_size / price)
                 if size < 1:
                     size = 1
 
-                self.log(f'[SHORT ARB] 费率 {funding:.6f} > {self.p.funding_high:.6f}, 做空套利')
-                self.log(f'[SHORT ARB] 价格 ${price:.6f}, 数量 {size}')
+                self.log(f'[SHORT ARB] Rate {funding:.6f} > {self.p.funding_high:.6f}, short arbitrage')
+                self.log(f'[SHORT ARB] Price ${price:.6f}, quantity {size}')
                 self.order = self.sell(size=size)
                 self.entry_funding = funding
 
-            # 低费率 = 空头支付多头 = 做多套利
+            # Low rate = shorts pay longs = long arbitrage
             elif funding < self.p.funding_low:
                 size = int(self.p.position_size / price)
                 if size < 1:
                     size = 1
 
-                self.log(f'[LONG ARB] 费率 {funding:.6f} < {self.p.funding_low:.6f}, 做多套利')
-                self.log(f'[LONG ARB] 价格 ${price:.6f}, 数量 {size}')
+                self.log(f'[LONG ARB] Rate {funding:.6f} < {self.p.funding_low:.6f}, long arbitrage')
+                self.log(f'[LONG ARB] Price ${price:.6f}, quantity {size}')
                 self.order = self.buy(size=size)
                 self.entry_funding = funding
 
-        # 有持仓时的平仓逻辑
+        # Exit logic when holding position
         else:
-            # 费率回归时平仓
+            # Close when rate normalizes
             if abs(funding) < self.p.exit_threshold:
                 if position.size > 0:
-                    self.log(f'[EXIT] 费率回归到 {funding:.6f}, 平多仓')
+                    self.log(f'[EXIT] Rate normalized to {funding:.6f}, close long position')
                     self.order = self.sell(size=position.size)
                 else:
-                    self.log(f'[EXIT] 费率回归到 {funding:.6f}, 平空仓')
+                    self.log(f'[EXIT] Rate normalized to {funding:.6f}, close short position')
                     self.order = self.buy(size=abs(position.size))
 
-            # 费率反转时止损
+            # Stop loss when rate reverses
             elif position.size > 0 and funding < self.p.funding_low:
-                self.log(f'[STOP] 费率反转到 {funding:.6f}, 多头止损')
+                self.log(f'[STOP] Rate reversed to {funding:.6f}, stop loss long position')
                 self.order = self.sell(size=position.size)
             elif position.size < 0 and funding > self.p.funding_high:
-                self.log(f'[STOP] 费率反转到 {funding:.6f}, 空头止损')
+                self.log(f'[STOP] Rate reversed to {funding:.6f}, stop loss short position')
                 self.order = self.buy(size=abs(position.size))
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Order status notification.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
         if order.status == order.Completed:
             if order.isbuy():
-                self.log(f'[ORDER] 买入: ${order.executed.price:.6f} x {order.executed.size:.0f}')
+                self.log(f'[ORDER] Buy: ${order.executed.price:.6f} x {order.executed.size:.0f}')
             else:
-                self.log(f'[ORDER] 卖出: ${order.executed.price:.6f} x {order.executed.size:.0f}')
+                self.log(f'[ORDER] Sell: ${order.executed.price:.6f} x {order.executed.size:.0f}')
         elif order.status in [order.Canceled, order.Rejected]:
-            self.log(f'[ORDER] 订单 {order.getstatusname()}')
+            self.log(f'[ORDER] Order {order.getstatusname()}')
 
         self.order = None
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification.
+
+        Args:
+            trade: The trade object.
+        """
         if trade.isclosed:
-            self.log(f'[TRADE] 利润: ${trade.pnlcomm:.4f} USDT')
+            self.log(f'[TRADE] Profit: ${trade.pnlcomm:.4f} USDT')
 
     def stop(self):
-        """策略停止"""
+        """Called when strategy stops."""
         print('\n' + '=' * 70)
-        print('策略停止')
+        print('Strategy stopped')
         print('=' * 70)
 
 
 def run_strategy():
-    """运行资金费率套利策略"""
+    """Run the funding rate arbitrage strategy."""
 
-    # 加载环境变量
+    # Load environment variables
     env_path = Path(__file__).resolve().parent.parent / ".env"
     load_dotenv(dotenv_path=env_path)
 
-    # 选择交易所
+    # Select exchange
     exchange = os.getenv('EXCHANGE', 'okx')
 
     try:
-        # 网络配置选项（在 .env 文件中设置）:
-        # OKX_USE_AWS=true  - 使用 AWS 节点
-        # OKX_PROXY=http://127.0.0.1:7890  - 使用代理
+        # Network configuration options (set in .env file):
+        # OKX_USE_AWS=true  - Use AWS endpoint
+        # OKX_PROXY=http://127.0.0.1:7890  - Use proxy
         config = load_ccxt_config_from_env(exchange, enable_rate_limit=True)
     except ValueError as e:
-        print(f"错误: {e}")
-        print("\n请在 .env 文件中配置 API 凭证:")
+        print(f"Error: {e}")
+        print("\nPlease configure API credentials in .env file:")
         print(f"{exchange.upper()}_API_KEY=your_api_key")
         if exchange == 'okx':
             print(f"{exchange.upper()}_PASSWORD=your_password")
         print(f"{exchange.upper()}_SECRET=your_secret")
         return
 
-    # 安装 ccxt.pro 检查
+    # Check ccxt.pro installation
     try:
         import ccxt.pro as ccxtpro
-        print(f"[OK] ccxt.pro 已安装 (版本: {ccxtpro.__version__})")
+        print(f"[OK] ccxt.pro installed (version: {ccxtpro.__version__})")
     except ImportError:
-        print("[错误] 需要安装 ccxt.pro")
-        print("请运行: pip install ccxtpro")
+        print("[Error] ccxt.pro is required")
+        print("Please run: pip install ccxtpro")
         return
 
-    # 创建 Cerebro 引擎
+    # Create Cerebro engine
     cerebro = bt.Cerebro()
 
-    # 添加策略（选择一个）
-    # 1. 监控策略 - 只打印费率信息
+    # Add strategy (choose one)
+    # 1. Monitor strategy - only prints rate information
     cerebro.addstrategy(FundingRateMonitor, print_interval=10)
 
-    # 2. 套利策略 - 实际交易
+    # 2. Arbitrage strategy - actual trading
     # cerebro.addstrategy(
     #     FundingArbitrage,
     #     funding_high=0.0005,
@@ -276,10 +319,10 @@ def run_strategy():
     #     position_size=1.0
     # )
 
-    # 设置初始资金
+    # Set initial capital
     cerebro.broker.setcash(10.0)
 
-    # 创建 Store
+    # Create Store
     store = CCXTStore(
         exchange=exchange,
         currency='USDT',
@@ -288,65 +331,65 @@ def run_strategy():
         debug=False
     )
 
-    # 获取 broker
+    # Get broker
     broker = store.getbroker()
     cerebro.setbroker(broker)
 
-    # 使用带 WebSocket 资金费率的数据源
+    # Use data feed with WebSocket funding rate support
     try:
         data = CCXTFeedWithFunding(
             store=store,
-            dataname='BTC/USDT:USDT',  # 永续合约
+            dataname='BTC/USDT:USDT',  # Perpetual contract
             name='BTC/USDT:USDT',
             timeframe=bt.TimeFrame.Minutes,
             compression=1,
             fromdate=datetime.now(timezone.utc) - timedelta(minutes=500),
             backfill_start=True,
             historical=False,
-            # WebSocket 设置
-            use_websocket=True,              # 启用 WebSocket（默认）
-            include_funding=True,            # 启用资金费率
-            funding_history_days=3,          # 历史数据天数
-            debug=True  # 启用调试输出以便查看连接过程
+            # WebSocket settings
+            use_websocket=True,              # Enable WebSocket (default)
+            include_funding=True,            # Enable funding rate
+            funding_history_days=3,          # Days of historical data
+            debug=True  # Enable debug output to see connection process
         )
     except WebSocketRequiredError as e:
-        print(f"[错误] {e}")
+        print(f"[Error] {e}")
         return
 
     cerebro.adddata(data)
 
-    # 打印初始信息
+    # Print initial information
     print('=' * 70)
-    print('资金费率套利策略 - WebSocket 实时版')
+    print('Funding Rate Arbitrage Strategy - WebSocket Real-time Version')
     print('=' * 70)
-    print(f'交易所: {exchange}')
-    print(f'交易对: BTC/USDT 永续合约')
-    print(f'初始资金: {cerebro.broker.getvalue():.2f} USDT')
-    print(f'数据源: WebSocket (OHLCV + Funding Rate + Mark Price)')
+    print(f'Exchange: {exchange}')
+    print(f'Symbol: BTC/USDT perpetual')
+    print(f'Initial Capital: {cerebro.broker.getvalue():.2f} USDT')
+    print(f'Data Source: WebSocket (OHLCV + Funding Rate + Mark Price)')
     print('=' * 70)
     print()
 
-    # 运行策略
+    # Run strategy
     try:
-        print("启动策略...")
-        print("正在加载历史数据...\n")
+        print("Starting strategy...")
+        print("Loading historical data...\n")
         results = cerebro.run()
 
         if results and len(results) > 0:
             print('\n' + '=' * 70)
-            print('策略运行完成')
+            print('Strategy execution completed')
             print('=' * 70)
 
     except KeyboardInterrupt:
-        print("\n\n策略被用户中断")
+        print("\n\nStrategy interrupted by user")
     except WebSocketRequiredError as e:
-        print(f"\n[错误] WebSocket 连接失败: {e}")
-        print("请确保:")
-        print("1. 已安装 ccxt.pro: pip install ccxtpro")
-        print("2. 网络连接正常")
-        print("3. 交易所 API 密钥正确")
+        print(f"\n[Error] WebSocket connection failed: {e}")
+        print("Please ensure:")
+        print("1. ccxt.pro is installed: pip install ccxtpro")
+        print("2. Network connection is working")
+        print("3. Exchange API keys are correct")
     except Exception as e:
-        print(f"\n错误: {e}")
+        print(f"\nError: {e}")
         import traceback
         traceback.print_exc()
 

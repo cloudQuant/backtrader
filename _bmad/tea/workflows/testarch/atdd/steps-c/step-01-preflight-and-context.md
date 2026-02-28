@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-01-preflight-and-context'
 description: 'Verify prerequisites and load story, framework, and knowledge base'
 outputFile: '{test_artifacts}/atdd-checklist-{story_id}.md'
 nextStepFile: './step-02-generation-mode.md'
 knowledgeIndex: '{project-root}/_bmad/tea/testarch/tea-index.csv'
----
+
+- --
 
 # Step 1: Preflight & Context Loading
 
@@ -18,7 +20,7 @@ Verify prerequisites and load all required inputs before generating failing test
 - ✅ Speak in `{communication_language}`
 - 🚫 Halt if requirements are missing
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -35,36 +37,36 @@ Verify prerequisites and load all required inputs before generating failing test
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Stack Detection
 
-**Read `config.test_stack_type`** from `{config_source}`.
+- *Read `config.test_stack_type`** from `{config_source}`.
 
-**Auto-Detection Algorithm** (when `test_stack_type` is `"auto"` or not configured):
+- *Auto-Detection Algorithm**(when `test_stack_type` is `"auto"` or not configured):
 
 - Scan `{project-root}` for project manifests:
   - **Frontend indicators**: `package.json` with react/vue/angular/next dependencies, `playwright.config.*`, `vite.config.*`, `webpack.config.*`
   - **Backend indicators**: `pyproject.toml`, `pom.xml`/`build.gradle`, `go.mod`, `*.csproj`/`*.sln`, `Gemfile`, `Cargo.toml`
-  - **Both present** = `fullstack`; only frontend = `frontend`; only backend = `backend`
+  - **Both present**= `fullstack`; only frontend = `frontend`; only backend = `backend`
 - Explicit `test_stack_type` config value overrides auto-detection
 - **Backward compatibility**: if `test_stack_type` is not in config, treat as `"auto"` (preserves current frontend behavior for existing installs)
 
 Store result as `{detected_stack}` = `frontend` | `backend` | `fullstack`
 
----
+- --
 
 ## 2. Prerequisites (Hard Requirements)
 
 - Story approved with **clear acceptance criteria**
 - Test framework configured:
-  - **If {detected_stack} is `frontend` or `fullstack`:** `playwright.config.ts` or `cypress.config.ts`
+  - **If {detected_stack} is `frontend` or `fullstack`:**`playwright.config.ts` or `cypress.config.ts`
   - **If {detected_stack} is `backend`:** relevant test config exists (e.g., `conftest.py`, `src/test/`, `*_test.go`, `.rspec`)
 - Development environment available
 
-If any are missing: **HALT** and notify the user.
+If any are missing: **HALT**and notify the user.
 
----
+- --
 
 ## 3. Load Story Context
 
@@ -72,7 +74,7 @@ If any are missing: **HALT** and notify the user.
 - Extract acceptance criteria and constraints
 - Identify affected components and integrations
 
----
+- --
 
 ## 4. Load Framework & Existing Patterns
 
@@ -87,89 +89,95 @@ From `{config_source}`:
 - `tea_browser_automation`
 - `test_stack_type`
 
----
+- --
 
 ### Tiered Knowledge Loading
 
 Load fragments based on their `tier` classification in `tea-index.csv`:
 
-1. **Core tier** (always load): Foundational fragments required for this workflow
-2. **Extended tier** (load on-demand): Load when deeper analysis is needed or when the user's context requires it
-3. **Specialized tier** (load only when relevant): Load only when the specific use case matches (e.g., contract-testing only for microservices, email-auth only for email flows)
+1.**Core tier**(always load): Foundational fragments required for this workflow
+2.**Extended tier**(load on-demand): Load when deeper analysis is needed or when the user's context requires it
+3.**Specialized tier**(load only when relevant): Load only when the specific use case matches (e.g., contract-testing only for microservices, email-auth only for email flows)
 
-> **Context Efficiency**: Loading only core fragments reduces context usage by 40-50% compared to loading all fragments.
+>**Context Efficiency**: Loading only core fragments reduces context usage by 40-50% compared to loading all fragments.
 
 ### Playwright Utils Loading Profiles
 
-**If `tea_use_playwright_utils` is enabled**, select the appropriate loading profile:
+- *If `tea_use_playwright_utils` is enabled**, select the appropriate loading profile:
 
-- **API-only profile** (when `{detected_stack}` is `backend` or no `page.goto`/`page.locator` found in test files):
+- **API-only profile**(when `{detected_stack}` is `backend` or no `page.goto`/`page.locator` found in test files):
+
   Load: `overview`, `api-request`, `auth-session`, `recurse` (~1,800 lines)
 
 - **Full UI+API profile** (when `{detected_stack}` is `frontend`/`fullstack` or browser tests detected):
+
   Load: all Playwright Utils core fragments (~4,500 lines)
 
-**Detection**: Scan `{test_dir}` for files containing `page.goto` or `page.locator`. If none found, use API-only profile.
+- *Detection**: Scan `{test_dir}` for files containing `page.goto` or `page.locator`. If none found, use API-only profile.
 
 ## 5. Load Knowledge Base Fragments
 
 Use `{knowledgeIndex}` to load:
 
-**Core (always):**
+- *Core (always):**
 
 - `data-factories.md`
 - `component-tdd.md`
 - `test-quality.md`
 - `test-healing-patterns.md`
 
-**If {detected_stack} is `frontend` or `fullstack`:**
+- *If {detected_stack} is `frontend` or `fullstack`:**
 
 - `selector-resilience.md`
 - `timing-debugging.md`
 
-**Playwright Utils (if enabled and {detected_stack} is `frontend` or `fullstack`):**
+- *Playwright Utils (if enabled and {detected_stack} is `frontend` or `fullstack`):**
 
 - `overview.md`, `api-request.md`, `network-recorder.md`, `auth-session.md`, `intercept-network-call.md`, `recurse.md`, `log.md`, `file-utils.md`, `network-error-monitor.md`, `fixtures-composition.md`
 
-**Playwright CLI (if tea_browser_automation is "cli" or "auto" and {detected_stack} is `frontend` or `fullstack`):**
+- *Playwright CLI (if tea_browser_automation is "cli" or "auto" and {detected_stack} is `frontend` or `fullstack`):**
 
 - `playwright-cli.md`
 
-**MCP Patterns (if tea_browser_automation is "mcp" or "auto" and {detected_stack} is `frontend` or `fullstack`):**
+- *MCP Patterns (if tea_browser_automation is "mcp" or "auto" and {detected_stack} is `frontend` or `fullstack`):**
 
 - (existing MCP-related fragments, if any are added in future)
 
-**Traditional Patterns (if utils disabled and {detected_stack} is `frontend` or `fullstack`):**
+- *Traditional Patterns (if utils disabled and {detected_stack} is `frontend` or `fullstack`):**
 
 - `fixture-architecture.md`
 - `network-first.md`
 
-**Backend Patterns (if {detected_stack} is `backend` or `fullstack`):**
+- *Backend Patterns (if {detected_stack} is `backend` or `fullstack`):**
 
 - `test-levels-framework.md`
 - `test-priorities-matrix.md`
 - `ci-burn-in.md`
 
----
+- --
 
 ## 6. Confirm Inputs
 
 Summarize loaded inputs and confirm with the user. Then proceed.
 
----
+- --
 
 ## 7. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-01-preflight-and-context']
   lastStep: 'step-01-preflight-and-context'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -180,7 +188,7 @@ Summarize loaded inputs and confirm with the user. Then proceed.
   - Set `lastSaved: '{date}'`
   - Append this step's output to the appropriate section.
 
-**Update `inputDocuments`**: Set `inputDocuments` in the output template frontmatter to the list of artifact paths loaded in this step (e.g., knowledge fragments, test design documents, configuration files).
+- *Update `inputDocuments`**: Set `inputDocuments` in the output template frontmatter to the list of artifact paths loaded in this step (e.g., knowledge fragments, test design documents, configuration files).
 
 Load next step: `{nextStepFile}`
 
@@ -193,4 +201,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-01-discovery'
 description: 'Discover and understand the user workflow idea through collaborative conversation'
 
 nextStepFile: './step-02-classification.md'
 workflowExamples: '../data/workflow-examples.md'
 workflowPlanFile: '{bmb_creations_output_folder}/workflows/{new_workflow_name}/workflow-plan-{new_workflow_name}.md'
----
+
+- --
 
 # Step 1: Discovery
 
@@ -54,15 +56,15 @@ To understand the user's workflow idea through open-ended conversation, showing 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Context FIRST
 
 Load `{workflowExamples}` BEFORE talking to the user.
 
-**Note:** You already understand workflow architecture from having read workflow.md to get here. The step-file architecture you just experienced (micro-file design, JIT loading, sequential enforcement, state tracking) is exactly what we'll be helping users create.
+- *Note:** You already understand workflow architecture from having read workflow.md to get here. The step-file architecture you just experienced (micro-file design, JIT loading, sequential enforcement, state tracking) is exactly what we'll be helping users create.
 
-**From workflowExamples**, you now know 10 diverse workflow examples across domains:
+- *From workflowExamples**, you now know 10 diverse workflow examples across domains:
 - Health & Fitness (Meal Plan)
 - Finance (Tax Organizer)
 - Legal/HR (Termination Checklist)
@@ -84,20 +86,20 @@ Start with:
 
 Let me start by sharing what's possible: Workflows can help with everything from meal planning to tax preparation, from creative writing to project management. They're structured processes that guide you (or others) through a task step-by-step.
 
-**Tell me about your idea** - what problem are you trying to solve? What's the vision?"
+- *Tell me about your idea** - what problem are you trying to solve? What's the vision?"
 
 ### 3. Listen and Probe
 
 As they describe their idea:
 
-**DO:**
+- *DO:**
 - Listen carefully
 - Ask 1-2 follow-up questions at a time
 - Think about their response before asking more
 - Probe for: Who is this for? What's the outcome? What's the challenge they're facing?
 - Use "Think about their response before..." pattern
 
-**DON'T:**
+- *DON'T:**
 - Ask about module, name, or technical details
 - Rapid-fire questions
 - Jump to solutions
@@ -114,7 +116,7 @@ Once you have the basic idea, probe deeper:
 - Who would be running this workflow - you, your team, customers?
 - Is this something you'd do once, or repeat over time?
 
-**Think about their response before continuing...**"
+- *Think about their response before continuing...**"
 
 ### 5. Check Understanding
 
@@ -131,28 +133,36 @@ Did I capture that correctly? What should I adjust?"
 Create `{workflowPlanFile}` with initial discovery notes:
 
 ```markdown
----
+
+- --
+
 stepsCompleted: ['step-01-discovery']
 created: [current date]
 status: DISCOVERY
----
+
+- --
 
 # Workflow Creation Plan
 
 ## Discovery Notes
 
-**User's Vision:**
+- *User's Vision:**
+
 [Summarize the problem they're solving and their vision]
 
-**Who It's For:**
+- *Who It's For:**
+
 [Users/audience]
 
-**What It Produces:**
+- *What It Produces:**
+
 [The outcome/deliverable]
 
-**Key Insights:**
+- *Key Insights:**
+
 [Any important context gathered]
-```
+
+```bash
 
 ### 7. Transition to Classification
 
@@ -173,7 +183,7 @@ Display: **Proceeding to workflow classification...**
 - After discovery complete and plan document created, immediately load and execute `{nextStepFile}` to begin classification
 - IF user wants to keep discussing their idea: continue conversation, then repeat menu check
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -191,4 +201,4 @@ Display: **Proceeding to workflow classification...**
 - Not loading examples first
 - Rapid-fire questions without thinking about responses
 
-**Master Rule:** Understand first, classify second. Discovery comes before structure.
+- *Master Rule:** Understand first, classify second. Discovery comes before structure.

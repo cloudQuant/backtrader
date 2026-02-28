@@ -1,12 +1,12 @@
 # Narrative Design Workflow Validation Checklist
 
-**Purpose**: Validate narrative design outputs are complete, cohesive, and ready for implementation.
+- *Purpose**: Validate narrative design outputs are complete, cohesive, and ready for implementation.
 
-**Scope**: Story-driven games and applications (follows GDD workflow)
+- *Scope**: Story-driven games and applications (follows GDD workflow)
 
-**Expected Output**: narrative-design.md
+- *Expected Output**: narrative-design.md
 
----
+- --
 
 ## 1. Output File Exists
 
@@ -14,25 +14,25 @@
 - [ ] GDD.md exists (narrative workflow requires GDD first)
 - [ ] No unfilled {{template_variables}}
 
----
+- --
 
 ## 2. Story Foundation
 
 ### Core Elements
 
-- [ ] **Narrative premise** clearly stated (elevator pitch, 2-3 sentences)
-- [ ] **Core themes** identified (2-4 meaningful themes)
-- [ ] **Tone and atmosphere** established
+- [ ] **Narrative premise**clearly stated (elevator pitch, 2-3 sentences)
+- [ ]**Core themes**identified (2-4 meaningful themes)
+- [ ]**Tone and atmosphere**established
 - [ ] Premise is compelling and fits game type
 
 ### Story Structure
 
-- [ ] **Story structure chosen** (3-act, hero's journey, branching, etc.)
-- [ ] **Acts/sections broken down** with clear progression
-- [ ] **Major story beats** documented (key moments that drive narrative)
+- [ ]**Story structure chosen**(3-act, hero's journey, branching, etc.)
+- [ ]**Acts/sections broken down**with clear progression
+- [ ]**Major story beats**documented (key moments that drive narrative)
 - [ ] Structure fits narrative complexity level
 
----
+- --
 
 ## 3. Characters
 
@@ -59,16 +59,16 @@
 - [ ] Major characters have starting → transformation → ending states
 - [ ] Arc progression makes sense
 
----
+- --
 
 ## 4. World and Lore
 
-- [ ] **World setting** defined (time, place, world type)
-- [ ] **World rules** explained (magic, technology, society)
-- [ ] **History and backstory** documented
+- [ ]**World setting**defined (time, place, world type)
+- [ ]**World rules**explained (magic, technology, society)
+- [ ]**History and backstory**documented
 - [ ] Key locations described with narrative significance
 
----
+- --
 
 ## 5. Dialogue and Delivery
 
@@ -85,25 +85,25 @@
 - [ ] Optional vs. required content distinguished
 - [ ] Multiple endings documented (if applicable)
 
----
+- --
 
 ## 6. Gameplay Integration
 
-- [ ] **Narrative-gameplay harmony** addressed (how story and mechanics connect)
-- [ ] **Story gates** explained (how narrative controls progression)
-- [ ] **Player agency** level defined (can player affect story?)
+- [ ]**Narrative-gameplay harmony**addressed (how story and mechanics connect)
+- [ ]**Story gates**explained (how narrative controls progression)
+- [ ]**Player agency**level defined (can player affect story?)
 - [ ] Integration doesn't fight game design
 
----
+- --
 
 ## 7. Production Scope
 
-- [ ] **Writing scope** estimated (word count, scene count, dialogue lines)
+- [ ]**Writing scope**estimated (word count, scene count, dialogue lines)
 - [ ] Scope realistic for project level
 - [ ] Localization considerations noted (if applicable)
 - [ ] Voice acting plans documented (if applicable)
 
----
+- --
 
 ## 8. Consistency with GDD
 
@@ -112,28 +112,28 @@
 - [ ] Story supports game mechanics (doesn't contradict)
 - [ ] No conflicts between narrative and gameplay
 
----
+- --
 
 ## 9. Critical Failures (Auto-Fail)
 
-- [ ] ❌ **No GDD** (narrative workflow requires GDD first)
-- [ ] ❌ **No character arcs** (protagonist has no development)
-- [ ] ❌ **No story beats** (major moments not identified)
-- [ ] ❌ **Contradicts GDD** (narrative fights game design)
+- [ ] ❌**No GDD**(narrative workflow requires GDD first)
+- [ ] ❌**No character arcs**(protagonist has no development)
+- [ ] ❌**No story beats**(major moments not identified)
+- [ ] ❌**Contradicts GDD** (narrative fights game design)
 
----
+- --
 
 ## Validation Notes
 
-**Document any findings:**
+- *Document any findings:**
 
 - Narrative strength: [Compelling / Interesting / Adequate / Weak]
 - Strengths:
 - Issues to address:
 - Recommended actions:
 
-**Ready for solutioning?** [Yes / No - explain]
+- *Ready for solutioning?** [Yes / No - explain]
 
----
+- --
 
 _Adapt based on narrative complexity level (Critical/Heavy/Moderate/Light)._

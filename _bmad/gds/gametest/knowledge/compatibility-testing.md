@@ -24,6 +24,7 @@ Compatibility testing ensures your game works correctly across different hardwar
 ### Platform Compatibility
 
 - Console SKUs (PS5, Xbox Series X|S)
+
 - PC storefronts (Steam, Epic, GOG)
 - Mobile devices (iOS, Android)
 - Cloud gaming services
@@ -40,10 +41,15 @@ Compatibility testing ensures your game works correctly across different hardwar
 ### Minimum Hardware Matrix
 
 | Component | Budget   | Mid-Range | High-End |
+
 | --------- | -------- | --------- | -------- |
+
 | GPU       | GTX 1050 | RTX 3060  | RTX 4080 |
+
 | CPU       | i5-6400  | i7-10700  | i9-13900 |
+
 | RAM       | 8GB      | 16GB      | 32GB     |
+
 | Storage   | HDD      | SATA SSD  | NVMe     |
 
 ### OS Matrix
@@ -93,50 +99,64 @@ Compatibility testing ensures your game works correctly across different hardwar
 ### Graphics Issues
 
 | Issue                | Cause                  | Detection                        |
+
 | -------------------- | ---------------------- | -------------------------------- |
+
 | Crashes on launch    | Driver incompatibility | Test on multiple GPUs            |
+
 | Rendering artifacts  | Shader issues          | Visual inspection across configs |
+
 | Performance variance | Optimization gaps      | Profile on multiple GPUs         |
+
 | Resolution bugs      | Aspect ratio handling  | Test non-standard resolutions    |
 
 ### Input Issues
 
 | Issue                   | Cause              | Detection                      |
+
 | ----------------------- | ------------------ | ------------------------------ |
+
 | Controller not detected | Missing driver/API | Test all supported controllers |
+
 | Wrong button prompts    | Platform detection | Swap controllers mid-game      |
+
 | Stick drift handling    | Deadzone issues    | Test worn controllers          |
+
 | Mouse acceleration      | Raw input issues   | Test at different DPIs         |
 
 ### Audio Issues
 
 | Issue          | Cause            | Detection                   |
+
 | -------------- | ---------------- | --------------------------- |
+
 | No sound       | Device selection | Test multiple audio devices |
+
 | Crackling      | Buffer issues    | Test under CPU load         |
+
 | Wrong channels | Surround setup   | Test stereo vs 5.1 vs 7.1   |
 
 ## Platform-Specific Considerations
 
 ### PC
 
-- **Steam:** Verify Steam Input, Steamworks features
-- **Epic:** Test EOS features if used
-- **GOG:** Test offline/DRM-free functionality
-- **Game Pass:** Test Xbox services integration
+- **Steam:**Verify Steam Input, Steamworks features
+- **Epic:**Test EOS features if used
+- **GOG:**Test offline/DRM-free functionality
+- **Game Pass:**Test Xbox services integration
 
 ### Console
 
-- **Certification Requirements:** Study TRCs/XRs early
-- **SKU Differences:** Test on all variants (S vs X)
-- **External Storage:** Test on USB drives
-- **Quick Resume:** Test suspend/resume cycles
+- **Certification Requirements:**Study TRCs/XRs early
+- **SKU Differences:**Test on all variants (S vs X)
+- **External Storage:**Test on USB drives
+- **Quick Resume:**Test suspend/resume cycles
 
 ### Mobile
 
-- **Device Fragmentation:** Test across screen sizes
-- **OS Versions:** Test min supported to latest
-- **Permissions:** Test permission flows
+- **Device Fragmentation:**Test across screen sizes
+- **OS Versions:**Test min supported to latest
+- **Permissions:**Test permission flows
 - **App Lifecycle:** Test background/foreground
 
 ## Automated Compatibility Testing
@@ -144,16 +164,20 @@ Compatibility testing ensures your game works correctly across different hardwar
 ### Smoke Tests
 
 ```yaml
+
 # Run on matrix of configurations
+
 compatibility_test:
   matrix:
     os: [windows-10, windows-11, ubuntu-22]
     gpu: [nvidia, amd, intel]
   script:
+
     - launch_game --headless
     - verify_main_menu_reached
     - check_no_errors
-```
+
+```bash
 
 ### Screenshot Comparison
 
@@ -202,8 +226,9 @@ compatibility_test:
 
 ### System Requirements
 
-```
+```bash
 MINIMUM:
+
 - OS: Windows 10 64-bit
 - Processor: Intel Core i5-6400 or AMD equivalent
 - Memory: 8 GB RAM
@@ -211,12 +236,14 @@ MINIMUM:
 - Storage: 50 GB available space
 
 RECOMMENDED:
+
 - OS: Windows 11 64-bit
 - Processor: Intel Core i7-10700 or AMD equivalent
 - Memory: 16 GB RAM
 - Graphics: NVIDIA RTX 3060 or AMD RX 6700 XT
 - Storage: 50 GB SSD
-```
+
+```bash
 
 ### Known Issues
 

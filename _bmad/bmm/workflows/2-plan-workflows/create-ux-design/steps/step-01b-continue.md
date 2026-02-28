@@ -54,14 +54,14 @@ Reload the context documents listed in `inputDocuments`:
 Welcome the user back and provide context:
 "Welcome back {{user_name}}! I'm resuming our UX design collaboration for {{project_name}}.
 
-**Current Progress:**
+- *Current Progress:**
 
 - Steps completed: {stepsCompleted}
 - Last worked on: Step {lastStep}
 - Context documents available: {len(inputDocuments)} files
 - Current UX design specification is ready with all completed sections
 
-**Document Status:**
+- *Document Status:**
 
 - Current UX design document is ready with all completed sections
 - Ready to continue from where we left off

@@ -2,7 +2,7 @@
 
 This checklist ensures the framework workflow completes successfully and all deliverables meet quality standards.
 
----
+- --
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ Before starting the workflow:
 - [ ] Bundler identifiable (Vite, Webpack, Rollup, esbuild) or not applicable (backend projects)
 - [ ] User has write permissions to create directories and files
 
----
+- --
 
 ## Process Steps
 
@@ -45,7 +45,7 @@ Before starting the workflow:
 - [ ] `tests/support/page-objects/` directory created (if applicable)
 - [ ] All directories have correct permissions
 
-**Note**: Test organization is flexible (e2e/, api/, integration/). The **support/** folder is the key pattern.
+- *Note**: Test organization is flexible (e2e/, api/, integration/). The **support/** folder is the key pattern.
 
 ### Step 4: Configuration Files
 
@@ -123,7 +123,7 @@ Before starting the workflow:
 - [ ] Type definitions added (if TypeScript)
 - [ ] Users can extend with additional scripts as needed
 
----
+- --
 
 ## Output Validation
 
@@ -158,7 +158,7 @@ Before starting the workflow:
 - [ ] No hardcoded credentials or secrets in files
 - [ ] All file paths use correct separators for OS
 
----
+- --
 
 ## Quality Checks
 
@@ -196,7 +196,7 @@ Before starting the workflow:
 - [ ] API keys and tokens use environment variables
 - [ ] No secrets committed to version control
 
----
+- --
 
 ## Integration Points
 
@@ -220,11 +220,11 @@ Before starting the workflow:
 - [ ] Can proceed to `atdd` workflow after completion
 - [ ] Framework setup compatible with downstream workflows
 
----
+- --
 
 ## Completion Criteria
 
-**All of the following must be true:**
+- *All of the following must be true:**
 
 - [ ] All prerequisite checks passed
 - [ ] All process steps completed without errors
@@ -236,11 +236,11 @@ Before starting the workflow:
 - [ ] Documentation is complete and accurate
 - [ ] No critical issues or blockers identified
 
----
+- --
 
 ## Post-Workflow Actions
 
-**User must complete:**
+- *User must complete:**
 
 1. [ ] Copy `.env.example` to `.env`
 2. [ ] Fill in environment-specific values in `.env`
@@ -248,13 +248,13 @@ Before starting the workflow:
 4. [ ] Run `npm run test:e2e` to verify setup
 5. [ ] Review `tests/README.md` for project-specific guidance
 
-**Recommended next workflows:**
+- *Recommended next workflows:**
 
 1. [ ] Run `ci` workflow to set up CI/CD pipeline
 2. [ ] Run `test-design` workflow to plan test coverage
 3. [ ] Run `atdd` workflow when ready to develop stories
 
----
+- --
 
 ## Rollback Procedure
 
@@ -268,37 +268,37 @@ If workflow fails and needs to be rolled back:
 6. [ ] Remove test dependencies from package.json (if added)
 7. [ ] Run `npm install` to clean up node_modules
 
----
+- --
 
 ## Notes
 
 ### Common Issues
 
-**Issue**: Config file has TypeScript errors
+- *Issue**: Config file has TypeScript errors
 
 - **Solution**: Ensure `@playwright/test` or `cypress` types are installed
 
-**Issue**: Sample test fails to run
+- *Issue**: Sample test fails to run
 
 - **Solution**: Check BASE_URL in .env, ensure app is running
 
-**Issue**: Fixture cleanup not working
+- *Issue**: Fixture cleanup not working
 
 - **Solution**: Verify cleanup() is called in fixture teardown
 
-**Issue**: Network interception not working
+- *Issue**: Network interception not working
 
 - **Solution**: Ensure route setup occurs before page.goto()
 
 ### Framework-Specific Considerations
 
-**Playwright:**
+- *Playwright:**
 
 - Requires Node.js 18+
 - Browser binaries auto-installed on first run
 - Trace viewer requires running `npx playwright show-trace`
 
-**Cypress:**
+- *Cypress:**
 
 - Requires Node.js 18+
 - Cypress app opens on first run
@@ -311,11 +311,11 @@ If workflow fails and needs to be rolled back:
 - [ ] TypeScript version compatible with framework
 - [ ] All peer dependencies satisfied
 
----
+- --
 
-**Checklist Complete**: Sign off when all items checked and validated.
+- *Checklist Complete**: Sign off when all items checked and validated.
 
-**Completed by:** {name}
-**Date:** {date}
-**Framework:** { Playwright / Cypress or something else}
-**Notes:** {notes}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Framework:** { Playwright / Cypress or something else}
+- *Notes:** {notes}

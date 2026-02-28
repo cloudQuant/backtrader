@@ -33,15 +33,16 @@ test('my test', async ({ page }) => {
   await page.goto('/dashboard');
   // If any HTTP 4xx/5xx errors occur, the test will fail
 });
-```
+
+```bash
 
 ## Pattern Examples
 
 ### Example 1: Basic Auto-Monitoring
 
-**Context**: Automatically fail tests when backend errors occur.
+- *Context**: Automatically fail tests when backend errors occur.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
@@ -55,12 +56,13 @@ test('should load dashboard', async ({ page }) => {
   // Fails if any 4xx/5xx errors detected with clear message:
   //    "Network errors detected: 2 request(s) failed"
   //    Failed requests:
-  //      GET 500 https://api.example.com/users
-  //      POST 503 https://api.example.com/metrics
+  //      GET 500 <https://api.example.com/users>
+  //      POST 503 <https://api.example.com/metrics>
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Zero setup - auto-enabled for all tests
 - Fails on any 4xx/5xx response
@@ -69,9 +71,9 @@ test('should load dashboard', async ({ page }) => {
 
 ### Example 2: Opt-Out for Validation Tests
 
-**Context**: Some tests expect errors (validation, error handling, edge cases).
+- *Context**: Some tests expect errors (validation, error handling, edge cases).
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
@@ -95,9 +97,10 @@ test.describe('error handling', { annotation: [{ type: 'skipNetworkMonitoring' }
     // Monitoring disabled
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Use annotation `{ type: 'skipNetworkMonitoring' }`
 - Can opt-out single test or entire describe block
@@ -106,9 +109,9 @@ test.describe('error handling', { annotation: [{ type: 'skipNetworkMonitoring' }
 
 ### Example 3: Respects Test Status
 
-**Context**: The monitor respects final test statuses to avoid suppressing important test outcomes.
+- *Context**: The monitor respects final test statuses to avoid suppressing important test outcomes.
 
-**Behavior by test status:**
+- *Behavior by test status:**
 
 - **`failed`**: Network errors logged as additional context, not thrown
 - **`timedOut`**: Network errors logged as additional context
@@ -116,7 +119,7 @@ test.describe('error handling', { annotation: [{ type: 'skipNetworkMonitoring' }
 - **`interrupted`**: Network errors logged, interrupted status preserved
 - **`passed`**: Network errors throw and fail the test
 
-**Example with test.skip():**
+- *Example with test.skip():**
 
 ```typescript
 test('feature gated test', async ({ page }) => {
@@ -125,13 +128,14 @@ test('feature gated test', async ({ page }) => {
   // If skipped, network errors won't turn this into a failure
   await page.goto('/new-feature');
 });
-```
+
+```bash
 
 ### Example 4: Excluding Legitimate Errors
 
-**Context**: Some endpoints legitimately return 4xx/5xx responses.
+- *Context**: Some endpoints legitimately return 4xx/5xx responses.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test as base } from '@playwright/test';
@@ -146,9 +150,10 @@ export const test = base.extend(
     ],
   }),
 );
-```
 
-**For merged fixtures:**
+```bash
+
+- *For merged fixtures:**
 
 ```typescript
 import { test as base, mergeTests } from '@playwright/test';
@@ -161,13 +166,14 @@ const networkErrorMonitor = base.extend(
 );
 
 export const test = mergeTests(authFixture, networkErrorMonitor);
-```
+
+```bash
 
 ### Example 5: Preventing Domino Effect
 
-**Context**: One failing endpoint shouldn't fail all tests.
+- *Context**: One failing endpoint shouldn't fail all tests.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 import { test as base } from '@playwright/test';
@@ -179,14 +185,15 @@ const networkErrorMonitor = base.extend(
     maxTestsPerError: 1, // Only first test fails per error pattern, rest just log
   }),
 );
-```
 
-**How it works:**
+```bash
+
+- *How it works:**
 
 When `/api/v2/case-management/cases` returns 500:
 
-- **First test** encountering this error: **FAILS** with clear error message
-- **Subsequent tests** encountering same error: **PASSES** but logs warning
+- **First test**encountering this error:**FAILS**with clear error message
+- **Subsequent tests**encountering same error:**PASSES** but logs warning
 
 Error patterns are grouped by `method + status + base path`:
 
@@ -194,53 +201,56 @@ Error patterns are grouped by `method + status + base path`:
 - `GET /api/v2/case-management/quota` -> Pattern: `GET:500:/api/v2/case-management` (same group!)
 - `POST /api/v2/case-management/cases` -> Pattern: `POST:500:/api/v2/case-management` (different group!)
 
-**Why include HTTP method?** A GET 404 vs POST 404 might represent different issues:
+- *Why include HTTP method?** A GET 404 vs POST 404 might represent different issues:
 
 - `GET 404 /api/users/123` -> User not found (expected in some tests)
 - `POST 404 /api/users` -> Endpoint doesn't exist (critical error)
 
-**Output for subsequent tests:**
+- *Output for subsequent tests:**
 
-```
+```bash
 Warning: Network errors detected but not failing test (maxTestsPerError limit reached):
-  GET 500 https://api.example.com/api/v2/case-management/cases
-```
+  GET 500 <https://api.example.com/api/v2/case-management/cases>
 
-**Recommended configuration:**
+```bash
+
+- *Recommended configuration:**
 
 ```typescript
 createNetworkErrorMonitorFixture({
   excludePatterns: [...], // Required - known broken endpoints (can be empty [])
   maxTestsPerError: 1     // Stop domino effect (requires excludePatterns)
 })
-```
 
-**Understanding worker-level state:**
+```bash
+
+- *Understanding worker-level state:**
 
 Error pattern counts are stored in worker-level global state:
 
 ```typescript
 // test-file-1.spec.ts (runs in Worker 1)
 test('test A', () => {
-  /* triggers GET:500:/api/v2/cases */
+  /*triggers GET:500:/api/v2/cases*/
 }); // FAILS
 
 // test-file-2.spec.ts (runs later in Worker 1)
 test('test B', () => {
-  /* triggers GET:500:/api/v2/cases */
+  /*triggers GET:500:/api/v2/cases*/
 }); // PASSES (limit reached)
 
 // test-file-3.spec.ts (runs in Worker 2 - different worker)
 test('test C', () => {
-  /* triggers GET:500:/api/v2/cases */
+  /*triggers GET:500:/api/v2/cases*/
 }); // FAILS (fresh worker)
-```
+
+```bash
 
 ### Example 6: Integration with Merged Fixtures
 
-**Context**: Combine network-error-monitor with other utilities.
+- *Context**: Combine network-error-monitor with other utilities.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/merged-fixtures.ts
@@ -263,9 +273,10 @@ test('authenticated with monitoring', async ({ page, authToken }) => {
 
   // Fails if backend returns errors during auth flow
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Combine with `mergeTests`
 - Works alongside all other utilities
@@ -274,26 +285,27 @@ test('authenticated with monitoring', async ({ page, authToken }) => {
 
 ### Example 7: Artifact Structure
 
-**Context**: Debugging failed tests with network error artifacts.
+- *Context**: Debugging failed tests with network error artifacts.
 
 When test fails due to network errors, artifact attached:
 
 ```json
 [
   {
-    "url": "https://api.example.com/users",
+    "url": "<https://api.example.com/users",>
     "status": 500,
     "method": "GET",
     "timestamp": "2025-11-10T12:34:56.789Z"
   },
   {
-    "url": "https://api.example.com/metrics",
+    "url": "<https://api.example.com/metrics",>
     "status": 503,
     "method": "POST",
     "timestamp": "2025-11-10T12:34:57.123Z"
   }
 ]
-```
+
+```bash
 
 ## Implementation Details
 
@@ -318,23 +330,30 @@ The monitor has minimal performance impact:
 ## Comparison with Alternatives
 
 | Approach                    | Network Error Monitor | Manual afterEach      |
+
 | --------------------------- | --------------------- | --------------------- |
-| **Setup Required**          | Zero (auto-enabled)   | Every test file       |
-| **Catches Silent Failures** | Yes                   | Yes (if configured)   |
-| **Structured Artifacts**    | JSON attached         | Custom impl           |
-| **Test Failure Safety**     | Try/finally           | afterEach may not run |
-| **Opt-Out Mechanism**       | Annotation            | Custom logic          |
-| **Status Aware**            | Respects skip/failed  | No                    |
+
+| **Setup Required**| Zero (auto-enabled)   | Every test file       |
+
+|**Catches Silent Failures**| Yes                   | Yes (if configured)   |
+
+|**Structured Artifacts**| JSON attached         | Custom impl           |
+
+|**Test Failure Safety**| Try/finally           | afterEach may not run |
+
+|**Opt-Out Mechanism**| Annotation            | Custom logic          |
+
+|**Status Aware**            | Respects skip/failed  | No                    |
 
 ## When to Use
 
-**Auto-enabled for:**
+- *Auto-enabled for:**
 
 - All E2E tests
 - Integration tests
 - Any test hitting real APIs
 
-**Opt-out for:**
+- *Opt-out for:**
 
 - Validation tests (expecting 4xx)
 - Error handling tests (expecting 5xx)
@@ -360,7 +379,8 @@ import { test } from '@seontechnologies/playwright-utils/network-error-monitor/f
 
 // Wrong - this won't have network monitoring
 import { test } from '@playwright/test';
-```
+
+```bash
 
 ## Related Fragments
 
@@ -370,32 +390,36 @@ import { test } from '@playwright/test';
 
 ## Anti-Patterns
 
-**DON'T opt out of monitoring globally:**
+- *DON'T opt out of monitoring globally:**
 
 ```typescript
 // Every test skips monitoring
 test.use({ annotation: [{ type: 'skipNetworkMonitoring' }] });
-```
 
-**DO opt-out only for specific error tests:**
+```bash
+
+- *DO opt-out only for specific error tests:**
 
 ```typescript
 test.describe('error scenarios', { annotation: [{ type: 'skipNetworkMonitoring' }] }, () => {
   // Only these tests skip monitoring
 });
-```
 
-**DON'T ignore network error artifacts:**
+```bash
+
+- *DON'T ignore network error artifacts:**
 
 ```typescript
 // Test fails, artifact shows 500 errors
 // Developer: "Works on my machine" ¯\_(ツ)_/¯
-```
 
-**DO check artifacts for root cause:**
+```bash
+
+- *DO check artifacts for root cause:**
 
 ```typescript
 // Read network-errors.json artifact
 // Identify failing endpoint: GET /api/users -> 500
 // Fix backend issue before merging
-```
+
+```bash

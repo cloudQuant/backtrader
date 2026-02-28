@@ -1,8 +1,10 @@
----
+- --
+
 name: 'step-04-generate-tests'
 description: 'Orchestrate parallel FAILING test generation (TDD red phase)'
 nextStepFile: './step-04c-aggregate.md'
----
+
+- --
 
 # Step 4: Orchestrate Parallel FAILING Test Generation
 
@@ -21,7 +23,7 @@ Launch parallel subprocesses to generate FAILING API and E2E tests simultaneousl
 - ❌ Do NOT generate passing tests (this is red phase)
 - ❌ Do NOT proceed until both subprocesses finish
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -36,27 +38,28 @@ Launch parallel subprocesses to generate FAILING API and E2E tests simultaneousl
 - Limits: do not generate tests directly (delegate to subprocesses)
 - Dependencies: Steps 1-3 outputs
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ### 1. Prepare Subprocess Inputs
 
-**Generate unique timestamp** for temp file naming:
+- *Generate unique timestamp** for temp file naming:
 
 ```javascript
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-```
 
-**Prepare input context for both subprocesses:**
+```bash
+
+- *Prepare input context for both subprocesses:**
 
 ```javascript
 const subprocessContext = {
-  story_acceptance_criteria: /* from Step 1 */,
-  test_strategy: /* from Step 3 */,
-  knowledge_fragments_loaded: /* list of fragments */,
+  story_acceptance_criteria: /*from Step 1*/,
+  test_strategy: /*from Step 3*/,
+  knowledge_fragments_loaded: /*list of fragments*/,
   config: {
     test_framework: config.test_framework,
     use_playwright_utils: config.tea_use_playwright_utils,
@@ -64,57 +67,60 @@ const subprocessContext = {
   },
   timestamp: timestamp
 };
-```
 
----
+```bash
+
+- --
 
 ### 2. Launch Subprocess A: Failing API Test Generation
 
-**Launch subprocess in parallel:**
+- *Launch subprocess in parallel:**
 
-- **Subprocess File:** `./step-04a-subprocess-api-failing.md`
-- **Output File:** `/tmp/tea-atdd-api-tests-${timestamp}.json`
-- **Context:** Pass `subprocessContext`
-- **Execution:** PARALLEL (non-blocking)
+- **Subprocess File:**`./step-04a-subprocess-api-failing.md`
+- **Output File:**`/tmp/tea-atdd-api-tests-${timestamp}.json`
+- **Context:**Pass `subprocessContext`
+- **Execution:**PARALLEL (non-blocking)
 - **TDD Phase:** RED (failing tests)
 
-**System Action:**
+- *System Action:**
 
-```
+```bash
 🚀 Launching Subprocess A: FAILING API Test Generation (RED PHASE)
 📝 Output: /tmp/tea-atdd-api-tests-${timestamp}.json
 🔴 TDD Phase: RED (tests will fail until feature implemented)
 ⏳ Status: Running in parallel...
-```
 
----
+```bash
+
+- --
 
 ### 3. Launch Subprocess B: Failing E2E Test Generation
 
-**Launch subprocess in parallel:**
+- *Launch subprocess in parallel:**
 
-- **Subprocess File:** `./step-04b-subprocess-e2e-failing.md`
-- **Output File:** `/tmp/tea-atdd-e2e-tests-${timestamp}.json`
-- **Context:** Pass `subprocessContext`
-- **Execution:** PARALLEL (non-blocking)
+- **Subprocess File:**`./step-04b-subprocess-e2e-failing.md`
+- **Output File:**`/tmp/tea-atdd-e2e-tests-${timestamp}.json`
+- **Context:**Pass `subprocessContext`
+- **Execution:**PARALLEL (non-blocking)
 - **TDD Phase:** RED (failing tests)
 
-**System Action:**
+- *System Action:**
 
-```
+```bash
 🚀 Launching Subprocess B: FAILING E2E Test Generation (RED PHASE)
 📝 Output: /tmp/tea-atdd-e2e-tests-${timestamp}.json
 🔴 TDD Phase: RED (tests will fail until feature implemented)
 ⏳ Status: Running in parallel...
-```
 
----
+```bash
+
+- --
 
 ### 4. Wait for Both Subprocesses to Complete
 
-**Monitor subprocess execution:**
+- *Monitor subprocess execution:**
 
-```
+```bash
 ⏳ Waiting for subprocesses to complete...
   ├── Subprocess A (API RED): Running... ⟳
   └── Subprocess B (E2E RED): Running... ⟳
@@ -125,29 +131,33 @@ const subprocessContext = {
   └── Subprocess B (E2E RED): Complete ✅
 
 ✅ All subprocesses completed successfully!
-```
 
-**Verify both outputs exist:**
+```bash
+
+- *Verify both outputs exist:**
 
 ```javascript
 const apiOutputExists = fs.existsSync(`/tmp/tea-atdd-api-tests-${timestamp}.json`);
 const e2eOutputExists = fs.existsSync(`/tmp/tea-atdd-e2e-tests-${timestamp}.json`);
 
 if (!apiOutputExists || !e2eOutputExists) {
+
   throw new Error('One or both subprocess outputs missing!');
 }
-```
 
----
+```bash
+
+- --
 
 ### 5. TDD Red Phase Report
 
-**Display TDD status:**
+- *Display TDD status:**
 
-```
+```bash
 🔴 TDD RED PHASE: Failing Tests Generated
 
 ✅ Both subprocesses completed:
+
 - API Tests: Generated with test.skip()
 - E2E Tests: Generated with test.skip()
 
@@ -156,29 +166,33 @@ if (!apiOutputExists || !e2eOutputExists) {
 📋 This is INTENTIONAL (TDD red phase)
 
 Next: Aggregation will verify TDD compliance
-```
 
----
+```bash
+
+- --
 
 ### 6. Performance Report
 
-**Display performance metrics:**
+- *Display performance metrics:**
 
-```
+```bash
 🚀 Performance Report:
+
 - Execution Mode: PARALLEL (2 subprocesses)
 - API Test Generation: ~X minutes
 - E2E Test Generation: ~Y minutes
 - Total Elapsed: ~max(X, Y) minutes
 - Sequential Would Take: ~(X + Y) minutes
 - Performance Gain: ~50% faster!
-```
 
----
+```bash
+
+- --
 
 ### 7. Proceed to Aggregation
 
-**Load aggregation step:**
+- *Load aggregation step:**
+
 Load next step: `{nextStepFile}`
 
 The aggregation step (4C) will:
@@ -189,7 +203,7 @@ The aggregation step (4C) will:
 - Generate ATDD checklist
 - Calculate summary statistics
 
----
+- --
 
 ## EXIT CONDITION
 
@@ -200,13 +214,13 @@ Proceed to Step 4C (Aggregation) when:
 - ✅ Both output files exist and are valid JSON
 - ✅ TDD red phase status reported
 
-**Do NOT proceed if:**
+- *Do NOT proceed if:**
 
 - ❌ One or both subprocesses failed
 - ❌ Output files missing or corrupted
 - ❌ Subprocess generated passing tests (wrong - must be failing)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS:
 
@@ -226,4 +240,4 @@ Proceed to Step 4C (Aggregation) when:
 - Tests generated without test.skip() (wrong phase)
 - Attempted sequential generation instead of parallel
 
-**Master Rule:** TDD RED PHASE requires FAILING tests (with test.skip()). Parallel subprocess execution is MANDATORY for performance.
+- *Master Rule:** TDD RED PHASE requires FAILING tests (with test.skip()). Parallel subprocess execution is MANDATORY for performance.

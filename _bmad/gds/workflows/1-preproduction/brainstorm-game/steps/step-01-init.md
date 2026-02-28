@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize the game brainstorming workflow and validate readiness'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/brainstorm-game'
 
 # File References
+
 thisStepFile: './step-01-init.md'
 nextStepFile: './step-02-context.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/brainstorming-session-{date}.md'
 
 # Context Files
+
 gameContext: '{workflow_path}/game-context.md'
 gameBrainMethods: '{workflow_path}/game-brain-methods.csv'
----
+
+- --
 
 # Step 1: Initialize Brainstorming
 
-**Progress: Step 1 of 4** - Next: Load Context
+- *Progress: Step 1 of 4** - Next: Load Context
 
 ## STEP GOAL:
 
@@ -57,11 +62,11 @@ Validate workflow readiness, check for workflow status tracking, and prepare for
 
 ### 1. Check Workflow Status
 
-**Search for workflow status file:**
+- *Search for workflow status file:**
 
 Check if `{output_folder}/gds-workflow-status.yaml` exists.
 
-**If status file NOT found:**
+- *If status file NOT found:**
 
 "No workflow status file found. Game brainstorming is optional and can run standalone.
 
@@ -72,9 +77,9 @@ Would you like to:
 
 Your choice:"
 
-**If user continues:** Set `standalone_mode = true`
+- *If user continues:** Set `standalone_mode = true`
 
-**If status file found:**
+- *If status file found:**
 
 Load the file and check:
 
@@ -90,16 +95,16 @@ Handle each scenario appropriately with user prompts.
 
 {{user_name}}, let's explore game ideas together.
 
-**Brainstorming Rules:**
+- *Brainstorming Rules:**
 
 - There are no bad ideas in brainstorming
-- **Quantity over quality:** Our goal is **100+ ideas**. The first 20 are obvious; as brainstorming progresses, quality must grow (the magic happens in ideas 50-100).
+- **Quantity over quality:**Our goal is**100+ ideas**. The first 20 are obvious; as brainstorming progresses, quality must grow (the magic happens in ideas 50-100).
 - Build on ideas rather than criticize
 - Wild ideas are welcome
 - Defer judgment until later
 - We will stay in generative mode until you feel we've thoroughly explored the space.
 
-**What we'll do:**
+- *What we'll do:**
 
 1. Load game-specific brainstorming techniques
 2. Explore your game concepts using various methods
@@ -110,32 +115,36 @@ Ready to start brainstorming? [Y/N]"
 
 ### 3. Initialize Output Document
 
-**If user confirms, create the session document:**
+- *If user confirms, create the session document:**
 
 Create `{outputFile}` with frontmatter:
 
 ```markdown
----
+
+- --
+
 title: 'Game Brainstorming Session'
 date: '{{date}}'
 author: '{{user_name}}'
 version: '1.0'
 stepsCompleted: [1]
 status: 'in-progress'
----
+
+- --
 
 # Game Brainstorming Session
 
 ## Session Info
 
-- **Date:** {{date}}
-- **Facilitator:** Game Designer Agent
+- **Date:**{{date}}
+- **Facilitator:**Game Designer Agent
 - **Participant:** {{user_name}}
 
----
+- --
 
 _Ideas will be captured as we progress through the session._
-```
+
+```bash
 
 ### 4. Proceed to Context Step
 
@@ -144,7 +153,7 @@ After initialization:
 - Update frontmatter: `stepsCompleted: [1]`
 - Load `{nextStepFile}`
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -163,4 +172,4 @@ After initialization:
 - Missing document initialization
 - Not setting brainstorming tone
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

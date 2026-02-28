@@ -1,64 +1,80 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/CryptoTradingBot
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### CryptoTradingBot项目简介
-CryptoTradingBot是一个加密货币自动交易机器人，具有以下核心特点：
+### CryptoTradingBot 项目简介
+
+CryptoTradingBot 是一个加密货币自动交易机器人，具有以下核心特点：
+
 - **自动交易**: 自动化交易执行
 - **多交易所**: 支持多个加密货币交易所
 - **策略系统**: 内置多种交易策略
 - **风险管理**: 内置风险控制
 - **通知系统**: 交易通知功能
-- **Web界面**: Web管理界面
+- **Web 界面**: Web 管理界面
 
 ### 重点借鉴方向
+
 1. **自动化**: 自动交易框架设计
 2. **多交易所**: 多交易所适配
 3. **通知系统**: 通知推送机制
-4. **Web界面**: Web管理界面
+4. **Web 界面**: Web 管理界面
 5. **风控系统**: 风险管理模块
 6. **策略管理**: 策略管理机制
 
----
+- --
 
 ## 一、项目对比分析
 
 ### 1.1 架构设计对比
 
 | 特性 | Backtrader | CryptoTradingBot (K) |
+
 |------|-----------|---------------------|
-| **核心架构** | Line系统 + Cerebro引擎 | C++ + TypeScript (AngularJS) |
-| **应用场景** | 回测为主，实盘需扩展 | 实盘交易为主 |
-| **目标市场** | 股票、期货、加密货币 | 专注加密货币 |
-| **部署方式** | 本地脚本 | 服务器持续运行 |
-| **数据存储** | 内存/文件 | SQLite (WAL模式) |
-| **用户界面** | matplotlib绘图 | Web UI (AngularJS) |
-| **通信方式** | 单线程执行 | WebSocket实时通信 |
-| **策略类型** | 趋势、套利等 | 做市(Market Making)为主 |
 
-### 1.2 CryptoTradingBot的核心优势
+| **核心架构**| Line 系统 + Cerebro 引擎 | C++ + TypeScript (AngularJS) |
 
-#### 1.2.1 实时Web UI
+|**应用场景**| 回测为主，实盘需扩展 | 实盘交易为主 |
 
-CryptoTradingBot提供了完整的Web界面：
+|**目标市场**| 股票、期货、加密货币 | 专注加密货币 |
+
+|**部署方式**| 本地脚本 | 服务器持续运行 |
+
+|**数据存储**| 内存/文件 | SQLite (WAL 模式) |
+
+|**用户界面**| matplotlib 绘图 | Web UI (AngularJS) |
+
+|**通信方式**| 单线程执行 | WebSocket 实时通信 |
+
+|**策略类型** | 趋势、套利等 | 做市(Market Making)为主 |
+
+### 1.2 CryptoTradingBot 的核心优势
+
+#### 1.2.1 实时 Web UI
+
+CryptoTradingBot 提供了完整的 Web 界面：
+
 - 实时市场数据展示
 - 订单管理面板
 - 持仓监控
 - 参数实时调整
 - 图表可视化
 
-**技术栈**：
+- *技术栈**：
 - 前端：AngularJS + RxJS (响应式编程)
-- 后端：C++内置HTTP服务器
-- 通信：WebSocket实时推送
+- 后端：C++内置 HTTP 服务器
+- 通信：WebSocket 实时推送
 
 #### 1.2.2 做市策略引擎
 
-K的做市引擎非常完善，支持多种报价模式：
+K 的做市引擎非常完善，支持多种报价模式：
 
 ```typescript
 // 报价模式
@@ -77,23 +93,25 @@ safety: {
   Boomerang,   // 回旋镖
   AK47         // 多发模式
 }
-```
 
-**优势**：
+```bash
+
+- *优势**：
 - 参数化报价策略
 - 风险控制（pDiv, apr）
 - 自动仓位管理
 - 多种安全模式
 
-#### 1.2.3 SQLite持久化
+#### 1.2.3 SQLite 持久化
 
 ```cpp
 // 每个交易对使用独立的数据库
 /var/lib/K/db/K-COINBASE-BTC-USD.db*
-```
 
-**优势**：
-- WAL模式提高并发性能
+```bash
+
+- *优势**：
+- WAL 模式提高并发性能
 - 数据库与代码分离
 - 支持内存数据库选项
 - 易于备份和迁移
@@ -101,27 +119,31 @@ safety: {
 #### 1.2.4 多实例管理
 
 ```bash
+
 # 通过配置文件管理多个实例
+
 cp etc/K.sh.dist X.sh && chmod +x X.sh
 K=X.sh make start
-```
 
-**优势**：
+```bash
+
+- *优势**：
 - 单机多实例
 - 配置文件隔离
-- Matryoshka嵌套UI
+- Matryoshka 嵌套 UI
 - 统一管理命令
 
 #### 1.2.5 多交易所支持
 
 支持的交易所：
+
 - Coinbase (REST + WebSocket + FIX)
 - Binance (REST + WebSocket)
 - Kraken (REST + WebSocket)
 - KuCoin, Bitfinex, Gate.io, HitBTC, Poloniex
 
-**统一API设计**：
-- REST + WebSocket双通道
+- *统一 API 设计**：
+- REST + WebSocket 双通道
 - 统一的订单接口
 - 统一的数据格式
 
@@ -147,11 +169,13 @@ sop: {
   Trades,        // 增加交易频率
   tradesSize     // 同时调整大小和频率
 }
-```
+
+```bash
 
 #### 1.2.7 实时监控指标
 
-K跟踪的指标包括：
+K 跟踪的指标包括：
+
 - Fair Value (公允价值)
 - EWMA (指数加权移动平均)
 - STDEV (标准差)
@@ -163,158 +187,163 @@ K跟踪的指标包括：
 
 ### 1.3 可借鉴的具体设计
 
-#### 1.3.1 Web UI架构
+#### 1.3.1 Web UI 架构
 
-虽然Backtrader有matplotlib绘图，但缺乏实时交互UI：
-- 可以借鉴K的Web UI设计
-- 使用Flask/FastAPI + WebSocket
+虽然 Backtrader 有 matplotlib 绘图，但缺乏实时交互 UI：
+
+- 可以借鉴 K 的 Web UI 设计
+- 使用 Flask/FastAPI + WebSocket
 - 实时参数调整能力
 
 #### 1.3.2 做市策略
 
-Backtrader缺乏做市策略：
-- 可以借鉴K的报价模式
+Backtrader 缺乏做市策略：
+
+- 可以借鉴 K 的报价模式
 - 参数化做市引擎
 - 风险控制机制
 
 #### 1.3.3 数据持久化
 
-Backtrader的数据存储较为简单：
-- 可以借鉴K的SQLite设计
-- WAL模式提高性能
+Backtrader 的数据存储较为简单：
+
+- 可以借鉴 K 的 SQLite 设计
+- WAL 模式提高性能
 - 状态保存和恢复
 
 #### 1.3.4 实时数据推送
 
-Backtrader主要基于bar数据：
-- 可以借鉴K的WebSocket设计
-- 支持tick级别数据
+Backtrader 主要基于 bar 数据：
+
+- 可以借鉴 K 的 WebSocket 设计
+- 支持 tick 级别数据
 - 实时事件通知
 
 #### 1.3.5 多实例架构
 
-Backtrader通常单实例运行：
-- 可以借鉴K的多实例管理
+Backtrader 通常单实例运行：
+
+- 可以借鉴 K 的多实例管理
 - 配置文件隔离
 - 统一的生命周期管理
 
----
+- --
 
 ## 二、需求文档
 
 ### 2.1 优化目标
 
-借鉴CryptoTradingBot的实盘交易能力，增强Backtrader：
+借鉴 CryptoTradingBot 的实盘交易能力，增强 Backtrader：
 
-1. **Web UI界面**: 实时监控和管理界面
+1. **Web UI 界面**: 实时监控和管理界面
 2. **做市策略引擎**: 参数化做市策略
-3. **WebSocket支持**: 实时数据推送
-4. **SQLite持久化**: 状态保存和恢复
+3. **WebSocket 支持**: 实时数据推送
+4. **SQLite 持久化**: 状态保存和恢复
 5. **风险管理模块**: 仓位和风险控制
 6. **多实例管理**: 支持多策略并行运行
 
 ### 2.2 详细需求
 
-#### 需求1: Web UI界面
+#### 需求 1: Web UI 界面
 
-**描述**: 实时监控和管理界面
+- *描述**: 实时监控和管理界面
 
-**功能点**:
+- *功能点**:
 - 策略参数实时调整
 - 订单管理和监控
 - 持仓和余额显示
 - 实时图表展示
 - 交易历史查询
 
-**验收标准**:
-- 提供Web UI
+- *验收标准**:
+- 提供 Web UI
 - 支持参数热更新
 - 实时数据刷新
 - 响应式设计
 
-#### 需求2: 做市策略引擎
+#### 需求 2: 做市策略引擎
 
-**描述**: 参数化做市策略
+- *描述**: 参数化做市策略
 
-**功能点**:
-- 多种报价模式（Join/Top/Mid等）
+- *功能点**:
+- 多种报价模式（Join/Top/Mid 等）
 - 动态价差调整
 - 仓位管理
 - 风险控制
 
-**验收标准**:
-- 提供MarketMaking策略类
-- 支持至少3种报价模式
+- *验收标准**:
+- 提供 MarketMaking 策略类
+- 支持至少 3 种报价模式
 - 可配置参数
 - 回测和实盘支持
 
-#### 需求3: WebSocket支持
+#### 需求 3: WebSocket 支持
 
-**描述**: 实时数据推送
+- *描述**: 实时数据推送
 
-**功能点**:
-- WebSocket服务器
+- *功能点**:
+- WebSocket 服务器
 - 实时行情推送
 - 订单状态推送
 - 策略状态推送
 
-**验收标准**:
-- WebSocket接口可用
+- *验收标准**:
+- WebSocket 接口可用
 - 推送延迟<100ms
 - 支持多客户端连接
 
-#### 需求4: SQLite持久化
+#### 需求 4: SQLite 持久化
 
-**描述**: 策略状态持久化
+- *描述**: 策略状态持久化
 
-**功能点**:
-- SQLite数据库存储
-- WAL模式
+- *功能点**:
+- SQLite 数据库存储
+- WAL 模式
 - 自动保存
 - 状态恢复
 
-**验收标准**:
+- *验收标准**:
 - 数据库自动创建
 - 状态保存和恢复
 - 性能影响<5%
 
-#### 需求5: 风险管理模块
+#### 需求 5: 风险管理模块
 
-**描述**: 仓位和风险控制
+- *描述**: 仓位和风险控制
 
-**功能点**:
+- *功能点**:
 - 目标仓位管理
 - 仓位偏离控制
 - 自动再平衡
 - 止损止盈
 
-**验收标准**:
-- 提供RiskManager类
+- *验收标准**:
+- 提供 RiskManager 类
 - 可配置风险参数
 - 自动触发风险控制
 
-#### 需求6: 多实例管理
+#### 需求 6: 多实例管理
 
-**描述**: 多策略并行运行
+- *描述**: 多策略并行运行
 
-**功能点**:
+- *功能点**:
 - 配置文件管理
 - 实例生命周期管理
 - 资源隔离
 - 统一监控
 
-**验收标准**:
+- *验收标准**:
 - 支持多实例
 - 配置文件隔离
 - 统一启停命令
 
----
+- --
 
 ## 三、设计文档
 
-### 3.1 Web UI架构设计
+### 3.1 Web UI 架构设计
 
-#### 3.1.1 后端API (FastAPI + WebSocket)
+#### 3.1.1 后端 API (FastAPI + WebSocket)
 
 ```python
 from fastapi import FastAPI, WebSocket
@@ -325,9 +354,9 @@ from typing import Dict, List
 import json
 
 class BacktraderServer:
-    """Backtrader Web服务器
+    """Backtrader Web 服务器
 
-    提供REST API和WebSocket接口
+    提供 REST API 和 WebSocket 接口
     """
 
     def __init__(self, cerebro, host='0.0.0.0', port=3000):
@@ -337,10 +366,10 @@ class BacktraderServer:
         self.port = port
         self.websocket_clients: List[WebSocket] = []
 
-        # 静态文件
+# 静态文件
         self.app.mount("/static", StaticFiles(directory="ui/static"), name="static")
 
-        # 路由
+# 路由
         self._setup_routes()
 
     def _setup_routes(self):
@@ -373,15 +402,17 @@ class BacktraderServer:
 
         @self.app.websocket("/ws")
         async def websocket_endpoint(websocket: WebSocket):
-            """WebSocket连接"""
+            """WebSocket 连接"""
             await websocket.accept()
             self.websocket_clients.append(websocket)
 
             try:
                 while True:
-                    # 保持连接，接收客户端消息
+
+# 保持连接，接收客户端消息
                     data = await websocket.receive_text()
-                    # 处理客户端请求
+
+# 处理客户端请求
                     await self._handle_ws_message(websocket, data)
             except Exception as e:
                 print(f"WebSocket error: {e}")
@@ -397,7 +428,7 @@ class BacktraderServer:
         """
         message = json.dumps({"event": event, "data": data})
 
-        # 移除已断开的客户端
+# 移除已断开的客户端
         self.websocket_clients = [
             ws for ws in self.websocket_clients
             if not ws.client_state.DISCONNECTED
@@ -443,7 +474,8 @@ class BacktraderServer:
 
     def _get_trades(self, limit: int) -> List[Dict]:
         """获取交易历史"""
-        # 从数据库或内存获取
+
+# 从数据库或内存获取
         return []
 
     def _update_strategy_params(self, params: Dict):
@@ -455,24 +487,27 @@ class BacktraderServer:
         return {"success": True}
 
     async def _handle_ws_message(self, ws: WebSocket, message: str):
-        """处理WebSocket消息"""
+        """处理 WebSocket 消息"""
         data = json.loads(message)
         action = data.get("action")
 
         if action == "subscribe":
-            # 订阅特定事件
+
+# 订阅特定事件
             pass
         elif action == "unsubscribe":
-            # 取消订阅
+
+# 取消订阅
             pass
 
     def run(self):
         """运行服务器"""
         import uvicorn
         uvicorn.run(self.app, host=self.host, port=self.port)
-```
 
-#### 3.1.2 前端UI (简洁版)
+```bash
+
+#### 3.1.2 前端 UI (简洁版)
 
 ```html
 <!-- ui/index.html -->
@@ -480,8 +515,8 @@ class BacktraderServer:
 <html>
 <head>
     <title>Backtrader Web UI</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="<https://cdn.jsdelivr.net/npm/vue@3>"></script>
+    <script src="<https://cdn.jsdelivr.net/npm/chart.js>"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -537,7 +572,7 @@ class BacktraderServer:
                     <h3>活跃订单</h3>
                     <table>
                         <tr>
-                            <th>订单ID</th>
+                            <th>订单 ID</th>
                             <th>类型</th>
                             <th>数量</th>
                             <th>价格</th>
@@ -646,11 +681,12 @@ class BacktraderServer:
     </script>
 </body>
 </html>
-```
+
+```bash
 
 ### 3.2 做市策略引擎设计
 
-#### 3.2.1 MarketMaking策略
+#### 3.2.1 MarketMaking 策略
 
 ```python
 import backtrader as bt
@@ -675,23 +711,24 @@ class SafetyMode(Enum):
 @dataclass
 class MarketMakerParams:
     """做市策略参数"""
-    # 报价参数
+
+# 报价参数
     mode: QuoteMode = QuoteMode.MID
     width: float = 0.001        # 报价宽度(比例)
-    width_ping: float = 0.001   # Ping宽度
-    width_pong: float = 0.002  # Pong宽度
+    width_ping: float = 0.001   # Ping 宽度
+    width_pong: float = 0.002  # Pong 宽度
 
-    # 订单大小
+# 订单大小
     bid_size: float = 0.1       # 买单大小
     ask_size: float = 0.1       # 卖单大小
     max_size: float = 1.0       # 最大单笔大小
 
-    # 风险控制
+# 风险控制
     target_position: float = 0.5    # 目标仓位(0-1)
     position_divergence: float = 0.3  # 仓位偏离容忍度
     aggressive_rebalance: bool = False  # 激进再平衡
 
-    # 超级机会
+# 超级机会
     super_opportunity: bool = False
     sop_width_mult: float = 2.0
     sop_size_mult: float = 1.5
@@ -716,45 +753,50 @@ class MarketMakingStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 计算目标仓位（绝对值）
+
+# 计算目标仓位（绝对值）
         self._target_base_value = None
         self._last_ping_side = None
         self._ping_order = None
         self._pong_orders = []
 
-        # 指标
+# 指标
         self.fair_value = bt.indicators.MidPrice(self.data)
         self.ewma_short = bt.indicators.EMA(self.data.close, period=60)
         self.ewma_long = bt.indicators.EMA(self.data.close, period=300)
 
     def next(self):
-        """每根bar执行"""
-        # 计算当前仓位
+        """每根 bar 执行"""
+
+# 计算当前仓位
         current_position = self.get_position_ratio()
 
-        # 计算公允价值
+# 计算公允价值
         fv = self._calculate_fair_value()
 
-        # 检查仓位偏离
+# 检查仓位偏离
         if not self._check_position_limits(current_position):
-            # 超出限制，停止报价或激进再平衡
+
+# 超出限制，停止报价或激进再平衡
             if self.p.aggressive_rebalance:
                 self._aggressive_rebalance(current_position, fv)
             return
 
-        # 计算报价
+# 计算报价
         bid_price, ask_price = self._calculate_quotes(fv)
 
-        # 检查是否有未成交订单
+# 检查是否有未成交订单
         self._manage_orders(bid_price, ask_price)
 
     def _calculate_fair_value(self) -> float:
         """计算公允价值
 
         根据不同模式计算：
+
         - BBO: (best_bid + best_ask) / 2
         - Mid: (current_bar_open + current_bar_close) / 2
         - EWMA: 使用移动平均
+
         """
         if self.p.mode == 'mid':
             return (self.data.open[0] + self.data.close[0]) / 2
@@ -770,14 +812,15 @@ class MarketMakingStrategy(bt.Strategy):
         Returns:
             (bid_price, ask_price)
         """
-        half_width = fair_value * self.p.width / 2
+        half_width = fair_value *self.p.width / 2
 
         if self.p.mode == 'join':
-            # 加入当前最优价
+
+# 加入当前最优价
             best_bid = self._get_best_bid()
             best_ask = self._get_best_ask()
             if best_bid and best_ask:
-                if best_ask - best_bid < fair_value * self.p.width:
+                if best_ask - best_bid < fair_value*self.p.width:
                     bid_price = best_bid
                     ask_price = best_ask
                 else:
@@ -788,10 +831,12 @@ class MarketMakingStrategy(bt.Strategy):
                 ask_price = fair_value + half_width
 
         elif self.p.mode == 'top':
-            # 跳到订单簿顶部
+
+# 跳到订单簿顶部
             bid_price = fair_value - half_width
             ask_price = fair_value + half_width
-            # 尝试改进价格
+
+# 尝试改进价格
             best_bid = self._get_best_bid()
             if best_bid and bid_price > best_bid:
                 bid_price = best_bid  # 或稍微更高
@@ -804,8 +849,10 @@ class MarketMakingStrategy(bt.Strategy):
 
     def _get_best_bid(self) -> Optional[float]:
         """获取最优买价（需数据源支持）"""
-        # 如果数据源有level2数据，返回最优买价
-        # 否则使用上一根bar的最低价
+
+# 如果数据源有 level2 数据，返回最优买价
+
+# 否则使用上一根 bar 的最低价
         if len(self.data) > 1:
             return self.data.low[-1]
         return None
@@ -823,7 +870,7 @@ class MarketMakingStrategy(bt.Strategy):
             current_pos: 当前仓位比例 (0-1)
 
         Returns:
-            True表示在限制内
+            True 表示在限制内
         """
         lower = self.p.target_position - self.p.position_divergence
         upper = self.p.target_position + self.p.position_divergence
@@ -836,19 +883,22 @@ class MarketMakingStrategy(bt.Strategy):
             current_pos: 当前仓位
             fair_value: 公允价值
         """
-        # 计算需要调整的数量
+
+# 计算需要调整的数量
         target_value = self.get_target_value()
         current_value = self.broker.getvalue()
 
         if current_pos > self.p.target_position:
-            # 持仓过多，卖出
+
+# 持仓过多，卖出
             excess_ratio = current_pos - self.p.target_position
-            size = self.broker.cash * excess_ratio / fair_value
+            size = self.broker.cash*excess_ratio / fair_value
             self.sell(size=size)
         else:
-            # 持仓不足，买入
+
+# 持仓不足，买入
             deficit_ratio = self.p.target_position - current_pos
-            size = self.broker.cash * deficit_ratio / fair_value
+            size = self.broker.cash*deficit_ratio / fair_value
             self.buy(size=size)
 
     def _manage_orders(self, bid_price: float, ask_price: float):
@@ -860,21 +910,23 @@ class MarketMakingStrategy(bt.Strategy):
             bid_price: 买价
             ask_price: 卖价
         """
-        # 取消所有未成交订单
+
+# 取消所有未成交订单
         for order in self.broker.orders:
             if order.status == bt.Order.Submitted or order.status == bt.Order.Accepted:
                 self.cancel(order)
 
-        # 下新单
+# 下新单
         if self.p.safety == 'ping_pong':
             self._ping_pong_quotes(bid_price, ask_price)
         else:
-            # 普通做市：双边挂单
+
+# 普通做市：双边挂单
             self.buy(price=bid_price, size=self.p.bid_size)
             self.sell(price=ask_price, size=self.p.ask_size)
 
     def _ping_pong_quotes(self, bid_price: float, ask_price: float):
-        """Ping-pong报价
+        """Ping-pong 报价
 
         先有一边成交(Ping)，然后在另一边挂更好的价格等待成交(Pong)
 
@@ -885,31 +937,37 @@ class MarketMakingStrategy(bt.Strategy):
         if self._ping_order is None or self._ping_order.status in (
             bt.Order.Completed, bt.Order.Cancelled
         ):
-            # 没有Ping订单或已成交，下发新Ping
+
+# 没有 Ping 订单或已成交，下发新 Ping
             if self._last_ping_side != 'buy':
-                # 上次是卖，这次买作为Ping
+
+# 上次是卖，这次买作为 Ping
                 self._ping_order = self.buy(price=ask_price, size=self.p.bid_size)
                 self._last_ping_side = 'buy'
             else:
-                # 上次是买，这次卖作为Ping
+
+# 上次是买，这次卖作为 Ping
                 self._ping_order = self.sell(price=bid_price, size=self.p.ask_size)
                 self._last_ping_side = 'sell'
         else:
-            # 有未成交的Ping，挂Pong
+
+# 有未成交的 Ping，挂 Pong
             if self._last_ping_side == 'buy':
-                # 买单是Ping，在更高价位挂卖单作为Pong
-                pong_price = ask_price * (1 + self.p.width_pong)
+
+# 买单是 Ping，在更高价位挂卖单作为 Pong
+                pong_price = ask_price*(1 + self.p.width_pong)
                 self.sell(price=pong_price, size=self.p.ask_size)
             else:
-                # 卖单是Ping，在更低价位挂买单作为Pong
-                pong_price = bid_price * (1 - self.p.width_pong)
+
+# 卖单是 Ping，在更低价位挂买单作为 Pong
+                pong_price = bid_price*(1 - self.p.width_pong)
                 self.buy(price=pong_price, size=self.p.bid_size)
 
     def get_position_ratio(self) -> float:
         """获取当前仓位比例
 
         Returns:
-            仓位比例，0表示全现金，1表示满仓
+            仓位比例，0 表示全现金，1 表示满仓
         """
         total_value = self.broker.getvalue()
         if total_value == 0:
@@ -918,25 +976,27 @@ class MarketMakingStrategy(bt.Strategy):
         position_value = 0
         for datafeed in self.datas:
             pos = self.broker.getposition(datafeed)
-            position_value += pos.size * pos.price
+            position_value += pos.size*pos.price
 
         return position_value / total_value
 
     def get_target_value(self) -> float:
         """获取目标仓位价值"""
         total_value = self.broker.getvalue()
-        return total_value * self.p.target_position
+        return total_value*self.p.target_position
 
     def notify_order(self, order):
         """订单状态变化通知"""
         if order.status == bt.Order.Completed:
             print(f"Order completed: {order.ordtype} {order.size} @ {order.price}")
-            # 更新Ping订单状态
+
+# 更新 Ping 订单状态
             if self.p.safety == 'ping_pong' and order.ref == self._ping_order.ref:
                 self._ping_order = None
-```
 
-### 3.3 WebSocket支持设计
+```bash
+
+### 3.3 WebSocket 支持设计
 
 ```python
 from fastapi import WebSocket
@@ -945,7 +1005,7 @@ from typing import Set, Dict
 import asyncio
 
 class WebSocketManager:
-    """WebSocket连接管理器"""
+    """WebSocket 连接管理器"""
 
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
@@ -991,17 +1051,18 @@ class WebSocketManager:
         except:
             self.disconnect(websocket)
 
-# 在BacktraderServer中使用
-class BacktraderWithWS(BacktraderServer):
-    """带WebSocket的Backtrader服务器"""
+# 在 BacktraderServer 中使用
 
-    def __init__(self, *args, **kwargs):
+class BacktraderWithWS(BacktraderServer):
+    """带 WebSocket 的 Backtrader 服务器"""
+
+    def __init__(self,*args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ws_manager = WebSocketManager()
         self._setup_ws_routes()
 
     def _setup_ws_routes(self):
-        """设置WebSocket路由"""
+        """设置 WebSocket 路由"""
 
         @self.app.websocket("/ws/{client_id}")
         async def websocket_endpoint(websocket: WebSocket, client_id: int):
@@ -1026,7 +1087,7 @@ class BacktraderWithWS(BacktraderServer):
                 self.ws_manager.disconnect(websocket)
 
     async def broadcast_bar(self, bar_data: Dict):
-        """广播新bar数据"""
+        """广播新 bar 数据"""
         await self.ws_manager.broadcast("bars", bar_data)
 
     async def broadcast_order(self, order_data: Dict):
@@ -1037,20 +1098,22 @@ class BacktraderWithWS(BacktraderServer):
         """广播成交数据"""
         await self.ws_manager.broadcast("trades", trade_data)
 
-# 在Cerebro中使用
+# 在 Cerebro 中使用
+
 class WSCerebro(bt.Cerebro):
-    """支持WebSocket的Cerebro"""
+    """支持 WebSocket 的 Cerebro"""
 
     def __init__(self, ws_server=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ws_server = ws_server
 
-        # Hook into next
+# Hook into next
         self._original_run = self.run
 
     def run(self):
-        """运行并推送数据到WebSocket"""
-        # 启动WebSocket服务器
+        """运行并推送数据到 WebSocket"""
+
+# 启动 WebSocket 服务器
         if self.ws_server:
             import asyncio
             from threading import Thread
@@ -1061,11 +1124,12 @@ class WSCerebro(bt.Cerebro):
             ws_thread = Thread(target=run_ws, daemon=True)
             ws_thread.start()
 
-        # 原有run逻辑
+# 原有 run 逻辑
         return self._original_run()
-```
 
-### 3.4 SQLite持久化设计
+```bash
+
+### 3.4 SQLite 持久化设计
 
 ```python
 import sqlite3
@@ -1075,9 +1139,9 @@ from typing import Any, Dict, List, Optional
 import threading
 
 class BacktraderDB:
-    """Backtrader数据库管理器
+    """Backtrader 数据库管理器
 
-    使用WAL模式，支持并发读写
+    使用 WAL 模式，支持并发读写
     """
 
     def __init__(self, db_path: str = "backtrader.db"):
@@ -1106,7 +1170,7 @@ class BacktraderDB:
         conn = self._get_conn()
         cursor = conn.cursor()
 
-        # 策略状态表
+# 策略状态表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS strategy_state (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1117,7 +1181,7 @@ class BacktraderDB:
             )
         """)
 
-        # 订单表
+# 订单表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 ref INTEGER PRIMARY KEY,
@@ -1133,7 +1197,7 @@ class BacktraderDB:
             )
         """)
 
-        # 交易表
+# 交易表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS trades (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1149,7 +1213,7 @@ class BacktraderDB:
             )
         """)
 
-        # 持仓快照表
+# 持仓快照表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS position_snapshots (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1162,7 +1226,7 @@ class BacktraderDB:
             )
         """)
 
-        # 指标值表
+# 指标值表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS indicator_values (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1174,7 +1238,7 @@ class BacktraderDB:
             )
         """)
 
-        # 启用WAL模式
+# 启用 WAL 模式
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA synchronous=NORMAL")
 
@@ -1346,7 +1410,7 @@ class BacktraderDB:
         """获取交易记录
 
         Args:
-            strategy_name: 策略名称，None表示全部
+            strategy_name: 策略名称，None 表示全部
             limit: 返回条数
 
         Returns:
@@ -1357,14 +1421,14 @@ class BacktraderDB:
 
         if strategy_name:
             cursor.execute("""
-                SELECT * FROM trades
+                SELECT *FROM trades
                 WHERE strategy_name = ?
                 ORDER BY created_at DESC
                 LIMIT ?
             """, (strategy_name, limit))
         else:
             cursor.execute("""
-                SELECT * FROM trades
+                SELECT*FROM trades
                 ORDER BY created_at DESC
                 LIMIT ?
             """, (limit,))
@@ -1390,7 +1454,7 @@ class BacktraderDB:
             DELETE FROM indicator_values WHERE timestamp < ?
         """, (cutoff,))
 
-        # 订单和交易记录保留
+# 订单和交易记录保留
 
         conn.commit()
 
@@ -1398,7 +1462,8 @@ class BacktraderDB:
         """关闭数据库连接"""
         if hasattr(self._local, 'conn'):
             self._local.conn.close()
-```
+
+```bash
 
 ### 3.5 风险管理模块设计
 
@@ -1444,7 +1509,7 @@ class RiskManager:
             RiskAction.EMERGENCY_EXIT: self._emergency_exit,
         }
 
-        # 状态跟踪
+# 状态跟踪
         self._drawdown_peak = 0
         self._daily_loss = 0
         self._consecutive_losses = 0
@@ -1463,7 +1528,7 @@ class RiskManager:
         """检查所有风险限制
 
         Returns:
-            需要执行的动作，None表示无需动作
+            需要执行的动作，None 表示无需动作
         """
         for limit in self.limits:
             if self._check_limit(limit):
@@ -1478,7 +1543,7 @@ class RiskManager:
             limit: 风险限制
 
         Returns:
-            True表示触发
+            True 表示触发
         """
         if limit.name == "max_drawdown":
             return self._check_drawdown(limit.value)
@@ -1494,7 +1559,8 @@ class RiskManager:
 
     def _check_drawdown(self, max_dd: float) -> bool:
         """检查回撤"""
-        # 计算当前回撤
+
+# 计算当前回撤
         current_value = self.strategy.broker.getvalue()
         if current_value > self._drawdown_peak:
             self._drawdown_peak = current_value
@@ -1504,14 +1570,15 @@ class RiskManager:
 
     def _check_daily_loss(self, limit: float) -> bool:
         """检查每日亏损"""
-        # 简化实现，实际需要按日期统计
+
+# 简化实现，实际需要按日期统计
         return self._daily_loss >= limit
 
     def _check_position_limit(self, limit: float) -> bool:
         """检查持仓限制"""
         for datafeed in self.strategy.datas:
             pos = self.strategy.broker.getposition(datafeed)
-            if abs(pos.size) * pos.price > limit:
+            if abs(pos.size)* pos.price > limit:
                 return True
         return False
 
@@ -1530,7 +1597,8 @@ class RiskManager:
     def _reduce_size(self):
         """减少订单大小"""
         print("Reducing order size due to risk limit")
-        # 可以通过修改策略参数实现
+
+# 可以通过修改策略参数实现
 
     def _close_position(self):
         """平仓"""
@@ -1546,7 +1614,8 @@ class RiskManager:
         """紧急退出"""
         print("Emergency exit triggered")
         self._close_position()
-        # 可以添加停止策略运行的逻辑
+
+# 可以添加停止策略运行的逻辑
 
 class RiskAwareStrategy(bt.Strategy):
     """支持风险管理的策略基类"""
@@ -1555,20 +1624,22 @@ class RiskAwareStrategy(bt.Strategy):
         super().__init__()
         self.risk_mgr = RiskManager(self)
 
-        # 添加默认风险限制
+# 添加默认风险限制
         self.risk_mgr.add_limit("max_drawdown", 0.1, RiskAction.REDUCE_SIZE)
         self.risk_mgr.add_limit("daily_loss_limit", 0.05, RiskAction.STOP_NEW_ORDERS)
         self.risk_mgr.add_limit("consecutive_losses", 5, RiskAction.STOP_NEW_ORDERS)
 
     def next(self):
-        """每bar检查风险"""
+        """每 bar 检查风险"""
         action = self.risk_mgr.check_risks()
 
         if action:
-            # 执行风险动作
+
+# 执行风险动作
             self.risk_mgr._actions[action]()
         else:
-            # 正常策略逻辑
+
+# 正常策略逻辑
             self.run_strategy()
 
     def run_strategy(self):
@@ -1582,7 +1653,8 @@ class RiskAwareStrategy(bt.Strategy):
             self.risk_mgr._daily_loss += abs(trade.pnl)
         else:
             self.risk_mgr._consecutive_losses = 0
-```
+
+```bash
 
 ### 3.6 多实例管理设计
 
@@ -1597,7 +1669,7 @@ import yaml
 class InstanceManager:
     """实例管理器
 
-    管理多个Backtrader实例
+    管理多个 Backtrader 实例
     """
 
     def __init__(self, config_dir: str = "./configs"):
@@ -1638,11 +1710,12 @@ class InstanceManager:
         config_file = os.path.join(self.config_dir, f"{name}.yml")
 
         if config:
-            # 保存配置
+
+# 保存配置
             with open(config_file, 'w') as f:
                 yaml.dump(config, f)
 
-        # 启动进程
+# 启动进程
         cmd = ["python", "run_strategy.py", "--config", config_file]
         try:
             proc = subprocess.Popen(
@@ -1729,6 +1802,7 @@ class InstanceManager:
         return status
 
 # 使用示例
+
 if __name__ == "__main__":
     import click
 
@@ -1785,28 +1859,37 @@ if __name__ == "__main__":
     cli.add_command(status)
 
     cli()
-```
+
+```bash
 
 ### 3.7 实现优先级
 
 | 优先级 | 功能 | 复杂度 | 收益 |
+
 |--------|------|--------|------|
-| P0 | SQLite持久化 | 中 | 高 |
+
+| P0 | SQLite 持久化 | 中 | 高 |
+
 | P0 | 风险管理模块 | 中 | 高 |
-| P1 | WebSocket支持 | 高 | 中 |
+
+| P1 | WebSocket 支持 | 高 | 中 |
+
 | P1 | 做市策略引擎 | 中 | 中 |
-| P2 | Web UI界面 | 高 | 中 |
+
+| P2 | Web UI 界面 | 高 | 中 |
+
 | P2 | 多实例管理 | 低 | 低 |
 
 ### 3.8 兼容性保证
 
 所有新功能通过以下方式保证兼容性：
-1. 新增类不修改核心API
+
+1. 新增类不修改核心 API
 2. 通过继承选择性启用新功能
 3. 默认行为完全保持不变
 4. 提供独立安装选项
 
----
+- --
 
 ## 四、使用示例
 
@@ -1835,7 +1918,7 @@ class CryptoMarketMaker(MarketMakingStrategy, RiskAwareStrategy):
         MarketMakingStrategy.__init__(self)
         RiskAwareStrategy.__init__(self)
 
-        # 配置风险限制
+# 配置风险限制
         self.risk_mgr.add_limit(
             "max_drawdown",
             self.p.max_drawdown,
@@ -1843,9 +1926,11 @@ class CryptoMarketMaker(MarketMakingStrategy, RiskAwareStrategy):
         )
 
 # 运行策略
+
 cerebro = bt.Cerebro()
 
 # 添加数据
+
 data = bt.feeds.CCXXT(
     exchange='binance',
     symbol='BTC/USDT',
@@ -1854,6 +1939,7 @@ data = bt.feeds.CCXXT(
 cerebro.adddata(data)
 
 # 添加策略
+
 cerebro.addstrategy(
     CryptoMarketMaker,
     mode='mid',
@@ -1863,46 +1949,55 @@ cerebro.addstrategy(
 )
 
 # 添加数据库
+
 db = BacktraderDB("crypto_market_maker.db")
 
 # 运行
-result = cerebro.run()
-```
 
-### 4.2 带Web UI的完整示例
+result = cerebro.run()
+
+```bash
+
+### 4.2 带 Web UI 的完整示例
 
 ```python
 from backtrader.extensions import BacktraderServer
 
-# 创建Cerebro
+# 创建 Cerebro
+
 cerebro = bt.Cerebro()
 
 # 添加数据和策略...
+
 # ...
 
 # 创建并启动服务器
+
 server = BacktraderServer(cerebro, host='0.0.0.0', port=3000)
 
 # 在后台运行服务器
+
 import threading
 server_thread = threading.Thread(target=server.run, daemon=True)
 server_thread.start()
 
 # 运行策略
-cerebro.run()
-```
 
----
+cerebro.run()
+
+```bash
+
+- --
 
 ## 五、总结
 
-通过借鉴CryptoTradingBot的优秀设计，Backtrader可以获得：
+通过借鉴 CryptoTradingBot 的优秀设计，Backtrader 可以获得：
 
-1. **专业的Web UI**: 实时监控和管理界面
+1. **专业的 Web UI**: 实时监控和管理界面
 2. **做市策略引擎**: 参数化做市策略支持
-3. **WebSocket实时通信**: 低延迟数据推送
-4. **SQLite持久化**: 状态保存和恢复
+3. **WebSocket 实时通信**: 低延迟数据推送
+4. **SQLite 持久化**: 状态保存和恢复
 5. **风险管理模块**: 多维度风险控制
 6. **多实例管理**: 策略并行运行
 
-这些改进使Backtrader从回测框架扩展为完整的实盘交易系统，特别适合加密货币市场的自动化交易需求。
+这些改进使 Backtrader 从回测框架扩展为完整的实盘交易系统，特别适合加密货币市场的自动化交易需求。

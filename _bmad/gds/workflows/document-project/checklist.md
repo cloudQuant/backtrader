@@ -207,7 +207,7 @@
 - [ ] Index.md updated with deep-dive link
 - [ ] Deep-dive documentation is immediately useful for implementation
 
----
+- --
 
 ## State File Quality
 

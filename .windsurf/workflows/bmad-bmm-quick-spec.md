@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Conversational spec engineering - ask questions, investigate code, produce implementation-ready tech-spec.'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # quick-spec
 

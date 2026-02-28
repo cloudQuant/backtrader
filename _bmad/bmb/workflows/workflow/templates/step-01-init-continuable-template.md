@@ -6,7 +6,7 @@ Use this template when creating workflows that generate output documents and mig
 
 <!-- TEMPLATE START -->
 
----
+- --
 
 name: 'step-01-init'
 description: 'Initialize the [workflow-type] workflow by detecting continuation state and creating output document'
@@ -28,7 +28,7 @@ templateFile: `{workflow_path}/templates/[main-template].md`
 
 # This step doesn't use content templates, only the main template
 
----
+- --
 
 # Step 1: Workflow Initialization
 
@@ -109,7 +109,7 @@ If no document exists or no `stepsCompleted` in frontmatter:
 
 This workflow requires [describe input documents if any]:
 
-**[Document Type] Documents (Optional):**
+- *[Document Type] Documents (Optional):**
 
 - Look for: `{output_folder}/*[pattern1]*.md`
 - Look for: `{output_folder}/*[pattern2]*.md`
@@ -122,15 +122,19 @@ Copy the template from `{templateFile}` to `{output_folder}/[output-file-name]-{
 Initialize frontmatter with:
 
 ```yaml
----
+
+- --
+
 stepsCompleted: [1]
 lastStep: 'init'
 inputDocuments: []
 date: [current date]
 user_name: { user_name }
 [additional workflow-specific fields]
----
-```
+
+- --
+
+```bash
 
 #### C. Show Welcome Message
 
@@ -168,7 +172,7 @@ Display: **Proceeding to [next step description]...**
 
 - After setup completion, immediately load, read entire file, then execute `{nextStepFile}` to begin [next step description]
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -189,7 +193,7 @@ Display: **Proceeding to [next step description]...**
 - Skipping welcome message
 - Not routing to step-01b-continue.md when appropriate
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:**Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
 ## CRITICAL STEP COMPLETION NOTE
 
@@ -230,11 +234,11 @@ Update `{nextStepFile}` to point to your actual step 2 file.
 
 ## Implementation Notes
 
-1. **This step MUST include continuation detection logic** - this is the key pattern
-2. **Always include `continueFile` reference** in frontmatter
-3. **Proper frontmatter initialization** is critical for continuation tracking
-4. **Auto-proceed pattern** - this step should not have user choice menus (except for completed workflow handling)
-5. **Template-based document creation** - ensures consistent output structure
+1.**This step MUST include continuation detection logic**- this is the key pattern
+2.**Always include `continueFile` reference**in frontmatter
+3.**Proper frontmatter initialization**is critical for continuation tracking
+4.**Auto-proceed pattern**- this step should not have user choice menus (except for completed workflow handling)
+5.**Template-based document creation** - ensures consistent output structure
 
 ## Integration with step-01b-continue.md
 

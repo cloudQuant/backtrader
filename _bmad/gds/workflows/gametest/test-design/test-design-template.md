@@ -1,10 +1,10 @@
 # Game Test Design: {PROJECT_NAME}
 
-**Version**: 1.0
-**Created**: {DATE}
-**Author**: {AUTHOR}
+- *Version**: 1.0
+- *Created**: {DATE}
+- *Author**: {AUTHOR}
 
----
+- --
 
 ## Overview
 
@@ -17,6 +17,7 @@
 - [ ] PC (Steam/Epic)
 - [ ] PlayStation 5
 - [ ] Xbox Series X|S
+
 - [ ] Nintendo Switch
 - [ ] Mobile (iOS/Android)
 
@@ -24,19 +25,21 @@
 
 {What is in scope and out of scope for testing}
 
----
+- --
 
 ## Risk Assessment
 
 ### High-Risk Areas
 
 | Area   | Risk              | Mitigation      |
+
 | ------ | ----------------- | --------------- |
+
 | {area} | {potential issue} | {test strategy} |
 
 ### Risk Priority Matrix
 
-```
+```bash
                     IMPACT
                 Low      High
             ┌─────────┬─────────┐
@@ -44,9 +47,10 @@
 LIKELIHOOD  ├─────────┼─────────┤
       Low   │   P3    │   P1    │
             └─────────┴─────────┘
-```
 
----
+```bash
+
+- --
 
 ## Test Categories
 
@@ -54,14 +58,15 @@ LIKELIHOOD  ├─────────┼─────────┤
 
 #### 1.1 Core Loop
 
-```
+```bash
 SCENARIO: {Scenario Name}
   GIVEN {preconditions}
   WHEN {action}
   THEN {expected outcome}
   PRIORITY: P0
   CATEGORY: gameplay
-```
+
+```bash
 
 #### 1.2 Combat/Interaction
 
@@ -71,20 +76,21 @@ SCENARIO: {Scenario Name}
 
 {scenarios}
 
----
+- --
 
 ### 2. Progression Tests
 
 #### 2.1 Save/Load System
 
-```
+```bash
 SCENARIO: Basic Save/Load Round Trip
   GIVEN player has made progress
   WHEN game is saved and reloaded
   THEN all progress is preserved
   PRIORITY: P0
   CATEGORY: progression
-```
+
+```bash
 
 #### 2.2 Unlock System
 
@@ -94,7 +100,7 @@ SCENARIO: Basic Save/Load Round Trip
 
 {scenarios}
 
----
+- --
 
 ### 3. Multiplayer Tests (if applicable)
 
@@ -110,7 +116,7 @@ SCENARIO: Basic Save/Load Round Trip
 
 {scenarios}
 
----
+- --
 
 ### 4. Platform Tests
 
@@ -130,21 +136,29 @@ SCENARIO: Basic Save/Load Round Trip
 
 {scenarios}
 
----
+- --
 
 ## Coverage Matrix
 
 | Feature       | P0  | P1  | P2  | P3  | Total |
-| ------------- | --- | --- | --- | --- | ----- |
-| Core Gameplay |     |     |     |     |       |
-| Combat        |     |     |     |     |       |
-| Progression   |     |     |     |     |       |
-| Save/Load     |     |     |     |     |       |
-| Multiplayer   |     |     |     |     |       |
-| Platform      |     |     |     |     |       |
-| **Total**     |     |     |     |     |       |
 
----
+| ------------- | --- | --- | --- | --- | ----- |
+
+| Core Gameplay |     |     |     |     |       |
+
+| Combat        |     |     |     |     |       |
+
+| Progression   |     |     |     |     |       |
+
+| Save/Load     |     |     |     |     |       |
+
+| Multiplayer   |     |     |     |     |       |
+
+| Platform      |     |     |     |     |       |
+
+| **Total**|     |     |     |     |       |
+
+- --
 
 ## Automation Strategy
 
@@ -164,7 +178,7 @@ SCENARIO: Basic Save/Load Round Trip
 - **Framework**: {Unity Test Framework/Unreal Automation/GUT}
 - **CI Integration**: {GitHub Actions/Jenkins/etc.}
 
----
+- --
 
 ## Playtesting Recommendations
 
@@ -180,7 +194,7 @@ SCENARIO: Basic Save/Load Round Trip
 - Participants: Target audience
 - Duration: {hours}
 
----
+- --
 
 ## Next Steps
 
@@ -190,7 +204,7 @@ SCENARIO: Basic Save/Load Round Trip
 4. [ ] Generate automated tests (use `automate` workflow)
 5. [ ] Plan playtesting sessions (use `playtest-plan` workflow)
 
----
+- --
 
 ## Appendix
 

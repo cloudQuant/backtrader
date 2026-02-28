@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Conduct technical research covering technology evaluation, architecture decisions, and implementation approaches using current web data and verified sources.'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # technical-research
 

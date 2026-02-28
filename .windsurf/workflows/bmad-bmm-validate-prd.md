@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Validate an existing PRD against BMAD standards - comprehensive review for completeness, clarity, and quality'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # validate-prd
 

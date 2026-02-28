@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-04-ux-alignment'
 description: 'Check for UX document and validate alignment with PRD and Architecture'
 
 nextStepFile: './step-05-epic-quality-review.md'
 outputFile: '{planning_artifacts}/implementation-readiness-report-{{date}}.md'
----
+
+- --
 
 # Step 4: UX Alignment
 
@@ -92,6 +94,7 @@ If UX implied but missing: Add warning to report
 Append to {outputFile}:
 
 ```markdown
+
 ## UX Alignment Assessment
 
 ### UX Document Status
@@ -105,7 +108,8 @@ Append to {outputFile}:
 ### Warnings
 
 [Any warnings about missing UX or architectural gaps]
-```
+
+```bash
 
 ### 6. Auto-Proceed to Next Step
 
@@ -115,7 +119,7 @@ After UX assessment complete, immediately load next step.
 
 UX alignment assessment complete. Loading next step for epic quality review.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 

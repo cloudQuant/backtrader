@@ -1,4 +1,5 @@
----
+- --
+
 name: 'e-09-celebrate'
 description: 'Celebrate successful agent edit completion'
 
@@ -7,7 +8,8 @@ editPlan: '{bmb_creations_output_folder}/edit-plan-{agent-name}.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 validationWorkflow: '{project-root}/src/modules/bmb/workflows/agent/steps-v/v-01-load-review.md'
----
+
+- --
 
 # Edit Step 9: Celebration
 
@@ -51,48 +53,52 @@ Celebrate the successful agent edit, provide summary of changes, and mark edit w
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.:
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.:
 
 ### 1. Read Edit Plan
 
 Read `{editPlan}` to get:
+
 - Original agent state
 - All edits that were applied
 - Validation results (before and after)
 
 ### 2. Grand Celebration
 
-"🎉 **Excellent work!** Your agent **{agent-name}** has been successfully updated!"
+"🎉**Excellent work!**Your agent**{agent-name}** has been successfully updated!"
 
 ### 3. Edit Summary
 
 ```markdown
+
 ## Edit Summary for {agent-name}
 
-**Completed:** {YYYY-MM-DD HH:MM}
-**Edits Applied:** {count}
+- *Completed:** {YYYY-MM-DD HH:MM}
+- *Edits Applied:** {count}
 
 ### What Changed
 
-**Persona Updates:** {list or "None"}
-**Command Updates:** {list or "None"}
-**Metadata Updates:** {list or "None"}
-**Type Conversion:** {details or "None"}
+- *Persona Updates:** {list or "None"}
+- *Command Updates:** {list or "None"}
+- *Metadata Updates:** {list or "None"}
+- *Type Conversion:** {details or "None"}
 
 ### Validation Results
 
-**Before:** {summary of pre-edit validation}
-**After:** {summary of post-edit validation}
-```
+- *Before:** {summary of pre-edit validation}
+- *After:** {summary of post-edit validation}
+
+```bash
 
 ### 4. Verification Guidance
 
 "**Quick Test:**
+
 - Load the agent and check it initializes correctly
 - Run through a few commands to verify behavior
 
-**File Locations:**
-- **Agent File:** `{agentFile}`
+- *File Locations:**
+- **Agent File:**`{agentFile}`
 - **Backup:** `{agentFile}.backup`"
 
 ### 5. Document Completion
@@ -100,16 +106,19 @@ Read `{editPlan}` to get:
 Append to editPlan:
 
 ```markdown
+
 ## Edit Session Complete ✅
 
-**Completed:** {YYYY-MM-DD HH:MM}
-**Status:** Success
+- *Completed:** {YYYY-MM-DD HH:MM}
+- *Status:** Success
 
 ### Final State
+
 - Agent file updated successfully
 - All edits applied
 - Backup preserved
-```
+
+```bash
 
 ### 6. Present MENU OPTIONS
 
@@ -134,7 +143,7 @@ Display: "**✅ Agent Edit Complete! Select an Option:** [V] Run Validation [S] 
 ONLY WHEN [S skip option] is selected and [completion documented], will the workflow end gracefully with agent edit complete.
 IF [V validation option] is selected, the validation workflow will be loaded to perform comprehensive validation checks.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -152,4 +161,4 @@ IF [V validation option] is selected, the validation workflow will be loaded to 
 - Not providing clear summary of changes
 - Missing celebration of achievement
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

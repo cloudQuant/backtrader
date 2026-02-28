@@ -25,8 +25,8 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from previous steps are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
-- **Research goals = "{{research_goals}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
+- **Research goals = "{{research_goals}}"**- established from initial discussion
 - Focus on emerging technologies and innovation patterns in the domain
 - Web search capabilities with source verification are enabled
 
@@ -39,9 +39,9 @@ Conduct comprehensive technical trends analysis using current web data with emph
 ### 1. Begin Technical Trends Analysis
 
 Start with technology research approach:
-"Now I'll conduct **technical trends and emerging technologies** analysis for **{{research_topic}}** using current data.
+"Now I'll conduct**technical trends and emerging technologies**analysis for**{{research_topic}}** using current data.
 
-**Technical Trends Focus:**
+- *Technical Trends Focus:**
 
 - Emerging technologies and innovations
 - Digital transformation impacts
@@ -49,14 +49,14 @@ Start with technology research approach:
 - New business models enabled by technology
 - Future technology projections and roadmaps
 
-**Let me search for current technology developments.**"
+- *Let me search for current technology developments.**"
 
 ### 2. Web Search for Emerging Technologies
 
 Search for current technology information:
 Search the web: "{{research_topic}} emerging technologies innovations"
 
-**Technology focus:**
+- *Technology focus:**
 
 - AI, machine learning, and automation impacts
 - Digital transformation trends
@@ -68,7 +68,7 @@ Search the web: "{{research_topic}} emerging technologies innovations"
 Search for current transformation trends:
 Search the web: "{{research_topic}} digital transformation trends"
 
-**Transformation focus:**
+- *Transformation focus:**
 
 - Digital adoption trends and rates
 - Business model evolution
@@ -80,7 +80,7 @@ Search the web: "{{research_topic}} digital transformation trends"
 Search for future projections:
 Search the web: "{{research_topic}} future outlook trends"
 
-**Future focus:**
+- *Future focus:**
 
 - Technology roadmaps and projections
 - Market evolution predictions
@@ -89,7 +89,7 @@ Search the web: "{{research_topic}} future outlook trends"
 
 ### 5. Generate Technical Trends Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare technical analysis with source citations:
 
@@ -98,6 +98,7 @@ Prepare technical analysis with source citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Technical Trends and Innovation
 
 ### Emerging Technologies
@@ -143,14 +144,15 @@ _Source: [URL]_
 ### Risk Mitigation
 
 [Risk mitigation strategies]
-```
+
+```bash
 
 ### 6. Present Analysis and Complete Option
 
 Show the generated technical analysis and present complete option:
 "I've completed **technical trends and innovation analysis** for {{research_topic}}.
 
-**Technical Highlights:**
+- *Technical Highlights:**
 
 - Emerging technologies and innovations identified
 - Digital transformation trends mapped
@@ -158,14 +160,15 @@ Show the generated technical analysis and present complete option:
 - Implementation opportunities and challenges documented
 - Practical recommendations provided
 
-**Technical Trends Research Completed:**
+- *Technical Trends Research Completed:**
 
 - Emerging technologies and innovations identified
 - Digital transformation trends mapped
 - Future outlook and projections analyzed
 - Implementation opportunities and challenges documented
 
-**Ready to proceed to research synthesis and recommendations?**
+- *Ready to proceed to research synthesis and recommendations?**
+
 [C] Continue - Save this to document and proceed to synthesis
 
 ### 7. Handle Continue Selection

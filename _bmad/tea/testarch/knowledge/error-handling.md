@@ -12,20 +12,21 @@ Tests fail for two reasons: genuine bugs or poor error handling in the test itse
 
 ### Example 1: Scoped Exception Handling (Expected Errors Only)
 
-**Context**: Handle known errors (Network failures, expected 500s) without masking unexpected bugs.
+- *Context**: Handle known errors (Network failures, expected 500s) without masking unexpected bugs.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/error-handling.spec.ts
 import { test, expect } from '@playwright/test';
 
 /**
- * Scoped Error Handling Pattern
- * - Only ignore specific, documented errors
- * - Rethrow everything else to catch regressions
- * - Validate error UI and user experience
- */
+
+ - Scoped Error Handling Pattern
+ - - Only ignore specific, documented errors
+ - - Rethrow everything else to catch regressions
+ - - Validate error UI and user experience
+ - /
 
 test.describe('API Error Handling', () => {
   test('should display error message when API returns 500', async ({ page }) => {
@@ -94,9 +95,10 @@ test.describe('API Error Handling', () => {
     expect(unexpectedError?.message).toContain('UNEXPECTED BUG');
   });
 });
-```
 
-**Cypress equivalent**:
+```bash
+
+- *Cypress equivalent**:
 
 ```javascript
 // cypress/e2e/error-handling.cy.ts
@@ -145,9 +147,10 @@ describe('API Error Handling', () => {
     // Test fails (as expected) - validates error detection works
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Scoped handling**: page.on() / cy.on() scoped to specific tests
 - **Explicit allow-list**: Only ignore documented errors
@@ -155,24 +158,25 @@ describe('API Error Handling', () => {
 - **Error UI validation**: Assert user sees error message
 - **Logging**: Capture errors for debugging, don't swallow silently
 
----
+- --
 
 ### Example 2: Retry Validation Pattern (Network Resilience)
 
-**Context**: Test that retry/backoff logic works correctly for transient failures.
+- *Context**: Test that retry/backoff logic works correctly for transient failures.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/retry-resilience.spec.ts
 import { test, expect } from '@playwright/test';
 
 /**
- * Retry Validation Pattern
- * - Force sequential failures (500 → 500 → 200)
- * - Validate retry attempts and backoff timing
- * - Assert telemetry captures retry events
- */
+
+ - Retry Validation Pattern
+ - - Force sequential failures (500 → 500 → 200)
+ - - Validate retry attempts and backoff timing
+ - - Assert telemetry captures retry events
+ - /
 
 test.describe('Network Retry Logic', () => {
   test('should retry on 500 error and succeed', async ({ page }) => {
@@ -223,6 +227,7 @@ test.describe('Network Retry Logic', () => {
 
     // Assert: Telemetry logged retry events
     const telemetryEvents = await page.evaluate(() => (window as any).__TELEMETRY_EVENTS__ || []);
+
     expect(telemetryEvents).toContainEqual(
       expect.objectContaining({
         event: 'api_retry',
@@ -285,9 +290,10 @@ test.describe('Network Retry Logic', () => {
     await expect(page.getByTestId('not-found-message')).toBeVisible();
   });
 });
-```
 
-**Cypress with retry interception**:
+```bash
+
+- *Cypress with retry interception**:
 
 ```javascript
 // cypress/e2e/retry-resilience.cy.ts
@@ -318,9 +324,10 @@ describe('Network Retry Logic', () => {
     cy.wrap(attemptCount).should('eq', 3);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Sequential failures**: Test retry logic with 500 → 500 → 200
 - **Backoff timing**: Validate exponential backoff delays
@@ -328,28 +335,30 @@ describe('Network Retry Logic', () => {
 - **Non-retryable errors**: 404s don't trigger retries
 - **Telemetry**: Log retry attempts for monitoring
 
----
+- --
 
 ### Example 3: Telemetry Logging with Context (Sentry Integration)
 
-**Context**: Capture errors with full context for production debugging without exposing secrets.
+- *Context**: Capture errors with full context for production debugging without exposing secrets.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/telemetry-logging.spec.ts
 import { test, expect } from '@playwright/test';
 
 /**
- * Telemetry Logging Pattern
- * - Log errors with request context
- * - Redact sensitive data (tokens, passwords, PII)
- * - Integrate with monitoring (Sentry, Datadog)
- * - Validate error logging without exposing secrets
- */
+
+ - Telemetry Logging Pattern
+ - - Log errors with request context
+ - - Redact sensitive data (tokens, passwords, PII)
+ - - Integrate with monitoring (Sentry, Datadog)
+ - - Validate error logging without exposing secrets
+ - /
 
 type ErrorLog = {
   level: 'error' | 'warn' | 'info';
+
   message: string;
   context?: {
     endpoint?: string;
@@ -421,6 +430,7 @@ test.describe('Error Telemetry', () => {
       (window as any).Sentry = {
         captureException: (error: Error, context?: any) => {
           (window as any).__SENTRY_EVENTS__ = (window as any).__SENTRY_EVENTS__ || [];
+
           (window as any).__SENTRY_EVENTS__.push({
             error: error.message,
             context,
@@ -429,6 +439,7 @@ test.describe('Error Telemetry', () => {
         },
         addBreadcrumb: (breadcrumb: any) => {
           (window as any).__SENTRY_BREADCRUMBS__ = (window as any).__SENTRY_BREADCRUMBS__ || [];
+
           (window as any).__SENTRY_BREADCRUMBS__.push(breadcrumb);
         },
       };
@@ -461,9 +472,10 @@ test.describe('Error Telemetry', () => {
     );
   });
 });
-```
 
-**Cypress with Sentry**:
+```bash
+
+- *Cypress with Sentry**:
 
 ```javascript
 // cypress/e2e/telemetry-logging.cy.ts
@@ -499,9 +511,10 @@ describe('Error Telemetry', () => {
     cy.wrap(JSON.stringify(errorLogs)).should('not.contain', 'creditCard');
   });
 });
-```
 
-**Error logger utility with redaction**:
+```bash
+
+- *Error logger utility with redaction**:
 
 ```typescript
 // src/utils/error-logger.ts
@@ -517,8 +530,10 @@ type ErrorContext = {
 const SENSITIVE_KEYS = ['password', 'token', 'creditCard', 'ssn', 'apiKey'];
 
 /**
- * Redact sensitive data from objects
- */
+
+ - Redact sensitive data from objects
+ - /
+
 function redactSensitiveData(obj: any): any {
   if (typeof obj !== 'object' || obj === null) return obj;
 
@@ -536,8 +551,10 @@ function redactSensitiveData(obj: any): any {
 }
 
 /**
- * Log error with context (Sentry integration)
- */
+
+ - Log error with context (Sentry integration)
+ - /
+
 export function logError(error: Error, context?: ErrorContext) {
   const safeContext = context ? redactSensitiveData(context) : {};
 
@@ -559,9 +576,10 @@ export function logError(error: Error, context?: ErrorContext) {
     });
   }
 }
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Context-rich logging**: Endpoint, method, status, user ID
 - **Secret redaction**: Passwords, tokens, PII removed before logging
@@ -569,25 +587,26 @@ export function logError(error: Error, context?: ErrorContext) {
 - **Structured logs**: JSON format for easy parsing
 - **Test validation**: Assert logs contain context but not secrets
 
----
+- --
 
 ### Example 4: Graceful Degradation Tests (Fallback Behavior)
 
-**Context**: Validate application continues functioning when services are unavailable.
+- *Context**: Validate application continues functioning when services are unavailable.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/graceful-degradation.spec.ts
 import { test, expect } from '@playwright/test';
 
 /**
- * Graceful Degradation Pattern
- * - Simulate service unavailability
- * - Validate fallback behavior
- * - Ensure user experience degrades gracefully
- * - Verify telemetry captures degradation events
- */
+
+ - Graceful Degradation Pattern
+ - - Simulate service unavailability
+ - - Validate fallback behavior
+ - - Ensure user experience degrades gracefully
+ - - Verify telemetry captures degradation events
+ - /
 
 test.describe('Service Unavailability', () => {
   test('should display cached data when API is down', async ({ page }) => {
@@ -691,9 +710,10 @@ test.describe('Service Unavailability', () => {
     await expect(page).toHaveURL(/.*\/products/);
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - **Cached fallbacks**: Display stale data when API unavailable
 - **Non-critical degradation**: Analytics failures don't block app
@@ -701,7 +721,7 @@ test.describe('Service Unavailability', () => {
 - **Third-party resilience**: App works without external scripts
 - **User transparency**: Stale data warnings displayed
 
----
+- --
 
 ## Error Handling Testing Checklist
 

@@ -1,21 +1,23 @@
----
+- --
+
 name: edit-agent
 description: Edit existing BMAD agents while maintaining compliance
 web_bundle: true
 editWorkflow: './steps-e/e-01-load-existing.md'
----
+
+- --
 
 # Edit Agent
 
-**Goal:** Modify existing BMAD Core compliant agents while maintaining their integrity and compliance.
+- *Goal:** Modify existing BMAD Core compliant agents while maintaining their integrity and compliance.
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also an expert agent architect specializing in BMAD Core agent lifecycle management. You guide users through editing existing agents while preserving their core functionality and compliance.
+- *Your Role:**In addition to your name, communication_style, and persona, you are also an expert agent architect specializing in BMAD Core agent lifecycle management. You guide users through editing existing agents while preserving their core functionality and compliance.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,15 +38,15 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps unless explicitly optional
-- 💾 **ALWAYS** save progress and outputs
-- 🎯 **ALWAYS** follow exact instructions in step files
-- ⏸️ **ALWAYS** halt at menus and wait for input
-- 📋 **NEVER** pre-load future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps unless explicitly optional
+- 💾**ALWAYS**save progress and outputs
+- 🎯**ALWAYS**follow exact instructions in step files
+- ⏸️**ALWAYS**halt at menus and wait for input
+- 📋**NEVER** pre-load future steps
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -63,7 +65,7 @@ Prompt for agent file path: "Which agent would you like to edit? Please provide 
 
 Then load, read completely, and execute `{editWorkflow}` (steps-e/e-01-load-existing.md)
 
----
+- --
 
 ## EDIT MODE NOTES
 

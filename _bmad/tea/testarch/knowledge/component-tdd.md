@@ -12,9 +12,9 @@ Component TDD provides immediate feedback during development. Failing tests (red
 
 ### Example 1: Red-Green-Refactor Loop
 
-**Context**: When building a new component, start with a failing test that describes the desired behavior. Implement just enough to pass, then refactor for quality.
+- *Context**: When building a new component, start with a failing test that describes the desired behavior. Implement just enough to pass, then refactor for quality.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Step 1: RED - Write failing test
@@ -60,6 +60,7 @@ type ButtonProps = {
   disabled?: boolean;
   loading?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
+
 };
 
 export const Button = ({
@@ -73,6 +74,7 @@ export const Button = ({
     <button
       onClick={onClick}
       disabled={disabled || loading}
+
       className={`btn btn-${variant}`}
       data-testid="button"
     >
@@ -136,9 +138,10 @@ test.describe('Button Component', () => {
     await expect(component.getByTestId('spinner')).toBeVisible();
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Red: Write failing test first - clarifies requirements before coding
 - Green: Implement minimal code to pass - prevents over-engineering
@@ -148,9 +151,9 @@ test.describe('Button Component', () => {
 
 ### Example 2: Provider Isolation Pattern
 
-**Context**: When testing components that depend on context providers (React Query, Auth, Router), wrap them with required providers in each test to prevent state bleed between tests.
+- *Context**: When testing components that depend on context providers (React Query, Auth, Router), wrap them with required providers in each test to prevent state bleed between tests.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // test-utils/AllTheProviders.tsx
@@ -162,6 +165,7 @@ import { AuthProvider } from '../contexts/AuthContext';
 type Props = {
   children: ReactNode;
   initialAuth?: { user: User | null; token: string | null };
+
 };
 
 export const AllTheProviders: FC<Props> = ({ children, initialAuth }) => {
@@ -248,9 +252,10 @@ test.describe('UserProfile Component', () => {
     await expect(component.getByText('john@example.com')).toBeVisible();
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Create NEW providers per test (QueryClient, Router, Auth)
 - Prevents state pollution between tests
@@ -260,9 +265,9 @@ test.describe('UserProfile Component', () => {
 
 ### Example 3: Accessibility Assertions
 
-**Context**: When testing components, validate accessibility alongside functionality using axe-core, ARIA roles, labels, and keyboard navigation.
+- *Context**: When testing components, validate accessibility alongside functionality using axe-core, ARIA roles, labels, and keyboard navigation.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Cypress with axe-core
@@ -353,9 +358,10 @@ test.describe('Form Component Accessibility', () => {
     await expect(component.getByText('Form submitted')).toBeVisible();
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Use `cy.checkA11y()` (Cypress) or `AxeBuilder` (Playwright) for automated accessibility scanning
 - Validate ARIA roles, labels, and live regions
@@ -365,9 +371,9 @@ test.describe('Form Component Accessibility', () => {
 
 ### Example 4: Visual Regression Test
 
-**Context**: When testing components, capture screenshots to detect unintended visual changes. Use Playwright visual comparison or Cypress snapshot plugins.
+- *Context**: When testing components, capture screenshots to detect unintended visual changes. Use Playwright visual comparison or Cypress snapshot plugins.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Playwright visual regression
@@ -444,9 +450,10 @@ export default defineConfig({
 
 // Update snapshots when intentional changes are made
 // npx playwright test --update-snapshots
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Playwright: Use `toHaveScreenshot()` for built-in visual comparison
 - Cypress: Use Percy (cloud) or snapshot plugins (local) for visual testing
@@ -466,14 +473,14 @@ export default defineConfig({
 
 ## TDD Workflow Summary
 
-**Red-Green-Refactor Cycle**:
+- *Red-Green-Refactor Cycle**:
 
 1. **Red**: Write failing test describing desired behavior
 2. **Green**: Implement minimal code to make test pass
 3. **Refactor**: Improve code quality, tests stay green
 4. **Repeat**: Each new feature starts with failing test
 
-**Component Test Checklist**:
+- *Component Test Checklist**:
 
 - [ ] Test renders with required props
 - [ ] Test user interactions (click, type, submit)

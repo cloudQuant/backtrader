@@ -25,7 +25,7 @@
 ## CONTEXT BOUNDARIES:
 
 - Current document and frontmatter from step-01 are available
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 - Focus on languages, frameworks, tools, and platforms
 - Web search capabilities with source verification are enabled
@@ -38,12 +38,12 @@ Conduct technology stack analysis focusing on languages, frameworks, tools, and 
 
 ### 1. Begin Technology Stack Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different technology stack areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different technology stack areas simultaneously and thoroughly.
 
 Start with technology stack research approach:
-"Now I'll conduct **technology stack analysis** for **{{research_topic}}** to understand the technology landscape.
+"Now I'll conduct **technology stack analysis**for**{{research_topic}}** to understand the technology landscape.
 
-**Technology Stack Focus:**
+- *Technology Stack Focus:**
 
 - Programming languages and their evolution
 - Development frameworks and libraries
@@ -51,18 +51,18 @@ Start with technology stack research approach:
 - Development tools and platforms
 - Cloud infrastructure and deployment platforms
 
-**Let me search for current technology stack insights.**"
+- *Let me search for current technology stack insights.**"
 
 ### 2. Parallel Technology Stack Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} programming languages frameworks"
 Search the web: "{{research_topic}} development tools platforms"
 Search the web: "{{research_topic}} database storage technologies"
 Search the web: "{{research_topic}} cloud infrastructure platforms"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for recent technology trend reports and developer surveys
 - Search for technology documentation and best practices
@@ -72,26 +72,28 @@ Search the web: "{{research_topic}} cloud infrastructure platforms"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate technology stack findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - Programming languages and frameworks analysis
 - Development tools and platforms evaluation
 - Database and storage technologies assessment
 - Cloud infrastructure and deployment platform analysis
 
-**Cross-Technology Analysis:**
+- *Cross-Technology Analysis:**
+
 [Identify patterns connecting language choices, frameworks, and platform decisions]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Technology Stack Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare technology stack analysis with web search citations:
 
@@ -100,6 +102,7 @@ Prepare technology stack analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Technology Stack Analysis
 
 ### Programming Languages
@@ -155,15 +158,16 @@ _Emerging Technologies: [New technologies gaining traction]_
 _Legacy Technology: [Older technologies being phased out]_
 _Community Trends: [Developer preferences and open-source adoption]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **technology stack analysis** of the technology landscape for {{research_topic}}.
 
-**Key Technology Stack Findings:**
+- *Key Technology Stack Findings:**
 
 - Programming languages and frameworks thoroughly analyzed
 - Database and storage technologies evaluated
@@ -171,7 +175,8 @@ _Source: [URL]_
 - Cloud infrastructure and deployment options mapped
 - Technology adoption trends identified
 
-**Ready to proceed to integration patterns analysis?**
+- *Ready to proceed to integration patterns analysis?**
+
 [C] Continue - Save this to document and proceed to integration patterns
 
 ### 6. Handle Continue Selection

@@ -2,19 +2,21 @@
 
 <narrative-workflow-critical>
 This game type is **narrative-critical**. You MUST run the Narrative Design workflow after completing the GDD to create:
+
 - Complete story and all narrative paths
 - Room descriptions and atmosphere
 - Puzzle solutions and hints
 - Character dialogue
 - World lore and backstory
 - Parser vocabulary (if parser-based)
+
 </narrative-workflow-critical>
 
 ### Input System
 
 {{input_system}}
 
-**Core interface:**
+- *Core interface:**
 
 - Parser-based (natural language commands)
 - Choice-based (numbered/lettered options)
@@ -27,7 +29,7 @@ This game type is **narrative-critical**. You MUST run the Narrative Design work
 
 {{location_structure}}
 
-**World design:**
+- *World design:**
 
 - Room count and scope
 - Room descriptions (length, detail)
@@ -40,7 +42,7 @@ This game type is **narrative-critical**. You MUST run the Narrative Design work
 
 {{item_inventory}}
 
-**Object interaction:**
+- *Object interaction:**
 
 - Examinable objects
 - Takeable vs. scenery objects
@@ -53,7 +55,7 @@ This game type is **narrative-critical**. You MUST run the Narrative Design work
 
 {{puzzle_design}}
 
-**Challenge structure:**
+- *Challenge structure:**
 
 - Puzzle types (logic, inventory, knowledge, exploration)
 - Difficulty curve
@@ -66,7 +68,7 @@ This game type is **narrative-critical**. You MUST run the Narrative Design work
 
 {{narrative_writing}}
 
-**Story delivery:**
+- *Story delivery:**
 
 - Writing tone and style
 - Descriptive density
@@ -75,13 +77,13 @@ This game type is **narrative-critical**. You MUST run the Narrative Design work
 - Branching narrative (if applicable)
 - Multiple endings (if applicable)
 
-**Note:** All narrative content must be written in the Narrative Design Document.
+- *Note:** All narrative content must be written in the Narrative Design Document.
 
 ### Game Flow and Pacing
 
 {{game_flow}}
 
-**Structure:**
+- *Structure:**
 
 - Game length target
 - Acts or chapters

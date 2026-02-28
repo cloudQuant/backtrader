@@ -35,7 +35,7 @@ Regression testing catches bugs introduced by new changes. In games, this includ
 
 ### Test Suite Layers
 
-```
+```bash
 High-Frequency (Every Commit)
 ├── Unit Tests - Fast, isolated
 ├── Smoke Tests - Can game launch and run?
@@ -50,7 +50,8 @@ Low-Frequency (Release)
 ├── Full Matrix - All platforms/configs
 ├── Certification Tests - Platform requirements
 └── Localization - All languages
-```
+
+```bash
 
 ### What to Test
 
@@ -82,7 +83,9 @@ Low-Frequency (Release)
 ### Smoke Tests
 
 ```python
+
 # Run on every commit
+
 def test_game_launches():
     process = launch_game()
     assert wait_for_main_menu(timeout=30)
@@ -100,12 +103,15 @@ def test_save_load_roundtrip():
     save_game()
     load_game()
     assert verify_state_matches()
-```
+
+```bash
 
 ### Playthrough Bots
 
 ```python
+
 # Automated player that plays through content
+
 class PlaythroughBot:
     def run_level(self, level):
         self.load_level(level)
@@ -113,17 +119,21 @@ class PlaythroughBot:
             self.perform_action()
             self.check_for_softlocks()
             self.record_metrics()
-```
+
+```bash
 
 ### Visual Regression
 
 ```python
+
 # Compare screenshots against baselines
+
 def test_main_menu_visual():
     launch_game()
     screenshot = capture_screen()
     assert compare_to_baseline(screenshot, 'main_menu', threshold=0.01)
-```
+
+```bash
 
 ## Performance Regression Detection
 
@@ -141,13 +151,17 @@ def test_main_menu_visual():
 ```yaml
 performance_benchmark:
   script:
+
     - run_benchmark_scene --duration 60s
     - collect_metrics
     - compare_to_baseline
+
   fail_conditions:
-    - frame_time_avg > baseline * 1.1 # 10% tolerance
-    - memory_peak > baseline * 1.05 # 5% tolerance
-```
+
+    - frame_time_avg > baseline *1.1 # 10% tolerance
+    - memory_peak > baseline* 1.05 # 5% tolerance
+
+```bash
 
 ### Trend Tracking
 
@@ -174,7 +188,8 @@ def test_save_compatibility():
         assert no_errors()
         assert progress_preserved()
         assert inventory_intact()
-```
+
+```bash
 
 ### Schema Versioning
 
@@ -223,19 +238,26 @@ When a regression is found, identify the breaking commit:
 ```bash
 git bisect start
 git bisect bad HEAD          # Current is broken
+
 git bisect good v1.2.0       # Known good version
+
 # Git will checkout commits to test
+
 # Run test, mark good/bad
+
 git bisect good/bad
+
 # Repeat until culprit found
-```
+
+```bash
 
 ### Automated Bisect
 
 ```bash
 git bisect start HEAD v1.2.0
 git bisect run ./run_regression_test.sh
-```
+
+```bash
 
 ## Regression Testing Checklist
 

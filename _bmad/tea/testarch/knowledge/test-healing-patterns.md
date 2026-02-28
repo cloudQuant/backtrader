@@ -6,11 +6,11 @@ Common test failures follow predictable patterns (stale selectors, race conditio
 
 ## Rationale
 
-**The Problem**: Test failures waste developer time on repetitive debugging. Teams manually fix the same selector issues, timing bugs, and data mismatches repeatedly across test suites.
+- *The Problem**: Test failures waste developer time on repetitive debugging. Teams manually fix the same selector issues, timing bugs, and data mismatches repeatedly across test suites.
 
-**The Solution**: Catalog common failure patterns with diagnostic signatures and automated fixes. When a test fails, match the error message/stack trace against known patterns and apply the corresponding fix. This transforms test maintenance from reactive debugging to proactive pattern application.
+- *The Solution**: Catalog common failure patterns with diagnostic signatures and automated fixes. When a test fails, match the error message/stack trace against known patterns and apply the corresponding fix. This transforms test maintenance from reactive debugging to proactive pattern application.
 
-**Why This Matters**:
+- *Why This Matters**:
 
 - Reduces test maintenance time by 60-80% (pattern-based fixes vs manual debugging)
 - Prevents flakiness regression (same bug fixed once, applied everywhere)
@@ -21,9 +21,9 @@ Common test failures follow predictable patterns (stale selectors, race conditio
 
 ### Example 1: Common Failure Pattern - Stale Selectors (Element Not Found)
 
-**Context**: Test fails with "Element not found" or "Locator resolved to 0 elements" errors
+- *Context**: Test fails with "Element not found" or "Locator resolved to 0 elements" errors
 
-**Diagnostic Signature**:
+- *Diagnostic Signature**:
 
 ```typescript
 // src/testing/healing/selector-healing.ts
@@ -37,8 +37,10 @@ export type SelectorFailure = {
 };
 
 /**
- * Detect stale selector failures
- */
+
+ - Detect stale selector failures
+ - /
+
 export function isSelectorFailure(error: Error): boolean {
   const patterns = [
     /locator.*resolved to 0 elements/i,
@@ -52,9 +54,12 @@ export function isSelectorFailure(error: Error): boolean {
 }
 
 /**
- * Extract selector from error message
- */
+
+ - Extract selector from error message
+ - /
+
 export function extractSelector(errorMessage: string): string | null {
+
   // Playwright: "locator('button[type=\"submit\"]') resolved to 0 elements"
   const playwrightMatch = errorMessage.match(/locator\('([^']+)'\)/);
   if (playwrightMatch) return playwrightMatch[1];
@@ -67,12 +72,16 @@ export function extractSelector(errorMessage: string): string | null {
 }
 
 /**
- * Suggest better selector based on hierarchy
- */
+
+ - Suggest better selector based on hierarchy
+ - /
+
 export function suggestBetterSelector(badSelector: string): string {
   // If using CSS class → suggest data-testid
   if (badSelector.startsWith('.') || badSelector.includes('class=')) {
+
     const elementName = badSelector.match(/class=["']([^"']+)["']/)?.[1] || badSelector.slice(1);
+
     return `page.getByTestId('${elementName}') // Prefer data-testid over CSS class`;
   }
 
@@ -88,14 +97,16 @@ export function suggestBetterSelector(badSelector: string): string {
 
   // If using complex CSS → suggest ARIA role
   if (badSelector.includes('>') || badSelector.includes('+')) {
+
     return `page.getByRole('button', { name: 'Submit' }) // Prefer ARIA roles over complex CSS`;
   }
 
   return `page.getByTestId('...') // Add data-testid attribute to element`;
 }
-```
 
-**Healing Implementation**:
+```bash
+
+- *Healing Implementation**:
 
 ```typescript
 // tests/healing/selector-healing.spec.ts
@@ -124,22 +135,23 @@ test('heal stale selector failures automatically', async ({ page }) => {
 
   await expect(page.getByText('Success')).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Diagnosis: Error message contains "locator resolved to 0 elements" or "element not found"
 - Fix: Replace brittle selector (CSS class, ID, nth) with robust alternative (data-testid, ARIA role)
 - Prevention: Follow selector hierarchy (data-testid > ARIA > text > CSS)
 - Automation: Pattern matching on error message + stack trace
 
----
+- --
 
 ### Example 2: Common Failure Pattern - Race Conditions (Timing Errors)
 
-**Context**: Test fails with "timeout waiting for element" or "element not visible" errors
+- *Context**: Test fails with "timeout waiting for element" or "element not visible" errors
 
-**Diagnostic Signature**:
+- *Diagnostic Signature**:
 
 ```typescript
 // src/testing/healing/timing-healing.ts
@@ -149,11 +161,14 @@ export type TimingFailure = {
   testFile: string;
   lineNumber: number;
   actionType: 'click' | 'fill' | 'waitFor' | 'expect';
+
 };
 
 /**
- * Detect race condition failures
- */
+
+ - Detect race condition failures
+ - /
+
 export function isTimingFailure(error: Error): boolean {
   const patterns = [
     /timeout.*waiting for/i,
@@ -168,8 +183,10 @@ export function isTimingFailure(error: Error): boolean {
 }
 
 /**
- * Detect hard wait anti-pattern
- */
+
+ - Detect hard wait anti-pattern
+ - /
+
 export function hasHardWait(testCode: string): boolean {
   const hardWaitPatterns = [/page\.waitForTimeout\(/, /cy\.wait\(\d+\)/, /await.*sleep\(/, /setTimeout\(/];
 
@@ -177,8 +194,10 @@ export function hasHardWait(testCode: string): boolean {
 }
 
 /**
- * Suggest deterministic wait replacement
- */
+
+ - Suggest deterministic wait replacement
+ - /
+
 export function suggestDeterministicWait(testCode: string): string {
   if (testCode.includes('page.waitForTimeout')) {
     return `
@@ -213,9 +232,10 @@ await page.goto('/page')
 await responsePromise
   `.trim();
 }
-```
 
-**Healing Implementation**:
+```bash
+
+- *Healing Implementation**:
 
 ```typescript
 // tests/healing/timing-healing.spec.ts
@@ -251,22 +271,23 @@ test('heal hard wait with event-based wait', async ({ page }) => {
   // Element now reliably visible
   await expect(page.getByText('Dashboard loaded')).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Diagnosis: Error contains "timeout" or "not visible", often after navigation
 - Fix: Replace hard waits with network-first pattern or element state waits
 - Prevention: ALWAYS intercept before navigate, use waitForResponse()
 - Automation: Detect `page.waitForTimeout()` or `cy.wait(number)` in test code
 
----
+- --
 
 ### Example 3: Common Failure Pattern - Dynamic Data Assertions (Non-Deterministic IDs)
 
-**Context**: Test fails with "Expected 'User 123' but received 'User 456'" or timestamp mismatches
+- *Context**: Test fails with "Expected 'User 123' but received 'User 456'" or timestamp mismatches
 
-**Diagnostic Signature**:
+- *Diagnostic Signature**:
 
 ```typescript
 // src/testing/healing/data-healing.ts
@@ -280,8 +301,10 @@ export type DataFailure = {
 };
 
 /**
- * Detect dynamic data assertion failures
- */
+
+ - Detect dynamic data assertion failures
+ - /
+
 export function isDynamicDataFailure(error: Error): boolean {
   const patterns = [
     /expected.*\d+.*received.*\d+/i, // ID mismatches
@@ -295,8 +318,10 @@ export function isDynamicDataFailure(error: Error): boolean {
 }
 
 /**
- * Suggest flexible assertion pattern
- */
+
+ - Suggest flexible assertion pattern
+ - /
+
 export function suggestFlexibleAssertion(errorMessage: string): string {
   if (/expected.*user.*\d+/i.test(errorMessage)) {
     return `
@@ -342,9 +367,10 @@ await expect(page.getByText(\`Order #\${orderId} confirmed\`)).toBeVisible()
 
   return `Use regex patterns, partial matching, or capture dynamic values instead of hardcoding`;
 }
-```
 
-**Healing Implementation**:
+```bash
+
+- *Healing Implementation**:
 
 ```typescript
 // tests/healing/data-healing.spec.ts
@@ -380,22 +406,23 @@ test('heal order ID assertion with capture', async ({ page, request }) => {
   await page.goto(`/orders/${orderId}`);
   await expect(page.getByText(`Order #${orderId}`)).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Diagnosis: Error message shows expected vs actual value mismatch with IDs/timestamps
 - Fix: Use regex patterns (`/User \d+/`), partial matching, or capture dynamic values
 - Prevention: Never hardcode IDs, timestamps, or random data in assertions
 - Automation: Parse error message for expected/actual values, suggest regex patterns
 
----
+- --
 
 ### Example 4: Common Failure Pattern - Network Errors (Missing Route Interception)
 
-**Context**: Test fails with "API call failed" or "500 error" during test execution
+- *Context**: Test fails with "API call failed" or "500 error" during test execution
 
-**Diagnostic Signature**:
+- *Diagnostic Signature**:
 
 ```typescript
 // src/testing/healing/network-healing.ts
@@ -408,8 +435,10 @@ export type NetworkFailure = {
 };
 
 /**
- * Detect network failure
- */
+
+ - Detect network failure
+ - /
+
 export function isNetworkFailure(error: Error): boolean {
   const patterns = [
     /api.*call.*failed/i,
@@ -424,8 +453,10 @@ export function isNetworkFailure(error: Error): boolean {
 }
 
 /**
- * Suggest route interception
- */
+
+ - Suggest route interception
+ - /
+
 export function suggestRouteInterception(url: string, method: string): string {
   return `
 // ❌ Bad: Real API call (unreliable, slow, external dependency)
@@ -448,9 +479,10 @@ await page.route('${url}', route => {
 await page.goto('/page')
   `.trim();
 }
-```
 
-**Healing Implementation**:
+```bash
+
+- *Healing Implementation**:
 
 ```typescript
 // tests/healing/network-healing.spec.ts
@@ -490,35 +522,39 @@ test('heal 500 error with error state mocking', async ({ page, context }) => {
   await expect(page.getByText('Unable to load products')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Diagnosis: Error message contains "API call failed", "500 error", or network-related failures
 - Fix: Add `page.route()` or `cy.intercept()` to mock API responses
 - Prevention: Mock ALL external dependencies (APIs, third-party services)
 - Automation: Extract URL from error message, generate route interception code
 
----
+- --
 
 ### Example 5: Common Failure Pattern - Hard Waits (Unreliable Timing)
 
-**Context**: Test fails intermittently with "timeout exceeded" or passes/fails randomly
+- *Context**: Test fails intermittently with "timeout exceeded" or passes/fails randomly
 
-**Diagnostic Signature**:
+- *Diagnostic Signature**:
 
 ```typescript
 // src/testing/healing/hard-wait-healing.ts
 
 /**
- * Detect hard wait anti-pattern in test code
- */
+
+ - Detect hard wait anti-pattern in test code
+ - /
+
 export function detectHardWaits(testCode: string): Array<{ line: number; code: string }> {
   const lines = testCode.split('\n');
   const violations: Array<{ line: number; code: string }> = [];
 
   lines.forEach((line, index) => {
     if (line.includes('page.waitForTimeout(') || /cy\.wait\(\d+\)/.test(line) || line.includes('sleep(') || line.includes('setTimeout(')) {
+
       violations.push({ line: index + 1, code: line.trim() });
     }
   });
@@ -527,8 +563,10 @@ export function detectHardWaits(testCode: string): Array<{ line: number; code: s
 }
 
 /**
- * Suggest event-based wait replacement
- */
+
+ - Suggest event-based wait replacement
+ - /
+
 export function suggestEventBasedWait(hardWaitLine: string): string {
   if (hardWaitLine.includes('page.waitForTimeout')) {
     return `
@@ -558,9 +596,10 @@ cy.wait('@getData') // Deterministic
 
   return 'Replace hard waits with event-based waits (waitForResponse, waitFor state changes)';
 }
-```
 
-**Healing Implementation**:
+```bash
+
+- *Healing Implementation**:
 
 ```typescript
 // tests/healing/hard-wait-healing.spec.ts
@@ -593,40 +632,48 @@ test('heal implicit wait with explicit network wait', async ({ page }) => {
 
   await expect(page).toHaveURL(/\/products\/\d+/);
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Diagnosis: Test code contains `page.waitForTimeout()` or `cy.wait(number)`
 - Fix: Replace with `waitForResponse()`, `waitFor({ state })`, or aliased intercepts
 - Prevention: NEVER use hard waits, always use event-based/response-based waits
 - Automation: Scan test code for hard wait patterns, suggest deterministic replacements
 
----
+- --
 
 ## Healing Pattern Catalog
 
 | Failure Type   | Diagnostic Signature                          | Healing Strategy                      | Prevention Pattern                        |
+
 | -------------- | --------------------------------------------- | ------------------------------------- | ----------------------------------------- |
+
 | Stale Selector | "locator resolved to 0 elements"              | Replace with data-testid or ARIA role | Selector hierarchy (testid > ARIA > text) |
+
 | Race Condition | "timeout waiting for element"                 | Add network-first interception        | Intercept before navigate                 |
+
 | Dynamic Data   | "Expected 'User 123' but got 'User 456'"      | Use regex or capture dynamic values   | Never hardcode IDs/timestamps             |
+
 | Network Error  | "API call failed", "500 error"                | Add route mocking                     | Mock all external dependencies            |
+
 | Hard Wait      | Test contains `waitForTimeout()` or `wait(n)` | Replace with event-based waits        | Always use deterministic waits            |
 
 ## Healing Workflow
 
-1. **Run test** → Capture failure
-2. **Identify pattern** → Match error against diagnostic signatures
-3. **Apply fix** → Use pattern-based healing strategy
-4. **Re-run test** → Validate fix (max 3 iterations)
-5. **Mark unfixable** → Use `test.fixme()` if healing fails after 3 attempts
+1. **Run test**→ Capture failure
+
+2.**Identify pattern**→ Match error against diagnostic signatures
+3.**Apply fix**→ Use pattern-based healing strategy
+4.**Re-run test**→ Validate fix (max 3 iterations)
+5.**Mark unfixable**→ Use `test.fixme()` if healing fails after 3 attempts
 
 ## Healing Checklist
 
 Before enabling auto-healing in workflows:
 
-- [ ] **Failure catalog documented**: Common patterns identified (selectors, timing, data, network, hard waits)
+- [ ]**Failure catalog documented**: Common patterns identified (selectors, timing, data, network, hard waits)
 - [ ] **Diagnostic signatures defined**: Error message patterns for each failure type
 - [ ] **Healing strategies documented**: Fix patterns for each failure type
 - [ ] **Prevention patterns documented**: Best practices to avoid recurrence

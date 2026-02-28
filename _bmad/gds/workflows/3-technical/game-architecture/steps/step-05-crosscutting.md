@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-05-crosscutting'
 description: 'Address cross-cutting concerns that affect all game systems'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-05-crosscutting.md'
 nextStepFile: './step-06-structure.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 5: Cross-cutting Concerns
 
-**Progress: Step 5 of 9** - Next: Project Structure
+- *Progress: Step 5 of 9**- Next: Project Structure
 
 ## STEP GOAL:
 
@@ -66,7 +71,8 @@ Define patterns for concerns that affect EVERY system in the game: error handlin
 
 "Now let's define cross-cutting concerns - patterns that apply to EVERY system.
 
-**Why this matters:**
+- *Why this matters:**
+
 If one AI agent handles errors differently than another, your game breaks.
 If logging formats vary, debugging becomes impossible.
 These patterns are the 'constitution' that all code must follow.
@@ -79,16 +85,21 @@ Let's define each one."
 
 How should ALL systems handle errors?
 
-**Options:**
+- *Options:**
 
 | Approach                 | Description                     | Best For            |
-| ------------------------ | ------------------------------- | ------------------- |
-| **Try-Catch Everywhere** | Explicit handling at each point | Critical systems    |
-| **Global Handler**       | Centralized error management    | Consistent recovery |
-| **Signal/Event Based**   | Emit errors as events           | Decoupled systems   |
-| **Result Objects**       | Return success/failure objects  | Functional style    |
 
-**Game-specific considerations:**
+| ------------------------ | ------------------------------- | ------------------- |
+
+| **Try-Catch Everywhere**| Explicit handling at each point | Critical systems    |
+
+|**Global Handler**| Centralized error management    | Consistent recovery |
+
+|**Signal/Event Based**| Emit errors as events           | Decoupled systems   |
+
+|**Result Objects**       | Return success/failure objects  | Functional style    |
+
+- *Game-specific considerations:**
 
 - Should errors pause the game?
 - How should critical vs recoverable errors differ?
@@ -102,7 +113,7 @@ What's your error handling strategy?"
 
 How should ALL systems log information?
 
-**Log Levels:**
+- *Log Levels:**
 
 - **ERROR**: Something broke
 - **WARN**: Something unexpected but handled
@@ -110,7 +121,7 @@ How should ALL systems log information?
 - **DEBUG**: Detailed diagnostic info
 - **TRACE**: Extremely verbose (development only)
 
-**Questions:**
+- *Questions:**
 
 - What format? (structured JSON, plain text, engine-native)
 - Where do logs go? (console, file, external service)
@@ -125,14 +136,14 @@ What's your logging approach?"
 
 How will game settings be organized and accessed?
 
-**Configuration Types:**
+- *Configuration Types:**
 
-- **Game constants** - Values that never change
-- **Balancing values** - Tweakable gameplay numbers
-- **Player settings** - User preferences
+- **Game constants**- Values that never change
+- **Balancing values**- Tweakable gameplay numbers
+- **Player settings**- User preferences
 - **Platform settings** - Per-platform adjustments
 
-**Storage options:**
+- *Storage options:**
 
 - Hardcoded constants
 - Configuration files (JSON, YAML)
@@ -147,16 +158,21 @@ How should configuration be managed?"
 
 How should systems communicate without tight coupling?
 
-**Options:**
+- *Options:**
 
 | Pattern           | Description           | Complexity |
-| ----------------- | --------------------- | ---------- |
-| **Observer**      | Direct subscription   | Simple     |
-| **Event Bus**     | Central dispatcher    | Medium     |
-| **Signal/Slot**   | Type-safe connections | Medium     |
-| **Message Queue** | Async processing      | Complex    |
 
-**Questions:**
+| ----------------- | --------------------- | ---------- |
+
+| **Observer**| Direct subscription   | Simple     |
+
+|**Event Bus**| Central dispatcher    | Medium     |
+
+|**Signal/Slot**| Type-safe connections | Medium     |
+
+|**Message Queue** | Async processing      | Complex    |
+
+- *Questions:**
 
 - Typed events or stringly-typed?
 - Sync or async event processing?
@@ -170,7 +186,7 @@ What's your event system approach?"
 
 What development tools should be built in?
 
-**Common debug features:**
+- *Common debug features:**
 
 - Debug console/command system
 - Visual debugging overlays
@@ -178,7 +194,7 @@ What development tools should be built in?
 - Performance profiling hooks
 - Cheat/testing commands
 
-**Questions:**
+- *Questions:**
 
 - How are debug features enabled/disabled?
 - Should they be in release builds?
@@ -191,65 +207,74 @@ What debug tools do you want?"
 Based on the conversation, prepare the content:
 
 ````markdown
+
 ## Cross-cutting Concerns
 
 These patterns apply to ALL systems and must be followed by every implementation.
 
 ### Error Handling
 
-**Strategy:** {{error_strategy}}
+- *Strategy:** {{error_strategy}}
 
-**Error Levels:**
+- *Error Levels:**
+
 {{error_level_definitions}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{error_handling_example}}
-```
+
+```bash
+
 ````
 
 ### Logging
 
-**Format:** {{logging_format}}
-**Destination:** {{log_destination}}
+- *Format:** {{logging_format}}
+- *Destination:** {{log_destination}}
 
-**Log Levels:**
+- *Log Levels:**
+
 {{log_level_usage}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{logging_example}}
-```
+
+```bash
 
 ### Configuration
 
-**Approach:** {{config_approach}}
+- *Approach:** {{config_approach}}
 
-**Configuration Structure:**
+- *Configuration Structure:**
+
 {{config_structure}}
 
 ### Event System
 
-**Pattern:** {{event_pattern}}
+- *Pattern:** {{event_pattern}}
 
-**Event Naming:** {{naming_convention}}
+- *Event Naming:** {{naming_convention}}
 
-**Example:**
+- *Example:**
 
 ```{{language}}
 {{event_example}}
-```
+
+```bash
 
 ### Debug Tools
 
-**Available Tools:**
+- *Available Tools:**
+
 {{debug_tool_list}}
 
-**Activation:** {{how_to_enable}}
+- *Activation:** {{how_to_enable}}
 
-```
+```bash
 
 ### 8. Present Content and Menu
 
@@ -257,16 +282,17 @@ Show the generated content to the user and present:
 
 "I've documented all cross-cutting concerns.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 7]
 
-**Validation Check:**
+- *Validation Check:**
 - Do these patterns cover all systems?
 - Are the examples clear enough for AI agents?
 - Any edge cases we missed?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into specific concerns
 [P] Party Mode - Get perspectives on patterns
 [C] Continue - Save this and move to Project Structure (Step 6 of 9)"
@@ -274,18 +300,21 @@ Show the generated content to the user and present:
 ### 9. Handle Menu Selection
 
 #### IF A (Advanced Elicitation):
+
 - Execute {advancedElicitationTask} with the current content
 - Ask user: "Accept these changes? (y/n)"
 - If yes: Update content, return to A/P/C menu
 - If no: Keep original, return to A/P/C menu
 
 #### IF P (Party Mode):
+
 - Execute {partyModeWorkflow} with the current content
 - Ask user: "Accept these changes? (y/n)"
 - If yes: Update content, return to A/P/C menu
 - If no: Keep original, return to A/P/C menu
 
 #### IF C (Continue):
+
 - Append the final content to `{outputFile}`
 - Update frontmatter: `stepsCompleted: [1, 2, 3, 4, 5]`
 - Load `{nextStepFile}`
@@ -294,7 +323,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [cross-cutting content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -316,5 +345,6 @@ ONLY WHEN [C continue option] is selected and [cross-cutting content saved with 
 - Not presenting A/P/C menu after documentation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
-```
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+
+```bash

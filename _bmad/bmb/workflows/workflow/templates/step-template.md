@@ -4,7 +4,7 @@ This template provides the standard structure for all BMAD workflow step files. 
 
 <!-- TEMPLATE START -->
 
----
+- --
 
 name: 'step-[N]-[short-name]'
 description: '[Brief description of what this step accomplishes]'
@@ -17,7 +17,9 @@ workflow\*path: '{project-root}/_bmad/[module]/reference/workflows/[workflow-nam
 
 thisStepFile: './step-[N]-[short-name].md'
 nextStep{N+1}: './step-[N+1]-[next-short-name].md' # Remove for final step or no next step
+
 altStep{Y}: './step-[Y]-[some-other-step].md' # if there is an alternate next story depending on logic
+
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/[output-file-name]-{project_name}.md'
 
@@ -38,7 +40,7 @@ someData: '{workflow_path}/data/foo.csv'
 
 # Add more as needed - but ONLY what is used in this specific step file!
 
----
+- --
 
 # Step [N]: [Step Name]
 
@@ -88,7 +90,7 @@ Example: "To analyze user requirements and document functional specifications th
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Title
 
@@ -110,7 +112,9 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Cont
 #### Menu Handling Logic:
 
 - IF A: Execute {advancedElicitationTask} # Or custom action
+
 - IF P: Execute {partyModeWorkflow} # Or custom action
+
 - IF C: Save content to {outputFile}, update frontmatter, then only then load, read entire file, then execute {nextStepFile}
 - IF Any other comments or queries: help user respond then [Redisplay Menu Options](#n-present-menu-options)
 
@@ -145,7 +149,7 @@ ONLY WHEN [C continue option] is selected and [completion requirements], will yo
 - Not updating required documents/frontmatter
 - [Step-specific failure mode N]
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
 <!-- TEMPLATE END-->
 
@@ -158,6 +162,7 @@ Advanced elicitation is use to direct you to think of alternative outputs of a s
 ### Standard Menu - when a sequence in a step results in content produced by the agent or human that could be improved before proceeding
 
 ```markdown
+
 ### N. Present MENU OPTIONS
 
 Display: "**Select an Option:** [A] [Advanced Elicitation] [P] Party Mode [C] Continue"
@@ -175,11 +180,13 @@ Display: "**Select an Option:** [A] [Advanced Elicitation] [P] Party Mode [C] Co
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
 - User can chat or ask questions - always respond and then end with display again of the menu options
-```
+
+```bash
 
 ### Optional Menu - Auto-Proceed Menu (No User Choice or confirm, just flow right to the next step once completed)
 
 ```markdown
+
 ### N. Present MENU OPTIONS
 
 Display: "**Proceeding to [next action]...**"
@@ -192,11 +199,13 @@ Display: "**Proceeding to [next action]...**"
 
 - This is an [auto-proceed reason] step with no user choices
 - Proceed directly to next step after setup
-```
+
+```bash
 
 ### Custom Menu Options
 
 ```markdown
+
 ### N. Present MENU OPTIONS
 
 Display: "**Select an Option:** [A] [Custom Action 1] [B] [Custom Action 2] [C] Continue"
@@ -214,14 +223,16 @@ Display: "**Select an Option:** [A] [Custom Action 1] [B] [Custom Action 2] [C] 
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
 - User can chat or ask questions - always respond and then end with display again of the menu options
-```
+
+```bash
 
 ### Conditional Menu (Based on Workflow State)
 
 ```markdown
+
 ### N. Present MENU OPTIONS
 
-Display: "**Select an Option:** [A] [Continue to Step Foo] [A] [Continue to Step Bar]"
+Display: "**Select an Option:**[A] [Continue to Step Foo] [A] [Continue to Step Bar]"
 
 #### Menu Handling Logic:
 
@@ -237,7 +248,8 @@ Display: "**Select an Option:** [A] [Continue to Step Foo] [A] [Continue to Step
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
 - User can chat or ask questions - always respond and then end with display again of the menu options
-```
+
+```bash
 
 ## Example Step Implementations
 
@@ -280,11 +292,11 @@ See [step-11-completion.md](../steps-c/step-11-completion.md) for an example of:
 
 ## Best Practices
 
-1. **Keep step files focused** - Each step should do one thing well
-2. **Be explicit in instructions** - No ambiguity about what to do
-3. **Include all critical rules** - Don't assume anything from other steps
-4. **Use clear, concise language** - Avoid jargon unless necessary
-5. **Ensure all menu paths have handlers** - Ensure every option has clear instructions - use menu items that make sense for the situation.
-6. **Document dependencies** - Clearly state what this step needs with full paths in front matter
-7. **Define success and failure clearly** - Both for the step and the workflow
-8. **Mark completion clearly** - Ensure final steps update frontmatter to indicate workflow completion
+1.**Keep step files focused**- Each step should do one thing well
+2.**Be explicit in instructions**- No ambiguity about what to do
+3.**Include all critical rules**- Don't assume anything from other steps
+4.**Use clear, concise language**- Avoid jargon unless necessary
+5.**Ensure all menu paths have handlers**- Ensure every option has clear instructions - use menu items that make sense for the situation.
+6.**Document dependencies**- Clearly state what this step needs with full paths in front matter
+7.**Define success and failure clearly**- Both for the step and the workflow
+8.**Mark completion clearly** - Ensure final steps update frontmatter to indicate workflow completion

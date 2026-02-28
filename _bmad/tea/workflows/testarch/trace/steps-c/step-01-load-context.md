@@ -1,10 +1,12 @@
----
+- --
+
 name: 'step-01-load-context'
 description: 'Load requirements, knowledge base, and related artifacts'
 nextStepFile: './step-02-discover-tests.md'
 knowledgeIndex: '{project-root}/_bmad/tea/testarch/tea-index.csv'
 outputFile: '{test_artifacts}/traceability-report.md'
----
+
+- --
 
 # Step 1: Load Context & Knowledge Base
 
@@ -17,7 +19,7 @@ Gather acceptance criteria, priorities, and supporting artifacts for traceabilit
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -34,16 +36,16 @@ Gather acceptance criteria, priorities, and supporting artifacts for traceabilit
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Prerequisites
 
 - Acceptance criteria available (story or provided inline)
 - Tests exist OR gaps explicitly acknowledged
 
-If acceptance criteria are missing, **HALT** and request them.
+If acceptance criteria are missing,**HALT** and request them.
 
----
+- --
 
 ## 2. Load Knowledge Base
 
@@ -55,7 +57,7 @@ From `{knowledgeIndex}` load:
 - `test-quality.md`
 - `selective-testing.md`
 
----
+- --
 
 ## 3. Load Artifacts
 
@@ -67,20 +69,24 @@ If available:
 
 Summarize what was found.
 
----
+- --
 
 ### 4. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-01-load-context']
   lastStep: 'step-01-load-context'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -102,4 +108,4 @@ Load next step: `{nextStepFile}`
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

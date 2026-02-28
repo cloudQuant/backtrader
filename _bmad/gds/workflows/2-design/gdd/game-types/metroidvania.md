@@ -2,17 +2,19 @@
 
 <narrative-workflow-recommended>
 This game type is **narrative-moderate**. Consider running the Narrative Design workflow after completing the GDD to create:
+
 - World lore and environmental storytelling
 - Character encounters and NPC arcs
 - Backstory reveals through exploration
 - Optional narrative depth
+
 </narrative-workflow-recommended>
 
 ### Interconnected World Map
 
 {{world_map}}
 
-**Map design:**
+- *Map design:**
 
 - World structure (regions, zones, biomes)
 - Interconnection points (shortcuts, elevators, warps)
@@ -25,7 +27,7 @@ This game type is **narrative-moderate**. Consider running the Narrative Design 
 
 {{ability_gating}}
 
-**Progression gates:**
+- *Progression gates:**
 
 - Core abilities (double jump, dash, wall climb, swim, etc.)
 - Ability locations and pacing
@@ -38,7 +40,7 @@ This game type is **narrative-moderate**. Consider running the Narrative Design 
 
 {{backtracking}}
 
-**Return mechanics:**
+- *Return mechanics:**
 
 - Obvious backtrack opportunities
 - Hidden backtrack rewards
@@ -51,7 +53,7 @@ This game type is **narrative-moderate**. Consider running the Narrative Design 
 
 {{exploration_rewards}}
 
-**Discovery incentives:**
+- *Discovery incentives:**
 
 - Health/energy upgrades
 - Ability upgrades
@@ -64,7 +66,7 @@ This game type is **narrative-moderate**. Consider running the Narrative Design 
 
 {{combat_system}}
 
-**Combat mechanics:**
+- *Combat mechanics:**
 
 - Attack types (melee, ranged, magic)
 - Boss fight design
@@ -77,7 +79,7 @@ This game type is **narrative-moderate**. Consider running the Narrative Design 
 
 {{sequence_breaking}}
 
-**Advanced play:**
+- *Advanced play:**
 
 - Intended vs. unintended skips
 - Speedrun considerations

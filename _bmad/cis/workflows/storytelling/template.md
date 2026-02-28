@@ -1,18 +1,18 @@
 # Story Output
 
-**Created:** {{date}}
-**Storyteller:** {{agent_role}} {{agent_name}}
-**Author:** {{user_name}}
+- *Created:** {{date}}
+- *Storyteller:** {{agent_role}} {{agent_name}}
+- *Author:** {{user_name}}
 
 ## Story Information
 
-**Story Type:** {{story_type}}
+- *Story Type:** {{story_type}}
 
-**Framework Used:** {{framework_name}}
+- *Framework Used:** {{framework_name}}
 
-**Purpose:** {{story_purpose}}
+- *Purpose:** {{story_purpose}}
 
-**Target Audience:** {{target_audience}}
+- *Target Audience:** {{target_audience}}
 
 ## Story Structure
 
@@ -108,6 +108,6 @@
 
 {{feedback_plan}}
 
----
+- --
 
 _Story crafted using the BMAD CIS storytelling framework_

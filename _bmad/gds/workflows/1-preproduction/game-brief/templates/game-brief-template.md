@@ -1,16 +1,16 @@
 # Game Brief: {{game_name}}
 
-**Date:** {{date}}
-**Author:** {{user_name}}
-**Status:** Draft for GDD Development
+- *Date:** {{date}}
+- *Author:** {{user_name}}
+- *Status:** Draft for GDD Development
 
----
+- --
 
 ## Executive Summary
 
 {{executive_summary}}
 
----
+- --
 
 ## Game Vision
 
@@ -26,7 +26,7 @@
 
 {{vision_statement}}
 
----
+- --
 
 ## Target Market
 
@@ -42,7 +42,7 @@
 
 {{market_context}}
 
----
+- --
 
 ## Game Fundamentals
 
@@ -58,7 +58,7 @@
 
 {{player_experience_goals}}
 
----
+- --
 
 ## Scope and Constraints
 
@@ -82,7 +82,7 @@
 
 {{technical_constraints}}
 
----
+- --
 
 ## Reference Framework
 
@@ -98,7 +98,7 @@
 
 {{key_differentiators}}
 
----
+- --
 
 ## Content Framework
 
@@ -114,7 +114,7 @@
 
 {{content_volume}}
 
----
+- --
 
 ## Art and Audio Direction
 
@@ -130,7 +130,7 @@
 
 {{production_approach}}
 
----
+- --
 
 ## Risk Assessment
 
@@ -150,7 +150,7 @@
 
 {{mitigation_strategies}}
 
----
+- --
 
 ## Success Criteria
 
@@ -166,7 +166,7 @@
 
 {{launch_goals}}
 
----
+- --
 
 ## Next Steps
 
@@ -182,7 +182,7 @@
 
 {{open_questions}}
 
----
+- --
 
 ## Appendices
 
@@ -198,7 +198,7 @@
 
 {{references}}
 
----
+- --
 
 _This Game Brief serves as the foundational input for Game Design Document (GDD) creation._
 

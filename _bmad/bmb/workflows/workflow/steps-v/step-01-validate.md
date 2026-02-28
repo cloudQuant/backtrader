@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-validate'
 description: 'Initialize validation: create report and check file structure & size'
 
@@ -7,7 +8,8 @@ targetWorkflowPath: '{workflow_folder_path}'
 workflowPlanFile: '{workflow_folder_path}/workflow-plan.md'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 stepFileRules: '../data/step-file-rules.md'
----
+
+- --
 
 # Validation Step 1: File Structure & Size
 
@@ -41,91 +43,112 @@ To create the validation report and check that the workflow has correct file str
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Create Validation Report
 
 Create {validationReportFile} with header structure:
 
 ```markdown
----
+
+- --
+
 validationDate: [current date]
 workflowName: {new_workflow_name}
 workflowPath: {workflow_folder_path}
 validationStatus: IN_PROGRESS
----
+
+- --
 
 # Validation Report: {new_workflow_name}
 
-**Validation Started:** [current date]
-**Validator:** BMAD Workflow Validation System
-**Standards Version:** BMAD Workflow Standards
+- *Validation Started:** [current date]
+- *Validator:** BMAD Workflow Validation System
+- *Standards Version:** BMAD Workflow Standards
 
----
+- --
 
 ## File Structure & Size
 
-*Validation in progress...*
+- Validation in progress...*
 
 ## Frontmatter Validation
-*Pending...*
+
+- Pending...*
 
 ## Critical Path Violations
-*Pending...*
+
+- Pending...*
 
 ## Menu Handling Validation
-*Pending...*
+
+- Pending...*
 
 ## Step Type Validation
-*Pending...*
+
+- Pending...*
 
 ## Output Format Validation
-*Pending...*
+
+- Pending...*
 
 ## Validation Design Check
-*Pending...*
+
+- Pending...*
 
 ## Instruction Style Check
-*Pending...*
+
+- Pending...*
 
 ## Collaborative Experience Check
-*Pending...*
+
+- Pending...*
 
 ## Subprocess Optimization Opportunities
-*Pending...*
+
+- Pending...*
 
 ## Cohesive Review
-*Pending...*
+
+- Pending...*
 
 ## Plan Quality Validation
-*Pending...*
+
+- Pending...*
 
 ## Summary
-*Pending...*
-```
+
+- Pending...*
+
+```bash
 
 ### 2. Load File Structure Standards
 
 Load {stepFileRules} to understand:
+
 - File size limits (<200 recommended, 250 max)
 - Required folder structure
 - Required files
 
 ### 3. Check Folder Structure
 
-**Launch a single subprocess that:**
+- *Launch a single subprocess that:**
 
 1. Lists the entire folder structure using bash commands
 2. Verifies all required folders and files exist
 3. Returns structured findings to parent for aggregation
 
 ```bash
-# List folder structure
-find {targetWorkflowPath} -type f -name "*.md" | sort
-```
 
-**Expected structure:**
-```
+# List folder structure
+
+find {targetWorkflowPath} -type f -name "*.md" | sort
+
+```bash
+
+- *Expected structure:**
+
+```bash
 {targetWorkflowPath}/
 ├── workflow.md
 ├── steps*/ potentially more than one folder like this (such as steps-v, steps-c - the folder name is not critical but should make sense)
@@ -134,13 +157,15 @@ find {targetWorkflowPath} -type f -name "*.md" | sort
 │   ├── step-02-*.md
 │   └── ...
 ├── */ # any other random files - critical will be later ensure its all used - aside from potential documentation for user later.
+
 ├── data/
 │   └── [as needed]
 └── templates/
     └── [as needed]
-```
 
-**Check:**
+```bash
+
+- *Check:**
 - ✅ workflow.md exists
 - ✅ step files are in a well organized folder
 - ✅ non step reference files are organized in other folders such as data, templates, or others that make sense for the workflow
@@ -148,24 +173,24 @@ find {targetWorkflowPath} -type f -name "*.md" | sort
 
 ### 4. Check File Sizes
 
-**DO NOT BE LAZY - For EACH step file in steps-c/, launch a subprocess that:**
+- *DO NOT BE LAZY - For EACH step file in steps-c/, launch a subprocess that:**
 
 1. Loads that step file
 2. Counts lines and checks against size limits
 3. Returns structured findings to parent for aggregation
 
-**Limits:**
+- *Limits:**
 - < 200 lines: ✅ Good
 - 200-250 lines: ⚠️ Approaching limit
 - > 250 lines: ❌ Exceeds limit
 
-**Subprocess returns:** File name, line count, status (Good/Approaching limit/Exceeds limit), and any issues found.
+- *Subprocess returns:** File name, line count, status (Good/Approaching limit/Exceeds limit), and any issues found.
 
-**Subprocess must either:**
+- *Subprocess must either:**
 - Update validation report directly with findings, OR
 - Return structured findings to parent for aggregation into report
 
-**Document findings in validation report:**
+- *Document findings in validation report:**
 - List all step files checked with their line counts
 - Note any files approaching or exceeding size limits (<200 recommended, 250 max)
 - Check data and reference files for size issues (large files should be sharded or indexed)
@@ -174,6 +199,7 @@ find {targetWorkflowPath} -type f -name "*.md" | sort
 ### 5. Verify File Presence
 
 From the design in {workflowPlanFile}, verify:
+
 - Every step from design has a corresponding file
 - Step files are numbered sequentially
 - No gaps in numbering
@@ -183,7 +209,7 @@ From the design in {workflowPlanFile}, verify:
 
 Replace the "## File Structure & Size" section in {validationReportFile} with actual findings:
 
-**Document the following:**
+- *Document the following:**
 - Folder structure assessment
 - Required files presence check
 - File size analysis results
@@ -192,14 +218,15 @@ Replace the "## File Structure & Size" section in {validationReportFile} with ac
 
 ### 7. Save Report and Auto-Proceed
 
-**CRITICAL:** Save the validation report BEFORE loading next step.
+- *CRITICAL:** Save the validation report BEFORE loading next step.
 
 Then immediately load, read entire file, then execute {nextStepFile}.
 
-**Display:**
+- *Display:**
+
 "**File Structure & Size validation complete.** Proceeding to Frontmatter Validation..."
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -218,4 +245,4 @@ Then immediately load, read entire file, then execute {nextStepFile}.
 - Not saving report before proceeding
 - Halting for user input
 
-**Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Check EVERY file. Auto-proceed through all validation steps.
+- *Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Check EVERY file. Auto-proceed through all validation steps.

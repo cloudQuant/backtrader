@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-welcome'
 description: 'Welcome user, select mode (Interactive/Express/YOLO), gather initial idea'
 
@@ -7,7 +8,8 @@ briefTemplateFile: '../templates/brief-template.md'
 moduleStandardsFile: '../data/module-standards.md'
 advancedElicitationTask: '../../../../core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '../../../../core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 1: Welcome & Mode Selection
 
@@ -49,11 +51,11 @@ Welcome the user to the Module Brief workflow, select the collaboration mode (In
 - Focus: Initial idea gathering and mode selection
 - No existing brief — this is a fresh start
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ### 1. Welcome with Enthusiasm
 
@@ -67,27 +69,28 @@ Modules are powerful — they package agents, workflows, and configuration into 
 
 "**How would you like to work?**"
 
-- **[I]nteractive** — Deep collaboration, we'll explore each section together thoroughly
-- **[E]xpress** — Faster pace, targeted questions to get to a solid brief quickly
+- **[I]nteractive**— Deep collaboration, we'll explore each section together thoroughly
+- **[E]xpress**— Faster pace, targeted questions to get to a solid brief quickly
 - **[Y]OLO** — I'll generate a complete brief from minimal input (you can refine later)
 
-**Store the selected mode. This affects how we proceed through subsequent steps.**
+- *Store the selected mode. This affects how we proceed through subsequent steps.**
 
 ### 3. Gather the Initial Idea
 
 "**Tell me about your module idea.**"
 
 Encourage them to share:
+
 - What problem does it solve?
 - Who would use it?
 - What excites you about it?
 
-**If they're stuck**, offer creative prompts:
+- *If they're stuck**, offer creative prompts:
 - "What domain do you work in? What tasks feel repetitive or could be AI-powered?"
 - "Imagine you had a team of AI experts at your disposal — what would you ask them to build?"
 - "Is there a module you wish existed?"
 
-**Capture their initial idea.** We'll explore and expand it in the next steps.
+- *Capture their initial idea.** We'll explore and expand it in the next steps.
 
 ### 4. Preview the Journey Ahead
 
@@ -111,7 +114,7 @@ Encourage them to share:
 
 ### 5. Present MENU OPTIONS
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
 
 #### EXECUTION RULES:
 
@@ -126,7 +129,7 @@ Encourage them to share:
 - IF C: Store the mode and initial idea, then load `{nextStepFile}`
 - IF Any other: Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -144,4 +147,4 @@ Encourage them to share:
 - Not setting the creative tone
 - Rushing through mode selection
 
-**Master Rule:** This step sets the tone for the entire brief — make it inspiring and collaborative.
+- *Master Rule:** This step sets the tone for the entire brief — make it inspiring and collaborative.

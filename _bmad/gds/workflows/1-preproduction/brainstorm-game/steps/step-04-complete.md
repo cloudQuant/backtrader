@@ -1,23 +1,28 @@
----
+- --
+
 name: 'step-04-complete'
 description: 'Complete the brainstorming session with summary and next steps'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/brainstorm-game'
 
 # File References
+
 thisStepFile: './step-04-complete.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/brainstorming-session-{date}.md'
 
 # Handoff References
+
 gameBriefWorkflow: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief/workflow.yaml'
 gddWorkflow: '{project-root}/_bmad/gds/workflows/2-design/gdd/workflow.yaml'
----
+
+- --
 
 # Step 4: Complete Session
 
-**Progress: Step 4 of 4** - Brainstorming Complete!
+- *Progress: Step 4 of 4** - Brainstorming Complete!
 
 ## STEP GOAL:
 
@@ -56,22 +61,26 @@ Finalize the brainstorming session, generate actionable next steps, update workf
 
 ### 1. Generate Session Summary
 
-**Create executive summary:**
+- *Create executive summary:**
 
 Based on all ideation, synthesize a summary:
 
 ```markdown
+
 ## Session Summary
 
 ### Most Promising Concepts
 
-**Top Pick: {{top_concept}}**
+- *Top Pick: {{top_concept}}**
+
 {{why_most_promising}}
 
-**Runner-up: {{second_concept}}**
+- *Runner-up: {{second_concept}}**
+
 {{why_promising}}
 
-**Honorable Mention: {{third_concept}}**
+- *Honorable Mention: {{third_concept}}**
+
 {{why_worth_exploring}}
 
 ### Key Insights
@@ -83,7 +92,8 @@ Based on all ideation, synthesize a summary:
 1. {{next_step_1}}
 2. {{next_step_2}}
 3. {{next_step_3}}
-```
+
+```bash
 
 ### 2. Present Final Summary
 
@@ -91,25 +101,26 @@ Based on all ideation, synthesize a summary:
 
 {{user_name}}, here's what we accomplished:
 
-**Session Stats:**
+- *Session Stats:**
 
 - Ideas generated: {{idea_count}}
 - Concepts developed: {{concept_count}}
 - Techniques used: {{technique_list}}
 
-**Most Promising Concept:**
-**{{top_concept_name}}** - {{brief_description}}
+- *Most Promising Concept:**
+- *{{top_concept_name}}** - {{brief_description}}
 
-**Why This Stands Out:**
+- *Why This Stands Out:**
+
 {{reasons}}
 
-**Document saved to:** `{outputFile}`
+- *Document saved to:** `{outputFile}`
 
 Would you like to review or adjust the summary before we finalize?"
 
 ### 3. Handle Review Requests
 
-**If user wants to review:**
+- *If user wants to review:**
 
 "Which would you like to review?
 
@@ -122,7 +133,7 @@ Or type 'all' to see the complete document."
 
 ### 4. Update Workflow Status
 
-**If not in standalone mode:**
+- *If not in standalone mode:**
 
 Load `{output_folder}/gds-workflow-status.yaml` and:
 
@@ -135,13 +146,14 @@ Load `{output_folder}/gds-workflow-status.yaml` and:
 Prepare the final content:
 
 ```markdown
----
+
+- --
 
 ## Session Complete
 
-**Date:** {{date}}
-**Duration:** Brainstorming session
-**Participant:** {{user_name}}
+- *Date:** {{date}}
+- *Duration:** Brainstorming session
+- *Participant:** {{user_name}}
 
 ### Output
 
@@ -155,32 +167,36 @@ This brainstorming session generated:
 
 Status: Complete
 Steps Completed: [1, 2, 3, 4]
-```
+
+```bash
 
 ### 6. Present Next Steps Menu
 
 "**Recommended Next Steps:**
 
-1. **Create Game Brief** - Transform your top concept into a formal game brief
+1. **Create Game Brief**- Transform your top concept into a formal game brief
    - Workflow: `create-brief`
    - Input: This brainstorming session
    - Output: Structured game vision document
 
-2. **Research Market** - Validate your concept against the market
+2.**Research Market**- Validate your concept against the market
+
    - Look at similar games
    - Identify your unique angle
    - Understand competition
 
-3. **Prototype Core Mechanic** - Test your core idea immediately
+3.**Prototype Core Mechanic**- Test your core idea immediately
+
    - Quick paper prototype
    - Simple digital prototype
    - Get hands-on feel for the concept
 
-4. **Another Brainstorm Session** - Explore more concepts
+4.**Another Brainstorm Session** - Explore more concepts
+
    - Try different techniques
    - Explore alternative directions
 
-**Which would you like to do next?**
+- *Which would you like to do next?**
 
 1. Start Game Brief workflow
 2. Review the brainstorming results
@@ -191,23 +207,23 @@ Steps Completed: [1, 2, 3, 4]
 
 Based on user choice:
 
-**If 1 (Game Brief):**
+- *If 1 (Game Brief):**
 
 - Confirm document is saved
 - Provide handoff guidance for game brief workflow
 - Note that brainstorming results will be input
 
-**If 2 (Review):**
+- *If 2 (Review):**
 
 - Present document summary
 - Return to next steps menu
 
-**If 3 (Another Session):**
+- *If 3 (Another Session):**
 
 - Note that a new session file will be created
 - Route back to step 1 for fresh start
 
-**If 4 (Exit):**
+- *If 4 (Exit):**
 
 - Confirm document is saved and complete
 - Exit workflow gracefully
@@ -216,20 +232,22 @@ Based on user choice:
 
 "**Brainstorming Session Complete!**
 
-**Deliverables:**
+- *Deliverables:**
 
 - Brainstorming results saved to: `{outputFile}`
 - {{idea_count}} ideas captured
 - Top concepts identified and summarized
 
 {{#if standalone_mode != true}}
-**Status Updated:**
+
+- *Status Updated:**
 
 - Progress tracking updated: brainstorm-game marked complete
 - Next recommended: Game Brief workflow
+
   {{/if}}
 
-**Your Ideas Are Ready For:**
+- *Your Ideas Are Ready For:**
 
 - Game Brief creation
 - Concept validation
@@ -238,7 +256,7 @@ Based on user choice:
 
 Great brainstorming session, {{user_name}}! Your creativity is the foundation for an exciting game."
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -260,17 +278,17 @@ Great brainstorming session, {{user_name}}! Your creativity is the foundation fo
 - Status not updated when tracking enabled
 - User left without guidance
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:**Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
 
----
+- --
 
 ## Brainstorm Game Workflow Complete
 
 The Brainstorm Game workflow facilitates creative game ideation through 4 collaborative steps:
 
-1. **Initialize** - Set brainstorming mindset and prepare session
-2. **Context** - Load game-specific techniques and select approach
-3. **Ideation** - Execute brainstorming with user driving ideas
-4. **Complete** - Summarize results and provide next steps
+1.**Initialize**- Set brainstorming mindset and prepare session
+2.**Context**- Load game-specific techniques and select approach
+3.**Ideation**- Execute brainstorming with user driving ideas
+4.**Complete** - Summarize results and provide next steps
 
 This step-file architecture ensures consistent, creative brainstorming with user collaboration throughout.

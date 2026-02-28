@@ -55,6 +55,7 @@ If no document exists or no `stepsCompleted` in frontmatter:
 #### A. Input Document Discovery
 
 Discover and load context documents using smart discovery. Documents can be in the following locations:
+
 - {planning_artifacts}/**
 - {output_folder}/**
 - {product_knowledge}/**
@@ -63,6 +64,7 @@ Discover and load context documents using smart discovery. Documents can be in t
 Also - when searching - documents can be a single markdown file, or a folder with an index and multiple files. For Example, if searching for `*foo*.md` and not found, also search for a folder called *foo*/index.md (which indicates sharded content)
 
 Try to discover the following:
+
 - Product Brief (`*brief*.md`)
 - Research Documents (`*prd*.md`)
 - Project Documentation (generally multiple documents might be found for this in the `{product_knowledge}` or `docs` folder.)
@@ -70,7 +72,7 @@ Try to discover the following:
 
 <critical>Confirm what you have found with the user, along with asking if the user wants to provide anything else. Only after this confirmation will you proceed to follow the loading rules</critical>
 
-**Loading Rules:**
+- *Loading Rules:**
 
 - Load ALL discovered files completely that the user confirmed or provided (no offset/limit)
 - If there is a project context, whatever is relevant should try to be biased in the remainder of this whole workflow process
@@ -87,22 +89,23 @@ Initialize frontmatter in the template.
 
 Complete setup and report to user:
 
-**Document Setup:**
+- *Document Setup:**
 
 - Created: `{planning_artifacts}/ux-design-specification.md` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
+- *Input Documents Discovered:**
+
 Report what was found:
 "Welcome {{user_name}}! I've set up your UX design workspace for {{project_name}}.
 
-**Documents Found:**
+- *Documents Found:**
 
 - PRD: {number of PRD files loaded or "None found"}
 - Product brief: {number of brief files loaded or "None found"}
 - Other context: {number of other files loaded or "None found"}
 
-**Files loaded:** {list of specific file names or "No additional documents found"}
+- *Files loaded:**{list of specific file names or "No additional documents found"}
 
 Do you have any other documents you'd like me to include, or shall we continue to the next step?
 
@@ -130,6 +133,6 @@ Remember: Do NOT proceed to step-02 until output file has been updated and user 
 ❌ Not checking sharded folders first before whole files
 ❌ Not reporting what documents were found to user
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols

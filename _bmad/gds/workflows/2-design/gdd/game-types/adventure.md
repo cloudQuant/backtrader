@@ -2,18 +2,20 @@
 
 <narrative-workflow-recommended>
 This game type is **narrative-heavy**. Consider running the Narrative Design workflow after completing the GDD to create:
+
 - Detailed story structure and beats
 - Character profiles and arcs
 - World lore and history
 - Dialogue framework
 - Environmental storytelling
+
 </narrative-workflow-recommended>
 
 ### Exploration Mechanics
 
 {{exploration_mechanics}}
 
-**Exploration design:**
+- *Exploration design:**
 
 - World structure (linear, open, hub-based, interconnected)
 - Movement and traversal
@@ -25,7 +27,7 @@ This game type is **narrative-heavy**. Consider running the Narrative Design wor
 
 {{story_integration}}
 
-**Narrative gameplay:**
+- *Narrative gameplay:**
 
 - Story delivery methods (cutscenes, in-game, environmental)
 - Player agency in story (linear, branching, player-driven)
@@ -33,13 +35,13 @@ This game type is **narrative-heavy**. Consider running the Narrative Design wor
 - Character introduction and development
 - Climax and resolution structure
 
-**Note:** Detailed story elements (plot, characters, lore) belong in the Narrative Design Document.
+- *Note:** Detailed story elements (plot, characters, lore) belong in the Narrative Design Document.
 
 ### Puzzle Systems
 
 {{puzzle_systems}}
 
-**Puzzle integration:**
+- *Puzzle integration:**
 
 - Puzzle types (inventory, logic, environmental, dialogue)
 - Puzzle difficulty curve
@@ -51,7 +53,7 @@ This game type is **narrative-heavy**. Consider running the Narrative Design wor
 
 {{character_interaction}}
 
-**NPC systems:**
+- *NPC systems:**
 
 - Dialogue system (branching, linear, choice-based)
 - Character relationships
@@ -63,7 +65,7 @@ This game type is **narrative-heavy**. Consider running the Narrative Design wor
 
 {{inventory_items}}
 
-**Item systems:**
+- *Item systems:**
 
 - Inventory scope (key items, collectibles, consumables)
 - Item examination/description
@@ -75,7 +77,7 @@ This game type is **narrative-heavy**. Consider running the Narrative Design wor
 
 {{environmental_storytelling}}
 
-**World narrative:**
+- *World narrative:**
 
 - Visual storytelling techniques
 - Audio atmosphere

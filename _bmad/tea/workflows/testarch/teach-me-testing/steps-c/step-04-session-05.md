@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-04-session-05'
 description: 'Session 5: ATDD & Automate - TDD red-green approach, generate tests (60 min)'
 
@@ -8,7 +9,8 @@ sessionNotesFile: '{test_artifacts}/tea-academy/{user_name}/session-05-notes.md'
 nextStepFile: './step-03-session-menu.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Session 5 - ATDD & Automate
 
@@ -47,9 +49,9 @@ To teach ATDD (red-green TDD) and Automate workflows for test generation in a 60
 
 "🧪 **Session 5: ATDD & Automate** (60 minutes)
 
-**Objective:** Generate tests with TDD red-green approach
+- *Objective:** Generate tests with TDD red-green approach
 
-**What you'll learn:**
+- *What you'll learn:**
 
 - ATDD workflow (failing tests first)
 - Automate workflow (expand coverage)
@@ -71,16 +73,17 @@ Save the updated progress file.
 
 "### 🔴 ATDD: Acceptance-Driven Test Development
 
-**TDD Red Phase:** Write failing tests FIRST
+- *TDD Red Phase:** Write failing tests FIRST
 
-**ATDD Workflow:**
+- *ATDD Workflow:**
 
-1. **Preflight:** Check prerequisites
-2. **Test Strategy:** Define what to test
-3. **Generate FAILING Tests:** Red phase (tests fail because code doesn't exist yet)
-4. **Implement Code:** Green phase (make tests pass)
+1. **Preflight:**Check prerequisites
 
-**Why Failing Tests First:**
+2.**Test Strategy:**Define what to test
+3.**Generate FAILING Tests:**Red phase (tests fail because code doesn't exist yet)
+4.**Implement Code:** Green phase (make tests pass)
+
+- *Why Failing Tests First:**
 
 - Validates tests actually test something
 - Prevents false positives
@@ -88,41 +91,43 @@ Save the updated progress file.
 
 {Role-adapted example}
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-atdd/>"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-atdd/>"
 
 ### 4. Teaching: Automate Workflow
 
 "### 🤖 Automate: Expand Test Coverage
 
-**Purpose:** Generate tests for existing features
+- *Purpose:** Generate tests for existing features
 
-**Automate Workflow:**
+- *Automate Workflow:**
 
-1. **Identify Targets:** What needs testing
-2. **Generate Tests:** API and/or E2E tests
-3. **Review & Run:** Tests should pass (code already exists)
+1. **Identify Targets:**What needs testing
 
-**Difference from ATDD:**
+2.**Generate Tests:**API and/or E2E tests
+3.**Review & Run:** Tests should pass (code already exists)
+
+- *Difference from ATDD:**
 
 - ATDD: Tests first, then code (red → green)
 - Automate: Code first, then tests (coverage expansion)
 
 {Role-adapted example}
 
-**Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-automate/>"
+- *Documentation:** <https://bmad-code-org.github.io/bmad-method-test-architecture-enterprise/how-to/workflows/run-automate/>"
 
 ### 5. Teaching: Component TDD
 
 "### 🔄 Component TDD Red-Green Loop
 
-**Pattern:**
+- *Pattern:**
 
-1. **Red:** Write failing test
-2. **Green:** Minimal code to pass
-3. **Refactor:** Improve code, tests stay green
-4. **Repeat:** Next requirement
+1. **Red:**Write failing test
 
-**Example:**
+2.**Green:**Minimal code to pass
+3.**Refactor:**Improve code, tests stay green
+4.**Repeat:** Next requirement
+
+- *Example:**
 
 ```typescript
 // RED: Test fails (function doesn't exist)
@@ -136,24 +141,24 @@ function calculateTotal(prices) {
 }
 
 // REFACTOR: Add validation, tests still green
-```
 
+```bash
 {Role-adapted example}
 
-**Knowledge Fragment:** component-tdd.md"
+- *Knowledge Fragment:** component-tdd.md"
 
 ### 6. Teaching: API Testing Patterns
 
 "### 🌐 API Testing Patterns
 
-**Pure API Testing (no browser):**
+- *Pure API Testing (no browser):**
 
 - Fast execution
 - Test business logic
 - Validate responses
 - Schema validation
 
-**Pattern:**
+- *Pattern:**
 
 ```typescript
 test('GET /users returns user list', async ({ request }) => {
@@ -162,15 +167,16 @@ test('GET /users returns user list', async ({ request }) => {
   const users = await response.json();
   expect(users).toHaveLength(10);
 });
-```
 
+```bash
 {Role-adapted example}
 
-**Knowledge Fragment:** api-testing-patterns.md, api-request.md"
+- *Knowledge Fragment:** api-testing-patterns.md, api-request.md"
 
 ### 7. Quiz (3 questions)
 
-**Q1:** "What is the 'red' phase in TDD?
+- *Q1:** "What is the 'red' phase in TDD?
+
 A) Tests fail (code doesn't exist yet)
 B) Tests pass
 C) Code is refactored
@@ -178,7 +184,8 @@ D) Tests are deleted"
 
 Correct: A
 
-**Q2:** "What's the difference between ATDD and Automate workflows?
+- *Q2:** "What's the difference between ATDD and Automate workflows?
+
 A) ATDD generates E2E, Automate generates API tests
 B) ATDD writes tests first (red phase), Automate tests existing code
 C) ATDD is faster than Automate
@@ -186,7 +193,8 @@ D) They're the same workflow"
 
 Correct: B
 
-**Q3:** "Why use pure API tests without a browser?
+- *Q3:**"Why use pure API tests without a browser?
+
 A) They look prettier
 B) They're easier to debug
 C) They're faster and test business logic directly
@@ -217,7 +225,7 @@ Set next_recommended: 'session-06-quality-trace'.
 
 ### 10. Complete Message
 
-"🎉 **Session 5 Complete!** Score: {score}/100
+"🎉**Session 5 Complete!** Score: {score}/100
 You can now generate tests with ATDD and Automate!
 Progress: {completion_percentage}%"
 
@@ -227,7 +235,7 @@ Progress: {completion_percentage}%"
 
 Return to {nextStepFile}.
 
----
+- --
 
 ## 🚨 SUCCESS METRICS
 

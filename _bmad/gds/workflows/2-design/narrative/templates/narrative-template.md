@@ -1,10 +1,10 @@
 # {{game_name}} - Narrative Design Document
 
-**Author:** {{user_name}}
-**Game Type:** {{game_type}}
-**Narrative Complexity:** {{narrative_complexity}}
+- *Author:** {{user_name}}
+- *Game Type:** {{game_type}}
+- *Narrative Complexity:** {{narrative_complexity}}
 
----
+- --
 
 ## Executive Summary
 
@@ -20,7 +20,7 @@
 
 {{tone_atmosphere}}
 
----
+- --
 
 ## Story Structure
 
@@ -28,7 +28,7 @@
 
 {{story_type}}
 
-**Structure used:** (3-act, hero's journey, kishōtenketsu, episodic, branching, etc.)
+- *Structure used:** (3-act, hero's journey, kishōtenketsu, episodic, branching, etc.)
 
 ### Act Breakdown
 
@@ -42,7 +42,7 @@
 
 {{pacing_flow}}
 
----
+- --
 
 ## Characters
 
@@ -62,7 +62,7 @@
 
 {{character_arcs}}
 
----
+- --
 
 ## World and Lore
 
@@ -86,7 +86,7 @@
 
 {{cultural_elements}}
 
----
+- --
 
 ## Dialogue Framework
 
@@ -106,7 +106,7 @@
 
 {{voice_characterization}}
 
----
+- --
 
 ## Environmental Storytelling
 
@@ -126,7 +126,7 @@
 
 {{environmental_clues}}
 
----
+- --
 
 ## Narrative Delivery
 
@@ -146,7 +146,7 @@
 
 {{multiple_endings}}
 
----
+- --
 
 ## Integration with Gameplay
 
@@ -162,7 +162,7 @@
 
 {{player_agency}}
 
----
+- --
 
 ## Production Notes
 
@@ -178,7 +178,7 @@
 
 {{voice_acting}}
 
----
+- --
 
 ## Appendix
 

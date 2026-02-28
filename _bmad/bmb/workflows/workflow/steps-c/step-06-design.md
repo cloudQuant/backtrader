@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-06-design'
 description: 'Design the workflow structure and step sequence based on gathered requirements, tools configuration, and output format'
 
@@ -16,7 +17,8 @@ inputDiscoveryStandards: '../data/input-discovery-standards.md'
 workflowChainingStandards: '../data/workflow-chaining-standards.md'
 trimodalWorkflowStructure: '../data/trimodal-workflow-structure.md'
 subprocessPatterns: '../data/subprocess-optimization-patterns.md'
----
+
+- --
 
 # Step 6: Workflow Structure Design
 
@@ -82,13 +84,14 @@ Example [Workflow.md](../workflow.md) for reference of a perfect workflow.md wit
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Step Structure Design
 
 Load {stepTypePatterns} for available step type templates:
 
 This shows the standard structure for all step types:
+
 - Init Step (Continuable)
 - Continuation Step (01b)
 - Middle Step (Standard/Simple)
@@ -108,7 +111,8 @@ Based on the approved plan, collaboratively design the info to answer the follow
 
 ### 1a. Continuation Support Assessment
 
-**Ask the user:**
+- *Ask the user:**
+
 "Will this workflow potentially take multiple sessions to complete? Consider:
 
 - Does this workflow generate a document/output file?
@@ -118,7 +122,7 @@ Based on the approved plan, collaboratively design the info to answer the follow
 
 If **YES** to any of these, we should include continuation support using step-01b-continue.md."
 
-**If continuation support is needed:**
+- *If continuation support is needed:**
 
 - Include step-01-init.md (with continuation detection logic)
 - Include step-01b-continue.md (for resuming workflows)
@@ -130,6 +134,7 @@ If **YES** to any of these, we should include continuation support using step-01
 Load {menuHandlingStandards} for menu pattern options:
 
 Design how users will interact with the workflow:
+
 - Where should users provide input vs where the AI works autonomously?
 - What menu pattern does each step need? (Standard A/P/C, Auto-proceed, Custom, Conditional)
 - Should there be Advanced Elicitation or Party Mode options?
@@ -181,35 +186,40 @@ Load {subprocessPatterns} to understand subprocess optimization patterns that ca
 
 Ask the user:
 
-"**Should we design this workflow to leverage subprocess optimization patterns?** Consider:
+"**Should we design this workflow to leverage subprocess optimization patterns?**Consider:
 
-- **Pattern 1 (Grep/Regex):** Will any step search across many files or documents for patterns?
-- **Pattern 2 (Deep Analysis):** Will any step analyze multiple files for prose, logic, quality, or flow?
-- **Pattern 3 (Data Operations):** Will any step load large reference data, knowledge bases, or datasets?
-- **Pattern 4 (Parallel Execution):** Can any validation or analysis checks run in parallel instead of sequentially?
+- **Pattern 1 (Grep/Regex):**Will any step search across many files or documents for patterns?
+- **Pattern 2 (Deep Analysis):**Will any step analyze multiple files for prose, logic, quality, or flow?
+- **Pattern 3 (Data Operations):**Will any step load large reference data, knowledge bases, or datasets?
+- **Pattern 4 (Parallel Execution):**Can any validation or analysis checks run in parallel instead of sequentially?
 
-If **YES** to any of these, we should design those steps with subprocess optimization in mind."
+If**YES** to any of these, we should design those steps with subprocess optimization in mind."
 
-**If subprocess optimization is applicable:**
+- *If subprocess optimization is applicable:**
 
 For each step that could benefit from subprocesses:
+
 - Identify which pattern(s) apply (Pattern 1, 2, 3, or 4)
 - Design what the subprocess should return (findings only, not full content)
 - Plan graceful fallback for LLMs without subprocess capability
 - Document optimization strategy in the build plan
 
-**Example subprocess integration:**
+- *Example subprocess integration:**
 
 ```markdown
+
 ### Step-Specific Rules:
+
 - 🎯 Analyze X files for Y - use subprocess per file (Pattern 2)
 - 💬 Subprocess returns structured findings, not full content
 - ⚙️ If subprocess unavailable: Perform analysis in main thread
-```
 
-**Document in the plan:**
+```bash
+
+- *Document in the plan:**
 
 For each step identified for subprocess optimization, record:
+
 - Step number and name
 - Pattern type(s) to apply
 - What the subprocess will analyze
@@ -225,16 +235,18 @@ Identify unique requirements:
 - Should it integrate with other workflows?
 - Does it need to handle multiple scenarios?
 
-**Input Discovery:**
+- *Input Discovery:**
 
 If this workflow depends on documents from prior workflows, load {inputDiscoveryStandards}:
+
 - What prior workflow outputs does this workflow need?
 - Are these required or optional inputs?
 - How will the workflow discover these documents?
 
-**Workflow Chaining:**
+- *Workflow Chaining:**
 
 If this workflow is part of a sequence, load {workflowChainingStandards}:
+
 - What workflow comes before this one?
 - What workflow comes after this one?
 - What outputs does this workflow produce for the next?
@@ -307,7 +319,7 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 
 ONLY WHEN C is selected and design is saved will you load {nextStepFile} to begin implementation.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -326,4 +338,4 @@ ONLY WHEN C is selected and design is saved will you load {nextStepFile} to begi
 - Not documenting design in plan
 - Proceeding without user agreement
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

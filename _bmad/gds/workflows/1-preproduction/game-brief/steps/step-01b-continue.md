@@ -1,15 +1,19 @@
----
+- --
+
 name: 'step-01b-continue'
 description: 'Resume an interrupted Game Brief workflow from the last completed step'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-01b-continue.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
----
+
+- --
 
 # Step 1B: Workflow Continuation
 
@@ -50,7 +54,8 @@ Resume the Game Brief workflow from where it was left off, ensuring smooth conti
 
 ### 1. Analyze Current State
 
-**State Assessment:**
+- *State Assessment:**
+
 Review the frontmatter to understand:
 
 - `stepsCompleted`: Which steps are already done
@@ -62,7 +67,7 @@ Review the frontmatter to understand:
 
 ### 2. Restore Context Documents
 
-**Context Reloading:**
+- *Context Reloading:**
 
 - For each document in `inputDocuments`, load the complete file
 - This ensures you have full context for continuation
@@ -70,16 +75,17 @@ Review the frontmatter to understand:
 
 ### 3. Present Current Progress
 
-**Progress Report to User:**
+- *Progress Report to User:**
+
 "Welcome back {{user_name}}! I'm resuming our Game Brief collaboration for {{game_name or project_name}}.
 
-**Current Progress:**
+- *Current Progress:**
 
 - Steps completed: {stepsCompleted}
 - Last worked on: Step {lastStep}
 - Context documents available: {len(inputDocuments)} files
 
-**Document Status:**
+- *Document Status:**
 
 - Current Game Brief is ready with all completed sections
 - Ready to continue from where we left off
@@ -88,7 +94,8 @@ Does this look right, or do you want to make any adjustments before we proceed?"
 
 ### 4. Determine Continuation Path
 
-**Next Step Logic:**
+- *Next Step Logic:**
+
 Based on `lastStep` value, determine which step to load next:
 
 - If `lastStep = 1` -> Load `./step-02-vision.md`
@@ -102,7 +109,8 @@ Based on `lastStep` value, determine which step to load next:
 
 ### 5. Handle Workflow Completion
 
-**If workflow already complete (`lastStep = 8`):**
+- *If workflow already complete (`lastStep = 8`):**
+
 "Great news! It looks like we've already completed the Game Brief workflow for {{game_name}}.
 
 The final document is ready at `{outputFile}` with all sections completed.
@@ -117,10 +125,11 @@ What would be most helpful?"
 
 ### 6. Present MENU OPTIONS
 
-**If workflow not complete:**
+- *If workflow not complete:**
+
 Display: "Ready to continue with Step {nextStepNumber}?
 
-**Select an Option:** [C] Continue to next step"
+- *Select an Option:** [C] Continue to next step"
 
 #### Menu Handling Logic:
 
@@ -131,7 +140,7 @@ Display: "Ready to continue with Step {nextStepNumber}?
 
 ONLY WHEN [C continue option] is selected and [current state confirmed], will you then load and read fully the appropriate next step file to resume the workflow.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -149,4 +158,4 @@ ONLY WHEN [C continue option] is selected and [current state confirmed], will yo
 - Loading wrong next step based on `lastStep` value
 - Proceeding without user confirmation of current state
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

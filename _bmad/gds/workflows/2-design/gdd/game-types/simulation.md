@@ -4,7 +4,7 @@
 
 {{simulation_systems}}
 
-**What's being simulated:**
+- *What's being simulated:**
 
 - Primary simulation focus (city, farm, business, ecosystem, etc.)
 - Simulation depth (abstract vs. realistic)
@@ -16,7 +16,7 @@
 
 {{management_mechanics}}
 
-**Management systems:**
+- *Management systems:**
 
 - Resource management (budget, materials, time)
 - Decision-making mechanics
@@ -28,7 +28,7 @@
 
 {{building_construction}}
 
-**Construction systems:**
+- *Construction systems:**
 
 - Placeable objects/structures
 - Grid system (free placement, snap-to-grid, tiles)
@@ -40,7 +40,7 @@
 
 {{economic_loops}}
 
-**Economic design:**
+- *Economic design:**
 
 - Income sources
 - Expenses and maintenance
@@ -52,7 +52,7 @@
 
 {{progression_unlocks}}
 
-**Progression systems:**
+- *Progression systems:**
 
 - Unlock conditions (achievements, milestones, levels)
 - Tech/research tree
@@ -64,7 +64,7 @@
 
 {{sandbox_scenario}}
 
-**Game modes:**
+- *Game modes:**
 
 - Sandbox mode (unlimited resources, creative freedom)
 - Scenario/campaign mode (specific goals, constraints)

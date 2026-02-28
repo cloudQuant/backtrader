@@ -55,14 +55,15 @@
 
 <ask>What level of narrative complexity does your game have?
 
-**Narrative Complexity:**
+- *Narrative Complexity:**
 
-1. **Critical** - Story IS the game (Visual Novel, Text-Based Adventure)
-2. **Heavy** - Story drives the experience (Story-driven RPG, Narrative Adventure)
-3. **Moderate** - Story enhances gameplay (Metroidvania, Tactics RPG, Horror)
-4. **Light** - Story provides context (most other genres)
+1. **Critical**- Story IS the game (Visual Novel, Text-Based Adventure)
 
-Your game type ({{game_type}}) suggests **{{suggested_complexity}}**. Confirm or adjust:</ask>
+2.**Heavy**- Story drives the experience (Story-driven RPG, Narrative Adventure)
+3.**Moderate**- Story enhances gameplay (Metroidvania, Tactics RPG, Horror)
+4.**Light**- Story provides context (most other genres)
+
+Your game type ({{game_type}}) suggests**{{suggested_complexity}}**. Confirm or adjust:</ask>
 
 <action>Set narrative_complexity</action>
 
@@ -122,11 +123,11 @@ Your tone:</ask>
 
 Common structures:
 
-- **3-Act** (Setup, Confrontation, Resolution)
-- **Hero's Journey** (Campbell's monomyth)
-- **Kishōtenketsu** (4-act: Introduction, Development, Twist, Conclusion)
-- **Episodic** (Self-contained episodes with arc)
-- **Branching** (Multiple paths and endings)
+- **3-Act**(Setup, Confrontation, Resolution)
+- **Hero's Journey**(Campbell's monomyth)
+- **Kishōtenketsu**(4-act: Introduction, Development, Twist, Conclusion)
+- **Episodic**(Self-contained episodes with arc)
+- **Branching**(Multiple paths and endings)
 - **Freeform** (Player-driven narrative)
 
 Your structure:</ask>
@@ -157,6 +158,7 @@ Format:
 
 1. [Beat name] - Brief description
 2. [Beat name] - Brief description
+
    ...
 
 Your story beats:</ask>
@@ -401,7 +403,7 @@ Your found documents:</ask>
 
 <ask>How will you deliver narrative content?
 
-**Cutscenes/Cinematics:**
+- *Cutscenes/Cinematics:**
 
 - How many?
 - Skippable?
@@ -570,24 +572,28 @@ Which would you like?</ask>
 
 <output>**✅ Narrative Design Complete, {user_name}!**
 
-**Narrative Document:**
+- *Narrative Document:**
 
 - Narrative design saved to {output_folder}/bmm-narrative-{{game_name}}-{{date}}.md
 
 {{#if standalone_mode != true}}
-**Status Updated:**
+
+- *Status Updated:**
 
 - Progress tracking updated: narrative marked complete
 - Next workflow: {{next_workflow}}
+
   {{else}}
-  **Note:** Running in standalone mode (no progress tracking)
+
+  - *Note:** Running in standalone mode (no progress tracking)
+
   {{/if}}
 
-**Next Steps:**
+- *Next Steps:**
 
 {{#if standalone_mode != true}}
 
-- **Next workflow:** {{next_workflow}} ({{next_agent}} agent)
+- **Next workflow:**{{next_workflow}} ({{next_agent}} agent)
 - **Optional:** Review narrative with writing team or stakeholders
 
 Check status anytime with: `workflow-status`
@@ -597,6 +603,7 @@ Since no workflow is in progress:
 - Review narrative design with team
 - Refer to the BMM workflow guide if unsure what to do next
 - Or run `workflow-init` to create a workflow path and get guided next steps
+
   {{/if}}
   </output>
   </step>

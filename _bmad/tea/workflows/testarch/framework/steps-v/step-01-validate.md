@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-01-validate'
 description: 'Validate workflow outputs against checklist'
 outputFile: '{test_artifacts}/framework-validation-report.md'
 validationChecklist: '../checklist.md'
----
+
+- --
 
 # Step 1: Validate Outputs
 
@@ -40,7 +42,7 @@ Validate outputs using the workflow checklist and record findings.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly.
+- *CRITICAL:** Follow this sequence exactly.
 
 ### 1. Load Checklist
 

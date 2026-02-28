@@ -4,7 +4,7 @@
 
 {{tower_types}}
 
-**Tower design:**
+- *Tower design:**
 
 - Tower categories (damage, slow, splash, support, special)
 - Tower stats (damage, range, fire rate, cost)
@@ -17,7 +17,7 @@
 
 {{wave_design}}
 
-**Enemy systems:**
+- *Enemy systems:**
 
 - Enemy types (fast, tank, flying, immune, boss)
 - Wave composition
@@ -30,7 +30,7 @@
 
 {{path_placement}}
 
-**Strategic space:**
+- *Strategic space:**
 
 - Path structure (fixed, custom, maze-building)
 - Placement restrictions (grid, free placement)
@@ -43,7 +43,7 @@
 
 {{economy}}
 
-**Resource management:**
+- *Resource management:**
 
 - Starting resources
 - Resource generation (per wave, per kill, passive)
@@ -56,7 +56,7 @@
 
 {{abilities_powers}}
 
-**Active mechanics:**
+- *Active mechanics:**
 
 - Player-activated abilities (airstrikes, freezes, etc.)
 - Cooldown systems
@@ -69,7 +69,7 @@
 
 {{difficulty_replay}}
 
-**Challenge systems:**
+- *Challenge systems:**
 
 - Difficulty levels
 - Mission objectives (perfect clear, no lives lost, etc.)

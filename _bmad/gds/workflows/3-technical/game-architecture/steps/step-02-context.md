@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-02-context'
 description: 'Load and understand project context from GDD and supporting documents'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-02-context.md'
 nextStepFile: './step-03-starter.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-architecture.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Project Context
 
-**Progress: Step 2 of 9** - Next: Engine/Starter Selection
+- *Progress: Step 2 of 9**- Next: Engine/Starter Selection
 
 ## STEP GOAL:
 
@@ -64,7 +69,7 @@ Load and analyze the GDD and supporting documents to understand the game's techn
 
 ### 1. Load GDD Document
 
-**Load the full GDD:**
+- *Load the full GDD:**
 
 Read the GDD file identified in initialization. Extract:
 
@@ -78,7 +83,7 @@ Read the GDD file identified in initialization. Extract:
 
 ### 2. Load Supporting Documents
 
-**Load any available supporting documents:**
+- *Load any available supporting documents:**
 
 - **Epics**: User stories and acceptance criteria
 - **Game Brief**: Vision and scope constraints
@@ -86,28 +91,30 @@ Read the GDD file identified in initialization. Extract:
 
 ### 3. Analyze Technical Requirements
 
-**Extract and categorize technical needs:**
+- *Extract and categorize technical needs:**
 
-**Core Systems Identified:**
+- *Core Systems Identified:**
 
 | System          | Complexity          | GDD Reference |
+
 | --------------- | ------------------- | ------------- |
+
 | {{system_name}} | {{low/medium/high}} | {{section}}   |
 
-**Platform Requirements:**
+- *Platform Requirements:**
 
 - Primary platform: {{platform}}
 - Secondary platforms: {{if_any}}
 - Cross-platform considerations: {{if_applicable}}
 
-**Performance Constraints:**
+- *Performance Constraints:**
 
 - Frame rate target: {{fps}}
 - Resolution support: {{resolutions}}
 - Memory constraints: {{if_specified}}
 - Load time requirements: {{if_specified}}
 
-**Networking Requirements:**
+- *Networking Requirements:**
 
 - Multiplayer type: {{none/local/online}}
 - Network architecture: {{p2p/client-server/hybrid}}
@@ -115,44 +122,48 @@ Read the GDD file identified in initialization. Extract:
 
 ### 4. Identify Complexity Drivers
 
-**Flag areas requiring architectural attention:**
+- *Flag areas requiring architectural attention:**
 
 "Based on my analysis, these are the complexity drivers:
 
-**High Complexity:**
+- *High Complexity:**
+
 {{list_of_high_complexity_items}}
 
-**Novel Concepts:**
+- *Novel Concepts:**
+
 {{unique_features_without_standard_patterns}}
 
-**Technical Risks:**
+- *Technical Risks:**
+
 {{risks_from_gdd}}"
 
 ### 5. Reflect Understanding
 
-**Present analysis to user:**
+- *Present analysis to user:**
 
 "{{user_name}}, I've analyzed the technical requirements for **{{game_name}}**.
 
-**Project Summary:**
+- *Project Summary:**
 
 - {{core_concept}}
 - Platform: {{platform}}
 - {{key_distinguishing_features}}
 
-**Key Systems Requiring Architecture:**
+- *Key Systems Requiring Architecture:**
 
 1. {{system_1}} - {{brief_description}}
 2. {{system_2}} - {{brief_description}}
 3. {{system_3}} - {{brief_description}}
 
-**Complexity Assessment:**
+- *Complexity Assessment:**
 
 - Overall complexity: {{low/medium/high}}
 - Novel elements: {{count}} requiring custom patterns
 - Critical decisions: {{estimated_count}}
 
-**Technical Constraints:**
+- *Technical Constraints:**
+
 {{summary_of_constraints}}
 
 Does this match your understanding of the project?"
@@ -162,17 +173,18 @@ Does this match your understanding of the project?"
 Based on the analysis, prepare the content:
 
 ```markdown
+
 ## Project Context
 
 ### Game Overview
 
-**{{game_name}}** - {{core_concept}}
+- *{{game_name}}** - {{core_concept}}
 
 ### Technical Scope
 
-**Platform:** {{platform}}
-**Genre:** {{genre}}
-**Project Level:** {{complexity_level}}
+- *Platform:** {{platform}}
+- *Genre:** {{genre}}
+- *Project Level:** {{complexity_level}}
 
 ### Core Systems
 
@@ -189,7 +201,8 @@ Based on the analysis, prepare the content:
 ### Technical Risks
 
 {{identified_risks}}
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
@@ -197,17 +210,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Project Context section based on my analysis.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Have I captured all core systems?
 - Are the complexity assessments accurate?
 - Any technical constraints I missed?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into technical requirements
 [P] Party Mode - Get multiple perspectives on complexity
 [C] Continue - Save this and move to Engine Selection (Step 3 of 9)"
@@ -238,7 +252,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [context content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -260,4 +274,4 @@ ONLY WHEN [C continue option] is selected and [context content saved with frontm
 - Not presenting A/P/C menu after analysis
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

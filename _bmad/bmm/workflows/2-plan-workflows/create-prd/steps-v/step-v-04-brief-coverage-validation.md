@@ -1,13 +1,16 @@
----
+- --
+
 name: 'step-v-04-brief-coverage-validation'
 description: 'Product Brief Coverage Check - Validate PRD covers all content from Product Brief (if used as input)'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-05-measurability-validation.md'
 prdFile: '{prd_file_path}'
 productBrief: '{product_brief_path}'
 validationReportPath: '{validation_report_path}'
----
+
+- --
 
 # Step 4: Product Brief Coverage Validation
 
@@ -58,31 +61,34 @@ Validate that PRD covers all content from Product Brief (if brief was used as in
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Check for Product Brief
 
 Check if Product Brief was loaded in step 1's inputDocuments:
 
-**IF no Product Brief found:**
+- *IF no Product Brief found:**
+
 Append to validation report:
+
 ```markdown
+
 ## Product Brief Coverage
 
-**Status:** N/A - No Product Brief was provided as input
-```
+- *Status:** N/A - No Product Brief was provided as input
 
+```bash
 Display: "**Product Brief Coverage: Skipped** (No Product Brief provided)
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile}
 
-**IF Product Brief exists:** Continue to step 2 below
+- *IF Product Brief exists:** Continue to step 2 below
 
 ### 2. Attempt Sub-Process Validation
 
-**Try to use Task tool to spawn a subprocess:**
+- *Try to use Task tool to spawn a subprocess:**
 
 "Perform Product Brief coverage validation:
 
@@ -95,9 +101,9 @@ Without delay, read fully and follow: {nextStepFile}
    - Goals/objectives
    - Differentiators
    - Constraints
-3. For each item, search PRD for corresponding coverage
-4. Classify coverage: Fully Covered / Partially Covered / Not Found / Intentionally Excluded
-5. Note any gaps with severity: Critical / Moderate / Informational
+1. For each item, search PRD for corresponding coverage
+2. Classify coverage: Fully Covered / Partially Covered / Not Found / Intentionally Excluded
+3. Note any gaps with severity: Critical / Moderate / Informational
 
 Return structured coverage map with classifications."
 
@@ -105,7 +111,7 @@ Return structured coverage map with classifications."
 
 If Task tool unavailable, perform analysis directly:
 
-**Extract from Product Brief:**
+- *Extract from Product Brief:**
 - Vision: What is this product?
 - Users: Who is it for?
 - Problem: What problem does it solve?
@@ -113,7 +119,7 @@ If Task tool unavailable, perform analysis directly:
 - Goals: What are the success criteria?
 - Differentiators: What makes it unique?
 
-**For each item, search PRD:**
+- *For each item, search PRD:**
 - Scan Executive Summary for vision
 - Check User Journeys or user personas
 - Look for problem statement
@@ -121,62 +127,71 @@ If Task tool unavailable, perform analysis directly:
 - Check Success Criteria section
 - Search for differentiators
 
-**Classify coverage:**
-- **Fully Covered:** Content present and complete
-- **Partially Covered:** Content present but incomplete
-- **Not Found:** Content missing from PRD
+- *Classify coverage:**
+- **Fully Covered:**Content present and complete
+- **Partially Covered:**Content present but incomplete
+- **Not Found:**Content missing from PRD
 - **Intentionally Excluded:** Content explicitly out of scope
 
 ### 4. Assess Coverage and Severity
 
-**For each gap (Partially Covered or Not Found):**
+- *For each gap (Partially Covered or Not Found):**
 - Is this Critical? (Core vision, primary users, main features)
 - Is this Moderate? (Secondary features, some goals)
 - Is this Informational? (Nice-to-have features, minor details)
 
-**Note:** Some exclusions may be intentional (valid scoping decisions)
+- *Note:** Some exclusions may be intentional (valid scoping decisions)
 
 ### 5. Report Coverage Findings to Validation Report
 
 Append to validation report:
 
 ```markdown
+
 ## Product Brief Coverage
 
-**Product Brief:** {brief_file_name}
+- *Product Brief:** {brief_file_name}
 
 ### Coverage Map
 
-**Vision Statement:** [Fully/Partially/Not Found/Intentionally Excluded]
+- *Vision Statement:** [Fully/Partially/Not Found/Intentionally Excluded]
+
 [If gap: Note severity and specific missing content]
 
-**Target Users:** [Fully/Partially/Not Found/Intentionally Excluded]
+- *Target Users:** [Fully/Partially/Not Found/Intentionally Excluded]
+
 [If gap: Note severity and specific missing content]
 
-**Problem Statement:** [Fully/Partially/Not Found/Intentionally Excluded]
+- *Problem Statement:** [Fully/Partially/Not Found/Intentionally Excluded]
+
 [If gap: Note severity and specific missing content]
 
-**Key Features:** [Fully/Partially/Not Found/Intentionally Excluded]
+- *Key Features:** [Fully/Partially/Not Found/Intentionally Excluded]
+
 [If gap: List specific features with severity]
 
-**Goals/Objectives:** [Fully/Partially/Not Found/Intentionally Excluded]
+- *Goals/Objectives:** [Fully/Partially/Not Found/Intentionally Excluded]
+
 [If gap: Note severity and specific missing content]
 
-**Differentiators:** [Fully/Partially/Not Found/Intentionally Excluded]
+- *Differentiators:** [Fully/Partially/Not Found/Intentionally Excluded]
+
 [If gap: Note severity and specific missing content]
 
 ### Coverage Summary
 
-**Overall Coverage:** [percentage or qualitative assessment]
-**Critical Gaps:** [count] [list if any]
-**Moderate Gaps:** [count] [list if any]
-**Informational Gaps:** [count] [list if any]
+- *Overall Coverage:** [percentage or qualitative assessment]
+- *Critical Gaps:** [count] [list if any]
+- *Moderate Gaps:** [count] [list if any]
+- *Informational Gaps:** [count] [list if any]
 
-**Recommendation:**
+- *Recommendation:**
+
 [If critical gaps exist] "PRD should be revised to cover critical Product Brief content."
 [If moderate gaps] "Consider addressing moderate gaps for complete coverage."
 [If minimal gaps] "PRD provides good coverage of Product Brief content."
-```
+
+```bash
 
 ### 6. Display Progress and Auto-Proceed
 
@@ -184,11 +199,11 @@ Display: "**Product Brief Coverage Validation Complete**
 
 Overall Coverage: {assessment}
 
-**Proceeding to next validation check...**"
+- *Proceeding to next validation check...**"
 
 Without delay, read fully and follow: {nextStepFile} (step-v-05-measurability-validation.md)
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -211,4 +226,4 @@ Without delay, read fully and follow: {nextStepFile} (step-v-05-measurability-va
 - Not reporting findings to validation report
 - Not auto-proceeding
 
-**Master Rule:** Product Brief coverage is conditional - skip if no brief, validate thoroughly if brief exists. Always auto-proceed.
+- *Master Rule:** Product Brief coverage is conditional - skip if no brief, validate thoroughly if brief exists. Always auto-proceed.

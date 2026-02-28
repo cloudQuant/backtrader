@@ -1,22 +1,28 @@
----
+- --
+
 name: 'step-04-final-validation'
 description: 'Validate complete coverage of all requirements and ensure implementation readiness'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/bmm/workflows/3-solutioning/create-epics-and-stories'
 
 # File References
+
 thisStepFile: './step-04-final-validation.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{planning_artifacts}/epics.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 # Template References
+
 epicsTemplate: '{workflow_path}/templates/epics-template.md'
----
+
+- --
 
 # Step 4: Final Validation
 
@@ -69,7 +75,7 @@ To validate complete coverage of all requirements and ensure stories are ready f
 
 Review the complete epic and story breakdown to ensure EVERY FR is covered:
 
-**CRITICAL CHECK:**
+- *CRITICAL CHECK:**
 
 - Go through each FR from the Requirements Inventory
 - Verify it appears in at least one story
@@ -78,13 +84,13 @@ Review the complete epic and story breakdown to ensure EVERY FR is covered:
 
 ### 2. Architecture Implementation Validation
 
-**Check for Starter Template Setup:**
+- *Check for Starter Template Setup:**
 
 - Does Architecture document specify a starter template?
 - If YES: Epic 1 Story 1 must be "Set up initial project from starter template"
 - This includes cloning, installing dependencies, initial configuration
 
-**Database/Entity Creation Validation:**
+- *Database/Entity Creation Validation:**
 
 - Are database tables/entities created ONLY when needed by stories?
 - ❌ WRONG: Epic 1 creates all tables upfront
@@ -93,7 +99,7 @@ Review the complete epic and story breakdown to ensure EVERY FR is covered:
 
 ### 3. Story Quality Validation
 
-**Each story must:**
+- *Each story must:**
 
 - Be completable by a single dev agent
 - Have clear acceptance criteria
@@ -104,7 +110,7 @@ Review the complete epic and story breakdown to ensure EVERY FR is covered:
 
 ### 4. Epic Structure Validation
 
-**Check that:**
+- *Check that:**
 
 - Epics deliver user value, not technical milestones
 - Dependencies flow naturally
@@ -113,7 +119,7 @@ Review the complete epic and story breakdown to ensure EVERY FR is covered:
 
 ### 5. Dependency Validation (CRITICAL)
 
-**Epic Independence Check:**
+- *Epic Independence Check:**
 
 - Does each epic deliver COMPLETE functionality for its domain?
 - Can Epic 2 function without Epic 3 being implemented?
@@ -121,7 +127,8 @@ Review the complete epic and story breakdown to ensure EVERY FR is covered:
 - ❌ WRONG: Epic 2 requires Epic 3 features to work
 - ✅ RIGHT: Each epic is independently valuable
 
-**Within-Epic Story Dependency Check:**
+- *Within-Epic Story Dependency Check:**
+
 For each epic, review stories in order:
 
 - Can Story N.1 be completed without Stories N.2, N.3, etc.?
@@ -139,8 +146,8 @@ If all validations pass:
 - Ensure proper formatting
 - Save the final epics.md
 
-**Present Final Menu:**
-**All validations complete!** [C] Complete Workflow
+- *Present Final Menu:**
+- *All validations complete!** [C] Complete Workflow
 
 When C is selected, the workflow is complete and the epics.md is ready for development.
 

@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-03f-aggregate-scores'
 description: 'Aggregate quality dimension scores into overall 0-100 score'
 nextStepFile: './step-04-generate-report.md'
 outputFile: '{test_artifacts}/test-review.md'
----
+
+- --
 
 # Step 3F: Aggregate Quality Scores
 
@@ -11,7 +13,7 @@ outputFile: '{test_artifacts}/test-review.md'
 
 Read outputs from 4 quality subprocesses, calculate weighted overall score (0-100), and aggregate violations for report generation.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -22,7 +24,7 @@ Read outputs from 4 quality subprocesses, calculate weighted overall score (0-10
 - ✅ Aggregate violations by severity
 - ❌ Do NOT re-evaluate quality (use subprocess outputs)
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -30,7 +32,7 @@ Read outputs from 4 quality subprocesses, calculate weighted overall score (0-10
 - 💾 Record outputs before proceeding
 - 📖 Load the next step only when instructed
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -49,22 +51,24 @@ dimensions.forEach((dim) => {
   const outputPath = `/tmp/tea-test-review-${dim}-${timestamp}.json`;
   results[dim] = JSON.parse(fs.readFileSync(outputPath, 'utf8'));
 });
-```
 
-**Verify all succeeded:**
+```bash
+
+- *Verify all succeeded:**
 
 ```javascript
 const allSucceeded = dimensions.every((dim) => results[dim].score !== undefined);
 if (!allSucceeded) {
   throw new Error('One or more quality subprocesses failed!');
 }
-```
 
----
+```bash
+
+- --
 
 ### 2. Calculate Weighted Overall Score
 
-**Dimension Weights** (based on TEA quality priorities):
+- *Dimension Weights** (based on TEA quality priorities):
 
 ```javascript
 const weights = {
@@ -73,19 +77,21 @@ const weights = {
   maintainability: 0.25, // 25% - Readability and long-term health
   performance: 0.15, // 15% - Speed and execution efficiency
 };
-```
 
-**Calculate overall score:**
+```bash
+
+- *Calculate overall score:**
 
 ```javascript
 const overallScore = dimensions.reduce((sum, dim) => {
-  return sum + results[dim].score * weights[dim];
+  return sum + results[dim].score *weights[dim];
 }, 0);
 
 const roundedScore = Math.round(overallScore);
-```
 
-**Determine grade:**
+```bash
+
+- *Determine grade:**
 
 ```javascript
 const getGrade = (score) => {
@@ -97,13 +103,14 @@ const getGrade = (score) => {
 };
 
 const overallGrade = getGrade(roundedScore);
-```
 
----
+```bash
+
+- --
 
 ### 3. Aggregate Violations by Severity
 
-**Collect all violations from all dimensions:**
+- *Collect all violations from all dimensions:**
 
 ```javascript
 const allViolations = dimensions.flatMap((dim) =>
@@ -124,13 +131,14 @@ const violationSummary = {
   MEDIUM: mediumSeverity.length,
   LOW: lowSeverity.length,
 };
-```
 
----
+```bash
+
+- --
 
 ### 4. Prioritize Recommendations
 
-**Extract recommendations from all dimensions:**
+- *Extract recommendations from all dimensions:**
 
 ```javascript
 const allRecommendations = dimensions.flatMap((dim) =>
@@ -143,13 +151,14 @@ const allRecommendations = dimensions.flatMap((dim) =>
 
 // Sort by impact (HIGH first)
 const prioritizedRecommendations = allRecommendations.sort((a, b) => (a.impact === 'HIGH' ? -1 : 1)).slice(0, 10); // Top 10 recommendations
-```
 
----
+```bash
+
+- --
 
 ### 5. Create Review Summary Object
 
-**Aggregate all results:**
+- *Aggregate all results:**
 
 ```javascript
 const reviewSummary = {
@@ -185,18 +194,20 @@ const reviewSummary = {
 
 // Save for Step 4 (report generation)
 fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringify(reviewSummary, null, 2), 'utf8');
-```
 
----
+```bash
+
+- --
 
 ### 6. Display Summary to User
 
-```
+```bash
 ✅ Quality Evaluation Complete (Parallel Execution)
 
 📊 Overall Quality Score: {roundedScore}/100 (Grade: {overallGrade})
 
 📈 Dimension Scores:
+
 - Determinism:      {determinism_score}/100 ({determinism_grade})
 - Isolation:        {isolation_score}/100 ({isolation_grade})
 - Maintainability:  {maintainability_score}/100 ({maintainability_grade})
@@ -205,6 +216,7 @@ fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringif
 ℹ️ Coverage is excluded from `test-review` scoring. Use `trace` for coverage analysis and gates.
 
 ⚠️ Violations Found:
+
 - HIGH:   {high_count} violations
 - MEDIUM: {medium_count} violations
 - LOW:    {low_count} violations
@@ -213,24 +225,29 @@ fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringif
 🚀 Performance: Parallel execution ~60% faster than sequential
 
 ✅ Ready for report generation (Step 4)
-```
 
----
+```bash
 
----
+- --
+
+- --
 
 ### 7. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-03f-aggregate-scores']
   lastStep: 'step-03f-aggregate-scores'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -241,7 +258,7 @@ fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringif
   - Set `lastSaved: '{date}'`
   - Append this step's output to the appropriate section of the document.
 
----
+- --
 
 ## EXIT CONDITION
 
@@ -257,7 +274,7 @@ Proceed to Step 4 when:
 
 Load next step: `{nextStepFile}`
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS METRICS
 
@@ -274,4 +291,4 @@ Load next step: `{nextStepFile}`
 - Score calculation incorrect
 - Summary missing or incomplete
 
-**Master Rule:** Aggregate determinism, isolation, maintainability, and performance only.
+- *Master Rule:** Aggregate determinism, isolation, maintainability, and performance only.

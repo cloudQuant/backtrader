@@ -34,14 +34,14 @@ Complete the project context file, optimize it for LLM efficiency, and provide g
 
 Read the entire project context file and analyze:
 
-**Content Analysis:**
+- *Content Analysis:**
 
 - Total length and readability for LLMs
 - Clarity and specificity of rules
 - Coverage of all critical areas
 - Actionability of each rule
 
-**Structure Analysis:**
+- *Structure Analysis:**
 
 - Logical organization of sections
 - Consistency of formatting
@@ -52,14 +52,14 @@ Read the entire project context file and analyze:
 
 Ensure the file is lean and efficient:
 
-**Content Optimization:**
+- *Content Optimization:**
 
 - Remove any redundant rules or obvious information
 - Combine related rules into concise bullet points
 - Use specific, actionable language
 - Ensure each rule provides unique value
 
-**Formatting Optimization:**
+- *Formatting Optimization:**
 
 - Use consistent markdown formatting
 - Implement clear section hierarchy
@@ -71,11 +71,12 @@ Ensure the file is lean and efficient:
 Ensure the final structure follows this optimized format:
 
 ```markdown
+
 # Project Context for AI Agents
 
 _This file contains critical rules and patterns that AI agents must follow when implementing game code in this project. Focus on unobvious details that agents might otherwise miss._
 
----
+- --
 
 ## Technology Stack & Versions
 
@@ -107,18 +108,18 @@ _This file contains critical rules and patterns that AI agents must follow when 
 
 {{anti_patterns_and_gotchas}}
 
----
+- --
 
 ## Usage Guidelines
 
-**For AI Agents:**
+- *For AI Agents:**
 
 - Read this file before implementing any game code
 - Follow ALL rules exactly as documented
 - When in doubt, prefer the more restrictive option
 - Update this file if new patterns emerge
 
-**For Humans:**
+- *For Humans:**
 
 - Keep this file lean and focused on agent needs
 - Update when technology stack changes
@@ -126,23 +127,26 @@ _This file contains critical rules and patterns that AI agents must follow when 
 - Remove rules that become obvious over time
 
 Last Updated: {{date}}
-```
+
+```bash
 
 ### 4. Present Completion Summary
 
 Based on user skill level, present the completion:
 
-**Expert Mode:**
+- *Expert Mode:**
+
 "Project context complete. Optimized for LLM consumption with {{rule_count}} critical rules across {{section_count}} sections.
 
 File saved to: `{output_folder}/project-context.md`
 
 Ready for AI agent integration."
 
-**Intermediate Mode:**
+- *Intermediate Mode:**
+
 "Your project context is complete and optimized for AI agents!
 
-**What we created:**
+- *What we created:**
 
 - {{rule_count}} critical implementation rules
 - Technology stack with exact versions
@@ -150,32 +154,35 @@ Ready for AI agent integration."
 - Performance and optimization guidelines
 - Testing and platform requirements
 
-**Key benefits:**
+- *Key benefits:**
 
 - AI agents will implement consistently with your standards
 - Reduced context switching and implementation errors
 - Clear guidance for unobvious project requirements
 
-**Next steps:**
+- *Next steps:**
 
 - AI agents should read this file before implementing
 - Update as your project evolves
 - Review periodically for optimization"
 
-**Beginner Mode:**
+- *Beginner Mode:**
+
 "Excellent! Your project context guide is ready!
 
-**What this does:**
+- *What this does:**
+
 Think of this as a 'rules of the road' guide for AI agents working on your game. It ensures they all follow the same patterns and avoid common mistakes.
 
-**What's included:**
+- *What's included:**
 
 - Exact engine and technology versions to use
 - Critical coding rules they might miss
 - Performance and optimization standards
 - Testing and platform requirements
 
-**How AI agents use it:**
+- *How AI agents use it:**
+
 They read this file before writing any code, ensuring everything they create follows your project's standards perfectly.
 
 Your project context is saved and ready to help agents implement consistently!"
@@ -184,10 +191,12 @@ Your project context is saved and ready to help agents implement consistently!"
 
 Update the project context file with completion information:
 
-**Frontmatter Update:**
+- *Frontmatter Update:**
 
 ```yaml
----
+
+- --
+
 project_name: '{{project_name}}'
 user_name: '{{user_name}}'
 date: '{{date}}'
@@ -196,17 +205,20 @@ sections_completed:
 status: 'complete'
 rule_count: { { total_rules } }
 optimized_for_llm: true
----
-```
 
-**Add Usage Section:**
+- --
+
+```bash
+
+- *Add Usage Section:**
+
 Append the usage guidelines from step 3 to complete the document.
 
 ### 6. Completion Validation
 
 Final checks before completion:
 
-**Content Validation:**
+- *Content Validation:**
 
 - All critical technology versions documented
 - Engine-specific rules are specific and actionable
@@ -216,7 +228,7 @@ Final checks before completion:
 - Platform rules prevent cross-platform issues
 - Anti-pattern rules prevent common mistakes
 
-**Format Validation:**
+- *Format Validation:**
 
 - Content is lean and optimized for LLMs
 - Structure is logical and scannable
@@ -232,21 +244,21 @@ Present final completion to user:
 Your optimized project context file is ready at:
 `{output_folder}/project-context.md`
 
-**Context Summary:**
+- *Context Summary:**
 
 - {{rule_count}} critical rules for AI agents
 - {{section_count}} comprehensive sections
 - Optimized for LLM context efficiency
 - Ready for immediate agent integration
 
-**Key Benefits:**
+- *Key Benefits:**
 
 - Consistent implementation across all AI agents
 - Reduced common mistakes and edge cases
 - Clear guidance for project-specific patterns
 - Minimal LLM context usage
 
-**Next Steps:**
+- *Next Steps:**
 
 1. AI agents will automatically read this file when implementing
 2. Update this file when your technology stack or patterns evolve

@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-02-prd-analysis'
 description: 'Read and analyze PRD to extract all FRs and NFRs for coverage validation'
 
 nextStepFile: './step-03-epic-coverage-validation.md'
 outputFile: '{planning_artifacts}/implementation-readiness-report-{{date}}.md'
 epicsFile: '{planning_artifacts}/*epic*.md' # Will be resolved to actual file
----
+
+- --
 
 # Step 2: PRD Analysis
 
@@ -77,7 +79,8 @@ Search for and extract:
 
 Format findings as:
 
-```
+```bash
+
 ## Functional Requirements Extracted
 
 FR1: [Complete requirement text]
@@ -85,7 +88,8 @@ FR2: [Complete requirement text]
 FR3: [Complete requirement text]
 ...
 Total FRs: [count]
-```
+
+```bash
 
 ### 4. Extract Non-Functional Requirements (NFRs)
 
@@ -100,7 +104,8 @@ Search for and extract:
 
 Format findings as:
 
-```
+```bash
+
 ## Non-Functional Requirements Extracted
 
 NFR1: [Performance requirement]
@@ -108,7 +113,8 @@ NFR2: [Security requirement]
 NFR3: [Usability requirement]
 ...
 Total NFRs: [count]
-```
+
+```bash
 
 ### 5. Document Additional Requirements
 
@@ -124,6 +130,7 @@ Look for:
 Append to {outputFile}:
 
 ```markdown
+
 ## PRD Analysis
 
 ### Functional Requirements
@@ -141,7 +148,8 @@ Append to {outputFile}:
 ### PRD Completeness Assessment
 
 [Initial assessment of PRD completeness and clarity]
-```
+
+```bash
 
 ### 7. Auto-Proceed to Next Step
 
@@ -151,7 +159,7 @@ After PRD analysis complete, immediately load next step for epic coverage valida
 
 PRD analysis complete. Loading next step to validate epic coverage.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -169,4 +177,4 @@ PRD analysis complete. Loading next step to validate epic coverage.
 - Summarizing instead of extracting full text
 - Not documenting findings in report
 
-**Master Rule:** Complete requirement extraction is essential for traceability validation.
+- *Master Rule:** Complete requirement extraction is essential for traceability validation.

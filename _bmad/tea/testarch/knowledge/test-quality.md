@@ -12,9 +12,9 @@ Quality tests provide reliable signal about application health. Flaky tests erod
 
 ### Example 1: Deterministic Test Pattern
 
-**Context**: When writing tests, eliminate all sources of non-determinism: hard waits, conditionals controlling flow, try-catch for flow control, and random data without seeds.
+- *Context**: When writing tests, eliminate all sources of non-determinism: hard waits, conditionals controlling flow, try-catch for flow control, and random data without seeds.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ❌ BAD: Non-deterministic test with conditionals and hard waits
@@ -87,9 +87,10 @@ describe('Dashboard', () => {
     });
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Replace `waitForTimeout()` with `waitForResponse()` or element state checks
 - Never use if/else to control test flow - tests should be deterministic
@@ -99,9 +100,9 @@ describe('Dashboard', () => {
 
 ### Example 2: Isolated Test with Cleanup
 
-**Context**: When tests create data, they must clean up after themselves to prevent state pollution in parallel runs. Use fixture auto-cleanup or explicit teardown.
+- *Context**: When tests create data, they must clean up after themselves to prevent state pollution in parallel runs. Use fixture auto-cleanup or explicit teardown.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ❌ BAD: Test leaves data behind, pollutes other tests
@@ -205,9 +206,10 @@ describe('Admin User Management', () => {
     });
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Use fixtures with auto-cleanup via teardown (after `use()`)
 - Track all created resources in array during test execution
@@ -217,9 +219,9 @@ describe('Admin User Management', () => {
 
 ### Example 3: Explicit Assertions in Tests
 
-**Context**: When validating test results, keep assertions visible in test bodies. Never hide assertions in helper functions - this obscures test intent and makes failures harder to diagnose.
+- *Context**: When validating test results, keep assertions visible in test bodies. Never hide assertions in helper functions - this obscures test intent and makes failures harder to diagnose.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ❌ BAD: Assertions hidden in helper functions
@@ -323,9 +325,10 @@ test.describe('User creation validation', () => {
     });
   }
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Never hide `expect()` calls in helper functions
 - Helpers can extract/transform data, but assertions stay in tests
@@ -335,9 +338,9 @@ test.describe('User creation validation', () => {
 
 ### Example 4: Test Length Limits
 
-**Context**: When tests grow beyond 300 lines, they become hard to understand, debug, and maintain. Refactor long tests by extracting setup helpers, splitting scenarios, or using fixtures.
+- *Context**: When tests grow beyond 300 lines, they become hard to understand, debug, and maintain. Refactor long tests by extracting setup helpers, splitting scenarios, or using fixtures.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ❌ BAD: 400-line monolithic test (truncated for example)
@@ -452,9 +455,10 @@ test('admin can update notification preferences', async ({ adminPage, seedUser }
 
 // TOTAL: 3 tests × 60 lines avg = 180 lines
 // Each test is focused, debuggable, and under 300 lines
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Split monolithic tests into focused scenarios (<300 lines each)
 - Extract common setup into fixtures (auto-runs for each test)
@@ -464,9 +468,9 @@ test('admin can update notification preferences', async ({ adminPage, seedUser }
 
 ### Example 5: Execution Time Optimization
 
-**Context**: When tests take longer than 1.5 minutes, they slow CI pipelines and feedback loops. Optimize by using API setup instead of UI navigation, parallelizing independent operations, and avoiding unnecessary waits.
+- *Context**: When tests take longer than 1.5 minutes, they slow CI pipelines and feedback loops. Optimize by using API setup instead of UI navigation, parallelizing independent operations, and avoiding unnecessary waits.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // ❌ BAD: 4-minute test (slow setup, sequential operations)
@@ -629,9 +633,10 @@ test('admin action', async ({ page }) => {
   await page.goto('/admin');
   // ... test logic
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Use API for data setup (10-50x faster than UI)
 - Run independent operations in parallel (`Promise.all`)
@@ -652,13 +657,13 @@ test('admin action', async ({ page }) => {
 
 Every test must pass these criteria:
 
-- [ ] **No Hard Waits** - Use `waitForResponse`, `waitForLoadState`, or element state (not `waitForTimeout`)
-- [ ] **No Conditionals** - Tests execute the same path every time (no if/else, try/catch for flow control)
-- [ ] **< 300 Lines** - Keep tests focused; split large tests or extract setup to fixtures
-- [ ] **< 1.5 Minutes** - Optimize with API setup, parallel operations, and shared auth
-- [ ] **Self-Cleaning** - Use fixtures with auto-cleanup or explicit `afterEach()` teardown
-- [ ] **Explicit Assertions** - Keep `expect()` calls in test bodies, not hidden in helpers
-- [ ] **Unique Data** - Use `faker` for dynamic data; never hardcode IDs or emails
-- [ ] **Parallel-Safe** - Tests don't share state; run successfully with `--workers=4`
+- [ ] **No Hard Waits**- Use `waitForResponse`, `waitForLoadState`, or element state (not `waitForTimeout`)
+- [ ]**No Conditionals**- Tests execute the same path every time (no if/else, try/catch for flow control)
+- [ ]**< 300 Lines**- Keep tests focused; split large tests or extract setup to fixtures
+- [ ]**< 1.5 Minutes**- Optimize with API setup, parallel operations, and shared auth
+- [ ]**Self-Cleaning**- Use fixtures with auto-cleanup or explicit `afterEach()` teardown
+- [ ]**Explicit Assertions**- Keep `expect()` calls in test bodies, not hidden in helpers
+- [ ]**Unique Data**- Use `faker` for dynamic data; never hardcode IDs or emails
+- [ ]**Parallel-Safe** - Tests don't share state; run successfully with `--workers=4`
 
 _Source: Murat quality checklist, Definition of Done requirements (lines 370-381, 406-422)._

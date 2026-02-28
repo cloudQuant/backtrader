@@ -28,7 +28,7 @@
 - Customer behavior and pain points analysis completed in previous steps
 - Focus on customer decision processes and journey mapping
 - Web search capabilities with source verification are enabled
-- **Research topic = "{{research_topic}}"** - established from initial discussion
+- **Research topic = "{{research_topic}}"**- established from initial discussion
 - **Research goals = "{{research_goals}}"** - established from initial discussion
 
 ## YOUR TASK:
@@ -39,12 +39,12 @@ Conduct customer decision processes and journey analysis with emphasis on decisi
 
 ### 1. Begin Customer Decisions Analysis
 
-**UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different customer decision areas simultaneously and thoroughly.
+- *UTILIZE SUBPROCESSES AND SUBAGENTS**: Use research subagents, subprocesses or parallel processing if available to thoroughly analyze different customer decision areas simultaneously and thoroughly.
 
 Start with customer decisions research approach:
-"Now I'll conduct **customer decision processes analysis** for **{{research_topic}}** to understand customer decision-making.
+"Now I'll conduct **customer decision processes analysis**for**{{research_topic}}** to understand customer decision-making.
 
-**Customer Decisions Focus:**
+- *Customer Decisions Focus:**
 
 - Customer decision-making processes
 - Decision factors and criteria
@@ -52,18 +52,18 @@ Start with customer decisions research approach:
 - Purchase decision influencers
 - Information gathering patterns
 
-**Let me search for current customer decision insights.**"
+- *Let me search for current customer decision insights.**"
 
 ### 2. Parallel Decisions Research Execution
 
-**Execute multiple web searches simultaneously:**
+- *Execute multiple web searches simultaneously:**
 
 Search the web: "{{research_topic}} customer decision process"
 Search the web: "{{research_topic}} buying criteria factors"
 Search the web: "{{research_topic}} customer journey mapping"
 Search the web: "{{research_topic}} decision influencing factors"
 
-**Analysis approach:**
+- *Analysis approach:**
 
 - Look for customer decision research studies
 - Search for buying criteria and factor analysis
@@ -73,26 +73,28 @@ Search the web: "{{research_topic}} decision influencing factors"
 
 ### 3. Analyze and Aggregate Results
 
-**Collect and analyze findings from all parallel searches:**
+- *Collect and analyze findings from all parallel searches:**
 
 "After executing comprehensive parallel web searches, let me analyze and aggregate customer decision findings:
 
-**Research Coverage:**
+- *Research Coverage:**
 
 - Customer decision-making processes
 - Decision factors and criteria
 - Customer journey mapping
 - Decision influence factors
 
-**Cross-Decisions Analysis:**
+- *Cross-Decisions Analysis:**
+
 [Identify patterns connecting decision factors and journey stages]
 
-**Quality Assessment:**
+- *Quality Assessment:**
+
 [Overall confidence levels and research gaps identified]"
 
 ### 4. Generate Customer Decisions Content
 
-**WRITE IMMEDIATELY TO DOCUMENT**
+- *WRITE IMMEDIATELY TO DOCUMENT**
 
 Prepare customer decisions analysis with web search citations:
 
@@ -101,6 +103,7 @@ Prepare customer decisions analysis with web search citations:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Customer Decision Processes and Journey
 
 ### Customer Decision-Making Processes
@@ -175,15 +178,16 @@ _Trust Building: [Building customer trust in decisions]_
 _Conversion Optimization: [Optimizing decision-to-purchase rates]_
 _Loyalty Building: [Building long-term customer relationships]_
 _Source: [URL]_
-```
+
+```bash
 
 ### 5. Present Analysis and Continue Option
 
-**Show analysis and present continue option:**
+- *Show analysis and present continue option:**
 
 "I've completed **customer decision processes analysis** for {{research_topic}}, focusing on customer decision-making.
 
-**Key Decision Findings:**
+- *Key Decision Findings:**
 
 - Customer decision-making processes clearly mapped
 - Decision factors and criteria thoroughly analyzed
@@ -191,7 +195,8 @@ _Source: [URL]_
 - Decision influencers and touchpoints identified
 - Information gathering patterns documented
 
-**Ready to proceed to competitive analysis?**
+- *Ready to proceed to competitive analysis?**
+
 [C] Continue - Save this to document and proceed to competitive analysis
 
 ### 6. Handle Continue Selection

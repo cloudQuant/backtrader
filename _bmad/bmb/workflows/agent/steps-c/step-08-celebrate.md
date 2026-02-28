@@ -1,18 +1,22 @@
----
+- --
+
 name: 'step-08-celebrate'
 description: 'Celebrate completion and guide next steps for using the agent'
 
 # File References
+
 thisStepFile: ./step-08-celebrate.md
 workflowFile: ../workflow.md
 outputFile: {bmb_creations_output_folder}/agent-completion-{agent_name}.md
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
-installationDocs: 'https://github.com/bmad-code-org/BMAD-METHOD/blob/main/docs/modules/bmb-bmad-builder/custom-content-installation.md#standalone-content-agents-workflows-tasks-tools-templates-prompts'
+installationDocs: '<https://github.com/bmad-code-org/BMAD-METHOD/blob/main/docs/modules/bmb-bmad-builder/custom-content-installation.md#standalone-content-agents-workflows-tasks-tools-templates-prompts'>
 validationWorkflow: '{project-root}/src/modules/bmb/workflows/agent/steps-v/v-01-load-review.md'
----
+
+- --
 
 # Step 8: Celebration and Installation Guidance
 
@@ -62,7 +66,7 @@ Celebrate the successful agent creation, recap the agent's capabilities, provide
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change. (Do not deviate, skip, or optimize)
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change. (Do not deviate, skip, or optimize)
 
 ### 1. Grand Celebration
 
@@ -70,7 +74,8 @@ Present enthusiastic celebration:
 
 "🎉 Congratulations! We did it! {agent_name} is complete and ready to help users with {agent_purpose}!"
 
-**Journey Celebration:**
+- *Journey Celebration:**
+
 "Let's celebrate what we accomplished together:
 
 - Started with an idea and discovered its true purpose
@@ -82,10 +87,12 @@ Present enthusiastic celebration:
 
 ### 2. Agent Capabilities Showcase
 
-**Agent Introduction:**
+- *Agent Introduction:**
+
 "Meet {agent_name} - your {agent_type} agent ready to {agent_purpose}!"
 
-**Key Features:**
+- *Key Features:**
+
 "✨ **What makes {agent_name} special:**
 
 - {unique_personality_trait} personality that {communication_style_benefit}
@@ -95,17 +102,20 @@ Present enthusiastic celebration:
 
 ### 3. Activation Guidance
 
-**Getting Started:**
+- *Getting Started:**
+
 "Here's how to start using {agent_name}:"
 
-**Activation Steps:**
+- *Activation Steps:**
 
-1. **Locate your agent files:** `{agent_file_location}`
-2. **If compiled:** Use the compiled version at `{compiled_location}`
-3. **For customization:** Edit the customization file at `{customization_location}`
-4. **First interaction:** Start by asking for help to see available commands
+1. **Locate your agent files:**`{agent_file_location}`
 
-**First Conversation Suggestions:**
+2.**If compiled:**Use the compiled version at `{compiled_location}`
+3.**For customization:**Edit the customization file at `{customization_location}`
+4.**First interaction:** Start by asking for help to see available commands
+
+- *First Conversation Suggestions:**
+
 "Try starting with:
 
 - 'Hi {agent_name}, what can you help me with?'
@@ -114,40 +124,48 @@ Present enthusiastic celebration:
 
 ### 4. Installation Guidance
 
-**Making Your Agent Installable:**
+- *Making Your Agent Installable:**
+
 "Now that {agent_name} is complete, let's get it installed and ready to use!"
 
-**Installation Overview:**
+- *Installation Overview:**
+
 "To make your agent installable and sharable, you'll need to package it as a standalone BMAD content module. Here's what you need to know:"
 
-**Key Steps:**
-1. **Create a module folder:** Name it something descriptive (e.g., `my-custom-stuff`)
-2. **Add module.yaml:** Include a `module.yaml` file with `code`, `name`, `version`
-3. **Copy your agent:** Copy the entire folder from `_bmad-creations/{agent-name}/` to `agents/`
-4. **The workflow handles structure:** Sidecar folders are already in the right place
+- *Key Steps:**
+1. **Create a module folder:**Name it something descriptive (e.g., `my-custom-stuff`)
 
-**Module Structure Example:**
-```
+2.**Add module.yaml:**Include a `module.yaml` file with `code`, `name`, `version`
+3.**Copy your agent:**Copy the entire folder from `_bmad-creations/{agent-name}/` to `agents/`
+4.**The workflow handles structure:** Sidecar folders are already in the right place
+
+- *Module Structure Example:**
+
+```bash
 my-custom-stuff/
 ├── module.yaml
 ├── agents/                              # Copy entire folder from _bmad-creations/
+
 │   └── {agent-name}/
 │       ├── {agent-name}.agent.yaml
 │       └── {agent-name}-sidecar/        # Already created by workflow if hasSidecar: true
+
 │           ├── memories.md
 │           └── instructions.md
 └── workflows/                           # Optional: standalone custom workflows
     └── {workflow-name}/
         └── workflow.md
-```
 
-**Note:** Your custom module can contain agents, workflows, or both. The `agents/` and `workflows/` folders are siblings alongside `module.yaml`.
+```bash
 
-**Installation Methods:**
-- **New projects:** The BMAD installer will prompt for local custom modules
+- *Note:** Your custom module can contain agents, workflows, or both. The `agents/` and `workflows/` folders are siblings alongside `module.yaml`.
+
+- *Installation Methods:**
+- **New projects:**The BMAD installer will prompt for local custom modules
 - **Existing projects:** Use "Modify BMAD Installation" to add your module
 
-**Full Documentation:**
+- *Full Documentation:**
+
 "For complete details on packaging, sharing, and installing your custom agent, including all the configuration options and troubleshooting tips, see the official installation guide:"
 
 📖 **[BMAD Custom Content Installation Guide]({installationDocs})**
@@ -157,19 +175,20 @@ my-custom-stuff/
 #### Content to Append (if applicable):
 
 ```markdown
+
 ## Agent Creation Complete! 🎉
 
 ### Agent Summary
 
-- **Name:** {agent_name}
-- **Type:** {agent_type}
-- **Purpose:** {agent_purpose}
-- **Status:** Ready for installation
+- **Name:**{agent_name}
+- **Type:**{agent_type}
+- **Purpose:**{agent_purpose}
+- **Status:**Ready for installation
 
 ### File Locations
 
-- **Agent Config:** {agent_file_path}
-- **Compiled Version:** {compiled_agent_path}
+- **Agent Config:**{agent_file_path}
+- **Compiled Version:**{compiled_agent_path}
 - **Customization:** {customization_file_path}
 
 ### Installation
@@ -183,16 +202,18 @@ See: {installationDocs}
 2. Add module.yaml with code, name, version
 3. Copy entire agent folder from `_bmad-creations/{agent-name}/` to `agents/`
 4. Install via BMAD installer
-```
 
+```bash
 Save this content to `{outputFile}` for reference.
 
 ### 6. Workflow Completion
 
-**Mark Complete:**
+- *Mark Complete:**
+
 "Agent creation workflow completed successfully! {agent_name} is ready to be installed and used. Amazing work!"
 
-**Final Achievement:**
+- *Final Achievement:**
+
 "You've successfully created a custom BMAD agent from concept to installation-ready configuration. The journey from idea to deployable agent is complete!"
 
 ### 7. Present MENU OPTIONS
@@ -219,7 +240,7 @@ Display: "**✅ Agent Build Complete! Select an Option:** [V] Run Validation [S]
 ONLY WHEN [S skip option] is selected and [workflow completion marked in frontmatter], will the workflow end gracefully with agent ready for installation.
 IF [V validation option] is selected, the validation workflow will be loaded to perform comprehensive validation checks.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -244,4 +265,4 @@ IF [V validation option] is selected, the validation workflow will be loaded to 
 - Not ensuring user understands installation steps
 - Failing to update frontmatter completion status
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

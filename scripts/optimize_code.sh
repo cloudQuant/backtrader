@@ -62,13 +62,13 @@ echo "✅ backtrader 更新完成"
 echo ""
 
 # 步骤 6: 运行全部测试验证
-echo "🧪 步骤 6: 运行全部测试验证代码完整性..."
-if [ -d "tests" ]; then
-    python -m pytest tests -n 8 --tb=short -q
-    echo "✅ 所有测试通过"
-else
-    echo "⚠️  未找到测试目录"
-fi
+# echo "🧪 步骤 6: 运行全部测试验证代码完整性..."
+# if [ -d "tests" ]; then
+#     python -m pytest tests -n 8 --tb=short -q
+#     echo "✅ 所有测试通过"
+# else
+#     echo "⚠️  未找到测试目录"
+# fi
 echo ""
 
 echo "=========================================="

@@ -4,7 +4,7 @@
 
 {{weapon_systems}}
 
-**Weapon design:**
+- *Weapon design:**
 
 - Weapon types (pistol, rifle, shotgun, sniper, explosive, etc.)
 - Weapon stats (damage, fire rate, accuracy, reload time, ammo capacity)
@@ -16,7 +16,7 @@
 
 {{aiming_combat}}
 
-**Combat systems:**
+- *Combat systems:**
 
 - Aiming system (first-person, third-person, twin-stick, lock-on)
 - Hit detection (hitscan vs. projectile)
@@ -28,7 +28,7 @@
 
 {{enemy_ai}}
 
-**Enemy systems:**
+- *Enemy systems:**
 
 - Enemy types (fodder, elite, tank, ranged, melee, boss)
 - AI behavior patterns (aggressive, defensive, flanking, cover use)
@@ -40,7 +40,7 @@
 
 {{arena_level_design}}
 
-**Level structure:**
+- *Level structure:**
 
 - Arena flow (choke points, open spaces, verticality)
 - Cover system design (destructible, dynamic, static)
@@ -53,7 +53,7 @@
 
 {{multiplayer}}
 
-**Multiplayer systems (if applicable):**
+- *Multiplayer systems (if applicable):**
 
 - Game modes (deathmatch, team deathmatch, objective-based, etc.)
 - Map design for PvP

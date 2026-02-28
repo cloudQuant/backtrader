@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize the architecture workflow, validate readiness, and discover input documents'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-01-init.md'
 continueStepFile: './step-01b-continue.md'
 nextStepFile: './step-02-context.md'
@@ -14,14 +17,16 @@ outputFile: '{output_folder}/game-architecture.md'
 templateFile: '{workflow_path}/templates/architecture-template.md'
 
 # Knowledge Bases
+
 decisionCatalog: '{workflow_path}/decision-catalog.yaml'
 architecturePatterns: '{workflow_path}/architecture-patterns.yaml'
 patternCategories: '{workflow_path}/pattern-categories.csv'
----
+
+- --
 
 # Step 1: Initialize Architecture Workflow
 
-**Progress: Step 1 of 9** - Next: Project Context
+- *Progress: Step 1 of 9** - Next: Project Context
 
 ## STEP GOAL:
 
@@ -60,26 +65,27 @@ Validate workflow readiness, check for existing architecture work, discover inpu
 
 ### 1. Check for Existing Architecture
 
-**Search for existing architecture document:**
+- *Search for existing architecture document:**
 
 Look for existing architecture files in {output_folder}:
 
 - `*architecture*.md`
 - `*arch*.md`
 
-**If existing architecture found:**
+- *If existing architecture found:**
 
 "I found an existing architecture document: `{{existing_file}}`
 
-**Options:**
+- *Options:**
 
-1. **Continue** - Resume from where you left off
-2. **Start Fresh** - Begin a new architecture (will overwrite)
-3. **Review** - Let me review the existing document first
+1. **Continue**- Resume from where you left off
+
+2.**Start Fresh**- Begin a new architecture (will overwrite)
+3.**Review** - Let me review the existing document first
 
 Which would you like to do?"
 
-**Handle user selection:**
+- *Handle user selection:**
 
 - If **Continue**: Load `{continueStepFile}`
 - If **Start Fresh**: Continue with step 2 below
@@ -87,14 +93,14 @@ Which would you like to do?"
 
 ### 2. Discover Required Input Documents
 
-**Search for GDD:**
+- *Search for GDD:**
 
 Look for GDD files using patterns:
 
 - `{output_folder}/*gdd*.md`
 - `{output_folder}/*game-design*.md`
 
-**If GDD not found:**
+- *If GDD not found:**
 
 "**GDD Not Found**
 
@@ -108,9 +114,9 @@ The GDD provides:
 
 Please run the GDD workflow first: `create-gdd`"
 
-**Exit workflow - GDD required**
+- *Exit workflow - GDD required**
 
-**If GDD found:**
+- *If GDD found:**
 
 "**Input Document Found:**
 
@@ -120,13 +126,13 @@ I'll analyze this to understand your game's technical requirements."
 
 ### 3. Discover Optional Input Documents
 
-**Search for additional documents:**
+- *Search for additional documents:**
 
 - **Epics**: `{output_folder}/*epic*.md`
 - **Game Brief**: `{output_folder}/*brief*.md`
 - **Narrative**: `{output_folder}/*narrative*.md`
 
-**Report findings:**
+- *Report findings:**
 
 "**Additional Documents Found:**
 {{list_of_found_documents}}
@@ -135,13 +141,13 @@ These will provide additional context for architectural decisions."
 
 ### 4. Confirm Workflow Start
 
-**Present start confirmation:**
+- *Present start confirmation:**
 
 "**Ready to Start Architecture Workflow**
 
 {{user_name}}, I'm ready to help you create the game architecture for your project.
 
-**What we'll cover:**
+- *What we'll cover:**
 
 1. Engine/framework selection and validation
 2. Core architectural decisions (rendering, physics, networking, etc.)
@@ -149,23 +155,26 @@ These will provide additional context for architectural decisions."
 4. Implementation patterns for AI agent consistency
 5. Cross-cutting concerns (error handling, logging, etc.)
 
-**Input documents:**
+- *Input documents:**
 
 - GDD: `{{gdd_file}}`
+
   {{additional_documents_list}}
 
-**The goal:** Create an architecture document that ensures all AI agents implement your game consistently.
+- *The goal:** Create an architecture document that ensures all AI agents implement your game consistently.
 
 Ready to begin? [Y/N]"
 
 ### 5. Initialize Output Document
 
-**If user confirms, create the initial document:**
+- *If user confirms, create the initial document:**
 
 Create `{outputFile}` with frontmatter:
 
 ```markdown
----
+
+- --
+
 title: 'Game Architecture'
 project: '{{project_name}}'
 date: '{{date}}'
@@ -175,10 +184,12 @@ stepsCompleted: [1]
 status: 'in-progress'
 
 # Source Documents
+
 gdd: '{{gdd_file}}'
 epics: '{{epics_file_or_null}}'
 brief: '{{brief_file_or_null}}'
----
+
+- --
 
 # Game Architecture
 
@@ -186,12 +197,13 @@ brief: '{{brief_file_or_null}}'
 
 This architecture document is being created through the GDS Architecture Workflow.
 
-**Steps Completed:** 1 of 9 (Initialize)
+- *Steps Completed:** 1 of 9 (Initialize)
 
----
+- --
 
 _Content will be added as we progress through the workflow._
-```
+
+```bash
 
 ### 6. Proceed to Context Step
 
@@ -200,7 +212,7 @@ After initialization:
 - Update frontmatter: `stepsCompleted: [1]`
 - Load `{nextStepFile}`
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -221,4 +233,4 @@ After initialization:
 - Missing frontmatter initialization
 - Proceeding without GDD
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

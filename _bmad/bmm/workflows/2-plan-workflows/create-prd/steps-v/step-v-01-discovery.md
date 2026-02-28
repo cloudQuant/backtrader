@@ -1,13 +1,16 @@
----
+- --
+
 name: 'step-v-01-discovery'
 description: 'Document Discovery & Confirmation - Handle fresh context validation, confirm PRD path, discover input documents'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-v-02-format-detection.md'
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 prdPurpose: '../data/prd-purpose.md'
----
+
+- --
 
 # Step 1: Document Discovery & Confirmation
 
@@ -56,7 +59,7 @@ Handle fresh context validation by confirming PRD path, discovering and loading 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load PRD Purpose and Standards
 
@@ -67,23 +70,23 @@ This file contains the BMAD PRD philosophy, standards, and validation criteria t
 
 ### 2. Discover PRD to Validate
 
-**If PRD path provided as invocation parameter:**
+- *If PRD path provided as invocation parameter:**
 - Use provided path
 
-**If no PRD path provided, auto-discover:**
+- *If no PRD path provided, auto-discover:**
 - Search `{planning_artifacts}` for files matching `*prd*.md`
 - Also check for sharded PRDs: `{planning_artifacts}/*prd*/*.md`
 
-**If exactly ONE PRD found:**
+- *If exactly ONE PRD found:**
 - Use it automatically
 - Inform user: "Found PRD: {discovered_path} — using it for validation."
 
-**If MULTIPLE PRDs found:**
+- *If MULTIPLE PRDs found:**
 - List all discovered PRDs with numbered options
 - "I found multiple PRDs. Which one would you like to validate?"
 - Wait for user selection
 
-**If NO PRDs found:**
+- *If NO PRDs found:**
 - "I couldn't find any PRD files in {planning_artifacts}. Please provide the path to the PRD file you want to validate."
 - Wait for user to provide PRD path.
 
@@ -102,7 +105,8 @@ From the loaded PRD frontmatter, extract:
 - `inputDocuments: []` array (if present)
 - Any other relevant metadata (classification, date, etc.)
 
-**If no inputDocuments array exists:**
+- *If no inputDocuments array exists:**
+
 Note this and proceed with PRD-only validation
 
 ### 5. Load Input Documents
@@ -113,7 +117,7 @@ For each document listed in `inputDocuments`:
 - Track successfully loaded documents
 - Note any documents that fail to load
 
-**Build list of loaded input documents:**
+- *Build list of loaded input documents:**
 - Product Brief (if present)
 - Research documents (if present)
 - Other reference materials (if present)
@@ -124,9 +128,10 @@ For each document listed in `inputDocuments`:
 
 {list loaded documents with file names}
 
-**Are there any additional reference documents you'd like me to include in this validation?**
+- *Are there any additional reference documents you'd like me to include in this validation?**
 
 These could include:
+
 - Additional research or context documents
 - Project documentation not tracked in frontmatter
 - Standards or compliance documents
@@ -134,29 +139,36 @@ These could include:
 
 Please provide paths to any additional documents, or type 'none' to proceed."
 
-**Load any additional documents provided by user.**
+- *Load any additional documents provided by user.**
 
 ### 7. Initialize Validation Report
 
 Create validation report at: `{validationReportPath}`
 
-**Initialize with frontmatter:**
+- *Initialize with frontmatter:**
+
 ```yaml
----
+
+- --
+
 validationTarget: '{prd_path}'
 validationDate: '{current_date}'
 inputDocuments: [list of all loaded documents]
 validationStepsCompleted: []
 validationStatus: IN_PROGRESS
----
-```
 
-**Initial content:**
+- --
+
+```bash
+
+- *Initial content:**
+
 ```markdown
+
 # PRD Validation Report
 
-**PRD Being Validated:** {prd_path}
-**Validation Date:** {current_date}
+- *PRD Being Validated:** {prd_path}
+- *Validation Date:** {current_date}
 
 ## Input Documents
 
@@ -165,23 +177,24 @@ validationStatus: IN_PROGRESS
 ## Validation Findings
 
 [Findings will be appended as validation progresses]
-```
+
+```bash
 
 ### 8. Present Discovery Summary
 
 "**Setup Complete!**
 
-**PRD to Validate:** {prd_path}
+- *PRD to Validate:** {prd_path}
 
-**Input Documents Loaded:**
+- *Input Documents Loaded:**
 - PRD: {prd_name} ✓
 - Product Brief: {count} {if count > 0}✓{else}(none found){/if}
 - Research: {count} {if count > 0}✓{else}(none found){/if}
 - Additional References: {count} {if count > 0}✓{else}(none){/if}
 
-**Validation Report:** {validationReportPath}
+- *Validation Report:** {validationReportPath}
 
-**Ready to begin validation.**"
+- *Ready to begin validation.**"
 
 ### 9. Present MENU OPTIONS
 
@@ -201,7 +214,7 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - IF user provides additional document: Load it, update report, redisplay summary
 - IF Any other: help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -223,4 +236,4 @@ Display: **Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Conti
 - Proceeding without user confirming setup
 - Not handling missing input documents gracefully
 
-**Master Rule:** Complete discovery and setup BEFORE validation. This step ensures everything is in place for systematic validation checks.
+- *Master Rule:** Complete discovery and setup BEFORE validation. This step ensures everything is in place for systematic validation checks.

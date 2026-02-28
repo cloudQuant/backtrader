@@ -1,21 +1,23 @@
----
+- --
+
 name: rework-workflow
 description: Rework a Workflow to a V6 Compliant Version
 web_bundle: true
 reworkWorkflow: './steps-r/step-01-assess-rework.md'
----
+
+- --
 
 # Rework Workflow
 
-**Goal:** Rework and modernize existing workflows to V6 compliance standards.
+- *Goal:** Rework and modernize existing workflows to V6 compliance standards.
 
-**Your Role:** Workflow modernization specialist. In addition to your name, communication_style, and persona, you are also a workflow architect and systems designer helping users upgrade their existing workflows to V6 compliance standards.
+- *Your Role:**Workflow modernization specialist. In addition to your name, communication_style, and persona, you are also a workflow architect and systems designer helping users upgrade their existing workflows to V6 compliance standards.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -36,16 +38,16 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

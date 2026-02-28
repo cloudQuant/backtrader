@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-08-report'
 description: 'Generate final validation report'
 
 validationReportOutput: '{validation_report_output}'
 agentValidationWorkflow: '{project-root}/_bmad/bmb/workflows/agent/steps-v/step-01-validate.md'
 workflowValidationWorkflow: '{project-root}/_bmad/bmb/workflows/workflow/steps-v/step-01-validate.md'
----
+
+- --
 
 # Step 8: Validation Report
 
@@ -16,6 +18,7 @@ Compile all validation results into a final report with actionable recommendatio
 ## MANDATORY EXECUTION RULES:
 
 ### Universal Rules:
+
 - 📖 CRITICAL: Read the complete step file before taking any action
 - ✅ Speak in `{communication_language}`
 
@@ -25,7 +28,7 @@ Compile all validation results into a final report with actionable recommendatio
 - ✅ Clear, actionable feedback
 - ✅ Sub-process validation for built components
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -33,22 +36,23 @@ Compile all validation results into a final report with actionable recommendatio
 
 Review all validation sections and determine overall status:
 
-**PASS:** All checks passed, ready to proceed
-**WARNINGS:** Minor issues found, can proceed with fixes
-**FAIL:** Critical issues found, must fix before proceeding
+- *PASS:** All checks passed, ready to proceed
+- *WARNINGS:** Minor issues found, can proceed with fixes
+- *FAIL:** Critical issues found, must fix before proceeding
 
 ### 2. Generate Summary
 
 Add to `{validationReportOutput}`:
 
 ```markdown
----
+
+- --
 
 ## Overall Summary
 
-**Status:** {PASS/WARNINGS/FAIL}
+- *Status:** {PASS/WARNINGS/FAIL}
 
-**Breakdown:**
+- *Breakdown:**
 - File Structure: {status}
 - module.yaml: {status}
 - Agent Specs: {status} ({built_count} built, {spec_count} specs)
@@ -56,19 +60,21 @@ Add to `{validationReportOutput}`:
 - Documentation: {status}
 - Installation Readiness: {status}
 
----
+- --
 
 ## Component Status
 
 ### Agents
-- **Built Agents:** {count} — {list}
-- **Spec Agents:** {count} — {list}
+
+- **Built Agents:**{count} — {list}
+- **Spec Agents:**{count} — {list}
 
 ### Workflows
-- **Built Workflows:** {count} — {list}
-- **Spec Workflows:** {count} — {list}
 
----
+- **Built Workflows:**{count} — {list}
+- **Spec Workflows:**{count} — {list}
+
+- --
 
 ## Recommendations
 
@@ -86,77 +92,87 @@ Add to `{validationReportOutput}`:
 
 {medium_priority_issues}
 
----
+- --
 
 ## Sub-Process Validation
 
 {if built_agents_exist}
+
 ### Built Agent Deep Validation
 
 The following built agents can be validated in detail using the agent validation workflow:
 
 {for each built_agent}
+
 - **{agent_name}** — Use `{agentValidationWorkflow}`
 
-**Recommendation:** Run agent validation workflow on each built agent to verify:
+- *Recommendation:** Run agent validation workflow on each built agent to verify:
 - Frontmatter completeness
 - Persona quality
 - Menu structure compliance
 - Sidecar validation
 
-**After fixing any module-level issues, I can spawn sub-processes to validate each built agent in parallel.**
+- *After fixing any module-level issues, I can spawn sub-processes to validate each built agent in parallel.**
+
 {endif}
 
 {if built_workflows_exist}
+
 ### Built Workflow Deep Validation
 
 The following built workflows can be validated in detail using the workflow validation workflow:
 
 {for each built_workflow}
+
 - **{workflow_name}** — Use `{workflowValidationWorkflow}`
 
-**Recommendation:** Run workflow validation workflow on each built workflow to verify:
+- *Recommendation:** Run workflow validation workflow on each built workflow to verify:
 - Step file compliance
 - Tri-modal structure (steps-c/steps-e/steps-v/)
 - Frontmatter completeness
 - Size limits compliance
 
-**After fixing any module-level issues, I can spawn sub-processes to validate each built workflow in parallel.**
+- *After fixing any module-level issues, I can spawn sub-processes to validate each built workflow in parallel.**
+
 {endif}
 
----
+- --
 
 ## Next Steps
 
 {based_on_status}
 
 {if specs_exist}
+
 ### Build Spec Components
 
-**Spec Agents:** {spec_count}
+- *Spec Agents:** {spec_count}
 - Use `bmad:bmb:agents:agent-builder` to create: {spec_agent_names}
 
-**Spec Workflows:** {spec_count}
+- *Spec Workflows:** {spec_count}
 - Use `bmad:bmb:workflows:workflow` to create: {spec_workflow_names}
 
-**After building specs, re-run validation to verify compliance.**
+- *After building specs, re-run validation to verify compliance.**
+
 {endif}
 
----
+- --
 
-**Validation Completed:** {timestamp}
-```
+- *Validation Completed:** {timestamp}
+
+```bash
 
 ### 3. Present Report
 
 "**✓ Validation complete!**"
 
-**Overall Status:** {overall_status}
+- *Overall Status:** {overall_status}
 
-**Report saved to:** `{validationReportOutput}`
+- *Report saved to:** `{validationReportOutput}`
 
 {if built_components_exist}
 "**Built components found:**"
+
 - Built Agents: {count}
 - Built Workflows: {count}
 
@@ -167,9 +183,9 @@ The following built workflows can be validated in detail using the workflow vali
 
 "**What would you like to do?**"
 
-- **[R]ead report** — Show the full validation report
-- **[S]ub-process validation** — Run deep validation on built agents/workflows
-- **[F]ix issues** — Edit mode to fix identified problems
+- **[R]ead report**— Show the full validation report
+- **[S]ub-process validation**— Run deep validation on built agents/workflows
+- **[F]ix issues**— Edit mode to fix identified problems
 - **[D]one** — Complete validation
 
 ### 5. Menu Handling
@@ -186,7 +202,7 @@ The following built workflows can be validated in detail using the workflow vali
 - IF F: Offer to load Edit mode
 - IF D: Complete validation session
 
----
+- --
 
 ## Success Metrics
 

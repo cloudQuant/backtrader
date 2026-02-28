@@ -56,18 +56,22 @@
   <step n="2" goal="Load game brainstorming context and techniques">
     <action>Read the game context document from: {game_context}</action>
     <action>This context provides game-specific guidance including:
+
       - Focus areas for game ideation (mechanics, narrative, experience, etc.)
       - Key considerations for game design
       - Recommended techniques for game brainstorming
       - Output structure guidance
+
     </action>
     <action>Load game-specific brain techniques from: {game_brain_methods}</action>
     <action>These additional techniques supplement the standard CIS brainstorming methods with game design-focused approaches like:
+
       - MDA Framework exploration
       - Core loop brainstorming
       - Player fantasy mining
       - Genre mashup
       - And other game-specific ideation methods
+
     </action>
   </step>
 
@@ -75,11 +79,13 @@
     <action>Execute the CIS brainstorming workflow with game context and additional techniques</action>
     <invoke-workflow path="{core_brainstorming}" data="{game_context}" techniques="{game_brain_methods}">
       The CIS brainstorming workflow will:
+
       - Merge game-specific techniques with standard techniques
       - Present interactive brainstorming techniques menu
       - Guide the user through selected ideation methods
       - Generate and capture brainstorming session results
       - Save output to: {output_folder}/brainstorming-session-results-{{date}}.md
+
     </invoke-workflow>
   </step>
 
@@ -97,24 +103,28 @@
 
     <output>**✅ Game Brainstorming Session Complete, {user_name}!**
 
-**Session Results:**
+- *Session Results:**
 
 - Game brainstorming results saved to: {output_folder}/bmm-brainstorming-session-{{date}}.md
 
 {{#if standalone_mode != true}}
-**Status Updated:**
+
+- *Status Updated:**
 
 - Progress tracking updated: brainstorm-game marked complete
 - Next workflow: {{next_workflow}}
+
   {{else}}
-  **Note:** Running in standalone mode (no progress tracking)
+
+  - *Note:** Running in standalone mode (no progress tracking)
+
   {{/if}}
 
-**Next Steps:**
+- *Next Steps:**
 
 {{#if standalone_mode != true}}
 
-- **Next workflow:** {{next_workflow}} ({{next_agent}} agent)
+- **Next workflow:**{{next_workflow}} ({{next_agent}} agent)
 - **Optional:** You can run other analysis workflows (research, game-brief) before proceeding
 
 Check status anytime with: `workflow-status`
@@ -123,6 +133,7 @@ Since no workflow is in progress:
 
 - Refer to the BMM workflow guide if unsure what to do next
 - Or run `workflow-init` to create a workflow path and get guided next steps
+
   {{/if}}
   </output>
   </step>

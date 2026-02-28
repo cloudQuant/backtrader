@@ -16,12 +16,13 @@ GUT (Godot Unit Test) is the standard unit testing framework for Godot. It provi
 ### Via Git Submodule
 
 ```bash
-git submodule add https://github.com/bitwes/Gut.git addons/gut
-```
+git submodule add <https://github.com/bitwes/Gut.git> addons/gut
+
+```bash
 
 ## Project Structure
 
-```
+```bash
 project/
 ├── addons/
 │   └── gut/
@@ -35,14 +36,17 @@ project/
     │   └── test_damage_calculator.gd
     └── integration/
         └── test_player_combat.gd
-```
+
+```bash
 
 ## Basic Test Structure
 
 ### Simple Test Class
 
 ```gdscript
+
 # tests/unit/test_damage_calculator.gd
+
 extends GutTest
 
 var calculator: DamageCalculator
@@ -64,7 +68,8 @@ func test_calculate_critical_hit():
 func test_calculate_with_zero_multiplier():
     var result = calculator.calculate(100.0, 0.0)
     assert_eq(result, 0.0, "Zero multiplier should result in zero damage")
-```
+
+```bash
 
 ### Parameterized Tests
 
@@ -82,18 +87,21 @@ func test_damage_scenarios():
         assert_eq(
             result,
             scenario.expected,
-            "Base %s * %s should equal %s" % [
+            "Base %s *%s should equal %s" % [
                 scenario.base, scenario.mult, scenario.expected
             ]
         )
-```
+
+```bash
 
 ## Testing Nodes
 
 ### Scene Testing
 
 ```gdscript
+
 # tests/integration/test_player.gd
+
 extends GutTest
 
 var player: Player
@@ -116,7 +124,8 @@ func test_player_takes_damage():
 func test_player_dies_at_zero_health():
     player.take_damage(100)
     assert_true(player.is_dead, "Player should be dead at 0 health")
-```
+
+```bash
 
 ### Testing with Signals
 
@@ -135,7 +144,8 @@ func test_death_emits_signal():
     player.take_damage(100)
 
     assert_signal_emitted(player, "died")
-```
+
+```bash
 
 ### Testing with Await
 
@@ -144,12 +154,13 @@ func test_attack_cooldown():
     player.attack()
     assert_true(player.is_attacking)
 
-    # Wait for cooldown
+# Wait for cooldown
     await get_tree().create_timer(player.attack_cooldown).timeout
 
     assert_false(player.is_attacking)
     assert_true(player.can_attack)
-```
+
+```bash
 
 ## Mocking and Doubles
 
@@ -166,7 +177,8 @@ func test_enemy_uses_pathfinding():
     enemy.move_to(Vector2(10, 10))
 
     assert_called(mock_pathfinding, "find_path")
-```
+
+```bash
 
 ### Partial Doubles
 
@@ -179,7 +191,8 @@ func test_player_inventory():
 
     assert_eq(player_double.inventory.size(), 1)
     assert_called(player_double, "save_to_disk")
-```
+
+```bash
 
 ## Physics Testing
 
@@ -198,7 +211,7 @@ func test_projectile_hits_enemy():
 
     projectile.velocity = Vector2(200, 0)
 
-    # Simulate physics frames
+# Simulate physics frames
     for i in range(60):
         await get_tree().physics_frame
 
@@ -206,7 +219,8 @@ func test_projectile_hits_enemy():
 
     projectile.queue_free()
     enemy.queue_free()
-```
+
+```bash
 
 ### Testing Area2D
 
@@ -221,14 +235,15 @@ func test_pickup_collected():
     pickup.global_position = Vector2(50, 50)
     player.global_position = Vector2(50, 50)
 
-    # Wait for physics to process overlap
+# Wait for physics to process overlap
     await get_tree().physics_frame
     await get_tree().physics_frame
 
     assert_true(pickup.is_queued_for_deletion(), "Pickup should be collected")
 
     player.queue_free()
-```
+
+```bash
 
 ## Input Testing
 
@@ -246,13 +261,15 @@ func test_jump_on_input():
     player._unhandled_input(input_event)
 
     assert_true(player.is_jumping, "Player should jump on space press")
-```
+
+```bash
 
 ### Testing Input Actions
 
 ```gdscript
 func test_attack_action():
-    # Simulate action press
+
+# Simulate action press
     Input.action_press("attack")
     await get_tree().process_frame
 
@@ -261,7 +278,8 @@ func test_attack_action():
     assert_true(player.is_attacking)
 
     Input.action_release("attack")
-```
+
+```bash
 
 ## Resource Testing
 
@@ -273,7 +291,7 @@ func test_weapon_stats_resource():
     weapon.base_damage = 10.0
     weapon.attack_speed = 2.0
 
-    assert_eq(weapon.dps, 20.0, "DPS should be damage * speed")
+    assert_eq(weapon.dps, 20.0, "DPS should be damage* speed")
 
 func test_save_load_resource():
     var original = PlayerData.new()
@@ -287,7 +305,8 @@ func test_save_load_resource():
     assert_eq(loaded.gold, 1000)
 
     DirAccess.remove_absolute("user://test_save.tres")
-```
+
+```bash
 
 ## GUT Configuration
 
@@ -305,25 +324,33 @@ func test_save_load_resource():
   "junit_xml_file": "results.xml",
   "font_size": 16
 }
-```
+
+```bash
 
 ## CI Integration
 
 ### Command Line Execution
 
 ```bash
+
 # Run all tests
+
 godot --headless -s addons/gut/gut_cmdln.gd
 
 # Run specific tests
+
 godot --headless -s addons/gut/gut_cmdln.gd \
-  -gdir=res://tests/unit \
-  -gprefix=test_
+
+  - gdir=res://tests/unit \
+  - gprefix=test_
 
 # With JUnit output
+
 godot --headless -s addons/gut/gut_cmdln.gd \
-  -gjunit_xml_file=results.xml
-```
+
+  - gjunit_xml_file=results.xml
+
+```bash
 
 ### GitHub Actions
 
@@ -333,18 +360,24 @@ test:
   container:
     image: barichello/godot-ci:4.2
   steps:
+
     - uses: actions/checkout@v4
 
     - name: Run Tests
+
       run: |
+
         godot --headless -s addons/gut/gut_cmdln.gd \
-          -gjunit_xml_file=results.xml
+
+          - gjunit_xml_file=results.xml
 
     - name: Publish Results
+
       uses: mikepenz/action-junit-report@v4
       with:
         report_paths: results.xml
-```
+
+```bash
 
 ## Best Practices
 
@@ -368,11 +401,17 @@ test:
 ## Troubleshooting
 
 | Issue                | Cause              | Fix                                  |
+
 | -------------------- | ------------------ | ------------------------------------ |
+
 | Tests not found      | Wrong prefix/path  | Check gut_config.json                |
+
 | Orphan nodes warning | Missing cleanup    | Add `queue_free()` in `after_each`   |
+
 | Signal not detected  | Signal not watched | Call `watch_signals()` before action |
+
 | Physics not working  | Missing frames     | Await `physics_frame`                |
+
 | Flaky tests          | Timing issues      | Use proper await/signals             |
 
 ## C# Testing in Godot
@@ -381,7 +420,7 @@ Godot 4 supports C# via .NET 6+. You can use standard .NET testing frameworks al
 
 ### Project Setup for C#
 
-```
+```bash
 project/
 ├── addons/
 │   └── gut/
@@ -397,7 +436,8 @@ project/
 │       ├── Tests.csproj
 │       └── DamageCalculatorTests.cs
 └── project.csproj
-```
+
+```bash
 
 ### C# Test Project Setup
 
@@ -423,7 +463,8 @@ Create a separate test project that references your game assembly:
     <ProjectReference Include="../../project.csproj" />
   </ItemGroup>
 </Project>
-```
+
+```bash
 
 ### Basic C# Unit Tests
 
@@ -466,7 +507,8 @@ public class DamageCalculatorTests
         Assert.Equal(expected, result);
     }
 }
-```
+
+```bash
 
 ### Testing Godot Nodes in C#
 
@@ -506,7 +548,8 @@ public class PlayerControllerTests : IDisposable
         _player?.QueueFree();
     }
 }
-```
+
+```bash
 
 ### C# Mocking with NSubstitute
 
@@ -532,28 +575,39 @@ public class EnemyAITests
             Arg.Is<Vector2>(v => v == new Vector2(10, 10)));
     }
 }
-```
+
+```bash
 
 ### Running C# Tests
 
 ```bash
+
 # Run C# unit tests (no Godot runtime needed)
+
 dotnet test tests/csharp/Tests.csproj
 
 # Run with coverage
+
 dotnet test tests/csharp/Tests.csproj --collect:"XPlat Code Coverage"
 
 # Run specific test
+
 dotnet test tests/csharp/Tests.csproj --filter "FullyQualifiedName~DamageCalculator"
-```
+
+```bash
 
 ### Hybrid Test Strategy
 
 | Test Type     | Framework        | When to Use                        |
+
 | ------------- | ---------------- | ---------------------------------- |
+
 | Pure logic    | xUnit/NUnit (C#) | Classes without Godot dependencies |
+
 | Node behavior | GUT (GDScript)   | MonoBehaviour-like testing         |
+
 | Integration   | GUT (GDScript)   | Scene and signal testing           |
+
 | E2E           | GUT (GDScript)   | Full gameplay flows                |
 
 ## End-to-End Testing
@@ -566,7 +620,9 @@ scenario builders, see **knowledge/e2e-testing.md**.
 #### GameE2ETestFixture (GDScript)
 
 ```gdscript
+
 # tests/e2e/infrastructure/game_e2e_test_fixture.gd
+
 extends GutTest
 class_name GameE2ETestFixture
 
@@ -576,23 +632,25 @@ var scenario: ScenarioBuilder
 var _scene_instance: Node
 
 ## Override to specify a different scene for specific test classes.
+
 func get_scene_path() -> String:
     return "res://scenes/game.tscn"
 
 func before_each():
-    # Load game scene
+
+# Load game scene
     var scene = load(get_scene_path())
     _scene_instance = scene.instantiate()
     add_child(_scene_instance)
 
-    # Get references
+# Get references
     game_state = _scene_instance.get_node("GameStateManager")
     assert_not_null(game_state, "GameStateManager not found in scene")
 
     input_sim = InputSimulator.new()
     scenario = ScenarioBuilder.new(game_state)
 
-    # Wait for ready
+# Wait for ready
     await wait_for_game_ready()
 
 func after_each():
@@ -608,12 +666,15 @@ func wait_for_game_ready(timeout: float = 10.0):
         await get_tree().process_frame
         elapsed += get_process_delta_time()
     assert_true(game_state.is_ready, "Game should be ready within timeout")
-```
+
+```bash
 
 #### ScenarioBuilder (GDScript)
 
 ```gdscript
+
 # tests/e2e/infrastructure/scenario_builder.gd
+
 extends RefCounted
 class_name ScenarioBuilder
 
@@ -624,31 +685,37 @@ func _init(game_state: GameStateManager):
     _game_state = game_state
 
 ## Load a pre-configured scenario from a save file.
+
 func from_save_file(file_name: String) -> ScenarioBuilder:
     _setup_actions.append(func(): await _load_save_file(file_name))
     return self
 
 ## Configure the current turn number.
+
 func on_turn(turn_number: int) -> ScenarioBuilder:
     _setup_actions.append(func(): _set_turn(turn_number))
     return self
 
 ## Spawn a unit at position.
+
 func with_unit(faction: int, position: Vector2, movement_points: int = 6) -> ScenarioBuilder:
     _setup_actions.append(func(): await _spawn_unit(faction, position, movement_points))
     return self
 
 ## Execute all configured setup actions.
+
 func build() -> void:
     for action in _setup_actions:
         await action.call()
     _setup_actions.clear()
 
 ## Clear pending actions without executing.
+
 func reset() -> void:
     _setup_actions.clear()
 
 # Private implementation
+
 func _load_save_file(file_name: String) -> void:
     var path = "res://tests/e2e/test_data/%s" % file_name
     await _game_state.load_game(path)
@@ -659,16 +726,20 @@ func _set_turn(turn: int) -> void:
 func _spawn_unit(faction: int, pos: Vector2, mp: int) -> void:
     var unit = _game_state.spawn_unit(faction, pos)
     unit.movement_points = mp
-```
+
+```bash
 
 #### InputSimulator (GDScript)
 
 ```gdscript
+
 # tests/e2e/infrastructure/input_simulator.gd
+
 extends RefCounted
 class_name InputSimulator
 
 ## Click at a world position.
+
 func click_world_position(world_pos: Vector2) -> void:
     var viewport = Engine.get_main_loop().root.get_viewport()
     var camera = viewport.get_camera_2d()
@@ -676,6 +747,7 @@ func click_world_position(world_pos: Vector2) -> void:
     await click_screen_position(screen_pos)
 
 ## Click at a screen position.
+
 func click_screen_position(screen_pos: Vector2) -> void:
     var press = InputEventMouseButton.new()
     press.button_index = MOUSE_BUTTON_LEFT
@@ -693,6 +765,7 @@ func click_screen_position(screen_pos: Vector2) -> void:
     await Engine.get_main_loop().process_frame
 
 ## Click a UI button by name.
+
 func click_button(button_name: String) -> void:
     var root = Engine.get_main_loop().root
     var button = _find_button_recursive(root, button_name)
@@ -716,6 +789,7 @@ func _find_button_recursive(node: Node, button_name: String) -> Button:
     return null
 
 ## Press and release a key.
+
 func press_key(keycode: Key) -> void:
     var press = InputEventKey.new()
     press.keycode = keycode
@@ -731,6 +805,7 @@ func press_key(keycode: Key) -> void:
     await Engine.get_main_loop().process_frame
 
 ## Simulate an input action.
+
 func action_press(action_name: String) -> void:
     Input.action_press(action_name)
     await Engine.get_main_loop().process_frame
@@ -740,18 +815,23 @@ func action_release(action_name: String) -> void:
     await Engine.get_main_loop().process_frame
 
 ## Reset all input state.
+
 func reset() -> void:
     Input.flush_buffered_events()
-```
+
+```bash
 
 #### AsyncAssert (GDScript)
 
 ```gdscript
+
 # tests/e2e/infrastructure/async_assert.gd
+
 extends RefCounted
 class_name AsyncAssert
 
 ## Wait until condition is true, or fail after timeout.
+
 static func wait_until(
     condition: Callable,
     description: String,
@@ -766,6 +846,7 @@ static func wait_until(
         "Timeout after %.1fs waiting for: %s" % [timeout, description])
 
 ## Wait for a value to equal expected.
+
 static func wait_for_value(
     getter: Callable,
     expected: Variant,
@@ -778,6 +859,7 @@ static func wait_for_value(
         timeout)
 
 ## Wait for a float value within tolerance.
+
 static func wait_for_value_approx(
     getter: Callable,
     expected: float,
@@ -791,6 +873,7 @@ static func wait_for_value_approx(
         timeout)
 
 ## Assert that condition does NOT become true within duration.
+
 static func assert_never_true(
     condition: Callable,
     description: String,
@@ -804,24 +887,30 @@ static func assert_never_true(
         elapsed += Engine.get_main_loop().root.get_process_delta_time()
 
 ## Wait for specified number of frames.
+
 static func wait_frames(count: int) -> void:
     for i in range(count):
         await Engine.get_main_loop().process_frame
 
 ## Wait for physics to settle.
+
 static func wait_for_physics(frames: int = 3) -> void:
     for i in range(frames):
         await Engine.get_main_loop().root.get_tree().physics_frame
-```
+
+```bash
 
 ### Example E2E Test (GDScript)
 
 ```gdscript
+
 # tests/e2e/scenarios/test_combat_flow.gd
+
 extends GameE2ETestFixture
 
 func test_player_can_attack_enemy():
-    # GIVEN: Player and enemy in combat range
+
+# GIVEN: Player and enemy in combat range
     await scenario \
         .with_unit(Faction.PLAYER, Vector2(100, 100)) \
         .with_unit(Faction.ENEMY, Vector2(150, 100)) \
@@ -830,7 +919,7 @@ func test_player_can_attack_enemy():
     var enemy = game_state.get_units(Faction.ENEMY)[0]
     var initial_health = enemy.health
 
-    # WHEN: Player attacks
+# WHEN: Player attacks
     await input_sim.click_world_position(Vector2(100, 100))  # Select player
     await AsyncAssert.wait_until(
         func(): return game_state.selected_unit != null,
@@ -838,31 +927,33 @@ func test_player_can_attack_enemy():
 
     await input_sim.click_world_position(Vector2(150, 100))  # Attack enemy
 
-    # THEN: Enemy takes damage
+# THEN: Enemy takes damage
     await AsyncAssert.wait_until(
         func(): return enemy.health < initial_health,
         "Enemy should take damage")
 
 func test_turn_cycle_completes():
-    # GIVEN: Game in progress
+
+# GIVEN: Game in progress
     await scenario.on_turn(1).build()
     var starting_turn = game_state.turn_number
 
-    # WHEN: Player ends turn
+# WHEN: Player ends turn
     await input_sim.click_button("EndTurnButton")
     await AsyncAssert.wait_until(
         func(): return game_state.current_faction == Faction.ENEMY,
         "Should switch to enemy turn")
 
-    # AND: Enemy turn completes
+# AND: Enemy turn completes
     await AsyncAssert.wait_until(
         func(): return game_state.current_faction == Faction.PLAYER,
         "Should return to player turn",
         30.0)  # AI might take a while
 
-    # THEN: Turn number incremented
+# THEN: Turn number incremented
     assert_eq(game_state.turn_number, starting_turn + 1)
-```
+
+```bash
 
 ### Quick E2E Checklist for Godot
 

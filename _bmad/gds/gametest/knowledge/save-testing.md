@@ -9,27 +9,38 @@ Save system testing ensures data persistence, integrity, and compatibility acros
 ### Data Integrity
 
 | Test Type            | Description                                 | Priority |
+
 | -------------------- | ------------------------------------------- | -------- |
+
 | Round-trip           | Save → Load → Verify all data matches       | P0       |
+
 | Corruption detection | Tampered/corrupted files handled gracefully | P0       |
+
 | Partial write        | Power loss during save doesn't corrupt      | P0       |
+
 | Large saves          | Performance with max-size save files        | P1       |
+
 | Edge values          | Min/max values for all saved fields         | P1       |
 
 ### Version Compatibility
 
 | Scenario                | Expected Behavior                     |
+
 | ----------------------- | ------------------------------------- |
+
 | Current → Current       | Full compatibility                    |
+
 | Old → New (upgrade)     | Migration with data preservation      |
+
 | New → Old (downgrade)   | Graceful rejection or limited support |
+
 | Corrupted version field | Fallback to recovery mode             |
 
 ## Test Scenarios
 
 ### Core Save/Load Tests
 
-```
+```bash
 SCENARIO: Basic Save Round-Trip
   GIVEN player has 100 health, 50 gold, position (10, 5, 20)
   AND player has inventory: ["sword", "potion", "key"]
@@ -54,11 +65,12 @@ SCENARIO: Multiple Save Slots
   WHEN switching between slots
   THEN correct character data loads for each slot
   AND no cross-contamination between slots
-```
+
+```bash
 
 ### Edge Cases
 
-```
+```bash
 SCENARIO: Maximum Inventory Save
   GIVEN player has 999 items in inventory
   WHEN game is saved
@@ -78,11 +90,12 @@ SCENARIO: Extreme Play Time
   AND game is reloaded
   THEN play time displays correctly
   AND timer continues from saved value
-```
+
+```bash
 
 ### Corruption Recovery
 
-```
+```bash
 SCENARIO: Corrupted Save Detection
   GIVEN save file has been manually corrupted
   WHEN game attempts to load
@@ -101,7 +114,8 @@ SCENARIO: Interrupted Save (Power Loss)
   WHEN game restarts
   THEN backup save is detected and offered
   AND no data loss from previous valid save
-```
+
+```bash
 
 ## Platform-Specific Testing
 
@@ -164,7 +178,8 @@ public void SaveLoad_CorruptedFile_HandlesGracefully()
     // Game should not crash
     Assert.IsTrue(SaveManager.IsValidSaveSlot("corrupt") == false);
 }
-```
+
+```bash
 
 ### Unreal
 
@@ -193,7 +208,8 @@ bool FSaveSystemTest::RunTest(const FString& Parameters)
 
     return true;
 }
-```
+
+```bash
 
 ### Godot
 
@@ -224,21 +240,26 @@ func test_corrupted_save_detection():
 
     assert_null(result, "Should return null for corrupted save")
     assert_false(SaveManager.is_valid_save("corrupt"))
-```
+
+```bash
 
 ## Migration Testing
 
 ### Version Upgrade Matrix
 
 | From Version   | To Version       | Test Focus                   |
+
 | -------------- | ---------------- | ---------------------------- |
+
 | 1.0 → 1.1      | Minor update     | New fields default correctly |
+
 | 1.x → 2.0      | Major update     | Schema migration works       |
+
 | Beta → Release | Launch migration | All beta saves convert       |
 
 ### Migration Test Template
 
-```
+```bash
 SCENARIO: Save Migration v1.0 to v2.0
   GIVEN save file from version 1.0
   AND save contains old inventory format (array)
@@ -247,16 +268,23 @@ SCENARIO: Save Migration v1.0 to v2.0
   AND all items are preserved
   AND migration is logged
   AND backup of original is created
-```
+
+```bash
 
 ## Performance Benchmarks
 
 | Metric                   | Target          | Maximum |
+
 | ------------------------ | --------------- | ------- |
+
 | Save time (typical)      | < 500ms         | 2s      |
+
 | Save time (large)        | < 2s            | 5s      |
+
 | Load time (typical)      | < 1s            | 3s      |
+
 | Save file size (typical) | < 1MB           | 10MB    |
+
 | Memory during save       | < 50MB overhead | 100MB   |
 
 ## Best Practices

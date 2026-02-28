@@ -92,7 +92,7 @@ def get_indicator_label(indicator):
                 except Exception:
                     pass
         if params:
-            label += f' ({", ".join(params[:3])})'  # Show max 3 parameters
+            label += f" ({', '.join(params[:3])})"  # Show max 3 parameters
 
     return label
 

@@ -1,71 +1,91 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/DevilYuan
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### DevilYuan项目简介
-DevilYuan是一个A股量化交易系统，具有以下核心特点：
+### DevilYuan 项目简介
+
+DevilYuan 是一个 A 股量化交易系统，具有以下核心特点：
+
 - **完整系统**: 从数据到交易的完整解决方案
-- **GUI界面**: 提供PyQt图形界面
+- **GUI 界面**: 提供 PyQt 图形界面
 - **策略回放**: 支持策略的历史回放
 - **实盘对接**: 支持券商实盘交易
 - **数据管理**: 完善的数据管理模块
 - **监控系统**: 实时监控和报警
 
 ### 重点借鉴方向
-1. **GUI设计**: PyQt图形界面设计
+
+1. **GUI 设计**: PyQt 图形界面设计
 2. **事件引擎**: 事件驱动引擎设计
 3. **策略回放**: 策略回放功能实现
 4. **数据管理**: 数据获取和存储管理
 5. **交易引擎**: 交易执行引擎
 6. **监控报警**: 监控和报警系统
 
----
+- --
 
 ## 框架对比分析
 
 ### 架构设计对比
 
 | 维度 | backtrader | DevilYuan |
+
 |------|-----------|-----------|
-| **核心定位** | 回测框架 | 完整交易系统 |
-| **用户界面** | 无/命令行 | PyQt图形界面 |
-| **事件驱动** | 隐式回调 | 显式事件引擎 |
-| **并行处理** | 多进程优化 | 多进程/多线程混合 |
-| **数据存储** | 内存/文件 | MongoDB |
-| **实盘交易** | 有限支持 | 多券商支持 |
-| **策略回放** | 基本支持 | 周期分割并行 |
-| **监控报警** | 无 | 微信/QQ通知 |
-| **应用场景** | 策略研发 | A股实盘交易 |
 
-### backtrader的优势
-1. **通用性强**: 不依赖特定数据源，支持全球市场
-2. **API简洁**: 易于学习和使用的Pythonic API
-3. **指标丰富**: 内置60+技术指标
-4. **社区活跃**: 大量第三方扩展和文档
-5. **性能优化**: LineBuffer高效内存管理
+| **核心定位**| 回测框架 | 完整交易系统 |
 
-### DevilYuan的优势
+|**用户界面**| 无/命令行 | PyQt 图形界面 |
+
+|**事件驱动**| 隐式回调 | 显式事件引擎 |
+
+|**并行处理**| 多进程优化 | 多进程/多线程混合 |
+
+|**数据存储**| 内存/文件 | MongoDB |
+
+|**实盘交易**| 有限支持 | 多券商支持 |
+
+|**策略回放**| 基本支持 | 周期分割并行 |
+
+|**监控报警**| 无 | 微信/QQ 通知 |
+
+|**应用场景**| 策略研发 | A 股实盘交易 |
+
+### backtrader 的优势
+
+1.**通用性强**: 不依赖特定数据源，支持全球市场
+
+1. **API 简洁**: 易于学习和使用的 Pythonic API
+2. **指标丰富**: 内置 60+技术指标
+3. **社区活跃**: 大量第三方扩展和文档
+4. **性能优化**: LineBuffer 高效内存管理
+
+### DevilYuan 的优势
+
 1. **完整生态**: 从数据获取到实盘交易的完整闭环
-2. **GUI友好**: 可视化操作降低使用门槛
-3. **A股适配**: 专门针对A股市场特性优化
+2. **GUI 友好**: 可视化操作降低使用门槛
+3. **A 股适配**: 专门针对 A 股市场特性优化
 4. **事件驱动**: 清晰的事件引擎架构
 5. **实时监控**: 微信通知和策略监控
 6. **多账户**: 支持多个模拟/实盘账户
 
----
+- --
 
 ## 需求规格文档
 
-### 需求1: PyQt图形界面
+### 需求 1: PyQt 图形界面
 
-**需求描述**:
-为backtrader添加可选的PyQt图形界面，提供可视化的策略配置、回测执行和结果分析功能。
+- *需求描述**:
 
-**功能需求**:
+为 backtrader 添加可选的 PyQt 图形界面，提供可视化的策略配置、回测执行和结果分析功能。
+
+- *功能需求**:
 1. **主窗口设计**: 提供导航菜单，集成各功能模块
 2. **策略配置界面**: 可视化配置策略参数、数据源、回测范围
 3. **回测执行界面**: 显示回测进度、日志输出
@@ -73,123 +93,133 @@ DevilYuan是一个A股量化交易系统，具有以下核心特点：
 5. **实时监控界面**: 策略运行状态实时更新
 6. **暗色主题**: 支持暗色主题，长时间使用舒适
 
-**非功能需求**:
-- 可选组件: GUI不影响命令行使用
+- *非功能需求**:
+- 可选组件: GUI 不影响命令行使用
 - 响应速度: 界面操作响应时间<100ms
-- 内存占用: GUI内存占用<200MB
+- 内存占用: GUI 内存占用<200MB
 
-### 需求2: 增强事件引擎
+### 需求 2: 增强事件引擎
 
-**需求描述**:
+- *需求描述**:
+
 实现一个独立的事件引擎，支持事件注册、分发、定时器和多线程处理。
 
-**功能需求**:
+- *功能需求**:
 1. **事件注册**: 动态注册事件处理器
 2. **事件分发**: 支持同步和异步事件分发
 3. **定时器**: 内置定时器功能，支持周期性任务
 4. **多线程**: 支持多个事件处理线程并行处理
 5. **事件优先级**: 支持事件优先级排序
 
-**非功能需求**:
+- *非功能需求**:
 - 线程安全: 事件引擎必须线程安全
 - 性能要求: 事件处理延迟<10ms
-- 可扩展性: 支持100+事件类型
+- 可扩展性: 支持 100+事件类型
 
-### 需求3: 策略回放功能
+### 需求 3: 策略回放功能
 
-**需求描述**:
+- *需求描述**:
+
 实现策略回放功能，支持按时间周期分割并行回测，提高回测效率。
 
-**功能需求**:
+- *功能需求**:
 1. **周期分割**: 将回测时间段分割成多个周期
 2. **并行处理**: 多进程并行处理不同周期
 3. **状态传递**: 周期间正确传递持仓、资金状态
 4. **参数组合**: 支持多参数组合并行回测
 5. **结果汇总**: 自动汇总各周期的回测结果
 
-**非功能需求**:
-- 性能提升: 并行回测速度提升3倍以上
+- *非功能需求**:
+- 性能提升: 并行回测速度提升 3 倍以上
 - 结果一致性: 并行结果与串行结果完全一致
 - 内存控制: 每个进程内存占用<500MB
 
-### 需求4: 数据管理模块
+### 需求 4: 数据管理模块
 
-**需求描述**:
+- *需求描述**:
+
 建立统一的数据管理模块，支持多数据源和数据缓存。
 
-**功能需求**:
-1. **多数据源**: 支持CSV、Pandas、数据库等多种数据源
+- *功能需求**:
+1. **多数据源**: 支持 CSV、Pandas、数据库等多种数据源
 2. **数据缓存**: 内存缓存常用数据
 3. **数据验证**: 数据完整性和一致性检查
 4. **自动更新**: 支持数据自动下载和更新
 5. **数据转换**: 自动处理复权、对齐等
 
-**非功能需求**:
+- *非功能需求**:
 - 向后兼容: 现有数据加载方式继续支持
-- 性能要求: 数据加载速度提升50%
+- 性能要求: 数据加载速度提升 50%
 
-### 需求5: 实盘交易引擎
+### 需求 5: 实盘交易引擎
 
-**需求描述**:
+- *需求描述**:
+
 增强实盘交易功能，支持多账户管理和实时交易监控。
 
-**功能需求**:
+- *功能需求**:
 1. **多账户管理**: 统一管理多个交易账户
 2. **实时同步**: 持仓、委托、成交实时更新
 3. **交易接口**: 统一的买入、卖出、撤单接口
 4. **模拟交易**: 支持多个模拟账号
 5. **交易记录**: 交易数据持久化存储
 
-**非功能需求**:
+- *非功能需求**:
 - 接口兼容: 支持主流券商接口
 - 稳定性: 交易过程零故障
 - 延迟控制: 订单提交延迟<100ms
 
-### 需求6: 监控报警系统
+### 需求 6: 监控报警系统
 
-**需求描述**:
+- *需求描述**:
+
 实现策略监控和报警功能，支持多种通知方式。
 
-**功能需求**:
+- *功能需求**:
 1. **策略监控**: 实时监控策略运行状态
 2. **信号推送**: 买卖信号实时推送
 3. **异常报警**: 策略异常及时报警
 4. **多种通知**: 支持邮件、微信、钉钉等通知方式
 5. **交互查询**: 支持通过消息查询策略状态
 
-**非功能需求**:
-- 实时性: 报警延迟<5秒
+- *非功能需求**:
+- 实时性: 报警延迟<5 秒
 - 可靠性: 报警送达率>99%
 
----
+- --
 
 ## 设计文档
 
-### 1. PyQt图形界面设计
+### 1. PyQt 图形界面设计
 
 #### 1.1 整体架构
 
 ```python
+
 # backtrader/gui/__init__.py
 
 """
 Backtrader GUI Module
 
-提供PyQt5实现的图形界面，包含以下模块:
+提供 PyQt5 实现的图形界面，包含以下模块:
+
 - BtMainWindow: 主窗口
 - BtBasicMainWindow: 基础窗口类
 - 各功能子窗口
+
 """
 
 from .main_window import BtMainWindow
 from .basic_window import BtBasicMainWindow
 
 __all__ = ['BtMainWindow', 'BtBasicMainWindow']
-```
+
+```bash
 
 #### 1.2 主窗口设计
 
 ```python
+
 # backtrader/gui/main_window.py
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
@@ -198,7 +228,7 @@ from PyQt5.QtCore import Qt
 import qdarkstyle
 
 class BtMainWindow(QMainWindow):
-    """Backtrader主窗口
+    """Backtrader 主窗口
 
     提供导航界面，包含主要功能入口按钮
     """
@@ -208,20 +238,20 @@ class BtMainWindow(QMainWindow):
         self._initUi()
 
     def _initUi(self):
-        self.setWindowTitle('Backtrader量化交易平台')
+        self.setWindowTitle('Backtrader 量化交易平台')
         self.resize(1000, 700)
 
-        # 应用暗色主题
+# 应用暗色主题
         self.setStyleSheet(qdarkstyle.load_stylesheet_pyqt5())
 
-        # 中央Widget
+# 中央 Widget
         centerWidget = QWidget()
         self.setCentralWidget(centerWidget)
 
-        # 布局
+# 布局
         layout = QGridLayout(centerWidget)
 
-        # 功能按钮
+# 功能按钮
         buttons = [
             ('数据管理', self._openDataMgr),
             ('策略回测', self._openBackTest),
@@ -235,7 +265,7 @@ class BtMainWindow(QMainWindow):
             btn.clicked.connect(callback)
             layout.addWidget(btn, i // 2, i % 2)
 
-        # 状态栏
+# 状态栏
         self._statusBar = QStatusBar()
         self.setStatusBar(self._statusBar)
 
@@ -262,11 +292,13 @@ class BtMainWindow(QMainWindow):
         from .settings_window import BtSettingsWindow
         window = BtSettingsWindow(self)
         window.show()
-```
+
+```bash
 
 #### 1.3 基础窗口类
 
 ```python
+
 # backtrader/gui/basic_window.py
 
 from PyQt5.QtWidgets import QMainWindow, QStatusBar, QTextEdit
@@ -277,10 +309,12 @@ class BtBasicMainWindow(QMainWindow):
     """基础窗口类
 
     提供所有子窗口的通用功能:
+
     - 事件引擎集成
     - 互斥操作管理
     - 状态栏更新
     - 日志输出
+
     """
 
     def __init__(self, parent=None):
@@ -293,7 +327,7 @@ class BtBasicMainWindow(QMainWindow):
         self._initUi()
 
     def _initUi(self):
-        """初始化UI，子类重写"""
+        """初始化 UI，子类重写"""
         pass
 
     def setEventEngine(self, eventEngine):
@@ -353,11 +387,13 @@ class BtBasicMainWindow(QMainWindow):
             self._logTextEdit.append(
                 f'<font color="{color}">{msg}</font>'
             )
-```
+
+```bash
 
 #### 1.4 回测窗口
 
 ```python
+
 # backtrader/gui/backtest_window.py
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
@@ -379,19 +415,19 @@ class BtBackTestWindow(BtBasicMainWindow):
 
         layout = QVBoxLayout(centerWidget)
 
-        # 参数配置区
+# 参数配置区
         paramLayout = self._createParamLayout()
         layout.addLayout(paramLayout)
 
-        # 分割器: 日志和结果
+# 分割器: 日志和结果
         splitter = QSplitter(Qt.Vertical)
 
-        # 日志区
+# 日志区
         self._logTextEdit = QTextEdit()
         self._logTextEdit.setReadOnly(True)
         splitter.addWidget(self._logTextEdit)
 
-        # 结果表格
+# 结果表格
         self._resultTable = QTableWidget()
         splitter.addWidget(self._resultTable)
 
@@ -399,7 +435,7 @@ class BtBackTestWindow(BtBasicMainWindow):
         splitter.setStretchFactor(1, 2)
         layout.addWidget(splitter)
 
-        # 进度条
+# 进度条
         self._progressBar = QProgressBar()
         layout.addWidget(self._progressBar)
 
@@ -407,28 +443,28 @@ class BtBackTestWindow(BtBasicMainWindow):
         """创建参数配置布局"""
         layout = QHBoxLayout()
 
-        # 策略选择
+# 策略选择
         layout.addWidget(QLabel('策略:'))
         self._strategyCombo = QComboBox()
         self._strategyCombo.addItems(['SmaCross', 'BollingerBands', 'RSI'])
         layout.addWidget(self._strategyCombo)
 
-        # 开始日期
+# 开始日期
         layout.addWidget(QLabel('开始日期:'))
         self._startDateEdit = QLineEdit('2020-01-01')
         layout.addWidget(self._startDateEdit)
 
-        # 结束日期
+# 结束日期
         layout.addWidget(QLabel('结束日期:'))
         self._endDateEdit = QLineEdit('2023-12-31')
         layout.addWidget(self._endDateEdit)
 
-        # 初始资金
+# 初始资金
         layout.addWidget(QLabel('初始资金:'))
         self._cashEdit = QLineEdit('1000000')
         layout.addWidget(self._cashEdit)
 
-        # 运行按钮
+# 运行按钮
         self._runBtn = QPushButton('运行回测')
         self._runBtn.clicked.connect(self._runBackTest)
         layout.addWidget(self._runBtn)
@@ -442,7 +478,7 @@ class BtBackTestWindow(BtBasicMainWindow):
             self._info('回测正在运行中...', 'warning')
             return
 
-        # 创建回测线程
+# 创建回测线程
         self._backtestThread = BtBackTestThread(
             strategy=self._strategyCombo.currentText(),
             start_date=self._startDateEdit.text(),
@@ -459,7 +495,7 @@ class BtBackTestWindow(BtBasicMainWindow):
         self._endMutexAction()
         self._info('回测完成', 'success')
 
-        # 显示结果
+# 显示结果
         self._displayResults(results)
 
     def _onProgress(self, value):
@@ -497,19 +533,20 @@ class BtBackTestThread(QThread):
 
         self.log.emit(f'开始回测: {self.strategy}', 'info')
 
-        # 创建Cerebro
+# 创建 Cerebro
         cerebro = bt.Cerebro()
         cerebro.broker.setcash(self.cash)
 
-        # 加载策略
-        # ... 加载数据和策略 ...
+# 加载策略
 
-        # 运行回测
+# ... 加载数据和策略 ...
+
+# 运行回测
         self.progress.emit(50)
         results = cerebro.run()
         self.progress.emit(100)
 
-        # 提取结果
+# 提取结果
         result_dict = {
             '总收益率': f'{results[0].analyzers.pnl.get_analysis()}%',
             '夏普比率': results[0].analyzers.sharpe.get_analysis(),
@@ -517,13 +554,15 @@ class BtBackTestThread(QThread):
         }
 
         self.finished.emit(result_dict)
-```
+
+```bash
 
 ### 2. 增强事件引擎设计
 
 #### 2.1 核心事件引擎
 
 ```python
+
 # backtrader/events/engine.py
 
 import threading
@@ -533,7 +572,7 @@ from typing import Callable, Dict, List, Any, Optional
 from .event import BtEvent, BtEventType
 
 class BtEventEngine(threading.Thread):
-    """Backtrader事件引擎
+    """Backtrader 事件引擎
 
     支持事件注册、分发、定时器和多线程处理
     """
@@ -544,17 +583,17 @@ class BtEventEngine(threading.Thread):
         self._hand_nbr = hand_nbr
         self._timer = timer
 
-        # 事件队列
+# 事件队列
         self._queue = queue.Queue()
 
-        # 事件处理器
+# 事件处理器
         self._hands: List[BtEventHand] = []
         self._hand_queues: List[queue.Queue] = []
 
-        # 事件映射: {事件类型: [处理器列表]}
+# 事件映射: {事件类型: [处理器列表]}
         self._event_map: Dict[BtEventType, List[Callable]] = defaultdict(list)
 
-        # 定时器
+# 定时器
         self._timer_hand: Optional[BtTimerHand] = None
 
     def start(self):
@@ -562,7 +601,7 @@ class BtEventEngine(threading.Thread):
         if not self._active:
             self._active = True
 
-            # 创建事件处理器
+# 创建事件处理器
             for i in range(self._hand_nbr):
                 hand_queue = queue.Queue()
                 hand = BtEventHand(self, hand_queue, i)
@@ -570,12 +609,12 @@ class BtEventEngine(threading.Thread):
                 self._hands.append(hand)
                 self._hand_queues.append(hand_queue)
 
-            # 创建定时器
+# 创建定时器
             if self._timer:
                 self._timer_hand = BtTimerHand(self)
                 self._timer_hand.start()
 
-            # 启动引擎线程
+# 启动引擎线程
             super().start()
 
     def stop(self):
@@ -583,22 +622,23 @@ class BtEventEngine(threading.Thread):
         if self._active:
             self._active = False
 
-            # 停止事件处理器
+# 停止事件处理器
             for hand in self._hands:
                 hand.stop()
 
-            # 停止定时器
+# 停止定时器
             if self._timer_hand:
                 self._timer_hand.stop()
 
-            # 放入停止事件
+# 放入停止事件
             self.put(BtEvent(BtEventType.stop))
 
     def run(self):
         """事件引擎主循环"""
         while self._active:
             try:
-                # 从队列获取事件
+
+# 从队列获取事件
                 event = self._queue.get(timeout=0.1)
                 self._processEvent(event)
             except queue.Empty:
@@ -615,9 +655,10 @@ class BtEventEngine(threading.Thread):
         Args:
             event_type: 事件类型
             handler: 处理函数
-            hand: 指定事件处理器索引，None表示自动分配
+            hand: 指定事件处理器索引，None 表示自动分配
         """
-        # 创建注册事件
+
+# 创建注册事件
         reg_event = BtEvent(BtEventType.register)
         reg_event.data = {
             'type': event_type,
@@ -655,33 +696,37 @@ class BtEventEngine(threading.Thread):
             return
 
         elif event.type == BtEventType.register:
-            # 注册事件处理器
+
+# 注册事件处理器
             data = event.data
             event_type = data['type']
             handler = data['handler']
             hand_idx = data.get('hand')
 
-            # 添加到事件映射
+# 添加到事件映射
             if handler not in self._event_map[event_type]:
                 self._event_map[event_type].append(handler)
 
-            # 如果指定了处理器，添加到对应处理器
+# 如果指定了处理器，添加到对应处理器
             if hand_idx is not None:
                 self._event_map[f'_hand_{hand_idx}_{event_type}'] = [handler]
 
         elif event.type == BtEventType.registerTimer:
-            # 注册定时器
+
+# 注册定时器
             if self._timer_hand:
                 self._timer_hand.register(event.data)
 
         else:
-            # 普通事件，分发到对应处理器
+
+# 普通事件，分发到对应处理器
             handlers = self._event_map.get(event.type, [])
 
-            # 负载均衡分配到不同处理器
+# 负载均衡分配到不同处理器
             for i, handler in enumerate(handlers):
                 hand_idx = i % len(self._hand_queues)
-                # 复制事件，避免修改原始事件
+
+# 复制事件，避免修改原始事件
                 event_copy = BtEvent(event.type, event.data)
                 self._hand_queues[hand_idx].put((handler, event_copy))
 
@@ -696,7 +741,7 @@ class BtEventHand(threading.Thread):
         self._idx = idx
         self._active = False
 
-        # 事件映射
+# 事件映射
         self._handlers: Dict[BtEventType, List[Callable]] = defaultdict(list)
 
     def start(self):
@@ -713,14 +758,16 @@ class BtEventHand(threading.Thread):
         """事件处理器主循环"""
         while self._active:
             try:
-                # 获取事件
+
+# 获取事件
                 handler, event = self._queue.get(timeout=0.1)
 
-                # 执行处理器
+# 执行处理器
                 try:
                     handler(event)
                 except Exception as e:
-                    # 错误处理
+
+# 错误处理
                     print(f"Event handler error: {e}")
 
             except queue.Empty:
@@ -763,21 +810,24 @@ class BtTimerHand(threading.Thread):
 
             for timer in self._timers:
                 if current_time >= timer['next_time']:
-                    # 触发定时器
+
+# 触发定时器
                     try:
                         timer['handler'](current_time)
                     except Exception as e:
                         print(f"Timer handler error: {e}")
 
-                    # 更新下次触发时间
+# 更新下次触发时间
                     timer['next_time'] = current_time + timer['interval']
 
-            time.sleep(0.1)  # 100ms检查间隔
-```
+            time.sleep(0.1)  # 100ms 检查间隔
+
+```bash
 
 #### 2.2 事件定义
 
 ```python
+
 # backtrader/events/event.py
 
 from enum import Enum
@@ -787,39 +837,39 @@ from dataclasses import dataclass, field
 class BtEventType(Enum):
     """事件类型枚举"""
 
-    # 系统事件
+# 系统事件
     stop = "stop"
     register = "register"
     registerTimer = "registerTimer"
 
-    # 数据事件
+# 数据事件
     dataLoading = "dataLoading"
     dataLoaded = "dataLoaded"
     dataError = "dataError"
 
-    # 回测事件
+# 回测事件
     backtestStart = "backtestStart"
     backtestProgress = "backtestProgress"
     backtestFinish = "backtestFinish"
     backtestError = "backtestError"
 
-    # 策略事件
+# 策略事件
     strategyStart = "strategyStart"
     strategyStop = "strategyStop"
     strategySignal = "strategySignal"
 
-    # 订单事件
+# 订单事件
     orderSubmitted = "orderSubmitted"
     orderAccepted = "orderAccepted"
     orderRejected = "orderRejected"
     orderFilled = "orderFilled"
     orderCanceled = "orderCanceled"
 
-    # 交易事件
+# 交易事件
     tradeOpened = "tradeOpened"
     tradeClosed = "tradeClosed"
 
-    # 监控事件
+# 监控事件
     monitorAlert = "monitorAlert"
     monitorSignal = "monitorSignal"
 
@@ -837,13 +887,15 @@ class BtEvent:
     def __setitem__(self, key: str, value: Any):
         """设置事件数据"""
         self.data[key] = value
-```
+
+```bash
 
 ### 3. 策略回放功能设计
 
 #### 3.1 周期分割并行回测
 
 ```python
+
 # backtrader/parallel.py
 
 import multiprocessing as mp
@@ -862,7 +914,7 @@ class BtParallelBackTest:
         """初始化并行回测引擎
 
         Args:
-            cerebro: Cerebro实例
+            cerebro: Cerebro 实例
             period_nbr: 周期分割数量
             param_group_nbr: 参数组合并行数量
         """
@@ -884,33 +936,35 @@ class BtParallelBackTest:
         Returns:
             合并后的回测结果列表
         """
-        # 获取交易日列表
+
+# 获取交易日列表
         trade_days = self._getTradeDays(start_date, end_date, data_feeds)
 
-        # 分割周期
+# 分割周期
         periods = self._splitPeriods(trade_days, self._period_nbr)
 
-        # 并行回测
+# 并行回测
         with mp.Pool(processes=self._period_nbr) as pool:
             results = pool.starmap(
                 self._runSinglePeriod,
                 [(period, data_feeds) for period in periods]
             )
 
-        # 合并结果
+# 合并结果
         return self._mergeResults(results)
 
     def _getTradeDays(self, start_date: datetime, end_date: datetime,
                       data_feeds: List) -> List[datetime]:
         """获取交易日列表"""
-        # 从数据源提取交易日
+
+# 从数据源提取交易日
         trade_days = []
         for feed in data_feeds:
             if hasattr(feed, 'datetime'):
                 dates = pd.to_datetime([feed.datetime[i] for i in range(len(feed))])
                 trade_days.extend(dates.tolist())
 
-        # 去重排序
+# 去重排序
         trade_days = sorted(list(set(trade_days)))
         trade_days = [d for d in trade_days if start_date <= d <= end_date]
 
@@ -937,19 +991,19 @@ class BtParallelBackTest:
         """运行单个周期的回测"""
         start_date, end_date = period
 
-        # 创建新的Cerebro实例
+# 创建新的 Cerebro 实例
         cerebro = self._createCerebroCopy()
 
-        # 过滤数据
+# 过滤数据
         filtered_feeds = self._filterDataByDate(
             data_feeds, start_date, end_date
         )
 
-        # 添加数据
+# 添加数据
         for feed in filtered_feeds:
             cerebro.adddata(feed)
 
-        # 运行回测
+# 运行回测
         results = cerebro.run()
 
         return {
@@ -960,8 +1014,9 @@ class BtParallelBackTest:
         }
 
     def _createCerebroCopy(self):
-        """创建Cerebro副本"""
-        # 使用pickle序列化创建副本
+        """创建 Cerebro 副本"""
+
+# 使用 pickle 序列化创建副本
         import pickle
         return pickle.loads(pickle.dumps(self._cerebro))
 
@@ -971,7 +1026,8 @@ class BtParallelBackTest:
         filtered = []
 
         for feed in data_feeds:
-            # 创建数据过滤
+
+# 创建数据过滤
             from .filters import DateFilter
             filtered_feed = DateFilter(feed, start_date, end_date)
             filtered.append(filtered_feed)
@@ -983,7 +1039,7 @@ class BtParallelBackTest:
         if not results:
             return []
 
-        # 合并统计指标
+# 合并统计指标
         merged = {
             'total_return': 0,
             'sharpe_ratio': 0,
@@ -991,13 +1047,13 @@ class BtParallelBackTest:
             'total_trades': 0,
         }
 
-        # 计算加权平均
+# 计算加权平均
         total_value = sum(r['final_value'] for r in results)
 
         for result in results:
             weight = result['final_value'] / total_value if total_value > 0 else 0
 
-            # 累加指标
+# 累加指标
             for key in merged.keys():
                 if key in result:
                     merged[key] += result[key] * weight
@@ -1013,10 +1069,11 @@ class BtParallelBackTest:
         Returns:
             各参数组合的回测结果
         """
-        # 生成参数组合
+
+# 生成参数组合
         param_groups = self._createParamGroups(param_grid)
 
-        # 并行回测
+# 并行回测
         with mp.Pool(processes=self._param_group_nbr or mp.cpu_count()) as pool:
             results = pool.map(self._runSingleParamGroup, param_groups)
 
@@ -1035,28 +1092,31 @@ class BtParallelBackTest:
 
     def _runSingleParamGroup(self, params: Dict) -> Dict:
         """运行单个参数组合的回测"""
-        # 创建Cerebro副本
+
+# 创建 Cerebro 副本
         cerebro = self._createCerebroCopy()
 
-        # 设置参数
+# 设置参数
         strategy = cerebro.runstrategies[0]
         for key, value in params.items():
             setattr(strategy.params, key, value)
 
-        # 运行回测
+# 运行回测
         results = cerebro.run()
 
         return {
             'params': params,
             'results': results,
         }
-```
+
+```bash
 
 ### 4. 数据管理模块设计
 
 #### 4.1 数据管理器
 
 ```python
+
 # backtrader/data/manager.py
 
 from typing import List, Dict, Any, Optional, Union
@@ -1081,10 +1141,10 @@ class BtDataManager:
         self._cache_dir = Path(cache_dir) if cache_dir else Path.home() / '.backtrader' / 'cache'
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # 数据缓存
+# 数据缓存
         self._memory_cache: Dict[str, Any] = {}
 
-        # 数据源配置
+# 数据源配置
         self._data_sources: Dict[str, Any] = {}
 
     def registerDataSource(self, name: str, source: Any):
@@ -1107,21 +1167,21 @@ class BtDataManager:
         """
         cache_key = self._getCacheKey(name, start, end)
 
-        # 检查内存缓存
+# 检查内存缓存
         if use_cache and cache_key in self._memory_cache:
             return self._memory_cache[cache_key]
 
-        # 检查磁盘缓存
+# 检查磁盘缓存
         if use_cache:
             cached_data = self._loadFromDiskCache(cache_key)
             if cached_data is not None:
                 self._memory_cache[cache_key] = cached_data
                 return cached_data
 
-        # 从数据源加载
+# 从数据源加载
         data = self._loadFromSource(name, start, end)
 
-        # 保存到缓存
+# 保存到缓存
         if use_cache and data is not None:
             self._saveToDiskCache(cache_key, data)
             self._memory_cache[cache_key] = data
@@ -1131,12 +1191,13 @@ class BtDataManager:
     def _loadFromSource(self, name: str, start: Optional[datetime],
                         end: Optional[datetime]) -> Any:
         """从数据源加载数据"""
-        # 检查是否为已注册数据源
+
+# 检查是否为已注册数据源
         if name in self._data_sources:
             source = self._data_sources[name]
             return source.load(start, end)
 
-        # 尝试从文件加载
+# 尝试从文件加载
         path = Path(name)
         if path.exists():
             suffix = path.suffix.lower()
@@ -1152,38 +1213,40 @@ class BtDataManager:
 
     def _loadCsv(self, path: Path, start: Optional[datetime],
                  end: Optional[datetime]) -> Any:
-        """加载CSV数据"""
+        """加载 CSV 数据"""
         df = pd.read_csv(path)
 
-        # 转换日期
+# 转换日期
         if 'datetime' in df.columns:
             df['datetime'] = pd.to_datetime(df['datetime'])
         elif 'date' in df.columns:
             df['datetime'] = pd.to_datetime(df['date'])
 
-        # 过滤日期范围
+# 过滤日期范围
         if start is not None:
             df = df[df['datetime'] >= start]
         if end is not None:
             df = df[df['datetime'] <= end]
 
-        # 转换为backtrader数据源
+# 转换为 backtrader 数据源
         from ..feeds import PandasData
         return PandasData(dataname=df)
 
     def _loadPickle(self, path: Path) -> Any:
-        """加载Pickle数据"""
+        """加载 Pickle 数据"""
         with open(path, 'rb') as f:
             return pickle.load(f)
 
     def _loadHdf5(self, path: Path, start: Optional[datetime],
                   end: Optional[datetime]) -> Any:
-        """加载HDF5数据"""
+        """加载 HDF5 数据"""
         import tables
 
         with tables.open_file(path, 'r') as h5file:
-            # 读取数据
-            # ...
+
+# 读取数据
+
+# ...
 
             return data
 
@@ -1220,7 +1283,7 @@ class BtDataManager:
         """清空缓存"""
         self._memory_cache.clear()
 
-        # 清空磁盘缓存
+# 清空磁盘缓存
         for cache_file in self._cache_dir.glob('*.pkl'):
             try:
                 cache_file.unlink()
@@ -1232,34 +1295,39 @@ class BtDataManager:
 
         从数据源重新下载并更新数据
         """
-        # 清除缓存
+
+# 清除缓存
         cache_key = self._getCacheKey(name, None, None)
         if cache_key in self._memory_cache:
             del self._memory_cache[cache_key]
 
-        # 重新加载数据
+# 重新加载数据
         return self.loadData(name, use_cache=False)
 
     def validateData(self, data: Any) -> bool:
         """验证数据完整性"""
-        # 检查必需字段
+
+# 检查必需字段
         required_fields = ['datetime', 'open', 'high', 'low', 'close', 'volume']
 
         for field in required_fields:
             if not hasattr(data, field):
                 return False
 
-        # 检查数据一致性
-        # ...
+# 检查数据一致性
+
+# ...
 
         return True
-```
+
+```bash
 
 ### 5. 实盘交易引擎设计
 
 #### 5.1 多账户管理
 
 ```python
+
 # backtrader/trading/account_manager.py
 
 from typing import Dict, List, Optional, Any
@@ -1287,7 +1355,7 @@ class BtAccount:
         """初始化账户
 
         Args:
-            account_id: 账户ID
+            account_id: 账户 ID
             account_type: 账户类型
             broker: 券商接口
         """
@@ -1333,7 +1401,8 @@ class BtAccount:
         try:
             if self._broker.connect():
                 self._status = AccountStatus.CONNECTED
-                # 同步账户信息
+
+# 同步账户信息
                 self._syncAccount()
                 return True
         except Exception as e:
@@ -1357,7 +1426,7 @@ class BtAccount:
             quantity: 数量
 
         Returns:
-            订单ID
+            订单 ID
         """
         if self._status != AccountStatus.CONNECTED:
             print("Account not connected")
@@ -1410,14 +1479,15 @@ class BtAccount:
 
     def _syncAccount(self):
         """同步账户信息"""
-        # 获取资金
+
+# 获取资金
         self._cash = self._broker.getCash()
         self._value = self._broker.getValue()
 
-        # 获取持仓
+# 获取持仓
         self._positions = self._broker.getPositions()
 
-        # 获取订单
+# 获取订单
         self._orders = self._broker.getOrders()
 
     def update(self):
@@ -1492,13 +1562,15 @@ class BtAccountManager:
     def totalValue(self) -> float:
         """所有账户总市值"""
         return sum(acc.value for acc in self._accounts.values())
-```
+
+```bash
 
 ### 6. 监控报警系统设计
 
 #### 6.1 监控引擎
 
 ```python
+
 # backtrader/monitor/engine.py
 
 from typing import Callable, Dict, List, Any, Optional
@@ -1523,7 +1595,7 @@ class BtMonitorEngine:
         self._monitors: Dict[str, BtMonitor] = {}
         self._notifiers: List[BtNotifier] = []
 
-        # 注册事件
+# 注册事件
         self._registerEvents()
 
     def _registerEvents(self):
@@ -1649,7 +1721,8 @@ class BtStrategyMonitor(BtMonitor):
 
     def check(self):
         """检查策略状态"""
-        # 检查策略是否还在运行
+
+# 检查策略是否还在运行
         if not hasattr(self._strategy, 'isrunning') or not self._strategy.isrunning:
             self._event_engine.put(BtEvent(
                 BtEventType.monitorAlert,
@@ -1659,12 +1732,12 @@ class BtStrategyMonitor(BtMonitor):
                 }
             ))
 
-        # 检查策略价值变化
+# 检查策略价值变化
         current_value = self._strategy.broker.getvalue()
         if self._last_value is not None:
             change_pct = (current_value - self._last_value) / self._last_value
 
-            # 单日跌幅超过5%报警
+# 单日跌幅超过 5%报警
             if change_pct < -0.05:
                 self._event_engine.put(BtEvent(
                     BtEventType.monitorAlert,
@@ -1699,7 +1772,7 @@ class BtEmailNotifier(BtNotifier):
         """初始化邮件通知器
 
         Args:
-            smtp_server: SMTP服务器
+            smtp_server: SMTP 服务器
             from_addr: 发件人地址
             password: 密码
             to_addrs: 收件人地址列表
@@ -1738,11 +1811,13 @@ class BtLogNotifier(BtNotifier):
 
         with open(self._log_file, 'a') as f:
             f.write(f"{timestamp} [{level}] {title}\n{message}\n\n")
-```
+
+```bash
 
 #### 6.2 微信通知器(可选)
 
 ```python
+
 # backtrader/monitor/wechat.py
 
 class BtWeChatNotifier(BtNotifier):
@@ -1755,7 +1830,7 @@ class BtWeChatNotifier(BtNotifier):
         """初始化微信通知器
 
         Args:
-            webhook_url: 企业微信机器人Webhook URL
+            webhook_url: 企业微信机器人 Webhook URL
         """
         self._webhook_url = webhook_url
 
@@ -1764,7 +1839,7 @@ class BtWeChatNotifier(BtNotifier):
         import requests
         import json
 
-        # 根据级别选择颜色
+# 根据级别选择颜色
         colors = {
             'INFO': 'info',
             'WARNING': 'warning',
@@ -1790,22 +1865,25 @@ class BtWeChatNotifier(BtNotifier):
         except Exception as e:
             print(f"WeChat send error: {e}")
             return False
-```
+
+```bash
 
 ### 7. 实施计划
 
 #### 7.1 实施优先级
 
-1. **高优先级** (第一阶段)
+1. **高优先级**(第一阶段)
    - 增强事件引擎 - 基础设施
    - 数据管理模块 - 提升数据管理能力
 
-2. **中优先级** (第二阶段)
+2.**中优先级**(第二阶段)
+
    - 策略回放功能 - 提升回测效率
    - 监控报警系统 - 增强系统可靠性
 
-3. **可选优先级** (第三阶段)
-   - PyQt图形界面 - 提升用户体验
+3.**可选优先级** (第三阶段)
+
+   - PyQt 图形界面 - 提升用户体验
    - 实盘交易引擎 - 扩展实盘能力
 
 #### 7.2 向后兼容性保证
@@ -1813,48 +1891,68 @@ class BtWeChatNotifier(BtNotifier):
 所有新功能都是**可选的**，现有代码无需修改即可继续使用：
 
 ```python
+
 # 现有用法继续支持
+
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy)
 results = cerebro.run()
 
 # 新用法
+
 # 事件引擎
+
 event_engine = bt.BtEventEngine()
 cerebro.set_event_engine(event_engine)
 
 # 数据管理器
+
 data_mgr = bt.BtDataManager()
 data = data_mgr.loadData('AAPL', start, end)
 
 # 并行回测
+
 parallel = bt.BtParallelBackTest(cerebro)
 results = parallel.runPeriods(start, end, [data])
-```
+
+```bash
 
 #### 7.3 目录结构
 
-```
+```bash
 backtrader/
 ├── __init__.py
 ├── cerebro.py              # 核心引擎 (修改)
+
 ├── events/                 # 新增: 事件系统
+
 │   ├── __init__.py
 │   ├── engine.py          # 事件引擎
+
 │   └── event.py           # 事件定义
+
 ├── data/                   # 修改: 数据模块
+
 │   ├── manager.py         # 新增: 数据管理器
+
 │   └── ...
 ├── parallel.py             # 新增: 并行回测
+
 ├── trading/                # 新增: 交易模块
+
 │   ├── __init__.py
 │   ├── account_manager.py # 账户管理
+
 │   └── broker/            # 券商接口
+
 ├── monitor/                # 新增: 监控模块
+
 │   ├── __init__.py
 │   ├── engine.py          # 监控引擎
+
 │   └── wechat.py          # 微信通知
+
 └── gui/                    # 新增: 图形界面
     ├── __init__.py
     ├── main_window.py     # 主窗口
@@ -1863,19 +1961,20 @@ backtrader/
     ├── data_window.py     # 数据窗口
     ├── monitor_window.py  # 监控窗口
     └── settings_window.py # 设置窗口
-```
 
----
+```bash
+
+- --
 
 ## 总结
 
-通过借鉴DevilYuan的设计思想，backtrader可以在保持通用性的同时，获得以下改进：
+通过借鉴 DevilYuan 的设计思想，backtrader 可以在保持通用性的同时，获得以下改进：
 
-1. **GUI支持**: PyQt图形界面提升用户体验，降低使用门槛
+1. **GUI 支持**: PyQt 图形界面提升用户体验，降低使用门槛
 2. **事件驱动**: 清晰的事件引擎架构，实现组件间松耦合
 3. **并行回测**: 周期分割并行处理，大幅提升回测效率
 4. **数据管理**: 统一的数据管理模块，支持多数据源和缓存
 5. **实盘交易**: 增强的交易引擎，支持多账户管理
 6. **监控报警**: 完善的监控报警系统，实时掌握策略状态
 
-这些改进都是**向后兼容**的，用户可以按需使用新功能，不影响现有策略代码。DevilYuan作为针对A股市场的完整交易系统，其在事件驱动架构、GUI设计和实盘交易方面的实践经验对backtrader的扩展具有重要参考价值。
+这些改进都是**向后兼容**的，用户可以按需使用新功能，不影响现有策略代码。DevilYuan 作为针对 A 股市场的完整交易系统，其在事件驱动架构、GUI 设计和实盘交易方面的实践经验对 backtrader 的扩展具有重要参考价值。

@@ -1,19 +1,23 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize the PRD workflow by detecting continuation state and setting up the document'
 
 # File References
+
 nextStepFile: './step-02-discovery.md'
 continueStepFile: './step-01b-continue.md'
 outputFile: '{planning_artifacts}/prd.md'
 
 # Template Reference
+
 prdTemplate: '../templates/prd-template.md'
----
+
+- --
 
 # Step 1: Workflow Initialization
 
-**Progress: Step 1 of 11** - Next: Project Discovery
+- *Progress: Step 1 of 11** - Next: Project Discovery
 
 ## STEP GOAL:
 
@@ -63,7 +67,7 @@ Initialize the PRD workflow by detecting continuation state, discovering input d
 
 First, check if the output document already exists:
 
-**Workflow State Detection:**
+- *Workflow State Detection:**
 
 - Look for file at `{outputFile}`
 - If exists, read the complete file including frontmatter
@@ -73,7 +77,7 @@ First, check if the output document already exists:
 
 If the document exists and has frontmatter with `stepsCompleted` BUT `step-11-complete` is NOT in the list, follow the Continuation Protocol since the document is incomplete:
 
-**Continuation Protocol:**
+- *Continuation Protocol:**
 
 - **STOP immediately** and load `{continueStepFile}`
 - Do not proceed with any initialization tasks
@@ -87,6 +91,7 @@ If no document exists or no `stepsCompleted` in frontmatter:
 #### A. Input Document Discovery
 
 Discover and load context documents using smart discovery. Documents can be in the following locations:
+
 - {planning_artifacts}/**
 - {output_folder}/**
 - {product_knowledge}/**
@@ -95,6 +100,7 @@ Discover and load context documents using smart discovery. Documents can be in t
 Also - when searching - documents can be a single markdown file, or a folder with an index and multiple files. For Example, if searching for `*foo*.md` and not found, also search for a folder called *foo*/index.md (which indicates sharded content)
 
 Try to discover the following:
+
 - Product Brief (`*brief*.md`)
 - Research Documents (`/*research*.md`)
 - Project Documentation (generally multiple documents might be found for this in the `{product_knowledge}` or `docs` folder.)
@@ -102,7 +108,7 @@ Try to discover the following:
 
 <critical>Confirm what you have found with the user, along with asking if the user wants to provide anything else. Only after this confirmation will you proceed to follow the loading rules</critical>
 
-**Loading Rules:**
+- *Loading Rules:**
 
 - Load ALL discovered files completely that the user confirmed or provided (no offset/limit)
 - If there is a project context, whatever is relevant should try to be biased in the remainder of this whole workflow process
@@ -112,33 +118,33 @@ Try to discover the following:
 
 #### B. Create Initial Document
 
-**Document Setup:**
+- *Document Setup:**
 
 - Copy the template from `{prdTemplate}` to `{outputFile}`
 - Initialize frontmatter with proper structure including inputDocuments array.
 
 #### C. Present Initialization Results
 
-**Setup Report to User:**
+- *Setup Report to User:**
 
 "Welcome {{user_name}}! I've set up your PRD workspace for {{project_name}}.
 
-**Document Setup:**
+- *Document Setup:**
 
 - Created: `{outputFile}` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
+- *Input Documents Discovered:**
 
 - Product briefs: {{briefCount}} files {if briefCount > 0}✓ loaded{else}(none found){/if}
 - Research: {{researchCount}} files {if researchCount > 0}✓ loaded{else}(none found){/if}
 - Brainstorming: {{brainstormingCount}} files {if brainstormingCount > 0}✓ loaded{else}(none found){/if}
 - Project docs: {{projectDocsCount}} files {if projectDocsCount > 0}✓ loaded (brownfield project){else}(none found - greenfield project){/if}
 
-**Files loaded:** {list of specific file names or "No additional documents found"}
+- *Files loaded:**{list of specific file names or "No additional documents found"}
 
 {if projectDocsCount > 0}
-📋 **Note:** This is a **brownfield project**. Your existing project documentation has been loaded. In the next step, I'll ask specifically about what new features or changes you want to add to your existing system.
+📋**Note:**This is a**brownfield project**. Your existing project documentation has been loaded. In the next step, I'll ask specifically about what new features or changes you want to add to your existing system.
 {/if}
 
 Do you have any other documents you'd like me to include, or shall we continue to the next step?"
@@ -164,7 +170,7 @@ Display menu after setup report:
 
 ONLY WHEN [C continue option] is selected and [frontmatter properly updated with this step added to stepsCompleted and documentCounts], will you then read fully and follow: `{nextStepFile}` to begin project discovery.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -188,4 +194,4 @@ ONLY WHEN [C continue option] is selected and [frontmatter properly updated with
 - Not reporting discovered documents to user clearly
 - Proceeding without user selecting 'C' (Continue)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

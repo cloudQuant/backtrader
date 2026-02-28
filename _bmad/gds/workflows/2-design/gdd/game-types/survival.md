@@ -4,7 +4,7 @@
 
 {{resource_crafting}}
 
-**Resource systems:**
+- *Resource systems:**
 
 - Resource types (wood, stone, food, water, etc.)
 - Gathering methods (mining, foraging, hunting, looting)
@@ -17,7 +17,7 @@
 
 {{survival_needs}}
 
-**Player vitals:**
+- *Player vitals:**
 
 - Hunger/thirst systems
 - Health and healing
@@ -30,7 +30,7 @@
 
 {{environmental_threats}}
 
-**Danger systems:**
+- *Danger systems:**
 
 - Wildlife (predators, hostile creatures)
 - Environmental hazards (weather, terrain)
@@ -43,7 +43,7 @@
 
 {{base_building}}
 
-**Construction systems:**
+- *Construction systems:**
 
 - Building materials and recipes
 - Structure types (shelter, storage, defenses)
@@ -56,7 +56,7 @@
 
 {{progression_tech}}
 
-**Advancement:**
+- *Advancement:**
 
 - Tech tree or skill progression
 - Tool/weapon tiers
@@ -69,7 +69,7 @@
 
 {{world_structure}}
 
-**Map design:**
+- *Map design:**
 
 - World size and boundaries
 - Biome diversity

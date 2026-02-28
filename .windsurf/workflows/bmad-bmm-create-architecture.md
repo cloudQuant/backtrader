@@ -1,7 +1,9 @@
----
+- --
+
 description: 'Collaborative architectural decision facilitation for AI-agent consistency. Replaces template-driven architecture with intelligent, adaptive conversation that produces a decision-focused architecture document optimized for preventing agent conflicts.'
 auto_execution_mode: "iterate"
----
+
+- --
 
 # create-architecture
 

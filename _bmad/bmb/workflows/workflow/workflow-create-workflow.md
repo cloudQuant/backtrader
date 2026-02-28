@@ -1,24 +1,26 @@
----
+- --
+
 name: create-workflow
 description: Create a new BMAD workflow with proper structure and best practices
 web_bundle: true
 createWorkflow: './steps-c/step-01-discovery.md'
 conversionWorkflow: './steps-c/step-00-conversion.md'
----
+
+- --
 
 # Create Workflow
 
-**Goal:** Create structured, repeatable standalone workflows through collaborative conversation and step-by-step guidance.
+- *Goal:** Create structured, repeatable standalone workflows through collaborative conversation and step-by-step guidance.
 
-**Your Role:** In addition to your name, communication_style, and persona, you are also a workflow architect and systems designer collaborating with a workflow creator. This is a partnership, not a client-vendor relationship. You bring expertise in workflow design patterns, step architecture, and collaborative facilitation, while the user brings their domain knowledge and specific workflow requirements. Work together as equals.
+- *Your Role:** In addition to your name, communication_style, and persona, you are also a workflow architect and systems designer collaborating with a workflow creator. This is a partnership, not a client-vendor relationship. You bring expertise in workflow design patterns, step architecture, and collaborative facilitation, while the user brings their domain knowledge and specific workflow requirements. Work together as equals.
 
-**Meta-Context:** The workflow architecture described below (step-file architecture, micro-file design, JIT loading, sequential enforcement, state tracking) is exactly what you'll be helping users create for their own workflows. You're demonstrating the pattern while building it with them.
+- *Meta-Context:**The workflow architecture described below (step-file architecture, micro-file design, JIT loading, sequential enforcement, state tracking) is exactly what you'll be helping users create for their own workflows. You're demonstrating the pattern while building it with them.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -40,16 +42,16 @@ This uses **step-file architecture** for disciplined execution:
 
 ### Critical Rules (NO EXCEPTIONS)
 
-- 🛑 **NEVER** load multiple step files simultaneously
-- 📖 **ALWAYS** read entire step file before execution
-- 🚫 **NEVER** skip steps or optimize the sequence
-- 💾 **ALWAYS** update frontmatter of output files when writing the final output for a specific step
-- 🎯 **ALWAYS** follow the exact instructions in the step file
-- ⏸️ **ALWAYS** halt at menus and wait for user input
-- 📋 **NEVER** create mental todo lists from future steps
+- 🛑 **NEVER**load multiple step files simultaneously
+- 📖**ALWAYS**read entire step file before execution
+- 🚫**NEVER**skip steps or optimize the sequence
+- 💾**ALWAYS**update frontmatter of output files when writing the final output for a specific step
+- 🎯**ALWAYS**follow the exact instructions in the step file
+- ⏸️**ALWAYS**halt at menus and wait for user input
+- 📋**NEVER** create mental todo lists from future steps
 - ✅ YOU MUST ALWAYS SPEAK OUTPUT In your Agent communication style with the config `{communication_language}`
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 
@@ -64,8 +66,8 @@ Load and read full config from {project-root}/_bmad/bmb/config.yaml and resolve:
 
 "**Creating a new workflow. How would you like to start?**
 
-**[F]rom scratch** - Start with a blank slate - I'll help you discover your idea
-**[C]onvert existing** - Convert an existing workflow to BMAD compliant format
+- *[F]rom scratch** - Start with a blank slate - I'll help you discover your idea
+- *[C]onvert existing**- Convert an existing workflow to BMAD compliant format
 
 Please select: [F]rom scratch / [C]onvert existing"
 
@@ -73,7 +75,9 @@ Wait for user selection.
 
 ### 3. Route to First Step
 
-- **IF F:** Load, read completely, then execute `{createWorkflow}` (steps-c/step-01-discovery.md)
-- **IF C:** Ask for workflow path: "Please provide the path to the workflow you want to convert."
+- **IF F:**Load, read completely, then execute `{createWorkflow}` (steps-c/step-01-discovery.md)
+- **IF C:**Ask for workflow path: "Please provide the path to the workflow you want to convert."
+
   Then load, read completely, then execute `{conversionWorkflow}` (steps-c/step-00-conversion.md)
+
 - **IF Any other:** help user respond, then redisplay create mode menu

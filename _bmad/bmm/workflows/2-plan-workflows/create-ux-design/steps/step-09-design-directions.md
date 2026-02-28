@@ -68,7 +68,7 @@ Generate interactive visual exploration:
 
 I'm creating a comprehensive HTML design direction showcase at `{planning_artifacts}/ux-design-directions.html`
 
-**What you'll see:**
+- *What you'll see:**
 
 - 6-8 full-screen mockup variations
 - Interactive states and hover effects
@@ -83,12 +83,12 @@ Each mockup represents a complete visual direction for your app's look and feel.
 Guide evaluation criteria:
 "As you explore the design directions, look for:
 
-✅ **Layout Intuitiveness** - Which information hierarchy matches your priorities?
-✅ **Interaction Style** - Which interaction style fits your core experience?
-✅ **Visual Weight** - Which visual density feels right for your brand?
-✅ **Navigation Approach** - Which navigation pattern matches user expectations?
-✅ **Component Usage** - How well do the components support your user journeys?
-✅ **Brand Alignment** - Which direction best supports your emotional goals?
+✅ **Layout Intuitiveness**- Which information hierarchy matches your priorities?
+✅**Interaction Style**- Which interaction style fits your core experience?
+✅**Visual Weight**- Which visual density feels right for your brand?
+✅**Navigation Approach**- Which navigation pattern matches user expectations?
+✅**Component Usage**- How well do the components support your user journeys?
+✅**Brand Alignment** - Which direction best supports your emotional goals?
 
 Take your time exploring - this is a crucial decision that will guide all our design work!"
 
@@ -97,14 +97,14 @@ Take your time exploring - this is a crucial decision that will guide all our de
 Help user choose or combine elements:
 "After exploring all the design directions:
 
-**Which approach resonates most with you?**
+- *Which approach resonates most with you?**
 
 - Pick a favorite direction as-is
 - Combine elements from multiple directions
 - Request modifications to any direction
 - Use one direction as a base and iterate
 
-**Tell me:**
+- *Tell me:**
 
 - Which layout feels most intuitive for your users?
 - Which visual weight matches your brand personality?
@@ -116,10 +116,10 @@ Help user choose or combine elements:
 Capture the chosen approach:
 "Based on your exploration, I'm understanding your design direction preference:
 
-**Chosen Direction:** [Direction number or combination]
-**Key Elements:** [Specific elements you liked]
-**Modifications Needed:** [Any changes requested]
-**Rationale:** [Why this direction works for your product]
+- *Chosen Direction:** [Direction number or combination]
+- *Key Elements:** [Specific elements you liked]
+- *Modifications Needed:** [Any changes requested]
+- *Rationale:** [Why this direction works for your product]
 
 This will become our design foundation moving forward. Are we ready to lock this in, or do you want to explore variations?"
 
@@ -132,6 +132,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Design Direction Decision
 
 ### Design Directions Explored
@@ -149,18 +150,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Implementation Approach
 
 [Implementation approach based on chosen direction]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated design direction content and present choices:
 "I've documented our design direction decision for {{project_name}}. This visual approach will guide all our detailed design work.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine our design direction
 [P] Party Mode - Bring different perspectives on visual choices
 [C] Continue - Save this to the document and move to user journey flows

@@ -2,16 +2,16 @@
 
 # CI/CD Pipeline Setup
 
-**Workflow ID**: `_bmad/tea/testarch/ci`
-**Version**: 5.0 (Step-File Architecture)
+- *Workflow ID**: `_bmad/tea/testarch/ci`
+- *Version**: 5.0 (Step-File Architecture)
 
----
+- --
 
 ## Overview
 
 Scaffold a production-ready CI/CD quality pipeline with test execution, burn-in loops for flaky detection, parallel sharding, artifact collection, and notifications.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
@@ -21,7 +21,7 @@ This workflow uses **step-file architecture**:
 - **JIT Loading**: Only the current step file is in memory
 - **Sequential Enforcement**: Execute steps in order
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

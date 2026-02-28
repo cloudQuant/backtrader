@@ -53,21 +53,21 @@ Define responsive design strategy and accessibility requirements for the product
 Establish how the design adapts across devices:
 "Let's define how {{project_name}} adapts across different screen sizes and devices.
 
-**Responsive Design Questions:**
+- *Responsive Design Questions:**
 
-**Desktop Strategy:**
+- *Desktop Strategy:**
 
 - How should we use extra screen real estate?
 - Multi-column layouts, side navigation, or content density?
 - What desktop-specific features can we include?
 
-**Tablet Strategy:**
+- *Tablet Strategy:**
 
 - Should we use simplified layouts or touch-optimized interfaces?
 - How do gestures and touch interactions work on tablets?
 - What's the optimal information density for tablet screens?
 
-**Mobile Strategy:**
+- *Mobile Strategy:**
 
 - Bottom navigation or hamburger menu?
 - How do layouts collapse on small screens?
@@ -79,13 +79,13 @@ Define when and how layouts change:
 "**Breakpoint Strategy:**
 We need to define screen size breakpoints where layouts adapt.
 
-**Common Breakpoints:**
+- *Common Breakpoints:**
 
 - Mobile: 320px - 767px
 - Tablet: 768px - 1023px
 - Desktop: 1024px+
 
-**For {{project_name}}, should we:**
+- *For {{project_name}}, should we:**
 
 - Use standard breakpoints or custom ones?
 - Focus on mobile-first or desktop-first design?
@@ -97,17 +97,17 @@ Define accessibility requirements and compliance level:
 "**Accessibility Strategy:**
 What level of WCAG compliance does {{project_name}} need?
 
-**WCAG Levels:**
+- *WCAG Levels:**
 
-- **Level A (Basic)** - Essential accessibility for legal compliance
-- **Level AA (Recommended)** - Industry standard for good UX
+- **Level A (Basic)**- Essential accessibility for legal compliance
+- **Level AA (Recommended)**- Industry standard for good UX
 - **Level AAA (Highest)** - Exceptional accessibility (rarely needed)
 
-**Based on your product:**
+- *Based on your product:**
 
 - [Recommendation based on user base, legal requirements, etc.]
 
-**Key Accessibility Considerations:**
+- *Key Accessibility Considerations:**
 
 - Color contrast ratios (4.5:1 for normal text)
 - Keyboard navigation support
@@ -120,20 +120,20 @@ What level of WCAG compliance does {{project_name}} need?
 Plan how to ensure responsive design and accessibility:
 "**Testing Strategy:**
 
-**Responsive Testing:**
+- *Responsive Testing:**
 
 - Device testing on actual phones/tablets
 - Browser testing across Chrome, Firefox, Safari, Edge
 - Real device network performance testing
 
-**Accessibility Testing:**
+- *Accessibility Testing:**
 
 - Automated accessibility testing tools
 - Screen reader testing (VoiceOver, NVDA, JAWS)
 - Keyboard-only navigation testing
 - Color blindness simulation testing
 
-**User Testing:**
+- *User Testing:**
 
 - Include users with disabilities in testing
 - Test with diverse assistive technologies
@@ -144,14 +144,14 @@ Plan how to ensure responsive design and accessibility:
 Create specific guidelines for developers:
 "**Implementation Guidelines:**
 
-**Responsive Development:**
+- *Responsive Development:**
 
 - Use relative units (rem, %, vw, vh) over fixed pixels
 - Implement mobile-first media queries
 - Test touch targets and gesture areas
 - Optimize images and assets for different devices
 
-**Accessibility Development:**
+- *Accessibility Development:**
 
 - Semantic HTML structure
 - ARIA labels and roles
@@ -168,6 +168,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Responsive Design & Accessibility
 
 ### Responsive Strategy
@@ -189,18 +190,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Implementation Guidelines
 
 [Implementation guidelines based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated responsive and accessibility content and present choices:
 "I've defined the responsive design and accessibility strategy for {{project_name}}. This ensures your product works beautifully across all devices and is accessible to all users.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine our responsive/accessibility strategy
 [P] Party Mode - Bring different perspectives on inclusive design
 [C] Continue - Save this to the document and complete the workflow

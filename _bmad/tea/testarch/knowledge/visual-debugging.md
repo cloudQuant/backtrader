@@ -6,11 +6,11 @@ Fast feedback loops and transparent debugging artifacts are critical for maintai
 
 ## Rationale
 
-**The Problem**: CI failures often provide minimal context—a timeout, a selector mismatch, or a network error—forcing developers to reproduce issues locally (if they can). This wastes time and discourages test maintenance.
+- *The Problem**: CI failures often provide minimal context—a timeout, a selector mismatch, or a network error—forcing developers to reproduce issues locally (if they can). This wastes time and discourages test maintenance.
 
-**The Solution**: Capture rich debugging artifacts **only on failure** to balance storage costs with diagnostic value. Modern tools like Playwright Trace Viewer, Cypress Debug UI, and HAR recordings provide interactive, time-travel debugging that reveals exactly what the test saw at each step.
+- *The Solution**: Capture rich debugging artifacts **only on failure** to balance storage costs with diagnostic value. Modern tools like Playwright Trace Viewer, Cypress Debug UI, and HAR recordings provide interactive, time-travel debugging that reveals exactly what the test saw at each step.
 
-**Why This Matters**:
+- *Why This Matters**:
 
 - Reduces failure triage time by 80-90% (visual context vs logs alone)
 - Enables debugging without local reproduction
@@ -21,9 +21,9 @@ Fast feedback loops and transparent debugging artifacts are critical for maintai
 
 ### Example 1: Playwright Trace Viewer Configuration (Production Pattern)
 
-**Context**: Capture traces on first retry only (balances storage and diagnostics)
+- *Context**: Capture traces on first retry only (balances storage and diagnostics)
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright.config.ts
@@ -37,7 +37,7 @@ export default defineConfig({
     video: 'retain-on-failure', // Delete on pass
 
     // Context for debugging
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.BASE_URL || '<http://localhost:3000',>
 
     // Timeout context
     actionTimeout: 15_000, // 15s for clicks/fills
@@ -55,20 +55,26 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0, // Retry in CI to capture trace
   workers: process.env.CI ? 1 : undefined,
 });
-```
-
-**Opening and Using Trace Viewer**:
 
 ```bash
+
+- *Opening and Using Trace Viewer**:
+
+```bash
+
 # After test failure in CI, download trace artifact
+
 # Then open locally:
+
 npx playwright show-trace path/to/trace.zip
 
 # Or serve trace viewer:
-npx playwright show-report
-```
 
-**Key Features to Use in Trace Viewer**:
+npx playwright show-report
+
+```bash
+
+- *Key Features to Use in Trace Viewer**:
 
 1. **Timeline**: See each action (click, navigate, assertion) with timing
 2. **Snapshots**: Hover over timeline to see DOM state at that moment
@@ -77,19 +83,19 @@ npx playwright show-report
 5. **Source Tab**: See test code with execution markers
 6. **Metadata**: Browser, OS, test duration, screenshots
 
-**Why This Works**:
+- *Why This Works**:
 
 - `on-first-retry` avoids capturing traces for flaky passes (saves storage)
 - Screenshots + video give visual context without trace overhead
 - Interactive timeline makes timing issues obvious (race conditions, slow API)
 
----
+- --
 
 ### Example 2: HAR File Recording for Network Debugging
 
-**Context**: Capture all network activity for reproducible API debugging
+- *Context**: Capture all network activity for reproducible API debugging
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/checkout-with-har.spec.ts
@@ -118,9 +124,10 @@ test.describe('Checkout Flow with HAR Recording', () => {
     // Contains all network requests/responses for replay
   });
 });
-```
 
-**Using HAR for Deterministic Mocking**:
+```bash
+
+- *Using HAR for Deterministic Mocking**:
 
 ```typescript
 // tests/e2e/checkout-replay-har.spec.ts
@@ -143,29 +150,30 @@ test('should replay checkout flow from HAR', async ({ page, context }) => {
 
   await expect(page.getByTestId('success-message')).toBeVisible();
 });
-```
 
-**Key Points**:
+```bash
 
-- **`update: true`** records new HAR or updates existing (for flaky API debugging)
+- *Key Points**:
+
+- **`update: true`**records new HAR or updates existing (for flaky API debugging)
 - **`update: false`** replays from HAR (deterministic, no real API)
 - Filter by URL pattern (`**/api/**`) to avoid capturing static assets
 - HAR files are human-readable JSON (easy to inspect/modify)
 
-**When to Use HAR**:
+- *When to Use HAR**:
 
 - Debugging flaky tests caused by API timing/responses
 - Creating deterministic mocks for integration tests
 - Analyzing third-party API behavior (Stripe, Auth0)
 - Reproducing production issues locally (record HAR in staging)
 
----
+- --
 
 ### Example 3: Custom Artifact Capture (Console Logs + Network on Failure)
 
-**Context**: Capture additional debugging context automatically on test failure
+- *Context**: Capture additional debugging context automatically on test failure
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/fixtures/debug-fixture.ts
@@ -221,9 +229,10 @@ export const test = base.extend<DebugFixture>({
     }
   },
 });
-```
 
-**Usage in Tests**:
+```bash
+
+- *Usage in Tests**:
 
 ```typescript
 // tests/e2e/payment-with-debug.spec.ts
@@ -238,12 +247,15 @@ test('payment flow captures debug artifacts on failure', async ({ page, captureD
 
   // If this fails, console.log and network.json saved automatically
 });
-```
 
-**CI Integration (GitHub Actions)**:
+```bash
+
+- *CI Integration (GitHub Actions)**:
 
 ```yaml
+
 # .github/workflows/e2e.yml
+
 name: E2E Tests with Artifacts
 on: [push, pull_request]
 
@@ -251,43 +263,50 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
+
         with:
           node-version-file: '.nvmrc'
 
       - name: Install dependencies
+
         run: npm ci
 
       - name: Run Playwright tests
+
         run: npm run test:e2e
         continue-on-error: true # Capture artifacts even on failure
 
       - name: Upload test artifacts on failure
+
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-artifacts
           path: |
+
             test-results/
             playwright-report/
           retention-days: 30
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Fixtures automatically capture context without polluting test code
 - Only saves artifacts on failure (storage-efficient)
 - CI uploads artifacts for post-mortem analysis
 - `continue-on-error: true` ensures artifact upload even when tests fail
 
----
+- --
 
 ### Example 4: Accessibility Debugging Integration (axe-core in Trace Viewer)
 
-**Context**: Catch accessibility regressions during visual debugging
+- *Context**: Catch accessibility regressions during visual debugging
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/fixtures/a11y-fixture.ts
@@ -317,9 +336,10 @@ export const test = base.extend<A11yFixture>({
     });
   },
 });
-```
 
-**Usage with Visual Debugging**:
+```bash
+
+- *Usage with Visual Debugging**:
 
 ```typescript
 // tests/e2e/checkout-a11y.spec.ts
@@ -339,16 +359,17 @@ test('checkout page is accessible', async ({ page, checkA11y }) => {
   // - Console log with violation details
   // - Network tab showing any failed resource loads
 });
-```
 
-**Trace Viewer Benefits**:
+```bash
 
-- **Screenshot shows visual context** of accessibility issue (contrast, missing labels)
-- **Console tab shows axe-core violations** with impact level and helpUrl
-- **DOM snapshot** allows inspecting ARIA attributes at failure point
+- *Trace Viewer Benefits**:
+
+- **Screenshot shows visual context**of accessibility issue (contrast, missing labels)
+- **Console tab shows axe-core violations**with impact level and helpUrl
+- **DOM snapshot**allows inspecting ARIA attributes at failure point
 - **Network tab** reveals if icon fonts or images failed (common a11y issue)
 
-**Cypress Equivalent**:
+- *Cypress Equivalent**:
 
 ```javascript
 // cypress/support/commands.ts
@@ -378,22 +399,23 @@ describe('Checkout Accessibility', () => {
     // - Network tab with API calls
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Accessibility checks integrate seamlessly with visual debugging
 - Violations are captured in trace viewer/Cypress UI automatically
 - Provides actionable links (helpUrl) to fix issues
 - Screenshots show visual context (contrast, layout)
 
----
+- --
 
 ### Example 5: Time-Travel Debugging Workflow (Playwright Inspector)
 
-**Context**: Debug tests interactively with step-through execution
+- *Context**: Debug tests interactively with step-through execution
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // tests/e2e/checkout-debug.spec.ts
@@ -421,25 +443,32 @@ test('debug checkout flow step-by-step', async ({ page }) => {
 
   await expect(page.getByTestId('success-message')).toBeVisible();
 });
-```
-
-**Running with Inspector**:
 
 ```bash
+
+- *Running with Inspector**:
+
+```bash
+
 # Open Playwright Inspector (GUI debugger)
+
 npx playwright test --debug
 
 # Or use headed mode with slowMo
+
 npx playwright test --headed --slow-mo=1000
 
 # Debug specific test
+
 npx playwright test checkout-debug.spec.ts --debug
 
 # Set environment variable for persistent debugging
-PWDEBUG=1 npx playwright test
-```
 
-**Inspector Features**:
+PWDEBUG=1 npx playwright test
+
+```bash
+
+- *Inspector Features**:
 
 1. **Step-through execution**: Click "Next" to execute one action at a time
 2. **DOM inspector**: Hover over elements to see selectors
@@ -448,7 +477,7 @@ PWDEBUG=1 npx playwright test
 5. **Pick locator**: Click element in browser to get selector
 6. **Record mode**: Record interactions to generate test code
 
-**Common Debugging Patterns**:
+- *Common Debugging Patterns**:
 
 ```typescript
 // Pattern 1: Debug selector issues
@@ -491,16 +520,17 @@ test('debug state mutation', async ({ page }) => {
 
   await expect(page.getByTestId('cart-count')).toHaveText('1');
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `page.pause()` opens Inspector at that exact moment
 - Inspector shows DOM state, network activity, console at pause point
 - "Pick locator" feature helps find robust selectors
 - Record mode generates test code from manual interactions
 
----
+- --
 
 ## Visual Debugging Checklist
 

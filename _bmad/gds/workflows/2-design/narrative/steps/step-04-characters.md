@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-04-characters'
 description: 'Develop all characters including protagonists, antagonists, supporting cast, and their arcs'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/narrative'
 
 # File References
+
 thisStepFile: './step-04-characters.md'
 nextStepFile: './step-05-world.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/narrative-design.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 4: Characters
 
-**Progress: Step 4 of 11** - Next: World Building
+- *Progress: Step 4 of 11**- Next: World Building
 
 ## STEP GOAL:
 
@@ -68,12 +73,12 @@ Develop all characters: protagonists, antagonists, and supporting cast. Define t
 
 For each protagonist, tell me:
 
-- **Name and description** - Who are they?
-- **Background** - Where do they come from?
-- **Motivation** - What do they want?
-- **Strengths** - What are they good at?
-- **Flaws** - What holds them back?
-- **Internal conflict** - What do they struggle with inside?
+- **Name and description**- Who are they?
+- **Background**- Where do they come from?
+- **Motivation**- What do they want?
+- **Strengths**- What are they good at?
+- **Flaws**- What holds them back?
+- **Internal conflict**- What do they struggle with inside?
 - **External conflict** - What obstacles do they face?
 
 Describe your protagonist(s):"
@@ -92,9 +97,9 @@ Great antagonists:
 For each antagonist:
 
 - **Name and description**
-- **Background** - How did they become this way?
-- **Goals** - What do they want?
-- **Methods** - How do they pursue their goals?
+- **Background**- How did they become this way?
+- **Goals**- What do they want?
+- **Methods**- How do they pursue their goals?
 - **Relationship to protagonist**
 - **Sympathetic elements** (if any)
 
@@ -106,12 +111,12 @@ Describe your antagonist(s):"
 
 Common supporting roles:
 
-- **Mentor** - Guides the protagonist
-- **Ally/Companion** - Travels with protagonist
-- **Foil** - Contrasts protagonist's traits
-- **Love interest** - Romantic connection
-- **Comic relief** - Lightens tone
-- **Informant** - Provides information
+- **Mentor**- Guides the protagonist
+- **Ally/Companion**- Travels with protagonist
+- **Foil**- Contrasts protagonist's traits
+- **Love interest**- Romantic connection
+- **Comic relief**- Lightens tone
+- **Informant**- Provides information
 
 For each supporting character:
 
@@ -129,18 +134,18 @@ Describe your supporting characters:"
 
 A character arc shows how a character changes (or refuses to change) through the story.
 
-**Arc types:**
+- *Arc types:**
 
-- **Positive arc** - Character overcomes flaw, grows
-- **Negative arc** - Character falls, corrupts
-- **Flat arc** - Character's beliefs tested but hold
-- **Transformation** - Character becomes something new
+- **Positive arc**- Character overcomes flaw, grows
+- **Negative arc**- Character falls, corrupts
+- **Flat arc**- Character's beliefs tested but hold
+- **Transformation**- Character becomes something new
 
 For major characters:
 
-- **Starting state** - Who are they at the beginning?
-- **Transformation moments** - What changes them?
-- **Ending state** - Who are they at the end?
+- **Starting state**- Who are they at the beginning?
+- **Transformation moments**- What changes them?
+- **Ending state**- Who are they at the end?
 - **Lessons learned**
 
 Describe the character arcs:"
@@ -150,46 +155,47 @@ Describe the character arcs:"
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Characters
 
 ### Protagonist(s)
 
 #### {{protagonist_name}}
 
-**Description:** {{description}}
+- *Description:** {{description}}
 
-**Background:** {{background}}
+- *Background:** {{background}}
 
-**Motivation:** {{motivation}}
+- *Motivation:** {{motivation}}
 
-**Strengths:** {{strengths}}
+- *Strengths:** {{strengths}}
 
-**Flaws:** {{flaws}}
+- *Flaws:** {{flaws}}
 
-**Conflicts:**
+- *Conflicts:**
 
 - Internal: {{internal_conflict}}
 - External: {{external_conflict}}
 
----
+- --
 
 ### Antagonist(s)
 
 #### {{antagonist_name}}
 
-**Description:** {{description}}
+- *Description:** {{description}}
 
-**Background:** {{background}}
+- *Background:** {{background}}
 
-**Goals:** {{goals}}
+- *Goals:** {{goals}}
 
-**Methods:** {{methods}}
+- *Methods:** {{methods}}
 
-**Relationship to Protagonist:** {{relationship}}
+- *Relationship to Protagonist:** {{relationship}}
 
-**Sympathetic Elements:** {{if_any}}
+- *Sympathetic Elements:** {{if_any}}
 
----
+- --
 
 ### Supporting Characters
 
@@ -197,29 +203,32 @@ Based on the conversation, prepare the content:
 
 #### {{character_name}}
 
-**Role:** {{role}}
-**Personality:** {{personality}}
-**Function:** {{story_function}}
-**Key Moments:** {{key_scenes}}
+- *Role:** {{role}}
+- *Personality:** {{personality}}
+- *Function:** {{story_function}}
+- *Key Moments:** {{key_scenes}}
+
 {{/for_each}}
 
----
+- --
 
 ## Character Arcs
 
 ### {{character_name}} Arc
 
-**Starting State:** {{beginning}}
+- *Starting State:** {{beginning}}
 
-**Transformation Moments:**
+- *Transformation Moments:**
+
 {{transformation_points}}
 
-**Ending State:** {{end}}
+- *Ending State:** {{end}}
 
-**Lessons Learned:** {{lessons}}
+- *Lessons Learned:** {{lessons}}
 
 {{repeat_for_each_major_character}}
-```
+
+```bash
 
 ### 6. Present Content and Menu
 
@@ -227,23 +236,24 @@ Show the generated content to the user and present:
 
 "I've documented all characters and their arcs.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 5]
 
-**Character Summary:**
+- *Character Summary:**
 
 - Protagonists: {{count}}
 - Antagonists: {{count}}
 - Supporting: {{count}}
 
-**Validation Check:**
+- *Validation Check:**
 
 - Do characters connect to your themes?
 - Are arcs meaningful and complete?
 - Do relationships create conflict?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into characters
 [P] Party Mode - Get perspectives on character design
 [C] Continue - Save this and move to World Building (Step 5 of 11)"
@@ -274,7 +284,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [characters content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -295,4 +305,4 @@ ONLY WHEN [C continue option] is selected and [characters content saved with fro
 - Not presenting A/P/C menu after content
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

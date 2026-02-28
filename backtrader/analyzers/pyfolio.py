@@ -133,9 +133,7 @@ class PyFolio(Analyzer):
         # Returns
         # Process returns
         cols = ["index", "return"]
-        returns = pd.DataFrame.from_records(
-            iteritems(self.rets["returns"]), index=cols[0], columns=cols
-        )
+        returns = pd.DataFrame.from_records(iteritems(self.rets["returns"]), index=cols[0], columns=cols)
         returns.index = pd.to_datetime(returns.index)
         returns.index = returns.index.tz_localize("UTC")
         rets = returns["return"]
@@ -172,9 +170,7 @@ class PyFolio(Analyzer):
         # Gross Leverage
         # Process leverage
         cols = ["index", "gross_lev"]
-        gross_lev = pd.DataFrame.from_records(
-            iteritems(self.rets["gross_lev"]), index=cols[0], columns=cols
-        )
+        gross_lev = pd.DataFrame.from_records(iteritems(self.rets["gross_lev"]), index=cols[0], columns=cols)
 
         gross_lev.index = pd.to_datetime(gross_lev.index)
         gross_lev.index = gross_lev.index.tz_localize("UTC")

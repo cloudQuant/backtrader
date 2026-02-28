@@ -1,12 +1,15 @@
----
+- --
+
 name: 'step-e-03-edit'
 description: 'Edit & Update - Apply changes to PRD following approved change plan'
 
 # File references (ONLY variables used in this step)
+
 nextStepFile: './step-e-04-complete.md'
 prdFile: '{prd_file_path}'
 prdPurpose: '{project-root}/_bmad/bmm/workflows/2-plan-workflows/create-prd/data/prd-purpose.md'
----
+
+- --
 
 # Step E-3: Edit & Update
 
@@ -55,36 +58,37 @@ Apply changes to the PRD following the approved change plan from step e-02, incl
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Retrieve Approved Change Plan
 
 From step e-02, retrieve:
-- **Approved changes:** Section-by-section list
-- **Priority order:** Sequence to apply changes
+
+- **Approved changes:**Section-by-section list
+- **Priority order:**Sequence to apply changes
 - **User requirements:** Edit goals from step e-01
 
 Display: "**Starting PRD Edits**
 
-**Change Plan:** {summary}
-**Total Changes:** {count}
-**Estimated Effort:** {effort level}
+- *Change Plan:** {summary}
+- *Total Changes:** {count}
+- *Estimated Effort:** {effort level}
 
-**Proceeding with edits section by section...**"
+- *Proceeding with edits section by section...**"
 
 ### 2. Attempt Sub-Process Edits (For Complex Changes)
 
-**Try to use Task tool with sub-agent for major sections:**
+- *Try to use Task tool with sub-agent for major sections:**
 
 "Execute PRD edits for {section_name}:
 
-**Context:**
+- *Context:**
 - Section to edit: {section_name}
 - Current content: {existing content}
 - Changes needed: {specific changes from plan}
 - BMAD PRD standards: Load from prd-purpose.md
 
-**Tasks:**
+- *Tasks:**
 1. Read current PRD section
 2. Apply specified changes
 3. Ensure BMAD PRD principles compliance:
@@ -92,49 +96,51 @@ Display: "**Starting PRD Edits**
    - Measurable requirements
    - Clear structure
    - Proper markdown formatting
-4. Return updated section content
+1. Return updated section content
 
 Apply changes and return updated section."
 
-**Graceful degradation (if no Task tool):**
+- *Graceful degradation (if no Task tool):**
 - Perform edits directly in current context
 - Load PRD section, apply changes, save
 
 ### 3. Execute Changes Section-by-Section
 
-**For each section in approved plan (in priority order):**
+- *For each section in approved plan (in priority order):**
 
-**a) Load current section**
+- *a) Load current section**
 - Read the current PRD section content
 - Note what exists
 
-**b) Apply changes per plan**
+- *b) Apply changes per plan**
 - Additions: Create new sections with proper content
 - Updates: Modify existing content per plan
 - Removals: Remove specified content
 - Restructuring: Reformat content to BMAD standard
 
-**c) Update PRD file**
+- *c) Update PRD file**
 - Apply changes to PRD
 - Save updated PRD
 - Verify changes applied correctly
 
-**Display progress after each section:**
+- *Display progress after each section:**
+
 "**Section Updated:** {section_name}
 Changes: {brief summary}
 {More sections remaining...}"
 
 ### 4. Handle Restructuring (If Needed)
 
-**If conversion mode is "Full restructuring" or "Both":**
+- *If conversion mode is "Full restructuring" or "Both":**
 
-**For restructuring:**
+- *For restructuring:**
 - Reorganize PRD to BMAD standard structure
 - Ensure proper ## Level 2 headers
+
 - Reorder sections logically
 - Update PRD frontmatter to match BMAD format
 
-**Follow BMAD PRD structure:**
+- *Follow BMAD PRD structure:**
 1. Executive Summary
 2. Success Criteria
 3. Product Scope
@@ -151,12 +157,15 @@ BMAD standard structure applied.
 
 ### 5. Update PRD Frontmatter
 
-**Ensure frontmatter is complete and accurate:**
+- *Ensure frontmatter is complete and accurate:**
 
 ```yaml
----
+
+- --
+
 workflowType: 'prd'
 workflow: 'create'  # or 'validate' or 'edit'
+
 classification:
   domain: '{domain}'
   projectType: '{project_type}'
@@ -165,28 +174,32 @@ inputDocuments: [list of input documents]
 stepsCompleted: ['step-e-01-discovery', 'step-e-02-review', 'step-e-03-edit']
 lastEdited: '{current_date}'
 editHistory:
-  - date: '{current_date}'
-    changes: '{summary of changes}'
----
-```
 
-**Update frontmatter accordingly.**
+  - date: '{current_date}'
+
+    changes: '{summary of changes}'
+
+- --
+
+```bash
+
+- *Update frontmatter accordingly.**
 
 ### 6. Final Review of Changes
 
-**Load complete updated PRD**
+- *Load complete updated PRD**
 
-**Verify:**
+- *Verify:**
 - All approved changes applied correctly
 - PRD structure is sound
 - No unintended modifications
 - Frontmatter is accurate
 
-**If issues found:**
+- *If issues found:**
 - Fix them now
 - Note corrections made
 
-**If user wants adjustments:**
+- *If user wants adjustments:**
 - Accept feedback and make adjustments
 - Re-verify after adjustments
 
@@ -196,24 +209,25 @@ Display:
 
 "**PRD Edits Complete**
 
-**Changes Applied:** {count} sections modified
-**PRD Updated:** {prd_file_path}
+- *Changes Applied:** {count} sections modified
+- *PRD Updated:** {prd_file_path}
 
-**Summary of Changes:**
+- *Summary of Changes:**
+
 {Brief bullet list of major changes}
 
-**PRD is ready for:**
+- *PRD is ready for:**
 - Use in downstream workflows (UX, Architecture)
 - Validation (if not yet validated)
 
-**What would you like to do next?**"
+- *What would you like to do next?**"
 
 ### 8. Present MENU OPTIONS
 
-**[V] Run Validation** - Execute full validation workflow (steps-v/step-v-01-discovery.md)
-**[S] Summary Only** - End with summary of changes (no validation)
-**[A] Adjust** - Make additional edits
-**[X] Exit** - Exit edit workflow
+- *[V] Run Validation** - Execute full validation workflow (steps-v/step-v-01-discovery.md)
+- *[S] Summary Only** - End with summary of changes (no validation)
+- *[A] Adjust** - Make additional edits
+- *[X] Exit** - Exit edit workflow
 
 #### EXECUTION RULES:
 
@@ -227,7 +241,7 @@ Display:
 - IF A (Adjust): Accept additional requirements, loop back to editing
 - IF X (Exit): Display summary and exit
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -250,4 +264,4 @@ Display:
 - No final verification
 - Not saving updated PRD
 
-**Master Rule:** Execute the plan exactly as approved. PRD is now ready for validation or downstream use. Validation integration ensures quality.
+- *Master Rule:** Execute the plan exactly as approved. PRD is now ready for validation or downstream use. Validation integration ensures quality.

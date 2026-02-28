@@ -26,9 +26,10 @@ Writing Playwright utilities from scratch for every project leads to:
 
 ```bash
 npm install -D @seontechnologies/playwright-utils
-```
 
-**Peer Dependencies:**
+```bash
+
+- *Peer Dependencies:**
 
 - `@playwright/test` >= 1.54.1 (required)
 - `ajv` >= 8.0.0 (optional - for JSON Schema validation)
@@ -39,26 +40,36 @@ npm install -D @seontechnologies/playwright-utils
 ### Core Testing Utilities
 
 | Utility                    | Purpose                                                                       | Test Context       |
-| -------------------------- | ----------------------------------------------------------------------------- | ------------------ |
-| **api-request**            | Typed HTTP client with schema validation, retry, and operation-based overload | **API/Backend**    |
-| **recurse**                | Polling for async operations, background jobs                                 | **API/Backend**    |
-| **auth-session**           | Token persistence, multi-user, service-to-service                             | **API/Backend/UI** |
-| **log**                    | Playwright report-integrated logging                                          | **API/Backend/UI** |
-| **file-utils**             | CSV/XLSX/PDF/ZIP reading & validation                                         | **API/Backend/UI** |
-| **burn-in**                | Smart test selection with git diff                                            | **CI/CD**          |
-| **network-recorder**       | HAR record/playback for offline testing                                       | UI only            |
-| **intercept-network-call** | Network spy/stub with auto JSON parsing                                       | UI only            |
-| **network-error-monitor**  | Automatic HTTP 4xx/5xx detection                                              | UI only            |
 
-**Note**: 6 of 9 utilities work without a browser. Only 3 are UI-specific (network-recorder, intercept-network-call, network-error-monitor).
+| -------------------------- | ----------------------------------------------------------------------------- | ------------------ |
+
+| **api-request**| Typed HTTP client with schema validation, retry, and operation-based overload |**API/Backend**|
+
+|**recurse**| Polling for async operations, background jobs                                 |**API/Backend**|
+
+|**auth-session**| Token persistence, multi-user, service-to-service                             |**API/Backend/UI**|
+
+|**log**| Playwright report-integrated logging                                          |**API/Backend/UI**|
+
+|**file-utils**| CSV/XLSX/PDF/ZIP reading & validation                                         |**API/Backend/UI**|
+
+|**burn-in**| Smart test selection with git diff                                            |**CI/CD**|
+
+|**network-recorder**| HAR record/playback for offline testing                                       | UI only            |
+
+|**intercept-network-call**| Network spy/stub with auto JSON parsing                                       | UI only            |
+
+|**network-error-monitor**  | Automatic HTTP 4xx/5xx detection                                              | UI only            |
+
+- *Note**: 6 of 9 utilities work without a browser. Only 3 are UI-specific (network-recorder, intercept-network-call, network-error-monitor).
 
 ## Design Patterns
 
 ### Pattern 1: Functional Core, Fixture Shell
 
-**Context**: All utilities follow the same architectural pattern - pure function as core, fixture as wrapper.
+- *Context**: All utilities follow the same architectural pattern - pure function as core, fixture as wrapper.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Direct import (pass Playwright context explicitly)
@@ -82,9 +93,10 @@ test('fixture usage', async ({ apiRequest }) => {
     path: '/api/users',
   });
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Pure functions testable without Playwright running
 - Fixtures inject framework dependencies automatically
@@ -92,9 +104,9 @@ test('fixture usage', async ({ apiRequest }) => {
 
 ### Pattern 2: Subpath Imports for Tree-Shaking
 
-**Context**: Import only what you need to keep bundle sizes small.
+- *Context**: Import only what you need to keep bundle sizes small.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // Import specific utility
@@ -105,9 +117,10 @@ import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
 
 // Import everything (use sparingly)
 import { apiRequest, recurse, log } from '@seontechnologies/playwright-utils';
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Subpath imports enable tree-shaking
 - Keep bundle sizes minimal
@@ -115,9 +128,9 @@ import { apiRequest, recurse, log } from '@seontechnologies/playwright-utils';
 
 ### Pattern 3: Fixture Composition with mergeTests
 
-**Context**: Combine multiple playwright-utils fixtures with your own custom fixtures.
+- *Context**: Combine multiple playwright-utils fixtures with your own custom fixtures.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/merged-fixtures.ts
@@ -131,7 +144,8 @@ import { test as logFixture } from '@seontechnologies/playwright-utils/log/fixtu
 export const test = mergeTests(apiRequestFixture, authFixture, recurseFixture, logFixture);
 
 export { expect } from '@playwright/test';
-```
+
+```bash
 
 ```typescript
 // In your tests
@@ -151,9 +165,10 @@ test('all utilities available', async ({ apiRequest, authToken, recurse, log }) 
     (res) => res.body.ready === true,
   );
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `mergeTests` combines multiple fixtures without conflicts
 - Create one merged-fixtures.ts file per project
@@ -164,7 +179,7 @@ test('all utilities available', async ({ apiRequest, authToken, recurse, log }) 
 
 ### Gradual Adoption Strategy
 
-**1. Start with logging** (zero breaking changes):
+- *1. Start with logging** (zero breaking changes):
 
 ```typescript
 import { log } from '@seontechnologies/playwright-utils';
@@ -174,9 +189,10 @@ test('existing test', async ({ page }) => {
   await page.goto('/dashboard');
   // Rest of test unchanged
 });
-```
 
-**2. Add API utilities** (for API tests):
+```bash
+
+- *2. Add API utilities** (for API tests):
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/api-request/fixtures';
@@ -189,9 +205,10 @@ test('API test', async ({ apiRequest }) => {
 
   expect(status).toBe(200);
 });
-```
 
-**3. Expand to network utilities** (for UI tests):
+```bash
+
+- *3. Expand to network utilities** (for UI tests):
 
 ```typescript
 import { test } from '@seontechnologies/playwright-utils/fixtures';
@@ -206,9 +223,10 @@ test('UI with network control', async ({ page, interceptNetworkCall }) => {
 
   expect(responseJson).toHaveLength(10);
 });
-```
 
-**4. Full integration** (merged fixtures):
+```bash
+
+- *4. Full integration** (merged fixtures):
 
 Create merged-fixtures.ts and use across all tests.
 
@@ -225,7 +243,7 @@ Create merged-fixtures.ts and use across all tests.
 
 ## Anti-Patterns
 
-**❌ Don't mix direct and fixture imports in same test:**
+- *❌ Don't mix direct and fixture imports in same test:**
 
 ```typescript
 import { apiRequest } from '@seontechnologies/playwright-utils';
@@ -235,9 +253,10 @@ test('bad', async ({ request, authToken }) => {
   // Confusing - mixing direct (needs request) and fixture (has authToken)
   await apiRequest({ request, method: 'GET', path: '/api/users' });
 });
-```
 
-**✅ Use consistent import style:**
+```bash
+
+- *✅ Use consistent import style:**
 
 ```typescript
 import { test } from '../support/merged-fixtures';
@@ -246,41 +265,45 @@ test('good', async ({ apiRequest, authToken }) => {
   // Clean - all from fixtures
   await apiRequest({ method: 'GET', path: '/api/users' });
 });
-```
 
-**❌ Don't import everything when you need one utility:**
+```bash
+
+- *❌ Don't import everything when you need one utility:**
 
 ```typescript
-import * as utils from '@seontechnologies/playwright-utils'; // Large bundle
-```
+import *as utils from '@seontechnologies/playwright-utils'; // Large bundle
 
-**✅ Use subpath imports:**
+```bash
+
+- *✅ Use subpath imports:**
 
 ```typescript
 import { apiRequest } from '@seontechnologies/playwright-utils/api-request'; // Small bundle
-```
+
+```bash
 
 ## Reference Implementation
 
 The official `@seontechnologies/playwright-utils` repository provides working examples of all patterns described in these fragments.
 
-**Repository:** <https://github.com/seontechnologies/playwright-utils>
+- *Repository:** <https://github.com/seontechnologies/playwright-utils>
 
-**Key resources:**
+- *Key resources:**
 
-- **Test examples:** `playwright/tests` - All utilities in action
-- **Framework setup:** `playwright.config.ts`, `playwright/support/merged-fixtures.ts`
+- **Test examples:**`playwright/tests` - All utilities in action
+- **Framework setup:**`playwright.config.ts`, `playwright/support/merged-fixtures.ts`
 - **CI patterns:** `.github/workflows/` - GitHub Actions with sharding, parallelization
 
-**Quick start:**
+- *Quick start:**
 
 ```bash
-git clone https://github.com/seontechnologies/playwright-utils.git
+git clone <https://github.com/seontechnologies/playwright-utils.git>
 cd playwright-utils
 nvm use
 npm install
 npm run test:pw-ui  # Explore tests with Playwright UI
-npm run test:pw
-```
 
+npm run test:pw
+
+```bash
 All patterns in TEA fragments are production-tested in this repository.

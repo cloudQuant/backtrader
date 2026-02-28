@@ -1,6 +1,6 @@
 # Performance Testing - Validation Checklist
 
----
+- --
 
 ## Prerequisites
 
@@ -9,7 +9,7 @@
 - [ ] Performance targets established
 - [ ] Profiling tools available
 
----
+- --
 
 ## Target Definition
 
@@ -18,7 +18,7 @@
 - [ ] Loading time targets defined
 - [ ] Regression thresholds set
 
----
+- --
 
 ## Test Scenarios
 
@@ -43,7 +43,7 @@
 - [ ] Save/load tests defined
 - [ ] Fast travel tests (if applicable)
 
----
+- --
 
 ## Methodology
 
@@ -52,7 +52,7 @@
 - [ ] Measurement tools specified
 - [ ] Data collection process defined
 
----
+- --
 
 ## Benchmarks
 
@@ -61,7 +61,7 @@
 - [ ] Regression criteria established
 - [ ] CI integration planned
 
----
+- --
 
 ## Platform Coverage
 
@@ -70,7 +70,7 @@
 - [ ] Mobile tiers addressed
 - [ ] Platform-specific issues documented
 
----
+- --
 
 ## Documentation
 
@@ -80,7 +80,7 @@
 - [ ] Methodology explained
 - [ ] Schedule defined
 
----
+- --
 
 ## Completion Criteria
 
@@ -89,8 +89,8 @@
 - [ ] Baseline metrics captured
 - [ ] Automated tests in CI
 
----
+- --
 
-**Completed by:** {name}
-**Date:** {date}
-**Platforms:** {list}
+- *Completed by:** {name}
+- *Date:** {date}
+- *Platforms:** {list}

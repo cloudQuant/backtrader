@@ -53,7 +53,7 @@ Establish UX consistency patterns for common situations like buttons, forms, nav
 Determine which patterns need definition for your product:
 "Let's establish consistency patterns for how {{project_name}} behaves in common situations.
 
-**Pattern Categories to Define:**
+- *Pattern Categories to Define:**
 
 - Button hierarchy and actions
 - Feedback patterns (success, error, warning, info)
@@ -69,11 +69,12 @@ Which categories are most critical for your product? We can go through each thor
 
 Focus on patterns most relevant to your product:
 
-**For [Critical Pattern Category]:**
+- *For [Critical Pattern Category]:**
+
 "**[Pattern Type] Patterns:**
 What should users see/do when they need to [pattern action]?
 
-**Considerations:**
+- *Considerations:**
 
 - Visual hierarchy (primary vs. secondary actions)
 - Feedback mechanisms
@@ -81,7 +82,7 @@ What should users see/do when they need to [pattern action]?
 - Accessibility requirements
 - Mobile vs. desktop considerations
 
-**Examples:**
+- *Examples:**
 
 - [Example 1 for this pattern type]
 - [Example 2 for this pattern type]
@@ -92,18 +93,20 @@ How should {{project_name}} handle [pattern type] interactions?"
 
 Document specific design decisions:
 
-**Pattern Guidelines Template:**
+- *Pattern Guidelines Template:**
 
 ```markdown
+
 ### [Pattern Type]
 
-**When to Use:** [Clear usage guidelines]
-**Visual Design:** [How it should look]
-**Behavior:** [How it should interact]
-**Accessibility:** [A11y requirements]
-**Mobile Considerations:** [Mobile-specific needs]
-**Variants:** [Different states or styles if applicable]
-```
+- *When to Use:** [Clear usage guidelines]
+- *Visual Design:** [How it should look]
+- *Behavior:** [How it should interact]
+- *Accessibility:** [A11y requirements]
+- *Mobile Considerations:** [Mobile-specific needs]
+- *Variants:** [Different states or styles if applicable]
+
+```bash
 
 ### 4. Design System Integration
 
@@ -114,7 +117,7 @@ Ensure patterns work with chosen design system:
 - What customizations are needed?
 - How do we maintain consistency while meeting unique needs?
 
-**Custom Pattern Rules:**
+- *Custom Pattern Rules:**
 
 - [Custom rule 1]
 - [Custom rule 2]
@@ -124,7 +127,7 @@ Ensure patterns work with chosen design system:
 
 Generate comprehensive pattern library:
 
-**Pattern Library Structure:**
+- *Pattern Library Structure:**
 
 - Clear usage guidelines for each pattern
 - Visual examples and specifications
@@ -141,6 +144,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## UX Consistency Patterns
 
 ### Button Hierarchy
@@ -162,18 +166,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Additional Patterns
 
 [Additional patterns based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated UX patterns content and present choices:
 "I've established UX consistency patterns for {{project_name}}. These patterns ensure users have a consistent, predictable experience across all interactions.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine our UX patterns
 [P] Party Mode - Bring different perspectives on consistency patterns
 [C] Continue - Save this to the document and move to responsive design

@@ -1,21 +1,23 @@
----
+- --
+
 name: create-gdd
 description: Creates a comprehensive Game Design Document through collaborative step-by-step discovery between game designer and user.
 main_config: '{project-root}/_bmad/gds/config.yaml'
 web_bundle: true
----
+
+- --
 
 # GDD Workflow
 
-**Goal:** Create comprehensive Game Design Documents through collaborative step-by-step discovery between game designer and user.
+- *Goal:** Create comprehensive Game Design Documents through collaborative step-by-step discovery between game designer and user.
 
-**Your Role:** You are a veteran game designer facilitator collaborating with a creative peer. This is a partnership, not a client-vendor relationship. You bring structured game design thinking and facilitation skills, while the user brings their game vision and domain expertise. Work together as equals. You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
+- *Your Role:**You are a veteran game designer facilitator collaborating with a creative peer. This is a partnership, not a client-vendor relationship. You bring structured game design thinking and facilitation skills, while the user brings their game vision and domain expertise. Work together as equals. You will continue to operate with your given name, identity, and communication_style, merged with the details of this role description.
 
----
+- --
 
 ## WORKFLOW ARCHITECTURE
 
-This uses **step-file architecture** for disciplined execution:
+This uses**step-file architecture**for disciplined execution:
 
 ### Core Principles
 
@@ -44,7 +46,7 @@ This uses **step-file architecture** for disciplined execution:
 - ALWAYS halt at menus and wait for user input
 - NEVER create mental todo lists from future steps
 
----
+- --
 
 ## INITIALIZATION SEQUENCE
 

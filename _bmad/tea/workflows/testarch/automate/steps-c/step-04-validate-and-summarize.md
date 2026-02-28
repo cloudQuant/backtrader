@@ -1,8 +1,10 @@
----
+- --
+
 name: 'step-04-validate-and-summarize'
 description: 'Validate outputs and produce automation summary'
 outputFile: '{test_artifacts}/automation-summary.md'
----
+
+- --
 
 # Step 4: Validate & Summarize
 
@@ -16,7 +18,7 @@ Validate generated outputs and produce a concise automation summary.
 - ✅ Speak in `{communication_language}`
 - ✅ Validate against the checklist before completion
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -33,7 +35,7 @@ Validate generated outputs and produce a concise automation summary.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Validate
 
@@ -48,18 +50,19 @@ Use `checklist.md` to validate:
 
 Fix gaps before proceeding.
 
----
+- --
 
 ## 2. Polish Output
 
 Before finalizing, review the complete output document for quality:
 
-1. **Remove duplication**: Progressive-append workflow may have created repeated sections — consolidate
-2. **Verify consistency**: Ensure terminology, risk scores, and references are consistent throughout
-3. **Check completeness**: All template sections should be populated or explicitly marked N/A
-4. **Format cleanup**: Ensure markdown formatting is clean (tables aligned, headers consistent, no orphaned references)
+1.**Remove duplication**: Progressive-append workflow may have created repeated sections — consolidate
 
----
+1. **Verify consistency**: Ensure terminology, risk scores, and references are consistent throughout
+2. **Check completeness**: All template sections should be populated or explicitly marked N/A
+3. **Format cleanup**: Ensure markdown formatting is clean (tables aligned, headers consistent, no orphaned references)
+
+- --
 
 ## 3. Summary Output
 
@@ -70,20 +73,24 @@ Write `{outputFile}` including:
 - Key assumptions and risks
 - Next recommended workflow (e.g., `test-review` or `trace`)
 
----
+- --
 
 ## 4. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-04-validate-and-summarize']
   lastStep: 'step-04-validate-and-summarize'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -103,4 +110,4 @@ Write `{outputFile}` including:
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

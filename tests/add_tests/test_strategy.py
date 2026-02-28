@@ -218,10 +218,6 @@ def test_strategy_multiple_datas(main=False):
         print(f"Processed {len(strat)} bars with {len(strat.datas)} data feeds")
 
 
-@pytest.mark.skipif(
-    sys.version_info < (3, 11),
-    reason="Multiprocessing pickle issue on Python < 3.11"
-)
 def test_strategy_optimization(main=False):
     """Test strategy parameter optimization functionality.
 

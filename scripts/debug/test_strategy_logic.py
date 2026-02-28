@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""快速验证策略基本逻辑的测试脚本.
+"""Quick strategy logic validation test script.
 
-使用模拟数据测试策略信号生成，无需连接交易所。
+Tests strategy signal generation using simulated data,
+no exchange connection required.
 """
 
 import sys
@@ -20,99 +21,110 @@ from backtrader_ccxt_okx_dogs_bollinger import BollingerBandsStrategy
 
 
 class TestStrategy(BollingerBandsStrategy):
-    """测试策略版本，添加更多调试信息"""
+    """Test strategy version with additional debugging information."""
 
     def next(self):
-        """每根K线调用"""
-        # 确保没有待处理订单
+        """Called on each bar.
+
+        Implements the core trading logic:
+        - Check stop loss for existing positions
+        - Buy when price breaks above upper Bollinger Band
+        - Sell when price falls below lower Bollinger Band
+        """
+        # Ensure no pending orders
         if self.order:
             return
 
-        # 确保有足够的数据（至少period+1根）
+        # Ensure sufficient data (at least period+1 bars)
         if len(self.data) < self.p.period + 1:
             return
 
-        # 获取当前价格和指标值
+        # Get current price and indicator values
         current_price = self.data.close[0]
         upper_band = self.top[0]
         lower_band = self.bot[0]
         atr_value = self.atr[0]
 
-        # 检查指标值是否有效
+        # Check if indicator values are valid
         if any(x is None for x in [current_price, upper_band, lower_band, atr_value]):
             return
 
-        # 获取当前仓位（现货）
+        # Get current position size (spot)
         position_size = self.getposition().size
 
-        # 计算下单数量（基于USDT金额）
+        # Calculate order size (based on USDT amount)
         size = self.p.order_size / current_price
 
-        # 每10根K线打印一次状态
+        # Print status every 10 bars
         if len(self.data) % 10 == 0:
             print(f"\n[Bar {len(self.data)}]")
-            print(f"  价格: ${current_price:.6f}")
-            print(f"  上轨: ${upper_band:.6f}")
-            print(f"  下轨: ${lower_band:.6f}")
+            print(f"  Price: ${current_price:.6f}")
+            print(f"  Upper Band: ${upper_band:.6f}")
+            print(f"  Lower Band: ${lower_band:.6f}")
             print(f"  ATR: {atr_value:.6f}")
-            print(f"  持仓: {position_size:.2f}")
+            print(f"  Position: {position_size:.2f}")
 
             if position_size > 0:
-                print(f"  止损价: ${self.long_stop_price:.6f}")
+                print(f"  Stop Loss: ${self.long_stop_price:.6f}")
 
-        # === 现货多头逻辑 ===
-        # 检查止损
+        # === Spot Long Logic ===
+        # Check stop loss
         if position_size > 0 and self.long_stop_price is not None:
             if current_price <= self.long_stop_price:
-                print(f"\n[信号] 触发止损: 当前=${current_price:.6f}, 止损=${self.long_stop_price:.6f}")
+                print(f"\n[Signal] Stop Loss Triggered: Current=${current_price:.6f}, Stop=${self.long_stop_price:.6f}")
                 self.order = self.sell(size=position_size)
                 self.long_stop_price = None
                 self.entry_price = None
                 return
 
-        # 突破上轨 → 买入
+        # Break above upper band -> Buy
         if position_size == 0 and current_price > upper_band:
-            print(f"\n[信号] 突破上轨 → 买入: 价格=${current_price:.6f}, 上轨=${upper_band:.6f}")
+            print(f"\n[Signal] Upper Band Breakout -> Buy: Price=${current_price:.6f}, Upper=${upper_band:.6f}")
             self.order = self.buy(size=size)
             self.entry_price = current_price
             self.long_stop_price = current_price - (atr_value * self.p.atr_mult)
 
-        # 跌破下轨 → 卖出
+        # Fall below lower band -> Sell
         elif position_size > 0 and current_price < lower_band:
-            print(f"\n[信号] 跌破下轨 → 卖出: 价格=${current_price:.6f}, 下轨=${lower_band:.6f}")
+            print(f"\n[Signal] Lower Band Breakdown -> Sell: Price=${current_price:.6f}, Lower=${lower_band:.6f}")
             self.order = self.sell(size=position_size)
             self.long_stop_price = None
             self.entry_price = None
 
 
 def generate_test_data():
-    """生成测试数据"""
+    """Generate simulated test data.
+
+    Returns:
+        pd.DataFrame: DataFrame with OHLCV data containing 200 bars
+        of simulated price data based on DOGS current price.
+    """
     print("=" * 80)
-    print("生成测试数据")
+    print("Generating Test Data")
     print("=" * 80)
 
-    # 生成200根1分钟K线的模拟数据
+    # Generate 200 bars of 1-minute simulated data
     np.random.seed(42)
 
-    # 基础价格 $0.00004 (DOGS 当前价格)
+    # Base price $0.00004 (DOGS current price)
     base_price = 0.00004
 
-    # 生成价格数据（随机游走）
+    # Generate price data (random walk)
     n = 200
-    returns = np.random.normal(0.001, 0.02, n)  # 1% 波动率
+    returns = np.random.normal(0.001, 0.02, n)  # 1% volatility
     prices = [base_price]
 
     for ret in returns:
         prices.append(prices[-1] * (1 + ret))
 
-    # 生成 OHLCV 数据
+    # Generate OHLCV data
     data = []
     from datetime import datetime, timedelta
     start_time = datetime(2025, 1, 20, 0, 0, 0)
 
     for i in range(n):
         close = prices[i]
-        # 添加一些随机波动
+        # Add some random fluctuation
         high = close * (1 + abs(np.random.normal(0, 0.01)))
         low = close * (1 - abs(np.random.normal(0, 0.01)))
         open_price = low + (high - low) * np.random.random()
@@ -128,15 +140,19 @@ def generate_test_data():
         })
 
     df = pd.DataFrame(data)
-    print(f"生成了 {len(df)} 根K线数据")
-    print(f"价格范围: ${df['close'].min():.6f} - ${df['close'].max():.6f}")
-    print(f"平均价格: ${df['close'].mean():.6f}")
+    print(f"Generated {len(df)} bars of OHLCV data")
+    print(f"Price Range: ${df['close'].min():.6f} - ${df['close'].max():.6f}")
+    print(f"Average Price: ${df['close'].mean():.6f}")
 
     return df
 
 
 class TestFeed(bt.feeds.PandasData):
-    """测试数据源"""
+    """Test data feed for backtrader.
+
+    Attributes:
+        params: Data feed parameters mapping column names.
+    """
     params = (
         ('datetime', None),
         ('open', -1),
@@ -149,14 +165,18 @@ class TestFeed(bt.feeds.PandasData):
 
 
 def run_test():
-    """运行测试"""
-    # 生成测试数据
+    """Run the strategy logic test.
+
+    Generates test data, creates a Cerebro engine with the test strategy,
+    runs the backtest, and prints performance results.
+    """
+    # Generate test data
     df = generate_test_data()
 
-    # 创建 Cerebro
+    # Create Cerebro
     cerebro = bt.Cerebro()
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(
         TestStrategy,
         period=60,
@@ -166,70 +186,70 @@ def run_test():
         atr_mult=2.0,
     )
 
-    # 设置初始资金
+    # Set initial capital
     cerebro.broker.setcash(10.0)
-    cerebro.broker.setcommission(commission=0.001)  # 0.1% 手续费
+    cerebro.broker.setcommission(commission=0.001)  # 0.1% fee
 
-    # 添加数据
+    # Add data
     data = TestFeed(dataname=df)
     cerebro.adddata(data)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    # 运行
+    # Run
     print("\n" + "=" * 80)
-    print("运行策略测试")
+    print("Running Strategy Test")
     print("=" * 80)
-    print(f"初始资金: {cerebro.broker.getvalue():.2f} USDT")
+    print(f"Initial Capital: {cerebro.broker.getvalue():.2f} USDT")
     print()
 
     try:
         results = cerebro.run()
         strat = results[0]
 
-        # 打印结果
+        # Print results
         print("\n" + "=" * 80)
-        print("测试结果")
+        print("Test Results")
         print("=" * 80)
 
         if hasattr(strat.analyzers, 'trades'):
             trades = strat.analyzers.trades.get_analysis()
             if 'total' in trades:
                 total = trades['total']['total']
-                print(f"总交易次数: {total}")
+                print(f"Total Trades: {total}")
 
             if 'won' in trades:
                 won = trades['won']['total']
-                print(f"盈利次数: {won}")
+                print(f"Winning Trades: {won}")
 
             if 'lost' in trades:
                 lost = trades['lost']['total']
-                print(f"亏损次数: {lost}")
+                print(f"Losing Trades: {lost}")
 
             if 'win' in trades:
                 win_rate = trades['win']
-                print(f"胜率: {win_rate:.2%}")
+                print(f"Win Rate: {win_rate:.2%}")
 
         if hasattr(strat.analyzers, 'returns'):
             returns = strat.analyzers.returns.get_analysis()
             if 'rtot' in returns:
-                print(f"总收益率: {returns['rtot']:.2%}")
+                print(f"Total Return: {returns['rtot']:.2%}")
 
         final_value = cerebro.broker.getvalue()
-        print(f"\n最终资金: {final_value:.2f} USDT")
-        print(f"总收益: {final_value - 10.0:.2f} USDT")
-        print(f"收益率: {(final_value - 10.0) / 10.0 * 100:.2f}%")
+        print(f"\nFinal Capital: {final_value:.2f} USDT")
+        print(f"Total Profit: {final_value - 10.0:.2f} USDT")
+        print(f"Return Rate: {(final_value - 10.0) / 10.0 * 100:.2f}%")
 
         print("\n" + "=" * 80)
-        print("[OK] 策略测试完成！")
+        print("[OK] Strategy Test Complete!")
         print("=" * 80)
 
     except Exception as e:
-        print(f"\n[ERROR] 测试失败: {e}")
+        print(f"\n[ERROR] Test Failed: {e}")
         import traceback
         traceback.print_exc()
 

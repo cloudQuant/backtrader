@@ -1,9 +1,11 @@
----
+- --
+
 name: 'step-04a-subprocess-security'
 description: 'Subprocess: Security NFR assessment'
 subprocess: true
 outputFile: '/tmp/tea-nfr-security-{{timestamp}}.json'
----
+
+- --
 
 # Subprocess 4A: Security NFR Assessment
 
@@ -11,9 +13,9 @@ outputFile: '/tmp/tea-nfr-security-{{timestamp}}.json'
 
 This is an **isolated subprocess** running in parallel with other NFR domain assessments.
 
-**Your task:** Assess SECURITY NFR domain only.
+- *Your task:** Assess SECURITY NFR domain only.
 
----
+- --
 
 ## MANDATORY EXECUTION RULES
 
@@ -21,43 +23,43 @@ This is an **isolated subprocess** running in parallel with other NFR domain ass
 - ✅ Output structured JSON to temp file
 - ❌ Do NOT assess other NFR domains
 
----
+- --
 
 ## SUBPROCESS TASK
 
 ### 1. Security Assessment Categories
 
-**Assess the following security dimensions:**
+- *Assess the following security dimensions:**
 
-**A) Authentication & Authorization:**
+- *A) Authentication & Authorization:**
 
 - OAuth2/JWT implementation
 - Session management
 - Multi-factor authentication
 - Role-based access control (RBAC)
 
-**B) Data Protection:**
+- *B) Data Protection:**
 
 - Encryption at rest
 - Encryption in transit (HTTPS/TLS)
 - Sensitive data handling (PII, passwords)
 - Database encryption
 
-**C) Input Validation:**
+- *C) Input Validation:**
 
 - SQL injection prevention
 - XSS prevention
 - CSRF protection
 - Input sanitization
 
-**D) API Security:**
+- *D) API Security:**
 
 - Rate limiting
 - API authentication
 - CORS configuration
 - Security headers
 
-**E) Secrets Management:**
+- *E) Secrets Management:**
 
 - Environment variables for secrets
 - No hardcoded credentials
@@ -75,7 +77,7 @@ For each category, determine status:
 
 ### 3. Compliance Check
 
-**Common compliance standards:**
+- *Common compliance standards:**
 
 - SOC2
 - GDPR
@@ -83,7 +85,7 @@ For each category, determine status:
 - PCI-DSS
 - ISO 27001
 
----
+- --
 
 ## OUTPUT FORMAT
 
@@ -127,12 +129,13 @@ For each category, determine status:
   ],
   "summary": "Security posture is MEDIUM risk with 1 critical vulnerability requiring immediate attention"
 }
-```
 
----
+```bash
+
+- --
 
 ## EXIT CONDITION
 
 Subprocess completes when JSON output written to temp file.
 
-**Subprocess terminates here.**
+- *Subprocess terminates here.**

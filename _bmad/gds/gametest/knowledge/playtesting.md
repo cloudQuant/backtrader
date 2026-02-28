@@ -8,21 +8,21 @@ Playtesting is the process of having people play your game to gather feedback an
 
 ### Internal Playtesting
 
-- **Developer Testing** - Daily testing during development
-- **Team Testing** - Cross-discipline team plays together
-- **Best for:** Rapid iteration, catching obvious issues
+- **Developer Testing**- Daily testing during development
+- **Team Testing**- Cross-discipline team plays together
+- **Best for:**Rapid iteration, catching obvious issues
 
 ### External Playtesting
 
-- **Friends & Family** - Trusted external testers
-- **Focus Groups** - Targeted demographic testing
-- **Public Beta** - Large-scale community testing
-- **Best for:** Fresh perspectives, UX validation
+- **Friends & Family**- Trusted external testers
+- **Focus Groups**- Targeted demographic testing
+- **Public Beta**- Large-scale community testing
+- **Best for:**Fresh perspectives, UX validation
 
 ### Specialized Playtesting
 
-- **Accessibility Testing** - Players with disabilities
-- **Localization Testing** - Regional/cultural validation
+- **Accessibility Testing**- Players with disabilities
+- **Localization Testing**- Regional/cultural validation
 - **Competitive Testing** - Balance and meta testing
 
 ## Playtesting Process
@@ -94,14 +94,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### Action/Platformer Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Control responsiveness and "game feel"
 - Difficulty curve across levels
 - Checkpoint placement and frustration points
 - Visual clarity during fast-paced action
 
-**Key Questions:**
+- *Key Questions:**
 
 - Does the character feel good to control?
 - Are deaths feeling fair or cheap?
@@ -109,14 +109,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### RPG/Story Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Narrative pacing and engagement
 - Quest clarity and tracking
 - Character/dialogue believability
 - Progression and reward timing
 
-**Key Questions:**
+- *Key Questions:**
 
 - Do players understand their current objective?
 - Are choices feeling meaningful?
@@ -124,14 +124,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### Puzzle Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Solution discoverability
 - "Aha moment" timing
 - Hint system effectiveness
 - Difficulty progression
 
-**Key Questions:**
+- *Key Questions:**
 
 - Are players solving puzzles the intended way?
 - How long before frustration sets in?
@@ -139,14 +139,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### Multiplayer/Competitive Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Balance across characters/builds/strategies
 - Meta development and dominant strategies
 - Social dynamics and toxicity vectors
 - Matchmaking feel
 
-**Key Questions:**
+- *Key Questions:**
 
 - Are there "must-pick" or "never-pick" options?
 - Do losing players understand why they lost?
@@ -154,14 +154,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### Survival/Sandbox Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Early game onboarding and survival
 - Goal clarity vs. freedom balance
 - Resource economy and pacing
 - Emergent gameplay moments
 
-**Key Questions:**
+- *Key Questions:**
 
 - Do players know what to do first?
 - Is the loop engaging beyond the first hour?
@@ -169,14 +169,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### Mobile/Casual Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Session length appropriateness
 - One-hand playability (if applicable)
 - Interruption handling (calls, notifications)
 - Monetization friction points
 
-**Key Questions:**
+- *Key Questions:**
 
 - Can players play in 2-minute sessions?
 - Is the core loop immediately understandable?
@@ -184,14 +184,14 @@ Different genres require different playtesting approaches and focus areas.
 
 ### Horror Games
 
-**Focus Areas:**
+- *Focus Areas:**
 
 - Tension and release pacing
 - Scare effectiveness and desensitization
 - Safe space placement
 - Audio/visual atmosphere
 
-**Key Questions:**
+- *Key Questions:**
 
 - When do players feel safe vs. threatened?
 - Are scares landing or becoming predictable?
@@ -203,34 +203,42 @@ Raw feedback is noise. Processed feedback is signal.
 
 ### The Feedback Processing Pipeline
 
-```
+```bash
 Raw Feedback → Categorize → Pattern Match → Root Cause → Prioritize → Action
-```
+
+```bash
 
 ### Step 1: Categorize Feedback
 
 Sort all feedback into buckets:
 
 | Category      | Examples                           |
+
 | ------------- | ---------------------------------- |
-| **Bugs**      | Crashes, glitches, broken features |
-| **Usability** | Confusing UI, unclear objectives   |
-| **Balance**   | Too hard, too easy, unfair         |
-| **Feel**      | Controls, pacing, satisfaction     |
-| **Content**   | Wants more of X, dislikes Y        |
-| **Polish**    | Audio, visuals, juice              |
+
+| **Bugs**| Crashes, glitches, broken features |
+
+|**Usability**| Confusing UI, unclear objectives   |
+
+|**Balance**| Too hard, too easy, unfair         |
+
+|**Feel**| Controls, pacing, satisfaction     |
+
+|**Content**| Wants more of X, dislikes Y        |
+
+|**Polish**    | Audio, visuals, juice              |
 
 ### Step 2: Pattern Matching
 
 Individual feedback is anecdotal. Patterns are data.
 
-**Threshold Guidelines:**
+- *Threshold Guidelines:**
 
 - 1 person mentions it → Note it
 - 3+ people mention it → Investigate
 - 50%+ mention it → Priority issue
 
-**Watch for:**
+- *Watch for:**
 
 - Same complaint, different words
 - Same area, different complaints (signals deeper issue)
@@ -240,9 +248,9 @@ Individual feedback is anecdotal. Patterns are data.
 
 Players report symptoms, not diseases.
 
-**Example:**
+- *Example:**
 
-- **Symptom:** "The boss is too hard"
+- **Symptom:**"The boss is too hard"
 - **Possible Root Causes:**
   - Boss mechanics unclear
   - Player didn't learn required skill earlier
@@ -250,17 +258,21 @@ Players report symptoms, not diseases.
   - Health/damage tuning off
   - Boss pattern has no safe windows
 
-**Ask "Why?" five times** to get to root cause.
+- *Ask "Why?" five times** to get to root cause.
 
 ### Step 4: Separate Fact from Opinion
 
 | Fact (Actionable)                 | Opinion (Context)       |
+
 | --------------------------------- | ----------------------- |
+
 | "I died 12 times on level 3"      | "Level 3 is too hard"   |
+
 | "I didn't use the shield ability" | "The shield is useless" |
+
 | "I quit after 20 minutes"         | "The game is boring"    |
 
-**Facts tell you WHAT happened. Opinions tell you how they FELT about it.**
+- *Facts tell you WHAT happened. Opinions tell you how they FELT about it.**
 
 Both matter, but facts drive solutions.
 
@@ -268,7 +280,7 @@ Both matter, but facts drive solutions.
 
 Plot issues on impact vs. effort:
 
-```
+```bash
         High Impact
              │
    Quick     │    Major
@@ -281,37 +293,39 @@ Plot issues on impact vs. effort:
              │
         Low Impact
    Low Effort ──────── High Effort
-```
+
+```bash
 
 ### Step 6: Validate Before Acting
 
 Before making changes based on feedback:
 
-1. **Reproduce** - Can you see the issue yourself?
-2. **Quantify** - How many players affected?
-3. **Contextualize** - Is this your target audience?
-4. **Test solutions** - Will the fix create new problems?
+1. **Reproduce**- Can you see the issue yourself?
+
+2.**Quantify**- How many players affected?
+3.**Contextualize**- Is this your target audience?
+4.**Test solutions**- Will the fix create new problems?
 
 ### Handling Contradictory Feedback
 
 When Player A wants X and Player B wants the opposite:
 
-1. **Check sample size** - Is it really split or just 2 loud voices?
-2. **Segment audiences** - Are these different player types?
-3. **Find the underlying need** - Both may want the same thing differently
-4. **Consider options** - Difficulty settings, toggles, multiple paths
-5. **Make a decision** - You can't please everyone; know your target
+1.**Check sample size**- Is it really split or just 2 loud voices?
+2.**Segment audiences**- Are these different player types?
+3.**Find the underlying need**- Both may want the same thing differently
+4.**Consider options**- Difficulty settings, toggles, multiple paths
+5.**Make a decision** - You can't please everyone; know your target
 
 ### Feedback Red Flags
 
-**Dismiss or investigate carefully:**
+- *Dismiss or investigate carefully:**
 
 - "Make it like [other game]" - They want a feeling, not a clone
 - "Add multiplayer" - Feature creep disguised as feedback
 - "I would have bought it if..." - Hypothetical customers aren't real
 - Feedback from non-target audience - Know who you're building for
 
-**Take seriously:**
+- *Take seriously:**
 
 - Confusion about core mechanics
 - Consistent drop-off at same point
@@ -320,7 +334,7 @@ When Player A wants X and Player B wants the opposite:
 
 ### Documentation Best Practices
 
-**For each playtest session, record:**
+- *For each playtest session, record:**
 
 - Date and build version
 - Tester demographics/experience
@@ -330,7 +344,7 @@ When Player A wants X and Player B wants the opposite:
 - Top 3 issues identified
 - Actions taken as result
 
-**Maintain a living document** that tracks:
+- *Maintain a living document** that tracks:
 
 - Issue → First reported → Times reported → Status → Resolution
 - This prevents re-discovering the same issues
@@ -339,8 +353,8 @@ When Player A wants X and Player B wants the opposite:
 
 ### Leading Questions
 
-**Bad:** "Did you find the combat exciting?"
-**Good:** "How would you describe the combat?"
+- *Bad:** "Did you find the combat exciting?"
+- *Good:** "How would you describe the combat?"
 
 ### Intervening Too Soon
 

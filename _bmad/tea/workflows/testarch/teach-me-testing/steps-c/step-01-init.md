@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize TEA Academy - check for existing progress and route to continuation or new assessment'
 
@@ -6,7 +7,8 @@ nextStepFile: './step-02-assess.md'
 continueFile: './step-01b-continue.md'
 progressFile: '{test_artifacts}/teaching-progress/{user_name}-tea-progress.yaml'
 progressTemplate: '../templates/progress-template.yaml'
----
+
+- --
 
 # Step 1: Initialize TEA Academy
 
@@ -55,13 +57,13 @@ To welcome the learner, check for existing progress from previous sessions, and 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:**Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Welcome Message
 
 Display:
 
-"🧪 **Welcome to TEA Academy - Test Architecture Enterprise Learning**
+"🧪**Welcome to TEA Academy - Test Architecture Enterprise Learning**
 
 A multi-session learning companion that teaches testing progressively through 7 structured sessions.
 
@@ -71,7 +73,7 @@ Let me check if you've started this journey before..."
 
 Check if {progressFile} exists.
 
-**How to check:**
+- *How to check:**
 
 - Attempt to read {progressFile}
 - If file exists and is readable → Progress found
@@ -79,7 +81,7 @@ Check if {progressFile} exists.
 
 ### 3. Route Based on Progress
 
-**IF progress file EXISTS:**
+- *IF progress file EXISTS:**
 
 Display:
 
@@ -87,11 +89,11 @@ Display:
 
 Let me load where you left off..."
 
-**THEN:** Immediately load, read entire file, then execute {continueFile}
+- *THEN:** Immediately load, read entire file, then execute {continueFile}
 
----
+- --
 
-**IF progress file DOES NOT EXIST:**
+- *IF progress file DOES NOT EXIST:**
 
 Display:
 
@@ -99,26 +101,34 @@ Display:
 
 You can pause and resume anytime - your progress will be saved automatically after each session."
 
-**THEN:** Proceed to step 4
+- *THEN:**Proceed to step 4
 
 ### 4. Create Initial Progress File (New Learner Only)
 
 Load {progressTemplate} and create {progressFile} with:
 
 ```yaml
----
+
+- --
+
 # TEA Academy Progress Tracking
+
 user: { user_name }
 role: null # Will be set in assessment
+
 experience_level: null # Will be set in assessment
+
 learning_goals: null # Will be set in assessment
+
 pain_points: null # Optional, set in assessment
 
 started_date: { current_date }
 last_session_date: { current_date }
 
 sessions:
+
   - id: session-01-quickstart
+
     name: 'Quick Start'
     duration: '30 min'
     status: not-started
@@ -128,6 +138,7 @@ sessions:
     notes_artifact: null
 
   - id: session-02-concepts
+
     name: 'Core Concepts'
     duration: '45 min'
     status: not-started
@@ -137,6 +148,7 @@ sessions:
     notes_artifact: null
 
   - id: session-03-architecture
+
     name: 'Architecture & Patterns'
     duration: '60 min'
     status: not-started
@@ -146,6 +158,7 @@ sessions:
     notes_artifact: null
 
   - id: session-04-test-design
+
     name: 'Test Design'
     duration: '60 min'
     status: not-started
@@ -155,6 +168,7 @@ sessions:
     notes_artifact: null
 
   - id: session-05-atdd-automate
+
     name: 'ATDD & Automate'
     duration: '60 min'
     status: not-started
@@ -164,6 +178,7 @@ sessions:
     notes_artifact: null
 
   - id: session-06-quality-trace
+
     name: 'Quality & Trace'
     duration: '45 min'
     status: not-started
@@ -173,6 +188,7 @@ sessions:
     notes_artifact: null
 
   - id: session-07-advanced
+
     name: 'Advanced Patterns'
     duration: 'ongoing'
     status: not-started
@@ -193,24 +209,26 @@ lastContinued: { current_date }
 certificate_generated: false
 certificate_path: null
 completion_date: null
----
-```
+
+- --
+
+```bash
 
 ### 5. Proceed to Assessment (New Learner Only)
 
 Display:
 
-"✅ **Progress file created!**
+"✅**Progress file created!**
 
 Now let's learn about you - your role, experience level, and learning goals.
 
 This helps me customize examples and recommendations for you.
 
-**Proceeding to assessment...**"
+- *Proceeding to assessment...**"
 
-**THEN:** Immediately load, read entire file, then execute {nextStepFile}
+- *THEN:** Immediately load, read entire file, then execute {nextStepFile}
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -232,4 +250,4 @@ This helps me customize examples and recommendations for you.
 - Not updating stepsCompleted array
 - Asking user questions before checking progress
 
-**Master Rule:** This is an auto-proceed initialization step. Check progress, route appropriately, no user menu needed.
+- *Master Rule:** This is an auto-proceed initialization step. Check progress, route appropriately, no user menu needed.

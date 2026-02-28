@@ -2,16 +2,16 @@
 
 # Game Test Design
 
-**Workflow ID**: `_bmad/gds/gametest/test-design`
-**Version**: 1.0 (BMad v6)
+- *Workflow ID**: `_bmad/gds/gametest/test-design`
+- *Version**: 1.0 (BMad v6)
 
----
+- --
 
 ## Overview
 
 Create comprehensive test scenarios for game projects, covering gameplay mechanics, progression systems, multiplayer functionality, and platform requirements. This workflow produces a prioritized test plan based on risk assessment and player impact.
 
----
+- --
 
 ## Preflight Requirements
 
@@ -19,7 +19,7 @@ Create comprehensive test scenarios for game projects, covering gameplay mechani
 - ✅ Understanding of target platforms
 - ✅ Knowledge of core gameplay loop
 
----
+- --
 
 ## Step 1: Gather Context
 
@@ -30,80 +30,107 @@ Create comprehensive test scenarios for game projects, covering gameplay mechani
    - Identify core mechanics and features
    - Note target platforms and certification requirements
 
-2. **Identify Critical Systems**
+1. **Identify Critical Systems**
    - Core gameplay loop
    - Progression/save systems
    - Multiplayer (if applicable)
    - Monetization (if applicable)
 
-3. **Assess Risk Areas**
+1. **Assess Risk Areas**
    - Player-facing features (highest priority)
    - Data persistence (save/load)
    - Platform certification requirements
    - Performance-critical paths
 
----
+- --
 
 ## Step 2: Define Test Categories
 
 ### Core Gameplay Testing
 
-**Knowledge Base Reference**: `knowledge/playtesting.md`
+- *Knowledge Base Reference**: `knowledge/playtesting.md`
 
 | Category           | Focus                      | Priority |
+
 | ------------------ | -------------------------- | -------- |
+
 | Core Loop          | Primary mechanic execution | P0       |
+
 | Combat/Interaction | Hit detection, feedback    | P0       |
+
 | Movement           | Physics, collision, feel   | P0       |
+
 | UI/UX              | Menu navigation, HUD       | P1       |
+
 | Audio              | Sound triggers, music      | P2       |
 
 ### Progression Testing
 
-**Knowledge Base Reference**: `knowledge/save-testing.md`
+- *Knowledge Base Reference**: `knowledge/save-testing.md`
 
 | Category     | Focus              | Priority |
+
 | ------------ | ------------------ | -------- |
+
 | Save/Load    | Data persistence   | P0       |
+
 | Unlocks      | Content gating     | P1       |
+
 | Economy      | Currency, rewards  | P1       |
+
 | Achievements | Trigger conditions | P2       |
 
 ### Multiplayer Testing (if applicable)
 
-**Knowledge Base Reference**: `knowledge/multiplayer-testing.md`
+- *Knowledge Base Reference**: `knowledge/multiplayer-testing.md`
 
 | Category        | Focus               | Priority |
+
 | --------------- | ------------------- | -------- |
+
 | Connectivity    | Join/leave handling | P0       |
+
 | Synchronization | State consistency   | P0       |
+
 | Latency         | Degraded network    | P1       |
+
 | Matchmaking     | Player grouping     | P1       |
 
 ### Platform Testing
 
-**Knowledge Base Reference**: `knowledge/certification-testing.md`
+- *Knowledge Base Reference**: `knowledge/certification-testing.md`
 
 | Category      | Focus               | Priority |
+
 | ------------- | ------------------- | -------- |
+
 | Certification | TRC/XR requirements | P0       |
+
 | Input         | Controller support  | P0       |
+
 | Performance   | FPS, loading times  | P1       |
+
 | Accessibility | Assist features     | P1       |
 
 ### E2E Journey Testing
 
-**Knowledge Base Reference**: `knowledge/e2e-testing.md`
+- *Knowledge Base Reference**: `knowledge/e2e-testing.md`
 
 | Category | Focus | Priority |
+
 |----------|-------|----------|
+
 | Core Loop | Complete gameplay cycle | P0 |
+
 | Turn Lifecycle | Full turn from start to end | P0 |
+
 | Save/Load Round-trip | Save → quit → load → resume | P0 |
+
 | Scene Transitions | Menu → Game → Back | P1 |
+
 | Win/Lose Paths | Victory and defeat conditions | P1 |
 
----
+- --
 
 ## Step 3: Create Test Scenarios
 
@@ -111,20 +138,21 @@ Create comprehensive test scenarios for game projects, covering gameplay mechani
 
 For each critical feature, create scenarios using this format:
 
-```
+```bash
 SCENARIO: [Descriptive Name]
   GIVEN [Initial state/preconditions]
   WHEN [Action taken]
   THEN [Expected outcome]
   PRIORITY: P0/P1/P2/P3
   CATEGORY: [gameplay/progression/multiplayer/platform]
-```
+
+```bash
 
 ### Example Scenarios
 
-**Gameplay - Combat**
+- *Gameplay - Combat**
 
-```
+```bash
 SCENARIO: Basic Attack Hits Enemy
   GIVEN player is within attack range of enemy
   AND enemy has 100 health
@@ -134,11 +162,12 @@ SCENARIO: Basic Attack Hits Enemy
   AND enemy health decreases
   PRIORITY: P0
   CATEGORY: gameplay
-```
 
-**Progression - Save System**
+```bash
 
-```
+- *Progression - Save System**
+
+```bash
 SCENARIO: Save Preserves Player Progress
   GIVEN player has 500 gold and 3 items
   AND player is at checkpoint
@@ -149,11 +178,12 @@ SCENARIO: Save Preserves Player Progress
   AND player is at same checkpoint
   PRIORITY: P0
   CATEGORY: progression
-```
 
-**Multiplayer - Network Degradation**
+```bash
 
-```
+- *Multiplayer - Network Degradation**
+
+```bash
 SCENARIO: Gameplay Under High Latency
   GIVEN 2 players in session
   AND network latency is 200ms
@@ -163,12 +193,14 @@ SCENARIO: Gameplay Under High Latency
   AND no desync occurs
   PRIORITY: P1
   CATEGORY: multiplayer
-```
+
+```bash
 
 ### E2E Scenario Format
 
 For player journey tests, use this extended format:
-```
+
+```bash
 E2E SCENARIO: [Player Journey Name]
   GIVEN [Initial game state - use ScenarioBuilder terms]
   WHEN [Sequence of player actions]
@@ -177,10 +209,12 @@ E2E SCENARIO: [Player Journey Name]
   PRIORITY: P0/P1
   CATEGORY: e2e
   INFRASTRUCTURE: [Required fixtures/builders]
-```
+
+```bash
 
 ### Example E2E Scenario
-```
+
+```bash
 E2E SCENARIO: Complete Combat Encounter
   GIVEN game loaded with player unit adjacent to enemy
   AND player unit has full health and actions
@@ -196,37 +230,45 @@ E2E SCENARIO: Complete Combat Encounter
   PRIORITY: P0
   CATEGORY: e2e
   INFRASTRUCTURE: ScenarioBuilder, InputSimulator, AsyncAssert
-```
 
----
+```bash
+
+- --
 
 ## Step 4: Prioritize Test Coverage
 
 ### Priority Assignment
 
-**Knowledge Base Reference**: `knowledge/test-priorities.md`
+- *Knowledge Base Reference**: `knowledge/test-priorities.md`
 
 | Priority | Criteria | Unit | Integration | E2E | Manual |
+
 |----------|----------|------|-------------|-----|--------|
+
 | P0 | Ship blockers | 100% | 80% | Core flows | Smoke |
+
 | P1 | Major features | 90% | 70% | Happy paths | Full |
+
 | P2 | Secondary | 80% | 50% | - | Targeted |
+
 | P3 | Edge cases | 60% | - | - | As needed |
 
 ### Risk-Based Ordering
 
-1. **Critical Path** - Main gameplay loop
-2. **Data Integrity** - Save/load, progression
-3. **Platform Requirements** - Certification items
-4. **User Experience** - Feel, polish, accessibility
+1. **Critical Path**- Main gameplay loop
 
----
+2.**Data Integrity**- Save/load, progression
+3.**Platform Requirements**- Certification items
+4.**User Experience**- Feel, polish, accessibility
+
+- --
 
 ## Step 5: Generate Test Design Document
 
 ### Document Structure
 
 ```markdown
+
 # Game Test Design: [Project Name]
 
 ## Overview
@@ -261,7 +303,9 @@ E2E SCENARIO: Complete Combat Encounter
 ## Coverage Matrix
 
 | Feature | P0  | P1  | P2  | P3  |
+
 | ------- | --- | --- | --- | --- |
+
 | Combat  | 5   | 10  | 8   | 4   |
 
 | ...
@@ -277,48 +321,51 @@ E2E SCENARIO: Complete Combat Encounter
 1. Implement P0 tests
 2. Set up CI integration
 3. Plan playtesting sessions
-```
 
----
+```bash
+
+- --
 
 ## Deliverables
 
-1. **Test Design Document** - `{output_folder}/game-test-design.md`
-2. **Scenario List** - Prioritized test scenarios
-3. **Coverage Matrix** - Feature vs priority breakdown
-4. **Automation Recommendations** - What to automate vs manual test
+1.**Test Design Document**- `{output_folder}/game-test-design.md`
+2.**Scenario List**- Prioritized test scenarios
+3.**Coverage Matrix**- Feature vs priority breakdown
+4.**Automation Recommendations** - What to automate vs manual test
 
----
+- --
 
 ## Output Summary
 
 ```markdown
+
 ## Test Design Complete
 
-**Project**: {project_name}
-**Scenarios Created**: {count}
-**Priority Breakdown**:
+- *Project**: {project_name}
+- *Scenarios Created**: {count}
+- *Priority Breakdown**:
 
 - P0 (Critical): {p0_count}
 - P1 (High): {p1_count}
 - P2 (Medium): {p2_count}
 - P3 (Low): {p3_count}
 
-**Focus Areas Covered**:
+- *Focus Areas Covered**:
 
 - ✅ Core Gameplay
 - ✅ Progression/Save
 - ✅ Platform Requirements
 - {✅/⬜} Multiplayer
 
-**Next Steps**:
+- *Next Steps**:
 
 1. Review scenarios with team
 2. Use `automate` workflow to generate test code
 3. Use `playtest-plan` for manual testing sessions
-```
 
----
+```bash
+
+- --
 
 ## Validation
 

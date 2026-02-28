@@ -17,9 +17,9 @@ Traditional Page Object Models create tight coupling through inheritance chains 
 
 ### Example 1: Pure Function → Fixture Pattern
 
-**Context**: When building any test helper, always start with a pure function that accepts all dependencies explicitly. Then wrap it in a Playwright fixture or Cypress command.
+- *Context**: When building any test helper, always start with a pure function that accepts all dependencies explicitly. Then wrap it in a Playwright fixture or Cypress command.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/helpers/api-request.ts
@@ -27,6 +27,7 @@ Traditional Page Object Models create tight coupling through inheritance chains 
 type ApiRequestParams = {
   request: APIRequestContext;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+
   url: string;
   data?: unknown;
   headers?: Record<string, string>;
@@ -75,9 +76,10 @@ export const test = base.extend<{ apiRequest: typeof apiRequest }>({
     "./api-request/fixtures": "./playwright/support/fixtures/api-request-fixture.ts"
   }
 }
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Pure function is unit-testable without Playwright running
 - Framework dependency (`request`) injected at fixture boundary
@@ -86,9 +88,9 @@ export const test = base.extend<{ apiRequest: typeof apiRequest }>({
 
 ### Example 2: Composable Fixture System with mergeTests
 
-**Context**: When building comprehensive test capabilities, compose multiple focused fixtures instead of creating monolithic helper classes. Each fixture provides one capability.
+- *Context**: When building comprehensive test capabilities, compose multiple focused fixtures instead of creating monolithic helper classes. Each fixture provides one capability.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/fixtures/merged-fixtures.ts
@@ -113,9 +115,10 @@ export { expect } from '@playwright/test';
 //   await page.click('[data-testid="submit-order"]');
 //   await expect(page.getByText('Order #123')).toBeVisible();
 // });
-```
 
-**Individual Fixture Examples**:
+```bash
+
+- *Individual Fixture Examples**:
 
 ```typescript
 // network-fixture.ts
@@ -158,9 +161,10 @@ export const test = base.extend({
     await use({ loginAs });
   },
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - `mergeTests` combines fixtures without inheritance
 - Each fixture has single responsibility (network, auth, logs)
@@ -169,9 +173,9 @@ export const test = base.extend({
 
 ### Example 3: Framework-Agnostic HTTP Helper
 
-**Context**: When building HTTP helpers, keep them framework-agnostic. Accept all params explicitly so they work in unit tests, Playwright, Cypress, or any context.
+- *Context**: When building HTTP helpers, keep them framework-agnostic. Accept all params explicitly so they work in unit tests, Playwright, Cypress, or any context.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // shared/helpers/http-helper.ts
@@ -180,6 +184,7 @@ type HttpHelperParams = {
   baseUrl: string;
   endpoint: string;
   method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+
   body?: unknown;
   headers?: Record<string, string>;
   token?: string;
@@ -214,7 +219,7 @@ import { makeHttpRequest } from '../../shared/helpers/http-helper';
 
 export const test = base.extend({
   httpHelper: async ({}, use) => {
-    const baseUrl = process.env.API_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.API_BASE_URL || '<http://localhost:3000';>
 
     await use((params) => makeHttpRequest({ baseUrl, ...params }));
   },
@@ -225,12 +230,14 @@ export const test = base.extend({
 import { makeHttpRequest } from '../../shared/helpers/http-helper';
 
 Cypress.Commands.add('apiRequest', (params) => {
-  const baseUrl = Cypress.env('API_BASE_URL') || 'http://localhost:3000';
+  const baseUrl = Cypress.env('API_BASE_URL') || '<http://localhost:3000';>
+
   return cy.wrap(makeHttpRequest({ baseUrl, ...params }));
 });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Pure function uses only standard `fetch`, no framework dependencies
 - Unit tests call `makeHttpRequest` directly with all params
@@ -239,9 +246,9 @@ Cypress.Commands.add('apiRequest', (params) => {
 
 ### Example 4: Fixture Cleanup Pattern
 
-**Context**: When fixtures create resources (data, files, connections), ensure automatic cleanup in fixture teardown. Tests must not leak state.
+- *Context**: When fixtures create resources (data, files, connections), ensure automatic cleanup in fixture teardown. Tests must not leak state.
 
-**Implementation**:
+- *Implementation**:
 
 ```typescript
 // playwright/support/fixtures/database-fixture.ts
@@ -301,9 +308,10 @@ export const test = base.extend<DatabaseFixture>({
 //
 //   // No manual cleanup needed—fixture handles it automatically
 // });
-```
 
-**Key Points**:
+```bash
+
+- *Key Points**:
 
 - Track all created resources in array during test execution
 - Teardown (after `use()`) deletes all tracked resources
@@ -312,7 +320,7 @@ export const test = base.extend<DatabaseFixture>({
 
 ### Anti-Pattern: Inheritance-Based Page Objects
 
-**Problem**:
+- *Problem**:
 
 ```typescript
 // ❌ BAD: Page Object Model with inheritance
@@ -343,9 +351,10 @@ class AdminPage extends LoginPage {
     await this.navigate('/admin');
   }
 }
-```
 
-**Why It Fails**:
+```bash
+
+- *Why It Fails**:
 
 - Changes to `BasePage` break all descendants (`LoginPage`, `AdminPage`)
 - `AdminPage` inherits unnecessary `login` details—tight coupling
@@ -353,7 +362,7 @@ class AdminPage extends LoginPage {
 - Hard to test `BasePage` methods in isolation
 - Hidden state in class instances leads to unpredictable behavior
 
-**Better Approach**: Use pure functions + fixtures
+- *Better Approach**: Use pure functions + fixtures
 
 ```typescript
 // ✅ GOOD: Pure functions with fixture composition
@@ -379,7 +388,8 @@ export const test = base.extend({
 });
 
 // Tests import exactly what they need—no inheritance
-```
+
+```bash
 
 ## Integration Points
 
@@ -393,9 +403,9 @@ export const test = base.extend({
 
 When deciding whether to create a fixture, follow these rules:
 
-- **3+ uses** → Create fixture with subpath export (shared across tests/projects)
-- **2-3 uses** → Create utility module (shared within project)
-- **1 use** → Keep inline (avoid premature abstraction)
+- **3+ uses**→ Create fixture with subpath export (shared across tests/projects)
+- **2-3 uses**→ Create utility module (shared within project)
+- **1 use**→ Keep inline (avoid premature abstraction)
 - **Complex logic** → Factory function pattern (dynamic data generation)
 
 _Source: Murat Testing Philosophy (lines 74-122), SEON production patterns, Playwright fixture docs._

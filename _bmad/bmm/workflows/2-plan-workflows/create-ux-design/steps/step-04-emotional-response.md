@@ -53,7 +53,7 @@ Define the desired emotional responses users should feel when using the product.
 Start by understanding the emotional objectives:
 "Now let's think about how {{project_name}} should make users feel.
 
-**Emotional Response Questions:**
+- *Emotional Response Questions:**
 
 - What should users FEEL when using this product?
 - What emotion would make them tell a friend about this?
@@ -97,7 +97,7 @@ Link feelings to design implications:
 - Where can we add moments of delight or surprise?
 - How do we build trust and confidence through design?
 
-**Emotion-Design Connections:**
+- *Emotion-Design Connections:**
 
 - [Emotion 1] → [UX design approach]
 - [Emotion 2] → [UX design approach]
@@ -108,9 +108,9 @@ Link feelings to design implications:
 Check if emotional goals align with product vision:
 "Let me make sure I understand the emotional vision for {{project_name}}:
 
-**Primary Emotional Goal:** [Summarize main emotional response]
-**Secondary Feelings:** [List supporting emotional states]
-**Emotions to Avoid:** [List negative emotions to prevent]
+- *Primary Emotional Goal:** [Summarize main emotional response]
+- *Secondary Feelings:** [List supporting emotional states]
+- *Emotions to Avoid:** [List negative emotions to prevent]
 
 Does this capture the emotional experience you want to create? Any adjustments needed?"
 
@@ -123,6 +123,7 @@ Prepare the content to append to the document:
 When saving to document, append these Level 2 and Level 3 sections:
 
 ```markdown
+
 ## Desired Emotional Response
 
 ### Primary Emotional Goals
@@ -144,18 +145,20 @@ When saving to document, append these Level 2 and Level 3 sections:
 ### Emotional Design Principles
 
 [Guiding principles for emotional design based on conversation]
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
 Show the generated emotional response content and present choices:
 "I've defined the desired emotional responses for {{project_name}}. These emotional goals will guide our design decisions to create the right user experience.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Let's refine the emotional response definition
 [P] Party Mode - Bring different perspectives on user emotional needs
 [C] Continue - Save this to the document and move to inspiration analysis"

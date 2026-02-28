@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-08-validation'
 description: 'Validate architectural coherence and completeness'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/3-technical/game-architecture'
 
 # File References
+
 thisStepFile: './step-08-validation.md'
 nextStepFile: './step-09-complete.md'
 workflowFile: '{workflow_path}/workflow.md'
@@ -13,13 +16,15 @@ outputFile: '{output_folder}/game-architecture.md'
 checklistFile: '{workflow_path}/checklist.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 8: Validation
 
-**Progress: Step 8 of 9** - Next: Completion
+- *Progress: Step 8 of 9**- Next: Completion
 
 ## STEP GOAL:
 
@@ -65,7 +70,7 @@ Validate that the architecture is coherent, complete, and ready to guide AI agen
 
 ### 1. Load Validation Checklist
 
-**Load the checklist if available:**
+- *Load the checklist if available:**
 
 Load `{checklistFile}` for structured validation criteria.
 
@@ -76,14 +81,21 @@ Load `{checklistFile}` for structured validation criteria.
 Verifying all architectural decisions work together:
 
 | Check                          | Status        | Notes     |
+
 | ------------------------------ | ------------- | --------- |
+
 | Engine + patterns compatible   | {{pass/fail}} | {{notes}} |
+
 | Cross-cutting + engine align   | {{pass/fail}} | {{notes}} |
+
 | Structure supports all systems | {{pass/fail}} | {{notes}} |
+
 | No conflicting decisions       | {{pass/fail}} | {{notes}} |
 
 {{if_issues_found}}
-**Issues Found:**
+
+- *Issues Found:**
+
 {{list_of_conflicts}}
 
 How should we resolve these?
@@ -95,18 +107,26 @@ How should we resolve these?
 
 Verifying every GDD requirement has architectural support:
 
-**Core Systems:**
+- *Core Systems:**
+
 | System | Architecture Support | Status |
+
 | ------ | -------------------- | ------ |
+
 {{systems_coverage_table}}
 
-**Technical Requirements:**
+- *Technical Requirements:**
+
 | Requirement | How Addressed | Status |
+
 | ----------- | ------------- | ------ |
+
 {{requirements_coverage_table}}
 
 {{if_gaps_found}}
-**Gaps Found:**
+
+- *Gaps Found:**
+
 {{list_of_gaps}}
 
 How should we address these?
@@ -119,16 +139,25 @@ How should we address these?
 Verifying implementation patterns cover all scenarios:
 
 | Scenario                | Pattern Defined | Status     |
+
 | ----------------------- | --------------- | ---------- |
+
 | Entity creation         | {{yes/no}}      | {{status}} |
+
 | Component communication | {{yes/no}}      | {{status}} |
+
 | State management        | {{yes/no}}      | {{status}} |
+
 | Error handling          | {{yes/no}}      | {{status}} |
+
 | Data access             | {{yes/no}}      | {{status}} |
+
 | Event handling          | {{yes/no}}      | {{status}} |
 
 {{if_missing_patterns}}
-**Missing Patterns:**
+
+- *Missing Patterns:**
+
 {{list_of_missing}}
 
 Should we define these now?
@@ -141,12 +170,15 @@ Should we define these now?
 Verifying every epic/feature maps to architecture:
 
 | Epic/Feature | Location | Patterns | Status |
+
 | ------------ | -------- | -------- | ------ |
 
 {{epic_mapping_table}}
 
 {{if_unmapped_epics}}
-**Unmapped Features:**
+
+- *Unmapped Features:**
+
 {{list_of_unmapped}}
 
 Where should these live?
@@ -167,7 +199,9 @@ Mandatory sections:
 - [ ] No placeholder text ({{placeholders}}, TODO, etc.)
 
 {{if_incomplete}}
-**Incomplete Sections:**
+
+- *Incomplete Sections:**
+
 {{list_of_incomplete}}
 
 Let's fix these before proceeding.
@@ -175,7 +209,7 @@ Let's fix these before proceeding.
 
 ### 7. Resolve Any Issues
 
-**If issues were found in any check:**
+- *If issues were found in any check:**
 
 For each issue:
 
@@ -184,30 +218,37 @@ For each issue:
 3. Get user confirmation
 4. Update the document
 
-**Repeat validation if significant changes made.**
+- *Repeat validation if significant changes made.**
 
 ### 8. Generate Validation Summary
 
 Based on the checks, prepare the summary:
 
 ```markdown
+
 ## Architecture Validation
 
 ### Validation Summary
 
 | Check                  | Result        | Notes     |
+
 | ---------------------- | ------------- | --------- |
+
 | Decision Compatibility | {{pass/fail}} | {{notes}} |
+
 | GDD Coverage           | {{pass/fail}} | {{notes}} |
+
 | Pattern Completeness   | {{pass/fail}} | {{notes}} |
+
 | Epic Mapping           | {{pass/fail}} | {{notes}} |
+
 | Document Completeness  | {{pass/fail}} | {{notes}} |
 
 ### Coverage Report
 
-**Systems Covered:** {{count}}/{{total}}
-**Patterns Defined:** {{count}}
-**Decisions Made:** {{count}}
+- *Systems Covered:** {{count}}/{{total}}
+- *Patterns Defined:** {{count}}
+- *Decisions Made:** {{count}}
 
 ### Issues Resolved
 
@@ -216,7 +257,8 @@ Based on the checks, prepare the summary:
 ### Validation Date
 
 {{date}}
-```
+
+```bash
 
 ### 9. Present Validation and Menu
 
@@ -224,11 +266,11 @@ Show the validation results to the user and present:
 
 "**Architecture Validation Complete**
 
-**Results:**
+- *Results:**
 
 [Show validation summary]
 
-**Overall Status:** {{PASS/NEEDS_WORK}}
+- *Overall Status:** {{PASS/NEEDS_WORK}}
 
 {{if_pass}}
 Your architecture document is complete and ready to guide implementation.
@@ -238,7 +280,8 @@ Your architecture document is complete and ready to guide implementation.
 Some issues need resolution before the architecture is ready.
 {{/if_needs_work}}
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Deep dive into any gaps
 [P] Party Mode - Get perspectives on completeness
 [C] Continue - Save validation and move to Completion (Step 9 of 9)"
@@ -269,7 +312,7 @@ Some issues need resolution before the architecture is ready.
 
 ONLY WHEN [C continue option] is selected and [validation content saved with frontmatter updated], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -291,4 +334,4 @@ ONLY WHEN [C continue option] is selected and [validation content saved with fro
 - Not presenting A/P/C menu after validation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

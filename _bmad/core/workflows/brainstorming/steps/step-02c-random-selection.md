@@ -36,16 +36,16 @@ Create anticipation for serendipitous technique discovery:
 
 "Exciting choice! You've chosen the path of creative serendipity. Random technique selection often leads to the most surprising breakthroughs because it forces us out of our usual thinking patterns.
 
-**The Magic of Random Selection:**
+- *The Magic of Random Selection:**
 
 - Discover techniques you might never choose yourself
 - Break free from creative ruts and predictable approaches
 - Find unexpected connections between different creativity methods
 - Experience the joy of genuine creative surprise
 
-**Loading our complete Brain Techniques Library for Random Discovery...**"
+- *Loading our complete Brain Techniques Library for Random Discovery...**"
 
-**Load CSV and parse:**
+- *Load CSV and parse:**
 
 - Read `brain-methods.csv`
 - Parse: category, technique_name, description, facilitation_prompts, best_for, energy_level, typical_duration
@@ -55,12 +55,13 @@ Create anticipation for serendipitous technique discovery:
 
 Perform random selection with basic intelligence for good combinations:
 
-**Selection Process:**
+- *Selection Process:**
+
 "I'm now randomly selecting 3 complementary techniques from our library of 36+ methods. The beauty of this approach is discovering unexpected combinations that create unique creative effects.
 
-**Randomizing Technique Selection...**"
+- *Randomizing Technique Selection...**"
 
-**Selection Logic:**
+- *Selection Logic:**
 
 - Random selection from different categories for variety
 - Ensure techniques don't conflict in approach
@@ -73,29 +74,29 @@ Reveal the randomly selected techniques with enthusiasm:
 
 "**🎲 Your Randomly Selected Creative Techniques! 🎲**
 
-**Phase 1: Exploration**
-**[Random Technique 1]** from [Category] (Duration: [time], Energy: [level])
+- *Phase 1: Exploration**
+- *[Random Technique 1]**from [Category] (Duration: [time], Energy: [level])
 
-- **Description:** [Technique description]
-- **Why this is exciting:** [What makes this technique surprising or powerful]
+- **Description:**[Technique description]
+- **Why this is exciting:**[What makes this technique surprising or powerful]
 - **Random discovery bonus:** [Unexpected insight about this technique]
 
-**Phase 2: Connection**
-**[Random Technique 2]** from [Category] (Duration: [time], Energy: [level])
+- *Phase 2: Connection**
+- *[Random Technique 2]**from [Category] (Duration: [time], Energy: [level])
 
-- **Description:** [Technique description]
-- **Why this complements the first:** [How these techniques might work together]
+- **Description:**[Technique description]
+- **Why this complements the first:**[How these techniques might work together]
 - **Random discovery bonus:** [Unexpected insight about this combination]
 
-**Phase 3: Synthesis**
-**[Random Technique 3]** from [Category] (Duration: [time], Energy: [level])
+- *Phase 3: Synthesis**
+- *[Random Technique 3]**from [Category] (Duration: [time], Energy: [level])
 
-- **Description:** [Technique description]
-- **Why this completes the journey:** [How this ties the sequence together]
+- **Description:**[Technique description]
+- **Why this completes the journey:**[How this ties the sequence together]
 - **Random discovery bonus:** [Unexpected insight about the overall flow]
 
-**Total Random Session Time:** [Combined duration]
-**Serendipity Factor:** [Enthusiastic description of creative potential]"
+- *Total Random Session Time:** [Combined duration]
+- *Serendipity Factor:** [Enthusiastic description of creative potential]"
 
 ### 4. Highlight the Creative Potential
 
@@ -103,22 +104,26 @@ Emphasize the unique value of this random combination:
 
 "**Why This Random Combination is Perfect:**
 
-**Unexpected Synergy:**
+- *Unexpected Synergy:**
+
 These three techniques might seem unrelated, but that's exactly where the magic happens! [Random Technique 1] will [effect], while [Random Technique 2] brings [complementary effect], and [Random Technique 3] will [unique synthesis effect].
 
-**Breakthrough Potential:**
+- *Breakthrough Potential:**
+
 This combination is designed to break through conventional thinking by:
 
 - Challenging your usual creative patterns
 - Introducing perspectives you might not consider
 - Creating connections between unrelated creative approaches
 
-**Creative Adventure:**
+- *Creative Adventure:**
+
 You're about to experience brainstorming in a completely new way. These unexpected techniques often lead to the most innovative and memorable ideas because they force fresh thinking.
 
-**Ready for this creative adventure?**
+- *Ready for this creative adventure?**
 
-**Options:**
+- *Options:**
+
 [C] Continue - Begin with these serendipitous techniques
 [Shuffle] - Randomize another combination for different adventure
 [Details] - Tell me more about any specific technique
@@ -147,34 +152,41 @@ You're about to experience brainstorming in a completely new way. These unexpect
 
 If user confirms random selection:
 
-**Update frontmatter:**
+- *Update frontmatter:**
 
 ```yaml
----
+
+- --
+
 selected_approach: 'random-selection'
 techniques_used: ['technique1', 'technique2', 'technique3']
 stepsCompleted: [1, 2]
----
-```
 
-**Append to document:**
+- --
+
+```bash
+
+- *Append to document:**
 
 ```markdown
+
 ## Technique Selection
 
-**Approach:** Random Technique Selection
-**Selection Method:** Serendipitous discovery from 36+ techniques
+- *Approach:** Random Technique Selection
+- *Selection Method:** Serendipitous discovery from 36+ techniques
 
-**Randomly Selected Techniques:**
+- *Randomly Selected Techniques:**
 
-- **[Technique 1]:** [Why this random selection is exciting]
-- **[Technique 2]:** [How this creates unexpected creative synergy]
+- **[Technique 1]:**[Why this random selection is exciting]
+- **[Technique 2]:**[How this creates unexpected creative synergy]
 - **[Technique 3]:** [How this completes the serendipitous journey]
 
-**Random Discovery Story:** [Content about the selection process and creative potential]
-```
+- *Random Discovery Story:** [Content about the selection process and creative potential]
 
-**Route to execution:**
+```bash
+
+- *Route to execution:**
+
 Load `./step-03-technique-execution.md`
 
 ## SUCCESS METRICS:

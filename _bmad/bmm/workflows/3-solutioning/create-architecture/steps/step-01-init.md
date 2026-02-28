@@ -55,6 +55,7 @@ If no document exists or no `stepsCompleted` in frontmatter:
 #### A. Input Document Discovery
 
 Discover and load context documents using smart discovery. Documents can be in the following locations:
+
 - {planning_artifacts}/**
 - {output_folder}/**
 - {product_knowledge}/**
@@ -63,6 +64,7 @@ Discover and load context documents using smart discovery. Documents can be in t
 Also - when searching - documents can be a single markdown file, or a folder with an index and multiple files. For Example, if searching for `*foo*.md` and not found, also search for a folder called *foo*/index.md (which indicates sharded content)
 
 Try to discover the following:
+
 - Product Brief (`*brief*.md`)
 - Product Requirements Document (`*prd*.md`)
 - UX Design (`*ux-design*.md`) and other
@@ -72,7 +74,7 @@ Try to discover the following:
 
 <critical>Confirm what you have found with the user, along with asking if the user wants to provide anything else. Only after this confirmation will you proceed to follow the loading rules</critical>
 
-**Loading Rules:**
+- *Loading Rules:**
 
 - Load ALL discovered files completely that the user confirmed or provided (no offset/limit)
 - If there is a project context, whatever is relevant should try to be biased in the remainder of this whole workflow process
@@ -84,12 +86,12 @@ Try to discover the following:
 
 Before proceeding, verify we have the essential inputs:
 
-**PRD Validation:**
+- *PRD Validation:**
 
 - If no PRD found: "Architecture requires a PRD to work from. Please run the PRD workflow first or provide the PRD file path."
 - Do NOT proceed without PRD
 
-**Other Input that might exist:**
+- *Other Input that might exist:**
 
 - UX Spec: "Provides UI/UX architectural requirements"
 
@@ -101,16 +103,17 @@ Copy the template from `{installed_path}/architecture-decision-template.md` to `
 
 Complete setup and report to user:
 
-**Document Setup:**
+- *Document Setup:**
 
 - Created: `{planning_artifacts}/architecture.md` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
+- *Input Documents Discovered:**
+
 Report what was found:
 "Welcome {{user_name}}! I've set up your Architecture workspace for {{project_name}}.
 
-**Documents Found:**
+- *Documents Found:**
 
 - PRD: {number of PRD files loaded or "None found - REQUIRED"}
 - UX Design: {number of UX files loaded or "None found"}
@@ -118,7 +121,7 @@ Report what was found:
 - Project docs: {number of project files loaded or "None found"}
 - Project context: {project_context_rules count of rules for AI agents found}
 
-**Files loaded:** {list of specific file names or "No additional documents found"}
+- *Files loaded:**{list of specific file names or "No additional documents found"}
 
 Ready to begin architectural decision making. Do you have any other documents you'd like me to include?
 
@@ -142,7 +145,7 @@ Ready to begin architectural decision making. Do you have any other documents yo
 ❌ Not reporting what documents were found to user
 ❌ Proceeding without validating PRD requirement
 
-❌ **CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
+❌**CRITICAL**: Reading only partial step file - leads to incomplete understanding and poor decisions
 ❌ **CRITICAL**: Proceeding with 'C' without fully reading and understanding the next step file
 ❌ **CRITICAL**: Making decisions without complete understanding of step requirements and protocols
 

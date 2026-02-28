@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-03-menu-validation'
 description: 'Validate menu handling compliance across all step files'
 
@@ -6,7 +7,8 @@ nextStepFile: './step-04-step-type-validation.md'
 targetWorkflowPath: '{workflow_folder_path}'
 validationReportFile: '{workflow_folder_path}/validation-report-{datetime}.md'
 menuHandlingStandards: '../data/menu-handling-standards.md'
----
+
+- --
 
 # Validation Step 3: Menu Handling Validation
 
@@ -46,66 +48,69 @@ To validate that EVERY step file's menus follow the menu handling standards - pr
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
+- *CRITICAL:** Follow this sequence exactly. Do not skip or shortcut.
 
 ### 1. Load Menu Standards
 
 Load {menuHandlingStandards} to understand validation criteria:
 
-**Reserved Letters:** A (Advanced Elicitation), P (Party Mode), C (Continue/Accept), X (Exit/Cancel)
+- *Reserved Letters:** A (Advanced Elicitation), P (Party Mode), C (Continue/Accept), X (Exit/Cancel)
 
-**Required Structure:**
+- *Required Structure:**
 1. Display section
 2. Handler section (MANDATORY)
 3. Execution Rules section
 
-**When To Include A/P:**
+- *When To Include A/P:**
 - DON'T: Step 1 (init), validation sequences, simple data gathering
 - DO: Collaborative content creation, user might want alternatives, quality gates
 
 ### 2. Check EVERY Step File
 
-**DO NOT BE LAZY - For EVERY file in steps-c/, launch a subprocess that:**
+- *DO NOT BE LAZY - For EVERY file in steps-c/, launch a subprocess that:**
 
 1. Loads that step file
 2. Loads {menuHandlingStandards} to understand validation criteria
 3. Validates menu structure deeply (handler section, execution rules, A/P appropriateness, reserved letter compliance)
-4. **EITHER** updates validation report directly with findings
-5. **OR** returns structured validation findings to parent for aggregation
+4. **EITHER**updates validation report directly with findings
 
-**SUBPROCESS VALIDATION PATTERN - Each subprocess checks for:**
+5.**OR** returns structured validation findings to parent for aggregation
 
-**Check 1: Handler Section Exists**
+- *SUBPROCESS VALIDATION PATTERN - Each subprocess checks for:**
+
+- *Check 1: Handler Section Exists**
 - ✅ Handler section immediately follows Display
 - ❌ If missing: mark as violation
 
-**Check 2: Execution Rules Section Exists**
+- *Check 2: Execution Rules Section Exists**
 - ✅ "EXECUTION RULES" section present
 - ✅ Contains "halt and wait" instruction
 - ❌ If missing: mark as violation
 
-**Check 3: Non-C Options Redisplay Menu**
+- *Check 3: Non-C Options Redisplay Menu**
 - ✅ A/P options specify "redisplay menu"
 - ❌ If missing: mark as violation
 
-**Check 4: C Option Sequence**
+- *Check 4: C Option Sequence**
 - ✅ C option: save → update frontmatter → load next step
 - ❌ If sequence wrong: mark as violation
 
-**Check 5: A/P Only Where Appropriate**
+- *Check 5: A/P Only Where Appropriate**
 - Step 01 should NOT have A/P (inappropriate for init)
 - Validation sequences should auto-proceed, not have menus
 - ❌ If A/P in wrong place: mark as violation
 
-**RETURN FORMAT:**
+- *RETURN FORMAT:**
+
 Each subprocess should return validation findings for its assigned file including:
+
 - File name
 - Whether a menu is present
 - Results of all 5 checks (handler section, execution rules, redisplay menu, C sequence, A/P appropriateness)
 - List of any violations found
 - Overall status (PASS/FAIL/WARN)
 
-**Context savings estimate:** Each subprocess returns structured findings vs full file content. Parent aggregates all findings into final report table.
+- *Context savings estimate:** Each subprocess returns structured findings vs full file content. Parent aggregates all findings into final report table.
 
 ### 3. Aggregate Findings and Document Results
 
@@ -133,14 +138,15 @@ Update {validationReportFile} - replace "## Menu Handling Validation *Pending...
 
 ### 6. Save Report and Auto-Proceed
 
-**CRITICAL:** Save the validation report BEFORE loading next step.
+- *CRITICAL:** Save the validation report BEFORE loading next step.
 
 Then immediately load, read entire file, then execute {nextStepFile}.
 
-**Display:**
+- *Display:**
+
 "**Menu Handling validation complete.** Proceeding to Step Type Validation..."
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -161,4 +167,4 @@ Then immediately load, read entire file, then execute {nextStepFile}.
 - Not saving report before proceeding
 - Loading full file contents into parent context instead of using subprocess analysis
 
-**Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Use subprocess optimization (Pattern 2) - each file in its own subprocess for deep menu structure analysis. Subprocess returns only findings to parent. Auto-proceed through all validation steps.
+- *Master Rule:** Validation is systematic and thorough. DO NOT BE LAZY. Use subprocess optimization (Pattern 2) - each file in its own subprocess for deep menu structure analysis. Subprocess returns only findings to parent. Auto-proceed through all validation steps.

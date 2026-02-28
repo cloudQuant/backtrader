@@ -1,4 +1,5 @@
----
+- --
+
 name: 'v-02d-validate-structure'
 description: 'Validate YAML structure and append to report'
 
@@ -7,7 +8,8 @@ validationReport: '{bmb_creations_output_folder}/validation-report-{agent-name}.
 agentValidation: ../data/agent-validation.md
 agentCompilation: ../data/agent-compilation.md
 agentFile: '{agent-file-path}'
----
+
+- --
 
 # Validate Step 2d: Validate Structure
 
@@ -39,7 +41,7 @@ Validate the agent's YAML structure and completeness against BMAD standards as d
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load References
 
@@ -50,12 +52,14 @@ Read `{agentCompilation}`, `{agentValidation}`, `{validationReport}`, and `{agen
 Perform these checks systematically - validate EVERY rule specified in agentCompilation.md:
 
 #### A. YAML Syntax Validation
+
 - [ ] Parse YAML without errors
 - [ ] Check indentation consistency (2-space standard)
 - [ ] Validate proper escaping of special characters
 - [ ] Verify no duplicate keys in any section
 
 #### B. Frontmatter Validation
+
 - [ ] All required fields present (name, description, version, etc.)
 - [ ] Field values are correct type (string, boolean, array)
 - [ ] No empty required fields
@@ -63,12 +67,14 @@ Perform these checks systematically - validate EVERY rule specified in agentComp
 - [ ] Boolean fields are actual booleans (not strings)
 
 #### C. Section Completeness
+
 - [ ] All required sections present based on hasSidecar value
 - [ ] Sections not empty unless explicitly optional
 - [ ] Proper markdown heading hierarchy (##, ###)
 - [ ] No orphaned content without section headers
 
 #### D. Field-Level Validation
+
 - [ ] Path references exist and are valid
 - [ ] Array fields properly formatted
 - [ ] No malformed YAML structures
@@ -76,14 +82,14 @@ Perform these checks systematically - validate EVERY rule specified in agentComp
 
 #### E. Agent Configuration Specific Checks
 
-**For Agents WITHOUT Sidecar (hasSidecar is false):**
+- *For Agents WITHOUT Sidecar (hasSidecar is false):**
 - [ ] No sidecar requirements
 - [ ] No sidecar-folder path in metadata
 - [ ] If critical_actions present, no sidecar file references
 - [ ] Menu handlers use only internal references (#) or inline prompts
 - [ ] Total size under ~250 lines (unless justified)
 
-**For Agents WITH Sidecar (hasSidecar is true):**
+- *For Agents WITH Sidecar (hasSidecar is true):**
 - [ ] hasSidecar flag set correctly in metadata
 - [ ] Sidecar folder path specified in metadata
 - [ ] critical_actions section present with minimum requirements:
@@ -98,37 +104,42 @@ Perform these checks systematically - validate EVERY rule specified in agentComp
 Append to `{validationReport}`:
 
 ```markdown
+
 ### Structure Validation
 
-**Status:** {✅ PASS / ⚠️ WARNING / ❌ FAIL}
+- *Status:** {✅ PASS / ⚠️ WARNING / ❌ FAIL}
 
-**Configuration:** Agent {WITH|WITHOUT} sidecar
+- *Configuration:** Agent {WITH|WITHOUT} sidecar
 
-**hasSidecar:** {true|false}
+- *hasSidecar:** {true|false}
 
-**Checks:**
+- *Checks:**
 - [ ] Valid YAML syntax
 - [ ] Required fields present (name, description, persona, menu)
 - [ ] Field types correct (arrays, strings, booleans)
 - [ ] Consistent 2-space indentation
 - [ ] Configuration appropriate structure
 
-**Detailed Findings:**
+- *Detailed Findings:**
 
-*PASSING:*
+- PASSING:*
+
 {List of passing checks}
 
-*WARNINGS:*
+- WARNINGS:*
+
 {List of non-blocking issues}
 
-*FAILURES:*
+- FAILURES:*
+
 {List of blocking issues that must be fixed}
-```
+
+```bash
 
 ### 4. Auto-Advance
 
 Load and execute `{nextStepFile}` immediately.
 
----
+- --
 
-**Validating sidecar structure...**
+- *Validating sidecar structure...**

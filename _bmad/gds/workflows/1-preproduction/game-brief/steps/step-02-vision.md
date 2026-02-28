@@ -1,24 +1,29 @@
----
+- --
+
 name: 'step-02-vision'
 description: 'Define the core game vision including name, concept, pitch, and vision statement'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/1-preproduction/game-brief'
 
 # File References
+
 thisStepFile: './step-02-vision.md'
 nextStepFile: './step-03-market.md'
 workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/game-brief.md'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 2: Game Vision
 
-**Progress: Step 2 of 8** - Next: Target Market
+- *Progress: Step 2 of 8**- Next: Target Market
 
 ## STEP GOAL:
 
@@ -66,11 +71,11 @@ Capture the core game vision including the working title, one-sentence concept, 
 
 ### 1. Game Name Discovery
 
-**Start with the basics:**
+- *Start with the basics:**
 
 "Let's start with your game's identity.
 
-**What's the working title for your game?**
+- *What's the working title for your game?**
 
 (Don't worry if it's not final - working titles help us talk about the game and can always change later.)"
 
@@ -78,7 +83,7 @@ Store in frontmatter: `game_name: '{user_provided_name}'`
 
 ### 2. Context Check
 
-**If input documents were loaded:**
+- *If input documents were loaded:**
 
 "I've reviewed your {brainstorming/research} documents and noticed some interesting ideas:
 
@@ -88,51 +93,52 @@ Let's use these as a starting point for crystallizing your vision."
 
 ### 3. Core Concept Discovery
 
-**Guide user through concept definition:**
+- *Guide user through concept definition:**
 
 "Now let's capture the essence of {{game_name}} in a single sentence.
 
-**Examples of great one-sentence concepts:**
+- *Examples of great one-sentence concepts:**
 
 - 'A roguelike deck-builder where you climb a mysterious spire' (Slay the Spire)
 - 'A precision platformer about climbing a mountain and overcoming anxiety' (Celeste)
 - 'A cozy farming sim where you rebuild your grandfather's farm and become part of a small town' (Stardew Valley)
 
-**What is {{game_name}}?** Give me one sentence that captures the core experience."
+- *What is {{game_name}}?** Give me one sentence that captures the core experience."
 
 ### 4. Elevator Pitch Discovery
 
-**Build on the concept:**
+- *Build on the concept:**
 
 "Now let's expand that into an elevator pitch - 2-3 sentences that would compel a player or publisher to want to know more.
 
-**A great elevator pitch answers:**
+- *A great elevator pitch answers:**
 
 - What is it? (genre, style)
 - What do you do? (core action)
 - What makes it special? (hook)
 
-**Refine this until it hooks attention.** What's your elevator pitch for {{game_name}}?"
+- *Refine this until it hooks attention.** What's your elevator pitch for {{game_name}}?"
 
 ### 5. Vision Statement Discovery
 
-**Explore the aspirational vision:**
+- *Explore the aspirational vision:**
 
 "Finally, let's capture your aspirational vision - the experience you want to create and what makes it meaningful.
 
-**Questions to consider:**
+- *Questions to consider:**
 
 - What feeling do you want players to have when they put down the controller?
 - What would make this game matter to someone?
 - What's your personal motivation for making this?
 
-**This is your North Star** - ambitious yet achievable. What's your vision for {{game_name}}?"
+- *This is your North Star** - ambitious yet achievable. What's your vision for {{game_name}}?"
 
 ### 6. Generate Vision Content
 
 Based on the conversation, prepare the content:
 
 ```markdown
+
 ## Game Vision
 
 ### Core Concept
@@ -146,7 +152,8 @@ Based on the conversation, prepare the content:
 ### Vision Statement
 
 {{vision_statement}}
-```
+
+```bash
 
 ### 7. Present Content and Menu
 
@@ -154,17 +161,18 @@ Show the generated content to the user and present:
 
 "I've drafted the Game Vision section based on our conversation.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 6]
 
-**Validation Check:**
+- *Validation Check:**
 
 - Does the core concept capture the essence?
 - Does the pitch hook attention?
 - Does the vision inspire?
 
-**Select an Option:**
+- *Select an Option:**
+
 [A] Advanced Elicitation - Refine and strengthen the vision
 [P] Party Mode - Get other perspectives on the vision
 [C] Continue - Save this and move to Target Market (Step 3 of 8)"
@@ -195,7 +203,7 @@ Show the generated content to the user and present:
 
 ONLY WHEN [C continue option] is selected and [vision content saved with frontmatter updated including game_name], will you then load and read fully `{nextStepFile}`.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -216,4 +224,4 @@ ONLY WHEN [C continue option] is selected and [vision content saved with frontma
 - Not presenting A/P/C menu after content generation
 - Proceeding without user selecting 'C'
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

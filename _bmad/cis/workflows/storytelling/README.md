@@ -1,11 +1,13 @@
----
+- --
+
 last-redoc-date: 2025-09-28
----
+
+- --
 
 # Storytelling Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+- *Type:** Interactive Document Workflow
+- *Module:**Creative Intelligence System (CIS)
 
 ## Purpose
 
@@ -21,12 +23,16 @@ Crafts compelling narratives using proven story frameworks and techniques. Guide
 ## Usage
 
 ```bash
+
 # Basic invocation
+
 workflow storytelling
 
 # With brand or project context
+
 workflow storytelling --data /path/to/brand-info.md
-```
+
+```bash
 
 ## Inputs
 
@@ -38,9 +44,9 @@ workflow storytelling --data /path/to/brand-info.md
 
 ## Outputs
 
-**File:** `{output_folder}/story-{date}.md`
+- *File:** `{output_folder}/story-{date}.md`
 
-**Structure:**
+- *Structure:**
 
 - Story framework selection and rationale
 - Character development and voice

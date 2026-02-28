@@ -2,7 +2,7 @@
 
 本文档详细描述 Backtrader Web 平台的开发方案，用于所有 backtrader 策略的实盘交易管理和研究回测。
 
----
+- --
 
 ## 目录
 
@@ -16,13 +16,14 @@
 8. [开发任务清单](#开发任务清单)
 9. [开发步骤](#开发步骤)
 
----
+- --
 
 ## 项目概述
 
 ### 目标
 
 构建一个统一的 Web 平台，支持：
+
 1. **实盘交易管理**：启动、停止、监控所有 backtrader 策略的实盘运行
 2. **策略研究回测**：配置参数、运行回测、分析结果
 3. **数据管理**：历史数据查询、实时行情展示
@@ -31,52 +32,78 @@
 ### 核心功能
 
 | 功能模块 | 描述 |
-|---------|------|
-| **策略管理** | 上传、编辑、验证 Python 策略文件 |
-| **参数配置** | 可视化编辑策略参数 |
-| **回测研究** | 选择数据源、配置参数、运行回测、查看结果 |
-| **实盘运行** | 选择交易所和账户、启动策略、实时监控 |
-| **订单管理** | 查看订单状态、手动下单、取消订单 |
-| **持仓监控** | 实时持仓、盈亏统计、风险提示 |
-| **日志追踪** | 实时日志、历史查询、错误告警 |
-| **数据分析** | K线图表、资金曲线、交易统计 |
 
----
+|---------|------|
+
+| **策略管理**| 上传、编辑、验证 Python 策略文件 |
+
+|**参数配置**| 可视化编辑策略参数 |
+
+|**回测研究**| 选择数据源、配置参数、运行回测、查看结果 |
+
+|**实盘运行**| 选择交易所和账户、启动策略、实时监控 |
+
+|**订单管理**| 查看订单状态、手动下单、取消订单 |
+
+|**持仓监控**| 实时持仓、盈亏统计、风险提示 |
+
+|**日志追踪**| 实时日志、历史查询、错误告警 |
+
+|**数据分析** | K 线图表、资金曲线、交易统计 |
+
+- --
 
 ## 技术栈
 
 ### 后端
 
-```
+```bash
 FastAPI          # Web 框架
+
 MySQL            # 数据库
+
 SQLAlchemy       # ORM
+
 Pydantic         # 数据验证
+
 Celery + Redis   # 异步任务（回测、策略运行）
+
 WebSocket        # 实时通信
+
 Loguru           # 日志
-```
+
+```bash
 
 ### 前端
 
-```
+```bash
 Vue 3 + Vite     # 前端框架
-TypeScript       # 类型安全
-Element Plus     # UI 组件库
-Pinia            # 状态管理
-Vue Router       # 路由
-Axios            # HTTP 客户端
-ECharts          # 图表库（K线、资金曲线等）
-vue-echarts      # ECharts Vue 3 封装
-Day.js           # 日期处理
-Monaco Editor    # 代码编辑器（可选）
-```
 
----
+TypeScript       # 类型安全
+
+Element Plus     # UI 组件库
+
+Pinia            # 状态管理
+
+Vue Router       # 路由
+
+Axios            # HTTP 客户端
+
+ECharts          # 图表库（K 线、资金曲线等）
+
+vue-echarts      # ECharts Vue 3 封装
+
+Day.js           # 日期处理
+
+Monaco Editor    # 代码编辑器（可选）
+
+```bash
+
+- --
 
 ## 系统架构
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              浏览器                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
@@ -106,51 +133,76 @@ Monaco Editor    # 代码编辑器（可选）
 │  │ (交易执行)   │  │ (实时行情)    │  │ (历史数据)   │                       │
 │  └──────────────┘  └──────────────┘  └──────────────┘                       │
 └─────────────────────────────────────────────────────────────────────────────┘
-```
 
----
+```bash
+
+- --
 
 ## 目录结构
 
-```
+```bash
 backtrader/
 ├── backtrader/                   # 核心库
+
 │   └── ...
 │
 ├── examples/                     # 策略示例
+
 │   ├── sample.py
 │   ├── backtrader_ccxt_okx_mina_futures_long_short.py
 │   └── ...
 │
 ├── web/                          # Web 平台根目录
+
 │   │
 │   ├── backend/                  # 后端
+
 │   │   ├── main.py              # FastAPI 应用入口
+
 │   │   ├── config.py            # 配置文件
+
 │   │   │
 │   │   ├── app/
 │   │   │   ├── api/             # API 路由
+
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── auth.py          # 认证 API
+
 │   │   │   │   ├── strategies.py    # 策略管理 API
+
 │   │   │   │   ├── backtests.py     # 回测 API
+
 │   │   │   │   ├── live.py          # 实盘 API
+
 │   │   │   │   ├── data.py          # 数据 API
+
 │   │   │   │   ├── accounts.py      # 账户 API
+
 │   │   │   │   └── websocket.py     # WebSocket
+
 │   │   │   │
 │   │   │   ├── models/           # SQLAlchemy 模型
+
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── base.py          # 基类
+
 │   │   │   │   ├── user.py          # 用户
+
 │   │   │   │   ├── strategy.py      # 策略
+
 │   │   │   │   ├── backtest.py      # 回测
+
 │   │   │   │   ├── live_task.py     # 实盘任务
+
 │   │   │   │   ├── order.py         # 订单
+
 │   │   │   │   ├── trade.py         # 交易
+
 │   │   │   │   └── account.py       # 账户
+
 │   │   │   │
 │   │   │   ├── schemas/           # Pydantic 模式
+
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── user.py
 │   │   │   │   ├── strategy.py
@@ -159,46 +211,70 @@ backtrader/
 │   │   │   │   └── data.py
 │   │   │   │
 │   │   │   ├── services/          # 业务逻辑
+
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── strategy_service.py    # 策略服务
+
 │   │   │   │   ├── backtest_service.py   # 回测服务
+
 │   │   │   │   ├── live_service.py        # 实盘服务
+
 │   │   │   │   ├── data_service.py        # 数据服务
+
 │   │   │   │   └── ccxt_service.py        # CCXT 服务
+
 │   │   │   │
 │   │   │   ├── tasks/             # Celery 任务
+
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── celery_app.py    # Celery 应用
+
 │   │   │   │   ├── backtest_tasks.py
 │   │   │   │   └── live_tasks.py
 │   │   │   │
 │   │   │   ├── core/              # 核心功能
+
 │   │   │   │   ├── __init__.py
 │   │   │   │   ├── auth.py           # 认证
+
 │   │   │   │   ├── security.py       # 安全
+
 │   │   │   │   └── deps.py           # 依赖注入
+
 │   │   │   │
 │   │   │   └── utils/             # 工具函数
+
 │   │   │       ├── __init__.py
 │   │   │       ├── logger.py         # 日志
+
 │   │   │       ├── strategy_parser.py # 策略解析
+
 │   │   │       └── date_helper.py    # 日期工具
+
 │   │   │
 │   │   ├── database/              # 数据库
+
 │   │   │   ├── __init__.py
 │   │   │   ├── session.py         # DB Session
+
 │   │   │   └── migrations/        # Alembic 迁移
+
 │   │   │       └── versions/
 │   │   │
 │   │   ├── storage/               # 文件存储
+
 │   │   │   ├── strategies/        # 策略文件
+
 │   │   │   ├── backtests/         # 回测结果
+
 │   │   │   └── logs/              # 日志文件
+
 │   │   │
 │   │   ├── requirements.txt
 │   │   └── .env.example
 │   │
 │   └── frontend/                 # 前端 (Vue 3)
+
 │       ├── index.html
 │       ├── package.json
 │       ├── vite.config.ts
@@ -207,9 +283,12 @@ backtrader/
 │       │
 │       ├── src/
 │       │   ├── main.ts            # 入口
+
 │       │   ├── App.vue            # 根组件
+
 │       │   │
 │       │   ├── views/             # 页面视图
+
 │       │   │   ├── Dashboard.vue
 │       │   │   ├── Login.vue
 │       │   │   ├── strategies/
@@ -231,6 +310,7 @@ backtrader/
 │       │   │       └── SettingsAccounts.vue
 │       │   │
 │       │   ├── components/        # 组件
+
 │       │   │   ├── layout/
 │       │   │   │   ├── MainLayout.vue
 │       │   │   │   ├── AppHeader.vue
@@ -238,32 +318,55 @@ backtrader/
 │       │   │   │   └── AppBreadcrumb.vue
 │       │   │   │
 │       │   │   ├── charts/        # 图表组件
-│       │   │   │   ├── KLineChart.vue       # K线图
+
+│       │   │   │   ├── KLineChart.vue       # K 线图
+
 │       │   │   │   ├── EquityCurve.vue      # 资金曲线
+
 │       │   │   │   ├── DrawdownChart.vue    # 回撤图
+
 │       │   │   │   ├── PnLChart.vue         # 盈亏图
+
 │       │   │   │   └── TradeChart.vue       # 交易分布图
+
 │       │   │   │
 │       │   │   ├── strategy/      # 策略组件
+
 │       │   │   │   ├── StrategyCard.vue     # 策略卡片
+
 │       │   │   │   ├── ParamEditor.vue      # 参数编辑器
+
 │       │   │   │   ├── CodeEditor.vue       # 代码编辑器
+
 │       │   │   │   └── TemplateSelector.vue # 模板选择器
+
 │       │   │   │
 │       │   │   ├── trading/       # 交易组件
+
 │       │   │   │   ├── PositionList.vue     # 持仓列表
+
 │       │   │   │   ├── OrderList.vue        # 订单列表
+
 │       │   │   │   ├── TradeList.vue        # 成交列表
+
 │       │   │   │   └── OrderForm.vue        # 下单表单
+
 │       │   │   │
 │       │   │   └── common/        # 通用组件
+
 │       │   │       ├── DataTable.vue        # 数据表格
+
 │       │   │       ├── StatusTag.vue        # 状态标签
+
 │       │   │       ├── DateTimePicker.vue   # 日期选择器
+
 │       │   │       ├── SymbolSelector.vue   # 交易对选择器
+
 │       │   │       └── LogViewer.vue        # 日志查看器
+
 │       │   │
 │       │   ├── stores/            # Pinia 状态
+
 │       │   │   ├── index.ts
 │       │   │   ├── useUserStore.ts
 │       │   │   ├── useStrategyStore.ts
@@ -272,21 +375,31 @@ backtrader/
 │       │   │   └── useAppStore.ts
 │       │   │
 │       │   ├── composables/       # Composables
+
 │       │   │   ├── useWebSocket.ts
 │       │   │   ├── useApi.ts
 │       │   │   └── useECharts.ts
 │       │   │
 │       │   ├── api/               # API 服务
+
 │       │   │   ├── index.ts
 │       │   │   ├── request.ts            # Axios 封装
+
 │       │   │   ├── auth.ts               # 认证 API
+
 │       │   │   ├── strategy.ts           # 策略 API
+
 │       │   │   ├── backtest.ts           # 回测 API
+
 │       │   │   ├── live.ts               # 实盘 API
+
 │       │   │   ├── data.ts               # 数据 API
+
 │       │   │   └── account.ts            # 账户 API
+
 │       │   │
 │       │   ├── types/             # TypeScript 类型
+
 │       │   │   ├── index.ts
 │       │   │   ├── user.ts
 │       │   │   ├── strategy.ts
@@ -295,16 +408,23 @@ backtrader/
 │       │   │   └── common.ts
 │       │   │
 │       │   ├── utils/             # 工具函数
+
 │       │   │   ├── format.ts             # 格式化
+
 │       │   │   ├── validate.ts           # 验证
+
 │       │   │   ├── storage.ts            # 本地存储
+
 │       │   │   └── constants.ts          # 常量
+
 │       │   │
 │       │   ├── router/            # 路由
+
 │       │   │   ├── index.ts
 │       │   │   └── routes.ts
 │       │   │
 │       │   ├── assets/            # 静态资源
+
 │       │   │   ├── styles/
 │       │   │   │   ├── main.scss
 │       │   │   │   ├── variables.scss
@@ -313,6 +433,7 @@ backtrader/
 │       │   │   └── icons/
 │       │   │
 │       │   └── locales/           # 国际化
+
 │       │       ├── zh-CN.ts
 │       │       └── en-US.ts
 │       │
@@ -320,6 +441,7 @@ backtrader/
 │           └── favicon.ico
 │
 ├── docs/                         # 文档
+
 │   ├── WEB_DEVELOPMENT_PLAN.md
 │   ├── WEBSOCKET_GUIDE.md
 │   └── ...
@@ -327,20 +449,23 @@ backtrader/
 ├── .env.example
 ├── pyproject.toml
 └── README.md
-```
 
----
+```bash
+
+- --
 
 ## 数据库设计
 
 ### MySQL 表结构
 
 ```sql
--- ============================================================
--- 用户相关表
--- ============================================================
 
--- 用户表
+- - ============================================================
+- - 用户相关表
+- - ============================================================
+
+- - 用户表
+
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -354,19 +479,20 @@ CREATE TABLE users (
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================================
--- 交易所账户表
--- ============================================================
+- - ============================================================
+- - 交易所账户表
+- - ============================================================
 
--- 交易所账户表（存储多个交易所的 API 密钥，加密存储）
+- - 交易所账户表（存储多个交易所的 API 密钥，加密存储）
+
 CREATE TABLE exchange_accounts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
-    exchange VARCHAR(20) NOT NULL COMMENT '交易所名称: okx, binance, bybit等',
+    exchange VARCHAR(20) NOT NULL COMMENT '交易所名称: okx, binance, bybit 等',
     account_name VARCHAR(100) NOT NULL COMMENT '账户名称',
-    api_key_encrypted TEXT NOT NULL COMMENT '加密的API Key',
-    api_secret_encrypted TEXT NOT NULL COMMENT '加密的API Secret',
-    api_password_encrypted TEXT COMMENT '加密的API Password (OKX需要)',
+    api_key_encrypted TEXT NOT NULL COMMENT '加密的 API Key',
+    api_secret_encrypted TEXT NOT NULL COMMENT '加密的 API Secret',
+    api_password_encrypted TEXT COMMENT '加密的 API Password (OKX 需要)',
     is_sandbox BOOLEAN DEFAULT FALSE COMMENT '是否沙盒环境',
     is_tested BOOLEAN DEFAULT FALSE COMMENT '是否已测试连接',
     is_active BOOLEAN DEFAULT TRUE,
@@ -377,11 +503,12 @@ CREATE TABLE exchange_accounts (
     UNIQUE KEY uk_user_account_name (user_id, account_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 交易所账户余额表（缓存当前余额）
+- - 交易所账户余额表（缓存当前余额）
+
 CREATE TABLE account_balances (
     id INT AUTO_INCREMENT PRIMARY KEY,
     account_id INT NOT NULL,
-    currency VARCHAR(20) NOT NULL COMMENT '币种: USDT, BTC等',
+    currency VARCHAR(20) NOT NULL COMMENT '币种: USDT, BTC 等',
     total_balance DECIMAL(18, 8) NOT NULL COMMENT '总余额',
     available_balance DECIMAL(18, 8) NOT NULL COMMENT '可用余额',
     frozen_balance DECIMAL(18, 8) DEFAULT 0 COMMENT '冻结余额',
@@ -391,17 +518,18 @@ CREATE TABLE account_balances (
     UNIQUE KEY uk_account_currency (account_id, currency)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================================
--- 策略相关表
--- ============================================================
+- - ============================================================
+- - 策略相关表
+- - ============================================================
 
--- 策略表（存储策略的元数据）
+- - 策略表（存储策略的元数据）
+
 CREATE TABLE strategies (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
     name VARCHAR(100) NOT NULL,
     description TEXT COMMENT '策略描述',
-    strategy_type VARCHAR(50) COMMENT '策略类型: custom, bollinger, sma等',
+    strategy_type VARCHAR(50) COMMENT '策略类型: custom, bollinger, sma 等',
     file_path VARCHAR(500) COMMENT '策略文件路径',
     class_name VARCHAR(100) COMMENT '策略类名',
     parameters JSON COMMENT '策略参数定义 [{"name":"period","type":"int","default":20}]',
@@ -415,7 +543,8 @@ CREATE TABLE strategies (
     INDEX idx_type (strategy_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 策略模板表（系统预置的策略模板）
+- - 策略模板表（系统预置的策略模板）
+
 CREATE TABLE strategy_templates (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -427,11 +556,12 @@ CREATE TABLE strategy_templates (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================================
--- 回测相关表
--- ============================================================
+- - ============================================================
+- - 回测相关表
+- - ============================================================
 
--- 回测任务表
+- - 回测任务表
+
 CREATE TABLE backtest_tasks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -440,24 +570,28 @@ CREATE TABLE backtest_tasks (
     status ENUM('pending', 'running', 'completed', 'failed', 'cancelled') DEFAULT 'pending',
     progress INT DEFAULT 0 COMMENT '进度 0-100',
 
-    -- 数据配置
+    - - 数据配置
+
     exchange VARCHAR(20) NOT NULL,
     symbol VARCHAR(50) NOT NULL,
-    timeframe VARCHAR(10) NOT NULL COMMENT '1m, 5m, 1h, 1d等',
+    timeframe VARCHAR(10) NOT NULL COMMENT '1m, 5m, 1h, 1d 等',
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
 
-    -- 回测参数
+    - - 回测参数
+
     initial_cash DECIMAL(18, 8) DEFAULT 10000,
     commission DECIMAL(6, 5) DEFAULT 0.001 COMMENT '佣金率',
     slippage DECIMAL(6, 5) DEFAULT 0.0005 COMMENT '滑点率',
     parameters JSON COMMENT '策略运行参数',
 
-    -- 结果数据
+    - - 结果数据
+
     results JSON COMMENT '回测结果摘要',
     error_message TEXT,
 
-    -- 时间记录
+    - - 时间记录
+
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     started_at DATETIME,
     completed_at DATETIME,
@@ -469,7 +603,8 @@ CREATE TABLE backtest_tasks (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 回测交易记录表
+- - 回测交易记录表
+
 CREATE TABLE backtest_trades (
     id INT AUTO_INCREMENT PRIMARY KEY,
     backtest_id INT NOT NULL,
@@ -495,7 +630,8 @@ CREATE TABLE backtest_trades (
     INDEX idx_entry_time (entry_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 回测资金曲线表（存储每天的权益数据）
+- - 回测资金曲线表（存储每天的权益数据）
+
 CREATE TABLE backtest_equity_curve (
     id INT AUTO_INCREMENT PRIMARY KEY,
     backtest_id INT NOT NULL,
@@ -508,11 +644,12 @@ CREATE TABLE backtest_equity_curve (
     INDEX idx_backtest_id (backtest_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================================
--- 实盘相关表
--- ============================================================
+- - ============================================================
+- - 实盘相关表
+- - ============================================================
 
--- 实盘任务表
+- - 实盘任务表
+
 CREATE TABLE live_tasks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -522,23 +659,28 @@ CREATE TABLE live_tasks (
     name VARCHAR(200) NOT NULL COMMENT '任务名称',
     status ENUM('stopped', 'running', 'error', 'stopping') DEFAULT 'stopped',
 
-    -- 交易配置
+    - - 交易配置
+
     exchange VARCHAR(20) NOT NULL,
     symbol VARCHAR(50) NOT NULL,
     timeframe VARCHAR(10) NOT NULL,
 
-    -- 策略参数
+    - - 策略参数
+
     parameters JSON COMMENT '策略运行参数',
 
-    -- 进程信息
-    process_id VARCHAR(100) COMMENT '进程ID',
+    - - 进程信息
+
+    process_id VARCHAR(100) COMMENT '进程 ID',
     log_file_path VARCHAR(500) COMMENT '日志文件路径',
 
-    -- 错误信息
+    - - 错误信息
+
     last_error TEXT COMMENT '最后一次错误',
     error_count INT DEFAULT 0 COMMENT '错误次数',
 
-    -- 时间记录
+    - - 时间记录
+
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     started_at DATETIME,
     stopped_at DATETIME,
@@ -550,15 +692,17 @@ CREATE TABLE live_tasks (
     INDEX idx_account_id (account_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 实盘订单表
+- - 实盘订单表
+
 CREATE TABLE live_orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     live_task_id INT NOT NULL,
     user_id INT NOT NULL,
 
-    -- 订单信息
-    exchange_order_id VARCHAR(100) COMMENT '交易所订单ID',
-    client_order_id VARCHAR(100) COMMENT '客户端订单ID',
+    - - 订单信息
+
+    exchange_order_id VARCHAR(100) COMMENT '交易所订单 ID',
+    client_order_id VARCHAR(100) COMMENT '客户端订单 ID',
 
     symbol VARCHAR(50) NOT NULL,
     side ENUM('buy', 'sell') NOT NULL,
@@ -568,19 +712,23 @@ CREATE TABLE live_orders (
     price DECIMAL(18, 8) COMMENT '限价单价格',
     stop_price DECIMAL(18, 8) COMMENT '止损价格',
 
-    -- 状态
+    - - 状态
+
     status ENUM('pending', 'open', 'closed', 'canceled', 'rejected', 'expired') DEFAULT 'pending',
 
-    -- 成交信息
+    - - 成交信息
+
     filled_quantity DECIMAL(18, 8) DEFAULT 0,
     avg_price DECIMAL(18, 8) COMMENT '平均成交价',
     fee DECIMAL(18, 8) DEFAULT 0 COMMENT '手续费',
     fee_currency VARCHAR(20) COMMENT '手续费币种',
 
-    -- 订单元数据
+    - - 订单元数据
+
     meta JSON COMMENT '额外信息，如订单标签等',
 
-    -- 时间记录
+    - - 时间记录
+
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     filled_at DATETIME COMMENT '成交时间',
@@ -592,14 +740,15 @@ CREATE TABLE live_orders (
     INDEX idx_exchange_order_id (exchange_order_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 实盘成交记录表
+- - 实盘成交记录表
+
 CREATE TABLE live_trades (
     id INT AUTO_INCREMENT PRIMARY KEY,
     live_task_id INT NOT NULL,
     order_id INT NOT NULL,
     user_id INT NOT NULL,
 
-    exchange_trade_id VARCHAR(100) COMMENT '交易所成交ID',
+    exchange_trade_id VARCHAR(100) COMMENT '交易所成交 ID',
     symbol VARCHAR(50) NOT NULL,
     side ENUM('buy', 'sell') NOT NULL,
 
@@ -618,7 +767,8 @@ CREATE TABLE live_trades (
     INDEX idx_trade_time (trade_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 实盘持仓表
+- - 实盘持仓表
+
 CREATE TABLE live_positions (
     id INT AUTO_INCREMENT PRIMARY KEY,
     live_task_id INT NOT NULL,
@@ -630,7 +780,8 @@ CREATE TABLE live_positions (
     quantity DECIMAL(18, 8) NOT NULL COMMENT '持仓数量（正数为多，负数为空）',
     entry_price DECIMAL(18, 8) NOT NULL COMMENT '平均入场价',
 
-    -- 盈亏信息（实时更新）
+    - - 盈亏信息（实时更新）
+
     current_price DECIMAL(18, 8) COMMENT '当前价格',
     unrealized_pnl DECIMAL(18, 8) COMMENT '未实现盈亏',
     realized_pnl DECIMAL(18, 8) DEFAULT 0 COMMENT '已实现盈亏',
@@ -643,11 +794,12 @@ CREATE TABLE live_positions (
     INDEX idx_user_id (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================================
--- 数据相关表
--- ============================================================
+- - ============================================================
+- - 数据相关表
+- - ============================================================
 
--- K线数据表（可选，用于缓存常用数据）
+- - K 线数据表（可选，用于缓存常用数据）
+
 CREATE TABLE kline_data (
     id INT AUTO_INCREMENT PRIMARY KEY,
     exchange VARCHAR(20) NOT NULL,
@@ -668,11 +820,12 @@ CREATE TABLE kline_data (
     INDEX idx_timestamp (timestamp)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ============================================================
--- 系统日志表
--- ============================================================
+- - ============================================================
+- - 系统日志表
+- - ============================================================
 
--- 策略运行日志表
+- - 策略运行日志表
+
 CREATE TABLE strategy_logs (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     task_type ENUM('backtest', 'live') NOT NULL,
@@ -689,11 +842,12 @@ CREATE TABLE strategy_logs (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- 系统事件表（用于记录重要事件）
+- - 系统事件表（用于记录重要事件）
+
 CREATE TABLE system_events (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id INT,
-    event_type VARCHAR(50) NOT NULL COMMENT 'strategy_started, order_filled, error等',
+    event_type VARCHAR(50) NOT NULL COMMENT 'strategy_started, order_filled, error 等',
     event_type_level ENUM('info', 'warning', 'error', 'critical') DEFAULT 'info',
     title VARCHAR(200) NOT NULL,
     message TEXT,
@@ -705,9 +859,10 @@ CREATE TABLE system_events (
     INDEX idx_user_unread (user_id, is_read),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-```
 
----
+```bash
+
+- --
 
 ## API 设计
 
@@ -716,82 +871,132 @@ CREATE TABLE system_events (
 #### 1. 认证相关 (`/api/v1/auth`)
 
 | 方法 | 端点 | 描述 |
+
 |------|------|------|
+
 | POST | `/register` | 用户注册 |
+
 | POST | `/login` | 用户登录 |
+
 | POST | `/logout` | 用户登出 |
+
 | GET | `/me` | 获取当前用户信息 |
 
 #### 2. 策略管理 (`/api/v1/strategies`)
 
 | 方法 | 端点 | 描述 |
+
 |------|------|------|
+
 | GET | `/` | 获取策略列表 |
+
 | POST | `/` | 创建新策略 |
+
 | GET | `/{id}` | 获取策略详情 |
+
 | PUT | `/{id}` | 更新策略 |
+
 | DELETE | `/{id}` | 删除策略 |
+
 | POST | `/{id}/validate` | 验证策略代码 |
+
 | GET | `/{id}/params` | 获取策略参数定义 |
+
 | GET | `/templates` | 获取策略模板列表 |
 
 #### 3. 回测管理 (`/api/v1/backtests`)
 
 | 方法 | 端点 | 描述 |
+
 |------|------|------|
+
 | GET | `/` | 获取回测任务列表 |
+
 | POST | `/` | 创建回测任务 |
+
 | GET | `/{id}` | 获取回测详情 |
+
 | DELETE | `/{id}` | 删除回测任务 |
+
 | POST | `/{id}/cancel` | 取消回测任务 |
+
 | GET | `/{id}/trades` | 获取交易记录 |
+
 | GET | `/{id}/equity` | 获取资金曲线 |
 
 #### 4. 实盘管理 (`/api/v1/live`)
 
 | 方法 | 端点 | 描述 |
+
 |------|------|------|
+
 | GET | `/tasks` | 获取实盘任务列表 |
+
 | POST | `/tasks` | 创建实盘任务 |
+
 | GET | `/tasks/{id}` | 获取任务详情 |
+
 | POST | `/tasks/{id}/start` | 启动策略 |
+
 | POST | `/tasks/{id}/stop` | 停止策略 |
+
 | GET | `/tasks/{id}/status` | 获取运行状态 |
+
 | GET | `/tasks/{id}/positions` | 获取持仓 |
+
 | GET | `/tasks/{id}/orders` | 获取订单 |
+
 | GET | `/tasks/{id}/logs` | 获取日志 |
 
 #### 5. 账户管理 (`/api/v1/accounts`)
 
 | 方法 | 端点 | 描述 |
+
 |------|------|------|
+
 | GET | `/` | 获取账户列表 |
+
 | POST | `/` | 添加交易所账户 |
+
 | GET | `/{id}` | 获取账户详情 |
+
 | PUT | `/{id}` | 更新账户信息 |
+
 | DELETE | `/{id}` | 删除账户 |
+
 | POST | `/{id}/test` | 测试连接 |
+
 | GET | `/{id}/balance` | 获取账户余额 |
 
 #### 6. 数据接口 (`/api/v1/data`)
 
 | 方法 | 端点 | 描述 |
+
 |------|------|------|
+
 | GET | `/exchanges` | 获取支持的交易所 |
+
 | GET | `/symbols` | 获取交易对列表 |
-| GET | `/klines` | 获取K线数据 |
+
+| GET | `/klines` | 获取 K 线数据 |
+
 | GET | `/ticker` | 获取当前行情 |
 
 #### 7. WebSocket 端点
 
 | 端点 | 描述 |
+
 |------|------|
+
 | `/ws/live/{task_id}` | 实盘任务实时数据推送 |
+
 | `/ws/backtest/{task_id}` | 回测进度推送 |
+
 | `/ws/market/{symbol}` | 市场数据推送 |
+
 | `/ws/notifications` | 系统通知推送 |
 
----
+- --
 
 ## 前端设计
 
@@ -822,7 +1027,8 @@ CREATE TABLE system_events (
     "unplugin-vue-components": "^0.26.0"
   }
 }
-```
+
+```bash
 
 ### Vue Router 配置
 
@@ -943,7 +1149,8 @@ router.beforeEach((to, from, next) => {
 });
 
 export default router;
-```
+
+```bash
 
 ### Pinia 状态管理
 
@@ -963,12 +1170,15 @@ interface User {
 export const useUserStore = defineStore('user', {
   state: () => ({
     user: null as User | null,
+
     token: getToken() || '',
+
     isLoggedIn: !!getToken()
   }),
 
   getters: {
     isAdmin: (state) => state.user?.is_admin || false
+
   },
 
   actions: {
@@ -994,9 +1204,10 @@ export const useUserStore = defineStore('user', {
     }
   }
 });
-```
 
-### ECharts K线图组件
+```bash
+
+### ECharts K 线图组件
 
 ```vue
 <!-- src/components/charts/KLineChart.vue -->
@@ -1006,7 +1217,7 @@ export const useUserStore = defineStore('user', {
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
-import * as echarts from 'echarts';
+import *as echarts from 'echarts';
 import { use } from 'echarts/core';
 import { CandlestickChart, BarChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, TitleComponent, DataZoomComponent } from 'echarts/components';
@@ -1078,7 +1289,7 @@ const updateChart = () => {
       }
     },
     legend: {
-      data: ['K线', '成交量'],
+      data: ['K 线', '成交量'],
       top: 30
     },
     grid: [
@@ -1155,7 +1366,7 @@ const updateChart = () => {
     ],
     series: [
       {
-        name: 'K线',
+        name: 'K 线',
         type: 'candlestick',
         data: candleData,
         itemStyle: {
@@ -1214,7 +1425,8 @@ watch(() => props.data, () => {
   min-height: 400px;
 }
 </style>
-```
+
+```bash
 
 ### 资金曲线图组件
 
@@ -1226,7 +1438,7 @@ watch(() => props.data, () => {
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue';
-import * as echarts from 'echarts';
+import*as echarts from 'echarts';
 import { LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, TitleComponent, LegendComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -1356,7 +1568,8 @@ watch(() => props.data, () => {
   min-height: 300px;
 }
 </style>
-```
+
+```bash
 
 ### 参数编辑器组件
 
@@ -1368,6 +1581,7 @@ watch(() => props.data, () => {
       v-for="param in params"
       :key="param.name"
       :label="param.label || param.name"
+
       :required="param.required"
     >
       <!-- 数字输入 -->
@@ -1377,8 +1591,11 @@ watch(() => props.data, () => {
       :min="param.min"
       :max="param.max"
       :step="param.step || 1"
+
       :precision="param.precision || 2"
+
       :placeholder="`请输入 ${param.label || param.name}`"
+
       style="width: 100%"
     />
 
@@ -1387,6 +1604,7 @@ watch(() => props.data, () => {
       v-else-if="param.type === 'select'"
       v-model="formData[param.name]"
       :placeholder="`请选择 ${param.label || param.name}`"
+
       style="width: 100%"
     >
       <el-option
@@ -1402,7 +1620,9 @@ watch(() => props.data, () => {
       v-else-if="param.type === 'boolean'"
       v-model="formData[param.name]"
       :active-text="param.activeText || '开'"
+
       :inactive-text="param.inactiveText || '关'"
+
     />
 
     <!-- 文本输入 -->
@@ -1410,7 +1630,9 @@ watch(() => props.data, () => {
       v-else
       v-model="formData[param.name]"
       :type="param.inputType || 'text'"
+
       :placeholder="`请输入 ${param.label || param.name}`"
+
     />
 
     <!-- 描述信息 -->
@@ -1428,6 +1650,7 @@ interface Param {
   name: string;
   label?: string;
   type: 'number' | 'select' | 'boolean' | 'string';
+
   default?: any;
   required?: boolean;
   min?: number;
@@ -1485,7 +1708,8 @@ watch(() => props.modelValue, (newVal) => {
   margin-top: 4px;
 }
 </style>
-```
+
+```bash
 
 ### 代码编辑器组件 (Monaco Editor)
 
@@ -1497,7 +1721,7 @@ watch(() => props.modelValue, (newVal) => {
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
-import * as monaco from 'monaco-editor';
+import* as monaco from 'monaco-editor';
 
 interface Props {
   modelValue: string;
@@ -1505,6 +1729,7 @@ interface Props {
   height?: string;
   readOnly?: boolean;
   theme?: 'vs' | 'vs-dark';
+
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1566,13 +1791,14 @@ watch(() => props.modelValue, (newValue) => {
   overflow: hidden;
 }
 </style>
-```
 
----
+```bash
+
+- --
 
 ## 开发任务清单
 
-### Phase 1: 项目初始化 (1-2天)
+### Phase 1: 项目初始化 (1-2 天)
 
 - [ ] **后端初始化**
   - [ ] 创建 `web/backend` 目录结构
@@ -1597,7 +1823,7 @@ watch(() => props.modelValue, (newValue) => {
   - [ ] 执行初始迁移创建表结构
   - [ ] 创建测试数据
 
-### Phase 2: 用户系统 (2-3天)
+### Phase 2: 用户系统 (2-3 天)
 
 - [ ] **后端 - 认证**
   - [ ] 实现用户注册 API
@@ -1613,7 +1839,7 @@ watch(() => props.modelValue, (newValue) => {
   - [ ] 路由守卫（未登录跳转）
   - [ ] Token 自动刷新
 
-### Phase 3: 交易所账户管理 (2-3天)
+### Phase 3: 交易所账户管理 (2-3 天)
 
 - [ ] **后端**
   - [ ] 创建 ExchangeAccount 模型
@@ -1628,7 +1854,7 @@ watch(() => props.modelValue, (newValue) => {
   - [ ] 账户列表展示
   - [ ] 连接测试功能
 
-### Phase 4: 策略管理 (3-4天)
+### Phase 4: 策略管理 (3-4 天)
 
 - [ ] **后端 - 策略解析**
   - [ ] 策略文件上传 API
@@ -1651,7 +1877,7 @@ watch(() => props.modelValue, (newValue) => {
   - [ ] 参数编辑器组件
   - [ ] 策略详情/编辑页面
 
-### Phase 5: 回测系统 (4-5天)
+### Phase 5: 回测系统 (4-5 天)
 
 - [ ] **后端 - 回测引擎**
   - [ ] Celery 任务配置
@@ -1679,7 +1905,7 @@ watch(() => props.modelValue, (newValue) => {
     - [ ] 交易列表
     - [ ] 统计数据
 
-### Phase 6: 实盘交易系统 (5-7天)
+### Phase 6: 实盘交易系统 (5-7 天)
 
 - [ ] **后端 - 实盘引擎**
   - [ ] 实盘任务创建 API
@@ -1697,28 +1923,28 @@ watch(() => props.modelValue, (newValue) => {
   - [ ] 实盘列表页面 (`/live`)
   - [ ] 实盘监控页面 (`/live/:id/monitor`)
     - [ ] 状态面板
-    - [ ] K线图表
+    - [ ] K 线图表
     - [ ] 持仓列表
     - [ ] 订单列表
     - [ ] 实时日志
     - [ ] 快捷操作 (启动/停止/手动下单)
 
-### Phase 7: 数据管理 (2-3天)
+### Phase 7: 数据管理 (2-3 天)
 
 - [ ] **后端**
   - [ ] 交易所列表 API
   - [ ] 交易对查询 API
-  - [ ] K线数据查询 API
+  - [ ] K 线数据查询 API
   - [ ] 实时行情 API (WebSocket)
   - [ ] 历史数据下载任务
 
 - [ ] **前端**
   - [ ] 数据管理页面 (`/data`)
   - [ ] 交易对选择组件
-  - [ ] K线图表展示
+  - [ ] K 线图表展示
   - [ ] 数据导出功能
 
-### Phase 8: 完善与优化 (3-5天)
+### Phase 8: 完善与优化 (3-5 天)
 
 - [ ] **通知系统**
   - [ ] 系统事件表
@@ -1743,19 +1969,24 @@ watch(() => props.modelValue, (newValue) => {
   - [ ] XSS 防护
   - [ ] CORS 配置
 
----
+- --
 
 ## 开发步骤
 
 ### Step 1: 环境准备
 
 ```bash
+
 # 1. 安装 MySQL 8.0
+
 # Windows: 下载安装包
+
 # Linux: sudo apt install mysql-server
+
 # Mac: brew install mysql
 
 # 2. 创建数据库
+
 mysql -u root -p
 CREATE DATABASE backtrader_web CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER 'backtrader'@'localhost' IDENTIFIED BY 'your_password';
@@ -1763,27 +1994,36 @@ GRANT ALL PRIVILEGES ON backtrader_web.* TO 'backtrader'@'localhost';
 FLUSH PRIVILEGES;
 
 # 3. 安装 Redis (用于 Celery)
+
 # Windows: 下载 Redis for Windows
+
 # Linux: sudo apt install redis-server
+
 # Mac: brew install redis
 
 # 4. 启动 Redis
+
 redis-server
-```
+
+```bash
 
 ### Step 2: 后端项目初始化
 
 ```bash
+
 # 1. 创建目录
+
 cd backtrader
 mkdir -p web/backend
 
 # 2. 创建虚拟环境
+
 cd web/backend
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # 3. 安装依赖
+
 cat > requirements.txt << EOF
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
@@ -1809,32 +2049,34 @@ EOF
 pip install -r requirements.txt
 
 # 4. 创建配置文件
+
 cat > config.py << EOF
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
 class Settings(BaseSettings):
-    # 应用配置
+
+# 应用配置
     APP_NAME: str = "Backtrader Web"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 
-    # 数据库配置
+# 数据库配置
     DATABASE_URL: str = "mysql+pymysql://backtrader:password@localhost:3306/backtrader_web"
 
-    # Redis 配置
+# Redis 配置
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    # JWT 配置
+# JWT 配置
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
-    # 文件存储
+# 文件存储
     STORAGE_PATH: str = "./storage"
 
-    # CORS
-    CORS_ORIGINS: list = ["http://localhost:5173"]
+# CORS
+    CORS_ORIGINS: list = ["<http://localhost:5173"]>
 
     class Config:
         env_file = ".env"
@@ -1847,6 +2089,7 @@ settings = get_settings()
 EOF
 
 # 5. 创建主应用
+
 cat > main.py << EOF
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -1859,6 +2102,7 @@ app = FastAPI(
 )
 
 # CORS 配置
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -1881,11 +2125,13 @@ if __name__ == "__main__":
 EOF
 
 # 6. 创建目录结构
+
 mkdir -p app/{api,models,schemas,services,tasks,core,utils}
 mkdir -p database/migrations/versions
 mkdir -p storage/{strategies,backtests,logs}
 
 # 7. 创建 .env 文件
+
 cat > .env << EOF
 DATABASE_URL=mysql+pymysql://backtrader:password@localhost:3306/backtrader_web
 REDIS_URL=redis://localhost:6379/0
@@ -1894,30 +2140,39 @@ DEBUG=True
 EOF
 
 # 8. 测试运行
+
 python main.py
-# 访问 http://localhost:8000
-```
+
+# 访问 <http://localhost:8000>
+
+```bash
 
 ### Step 3: 前端项目初始化 (Vue 3)
 
 ```bash
+
 # 1. 创建前端项目
+
 cd backtrader/web
 npm create vite@latest frontend -- --template vue-ts
 cd frontend
 
 # 2. 安装依赖
+
 npm install
 
 # 核心依赖
+
 npm install vue-router@4 pinia element-plus @element-plus/icons-vue
 npm install echarts vue-echarts
 npm install axios dayjs
 
 # 开发依赖
+
 npm install -D sass unplugin-vue-components unplugin-auto-import
 
 # 3. 配置 vite.config.ts
+
 cat > vite.config.ts << EOF
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -1948,7 +2203,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: '<http://localhost:8000',>
         changeOrigin: true,
       },
       '/ws': {
@@ -1961,6 +2216,7 @@ export default defineConfig({
 EOF
 
 # 4. 配置 tsconfig.json
+
 cat > tsconfig.json << EOF
 {
   "compilerOptions": {
@@ -1990,100 +2246,125 @@ cat > tsconfig.json << EOF
 EOF
 
 # 5. 创建目录结构
+
 mkdir -p src/{views,components,stores,composables,api,types,utils,router,assets/styles}
 mkdir -p src/views/{strategies,backtests,live,data,settings}
 mkdir -p src/components/{layout,charts,strategy,trading,common}
 
 # 6. 启动开发服务器
+
 npm run dev
-# 访问 http://localhost:5173
-```
+
+# 访问 <http://localhost:5173>
+
+```bash
 
 ### Step 4: 数据库迁移设置
 
 ```bash
+
 # 1. 初始化 Alembic
+
 cd backtrader/web/backend
 alembic init alembic
 
 # 2. 配置 alembic.ini
+
 # 修改 sqlalchemy.url = mysql+pymysql://backtrader:password@localhost:3306/backtrader_web
 
 # 3. 创建第一个迁移
+
 alembic revision --autogenerate -m "Initial migration"
 
 # 4. 执行迁移
+
 alembic upgrade head
-```
+
+```bash
 
 ### Step 5: 运行整个系统
 
 ```bash
+
 # 终端 1: 启动 MySQL
+
 # 确保 MySQL 正在运行
 
 # 终端 2: 启动 Redis
+
 redis-server
 
 # 终端 3: 启动后端
+
 cd backtrader/web/backend
 source venv/bin/activate
 python main.py
 
 # 终端 4: 启动 Celery Worker
+
 cd backtrader/web/backend
 source venv/bin/activate
 celery -A app.tasks.celery_app worker --loglevel=info
 
 # 终端 5: 启动前端
+
 cd backtrader/web/frontend
 npm run dev
-```
 
----
+```bash
+
+- --
 
 ## 开发优先级
 
-### 第一优先级 (MVP) - 1-2周
+### 第一优先级 (MVP) - 1-2 周
+
 1. 用户登录/注册
 2. 策略文件上传和管理
 3. 回测配置和运行
 4. 回测结果展示（基础图表）
 
-### 第二优先级 - 2-3周
+### 第二优先级 - 2-3 周
+
 1. 交易所账户管理
 2. 实盘策略启动/停止
 3. 实盘状态监控
 4. 订单和持仓查询
 
-### 第三优先级 - 2-3周
+### 第三优先级 - 2-3 周
+
 1. WebSocket 实时数据推送
-2. K线图表展示（完整版）
+2. K 线图表展示（完整版）
 3. 参数优化功能
 4. 通知系统
 
-### 第四优先级 - 1-2周
+### 第四优先级 - 1-2 周
+
 1. 数据管理模块
 2. 高级分析工具
 3. 多用户权限
 4. 性能优化
 
----
+- --
 
 ## 快速开始指南
 
 ### 1. 前端项目模板初始化
 
 ```bash
+
 # 使用 Vite 创建 Vue 3 + TypeScript 项目
+
 cd backtrader/web
 npm create vite@latest frontend -- --template vue-ts
 cd frontend
 
 # 安装依赖
+
 npm install
 
 # 核心依赖
+
 npm install vue-router@4 pinia pinia-plugin-persistedstate
 npm install element-plus @element-plus/icons-vue
 npm install echarts vue-echarts
@@ -2091,16 +2372,20 @@ npm install axios dayjs @vueuse/core
 npm install lodash-es
 
 # 开发依赖
+
 npm install -D sass unplugin-vue-components unplugin-auto-import
 npm install -D @types/lodash-es vite-plugin-compression
 
 # 配置完成后启动
+
 npm run dev
-```
+
+```bash
 
 ### 2. 前端核心配置文件
 
 #### vite.config.ts
+
 ```typescript
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -2128,14 +2413,16 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/api': '<http://localhost:8000',>
       '/ws': { target: 'ws://localhost:8000', ws: true }
     }
   }
 })
-```
+
+```bash
 
 #### tsconfig.json
+
 ```json
 {
   "compilerOptions": {
@@ -2159,22 +2446,27 @@ export default defineConfig({
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
 }
-```
+
+```bash
 
 ### 3. 基础目录结构创建
 
 ```bash
+
 # 创建目录
+
 mkdir -p src/{api,assets/styles,components,charts,composables,directives,layouts,router,stores,types,utils,views}
 mkdir -p src/components/{layout,charts,trading,strategy,common}
 mkdir -p src/components/charts/{base,trading,analysis,indicators}
 mkdir -p src/views/{strategies,backtests,live,data,settings}
 
 # 创建入口文件
+
 touch src/main.ts src.App.vue
 touch src/router/index.ts
 touch src/stores/index.ts
-```
+
+```bash
 
 ### 4. 主入口文件
 
@@ -2207,7 +2499,8 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 }
 
 app.mount('#app')
-```
+
+```bash
 
 ### 5. API 请求封装
 
@@ -2239,13 +2532,15 @@ request.interceptors.response.use(
   response => response.data,
   error => {
     const message = error.response?.data?.detail || error.message || '请求失败'
+
     ElMessage.error(message)
     return Promise.reject(error)
   }
 )
 
 export default request
-```
+
+```bash
 
 ### 6. 第一个页面组件
 
@@ -2293,23 +2588,28 @@ onMounted(async () => {
   }
 }
 </style>
-```
+
+```bash
 
 ### 7. 运行项目
 
 ```bash
+
 # 后端
+
 cd backtrader/web/backend
 python main.py
 
 # 前端
+
 cd backtrader/web/frontend
 npm run dev
 
-# 访问 http://localhost:5173
-```
+# 访问 <http://localhost:5173>
 
----
+```bash
+
+- --
 
 ## 相关文档
 

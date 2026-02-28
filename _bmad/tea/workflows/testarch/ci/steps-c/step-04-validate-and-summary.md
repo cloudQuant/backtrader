@@ -1,8 +1,10 @@
----
+- --
+
 name: 'step-04-validate-and-summary'
 description: 'Validate pipeline and summarize'
 outputFile: '{test_artifacts}/ci-pipeline-progress.md'
----
+
+- --
 
 # Step 4: Validate & Summarize
 
@@ -15,7 +17,7 @@ Validate CI configuration and report completion details.
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -32,7 +34,7 @@ Validate CI configuration and report completion details.
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise.
 
 ## 1. Validation
 
@@ -45,7 +47,7 @@ Validate against `checklist.md`:
 
 Fix gaps before completion.
 
----
+- --
 
 ## 2. Completion Summary
 
@@ -56,20 +58,24 @@ Report:
 - Artifacts and notifications
 - Next steps (set secrets, run pipeline)
 
----
+- --
 
 ### 3. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+- *Save this step's accumulated work to `{outputFile}`.**
 
-- **If `{outputFile}` does not exist** (first save), create it with YAML frontmatter:
+- **If `{outputFile}` does not exist**(first save), create it with YAML frontmatter:
 
   ```yaml
-  ---
+
+  - --
+
   stepsCompleted: ['step-04-validate-and-summary']
   lastStep: 'step-04-validate-and-summary'
   lastSaved: '{date}'
-  ---
+
+  - --
+
   ```
 
   Then write this step's output below the frontmatter.
@@ -89,4 +95,4 @@ Report:
 ### ❌ SYSTEM FAILURE:
 
 - Skipped sequence steps or missing outputs
-  **Master Rule:** Skipping steps is FORBIDDEN.
+  - *Master Rule:** Skipping steps is FORBIDDEN.

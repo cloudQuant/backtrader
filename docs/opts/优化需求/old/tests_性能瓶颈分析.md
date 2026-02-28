@@ -9,6 +9,7 @@ tests 性能瓶颈分析（backtrader 项目）
     - exactbars ∈ {-2, -1, False}
   - 这导致单个用例被重复执行最多 2 × 2 × 3 = 12 次，整体时间呈倍数增长。
   - 代码引用：
+
 ```58:123:tests/original_tests/testcommon.py
 def runtest(
     datas,
@@ -21,7 +22,9 @@ def runtest(
     maxcpus=1,
     writer=None,
     analyzer=None,
-    **kwargs,
+
+    - *kwargs,
+
 ):
 
     runonces = [True, False] if runonce is None else [runonce]
@@ -37,11 +40,13 @@ def runtest(
                 )
                 ...
                 cerebro.run()
-```
+
+```bash
 
 - runonce=False 路径成本高（逐 bar 调用路径）
   - `Cerebro._runnext` 是每个 bar 的事件驱动主循环，含多处通知、timer 检查、broker 驱动与策略 `_next()` 调用，调用链长且在大数据量下成本显著。
   - 代码引用：
+
 ```1745:1932:backtrader/cerebro.py
 def _runnext(self, runstrats):
     ...
@@ -56,11 +61,13 @@ def _runnext(self, runstrats):
             strat._next()
             ...
             self._next_writers(runstrats)
-```
+
+```bash
 
 - runonce=True 仍存在一次性计算与后处理开销
   - 指标和从属对象在 `once` 模式下批量计算，但仍涉及大量 `_once`/`once` 的层级调度与 `advance/advance_peek`、post 阶段的 writer 与 timer 处理。
   - 代码引用：
+
 ```1949:2015:backtrader/lineiterator.py
 def _runonce(self, runstrats):
     for strat in runstrats:
@@ -73,11 +80,13 @@ def _runonce(self, runstrats):
     for strat in runstrats:
         strat._oncepost(dt0)
         self._next_writers(runstrats)
-```
+
+```bash
 
 - 高频函数与通用逻辑的额外分支
   - 指标与策略的 `_clk_update`、`__len__`、`_once`、`_next`、minperiod 判定等在大量 bar 上被频繁调用；当前实现为兼容性加入了多重保护与分支，增加了每次调用的常数开销。
   - 代表性代码：
+
 ```834:893:backtrader/lineiterator.py
 def _clk_update(self):
     ...
@@ -89,16 +98,21 @@ def _clk_update(self):
         self.lines.datetime[0] = max(valid_data_times)
     else:
         self.lines.datetime[0] = 1.0
-```
+
+```bash
+
 ```1146:1294:backtrader/lineiterator.py
 def __len__(self):
-    # 递归保护、多层回退、不同对象类型的分支处理
+
+# 递归保护、多层回退、不同对象类型的分支处理
     ...
-```
+
+```bash
 
 - 指标 once/next 双路径维护成本
   - 指标基类在 `_once` 失败时回退到 `_next` 循环计算以保证健壮性，虽然提高了兼容性，但在测试场景中会增加额外分支判断与潜在重复工作。
   - 代码引用：
+
 ```1393:1425:backtrader/lineiterator.py
 def _once(self, start, end):
     try:
@@ -110,8 +124,8 @@ def _once(self, start, end):
     except Exception:
         for i in range(start, end):
             self._next()
-```
 
+```bash
 二、具体热点与影响面
 
 - Cerebro 事件循环（runnext）
@@ -161,5 +175,3 @@ def _once(self, start, end):
 
 - tests 运行慢首因是测试框架默认的参数组合矩阵与逐 bar 事件循环的高常数开销叠加；其次是为兼容稳定性加入的高频函数保护分支。
 - 面向测试的“快速模式”与参数矩阵收敛、禁用非必要组件、强制 runonce+preload，将能显著缩短总时长；如需进一步优化，可在 `_clk_update` 与 `__len__` 等高频路径引入轻量缓存（仅测试模式启用）。
-
-

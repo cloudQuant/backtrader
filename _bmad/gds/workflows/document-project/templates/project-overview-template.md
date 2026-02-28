@@ -1,8 +1,8 @@
 # {{project_name}} - Project Overview
 
-**Date:** {{date}}
-**Type:** {{project_type}}
-**Architecture:** {{architecture_type}}
+- *Date:** {{date}}
+- *Type:** {{project_type}}
+- *Architecture:**{{architecture_type}}
 
 ## Executive Summary
 
@@ -10,10 +10,10 @@
 
 ## Project Classification
 
-- **Repository Type:** {{repository_type}}
-- **Project Type(s):** {{project_types_list}}
-- **Primary Language(s):** {{primary_languages}}
-- **Architecture Pattern:** {{architecture_pattern}}
+- **Repository Type:**{{repository_type}}
+- **Project Type(s):**{{project_types_list}}
+- **Primary Language(s):**{{primary_languages}}
+- **Architecture Pattern:**{{architecture_pattern}}
 
 {{#if is_multi_part}}
 
@@ -25,10 +25,11 @@ This project consists of {{parts_count}} distinct parts:
 
 ### {{part_name}}
 
-- **Type:** {{project_type}}
-- **Location:** `{{root_path}}`
-- **Purpose:** {{purpose}}
-- **Tech Stack:** {{tech_stack}}
+- **Type:**{{project_type}}
+- **Location:**`{{root_path}}`
+- **Purpose:**{{purpose}}
+- **Tech Stack:**{{tech_stack}}
+
   {{/each}}
 
 ### How Parts Integrate
@@ -71,17 +72,19 @@ This project consists of {{parts_count}} distinct parts:
 
 {{#if is_single_part}}
 
-- **Install:** `{{install_command}}`
-- **Dev:** `{{dev_command}}`
-- **Build:** `{{build_command}}`
-- **Test:** `{{test_command}}`
+- **Install:**`{{install_command}}`
+- **Dev:**`{{dev_command}}`
+- **Build:**`{{build_command}}`
+- **Test:**`{{test_command}}`
+
   {{else}}
   {{#each project_parts}}
 
 #### {{part_name}}
 
-- **Install:** `{{install_command}}`
+- **Install:**`{{install_command}}`
 - **Dev:** `{{dev_command}}`
+
   {{/each}}
   {{/if}}
 
@@ -98,6 +101,6 @@ For detailed information, see:
 - [source-tree-analysis.md](./source-tree-analysis.md) - Directory structure
 - [development-guide.md](./development-guide{{#if is_multi_part}}-{part_id}{{/if}}.md) - Development workflow
 
----
+- --
 
 _Generated using BMAD Method `document-project` workflow_

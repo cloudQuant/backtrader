@@ -1,11 +1,13 @@
----
+- --
+
 last-redoc-date: 2025-09-28
----
+
+- --
 
 # Innovation Strategy Workflow
 
-**Type:** Interactive Document Workflow
-**Module:** Creative Intelligence System (CIS)
+- *Type:** Interactive Document Workflow
+- *Module:**Creative Intelligence System (CIS)
 
 ## Purpose
 
@@ -21,12 +23,16 @@ Identifies disruption opportunities and architects business model innovation thr
 ## Usage
 
 ```bash
+
 # Basic invocation
+
 workflow innovation-strategy
 
 # With market context
+
 workflow innovation-strategy --data /path/to/industry-analysis.md
-```
+
+```bash
 
 ## Inputs
 
@@ -37,9 +43,9 @@ workflow innovation-strategy --data /path/to/industry-analysis.md
 
 ## Outputs
 
-**File:** `{output_folder}/innovation-strategy-{date}.md`
+- *File:** `{output_folder}/innovation-strategy-{date}.md`
 
-**Structure:**
+- *Structure:**
 
 - Market landscape and disruption analysis
 - Jobs-to-be-Done identification

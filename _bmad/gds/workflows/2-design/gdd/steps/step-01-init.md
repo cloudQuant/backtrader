@@ -1,11 +1,14 @@
----
+- --
+
 name: 'step-01-init'
 description: 'Initialize the GDD workflow by detecting continuation state and setting up the document'
 
 # Path Definitions
+
 workflow_path: '{project-root}/_bmad/gds/workflows/2-design/gdd'
 
 # File References
+
 thisStepFile: './step-01-init.md'
 nextStepFile: './step-02-context.md'
 continueStepFile: './step-01b-continue.md'
@@ -13,15 +16,18 @@ workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{output_folder}/gdd.md'
 
 # Template References
+
 gddTemplate: '{workflow_path}/templates/gdd-template.md'
 
 # Data Files
+
 gameTypesCSV: '{workflow_path}/game-types.csv'
----
+
+- --
 
 # Step 1: Workflow Initialization
 
-**Progress: Step 1 of 14** - Next: Game Context & Type
+- *Progress: Step 1 of 14** - Next: Game Context & Type
 
 ## STEP GOAL:
 
@@ -71,7 +77,7 @@ Initialize the GDD workflow by detecting continuation state, discovering input d
 
 First, check if the output document already exists:
 
-**Workflow State Detection:**
+- *Workflow State Detection:**
 
 - Look for file at `{outputFile}`
 - If exists, read the complete file including frontmatter
@@ -81,7 +87,7 @@ First, check if the output document already exists:
 
 If the document exists and has frontmatter with `stepsCompleted`:
 
-**Continuation Protocol:**
+- *Continuation Protocol:**
 
 - **STOP immediately** and load `{continueStepFile}`
 - Do not proceed with any initialization tasks
@@ -96,18 +102,19 @@ If no document exists or no `stepsCompleted` in frontmatter:
 
 Discover and load context documents using smart discovery.
 
-**IMPORTANT: Track document counts as you discover files.**
+- *IMPORTANT: Track document counts as you discover files.**
 
 Initialize counters:
 
-```
+```bash
 briefCount = 0
 researchCount = 0
 brainstormingCount = 0
 projectDocsCount = 0
-```
 
-**Game Brief (Priority: Analysis -> Main -> Sharded -> Whole):**
+```bash
+
+- *Game Brief (Priority: Analysis -> Main -> Sharded -> Whole):**
 
 1. Check analysis folder: `{output_folder}/analysis/*game-brief*.md`
 2. If no analysis files: Try main folder: `{output_folder}/*game-brief*.md`
@@ -116,7 +123,7 @@ projectDocsCount = 0
 5. Add discovered files to `inputDocuments` frontmatter
 6. **Update briefCount with number of files found**
 
-**Research Documents (Priority: Analysis -> Main -> Sharded -> Whole):**
+- *Research Documents (Priority: Analysis -> Main -> Sharded -> Whole):**
 
 1. Check analysis folder: `{output_folder}/analysis/research/*research*.md`
 2. If no analysis files: Try main folder: `{output_folder}/*research*.md`
@@ -125,14 +132,14 @@ projectDocsCount = 0
 5. Add discovered files to `inputDocuments` frontmatter
 6. **Update researchCount with number of files found**
 
-**Brainstorming Documents (Priority: Analysis -> Main):**
+- *Brainstorming Documents (Priority: Analysis -> Main):**
 
 1. Check analysis folder: `{output_folder}/analysis/brainstorming/*brainstorm*.md`
 2. If no analysis files: Try main folder: `{output_folder}/*brainstorm*.md`
 3. Add discovered files to `inputDocuments` frontmatter
 4. **Update brainstormingCount with number of files found**
 
-**Project Documentation (Existing Projects - Brownfield):**
+- *Project Documentation (Existing Projects - Brownfield):**
 
 1. Look for index file: `{output_folder}/index.md`
 2. CRITICAL: Load index.md to understand what project files are available
@@ -141,7 +148,7 @@ projectDocsCount = 0
 5. Add discovered files to `inputDocuments` frontmatter
 6. **Update projectDocsCount with number of files found (including index.md)**
 
-**Loading Rules:**
+- *Loading Rules:**
 
 - Load ALL discovered files completely (no offset/limit)
 - For sharded folders, load ALL files to get complete picture
@@ -150,13 +157,15 @@ projectDocsCount = 0
 
 #### B. Create Initial Document
 
-**Document Setup:**
+- *Document Setup:**
 
 - Copy the template from `{gddTemplate}` to `{outputFile}`
 - Initialize frontmatter with proper structure including document counts:
 
 ```yaml
----
+
+- --
+
 stepsCompleted: []
 inputDocuments: []
 documentCounts:
@@ -171,31 +180,35 @@ user_name: '{{user_name}}'
 date: '{{date}}'
 game_type: ''
 game_name: ''
----
-```
+
+- --
+
+```bash
 
 #### C. Present Initialization Results
 
-**Setup Report to User:**
+- *Setup Report to User:**
 
 "Welcome {{user_name}}! I've set up your GDD workspace for {{project_name}}.
 
-**Document Setup:**
+- *Document Setup:**
 
 - Created: `{outputFile}` from template
 - Initialized frontmatter with workflow state
 
-**Input Documents Discovered:**
+- *Input Documents Discovered:**
 
 - Game briefs: {{briefCount}} files {if briefCount > 0}loaded{else}(none found){/if}
 - Research: {{researchCount}} files {if researchCount > 0}loaded{else}(none found){/if}
 - Brainstorming: {{brainstormingCount}} files {if brainstormingCount > 0}loaded{else}(none found){/if}
 - Project docs: {{projectDocsCount}} files {if projectDocsCount > 0}loaded (brownfield project){else}(none found - greenfield project){/if}
 
-**Files loaded:** {list of specific file names or "No additional documents found"}
+- *Files loaded:** {list of specific file names or "No additional documents found"}
 
 {if projectDocsCount > 0}
-**Note:** This is a **brownfield project**. Your existing project documentation has been loaded. In the next step, I'll ask specifically about what new features or changes you want to add to your existing game.
+
+- *Note:**This is a**brownfield project**. Your existing project documentation has been loaded. In the next step, I'll ask specifically about what new features or changes you want to add to your existing game.
+
 {/if}
 
 Do you have any other documents you'd like me to include, or shall we continue to the next step?"
@@ -221,7 +234,7 @@ Display menu after setup report:
 
 ONLY WHEN [C continue option] is selected and [frontmatter properly updated with stepsCompleted: [1] and documentCounts], will you then load and read fully `{nextStepFile}` to execute and begin game context discovery.
 
----
+- --
 
 ## SYSTEM SUCCESS/FAILURE METRICS
 
@@ -246,4 +259,4 @@ ONLY WHEN [C continue option] is selected and [frontmatter properly updated with
 - Not reporting discovered documents to user clearly
 - Proceeding without user selecting 'C' (Continue)
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

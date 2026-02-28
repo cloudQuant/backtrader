@@ -66,7 +66,7 @@
 
 <ask>I found an in-progress workflow state from {{last_updated}}.
 
-**Current Progress:**
+- *Current Progress:**
 
 - Mode: {{mode}}
 - Scan Level: {{scan_level}}
@@ -76,9 +76,10 @@
 
 Would you like to:
 
-1. **Resume from where we left off** - Continue from step {{current_step}}
-2. **Start fresh** - Archive old state and begin new scan
-3. **Cancel** - Exit without changes
+1. **Resume from where we left off**- Continue from step {{current_step}}
+
+2.**Start fresh**- Archive old state and begin new scan
+3.**Cancel**- Exit without changes
 
 Your choice [1/2/3]:
 </ask>
@@ -138,9 +139,9 @@ Your choice [1/2/3]:
 
 What would you like to do?
 
-1. **Re-scan entire project** - Update all documentation with latest changes
-2. **Deep-dive into specific area** - Generate detailed documentation for a particular feature/module/folder
-3. **Cancel** - Keep existing documentation as-is
+1.**Re-scan entire project**- Update all documentation with latest changes
+2.**Deep-dive into specific area**- Generate detailed documentation for a particular feature/module/folder
+3.**Cancel** - Keep existing documentation as-is
 
 Your choice [1/2/3]:
 </ask>
@@ -191,28 +192,32 @@ Your choice [1/2/3]:
 
 <output>**✅ Document Project Workflow Complete, {user_name}!**
 
-**Documentation Generated:**
+- *Documentation Generated:**
 
 - Mode: {{workflow_mode}}
 - Scan Level: {{scan_level}}
 - Output: {output_folder}/index.md and related files
 
 {{#if status_file_found}}
-**Status Updated:**
+
+- *Status Updated:**
 
 - Progress tracking updated
 
-**Next Steps:**
+- *Next Steps:**
 
 - **Next required:** {{next_workflow}} ({{next_agent}} agent)
 
 Check status anytime with: `workflow-status`
 {{else}}
-**Next Steps:**
+
+- *Next Steps:**
+
 Since no workflow is in progress:
 
 - Refer to the BMM workflow guide if unsure what to do next
 - Or run `workflow-init` to create a workflow path and get guided next steps
+
   {{/if}}
   </output>
 

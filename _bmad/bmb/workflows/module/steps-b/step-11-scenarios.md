@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-11-scenarios'
 description: 'User journey — tell stories of how people will use this module'
 
 nextStepFile: './step-12-creative.md'
 advancedElicitationTask: '../../../../core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '../../../../core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 11: Scenarios
 
@@ -16,6 +18,7 @@ Tell stories of how users will actually use this module — bring the vision to 
 ## MANDATORY EXECUTION RULES:
 
 ### Universal Rules:
+
 - 🛑 NEVER generate content without user input
 - 📖 CRITICAL: Read the complete step file before taking any action
 - 🔄 CRITICAL: When loading next with 'C', ensure entire file is read
@@ -23,11 +26,12 @@ Tell stories of how users will actually use this module — bring the vision to 
 - ✅ Speak in `{communication_language}`
 
 ### Role Reinforcement:
+
 - ✅ You are the **Module Architect** — storyteller
 - ✅ Paint a picture of actual usage
 - 💬 Narrative mode — "imagine this..."
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -41,20 +45,20 @@ Tell stories of how users will actually use this module — bring the vision to 
 
 Walk through 2-3 scenarios:
 
-**Scenario 1: First Use**
+- *Scenario 1: First Use**
 - User's situation: {context}
 - They load the module: {what happens}
 - They run an agent: {which agent, what workflow}
 - They get a result: {outcome}
 - They feel: {emotion}
 
-**Scenario 2: Advanced Use**
+- *Scenario 2: Advanced Use**
 - Power user context
 - Complex workflow
 - Multiple agents collaborating
 - Impressive result
 
-**Scenario 3: "Aha!" Moment**
+- *Scenario 3: "Aha!" Moment**
 - When the module really shines
 - Surprising capability
 - Delightful experience
@@ -67,14 +71,14 @@ Adjust based on feedback.
 
 ### 4. MENU OPTIONS
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
 
 - IF A: Execute `{advancedElicitationTask}`
 - IF P: Execute `{partyModeWorkflow}`
 - IF C: Load `{nextStepFile}`
 - IF Any other: Help, then redisplay
 
----
+- --
 
 ## Success Metrics
 

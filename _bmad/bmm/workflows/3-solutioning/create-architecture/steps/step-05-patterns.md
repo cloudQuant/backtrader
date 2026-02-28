@@ -54,7 +54,7 @@ Define implementation patterns and consistency rules that ensure multiple AI age
 
 Based on the chosen technology stack and decisions, identify where AI agents could make different choices:
 
-**Naming Conflicts:**
+- *Naming Conflicts:**
 
 - Database table/column naming conventions
 - API endpoint naming patterns
@@ -62,7 +62,7 @@ Based on the chosen technology stack and decisions, identify where AI agents cou
 - Component/function/variable naming
 - Route parameter formats
 
-**Structural Conflicts:**
+- *Structural Conflicts:**
 
 - Where tests are located
 - How components are organized
@@ -70,7 +70,7 @@ Based on the chosen technology stack and decisions, identify where AI agents cou
 - Configuration file organization
 - Static asset organization
 
-**Format Conflicts:**
+- *Format Conflicts:**
 
 - API response wrapper formats
 - Error response structures
@@ -78,7 +78,7 @@ Based on the chosen technology stack and decisions, identify where AI agents cou
 - JSON field naming conventions
 - API status code usage
 
-**Communication Conflicts:**
+- *Communication Conflicts:**
 
 - Event naming conventions
 - Event payload structures
@@ -86,7 +86,7 @@ Based on the chosen technology stack and decisions, identify where AI agents cou
 - Action naming conventions
 - Logging formats and levels
 
-**Process Conflicts:**
+- *Process Conflicts:**
 
 - Loading state handling
 - Error recovery patterns
@@ -98,14 +98,16 @@ Based on the chosen technology stack and decisions, identify where AI agents cou
 
 For each conflict category, facilitate collaborative pattern definition:
 
-**Present the Conflict Point:**
+- *Present the Conflict Point:**
+
 "Given that we're using {{tech_stack}}, different AI agents might handle {{conflict_area}} differently.
 
 For example, one agent might name database tables 'users' while another uses 'Users' - this would cause conflicts.
 
 We need to establish consistent patterns that all agents follow."
 
-**Show Options and Trade-offs:**
+- *Show Options and Trade-offs:**
+
 "Common approaches for {{pattern_category}}:
 
 1. {{option_1}} - {{pros_and_cons}}
@@ -114,28 +116,29 @@ We need to establish consistent patterns that all agents follow."
 
 Which approach makes the most sense for our project?"
 
-**Get User Decision:**
+- *Get User Decision:**
+
 "What's your preference for this pattern? (or discuss the trade-offs more)"
 
 ### 3. Define Pattern Categories
 
 #### Naming Patterns
 
-**Database Naming:**
+- *Database Naming:**
 
 - Table naming: users, Users, or user?
 - Column naming: user_id or userId?
 - Foreign key format: user_id or fk_user?
 - Index naming: idx_users_email or users_email_index?
 
-**API Naming:**
+- *API Naming:**
 
 - REST endpoint naming: /users or /user? Plural or singular?
 - Route parameter format: :id or {id}?
 - Query parameter naming: user_id or userId?
 - Header naming conventions: X-Custom-Header or Custom-Header?
 
-**Code Naming:**
+- *Code Naming:**
 
 - Component naming: UserCard or user-card?
 - File naming: UserCard.tsx or user-card.tsx?
@@ -144,14 +147,14 @@ Which approach makes the most sense for our project?"
 
 #### Structure Patterns
 
-**Project Organization:**
+- *Project Organization:**
 
 - Where do tests live? **tests**/ or \*.test.ts co-located?
 - How are components organized? By feature or by type?
 - Where do shared utilities go?
 - How are services and repositories organized?
 
-**File Structure:**
+- *File Structure:**
 
 - Config file locations and naming
 - Static asset organization
@@ -160,14 +163,14 @@ Which approach makes the most sense for our project?"
 
 #### Format Patterns
 
-**API Formats:**
+- *API Formats:**
 
 - API response wrapper? {data: ..., error: ...} or direct response?
 - Error format? {message, code} or {error: {type, detail}}?
 - Date format in JSON? ISO strings or timestamps?
 - Success response structure?
 
-**Data Formats:**
+- *Data Formats:**
 
 - JSON field naming: snake_case or camelCase?
 - Boolean representations: true/false or 1/0?
@@ -176,14 +179,14 @@ Which approach makes the most sense for our project?"
 
 #### Communication Patterns
 
-**Event Systems:**
+- *Event Systems:**
 
 - Event naming convention: user.created or UserCreated?
 - Event payload structure standards
 - Event versioning approach
 - Async event handling patterns
 
-**State Management:**
+- *State Management:**
 
 - State update patterns: immutable updates or direct mutation?
 - Action naming conventions
@@ -192,14 +195,14 @@ Which approach makes the most sense for our project?"
 
 #### Process Patterns
 
-**Error Handling:**
+- *Error Handling:**
 
 - Global error handling approach
 - Error boundary patterns
 - User-facing error message format
 - Logging vs user error distinction
 
-**Loading States:**
+- *Loading States:**
 
 - Loading state naming conventions
 - Global vs local loading states
@@ -213,65 +216,78 @@ Prepare the content to append to the document:
 #### Content Structure:
 
 ```markdown
+
 ## Implementation Patterns & Consistency Rules
 
 ### Pattern Categories Defined
 
-**Critical Conflict Points Identified:**
+- *Critical Conflict Points Identified:**
+
 {{number_of_potential_conflicts}} areas where AI agents could make different choices
 
 ### Naming Patterns
 
-**Database Naming Conventions:**
+- *Database Naming Conventions:**
+
 {{database_naming_rules_with_examples}}
 
-**API Naming Conventions:**
+- *API Naming Conventions:**
+
 {{api_naming_rules_with_examples}}
 
-**Code Naming Conventions:**
+- *Code Naming Conventions:**
+
 {{code_naming_rules_with_examples}}
 
 ### Structure Patterns
 
-**Project Organization:**
+- *Project Organization:**
+
 {{project_structure_rules_with_examples}}
 
-**File Structure Patterns:**
+- *File Structure Patterns:**
+
 {{file_organization_rules_with_examples}}
 
 ### Format Patterns
 
-**API Response Formats:**
+- *API Response Formats:**
+
 {{api_response_structure_rules}}
 
-**Data Exchange Formats:**
+- *Data Exchange Formats:**
+
 {{data_format_rules_with_examples}}
 
 ### Communication Patterns
 
-**Event System Patterns:**
+- *Event System Patterns:**
+
 {{event_naming_and_structure_rules}}
 
-**State Management Patterns:**
+- *State Management Patterns:**
+
 {{state_update_and_organization_rules}}
 
 ### Process Patterns
 
-**Error Handling Patterns:**
+- *Error Handling Patterns:**
+
 {{consistent_error_handling_approaches}}
 
-**Loading State Patterns:**
+- *Loading State Patterns:**
+
 {{loading_state_management_rules}}
 
 ### Enforcement Guidelines
 
-**All AI Agents MUST:**
+- *All AI Agents MUST:**
 
 - {{mandatory_pattern_1}}
 - {{mandatory_pattern_2}}
 - {{mandatory_pattern_3}}
 
-**Pattern Enforcement:**
+- *Pattern Enforcement:**
 
 - How to verify patterns are followed
 - Where to document pattern violations
@@ -279,12 +295,15 @@ Prepare the content to append to the document:
 
 ### Pattern Examples
 
-**Good Examples:**
+- *Good Examples:**
+
 {{concrete_examples_of_correct_pattern_usage}}
 
-**Anti-Patterns:**
+- *Anti-Patterns:**
+
 {{examples_of_what_to_avoid}}
-```
+
+```bash
 
 ### 5. Present Content and Menu
 
@@ -292,11 +311,12 @@ Show the generated patterns content and present choices:
 
 "I've documented implementation patterns that will prevent conflicts between AI agents working on this project.
 
-**Here's what I'll add to the document:**
+- *Here's what I'll add to the document:**
 
 [Show the complete markdown content from step 4]
 
-**What would you like to do?**
+- *What would you like to do?**
+
 [A] Advanced Elicitation - Explore additional consistency patterns
 [P] Party Mode - Review patterns from different implementation perspectives
 [C] Continue - Save these patterns and move to project structure"

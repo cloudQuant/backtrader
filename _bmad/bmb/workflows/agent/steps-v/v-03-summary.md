@@ -1,4 +1,5 @@
----
+- --
+
 name: 'v-03-summary'
 description: 'Display complete validation report and offer next steps'
 
@@ -6,7 +7,8 @@ validationReport: '{bmb_creations_output_folder}/validation-report-{agent-name}.
 
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Validate Step 3: Validation Summary
 
@@ -34,7 +36,7 @@ Display the complete validation report to the user and offer options for fixing 
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
+- *CRITICAL:** Follow this sequence exactly. Do not skip, reorder, or improvise unless user explicitly requests a change.
 
 ### 1. Load Validation Report
 
@@ -43,6 +45,7 @@ Read `{validationReport}` to collect all validation findings.
 ### 2. Display Complete Report
 
 ```markdown
+
 ## Validation Complete: {agent-name}
 
 ### Overall Status
@@ -52,16 +55,17 @@ Read `{validationReport}` to collect all validation findings.
 ### Detailed Findings
 
 {Display all sections from the validation report}
-```
+
+```bash
 
 ### 3. Present Next Steps
 
 "What would you like to do?
 
-**[E]dit Agent** - Launch edit workflow to fix issues or make improvements
-**[F]ix in Place** - Confirm which fixes you would like right now and we can fix without loading the full agent edit workflow
-**[S]ave Report** - Save this validation report and exit
-**[R]etry** - Run validation again (if you've made external changes)"
+- *[E]dit Agent** - Launch edit workflow to fix issues or make improvements
+- *[F]ix in Place** - Confirm which fixes you would like right now and we can fix without loading the full agent edit workflow
+- *[S]ave Report** - Save this validation report and exit
+- *[R]etry** - Run validation again (if you've made external changes)"
 
 ### 4. Present MENU OPTIONS
 
@@ -86,7 +90,7 @@ Display: "**Select an Option:** [A] Advanced Elicitation [P] Party Mode [E] Edit
 
 The validation workflow is complete when user selects [S] to save the report, or [E] to proceed to edit workflow.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -101,4 +105,4 @@ The validation workflow is complete when user selects [S] to save the report, or
 - Findings not displayed to user
 - No clear next steps offered
 
-**Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.
+- *Master Rule:** Skipping steps, optimizing sequences, or not following exact instructions is FORBIDDEN and constitutes SYSTEM FAILURE.

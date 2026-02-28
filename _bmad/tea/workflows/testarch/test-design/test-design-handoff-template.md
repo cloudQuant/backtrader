@@ -1,4 +1,5 @@
----
+- --
+
 title: 'TEA Test Design → BMAD Handoff Document'
 version: '1.0'
 workflowType: 'testarch-test-design-handoff'
@@ -7,7 +8,8 @@ sourceWorkflow: 'testarch-test-design'
 generatedBy: 'TEA Master Test Architect'
 generatedAt: '{timestamp}'
 projectName: '{project_name}'
----
+
+- --
 
 # TEA → BMAD Integration Handoff
 
@@ -18,9 +20,13 @@ This document bridges TEA's test design outputs with BMAD's epic/story decomposi
 ## TEA Artifacts Inventory
 
 | Artifact             | Path                      | BMAD Integration Point                               |
+
 | -------------------- | ------------------------- | ---------------------------------------------------- |
+
 | Test Design Document | `{test_design_path}`      | Epic quality requirements, story acceptance criteria |
+
 | Risk Assessment      | (embedded in test design) | Epic risk classification, story priority             |
+
 | Coverage Strategy    | (embedded in test design) | Story test requirements                              |
 
 ## Epic-Level Integration Guidance
@@ -46,25 +52,33 @@ This document bridges TEA's test design outputs with BMAD's epic/story decomposi
 ## Risk-to-Story Mapping
 
 | Risk ID | Category | P×I | Recommended Story/Epic | Test Level |
+
 | ------- | -------- | --- | ---------------------- | ---------- |
 
 <!-- TEA will populate from risk assessment -->
 
 ## Recommended BMAD → TEA Workflow Sequence
 
-1. **TEA Test Design** (`TD`) → produces this handoff document
-2. **BMAD Create Epics & Stories** → consumes this handoff, embeds quality requirements
-3. **TEA ATDD** (`AT`) → generates acceptance tests per story
-4. **BMAD Implementation** → developers implement with test-first guidance
-5. **TEA Automate** (`TA`) → generates full test suite
-6. **TEA Trace** (`TR`) → validates coverage completeness
+1. **TEA Test Design**(`TD`) → produces this handoff document
+
+2.**BMAD Create Epics & Stories**→ consumes this handoff, embeds quality requirements
+3.**TEA ATDD**(`AT`) → generates acceptance tests per story
+4.**BMAD Implementation**→ developers implement with test-first guidance
+5.**TEA Automate**(`TA`) → generates full test suite
+6.**TEA Trace** (`TR`) → validates coverage completeness
 
 ## Phase Transition Quality Gates
 
 | From Phase          | To Phase            | Gate Criteria                                          |
+
 | ------------------- | ------------------- | ------------------------------------------------------ |
+
 | Test Design         | Epic/Story Creation | All P0 risks have mitigation strategy                  |
+
 | Epic/Story Creation | ATDD                | Stories have acceptance criteria from test design      |
+
 | ATDD                | Implementation      | Failing acceptance tests exist for all P0/P1 scenarios |
+
 | Implementation      | Test Automation     | All acceptance tests pass                              |
+
 | Test Automation     | Release             | Trace matrix shows ≥80% coverage of P0/P1 requirements |

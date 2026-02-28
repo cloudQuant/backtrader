@@ -1,28 +1,28 @@
 # Module Brief: {module_code}
 
-**Date:** {date}
-**Author:** {user_name}
-**Module Code:** {module_code}
-**Module Type:** {module_type}
-**Status:** Ready for Development
+- *Date:** {date}
+- *Author:** {user_name}
+- *Module Code:** {module_code}
+- *Module Type:** {module_type}
+- *Status:** Ready for Development
 
----
+- --
 
 ## Executive Summary
 
 {module_vision}
 
-**Module Category:** {module_category}
-**Target Users:** {target_users}
-**Complexity Level:** {complexity_level}
+- *Module Category:** {module_category}
+- *Target Users:** {target_users}
+- *Complexity Level:**{complexity_level}
 
----
+- --
 
 ## Module Identity
 
 ### Module Code & Name
 
-- **Code:** `{module_code}`
+- **Code:**`{module_code}`
 - **Name:** `{module_name}`
 
 ### Core Concept
@@ -33,27 +33,27 @@
 
 {personality_theme}
 
----
+- --
 
 ## Module Type
 
-**Type:** {module_type}
+- *Type:** {module_type}
 
 {module_type_explanation}
 
----
+- --
 
 ## Unique Value Proposition
 
-**What makes this module special:**
+- *What makes this module special:**
 
 {unique_value_proposition}
 
-**Why users would choose this module:**
+- *Why users would choose this module:**
 
 {value_proposition_details}
 
----
+- --
 
 ## User Scenarios
 
@@ -69,7 +69,7 @@
 
 {user_journey}
 
----
+- --
 
 ## Agent Architecture
 
@@ -80,7 +80,9 @@
 ### Agent Roster
 
 | Agent | Name | Role | Expertise |
+
 |-------|------|------|-----------|
+
 {agent_roster_table}
 
 ### Agent Interaction Model
@@ -91,7 +93,7 @@
 
 {agent_communication_style}
 
----
+- --
 
 ## Workflow Ecosystem
 
@@ -107,7 +109,7 @@
 
 {utility_workflows}
 
----
+- --
 
 ## Tools & Integrations
 
@@ -123,7 +125,7 @@
 
 {module_integrations}
 
----
+- --
 
 ## Creative Features
 
@@ -139,16 +141,17 @@
 
 {module_lore}
 
----
+- --
 
 ## Next Steps
 
-1. **Review this brief** — Ensure the vision is clear
-2. **Run create-module workflow** — Build the module structure
-3. **Create agents** — Use create-agent workflow for each agent
-4. **Create workflows** — Use create-workflow workflow for each workflow
-5. **Test module** — Install and verify functionality
+1. **Review this brief**— Ensure the vision is clear
 
----
+2.**Run create-module workflow**— Build the module structure
+3.**Create agents**— Use create-agent workflow for each agent
+4.**Create workflows**— Use create-workflow workflow for each workflow
+5.**Test module** — Install and verify functionality
+
+- --
 
 _brief created on {date} by {user_name} using the BMAD Module workflow_

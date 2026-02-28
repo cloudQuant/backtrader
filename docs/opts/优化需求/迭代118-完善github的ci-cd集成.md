@@ -1,4 +1,4 @@
-# 迭代118 - 完善 GitHub CI/CD 集成
+# 迭代 118 - 完善 GitHub CI/CD 集成
 
 ## 需求描述
 
@@ -13,36 +13,43 @@
 
 使用 `pre-commit` 框架，在 `git commit` 前自动执行检查。
 
-**配置文件**：`.pre-commit-config.yaml`
+- *配置文件**：`.pre-commit-config.yaml`
 
-**检查项**：
+- *检查项**：
 - 代码格式化（black, isort, ruff）
 - 运行测试（pytest）
 
 ### 二、GitHub Actions 工作流
 
-**工作流文件**：`.github/workflows/test.yml`
+- *工作流文件**：`.github/workflows/test.yml`
 
-**测试矩阵**：
+- *测试矩阵**：
 
 | 平台 | Python 版本 |
+
 |------|-------------|
+
 | ubuntu-latest | 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14-dev |
+
 | macos-latest | 3.8, 3.10, 3.11, 3.12, 3.14-dev |
+
 | windows-latest | 3.8, 3.10, 3.11, 3.12, 3.14-dev |
 
 > **注意**：Python 3.14 使用开发版 `3.14-dev`，正式版发布后可更新为 `3.14`。
 
 ### 三、文件结构
 
-```
+```bash
 .github/
 └── workflows/
     ├── docs.yml          # 文档构建（已有）
     └── test.yml          # 测试工作流（新增）
+
 .pre-commit-config.yaml   # Pre-commit 配置（新增）
+
 pyproject.toml            # 项目配置（更新）
-```
+
+```bash
 
 ## 使用方法
 
@@ -51,23 +58,29 @@ pyproject.toml            # 项目配置（更新）
 ```bash
 pip install pre-commit
 pre-commit install
-```
+
+```bash
 
 ### 手动运行检查
 
 ```bash
+
 # 运行所有检查
+
 pre-commit run --all-files
 
 # 或使用优化脚本
+
 ./scripts/optimize_code.sh
-```
+
+```bash
 
 ### 跳过 pre-commit（紧急情况）
 
 ```bash
 git commit --no-verify -m "urgent fix"
-```
+
+```bash
 
 ## 状态
 
@@ -80,14 +93,17 @@ git commit --no-verify -m "urgent fix"
 ## 创建的文件
 
 | 文件 | 描述 |
+
 |------|------|
+
 | `.github/workflows/test.yml` | GitHub Actions 测试工作流 |
+
 | `scripts/pre-push-check.sh` | 本地推送前检查脚本 |
 
 ## 测试矩阵详情
 
 共 **17 个测试任务**：
 
-- **Ubuntu**: Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14-dev (7个)
-- **macOS**: Python 3.8, 3.10, 3.11, 3.12, 3.14-dev (5个)
-- **Windows**: Python 3.8, 3.10, 3.11, 3.12, 3.14-dev (5个)
+- **Ubuntu**: Python 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14-dev (7 个)
+- **macOS**: Python 3.8, 3.10, 3.11, 3.12, 3.14-dev (5 个)
+- **Windows**: Python 3.8, 3.10, 3.11, 3.12, 3.14-dev (5 个)

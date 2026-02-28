@@ -1,10 +1,10 @@
 # Problem Solving Session: {{problem_title}}
 
-**Date:** {{date}}
-**Problem Solver:** {{user_name}}
-**Problem Category:** {{problem_category}}
+- *Date:** {{date}}
+- *Problem Solver:** {{user_name}}
+- *Problem Category:** {{problem_category}}
 
----
+- --
 
 ## 🎯 PROBLEM DEFINITION
 
@@ -24,7 +24,7 @@
 
 {{success_criteria}}
 
----
+- --
 
 ## 🔍 DIAGNOSIS AND ROOT CAUSE ANALYSIS
 
@@ -44,16 +44,18 @@
 
 {{system_dynamics}}
 
----
+- --
 
 ## 📊 ANALYSIS
 
 ### Force Field Analysis
 
-**Driving Forces (Supporting Solution):**
+- *Driving Forces (Supporting Solution):**
+
 {{driving_forces}}
 
-**Restraining Forces (Blocking Solution):**
+- *Restraining Forces (Blocking Solution):**
+
 {{restraining_forces}}
 
 ### Constraint Identification
@@ -64,7 +66,7 @@
 
 {{key_insights}}
 
----
+- --
 
 ## 💡 SOLUTION GENERATION
 
@@ -80,7 +82,7 @@
 
 {{creative_alternatives}}
 
----
+- --
 
 ## ⚖️ SOLUTION EVALUATION
 
@@ -100,7 +102,7 @@
 
 {{solution_rationale}}
 
----
+- --
 
 ## 🚀 IMPLEMENTATION PLAN
 
@@ -124,7 +126,7 @@
 
 {{responsible_parties}}
 
----
+- --
 
 ## 📈 MONITORING AND VALIDATION
 
@@ -144,7 +146,7 @@
 
 {{adjustment_triggers}}
 
----
+- --
 
 ## 📝 LESSONS LEARNED
 
@@ -160,6 +162,6 @@
 
 {{what_to_avoid}}
 
----
+- --
 
 _Generated using BMAD Creative Intelligence Suite - Problem Solving Workflow_

@@ -2,18 +2,18 @@
 
 # Performance Testing Strategy
 
-**Workflow ID**: `_bmad/gds/gametest/performance`
-**Version**: 1.0 (BMad v6)
+- *Workflow ID**: `_bmad/gds/gametest/performance`
+- *Version**: 1.0 (BMad v6)
 
----
+- --
 
 ## Overview
 
 Design a comprehensive performance testing strategy covering frame rate, memory usage, loading times, and platform-specific requirements. Performance directly impacts player experience.
 
-**Knowledge Base Reference**: `knowledge/performance-testing.md`
+- *Knowledge Base Reference**: `knowledge/performance-testing.md`
 
----
+- --
 
 ## Preflight Requirements
 
@@ -22,43 +22,63 @@ Design a comprehensive performance testing strategy covering frame rate, memory 
 - ✅ Representative content available for testing
 - ✅ Profiling tools accessible
 
----
+- --
 
 ## Step 1: Define Performance Targets
 
 ### Frame Rate Targets
 
 | Platform          | Target FPS | Minimum FPS | Notes              |
+
 | ----------------- | ---------- | ----------- | ------------------ |
+
 | PC (High)         | 60+        | 30          | Uncapped option    |
+
 | PC (Low)          | 30         | 30          | Scalable settings  |
+
 | PS5/Xbox X        | 60         | 60          | Performance mode   |
+
 | PS4/Xbox One      | 30         | 30          | Locked             |
+
 | Switch Docked     | 30         | 30          | Stable             |
+
 | Switch Handheld   | 30         | 25          | Power saving       |
+
 | Mobile (High)     | 60         | 30          | Device dependent   |
+
 | Mobile (Standard) | 30         | 30          | Thermal throttling |
 
 ### Memory Budgets
 
 | Platform      | Total RAM | Game Budget | Notes               |
+
 | ------------- | --------- | ----------- | ------------------- |
+
 | PC (Min spec) | 8 GB      | 4 GB        | Leave room for OS   |
+
 | PS5           | 16 GB     | 12 GB       | Unified memory      |
+
 | Xbox Series X | 16 GB     | 13 GB       | With Smart Delivery |
+
 | Switch        | 4 GB      | 2.5 GB      | Tight constraints   |
+
 | Mobile        | 4-6 GB    | 1.5-2 GB    | Background apps     |
 
 ### Loading Time Targets
 
 | Scenario     | Target | Maximum |
+
 | ------------ | ------ | ------- |
+
 | Initial boot | < 10s  | 30s     |
+
 | Level load   | < 15s  | 30s     |
+
 | Fast travel  | < 5s   | 10s     |
+
 | Respawn      | < 3s   | 5s      |
 
----
+- --
 
 ## Step 2: Identify Test Scenarios
 
@@ -66,7 +86,7 @@ Design a comprehensive performance testing strategy covering frame rate, memory 
 
 Create scenarios that push performance limits:
 
-```
+```bash
 SCENARIO: Maximum Entity Count
   GIVEN game level with normal enemy spawn
   WHEN enemy count reaches 50+
@@ -85,11 +105,12 @@ SCENARIO: Draw Call Stress
   WHEN camera shows worst-case view
   THEN frame rate stays above minimum
   AND no hitching or stuttering
-```
+
+```bash
 
 ### Memory Test Scenarios
 
-```
+```bash
 SCENARIO: Extended Play Session
   GIVEN game running for 4+ hours
   WHEN normal gameplay occurs
@@ -103,11 +124,12 @@ SCENARIO: Level Transition
   THEN previous level fully unloaded
   AND memory baseline returns
   AND no cumulative growth
-```
+
+```bash
 
 ### Loading Test Scenarios
 
-```
+```bash
 SCENARIO: Cold Boot
   GIVEN game not in memory
   WHEN launching game
@@ -121,15 +143,16 @@ SCENARIO: Save/Load Performance
   THEN completes in < target
   AND no corruption
   AND gameplay resumes smoothly
-```
 
----
+```bash
+
+- --
 
 ## Step 3: Define Test Methodology
 
 ### Automated Performance Tests
 
-**Unity Profiler Integration**:
+- *Unity Profiler Integration**:
 
 ```csharp
 [UnityTest]
@@ -144,9 +167,10 @@ public IEnumerator Performance_CombatScene_MaintainsFPS()
     var metrics = Measure.Custom(new SampleGroupDefinition("FPS"));
     Assert.Greater(metrics.Median, 30, "FPS should stay above 30");
 }
-```
 
-**Unreal Automation**:
+```bash
+
+- *Unreal Automation**:
 
 ```cpp
 bool FPerformanceTest::RunTest(const FString& Parameters)
@@ -166,28 +190,30 @@ bool FPerformanceTest::RunTest(const FString& Parameters)
 
     return true;
 }
-```
 
-**Godot Benchmark**:
+```bash
+
+- *Godot Benchmark**:
 
 ```gdscript
 func test_performance_entity_stress():
     var frame_times = []
 
-    # Spawn stress load
+# Spawn stress load
     for i in range(100):
         var entity = stress_entity.instantiate()
         add_child(entity)
 
-    # Collect frame times
+# Collect frame times
     for i in range(300):  # 5 seconds at 60fps
         await get_tree().process_frame
         frame_times.append(Performance.get_monitor(Performance.TIME_PROCESS))
 
-    # Analyze
+# Analyze
     var avg_frame_time = frame_times.reduce(func(a, b): return a + b) / frame_times.size()
     assert_lt(avg_frame_time, 0.033, "Average frame time under 33ms (30 FPS)")
-```
+
+```bash
 
 ### Manual Profiling Checklist
 
@@ -196,17 +222,17 @@ func test_performance_entity_stress():
    - [ ] Check GC frequency
    - [ ] Verify multithreading usage
 
-2. **GPU Profiling**
+1. **GPU Profiling**
    - [ ] Draw call count
    - [ ] Overdraw analysis
    - [ ] Shader complexity
 
-3. **Memory Profiling**
+1. **Memory Profiling**
    - [ ] Heap allocation patterns
    - [ ] Asset memory usage
    - [ ] Leak detection over time
 
----
+- --
 
 ## Step 4: Create Benchmark Suite
 
@@ -215,10 +241,15 @@ func test_performance_entity_stress():
 Create dedicated benchmark scenarios:
 
 | Benchmark       | Purpose                  | Duration |
+
 | --------------- | ------------------------ | -------- |
+
 | Combat Stress   | Max entities, effects    | 60s      |
+
 | Open World      | Draw distance, streaming | 120s     |
+
 | Menu Navigation | UI performance           | 30s      |
+
 | Save/Load       | Persistence performance  | 30s      |
 
 ### Baseline Capture
@@ -228,7 +259,7 @@ Create dedicated benchmark scenarios:
 3. Set regression thresholds (e.g., 10% degradation = fail)
 4. Integrate into CI pipeline
 
----
+- --
 
 ## Step 5: Platform-Specific Testing
 
@@ -253,13 +284,14 @@ Create dedicated benchmark scenarios:
 - Check battery impact
 - Test with background apps
 
----
+- --
 
 ## Step 6: Generate Performance Test Plan
 
 ### Document Structure
 
 ```markdown
+
 # Performance Test Plan: {Project Name}
 
 ## Performance Targets
@@ -305,18 +337,20 @@ Create dedicated benchmark scenarios:
 ## Schedule
 
 [When performance tests run, who reviews]
-```
 
----
+```bash
+
+- --
 
 ## Deliverables
 
-1. **Performance Test Plan** - Comprehensive strategy document
-2. **Benchmark Scenarios** - Reproducible test levels
-3. **Baseline Metrics** - Reference performance data
-4. **Automated Tests** - CI-integrated performance tests
+1. **Performance Test Plan**- Comprehensive strategy document
 
----
+2.**Benchmark Scenarios**- Reproducible test levels
+3.**Baseline Metrics**- Reference performance data
+4.**Automated Tests** - CI-integrated performance tests
+
+- --
 
 ## Validation
 

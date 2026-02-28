@@ -1,4 +1,5 @@
----
+- --
+
 name: 'step-01-load-brief'
 description: 'Load brief or user write-up, validate completeness'
 
@@ -10,7 +11,8 @@ moduleStandardsFile: '../data/module-standards.md'
 moduleYamlConventionsFile: '../data/module-yaml-conventions.md'
 advancedElicitationTask: '../../../../core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '../../../../core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 1: Load Brief (Create Mode)
 
@@ -52,15 +54,16 @@ Load the module brief (or get a detailed user write-up) and validate it has the 
 - Output: Module structure ready for implementation
 - This mode requires complete information to proceed
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
-**CRITICAL:** Follow this sequence exactly.
+- *CRITICAL:** Follow this sequence exactly.
 
 ### 1. Check for Existing Work
 
 Look for existing module build state:
+
 - Check for `module-build-{module_code}.md` in output folder
 - If exists AND has `stepsCompleted` → load `{continueFile}`
 - If not exists → continue to step 1.2
@@ -69,16 +72,17 @@ Look for existing module build state:
 
 "**Welcome to Create mode! I'll build your module structure from your brief.**"
 
-**"Where is your module brief?"**
+- *"Where is your module brief?"**
 
 Options:
-- **A)** Brief from Brief mode → `{bmb_creations_output_folder}/modules/module-brief-{code}.md`
-- **B)** User-provided write-up → Ask for path
+
+- **A)**Brief from Brief mode → `{bmb_creations_output_folder}/modules/module-brief-{code}.md`
+- **B)**User-provided write-up → Ask for path
 - **C)** Detailed description → User describes the module now
 
-**IF A or B:** Load and read the brief/write-up
+- *IF A or B:** Load and read the brief/write-up
 
-**IF C:** Gather the needed information through conversation:
+- *IF C:** Gather the needed information through conversation:
 - Module name and code
 - Module type (Standalone/Extension/Global)
 - Agent roster (roles, names)
@@ -89,7 +93,7 @@ Options:
 
 Load `{moduleStandardsFile}` and check that the brief contains:
 
-**Required Information:**
+- *Required Information:**
 - [ ] Module code and name
 - [ ] Module type (Standalone/Extension/Global)
 - [ ] Module vision/purpose
@@ -97,10 +101,10 @@ Load `{moduleStandardsFile}` and check that the brief contains:
 - [ ] Workflow list (at least core workflows)
 - [ ] Any special tools or integrations
 
-**IF Extension Module:**
+- *IF Extension Module:**
 - [ ] Base module code (for matching)
 
-**IF anything missing:**
+- *IF anything missing:**
 
 "**Your brief is missing some key information. Let me help you complete it.**"
 
@@ -118,7 +122,9 @@ Once validated:
 Create or update the build tracking file:
 
 ```yaml
----
+
+- --
+
 moduleCode: {code}
 moduleName: {name}
 moduleType: {type}
@@ -126,8 +132,10 @@ briefFile: {brief path or "user-provided"}
 stepsCompleted: ['step-01-load-brief']
 created: {date}
 status: IN_PROGRESS
----
-```
+
+- --
+
+```bash
 
 ### 5. Preview the Build Process
 
@@ -144,7 +152,7 @@ status: IN_PROGRESS
 
 ### 6. Present MENU OPTIONS
 
-**Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
+- *Select an Option:** [A] Advanced Elicitation [P] Party Mode [C] Continue
 
 #### EXECUTION RULES:
 
@@ -158,7 +166,7 @@ status: IN_PROGRESS
 - IF C: Update tracking file, then load `{nextStepFile}`
 - IF Any other: Help user, then redisplay menu
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -175,4 +183,4 @@ status: IN_PROGRESS
 - Missing key information (code, type, agents, workflows)
 - Not validating extension base module
 
-**Master Rule:** Garbage in, garbage out. Ensure we have complete information before building.
+- *Master Rule:** Garbage in, garbage out. Ensure we have complete information before building.

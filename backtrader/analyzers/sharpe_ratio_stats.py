@@ -168,9 +168,7 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
     return psr
 
 
-def min_track_record_length(
-    returns=None, sr_benchmark=0.0, prob=0.95, *, n=None, sr=None, sr_std=None
-):
+def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None, sr=None, sr_std=None):
     """
     Calculate the MIn Track Record Length (minTRL).
 
@@ -261,9 +259,7 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     return n
 
 
-def expected_maximum_sr(
-    trials_returns=None, expected_mean_sr=0.0, *, independent_trials=None, trials_sr_std=None
-):
+def expected_maximum_sr(trials_returns=None, expected_mean_sr=0.0, *, independent_trials=None, trials_sr_std=None):
     """
     Compute the expected maximum Sharpe ratio (Analytically)
 
@@ -296,9 +292,9 @@ def expected_maximum_sr(
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
 
-    max_z = (1 - emc) * scipy_stats.norm.ppf(
-        1 - 1.0 / independent_trials
-    ) + emc * scipy_stats.norm.ppf(1 - 1.0 / (independent_trials * np.e))
+    max_z = (1 - emc) * scipy_stats.norm.ppf(1 - 1.0 / independent_trials) + emc * scipy_stats.norm.ppf(
+        1 - 1.0 / (independent_trials * np.e)
+    )
     expected_max_sr = expected_mean_sr + (trials_sr_std * max_z)
 
     return expected_max_sr

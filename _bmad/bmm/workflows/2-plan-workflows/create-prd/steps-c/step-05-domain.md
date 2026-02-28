@@ -1,20 +1,24 @@
----
+- --
+
 name: 'step-05-domain'
 description: 'Explore domain-specific requirements for complex domains (optional step)'
 
 # File References
+
 nextStepFile: './step-06-innovation.md'
 outputFile: '{planning_artifacts}/prd.md'
 domainComplexityCSV: '../data/domain-complexity.csv'
 
 # Task References
+
 advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
 partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
----
+
+- --
 
 # Step 5: Domain-Specific Requirements (Optional)
 
-**Progress: Step 5 of 13** - Next: Innovation Focus
+- *Progress: Step 5 of 13**- Next: Innovation Focus
 
 ## STEP GOAL:
 
@@ -63,47 +67,50 @@ For complex domains only that have a mapping in {domainComplexityCSV}, explore d
 ## YOUR TASK:
 
 For complex domains, explore what makes this domain special:
-- **Compliance requirements** - regulations, standards, certifications
-- **Technical constraints** - security, privacy, integration requirements
-- **Domain patterns** - common patterns, best practices, anti-patterns
+
+- **Compliance requirements**- regulations, standards, certifications
+- **Technical constraints**- security, privacy, integration requirements
+- **Domain patterns**- common patterns, best practices, anti-patterns
 - **Risks and mitigations** - what could go wrong, how to prevent it
 
 ## DOMAIN DISCOVERY SEQUENCE:
 
 ### 1. Check Domain Complexity
 
-**Review classification from step-02:**
+- *Review classification from step-02:**
 
 - What's the domain complexity level? (low/medium/high)
 - What's the specific domain? (healthcare, fintech, education, etc.)
 
-**If complexity is LOW:**
+- *If complexity is LOW:**
 
 Offer to skip:
 "The domain complexity from our discovery is low. We may not need deep domain-specific requirements. Would you like to:
+
 - [C] Skip this step and move to Innovation
 - [D] Do domain exploration anyway"
 
-**If complexity is MEDIUM or HIGH:**
+- *If complexity is MEDIUM or HIGH:**
 
 Proceed with domain exploration.
 
 ### 2. Load Domain Reference Data
 
-**Attempt subprocess data lookup:**
+- *Attempt subprocess data lookup:**
 
 "Your task: Lookup data in {domainComplexityCSV}
 
-**Search criteria:**
+- *Search criteria:**
 - Find row where domain matches {{domainFromStep02}}
 
-**Return format:**
+- *Return format:**
+
 Return ONLY the matching row as a YAML-formatted object with these fields:
 domain, complexity, typical_concerns, compliance_requirements
 
-**Do NOT return the entire CSV - only the matching row.**"
+- *Do NOT return the entire CSV - only the matching row.**"
 
-**Graceful degradation (if Task tool unavailable):**
+- *Graceful degradation (if Task tool unavailable):**
 - Load the CSV file directly
 - Find the matching row manually
 - Extract required fields
@@ -111,15 +118,16 @@ domain, complexity, typical_concerns, compliance_requirements
 
 ### 3. Explore Domain-Specific Concerns
 
-**Start with what you know:**
+- *Start with what you know:**
 
 Acknowledge the domain and explore what makes it complex:
+
 - What regulations apply? (HIPAA, PCI-DSS, GDPR, SOX, etc.)
 - What standards matter? (ISO, NIST, domain-specific standards)
 - What certifications are needed? (security, privacy, domain-specific)
 - What integrations are required? (EMR systems, payment processors, etc.)
 
-**Explore technical constraints:**
+- *Explore technical constraints:**
 - Security requirements (encryption, audit logs, access control)
 - Privacy requirements (data handling, consent, retention)
 - Performance requirements (real-time, batch, latency)
@@ -127,25 +135,31 @@ Acknowledge the domain and explore what makes it complex:
 
 ### 4. Document Domain Requirements
 
-**Structure the requirements around key concerns:**
+- *Structure the requirements around key concerns:**
 
 ```markdown
+
 ### Compliance & Regulatory
+
 - [Specific requirements]
 
 ### Technical Constraints
+
 - [Security, privacy, performance needs]
 
 ### Integration Requirements
+
 - [Required systems and data flows]
 
 ### Risk Mitigations
+
 - [Domain-specific risks and how to address them]
-```
+
+```bash
 
 ### 5. Validate Completeness
 
-**Check with the user:**
+- *Check with the user:**
 
 "Are there other domain-specific concerns we should consider? For [this domain], what typically gets overlooked?"
 
@@ -154,12 +168,14 @@ Acknowledge the domain and explore what makes it complex:
 Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue - Save and Proceed to Innovation (Step 6 of 13)"
 
 #### Menu Handling Logic:
+
 - IF A: Read fully and follow: {advancedElicitationTask}, and when finished redisplay the menu
 - IF P: Read fully and follow: {partyModeWorkflow}, and when finished redisplay the menu
 - IF C: Save content to {outputFile}, update frontmatter, then read fully and follow: {nextStepFile}
 - IF Any other comments or queries: help user respond then [Redisplay Menu Options](#n-present-menu-options)
 
 #### EXECUTION RULES:
+
 - ALWAYS halt and wait for user input after presenting menu
 - ONLY proceed to next step when user selects 'C'
 - After other menu items execution, return to this menu
@@ -169,18 +185,19 @@ Display: "**Select:** [A] Advanced Elicitation [P] Party Mode [C] Continue - Sav
 When user selects 'C', append to `{outputFile}`:
 
 ```markdown
+
 ## Domain-Specific Requirements
 
 {{discovered domain requirements}}
-```
 
+```bash
 If step was skipped, append nothing and proceed.
 
 ## CRITICAL STEP COMPLETION NOTE
 
 ONLY WHEN [C continue option] is selected and [content saved or skipped], will you then read fully and follow: `{nextStepFile}` to explore innovation.
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS/FAILURE METRICS
 
@@ -204,4 +221,4 @@ ONLY WHEN [C continue option] is selected and [content saved or skipped], will y
 - Being generic instead of domain-specific
 - Proceeding without user validation
 
-**Master Rule:** This step is OPTIONAL for simple domains. For complex domains, focus on compliance, constraints, and domain patterns. Natural conversation, not checklists.
+- *Master Rule:** This step is OPTIONAL for simple domains. For complex domains, focus on compliance, constraints, and domain patterns. Natural conversation, not checklists.

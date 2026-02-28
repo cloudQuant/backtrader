@@ -1,8 +1,10 @@
----
+- --
+
 name: 'step-03-quality-evaluation'
 description: 'Orchestrate parallel quality dimension checks (4 subprocesses)'
 nextStepFile: './step-03f-aggregate-scores.md'
----
+
+- --
 
 # Step 3: Orchestrate Parallel Quality Evaluation
 
@@ -26,7 +28,7 @@ Coverage is intentionally excluded from this workflow and handled by `trace`.
 - ❌ Do NOT evaluate quality sequentially (use subprocesses)
 - ❌ Do NOT proceed until all subprocesses finish
 
----
+- --
 
 ## EXECUTION PROTOCOLS:
 
@@ -40,66 +42,69 @@ Coverage is intentionally excluded from this workflow and handled by `trace`.
 - Focus: subprocess orchestration only
 - Limits: do not evaluate quality directly (delegate to subprocesses)
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
 ### 1. Prepare Subprocess Inputs
 
-**Generate unique timestamp:**
+- *Generate unique timestamp:**
 
 ```javascript
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-```
 
-**Prepare context for all subprocesses:**
+```bash
+
+- *Prepare context for all subprocesses:**
 
 ```javascript
 const subprocessContext = {
-  test_files: /* from Step 2 */,
+  test_files: /*from Step 2*/,
   knowledge_fragments_loaded: ['test-quality'],
   timestamp: timestamp
 };
-```
 
----
+```bash
+
+- --
 
 ### 2. Launch 4 Parallel Quality Subprocesses
 
-**Subprocess A: Determinism**
+- *Subprocess A: Determinism**
 
 - File: `./step-03a-subprocess-determinism.md`
 - Output: `/tmp/tea-test-review-determinism-${timestamp}.json`
 - Status: Running in parallel... ⟳
 
-**Subprocess B: Isolation**
+- *Subprocess B: Isolation**
 
 - File: `./step-03b-subprocess-isolation.md`
 - Output: `/tmp/tea-test-review-isolation-${timestamp}.json`
 - Status: Running in parallel... ⟳
 
-**Subprocess C: Maintainability**
+- *Subprocess C: Maintainability**
 
 - File: `./step-03c-subprocess-maintainability.md`
 - Output: `/tmp/tea-test-review-maintainability-${timestamp}.json`
 - Status: Running in parallel... ⟳
 
-**Subprocess D: Performance**
+- *Subprocess D: Performance**
 
 - File: `./step-03e-subprocess-performance.md`
 - Output: `/tmp/tea-test-review-performance-${timestamp}.json`
 - Status: Running in parallel... ⟳
 
----
+- --
 
 ### 3. Wait for All Subprocesses
 
-```
+```bash
 ⏳ Waiting for 4 quality subprocesses to complete...
 ✅ All 4 quality subprocesses completed successfully!
-```
 
----
+```bash
+
+- --
 
 ### 4. Verify All Outputs Exist
 
@@ -113,21 +118,24 @@ outputs.forEach((output) => {
     throw new Error(`Subprocess output missing: ${output}`);
   }
 });
-```
 
----
+```bash
+
+- --
 
 ### 5. Performance Report
 
-```
+```bash
 🚀 Performance Report:
+
 - Execution Mode: PARALLEL (4 subprocesses)
 - Total Elapsed: ~max(all subprocesses) minutes
 - Sequential Would Take: ~sum(all subprocesses) minutes
 - Performance Gain: ~60-70% faster!
-```
 
----
+```bash
+
+- --
 
 ### 6. Proceed to Aggregation
 
@@ -142,7 +150,7 @@ The aggregation step (3F) will:
 - Aggregate violations by severity
 - Generate review report with top suggestions
 
----
+- --
 
 ## EXIT CONDITION
 
@@ -152,9 +160,9 @@ Proceed to Step 3F when:
 - ✅ All output files exist and are valid JSON
 - ✅ Performance metrics displayed
 
-**Do NOT proceed if any subprocess failed.**
+- *Do NOT proceed if any subprocess failed.**
 
----
+- --
 
 ## 🚨 SYSTEM SUCCESS METRICS
 
@@ -170,4 +178,4 @@ Proceed to Step 3F when:
 - Output files missing or invalid
 - Sequential evaluation instead of parallel
 
-**Master Rule:** Parallel subprocess execution is MANDATORY for performance.
+- *Master Rule:** Parallel subprocess execution is MANDATORY for performance.

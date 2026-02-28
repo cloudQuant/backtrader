@@ -1,11 +1,13 @@
----
+- --
+
 name: 'step-02-structure'
 description: 'Create directory structure based on module type'
 
 nextStepFile: './step-03-config.md'
 moduleStandardsFile: '../data/module-standards.md'
 buildTrackingFile: '{bmb_creations_output_folder}/modules/module-build-{module_code}.md'
----
+
+- --
 
 # Step 2: Directory Structure
 
@@ -29,7 +31,7 @@ Create the module directory structure based on the module type (Standalone/Exten
 - ✅ Structure follows standards
 - ✅ Confirm before creating
 
----
+- --
 
 ## MANDATORY SEQUENCE
 
@@ -37,15 +39,15 @@ Create the module directory structure based on the module type (Standalone/Exten
 
 Load `{moduleStandardsFile}` and determine location:
 
-**IF Standalone:**
+- *IF Standalone:**
 - Target: `src/modules/{module_code}/`
 
-**IF Extension:**
+- *IF Extension:**
 - Target: `src/modules/{base_module_code}/extensions/{extension_folder_name}/`
 - Get base_module_code from brief
 - extension_folder_name: unique name (e.g., `{base_module}-{feature}`)
 
-**IF Global:**
+- *IF Global:**
 - Target: `src/modules/{module_code}/`
 - Will add `global: true` to module.yaml
 
@@ -53,7 +55,7 @@ Load `{moduleStandardsFile}` and determine location:
 
 "**I'll create this directory structure:**"
 
-```
+```bash
 {target_location}/
 ├── module.yaml
 ├── README.md
@@ -61,8 +63,8 @@ Load `{moduleStandardsFile}` and determine location:
 │   └── {agent files}
 └── workflows/
     └── {workflow folders}
-```
 
+```bash
 "**Location:** {target_location}"
 "**Module type:** {Standalone/Extension/Global}"
 
@@ -70,15 +72,17 @@ Load `{moduleStandardsFile}` and determine location:
 
 "**Shall I create the directory structure?**"
 
-**IF confirmed:**
+- *IF confirmed:**
 
 Create folders:
+
 - `{target_location}/agents/`
 - `{target_location}/workflows/`
 
 ### 4. Update Build Tracking
 
 Update `{buildTrackingFile}`:
+
 - Add 'step-02-structure' to stepsCompleted
 - Set targetLocation
 - Update status
@@ -89,12 +93,12 @@ Update `{buildTrackingFile}`:
 
 ### 6. MENU OPTIONS
 
-**Select an Option:** [C] Continue
+- *Select an Option:** [C] Continue
 
 - IF C: Update tracking, load `{nextStepFile}`
 - IF Any other: Help, then redisplay menu
 
----
+- --
 
 ## Success Metrics
 

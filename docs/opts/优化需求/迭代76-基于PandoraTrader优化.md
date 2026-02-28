@@ -1,175 +1,202 @@
 ### 背景
-backtrader已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化backtrader。
+
+backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项目的优势，继续改进优化 backtrader。
+
 ### 任务
-1. 阅读研究分析backtrader这个项目的源代码，了解这个项目。
+
+1. 阅读研究分析 backtrader 这个项目的源代码，了解这个项目。
 2. 阅读研究分析/Users/yunjinqi/Documents/量化交易框架/PandoraTrader
-3. 借鉴这个新项目的优点和功能，给backtrader优化改进提供新的建议
+3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-### PandoraTrader项目简介
-PandoraTrader是一个C++实现的高性能量化交易框架，具有以下核心特点：
-- **C++实现**: 高性能C++实现
-- **CTP接口**: 支持CTP期货交易接口
+### PandoraTrader 项目简介
+
+PandoraTrader 是一个 C++实现的高性能量化交易框架，具有以下核心特点：
+
+- **C++实现**: 高性能 C++实现
+- **CTP 接口**: 支持 CTP 期货交易接口
 - **多策略**: 支持多策略并行运行
 - **风控模块**: 内置风险控制模块
 - **行情处理**: 高效行情数据处理
 - **订单管理**: 完善的订单管理系统
 
 ### 重点借鉴方向
+
 1. **高性能**: C++性能优化技术
-2. **CTP集成**: CTP接口集成方式
+2. **CTP 集成**: CTP 接口集成方式
 3. **多策略**: 多策略管理架构
 4. **风控系统**: 风险控制模块设计
 5. **行情处理**: 高效行情处理
 6. **订单系统**: 订单管理系统设计
 
----
+- --
 
 ## 框架对比分析
 
 ### 架构设计对比
 
 | 维度 | backtrader | PandoraTrader |
+
 |------|-----------|---------------|
-| **实现语言** | Python | C++ |
-| **定位** | 中低频回测 | 高频交易 |
-| **接口支持** | 多种 | CTP为主 |
-| **多策略** | Cerebro多策略 | Agent系统 |
-| **风控** | 基础 | 多层风控 |
-| **行情处理** | 回测时处理 | 实时异步处理 |
-| **订单管理** | Broker内置 | 独立订单系统 |
-| **性能优化** | Cython扩展 | 无锁+TBB |
 
-### backtrader的优势
-1. **易用性**: Python语言，API简洁直观
-2. **灵活性**: 易于扩展和定制
-3. **社区支持**: 大量第三方库和文档
-4. **快速开发**: 开发效率高，原型验证快
-5. **跨平台**: 纯Python，无编译依赖
+| **实现语言**| Python | C++ |
 
-### PandoraTrader的优势
+|**定位**| 中低频回测 | 高频交易 |
+
+|**接口支持**| 多种 | CTP 为主 |
+
+|**多策略**| Cerebro 多策略 | Agent 系统 |
+
+|**风控**| 基础 | 多层风控 |
+
+|**行情处理**| 回测时处理 | 实时异步处理 |
+
+|**订单管理**| Broker 内置 | 独立订单系统 |
+
+|**性能优化**| Cython 扩展 | 无锁+TBB |
+
+### backtrader 的优势
+
+1.**易用性**: Python 语言，API 简洁直观
+
+1. **灵活性**: 易于扩展和定制
+2. **社区支持**: 大量第三方库和文档
+3. **快速开发**: 开发效率高，原型验证快
+4. **跨平台**: 纯 Python，无编译依赖
+
+### PandoraTrader 的优势
+
 1. **极致性能**: C++实现，微秒级延迟
 2. **实时交易**: 生产级实盘交易系统
 3. **风控完善**: 多层风控保护机制
-4. **CTP深度集成**: 专为CTP接口优化
+4. **CTP 深度集成**: 专为 CTP 接口优化
 5. **高频优化**: 无锁数据结构、内存池等
-6. **多策略隔离**: Agent系统实现策略隔离
+6. **多策略隔离**: Agent 系统实现策略隔离
 
----
+- --
 
 ## 需求规格文档
 
-### 需求1: 高性能Cython扩展模块
+### 需求 1: 高性能 Cython 扩展模块
 
-**需求描述**:
-使用Cython编写关键路径的高性能扩展模块，提升backtrader的执行效率。
+- *需求描述**:
 
-**功能需求**:
-1. **指标计算加速**: 将常用技术指标用Cython重写
+使用 Cython 编写关键路径的高性能扩展模块，提升 backtrader 的执行效率。
+
+- *功能需求**:
+1. **指标计算加速**: 将常用技术指标用 Cython 重写
 2. **数据处理优化**: 优化数据预处理和转换
 3. **无锁数据结构**: 使用原子操作实现线程安全
 4. **内存池**: 实现对象池减少内存分配
-5. **编译优化**: 支持SSE/AVX指令集优化
+5. **编译优化**: 支持 SSE/AVX 指令集优化
 
-**非功能需求**:
-- 性能提升: 关键路径性能提升5-10倍
-- 兼容性: 与纯Python API完全兼容
+- *非功能需求**:
+- 性能提升: 关键路径性能提升 5-10 倍
+- 兼容性: 与纯 Python API 完全兼容
 - 可选安装: 独立扩展包，不强制安装
 
-### 需求2: CTP接口增强支持
+### 需求 2: CTP 接口增强支持
 
-**需求描述**:
-增强对CTP接口的支持，提供更专业的中国期货交易功能。
+- *需求描述**:
 
-**功能需求**:
-1. **CTP接口适配**: 完整的CTP行情和交易接口
-2. **合约映射**: 自动映射CTP合约代码
+增强对 CTP 接口的支持，提供更专业的中国期货交易功能。
+
+- *功能需求**:
+1. **CTP 接口适配**: 完整的 CTP 行情和交易接口
+2. **合约映射**: 自动映射 CTP 合约代码
 3. **席位管理**: 支持多席位登录管理
 4. **行情订阅**: 高效的行情订阅和过滤
-5. **报单类型**: 支持FOK、FAK等CTP特有订单类型
+5. **报单类型**: 支持 FOK、FAK 等 CTP 特有订单类型
 
-**非功能需求**:
+- *非功能需求**:
 - 稳定性: 保持长时间连接稳定
 - 断线重连: 自动重连机制
 - 日志记录: 完整的接口调用日志
 
-### 需求3: 多策略隔离系统
+### 需求 3: 多策略隔离系统
 
-**需求描述**:
+- *需求描述**:
+
 实现策略级别的隔离机制，支持多策略并行运行。
 
-**功能需求**:
-1. **Agent系统**: 每个策略对应一个Agent
+- *功能需求**:
+1. **Agent 系统**: 每个策略对应一个 Agent
 2. **持仓隔离**: 各策略独立管理持仓和资金
 3. **订单隔离**: 订单归属到对应策略
 4. **风险隔离**: 单策略风险不影响其他策略
 5. **性能监控**: 监控各策略资源使用
 
-**非功能需求**:
+- *非功能需求**:
 - 资源控制: 限制单策略资源占用
 - 故障隔离: 策略异常不影响其他策略
 
-### 需求4: 风控系统模块
+### 需求 4: 风控系统模块
 
-**需求描述**:
+- *需求描述**:
+
 实现多层次的风险控制模块，保护交易安全。
 
-**功能需求**:
+- *功能需求**:
 1. **撤单限制**: 限制单位时间撤单次数
 2. **报单限制**: 限制单位时间报单数量
 3. **订单速度限制**: 控制下单频率
 4. **持仓限制**: 实时监控和限制持仓
 5. **资金保护**: 实时监控资金使用
 
-**非功能需求**:
+- *非功能需求**:
 - 实时性: 风控检查延迟<1ms
 - 可配置: 所有风控参数可配置
 
-### 需求5: 高级行情处理
+### 需求 5: 高级行情处理
 
-**需求描述**:
+- *需求描述**:
+
 实现高性能的实时行情处理机制。
 
-**功能需求**:
+- *功能需求**:
 1. **异步处理**: 独立线程处理行情更新
 2. **双缓冲队列**: 使用无锁队列缓存行情
 3. **数据过滤**: 过滤无效和异常行情数据
 4. **行情分发**: 高效分发到多个策略
 5. **增量更新**: 只更新变化的行情数据
 
-**非功能需求**:
-- 延迟控制: 行情处理延迟<100微秒
-- 吞吐量: 支持10万+tick/秒
+- *非功能需求**:
+- 延迟控制: 行情处理延迟<100 微秒
+- 吞吐量: 支持 10 万+tick/秒
 
-### 需求6: 订单管理系统增强
+### 需求 6: 订单管理系统增强
 
-**需求描述**:
+- *需求描述**:
+
 增强订单管理功能，支持更复杂的订单场景。
 
-**功能需求**:
+- *功能需求**:
 1. **订单状态机**: 完整的订单状态管理
 2. **订单队列**: 支持订单队列和批量处理
 3. **条件单**: 支持止损止盈等条件单
-4. **OCO订单**: 支持二选一订单
+4. **OCO 订单**: 支持二选一订单
 5. **冰山订单**: 支持大单拆分
 
-**非功能需求**:
+- *非功能需求**:
 - 订单可靠性: 订单不丢失不重复
 - 状态一致性: 订单状态始终一致
 
----
+- --
 
 ## 设计文档
 
-### 1. 高性能Cython扩展设计
+### 1. 高性能 Cython 扩展设计
 
 #### 1.1 核心数据结构优化
 
 ```python
+
 # backtrader/ext/cython/core.pyx
 
 # cython: language_level=3
+
 # distutils: language = c++
+
 # distutils: include_dirs = /usr/local/include
 
 from libc.stdint cimport int32_t, int64_t
@@ -181,7 +208,7 @@ cimport numpy as cnp
 cdef class FastLineBuffer:
     """高性能行缓冲区
 
-    使用Cython实现，避免Python开销
+    使用 Cython 实现，避免 Python 开销
     """
     cdef:
         double* _data  # 数据指针
@@ -206,14 +233,14 @@ cdef class FastLineBuffer:
             free(self._data)
 
     cdef inline void push(self, double value) nogil:
-        """添加数据（无GIL）"""
+        """添加数据（无 GIL）"""
         self._data[self._index] = value
         self._index = (self._index + 1) % self._size
         if self._len < self._size:
             self._len += 1
 
     cdef inline double get(self, int32_t index) nogil:
-        """获取数据（无GIL）"""
+        """获取数据（无 GIL）"""
         if index >= self._len or index < 0:
             return 0.0
         actual_index = self._index - 1 - index
@@ -222,7 +249,7 @@ cdef class FastLineBuffer:
         return self._data[actual_index]
 
     cdef inline double last(self) nogil:
-        """获取最新数据（无GIL）"""
+        """获取最新数据（无 GIL）"""
         if self._len == 0:
             return 0.0
         return self.get(0)
@@ -237,8 +264,9 @@ cdef class FastLineBuffer:
 
 
 # 高性能指标计算
+
 cdef inline double calc_sma(double* data, int32_t size, int32_t period) nogil:
-    """计算SMA（无GIL）"""
+    """计算 SMA（无 GIL）"""
     cdef:
         double sum_val = 0.0
         int32_t i
@@ -249,9 +277,9 @@ cdef inline double calc_sma(double* data, int32_t size, int32_t period) nogil:
 
 
 def fast_sma(double[:] data, int32_t period):
-    """快速SMA计算
+    """快速 SMA 计算
 
-    使用Cython实现，避免Python循环开销
+    使用 Cython 实现，避免 Python 循环开销
     """
     cdef:
         int32_t size = data.shape[0]
@@ -265,14 +293,17 @@ def fast_sma(double[:] data, int32_t period):
             result[i] = np.nan
 
     return np.asarray(result)
-```
+
+```bash
 
 #### 1.2 无锁数据结构
 
 ```python
+
 # backtrader/ext/cython/atomic.pyx
 
 # cython: language_level=3
+
 from libc.stdint cimport int32_t, int64_t
 from cython.operator cimport preincrement as preinc
 import threading
@@ -288,21 +319,21 @@ cdef class AtomicInt:
         self._lock = threading.Lock()
 
     cdef inline int32_t get(self) nogil:
-        """获取值（无GIL）"""
+        """获取值（无 GIL）"""
         return self._value
 
     cdef inline int32_t increment(self) nogil:
-        """原子递增（无GIL）
+        """原子递增（无 GIL）
 
-        注意: 在Python中真正的原子操作需要特殊处理
-        这里使用GIL保证线程安全
+        注意: 在 Python 中真正的原子操作需要特殊处理
+        这里使用 GIL 保证线程安全
         """
         with self._lock:
             self._value += 1
             return self._value
 
     cdef inline int32_t add(self, int32_t delta) nogil:
-        """原子加法（无GIL）"""
+        """原子加法（无 GIL）"""
         with self._lock:
             self._value += delta
             return self._value
@@ -335,13 +366,15 @@ cdef class AtomicCounter:
     cdef inline int64_t get(self) nogil:
         """获取计数值"""
         return self._count
-```
 
-### 2. CTP接口增强设计
+```bash
 
-#### 2.1 CTP接口适配器
+### 2. CTP 接口增强设计
+
+#### 2.1 CTP 接口适配器
 
 ```python
+
 # backtrader/stores/ctpstore.py
 
 from typing import Dict, Optional, List, Any
@@ -356,9 +389,9 @@ from .ctpapi import (
 
 
 class CTPStore(with_metaclass(MetaSingleton, object)):
-    """CTP接口存储管理器
+    """CTP 接口存储管理器
 
-    单例模式，管理CTP行情和交易接口
+    单例模式，管理 CTP 行情和交易接口
     """
 
     def __init__(self):
@@ -371,8 +404,8 @@ class CTPStore(with_metaclass(MetaSingleton, object)):
         """连接行情接口
 
         Args:
-            broker_id: 券商ID
-            app_id: 应用ID
+            broker_id: 券商 ID
+            app_id: 应用 ID
             auth_code: 授权码
             md_address: 行情地址列表
             flow_path: 流文件路径
@@ -417,7 +450,7 @@ class CTPStore(with_metaclass(MetaSingleton, object)):
         return True
 
     def get_tick(self, instrument: str) -> Optional[Dict]:
-        """获取最新tick数据"""
+        """获取最新 tick 数据"""
         for md_store in self._md_stores.values():
             tick = md_store.get_last_tick(instrument)
             if tick:
@@ -436,7 +469,7 @@ class CTPStore(with_metaclass(MetaSingleton, object)):
             order_type: 订单类型 (limit/fok/fak)
 
         Returns:
-            订单引用ID
+            订单引用 ID
         """
         if not self._trade_store:
             return None
@@ -455,11 +488,13 @@ class CTPStore(with_metaclass(MetaSingleton, object)):
             return False
 
         return self._trade_store.cancel_order(order_ref)
-```
 
-#### 2.2 CTP数据源
+```bash
+
+#### 2.2 CTP 数据源
 
 ```python
+
 # backtrader/feeds/ctpfeed.py
 
 from backtrader.feed import DataBase
@@ -467,33 +502,33 @@ from backtrader.stores.ctpstore import CTPStore
 from ..utils.py3 import date2num
 
 class CTPFeed(DataBase):
-    """CTP实时数据源
+    """CTP 实时数据源
 
-    支持CTP接口的实时行情数据
+    支持 CTP 接口的实时行情数据
     """
 
     params = (
         ('broker_id', ''),
         ('instrument', ''),
-        ('store', None),  # CTPStore实例
+        ('store', None),  # CTPStore 实例
     )
 
     datacls = CTPStore  # 存储类
 
     def _load(self):
-        """加载CTP数据"""
+        """加载 CTP 数据"""
         if self.p.store is None:
             self.p.store = CTPStore()
 
-        # 获取合约信息
+# 获取合约信息
         contract = self.p.store.get_contract(self.p.instrument)
         if contract:
             self._update_contract_info(contract)
 
-        # 订阅行情
+# 订阅行情
         self.p.store.subscribe_market_data([self.p.instrument])
 
-        # 设置数据线名称
+# 设置数据线名称
         self._name = self.params.instrument
 
     def haslivedata(self):
@@ -504,7 +539,8 @@ class CTPFeed(DataBase):
         """处理实时数据"""
         tick = self.p.store.get_tick(self.p.instrument)
         if tick:
-            # 更新数据线
+
+# 更新数据线
             self.lines.datetime[0] = date2num(tick['datetime'])
             self.lines.open[0] = tick['open']
             self.lines.high[0] = tick['high']
@@ -515,13 +551,15 @@ class CTPFeed(DataBase):
 
             return True
         return False
-```
+
+```bash
 
 ### 3. 多策略隔离系统设计
 
-#### 3.1 Agent管理系统
+#### 3.1 Agent 管理系统
 
 ```python
+
 # backtrader/agent/agent_manager.py
 
 from typing import Dict, Optional, List
@@ -533,28 +571,29 @@ from ..strategy import Strategy
 
 
 class AgentManager:
-    """Agent管理器
+    """Agent 管理器
 
-    管理多个Agent（策略实例），实现隔离
+    管理多个 Agent（策略实例），实现隔离
     """
 
     def __init__(self):
-        # Agent注册表: {instrument: [agents]}
+
+# Agent 注册表: {instrument: [agents]}
         self._agent_map: Dict[str, List[Agent]] = defaultdict(list)
 
-        # 独占Agent: {instrument: agent}
+# 独占 Agent: {instrument: agent}
         self._monopoly_agents: Dict[str, Optional[Agent]] = {}
 
-        # 订单到Agent的映射
+# 订单到 Agent 的映射
         self._order_to_agent: Dict[str, str] = {}
 
-        # 持仓到Agent的映射
+# 持仓到 Agent 的映射
         self._position_to_agent: Dict[str, str] = {}
 
-        # 资金分配
+# 资金分配
         self._agent_capital: Dict[str, float] = {}
 
-        # 锁
+# 锁
         self._lock = threading.RLock()
 
     def register_agent(
@@ -563,10 +602,10 @@ class AgentManager:
         instruments: List[str],
         monopoly: bool = False
     ) -> bool:
-        """注册Agent
+        """注册 Agent
 
         Args:
-            agent: Agent实例
+            agent: Agent 实例
             instruments: 交易合约列表
             monopoly: 是否独占合约
 
@@ -576,20 +615,23 @@ class AgentManager:
         with self._lock:
             for instrument in instruments:
                 if monopoly:
-                    # 独占模式，该合约只能有一个Agent
+
+# 独占模式，该合约只能有一个 Agent
                     if instrument in self._monopoly_agents:
                         return False
                     self._monopoly_agents[instrument] = agent
                 else:
-                    # 共享模式，多个Agent可以交易同一合约
+
+# 共享模式，多个 Agent 可以交易同一合约
                     self._agent_map[instrument].append(agent)
 
             return True
 
     def unregister_agent(self, agent: Agent):
-        """注销Agent"""
+        """注销 Agent"""
         with self._lock:
-            # 移除独占Agent
+
+# 移除独占 Agent
             instruments_to_remove = []
             for inst, mon_agent in self._monopoly_agents.items():
                 if mon_agent is agent:
@@ -598,17 +640,18 @@ class AgentManager:
             for inst in instruments_to_remove:
                 del self._monopoly_agents[inst]
 
-            # 移除共享Agent
+# 移除共享 Agent
             for agents in self._agent_map.values():
                 if agent in agents:
                     agents.remove(agent)
 
     def get_agent_by_order(self, order_ref: str) -> Optional[Agent]:
-        """根据订单引用获取Agent"""
+        """根据订单引用获取 Agent"""
         with self._lock:
             agent_id = self._order_to_agent.get(order_ref)
             if agent_id:
-                # 遍历查找Agent实例
+
+# 遍历查找 Agent 实例
                 for agents in self._agent_map.values():
                     for agent in agents:
                         if agent.agent_id == agent_id:
@@ -619,23 +662,26 @@ class AgentManager:
         return None
 
     def allocate_capital(self, agent: Agent, capital: float):
-        """分配资金给Agent"""
+        """分配资金给 Agent"""
         with self._lock:
             self._agent_capital[agent.agent_id] = capital
 
     def get_agent_capital(self, agent: Agent) -> float:
-        """获取Agent资金"""
+        """获取 Agent 资金"""
         return self._agent_capital.get(agent.agent_id, 0.0)
 
     def get_agent_position(self, agent: Agent, instrument: str) -> float:
-        """获取Agent持仓"""
-        # 计算该Agent在指定合约的持仓
-        return 0.0  # 实现中需要从持仓记录中计算
-```
+        """获取 Agent 持仓"""
 
-#### 3.2 Agent基类
+# 计算该 Agent 在指定合约的持仓
+        return 0.0  # 实现中需要从持仓记录中计算
+
+```bash
+
+#### 3.2 Agent 基类
 
 ```python
+
 # backtrader/agent/agent.py
 
 from typing import Optional, Dict, List, Callable
@@ -647,35 +693,35 @@ from ..trade import Trade
 
 
 class Agent:
-    """Agent基类
+    """Agent 基类
 
-    每个策略实例对应一个Agent，负责管理该策略的订单、持仓和资金
+    每个策略实例对应一个 Agent，负责管理该策略的订单、持仓和资金
     """
 
     def __init__(self, strategy):
-        """初始化Agent
+        """初始化 Agent
 
         Args:
             strategy: 策略实例
         """
         self.strategy = strategy
-        self.agent_id = str(uuid.uuid4())  # 唯一ID
+        self.agent_id = str(uuid.uuid4())  # 唯一 ID
 
-        # 订单管理
+# 订单管理
         self._orders: Dict[str, Order] = {}
         self._order_lock = Lock()
 
-        # 持仓管理
+# 持仓管理
         self._positions: Dict[str, float] = {}
 
-        # 成交记录
+# 成交记录
         self._trades: List[Trade] = []
 
-        # 资金
+# 资金
         self._cash = 0.0
         self._value = 0.0
 
-        # 回调
+# 回调
         self._on_order_callback: Optional[Callable] = None
         self._on_trade_callback: Optional[Callable] = None
 
@@ -701,7 +747,7 @@ class Agent:
         """买入
 
         Returns:
-            订单引用ID
+            订单引用 ID
         """
         order_ref = f"{self.agent_id}_{len(self._orders)}"
 
@@ -718,7 +764,7 @@ class Agent:
         with self._order_lock:
             self._orders[order_ref] = order
 
-        # 通知下单
+# 通知下单
         if self._on_order_callback:
             self._on_order_callback(order)
 
@@ -762,7 +808,7 @@ class Agent:
             if order:
                 order.status = status
 
-                # 如果成交，更新持仓
+# 如果成交，更新持仓
                 if status == 'filled':
                     if order.direction == 'buy':
                         self._positions[order.instrument] = \
@@ -771,7 +817,7 @@ class Agent:
                         self._positions[order.instrument] = \
                             self._positions.get(order.instrument, 0) - order.volume
 
-                # 移除已完成订单
+# 移除已完成订单
                 if status in ['filled', 'cancelled', 'rejected']:
                     del self._orders[order_ref]
 
@@ -789,13 +835,15 @@ class Agent:
     def set_trade_callback(self, callback: Callable):
         """设置成交回调"""
         self._on_trade_callback = callback
-```
+
+```bash
 
 ### 4. 风控系统设计
 
 #### 4.1 风控规则引擎
 
 ```python
+
 # backtrader/risk/engine.py
 
 from typing import Dict, List, Optional, Callable
@@ -842,14 +890,14 @@ class CancelLimitRule(RiskRule):
             key = f"{agent_id}_{instrument}"
             now = datetime.now()
 
-            # 清理过期记录
+# 清理过期记录
             if key in self._cancel_count:
                 self._cancel_count[key] = [
                     t for t in self._cancel_count[key]
                     if now - t < timedelta(seconds=self.window)
                 ]
 
-            # 检查限制
+# 检查限制
             count = len(self._cancel_count.get(key, []))
             if count >= self.max_cancel:
                 return False, f"撤单次数超限: {count}/{self.max_cancel}"
@@ -880,14 +928,14 @@ class OrderSpeedLimitRule(RiskRule):
         with self._lock:
             now = datetime.now().timestamp()
 
-            # 清理1秒前的记录
+# 清理 1 秒前的记录
             if agent_id in self._order_times:
                 self._order_times[agent_id] = [
                     t for t in self._order_times[agent_id]
                     if now - t < 1.0
                 ]
 
-            # 检查限制
+# 检查限制
             count = len(self._order_times.get(agent_id, []))
             if count >= self.max_per_second:
                 return False, f"下单速度过快: {count}/{self.max_per_second}/s"
@@ -982,13 +1030,15 @@ class RiskEngine:
             for rule in self._rules:
                 if hasattr(rule, 'record_cancel'):
                     rule.record_cancel(agent_id, instrument)
-```
+
+```bash
 
 ### 5. 高级行情处理设计
 
 #### 5.1 异步行情处理器
 
 ```python
+
 # backtrader/data/tick_processor.py
 
 import threading
@@ -1003,7 +1053,7 @@ from ..utils.date2num import date2num
 
 @dataclass
 class Tick:
-    """Tick数据结构"""
+    """Tick 数据结构"""
     instrument: str
     datetime: float
     last_price: float
@@ -1019,26 +1069,27 @@ class Tick:
 
 
 class TickProcessor:
-    """高性能Tick处理器
+    """高性能 Tick 处理器
 
     使用独立线程处理行情数据
     """
 
     def __init__(self, queue_size: int = 100000):
-        # 无界队列（或设置大容量）
+
+# 无界队列（或设置大容量）
         self._tick_queue: queue.Queue = queue.Queue(maxsize=queue_size)
 
-        # 订阅者: {instrument: [callbacks]}
+# 订阅者: {instrument: [callbacks]}
         self._subscribers: Dict[str, List[Callable]] = defaultdict(list)
 
-        # 最新行情缓存
+# 最新行情缓存
         self._last_tick: Dict[str, Tick] = {}
 
-        # 处理线程
+# 处理线程
         self._thread: Optional[threading.Thread] = None
         self._running = False
 
-        # 统计
+# 统计
         self._processed_count = 0
         self._dropped_count = 0
 
@@ -1072,7 +1123,7 @@ class TickProcessor:
             self._subscribers[instrument].remove(callback)
 
     def push_tick(self, tick: Tick):
-        """推送tick数据
+        """推送 tick 数据
 
         来自数据源
         """
@@ -1082,20 +1133,21 @@ class TickProcessor:
             self._dropped_count += 1
 
     def get_last_tick(self, instrument: str) -> Optional[Tick]:
-        """获取最新tick"""
+        """获取最新 tick"""
         return self._last_tick.get(instrument)
 
     def _run_loop(self):
         """处理循环"""
         while self._running:
             try:
-                # 使用超时避免阻塞
+
+# 使用超时避免阻塞
                 tick = self._tick_queue.get(timeout=0.1)
 
-                # 更新缓存
+# 更新缓存
                 self._last_tick[tick.instrument] = tick
 
-                # 分发给订阅者
+# 分发给订阅者
                 callbacks = self._subscribers.get(tick.instrument, [])
                 for callback in callbacks:
                     try:
@@ -1108,7 +1160,8 @@ class TickProcessor:
             except queue.Empty:
                 continue
             except Exception as e:
-                # 错误处理
+
+# 错误处理
                 time.sleep(0.01)
 
     def get_stats(self) -> Dict[str, int]:
@@ -1121,50 +1174,53 @@ class TickProcessor:
 
 
 class TickDataFilter:
-    """Tick数据过滤器
+    """Tick 数据过滤器
 
     过滤无效和异常行情数据
     """
 
     def __init__(self):
         self._last_prices: Dict[str, float] = {}
-        self._max_change_pct = 0.2  # 最大涨跌幅20%
+        self._max_change_pct = 0.2  # 最大涨跌幅 20%
 
     def validate(self, tick: Tick) -> bool:
-        """验证tick数据是否有效
+        """验证 tick 数据是否有效
 
         Returns:
-            True表示有效，False表示无效
+            True 表示有效，False 表示无效
         """
-        # 检查价格是否为正数
+
+# 检查价格是否为正数
         if tick.last_price <= 0:
             return False
 
-        # 检查OHLC逻辑
+# 检查 OHLC 逻辑
         if tick.high_price < tick.low_price:
             return False
 
         if tick.last_price > tick.high_price or tick.last_price < tick.low_price:
             return False
 
-        # 检查价格跳变
+# 检查价格跳变
         last_price = self._last_prices.get(tick.instrument)
         if last_price:
             change_pct = abs(tick.last_price - last_price) / last_price
             if change_pct > self._max_change_pct:
                 return False  # 价格跳变过大，可能是异常数据
 
-        # 更新最新价
+# 更新最新价
         self._last_prices[tick.instrument] = tick.last_price
 
         return True
-```
+
+```bash
 
 ### 6. 订单管理系统增强
 
 #### 6.1 订单状态机
 
 ```python
+
 # backtrader/order/order_manager.py
 
 from enum import Enum
@@ -1195,7 +1251,7 @@ class OrderStateMachine:
     管理订单状态转换，确保状态一致性
     """
 
-    # 定义合法的状态转换
+# 定义合法的状态转换
     VALID_TRANSITIONS = {
         OrderState.CREATED: [OrderState.SUBMITTED, OrderState.CANCELLED],
         OrderState.SUBMITTED: [OrderState.ACCEPTED, OrderState.REJECTED],
@@ -1228,28 +1284,30 @@ class OrderStateMachine:
             转换是否成功
         """
         with self._lock:
-            # 检查转换是否合法
+
+# 检查转换是否合法
             valid_next_states = self.VALID_TRANSITIONS.get(self._state, [])
             if new_state not in valid_next_states and new_state != self._state:
                 return False
 
-            # 执行转换
+# 执行转换
             old_state = self._state
             self._state = new_state
             self._state_history.append((new_state, datetime.now()))
 
-            # 通知状态变化
+# 通知状态变化
             self._notify_state_change(old_state, new_state, reason)
 
             return True
 
     def _notify_state_change(self, old_state: OrderState, new_state: OrderState, reason: str):
         """通知状态变化"""
-        # 更新订单状态
+
+# 更新订单状态
         if hasattr(self.order, 'status'):
             self.order.status = new_state.value
 
-        # 触发回调
+# 触发回调
         if hasattr(self.order, 'on_status_changed'):
             self.order.on_status_changed(old_state, new_state, reason)
 
@@ -1261,25 +1319,26 @@ class OrderManager:
     """
 
     def __init__(self):
-        # 系统订单ID到订单的映射
+
+# 系统订单 ID 到订单的映射
         self._orders: Dict[str, Order] = {}
 
-        # 活跃订单
+# 活跃订单
         self._active_orders: Dict[str, Order] = {}
 
-        # 已完成订单
+# 已完成订单
         self._completed_orders: List[Order] = []
 
-        # 订单状态机
+# 订单状态机
         self._state_machines: Dict[str, OrderStateMachine] = {}
 
-        # 成交记录
+# 成交记录
         self._trades: Dict[str, Trade] = {}
 
-        # 锁
+# 锁
         self._lock = Lock()
 
-        # 回调
+# 回调
         self._on_order_callback: Optional[Callable] = None
         self._on_trade_callback: Optional[Callable] = None
 
@@ -1311,7 +1370,8 @@ class OrderManager:
             return False
 
         if state_machine.transition_to(OrderState.SUBMITTED, "submit"):
-            # 触发回调
+
+# 触发回调
             if self._on_order_callback:
                 self._on_order_callback(order)
             return True
@@ -1324,13 +1384,14 @@ class OrderManager:
             return False
 
         if state_machine.transition_to(OrderState.CANCELLED, "cancel"):
-            # 移出活跃订单
+
+# 移出活跃订单
             with self._lock:
                 if order_id in self._active_orders:
                     del self._active_orders[order_id]
                     self._completed_orders.append(self._orders[order_id])
 
-            # 触发回调
+# 触发回调
             if self._on_order_callback:
                 self._on_order_callback(state_machine.order)
             return True
@@ -1349,16 +1410,18 @@ class OrderManager:
         state_machine = self._state_machines.get(order_id)
 
         if remaining_volume == 0:
-            # 全部成交
+
+# 全部成交
             state_machine.transition_to(OrderState.FILLED, "filled")
 
-            # 移出活跃订单
+# 移出活跃订单
             with self._lock:
                 if order_id in self._active_orders:
                     del self._active_orders[order_id]
                     self._completed_orders.append(self._orders[order_id])
         else:
-            # 部分成交
+
+# 部分成交
             state_machine.transition_to(OrderState.PARTIAL_FILLED, "partial_filled")
 
         if self._on_order_callback:
@@ -1370,7 +1433,7 @@ class OrderManager:
         if state_machine:
             state_machine.transition_to(OrderState.REJECTED, reason)
 
-            # 移出活跃订单
+# 移出活跃订单
             with self._lock:
                 if order_id in self._active_orders:
                     del self._active_orders[order_id]
@@ -1392,11 +1455,13 @@ class OrderManager:
     def set_trade_callback(self, callback: Callable):
         """设置成交回调"""
         self._on_trade_callback = callback
-```
+
+```bash
 
 #### 6.2 条件单支持
 
 ```python
+
 # backtrader/order/conditional_order.py
 
 from enum import Enum
@@ -1429,7 +1494,7 @@ class ConditionalOrder:
         """检查条件是否触发
 
         Returns:
-            True表示条件已触发
+            True 表示条件已触发
         """
         raise NotImplementedError
 
@@ -1451,11 +1516,12 @@ class StopLossOrder(ConditionalOrder):
 
     def check_condition(self, current_price: float) -> bool:
         """检查止损条件"""
-        # 更新最高价
+
+# 更新最高价
         if current_price > self.highest_price:
             self.highest_price = current_price
 
-        # 计算止损价
+# 计算止损价
         if self.trail > 0:
             stop_price = self.highest_price - self.trail
         else:
@@ -1497,18 +1563,19 @@ class OCOOrder(ConditionalOrder):
         self.executed_order = None  # 已执行的订单
 
     def check_condition(self, current_price: float) -> bool:
-        """检查OCO条件"""
+        """检查 OCO 条件"""
         if self.triggered:
             return True
 
-        # 检查两个条件
+# 检查两个条件
         triggered1 = self.order1.check_condition(current_price)
         triggered2 = self.order2.check_condition(current_price)
 
         if triggered1 or triggered2:
             self.triggered = True
             self.executed_order = self.order1 if triggered1 else self.order2
-            # 取消另一个
+
+# 取消另一个
             if triggered1:
                 if hasattr(self.order2, 'cancel'):
                     self.order2.cancel()
@@ -1521,7 +1588,7 @@ class OCOOrder(ConditionalOrder):
         return False
 
     def execute(self):
-        """执行OCO订单"""
+        """执行 OCO 订单"""
         if self.executed_order:
             return self.executed_order.execute()
         return None
@@ -1556,7 +1623,7 @@ class ConditionalOrderManager:
 
     def add_oco(self, instrument: str, volume: int,
                 order1: ConditionalOrder, order2: ConditionalOrder) -> OCOOrder:
-        """添加OCO订单"""
+        """添加 OCO 订单"""
         oco = OCOOrder(self.strategy, instrument, volume, order1, order2)
         self._orders.append(oco)
         return oco
@@ -1587,44 +1654,52 @@ class ConditionalOrderManager:
                 order.execute()
                 order.active = False
             except Exception as e:
-                # 记录错误
+
+# 记录错误
                 pass
 
     def cancel(self, order: ConditionalOrder):
         """取消条件单"""
         order.active = False
         order.triggered = True  # 标记为已处理
-```
+
+```bash
 
 ### 7. 实施计划
 
 #### 7.1 实施优先级
 
-1. **高优先级** (第一阶段)
+1. **高优先级**(第一阶段)
    - 订单管理系统增强 - 核心功能
    - 风控系统模块 - 交易安全
 
-2. **中优先级** (第二阶段)
+2.**中优先级**(第二阶段)
+
    - 多策略隔离系统 - 扩展性
    - 高级行情处理 - 性能优化
 
-3. **可选优先级** (第三阶段)
-   - CTP接口增强 - 期货专用
-   - 高性能Cython扩展 - 极致性能
+3.**可选优先级** (第三阶段)
+
+   - CTP 接口增强 - 期货专用
+   - 高性能 Cython 扩展 - 极致性能
 
 #### 7.2 向后兼容性保证
 
 所有新功能都是**可选的**，现有代码无需修改即可继续使用：
 
 ```python
+
 # 现有用法继续支持
+
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy)
 cerebro.run()
 
 # 新用法
-# 使用Agent系统
+
+# 使用 Agent 系统
+
 from backtrader.agent import Agent, AgentManager
 
 agent_manager = AgentManager()
@@ -1632,6 +1707,7 @@ agent = Agent(strategy)
 agent_manager.register_agent(agent, ['RB2305', 'RB2310'])
 
 # 使用风控系统
+
 from backtrader.risk import RiskEngine, CancelLimitRule, OrderSpeedLimitRule
 
 risk_engine = RiskEngine()
@@ -1639,55 +1715,73 @@ risk_engine.add_rule(CancelLimitRule(max_cancel=480))
 risk_engine.add_rule(OrderSpeedLimitRule(max_per_second=10))
 
 # 使用条件单
+
 from backtrader.order.conditional_order import ConditionalOrderManager
 
 cond_manager = ConditionalOrderManager(strategy)
 cond_manager.add_stop_loss('RB2305', 10, stop_price=3800)
-```
+
+```bash
 
 #### 7.3 目录结构
 
-```
+```bash
 backtrader/
 ├── __init__.py
-├── agent/                  # 新增: Agent模块
+├── agent/                  # 新增: Agent 模块
+
 │   ├── __init__.py
-│   ├── agent.py            # Agent基类
-│   └── agent_manager.py    # Agent管理器
+│   ├── agent.py            # Agent 基类
+
+│   └── agent_manager.py    # Agent 管理器
+
 ├── order/                  # 修改: 订单模块增强
+
 │   ├── __init__.py
 │   ├── order.py            # 订单类
+
 │   ├── order_manager.py   # 新增: 订单管理器
+
 │   └── conditional_order.py  # 新增: 条件单
+
 ├── risk/                   # 新增: 风控模块
+
 │   ├── __init__.py
 │   ├── engine.py           # 风控引擎
+
 │   └── rules.py            # 风控规则
+
 ├── data/                   # 修改: 数据模块
+
 │   ├── __init__.py
-│   └── tick_processor.py   # 新增: Tick处理器
+│   └── tick_processor.py   # 新增: Tick 处理器
+
 ├── stores/                  # 修改: 存储模块
+
 │   ├── __init__.py
-│   ├── ctpstore.py         # 新增: CTP接口
-│   └── ctpapi/            # 新增: CTP API封装
-└── ext/                    # 新增: Cython扩展
+│   ├── ctpstore.py         # 新增: CTP 接口
+
+│   └── ctpapi/            # 新增: CTP API 封装
+
+└── ext/                    # 新增: Cython 扩展
     ├── __init__.py
     ├── core.pyx            # 核心数据结构
     ├── atomic.pyx          # 原子操作
     └── indicators.pyx      # 指标计算
-```
 
----
+```bash
+
+- --
 
 ## 总结
 
 通过借鉴 PandoraTrader 的设计思想，backtrader 可以在保持易用性的同时，获得以下改进：
 
-1. **高性能**: Cython扩展实现关键路径优化，性能提升5-10倍
+1. **高性能**: Cython 扩展实现关键路径优化，性能提升 5-10 倍
 2. **订单管理**: 完整的订单状态机和条件单支持
 3. **风控系统**: 多层风控保护，确保交易安全
-4. **多策略隔离**: Agent系统实现策略级别隔离
-5. **实时行情**: 异步Tick处理器，支持高频场景
-6. **CTP支持**: 完整的CTP接口支持，服务期货交易
+4. **多策略隔离**: Agent 系统实现策略级别隔离
+5. **实时行情**: 异步 Tick 处理器，支持高频场景
+6. **CTP 支持**: 完整的 CTP 接口支持，服务期货交易
 
-这些改进都是**向后兼容**的，用户可以按需使用新功能，不影响现有策略代码。PandoraTrader 作为专业的高频交易系统，其在性能优化、风控系统、订单管理等方面的实践经验对backtrader的实盘交易能力提升具有重要参考价值。
+这些改进都是**向后兼容**的，用户可以按需使用新功能，不影响现有策略代码。PandoraTrader 作为专业的高频交易系统，其在性能优化、风控系统、订单管理等方面的实践经验对 backtrader 的实盘交易能力提升具有重要参考价值。

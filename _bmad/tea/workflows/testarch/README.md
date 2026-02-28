@@ -10,32 +10,42 @@ This folder contains the Test Architect (TEA) workflows converted to step-file a
 
 ## Standard Layout (per workflow)
 
-```
+```bash
 <workflow>/
 ├── workflow.md             # Mode routing (create / edit / validate)
+
 ├── workflow-plan.md        # Design reference for step order and intent
+
 ├── workflow.yaml           # Installer metadata
+
 ├── instructions.md         # Short entrypoint / summary
+
 ├── checklist.md            # Validation criteria for outputs
+
 ├── steps-c/                # Create mode steps
+
 ├── steps-e/                # Edit mode steps
+
 ├── steps-v/                # Validate mode steps
+
 ├── templates/              # Output templates (if applicable)
+
 └── validation-report-*.md  # Validator outputs (latest run)
-```
+
+```bash
 
 ## Modes
 
-- **Create (steps-c/):** Primary execution flow to generate outputs
-- **Edit (steps-e/):** Structured edits to existing outputs
-- **Validate (steps-v/):** Checklist-based validation of outputs
+- **Create (steps-c/):**Primary execution flow to generate outputs
+- **Edit (steps-e/):**Structured edits to existing outputs
+- **Validate (steps-v/):**Checklist-based validation of outputs
 
 ## Execution Rules (Summary)
 
-- Load **one step at a time**. Do not preload future steps.
-- Follow the **MANDATORY SEQUENCE** exactly in each step.
+- Load**one step at a time**. Do not preload future steps.
+- Follow the **MANDATORY SEQUENCE**exactly in each step.
 - Do not skip steps, reorder, or improvise.
-- If a step writes outputs, do so **before** loading the next step.
+- If a step writes outputs, do so**before** loading the next step.
 
 ## Step Naming Conventions
 
