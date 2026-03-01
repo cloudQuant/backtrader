@@ -10,19 +10,36 @@ description: How to install and set up Backtrader
 - Python 3.8 or higher (tested up to 3.13)
 - pip package manager
 
-## Basic Installation
+## Installation (From Source)
 
-### From PyPI
+> **Note**: This project is NOT available on PyPI. Please install from source.
 
-```bash
-pip install backtrader
-```
-
-### From Source (Development Version)
+### From GitHub (Recommended)
 
 ```bash
 git clone https://github.com/cloudQuant/backtrader.git
 cd backtrader
+pip install -r requirements.txt
+pip install -U .
+```
+
+### From Gitee (For users in China)
+
+```bash
+git clone https://gitee.com/yunjinqi/backtrader.git
+cd backtrader
+pip install -r requirements.txt
+pip install -U .
+```
+
+### Development Mode
+
+If you plan to modify the source code:
+
+```bash
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader
+pip install -r requirements.txt
 pip install -e .
 ```
 

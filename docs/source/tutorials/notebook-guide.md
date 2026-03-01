@@ -28,8 +28,9 @@ pip install jupyter jupyterlab
 # Install plotting libraries
 pip install matplotlib plotly ipywidgets
 
-# Install backtrader
-pip install backtrader
+# Install backtrader (from source)
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader && pip install -U .
 
 # For enhanced features
 pip install pandas numpy scipy ipympl

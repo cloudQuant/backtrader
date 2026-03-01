@@ -592,7 +592,8 @@ twine delete --version 1.2.0 backtrader
 2. 等待 v1.2.1 修复版本
 
 ```bash
-pip install backtrader==1.1.0
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader && pip install -U .
 ```
 
 我们将在 24 小时内发布修复版本。

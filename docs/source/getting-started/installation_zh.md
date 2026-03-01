@@ -10,27 +10,36 @@ description: 如何安装和设置 Backtrader
 - Python 3.8 或更高版本 (测试至 3.13)
 - pip 包管理器
 
-## 基础安装
+## 安装方法（从源码安装）
 
-### 从 PyPI 安装
+> **注意**：本项目未发布到 PyPI，请从源码安装。
 
-```bash
-pip install backtrader
-```
-
-### 从源码安装 (开发版本)
+### 从 GitHub 安装（推荐）
 
 ```bash
 git clone https://github.com/cloudQuant/backtrader.git
 cd backtrader
-pip install -e .
+pip install -r requirements.txt
+pip install -U .
 ```
 
-### 从 Gitee 镜像安装 (中国用户)
+### 从 Gitee 镜像安装（国内用户推荐）
 
 ```bash
 git clone https://gitee.com/yunjinqi/backtrader.git
 cd backtrader
+pip install -r requirements.txt
+pip install -U .
+```
+
+### 开发模式安装
+
+如需修改源代码：
+
+```bash
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader
+pip install -r requirements.txt
 pip install -e .
 ```
 
@@ -117,10 +126,10 @@ matplotlib.use('Agg')
 
 ### 网络问题 (中国用户)
 
-如果从 PyPI 安装缓慢，可以使用国内镜像：
+如果依赖包安装缓慢，可以使用国内 pip 镜像：
 
 ```bash
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple backtrader
+pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
 ```
 
 ## 下一步

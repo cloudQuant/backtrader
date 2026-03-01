@@ -11,7 +11,10 @@
 
 - *English** | [**中文**](#-中文文档)
 
-[📖 Documentation](<https://github.com/cloudQuant/backtrader/wiki)> ·
+[📖 Documentation (EN)](<https://backtrader.readthedocs.io/en/latest/)> ·
+[📖 中文文档](<https://backtrader-zh.readthedocs.io/zh-cn/latest/)> ·
+[🌐 GitHub Pages](<https://cloudquant.github.io/backtrader/)>
+
 [🐛 Report Bug](<https://github.com/cloudQuant/backtrader/issues)> ·
 [💬 Discussions](<https://github.com/cloudQuant/backtrader/discussions)>
 
@@ -268,29 +271,25 @@ CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP future
 - **OS**: Windows / macOS / Linux
 - **RAM**: 4GB+ recommended
 
-### Option 1: pip Install (Recommended)
+### From GitHub (Recommended)
+
+> **Note**: This project is NOT on PyPI. Install from source only.
 
 ```bash
-
-# Clone from GitHub
-
-git clone <https://github.com/cloudQuant/backtrader.git>
+git clone https://github.com/cloudQuant/backtrader.git
 cd backtrader
-
-# Or clone from Gitee (for Chinese users)
-
-git clone <https://gitee.com/yunjinqi/backtrader.git>
-cd backtrader
-
-# Install dependencies
-
 pip install -r requirements.txt
+pip install -U .
+```
 
-# Install backtrader
-
-pip install -e .
+### From Gitee (For users in China)
 
 ```bash
+git clone https://gitee.com/yunjinqi/backtrader.git
+cd backtrader
+pip install -r requirements.txt
+pip install -U .
+```
 
 ### Verify Installation
 
@@ -305,9 +304,8 @@ print(f"Backtrader version: {bt.__version__}")
 ### Run Tests
 
 ```bash
-pytest ./backtrader/tests -n 4 -v
-
-```bash
+pytest tests -n 4 -v
+```
 
 - --
 
@@ -637,17 +635,20 @@ backtrader/
 
 ## 📖 API Documentation
 
+### Online Documentation
+
+- **ReadTheDocs (EN)**: <https://backtrader.readthedocs.io/en/latest/>
+- **ReadTheDocs (ZH)**: <https://backtrader-zh.readthedocs.io/zh-cn/latest/>
+- **GitHub Pages**: <https://cloudquant.github.io/backtrader/>
+
 ### Build Local Documentation
 
 ```bash
 cd docs
 pip install -r requirements.txt
-./build_docs.sh all
-./build_docs.sh serve
-
-# Visit <http://localhost:8000>
-
-```bash
+make html
+make serve
+```
 
 ### Quick API Reference
 
@@ -752,6 +753,9 @@ This project is licensed under [GPLv3](LICENSE).
 - **GitHub**: [<https://github.com/cloudQuant/backtrader](<https://github.com/cloudQuant/backtrader>)>
 - **Gitee**: [<https://gitee.com/yunjinqi/backtrader](<https://gitee.com/yunjinqi/backtrader>)>
 - **Author Blog**: [<https://yunjinqi.blog.csdn.net/](<https://yunjinqi.blog.csdn.net/>)>
+- **ReadTheDocs (EN)**: <https://backtrader.readthedocs.io/en/latest/>
+- **ReadTheDocs (ZH)**: <https://backtrader-zh.readthedocs.io/zh-cn/latest/>
+- **GitHub Pages**: <https://cloudquant.github.io/backtrader/>
 
 - --
 
@@ -971,26 +975,21 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 ```bash
 
-# 从 GitHub 克隆
+# 注意：本项目未发布到 PyPI，请从源码安装
 
-git clone <https://github.com/cloudQuant/backtrader.git>
+# 从 GitHub 克隆
+git clone https://github.com/cloudQuant/backtrader.git
 cd backtrader
+pip install -r requirements.txt
+pip install -U .
 
 # 或从 Gitee 克隆（国内用户推荐）
-
-git clone <https://gitee.com/yunjinqi/backtrader.git>
+git clone https://gitee.com/yunjinqi/backtrader.git
 cd backtrader
-
-# 安装依赖
-
 pip install -r requirements.txt
-
-# 安装 backtrader
-
-pip install -e .
+pip install -U .
 
 # 验证安装
-
 python -c "import backtrader as bt; print(bt.__version__)"
 
 ```bash
@@ -1098,6 +1097,9 @@ cerebro.run(maxcpus=4)     # 参数优化时使用多进程
 - **GitHub**: [<https://github.com/cloudQuant/backtrader](<https://github.com/cloudQuant/backtrader>)>
 - **Gitee**: [<https://gitee.com/yunjinqi/backtrader](<https://gitee.com/yunjinqi/backtrader>)>
 - **作者博客**: [<https://yunjinqi.blog.csdn.net/](<https://yunjinqi.blog.csdn.net/>)>
+- **在线文档 (EN)**: <https://backtrader.readthedocs.io/en/latest/>
+- **在线文档 (ZH)**: <https://backtrader-zh.readthedocs.io/zh-cn/latest/>
+- **GitHub Pages**: <https://cloudquant.github.io/backtrader/>
 
 - --
 

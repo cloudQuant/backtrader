@@ -356,8 +356,9 @@ twine upload dist/*
 ### Verify PyPI Release
 
 ```bash
-# Install from PyPI
-pip install backtrader==1.1.0
+# Install from source
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader && pip install -U .
 
 # Verify version
 python -c "import backtrader; print(backtrader.__version__)"
@@ -416,7 +417,8 @@ If you're upgrading from v1.0.0:
 ### Installation
 
 ```bash
-pip install backtrader==1.1.0
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader && pip install -U .
 ```
 
 ### Documentation
@@ -472,7 +474,7 @@ New features:
 - Plotly interactive charts
 - 45% performance boost
 
-Install: pip install backtrader==1.1.0
+Install from source: https://github.com/cloudQuant/backtrader
 Full details: https://github.com/cloudQuant/backtrader/releases/tag/v1.1.0
 
 #python #trading #backtesting
@@ -586,8 +588,9 @@ pip show backtrader
 # Uninstall old version
 pip uninstall backtrader
 
-# Install specific version
-pip install backtrader==1.1.0
+# Reinstall from source
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader && pip install -U .
 ```
 
 ### Build Failures

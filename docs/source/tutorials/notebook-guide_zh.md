@@ -24,8 +24,9 @@
 在开始之前，请确保已安装以下依赖：
 
 ```bash
-# 核心依赖
-pip install backtrader
+# 核心依赖（从源码安装）
+git clone https://github.com/cloudQuant/backtrader.git
+cd backtrader && pip install -U .
 
 # Jupyter 环境
 pip install jupyter jupyterlab
