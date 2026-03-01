@@ -1,20 +1,30 @@
-"""Integration tests for Backtrader.
+"""Plotly plotting tests for backtrader framework.
 
-This package contains integration tests that verify the end-to-end functionality
-of Backtrader with external systems and services. These tests typically require
-additional dependencies or network access and are slower to run than unit tests.
+This module contains tests for the Plotly-based plotting functionality in backtrader.
+Plotly provides interactive, web-based visualization capabilities for backtesting results,
+complementing the standard matplotlib plotting.
 
-Test Categories:
-    CCXT Tests: Live trading integration with cryptocurrency exchanges via CCXT
-    Broker Tests: Integration tests for various broker implementations
-    Feed Tests: Data feed integration with external data sources
+The test suite covers:
+    - Basic chart rendering with Plotly
+    - Indicator visualization
+    - Multi-data feed plotting
+    - Interactive plot generation
+    - Plot configuration and customization
 
-Running Integration Tests:
-    Integration tests are not run by default. Use the following command to run
-    them:
+Example:
+    To run all Plotly tests::
 
-        pytest tests/integration/ -v
+        $ python -m pytest tests/plot_plotly/ -v
 
-    Note: Some tests may require API keys or other credentials to be configured
-    via environment variables.
+    To run a specific test::
+
+        $ python tests/plot_plotly/test_plot_plotly.py
+
+Dependencies:
+    - plotly: Interactive plotting library
+    - backtrader: Core backtesting framework
+
+Note:
+    Plotly plots are generated as HTML files that can be viewed in a web browser.
+    They provide interactive features like zooming, panning, and data inspection.
 """
