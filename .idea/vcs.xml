@@ -2,10 +2,17 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+<<<<<<< HEAD
     <mapping directory="$PROJECT_DIR$/../backtrader_blog" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../backtrader_web" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../bt_api_py" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../pyfolio" vcs="Git" />
     <mapping directory="J:/binance-public-data" vcs="Git" />
+=======
+    <mapping directory="$PROJECT_DIR$/../empyrical" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../my_private_blog" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../my_public_blog" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../pyfolio" vcs="Git" />
+>>>>>>> 0e8fe6076221876416f94caad4218082d3ae6aba
   </component>
 </project>
