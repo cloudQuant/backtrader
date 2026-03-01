@@ -2,14 +2,14 @@
 
 # 🚀 Backtrader
 
-** Professional Python Algorithmic Trading Backtesting Framework **
+**Professional Python Algorithmic Trading Backtesting Framework**
 
 [![Version](https://img.shields.io/badge/Version-1.1.0-blue.svg)]()
 [![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
 
-** English ** | **中文**
+**English** | **中文**
 
 [📖 Documentation (EN)](https://backtrader.readthedocs.io/en/latest/) ·
 [📖 中文文档](https://backtrader-zh.readthedocs.io/zh-cn/latest/) ·
@@ -24,16 +24,16 @@
 
 ## ⚡ Performance Improvements (Development Branch)
 
-The `development` branch has undergone extensive performance optimizations, achieving **45% faster execution ** compared to the master branch while removing metaprogramming complexity.
+The `development` branch has undergone extensive performance optimizations, achieving **45% faster execution **compared to the master branch while removing metaprogramming complexity.
 
 ### 📊 Benchmark Results
 
 | Metric | Master Branch | Development Branch | Improvement |
 |--------|---------------|-------------------|-------------|
-| ** Total Execution Time ** | 553.12s | 305.36s | **-44.8%** ⚡ |
-| ** Strategies Tested ** | 119 | 119 | ✓ |
-| ** Test Pass Rate ** | 100% | 100% | ✓ |
-| ** Code Quality ** | ✓ | ✓ | ✓ |
+|** Total Execution Time **| 553.12s | 305.36s |**-44.8%**⚡ |
+|** Strategies Tested **| 119 | 119 | ✓ |
+|** Test Pass Rate **| 100% | 100% | ✓ |
+|** Code Quality ** | ✓ | ✓ | ✓ |
 
 *Benchmark: 119 strategy backtests on identical hardware (Python 3.13, 12 parallel processes)*
 
@@ -66,12 +66,11 @@ To submit a pull request, please follow these steps:
 
 Add a new test case that:
 
-- ✅ Passes on ** both ** `master` and `development` branches
+- ✅ Passes on **both** `master` and `development` branches
 - ✅ Demonstrates the bug or validates the fix
 - ✅ Includes clear assertions and expected values
 
-```python
-
+```
 # Example: tests/strategies/test_XXX_your_indicator.py
 
 import backtrader as bt
@@ -97,8 +96,7 @@ def test_your_indicator():
 
 Ensure your code passes all quality checks:
 
-```bash
-
+```
 # Option 1: Run the full optimization script (recommended)
 
 bash scripts/optimize_code.sh
@@ -113,8 +111,7 @@ pytest tests -n 4
 
 #### 3️⃣ Verify All Tests Pass
 
-```bash
-
+```
 # Run all existing tests to ensure no regressions
 
 pytest tests -n 4 -v
@@ -138,11 +135,11 @@ pytest tests -n 4 -v
 
 We especially welcome contributions in:
 
-- 🐛 ** Bug Fixes **: Indicator calculation errors, edge cases
-- ✅ ** Test Coverage **: Additional test cases for existing indicators
-- 📊 ** Performance **: Further optimization opportunities
-- 📚 ** Documentation **: Improved examples and tutorials
-- 🔧 ** Features **: New indicators, analyzers, or data feeds
+- 🐛 **Bug Fixes**: Indicator calculation errors, edge cases
+- ✅ **Test Coverage**: Additional test cases for existing indicators
+- 📊 **Performance**: Further optimization opportunities
+- 📚 **Documentation**: Improved examples and tutorials
+- 🔧 **Features**: New indicators, analyzers, or data feeds
 
 ### 💡 Best Practices
 
@@ -174,30 +171,23 @@ We especially welcome contributions in:
 
 ## 🎯 Introduction
 
-Backtrader is a powerful and flexible Python framework for backtesting trading strategies. This project is based on [backtrader](<https://www.backtrader.com/)> with extensive optimizations and feature enhancements, supporting ** low-frequency, mid-frequency, and high-frequency ** strategy development, backtesting, and live trading.
+Backtrader is a powerful and flexible Python framework for backtesting trading strategies. This project is based on [backtrader](<https://www.backtrader.com/)> with extensive optimizations and feature enhancements, supporting **low-frequency, mid-frequency, and high-frequency** strategy development, backtesting, and live trading.
 
 ### Why Choose Backtrader?
 
 | Comparison | Backtrader | Other Frameworks |
-
 |------------|------------|------------------|
-
 | Learning Curve | ⭐⭐ Gentle | ⭐⭐⭐⭐ Steep |
-
 | Development Efficiency | ⭐⭐⭐⭐⭐ Very High | ⭐⭐⭐ Average |
-
 | Built-in Indicators | 50+ | 10-30 |
-
 | Data Source Support | 20+ | 5-10 |
-
 | Community Activity | ⭐⭐⭐⭐ Active | ⭐⭐ Average |
-
 | Documentation | ⭐⭐⭐⭐⭐ Complete | ⭐⭐⭐ Average |
 
 ### Project Branches
 
-- ** master branch **: Stable version with feature extensions and bug fixes
-- ** development branch **: Development version with tick-level backtesting, multi-frequency trading support, and performance optimizations
+- **master branch**: Stable version with feature extensions and bug fixes
+- **development branch**: Development version with tick-level backtesting, multi-frequency trading support, and performance optimizations
 
 ---
 
@@ -205,7 +195,7 @@ Backtrader is a powerful and flexible Python framework for backtesting trading s
 
 ### 🚀 High-Performance Multi-Frequency Backtesting Engine
 
-```text
+```
 Three backtesting modes supported:
 ├── runonce (Vectorized)    - Batch computation, optimal performance
 ├── runnext (Event-driven)  - Bar-by-bar, suitable for complex logic
@@ -216,13 +206,12 @@ Trading frequency spectrum:
 ├── Mid-frequency   - Minute/hour bars, intraday trading
 └── High-frequency  - Tick-level data, market microstructure
 
-```bash
-
+```
 ### 📊 Rich Visualization
 
-- ** Plotly Interactive Charts **: Supports 100k+ data points with zoom, pan, hover
-- ** Bokeh Real-time Charts **: Real-time data updates and multi-tab support
-- ** Matplotlib Static Charts **: Classic plotting for papers and reports
+- **Plotly Interactive Charts**: Supports 100k+ data points with zoom, pan, hover
+- **Bokeh Real-time Charts**: Real-time data updates and multi-tab support
+- **Matplotlib Static Charts**: Classic plotting for papers and reports
 
 ### 📈 Professional Reports
 
@@ -239,22 +228,22 @@ Covering moving averages, momentum, volatility, trend indicators, and more.
 
 ### 🔄 Tick-Level & Mixed-Frequency Trading
 
-- ** Tick-level backtesting **: Process individual tick data for high-frequency strategy research
-- ** Tick + Bar mixed mode **: Combine tick and bar data in the same strategy for multi-frequency analysis
-- ** Seamless live trading **: Same strategy code works for backtesting and live trading across all frequencies
-- ** Full spectrum coverage **: Low-frequency (daily), mid-frequency (minute), and high-frequency (tick) — all unified in one framework
+- **Tick-level backtesting**: Process individual tick data for high-frequency strategy research
+- **Tick + Bar mixed mode**: Combine tick and bar data in the same strategy for multi-frequency analysis
+- **Seamless live trading**: Same strategy code works for backtesting and live trading across all frequencies
+- **Full spectrum coverage**: Low-frequency (daily), mid-frequency (minute), and high-frequency (tick) — all unified in one framework
 
 ### 📝 TradeLogger - Real-time Trade Logging
 
 Comprehensive observer for real-time logging during backtests:
 
-- ** Real-time file writing **: Logs are appended on every bar (not just at the end)
-- ** current_position.json **: Updated after each bar with latest holdings
-- ** Strategy indicators **: Optionally log strategy-calculated indicators in data files
-- ** Configurable format **: Tab-separated `.log` (default) or standard `.csv`
-- ** MySQL persistence **: Order/trade/position logs saved to MySQL (`bt_order`, `bt_trade`, `bt_position`)
+- **Real-time file writing**: Logs are appended on every bar (not just at the end)
+- **current_position.json**: Updated after each bar with latest holdings
+- **Strategy indicators**: Optionally log strategy-calculated indicators in data files
+- **Configurable format**: Tab-separated `.log` (default) or standard `.csv`
+- **MySQL persistence**: Order/trade/position logs saved to MySQL (`bt_order`, `bt_trade`, `bt_position`)
 
-```python
+```
 cerebro.addobserver(
     bt.observers.TradeLogger,
     log_dir='logs',
@@ -267,8 +256,7 @@ cerebro.addobserver(
 
 )
 
-```bash
-
+```
 ### 📦 Modular Architecture
 
 Strategies, indicators, analyzers, and data sources can be independently extended.
@@ -283,56 +271,52 @@ CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP future
 
 ### Requirements
 
-- ** Python **: 3.9+ (3.11 recommended for ~15% performance boost)
-- ** OS **: Windows / macOS / Linux
-- ** RAM **: 4GB+ recommended
+- **Python**: 3.9+ (3.11 recommended for ~15% performance boost)
+- **OS**: Windows / macOS / Linux
+- **RAM**: 4GB+ recommended
 
 ### From GitHub (Recommended)
 
-> ** Note **: This project is NOT on PyPI. Install from source only.
+> **Note**: This project is NOT on PyPI. Install from source only.
 
-```bash
+```
 git clone https://github.com/cloudQuant/backtrader.git
 cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-```bash
-
+```
 ### From Gitee (For users in China)
 
-```bash
+```
 git clone https://gitee.com/yunjinqi/backtrader.git
 cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-```bash
-
+```
 ### Verify Installation
 
-```python
+```
 import backtrader as bt
 print(f"Backtrader version: {bt.__version__}")
 
 # Output: Backtrader version: 1.0.0
 
-```bash
-
+```
 ### Run Tests
 
-```bash
+```
 pytest tests -n 4 -v
 
-```bash
-
+```
 ---
 
 ## 🎓 5-Minute Quickstart
 
 ### Step 1: Understand the Workflow
 
-```text
+```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │  Prepare    │ -> │   Write     │ -> │    Run      │
 │   Data      │    │  Strategy   │    │  Backtest   │
@@ -342,11 +326,10 @@ pytest tests -n 4 -v
   CSV/Pandas/API    Extend Strategy    cerebro.run()
                     Implement next()
 
-```bash
-
+```
 ### Step 2: Write Your First Strategy
 
-```python
+```
 import backtrader as bt
 
 # Define strategy: SMA crossover
@@ -376,12 +359,10 @@ class SmaCrossStrategy(bt.Strategy):
         elif self.crossover < 0:
             self.close()
 
-```bash
-
+```
 ### Step 3: Prepare Data
 
-```python
-
+```
 # Option 1: Load from CSV file
 
 data = bt.feeds.GenericCSVData(
@@ -405,11 +386,10 @@ data = bt.feeds.YahooFinanceData(
     todate=datetime(2023, 12, 31),
 )
 
-```bash
-
+```
 ### Step 4: Run Backtest
 
-```python
+```
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(SmaCrossStrategy)
@@ -427,12 +407,10 @@ strat = results[0]
 print(f"Sharpe: {strat.analyzers.sharpe.get_analysis().get('sharperatio', 'N/A')}")
 print(f"Max DD: {strat.analyzers.drawdown.get_analysis()['max']['drawdown']:.2f}%")
 
-```bash
-
+```
 ### Step 5: Visualize Results
 
-```python
-
+```
 # Plotly interactive charts (recommended)
 
 cerebro.plot(backend='plotly', style='candle')
@@ -444,15 +422,14 @@ plotter = PlotlyPlot(style='candle')
 figs = plotter.plot(results[0])
 figs[0].write_html('backtest_chart.html')
 
-```bash
-
+```
 ---
 
 ## 📚 Core Concepts
 
 ### 1. Cerebro - The Engine
 
-```python
+```
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(Strategy)
@@ -461,11 +438,10 @@ cerebro.broker.setcash(100000)
 results = cerebro.run()
 cerebro.plot()
 
-```bash
-
+```
 ### 2. Strategy
 
-```python
+```
 class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
@@ -480,11 +456,10 @@ class MyStrategy(bt.Strategy):
         if order.status == order.Completed:
             print(f'Order executed at {order.executed.price}')
 
-```bash
-
+```
 ### 3. Lines - Data Structure
 
-```python
+```
 self.data.close[0]     # Current bar
 
 self.data.close[-1]    # Previous bar
@@ -495,11 +470,10 @@ self.data.high[0]      # Current high
 
 self.data.volume[0]    # Current volume
 
-```bash
-
+```
 ### 4. Order Types
 
-```python
+```
 self.buy()                                    # Market buy
 
 self.sell(price=100, exectype=bt.Order.Limit) # Limit sell
@@ -508,8 +482,7 @@ self.buy_bracket(price=100, stopprice=95, limitprice=110)  # Bracket order
 
 self.order_target_percent(target=0.5)         # Target 50% position
 
-```bash
-
+```
 ---
 
 ## 📦 Built-in Components
@@ -517,49 +490,31 @@ self.order_target_percent(target=0.5)         # Target 50% position
 ### Technical Indicators (50+)
 
 | Category | Indicators |
-
 |----------|------------|
-
-| ** Moving Averages **| SMA, EMA, WMA, DEMA, TEMA, KAMA, HMA, ZLEMA |
-
-|** Momentum **| RSI, ROC, Momentum, Williams %R, Ultimate Oscillator |
-
-|** Volatility **| ATR, Bollinger Bands, Standard Deviation |
-
-|** Trend **| ADX, Aroon, Parabolic SAR, Ichimoku, DPO |
-
-|** Oscillators **| MACD, Stochastic, CCI, TSI, TRIX |
+| **Moving Averages**| SMA, EMA, WMA, DEMA, TEMA, KAMA, HMA, ZLEMA |
+|**Momentum**| RSI, ROC, Momentum, Williams %R, Ultimate Oscillator |
+|**Volatility**| ATR, Bollinger Bands, Standard Deviation |
+|**Trend**| ADX, Aroon, Parabolic SAR, Ichimoku, DPO |
+|**Oscillators**| MACD, Stochastic, CCI, TSI, TRIX |
 
 ### Analyzers (17+)
 
 | Analyzer | Purpose |
-
 |----------|---------|
-
 | `SharpeRatio` | Risk-adjusted returns |
-
 | `DrawDown` | Maximum drawdown |
-
 | `TradeAnalyzer` | Trade statistics |
-
 | `Returns` | Return analysis |
-
 | `SQN` | System Quality Number |
 
 ### Data Sources (20+)
 
 | Data Source | Description |
-
 |-------------|-------------|
-
 | `GenericCSVData` | Generic CSV files |
-
 | `PandasData` | Pandas DataFrame |
-
 | `YahooFinanceData` | Yahoo Finance |
-
 | `IBData` | Interactive Brokers |
-
 | `CCXTFeed` | Cryptocurrency |
 
 ---
@@ -568,7 +523,7 @@ self.order_target_percent(target=0.5)         # Target 50% position
 
 ### Parameter Optimization
 
-```python
+```
 cerebro.optstrategy(
     SmaCrossStrategy,
     fast_period=range(5, 20, 5),
@@ -576,11 +531,10 @@ cerebro.optstrategy(
 )
 results = cerebro.run(maxcpus=4)
 
-```bash
-
+```
 ### Multiple Data Sources
 
-```python
+```
 cerebro.adddata(data1)
 cerebro.adddata(data2)
 
@@ -589,11 +543,10 @@ cerebro.adddata(data2)
 price1 = self.datas[0].close[0]
 price2 = self.datas[1].close[0]
 
-```bash
-
+```
 ### Custom Indicators
 
-```python
+```
 class MyIndicator(bt.Indicator):
     lines = ('myline',)
     params = (('period', 20),)
@@ -601,22 +554,20 @@ class MyIndicator(bt.Indicator):
     def __init__(self):
         self.lines.myline = bt.indicators.SMA(self.data, period=self.params.period)
 
-```bash
-
+```
 ### Professional Reports
 
-```python
+```
 cerebro.add_report_analyzers(riskfree_rate=0.02)
 cerebro.run()
 cerebro.generate_report('report.html', user='Trader', memo='Strategy Report')
 
-```bash
-
+```
 ---
 
 ## 🏗 Project Architecture
 
-```text
+```
 backtrader/
 ├── backtrader/           # Core codebase
 
@@ -648,8 +599,7 @@ backtrader/
 
 └── docs/                 # Documentation
 
-```bash
-
+```
 ---
 
 ## 📖 API Documentation
@@ -658,21 +608,20 @@ backtrader/
 
 - ** ReadTheDocs (EN)**: <https://backtrader.readthedocs.io/en/latest/>
 - ** ReadTheDocs (ZH)**: <https://backtrader-zh.readthedocs.io/zh-cn/latest/>
-- ** GitHub Pages **: <https://cloudquant.github.io/backtrader/>
+- **GitHub Pages**: <https://cloudquant.github.io/backtrader/>
 
 ### Build Local Documentation
 
-```bash
+```
 cd docs
 pip install -r requirements.txt
 make html
 make serve
 
-```bash
-
+```
 ### Quick API Reference
 
-```python
+```
 import backtrader as bt
 
 # Cerebro
@@ -698,24 +647,22 @@ bt.indicators.RSI(data, period=14)
 bt.indicators.MACD(data)
 bt.indicators.BollingerBands(data)
 
-```bash
-
+```
 ---
 
 ## ❓ FAQ
 
 ### Q1: How to set slippage?
 
-```python
+```
 cerebro.broker.set_slippage_fixed(0.01)  # Fixed slippage
 
 cerebro.broker.set_slippage_perc(0.001)  # Percentage slippage
 
-```bash
-
+```
 ### Q2: How to limit trade size?
 
-```python
+```
 class FixedSizer(bt.Sizer):
     params = (('stake', 100),)
 
@@ -724,26 +671,23 @@ class FixedSizer(bt.Sizer):
 
 cerebro.addsizer(FixedSizer, stake=100)
 
-```bash
-
+```
 ### Q3: How to get all transactions?
 
-```python
+```
 cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
 results = cerebro.run()
 transactions = results[0].analyzers.txn.get_analysis()
 
-```bash
-
+```
 ### Q4: Backtest too slow?
 
-```python
+```
 cerebro.run(runonce=True)  # Use vectorized mode (default)
 
 cerebro.run(maxcpus=4)     # Use multiprocessing for optimization
 
-```bash
-
+```
 ---
 
 ## ⚠️ Important Disclaimer
@@ -752,11 +696,11 @@ cerebro.run(maxcpus=4)     # Use multiprocessing for optimization
 
 ** THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY.**
 
-- ⚠️ ** Trading Risk **: Algorithmic trading involves substantial risk of loss. Past performance does not guarantee future results.
-- 🐛 ** Software Status **: This project is under active development and may contain bugs or calculation errors.
-- 💰 ** Financial Liability **: ** You are solely responsible for any financial losses ** incurred from using this software.
-- 🔍** Verification Required **: Always verify backtest results against known benchmarks before live trading.
-- 📊 ** No Warranty **: This software is provided "AS IS" without warranty of any kind, express or implied.
+- ⚠️ **Trading Risk**: Algorithmic trading involves substantial risk of loss. Past performance does not guarantee future results.
+- 🐛 **Software Status**: This project is under active development and may contain bugs or calculation errors.
+- 💰 **Financial Liability**: **You are solely responsible for any financial losses** incurred from using this software.
+- 🔍**Verification Required**: Always verify backtest results against known benchmarks before live trading.
+- 📊 **No Warranty**: This software is provided "AS IS" without warranty of any kind, express or implied.
 
 ** By using this software, you acknowledge and accept all risks associated with algorithmic trading.**
 
@@ -770,12 +714,12 @@ This project is licensed under [GPLv3](LICENSE).
 
 ## 📞 Contact
 
-- ** GitHub **: [<https://github.com/cloudQuant/backtrader](<https://github.com/cloudQuant/backtrader>)>
-- ** Gitee **: [<https://gitee.com/yunjinqi/backtrader](<https://gitee.com/yunjinqi/backtrader>)>
-- ** Author Blog **: [<https://yunjinqi.blog.csdn.net/](<https://yunjinqi.blog.csdn.net/>)>
+- **GitHub**: [<https://github.com/cloudQuant/backtrader](<https://github.com/cloudQuant/backtrader>)>
+- **Gitee**: [<https://gitee.com/yunjinqi/backtrader](<https://gitee.com/yunjinqi/backtrader>)>
+- **Author Blog**: [<https://yunjinqi.blog.csdn.net/](<https://yunjinqi.blog.csdn.net/>)>
 - ** ReadTheDocs (EN)**: <https://backtrader.readthedocs.io/en/latest/>
 - ** ReadTheDocs (ZH)**: <https://backtrader-zh.readthedocs.io/zh-cn/latest/>
-- ** GitHub Pages **: <https://cloudquant.github.io/backtrader/>
+- **GitHub Pages**: <https://cloudquant.github.io/backtrader/>
 
 ---
 
@@ -789,7 +733,7 @@ This project is licensed under [GPLv3](LICENSE).
 
 # 📖 中文文档
 
-[** English **](#-backtrader) | **中文**
+[**English**](#-backtrader) | **中文**
 
 ---
 
@@ -800,15 +744,10 @@ This project is licensed under [GPLv3](LICENSE).
 ### 📊 基准测试结果
 
 | 指标 | Master 分支 | Development 分支 | 提升幅度 |
-
 |------|-------------|------------------|----------|
-
 | **总执行时间**| 553.12 秒 | 305.36 秒 |**-44.8%**⚡ |
-
 |**测试策略数**| 119 | 119 | ✓ |
-
 |**测试通过率**| 100% | 100% | ✓ |
-
 |**代码质量** | ✓ | ✓ | ✓ |
 
 - 基准测试：在相同硬件上运行 119 个策略回测（Python 3.13，12 并行进程）*
@@ -840,15 +779,10 @@ This project is licensed under [GPLv3](LICENSE).
 ### 📈 不同策略类型的性能提升
 
 | 策略类别 | 平均加速 | 示例 |
-
 |---------|---------|------|
-
 | 简单均线交叉 | 40-45% | `test_03_two_ma`: 2.6 秒 → 1.5 秒 |
-
 | 多指标策略 | 45-50% | `test_09_dual_thrust`: 59.2 秒 → 26.9 秒 |
-
 | 多数据源 | 42-48% | `test_02_multi_extend_data`: 23.5 秒 → 12.6 秒 |
-
 | 复杂策略 | 38-42% | `test_08_kelter_strategy`: 36.9 秒 → 11.3 秒 |
 
 
@@ -870,12 +804,11 @@ This project is licensed under [GPLv3](LICENSE).
 
 添加一个新的测试用例，要求：
 
-- ✅ 在 ** master **和** development **分支上都能通过
+- ✅ 在 **master**和**development**分支上都能通过
 - ✅ 能够演示 bug 或验证修复
 - ✅ 包含清晰的断言和预期值
 
-```python
-
+```
 # 示例：tests/strategies/test_XXX_your_indicator.py
 
 import backtrader as bt
@@ -895,14 +828,12 @@ def test_your_indicator():
 # ... 设置并运行
     assert result == expected_value
 
-```bash
-
+```
 #### 2️⃣ 运行代码质量检查
 
 确保您的代码通过所有质量检查：
 
-```bash
-
+```
 # 方式 1：运行完整优化脚本（推荐）
 
 bash scripts/optimize_code.sh
@@ -913,20 +844,17 @@ pytest tests -n 4
 
 # 两个命令都必须无错误通过
 
-```bash
-
+```
 #### 3️⃣ 验证所有测试通过
 
-```bash
-
+```
 # 运行所有现有测试，确保没有回归
 
 pytest tests -n 4 -v
 
 # 预期输出：所有 478+ 个测试都应通过
 
-```bash
-
+```
 #### 4️⃣ 提交您的 PR
 
 1. Fork 本仓库
@@ -965,15 +893,10 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 ### 为什么选择 Backtrader？
 
 | 对比项 | Backtrader | 其他框架 |
-
 |--------|------------|----------|
-
 | 学习曲线 | ⭐⭐ 平缓 | ⭐⭐⭐⭐ 陡峭 |
-
 | 策略开发效率 | ⭐⭐⭐⭐⭐ 极高 | ⭐⭐⭐ 一般 |
-
 | 内置指标数量 | 50+ | 10-30 |
-
 | 数据源支持 | 20+ | 5-10 |
 
 ---
@@ -994,8 +917,7 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 ## 📥 快速安装
 
-```bash
-
+```
 # 注意：本项目未发布到 PyPI，请从源码安装
 
 # 从 GitHub 克隆
@@ -1016,13 +938,12 @@ pip install -U .
 
 python -c "import backtrader as bt; print(bt.__version__)"
 
-```bash
-
+```
 ---
 
 ## 🎓 5 分钟入门
 
-```python
+```
 import backtrader as bt
 
 # 定义策略
@@ -1053,24 +974,22 @@ cerebro.broker.setcash(100000)
 results = cerebro.run()
 cerebro.plot(backend='plotly')
 
-```bash
-
+```
 ---
 
 ## ❓ 常见问题
 
 ### Q1: 如何设置滑点？
 
-```python
+```
 cerebro.broker.set_slippage_fixed(0.01)  # 固定滑点
 
 cerebro.broker.set_slippage_perc(0.001)  # 百分比滑点
 
-```bash
-
+```
 ### Q2: 如何限制单笔交易数量？
 
-```python
+```
 class FixedSizer(bt.Sizer):
     params = (('stake', 100),)
     def _getsizing(self, comminfo, cash, data, isbuy):
@@ -1078,26 +997,23 @@ class FixedSizer(bt.Sizer):
 
 cerebro.addsizer(FixedSizer, stake=100)
 
-```bash
-
+```
 ### Q3: 如何获取所有交易记录？
 
-```python
+```
 cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
 results = cerebro.run()
 transactions = results[0].analyzers.txn.get_analysis()
 
-```bash
-
+```
 ### Q4: 回测速度慢怎么办？
 
-```python
+```
 cerebro.run(runonce=True)  # 使用向量化模式（默认）
 
 cerebro.run(maxcpus=4)     # 参数优化时使用多进程
 
-```bash
-
+```
 ---
 
 ## ⚠️ 重要声明
@@ -1118,12 +1034,12 @@ cerebro.run(maxcpus=4)     # 参数优化时使用多进程
 
 ## 📞 联系方式
 
-- ** GitHub **: [<https://github.com/cloudQuant/backtrader](<https://github.com/cloudQuant/backtrader>)>
-- ** Gitee **: [<https://gitee.com/yunjinqi/backtrader](<https://gitee.com/yunjinqi/backtrader>)>
+- **GitHub**: [<https://github.com/cloudQuant/backtrader](<https://github.com/cloudQuant/backtrader>)>
+- **Gitee**: [<https://gitee.com/yunjinqi/backtrader](<https://gitee.com/yunjinqi/backtrader>)>
 - **作者博客**: [<https://yunjinqi.blog.csdn.net/](<https://yunjinqi.blog.csdn.net/>)>
 - **在线文档 (EN)**: <https://backtrader.readthedocs.io/en/latest/>
 - **在线文档 (ZH)**: <https://backtrader-zh.readthedocs.io/zh-cn/latest/>
-- ** GitHub Pages **: <https://cloudquant.github.io/backtrader/>
+- **GitHub Pages**: <https://cloudquant.github.io/backtrader/>
 
 ---
 
