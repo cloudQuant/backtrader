@@ -30,6 +30,39 @@ from backtrader.mixins.singleton import ParameterizedSingletonMixin
 
 logger = logging.getLogger(__name__)
 
+
+def _ccxt_retry(method):
+    """Module-level retry decorator for CCXTStore methods."""
+
+    @wraps(method)
+    def retry_method(self, *args, **kwargs):
+        for i in range(self.retries):
+            if self.debug:
+                logger.debug("%s - %s - Attempt %d", datetime.now(), method.__name__, i)
+
+            if self._rate_limiter:
+                self._rate_limiter.acquire()
+            else:
+                time.sleep(self.exchange.rateLimit / 1000)
+
+            try:
+                result = method(self, *args, **kwargs)
+                if self._rate_limiter and hasattr(self._rate_limiter, "on_success"):
+                    self._rate_limiter.on_success()
+                if self._connection_manager:
+                    self._connection_manager.mark_success()
+                return result
+            except (NetworkError, ExchangeError) as e:
+                if self._rate_limiter and hasattr(self._rate_limiter, "on_rate_limit_error"):
+                    if "rate" in str(e).lower() or "429" in str(e):
+                        self._rate_limiter.on_rate_limit_error()
+                if self._connection_manager:
+                    self._connection_manager.mark_failure()
+                if i == self.retries - 1:
+                    raise
+
+    return retry_method
+
 # TimeFrame constants to avoid circular import with backtrader
 # Values match backtrader.dataseries.TimeFrame
 _TF_MINUTES = 4
@@ -239,43 +272,7 @@ class CCXTStore(ParameterizedSingletonMixin):
 
         return granularity
 
-    @staticmethod
-    def retry(method):
-        """Decorator for retry with rate limiting."""
-
-        @wraps(method)
-        def retry_method(self, *args, **kwargs):
-            for i in range(self.retries):
-                if self.debug:
-                    logger.debug("%s - %s - Attempt %d", datetime.now(), method.__name__, i)
-
-                # Use rate limiter if available, otherwise fall back to basic sleep
-                if self._rate_limiter:
-                    self._rate_limiter.acquire()
-                else:
-                    time.sleep(self.exchange.rateLimit / 1000)
-
-                try:
-                    result = method(self, *args, **kwargs)
-                    # Mark success for adaptive rate limiter
-                    if self._rate_limiter and hasattr(self._rate_limiter, "on_success"):
-                        self._rate_limiter.on_success()
-                    if self._connection_manager:
-                        self._connection_manager.mark_success()
-                    return result
-                except (NetworkError, ExchangeError) as e:
-                    # Mark failure for adaptive rate limiter
-                    if self._rate_limiter and hasattr(self._rate_limiter, "on_rate_limit_error"):
-                        if "rate" in str(e).lower() or "429" in str(e):
-                            self._rate_limiter.on_rate_limit_error()
-                    if self._connection_manager:
-                        self._connection_manager.mark_failure()
-                    if i == self.retries - 1:
-                        raise
-
-        return retry_method
-
-    @retry
+    @_ccxt_retry
     def get_wallet_balance(self, params=None):
         """Fetch the wallet balance from the exchange.
 
@@ -290,7 +287,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         balance = self.exchange.fetch_balance(params)
         return balance
 
-    @retry
+    @_ccxt_retry
     def get_balance(self):
         """Fetch and update the current balance from the exchange.
 
@@ -305,7 +302,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         self._cash = cash if cash else 0
         self._value = value if value else 0
 
-    @retry
+    @_ccxt_retry
     def getposition(self):
         """Get the current position value.
 
@@ -314,7 +311,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         """
         return self._value
 
-    @retry
+    @_ccxt_retry
     def create_order(self, symbol, order_type, side, amount, price, params):
         """Create an order on the exchange.
 
@@ -334,7 +331,7 @@ class CCXTStore(ParameterizedSingletonMixin):
             symbol=symbol, type=order_type, side=side, amount=amount, price=price, params=params
         )
 
-    @retry
+    @_ccxt_retry
     def cancel_order(self, order_id, symbol):
         """Cancel an existing order on the exchange.
 
@@ -347,7 +344,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         """
         return self.exchange.cancel_order(order_id, symbol)
 
-    @retry
+    @_ccxt_retry
     def fetch_trades(self, symbol):
         """Fetch recent trades for a symbol from the exchange.
 
@@ -359,7 +356,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         """
         return self.exchange.fetch_trades(symbol)
 
-    @retry
+    @_ccxt_retry
     def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
         """Fetch OHLCV (candlestick) data from the exchange.
 
@@ -382,7 +379,7 @@ class CCXTStore(ParameterizedSingletonMixin):
             symbol, timeframe=timeframe, since=since, limit=limit, params=params
         )
 
-    @retry
+    @_ccxt_retry
     def fetch_order(self, oid, symbol):
         """Fetch details of a specific order from the exchange.
 
@@ -395,7 +392,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         """
         return self.exchange.fetch_order(oid, symbol)
 
-    @retry
+    @_ccxt_retry
     def fetch_open_orders(self):
         """Fetch all open orders from the exchange.
 
@@ -404,7 +401,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         """
         return self.exchange.fetchOpenOrders()
 
-    @retry
+    @_ccxt_retry
     def private_end_point(self, type, endpoint, params):
         """Call any private endpoint on the exchange.
 

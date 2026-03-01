@@ -30,6 +30,7 @@ setup(
             "pytest-xdist",
             "pytest-html",
             "pytest-timeout",
+            "pytest-asyncio",
             "ruff",
             "black",
             "isort",

@@ -216,7 +216,7 @@ def test_2_3_UT_001_strategy_optimization(cerebro_engine):
     cerebro_engine.optstrategy(SampleStrategy1, period=range(10, 20, 5))
 
     # Act
-    results = cerebro_engine.run()
+    results = cerebro_engine.run(maxcpus=1)
 
     # Assert - Should have multiple results from optimization
     assert len(results) > 1  # More than one parameter combination

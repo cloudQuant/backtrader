@@ -246,7 +246,7 @@ def test_strategy_optimization(main=False):
     cerebro.adddata(data)
     cerebro.optstrategy(SampleStrategy1, period=range(10, 20, 5))
 
-    results = cerebro.run()
+    results = cerebro.run(maxcpus=1)
 
     if main:
         print(f"Optimization tested {len(results)} parameter combinations")

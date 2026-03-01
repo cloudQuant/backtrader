@@ -352,7 +352,7 @@ def test_2_3_UT_001_strategy_optimization(cerebro_with_data):
     cerebro_with_data.optstrategy(_OptSMAStrategy, period=range(10, 20, 5))
 
     # Act
-    results = cerebro_with_data.run()
+    results = cerebro_with_data.run(maxcpus=1)
 
     # Assert - Should have multiple results from optimization
     assert len(results) > 1, "Optimization should return multiple results"
