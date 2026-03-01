@@ -63,6 +63,7 @@ def _ccxt_retry(method):
 
     return retry_method
 
+
 # TimeFrame constants to avoid circular import with backtrader
 # Values match backtrader.dataseries.TimeFrame
 _TF_MINUTES = 4

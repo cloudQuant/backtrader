@@ -40,7 +40,6 @@ from tests.test_utils.factories import (
     create_macd_indicator,
 )
 
-
 # =============================================================================
 # Test ID Format: EPIC.STORY-LEVEL-SEQ
 #   EPIC: Major feature area (1=Cerebro, 2=Strategy, 3=Indicator, etc.)
@@ -53,6 +52,7 @@ from tests.test_utils.factories import (
 # =============================================================================
 # Cerebro Tests (EPIC 1)
 # =============================================================================
+
 
 @pytest.mark.priority_p0  # Critical - core engine functionality
 def test_1_1_UT_001_cerebro_basic_execution(sample_data, cerebro_engine):
@@ -158,6 +158,7 @@ def test_1_3_UT_001_cerebro_with_observers(sample_data, cerebro_engine):
 # Strategy Tests (EPIC 2)
 # =============================================================================
 
+
 @pytest.mark.priority_p0
 def test_2_1_IT_001_strategy_basic_trading(cerebro_with_data, crossover_strategy):
     """Test 2.1-IT-001: Verify strategy executes trading logic.
@@ -192,6 +193,7 @@ def test_2_1_UT_002_strategy_indicator_registration(cerebro_with_data):
     Args:
         cerebro_with_data: Cerebro with data pre-loaded
     """
+
     # Arrange - Create strategy that validates indicators
     class IndicatorValidationStrategy(bt.Strategy):
         """Strategy for validating indicator registration and calculation.
@@ -219,7 +221,7 @@ def test_2_1_UT_002_strategy_indicator_registration(cerebro_with_data):
             """
             # Check if SMA is in _lineiterators
             for item in self._lineiterators[0]:
-                if hasattr(item, 'alias') and 'sma' in str(item.alias):
+                if hasattr(item, "alias") and "sma" in str(item.alias):
                     self.indicator_registered = True
 
         def next(self):
@@ -253,6 +255,7 @@ def test_2_2_UT_001_strategy_parameters(cerebro_with_data):
     Args:
         cerebro_with_data: Cerebro with data pre-loaded
     """
+
     # Arrange - Create strategy with custom parameters
     class ParamStrategy(bt.Strategy):
         """Strategy demonstrating custom parameter usage.
@@ -263,6 +266,7 @@ def test_2_2_UT_001_strategy_parameters(cerebro_with_data):
         Attributes:
             params: Tuple of (name, default_value) pairs for strategy parameters.
         """
+
         params = (
             ("period", 20),
             ("multiplier", 2.0),
@@ -311,6 +315,7 @@ class _OptSMAStrategy(bt.Strategy):
     Attributes:
         params: Tuple containing the configurable period parameter.
     """
+
     params = (("period", 15),)
 
     def __init__(self):
@@ -361,6 +366,7 @@ def test_2_3_UT_001_strategy_optimization(cerebro_with_data):
 # =============================================================================
 # Indicator Tests (EPIC 3)
 # =============================================================================
+
 
 @pytest.mark.priority_p0
 def test_3_1_UT_001_sma_indicator_calculation(sample_data):
@@ -515,8 +521,8 @@ def test_3_3_UT_001_macd_indicator(sample_data):
             """
             if len(self) >= 35:  # MACD requires warmup
                 # MACD has multiple lines: macd, signal, histo
-                assert hasattr(self.macd, 'macd')
-                assert hasattr(self.macd, 'signal')
+                assert hasattr(self.macd, "macd")
+                assert hasattr(self.macd, "signal")
 
     cerebro.addstrategy(TestStrategy)
     results = cerebro.run()
@@ -528,6 +534,7 @@ def test_3_3_UT_001_macd_indicator(sample_data):
 # =============================================================================
 # Broker Tests (EPIC 4)
 # =============================================================================
+
 
 @pytest.mark.priority_p0
 def test_4_1_UT_001_broker_cash_management(cerebro_engine):
@@ -580,6 +587,7 @@ def test_4_2_UT_001_broker_commission(sample_data, cerebro_engine):
 # =============================================================================
 # Integration Tests (Multiple Components)
 # =============================================================================
+
 
 @pytest.mark.priority_p0
 def test_integration_001_complete_backtest_flow():
@@ -648,6 +656,7 @@ def test_integration_002_multi_strategy_backtest():
 # Data Factory Tests
 # =============================================================================
 
+
 @pytest.mark.priority_p1
 def test_factory_001_create_data_feed_default():
     """Test FACTORY-001: Verify data feed factory with defaults.
@@ -660,7 +669,7 @@ def test_factory_001_create_data_feed_default():
 
     # Assert - Verify data feed created
     assert data is not None
-    assert hasattr(data, '_dataname')
+    assert hasattr(data, "_dataname")
 
 
 @pytest.mark.priority_p2
@@ -672,6 +681,7 @@ def test_factory_002_create_data_feed_custom():
     """
     # Act - Use factory with custom date range
     from datetime import datetime
+
     data = create_data_feed(
         fromdate=datetime(2006, 6, 1),
         todate=datetime(2006, 12, 31),
@@ -699,6 +709,7 @@ def test_factory_003_create_cerebro_with_commission():
 # Cleanup and Isolation Tests
 # =============================================================================
 
+
 @pytest.mark.priority_p2
 def test_isolation_001_test_state_cleanup():
     """Test ISOLATION-001: Verify test state doesn't leak between tests.
@@ -724,6 +735,7 @@ def test_isolation_001_test_state_cleanup():
 # =============================================================================
 # Standalone Execution (for backward compatibility)
 # =============================================================================
+
 
 def main():
     """Run tests in standalone mode for backward compatibility.

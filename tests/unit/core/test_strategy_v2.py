@@ -27,10 +27,10 @@ from tests.test_utils.factories import (
     create_multiple_data_feeds,
 )
 
-
 # =============================================================================
 # Test Strategy Classes
 # =============================================================================
+
 
 class SampleStrategy1(bt.Strategy):
     """Simple moving average crossover trading strategy.
@@ -99,7 +99,7 @@ class SampleStrategy1(bt.Strategy):
         """
         if self.p.printlog:
             dt = self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()}, {txt}')
+            print(f"{dt.isoformat()}, {txt}")
 
     def next(self):
         """Execute trading logic for each bar.
@@ -125,6 +125,7 @@ class SampleStrategy1(bt.Strategy):
 # =============================================================================
 # Strategy Tests (EPIC 2)
 # =============================================================================
+
 
 @pytest.mark.priority_p0
 def test_2_1_IT_001_strategy_basic_execution(cerebro_with_data):
@@ -174,10 +175,12 @@ def test_2_2_IT_001_strategy_multiple_data_feeds(cerebro_engine):
         cerebro_engine: Cerebro fixture
     """
     # Arrange - Create multiple data feeds using factory
-    datas = create_multiple_data_feeds([
-        '2006-day-001.txt',
-        '2006-day-002.txt',
-    ])
+    datas = create_multiple_data_feeds(
+        [
+            "2006-day-001.txt",
+            "2006-day-002.txt",
+        ]
+    )
 
     for data in datas:
         cerebro_engine.adddata(data)
@@ -225,6 +228,7 @@ def test_2_3_UT_001_strategy_optimization(cerebro_engine):
 # =============================================================================
 # Strategy Parameter Tests
 # =============================================================================
+
 
 @pytest.mark.priority_p1
 def test_2_4_UT_001_strategy_with_custom_period(cerebro_with_data):
@@ -277,6 +281,7 @@ def test_2_4_UT_002_strategy_with_printlog(cerebro_with_data, capsys):
 # Strategy Lifecycle Tests
 # =============================================================================
 
+
 @pytest.mark.priority_p1
 def test_2_5_UT_001_strategy_lifecycle(cerebro_with_data):
     """Test 2.5-UT-001: Verify strategy lifecycle methods are called.
@@ -287,6 +292,7 @@ def test_2_5_UT_001_strategy_lifecycle(cerebro_with_data):
     Args:
         cerebro_with_data: Cerebro fixture with data pre-loaded
     """
+
     # Arrange - Create strategy that tracks lifecycle
     class LifecycleStrategy(bt.Strategy):
         """Strategy for testing lifecycle method execution order.
@@ -307,37 +313,37 @@ def test_2_5_UT_001_strategy_lifecycle(cerebro_with_data):
 
             This is called once before backtesting begins.
             """
-            self.methods_called.append('start')
+            self.methods_called.append("start")
 
         def prenext(self):
             """Mark prenext as called once during the warmup period.
 
             This is called for each bar before minimum period is reached.
             """
-            if 'prenext' not in self.methods_called:
-                self.methods_called.append('prenext')
+            if "prenext" not in self.methods_called:
+                self.methods_called.append("prenext")
 
         def nextstart(self):
             """Mark nextstart as called.
 
             This is called exactly once when transitioning from prenext to next.
             """
-            self.methods_called.append('nextstart')
+            self.methods_called.append("nextstart")
 
         def next(self):
             """Mark next as called once during normal operation.
 
             This is called for each bar after the minimum period is reached.
             """
-            if 'next' not in self.methods_called:
-                self.methods_called.append('next')
+            if "next" not in self.methods_called:
+                self.methods_called.append("next")
 
         def stop(self):
             """Mark stop as called.
 
             This is called once after backtesting completes.
             """
-            self.methods_called.append('stop')
+            self.methods_called.append("stop")
 
     cerebro_with_data.addstrategy(LifecycleStrategy)
 
@@ -347,13 +353,14 @@ def test_2_5_UT_001_strategy_lifecycle(cerebro_with_data):
     # Assert - Verify lifecycle methods were called
     assert len(results) > 0
     strat = results[0]
-    assert 'start' in strat.methods_called
-    assert 'stop' in strat.methods_called
+    assert "start" in strat.methods_called
+    assert "stop" in strat.methods_called
 
 
 # =============================================================================
 # Integration Tests
 # =============================================================================
+
 
 @pytest.mark.priority_p0
 def test_strategy_integration_001_with_analyzers():
@@ -390,13 +397,14 @@ def test_strategy_integration_001_with_analyzers():
     assert len(results) > 0
     strat = results[0]
     # Verify analyzers are attached
-    assert hasattr(strat.analyzers, 'sharpe')
-    assert hasattr(strat.analyzers, 'returns')
+    assert hasattr(strat.analyzers, "sharpe")
+    assert hasattr(strat.analyzers, "returns")
 
 
 # =============================================================================
 # Standalone Execution (for backward compatibility)
 # =============================================================================
+
 
 def main():
     """Run tests in standalone mode.
