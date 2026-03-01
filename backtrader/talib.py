@@ -51,13 +51,17 @@ else:
 
     # Reverse TA_FUNC_FLAGS dict
     # Reverse the TA_FUNC_FLAGS dictionary
-    R_TA_FUNC_FLAGS = dict(zip(talib.abstract.TA_FUNC_FLAGS.values(), talib.abstract.TA_FUNC_FLAGS.keys()))
+    R_TA_FUNC_FLAGS = dict(
+        zip(talib.abstract.TA_FUNC_FLAGS.values(), talib.abstract.TA_FUNC_FLAGS.keys())
+    )
 
     FUNC_FLAGS_SAMESCALE = 16777216
     FUNC_FLAGS_UNSTABLE = 134217728
     FUNC_FLAGS_CANDLESTICK = 268435456
     # Reverse the TA_OUTPUT_FLAGS dictionary
-    R_TA_OUTPUT_FLAGS = dict(zip(talib.abstract.TA_OUTPUT_FLAGS.values(), talib.abstract.TA_OUTPUT_FLAGS.keys()))
+    R_TA_OUTPUT_FLAGS = dict(
+        zip(talib.abstract.TA_OUTPUT_FLAGS.values(), talib.abstract.TA_OUTPUT_FLAGS.keys())
+    )
 
     OUT_FLAGS_LINE = 1
     OUT_FLAGS_DOTTED = 2

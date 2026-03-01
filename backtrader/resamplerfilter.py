@@ -213,7 +213,9 @@ class _BaseResampler(ParameterizedBase):
         self.subweeks = self.p.timeframe < TimeFrame.Weeks
         # If not subdays, and data timeframe equals parameter timeframe, and parameter compression divided by data compression remainder is 0, componly is True
         self.componly = (
-            not self.subdays and data._timeframe == self.p.timeframe and not (self.p.compression % data._compression)
+            not self.subdays
+            and data._timeframe == self.p.timeframe
+            and not (self.p.compression % data._compression)
         )
         # Create an object to save bar data
         self.bar = _Bar(maxdate=True)  # bar holder

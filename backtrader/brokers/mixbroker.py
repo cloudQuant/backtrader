@@ -12,11 +12,10 @@ Example:
         cerebro.run(mode='MIXED')
 """
 
-import collections
 import logging
 
-from backtrader.order import Order
 from backtrader.brokers.tickbroker import TickBroker
+from backtrader.order import Order
 from backtrader.parameters import ParameterDescriptor
 
 logger = logging.getLogger(__name__)
@@ -80,7 +79,7 @@ class MixBroker(TickBroker):
             tick_event: TickEvent with current price/volume.
             data: The data feed associated with this tick (optional).
         """
-        data_name = tick_event.symbol
+        _ = tick_event.symbol  # noqa: F841
 
         # Record submission timestamp on first tick seen
         for order in self._pending_orders:
@@ -117,7 +116,9 @@ class MixBroker(TickBroker):
 
         matched = []
         for order in list(self._pending_orders):
-            order_data_name = getattr(order.data, "_name", None) or getattr(order.data, "symbol", str(order.data))
+            order_data_name = getattr(order.data, "_name", None) or getattr(
+                order.data, "symbol", str(order.data)
+            )
             if order_data_name != data_name:
                 continue
 
@@ -207,7 +208,9 @@ class MixBroker(TickBroker):
             fill_size: The execution size.
             bar: The bar that triggered the fill.
         """
-        data_name = getattr(order.data, "_name", None) or getattr(order.data, "symbol", str(order.data))
+        data_name = getattr(order.data, "_name", None) or getattr(
+            order.data, "symbol", str(order.data)
+        )
         pos = self._positions[data_name]
 
         if order.isbuy():

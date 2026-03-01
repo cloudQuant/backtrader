@@ -466,7 +466,9 @@ class BacktraderBokeh:
         self._apply_scheme_to_figure(fig.figure)
 
         # Plot price data
-        if self.p.style == "candle" and all(col in df.columns for col in ["open", "high", "low", "close"]):
+        if self.p.style == "candle" and all(
+            col in df.columns for col in ["open", "high", "low", "close"]
+        ):
             self._plot_candlestick(fig, df)
         else:
             self._plot_line(fig, df)
@@ -523,7 +525,11 @@ class BacktraderBokeh:
         if len(sell_df) > 0:
             fig.figure.inverted_triangle(
                 sell_df[x_col],
-                (sell_df["sell_price"] if "sell_price" in sell_df.columns else sell_df["high"] * 1.02),
+                (
+                    sell_df["sell_price"]
+                    if "sell_price" in sell_df.columns
+                    else sell_df["high"] * 1.02
+                ),
                 size=12,
                 color="#ff0000",
                 alpha=0.8,
@@ -700,7 +706,9 @@ class BacktraderBokeh:
 
         # Plot up candles
         if len(up) > 0:
-            fig.figure.segment(up["datetime"], up["high"], up["datetime"], up["low"], color=self.scheme.barup_wick)
+            fig.figure.segment(
+                up["datetime"], up["high"], up["datetime"], up["low"], color=self.scheme.barup_wick
+            )
             fig.figure.vbar(
                 up["datetime"],
                 width,
@@ -738,7 +746,9 @@ class BacktraderBokeh:
         x_col = "datetime" if "datetime" in df.columns else "index"
 
         if "close" in df.columns:
-            fig.figure.line(df[x_col], df["close"], line_width=self.scheme.line_width, color=self.scheme.barup)
+            fig.figure.line(
+                df[x_col], df["close"], line_width=self.scheme.line_width, color=self.scheme.barup
+            )
 
     def get_figurepage(self, figid):
         """Get figure page.
@@ -768,7 +778,9 @@ class BacktraderBokeh:
             return figurepage._data["index"].iloc[-1]
         return len(figurepage._data) - 1
 
-    def generate_data(self, figid=None, start=None, end=None, back=None, preserveidx=False, fill_gaps=False):
+    def generate_data(
+        self, figid=None, start=None, end=None, back=None, preserveidx=False, fill_gaps=False
+    ):
         """Generate chart data.
 
         Args:
@@ -835,7 +847,9 @@ class BacktraderBokeh:
             if figurepage.figures:
                 figures = [fig.figure for fig in figurepage.figures if fig.figure is not None]
                 if figures:
-                    grid = gridplot([[fig] for fig in figures], sizing_mode=self.scheme.plot_sizing_mode)
+                    grid = gridplot(
+                        [[fig] for fig in figures], sizing_mode=self.scheme.plot_sizing_mode
+                    )
                     panel = Panel(child=grid, title="Charts")
                     panels.append(panel)
 

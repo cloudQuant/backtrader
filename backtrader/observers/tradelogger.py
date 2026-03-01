@@ -51,10 +51,10 @@ Example::
 """
 
 import csv
+import datetime as dt_module
 import io
 import json
 import os
-import datetime as dt_module
 
 from ..observer import Observer
 from ..trade import Trade
@@ -164,9 +164,7 @@ class TradeLogger(Observer):
                 params_dict = {}
                 if hasattr(self._owner, "p") and hasattr(self._owner.p, "_getkwargs"):
                     params_dict = dict(self._owner.p._getkwargs())
-                self._strategy_params = json.dumps(
-                    params_dict, default=str, ensure_ascii=False
-                )
+                self._strategy_params = json.dumps(params_dict, default=str, ensure_ascii=False)
             except Exception:
                 self._strategy_params = "{}"
         else:
@@ -273,7 +271,7 @@ class TradeLogger(Observer):
             return
 
         sep = self._separator
-        is_csv = (self.p.file_format == "csv")
+        is_csv = self.p.file_format == "csv"
 
         for record in records:
             keys = list(record.keys())
@@ -374,7 +372,9 @@ class TradeLogger(Observer):
                 size=order.size,
                 price=order.created.price if order.created else None,
                 exectype=order.ExecTypes[order.exectype] if order.exectype is not None else None,
-                executed_price=order.executed.price if order.executed and order.executed.size else None,
+                executed_price=(
+                    order.executed.price if order.executed and order.executed.size else None
+                ),
                 executed_size=order.executed.size if order.executed else None,
                 commission=order.executed.comm if order.executed else None,
                 dt=num2date(order.data.datetime[0]) if len(order.data) else None,
@@ -462,8 +462,13 @@ class TradeLogger(Observer):
             )
 
             standard_lines = {
-                "close", "low", "high", "open",
-                "volume", "openinterest", "datetime",
+                "close",
+                "low",
+                "high",
+                "open",
+                "volume",
+                "openinterest",
+                "datetime",
             }
 
             extra_fields = self.p.extra_fields
@@ -510,6 +515,7 @@ class TradeLogger(Observer):
             import pymysql
         except ImportError:
             import warnings
+
             warnings.warn(
                 "pymysql is not installed – MySQL logging disabled. "
                 "Install with:  pip install pymysql"
@@ -649,13 +655,24 @@ class TradeLogger(Observer):
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             )
             rows = [
-                (e.get("log_time"),
-                 self._run_id, self._strategy_name, self._strategy_params, run_dt,
-                 e.get("ref"), e.get("ordtype"), e.get("status"),
-                 e.get("size"), e.get("price"), e.get("exectype"),
-                 e.get("executed_price"), e.get("executed_size"),
-                 e.get("commission"), self._dt_to_str(e.get("dt")),
-                 e.get("data_name"))
+                (
+                    e.get("log_time"),
+                    self._run_id,
+                    self._strategy_name,
+                    self._strategy_params,
+                    run_dt,
+                    e.get("ref"),
+                    e.get("ordtype"),
+                    e.get("status"),
+                    e.get("size"),
+                    e.get("price"),
+                    e.get("exectype"),
+                    e.get("executed_price"),
+                    e.get("executed_size"),
+                    e.get("commission"),
+                    self._dt_to_str(e.get("dt")),
+                    e.get("data_name"),
+                )
                 for e in self.order_log
             ]
             cursor.executemany(sql, rows)
@@ -672,16 +689,32 @@ class TradeLogger(Observer):
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             )
             rows = [
-                (e.get("log_time"),
-                 self._run_id, self._strategy_name, self._strategy_params, run_dt,
-                 e.get("ref"), e.get("status"), e.get("size"), e.get("price"),
-                 e.get("value"), e.get("commission"), e.get("pnl"), e.get("pnlcomm"),
-                 int(e.get("isopen", False)), int(e.get("isclosed", False)),
-                 int(e.get("justopened", False)),
-                 e.get("baropen"), e.get("barclose"), e.get("barlen"),
-                 self._dt_to_str(e.get("dtopen")), self._dt_to_str(e.get("dtclose")),
-                 e.get("data_name"), e.get("tradeid"),
-                 int(e.get("long", False)))
+                (
+                    e.get("log_time"),
+                    self._run_id,
+                    self._strategy_name,
+                    self._strategy_params,
+                    run_dt,
+                    e.get("ref"),
+                    e.get("status"),
+                    e.get("size"),
+                    e.get("price"),
+                    e.get("value"),
+                    e.get("commission"),
+                    e.get("pnl"),
+                    e.get("pnlcomm"),
+                    int(e.get("isopen", False)),
+                    int(e.get("isclosed", False)),
+                    int(e.get("justopened", False)),
+                    e.get("baropen"),
+                    e.get("barclose"),
+                    e.get("barlen"),
+                    self._dt_to_str(e.get("dtopen")),
+                    self._dt_to_str(e.get("dtclose")),
+                    e.get("data_name"),
+                    e.get("tradeid"),
+                    int(e.get("long", False)),
+                )
                 for e in self.trade_log
             ]
             cursor.executemany(sql, rows)
@@ -695,10 +728,17 @@ class TradeLogger(Observer):
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"
             )
             rows = [
-                (e.get("log_time"),
-                 self._run_id, self._strategy_name, self._strategy_params, run_dt,
-                 self._dt_to_str(e.get("dt")), e.get("data_name"),
-                 e.get("size"), e.get("price"))
+                (
+                    e.get("log_time"),
+                    self._run_id,
+                    self._strategy_name,
+                    self._strategy_params,
+                    run_dt,
+                    self._dt_to_str(e.get("dt")),
+                    e.get("data_name"),
+                    e.get("size"),
+                    e.get("price"),
+                )
                 for e in self.position_log
             ]
             cursor.executemany(sql, rows)

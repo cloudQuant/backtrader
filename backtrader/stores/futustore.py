@@ -194,7 +194,9 @@ class FutuStore(ParameterizedSingletonMixin):
         super().__init__()
 
         if not HAS_FUTU:
-            raise ImportError("futu-api package is required for FutuStore. Install it with: pip install futu-api")
+            raise ImportError(
+                "futu-api package is required for FutuStore. Install it with: pip install futu-api"
+            )
 
         self.host = host
         self.port = port
@@ -319,7 +321,9 @@ class FutuStore(ParameterizedSingletonMixin):
                 [timestamp, open, high, low, close, volume]. Returns empty
                 list on error.
         """
-        ret, data, _ = self.quote_ctx.request_history_kline(symbol, ktype=kl_type, start=start, end=end, max_count=limit)
+        ret, data, _ = self.quote_ctx.request_history_kline(
+            symbol, ktype=kl_type, start=start, end=end, max_count=limit
+        )
 
         if ret != RET_OK:
             print(f"Failed to fetch OHLCV for {symbol}: {data}")
@@ -330,7 +334,9 @@ class FutuStore(ParameterizedSingletonMixin):
         for _, row in data.iterrows():
             dt = datetime.strptime(row["time_key"], "%Y-%m-%d %H:%M:%S")
             timestamp = int(dt.timestamp() * 1000)
-            result.append([timestamp, row["open"], row["high"], row["low"], row["close"], row["volume"]])
+            result.append(
+                [timestamp, row["open"], row["high"], row["low"], row["close"], row["volume"]]
+            )
 
         return result
 

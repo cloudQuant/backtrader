@@ -580,7 +580,9 @@ class VCStore(ParameterizedSingletonMixin):
         self.vcds.ActiveEvents = 0
         # self.vcds.EventsType = self.vcdsmod.EF_Always
 
-        serie = self.vcds.NewDataSerie(symbol, self.vcdsmod.CT_Days, 1, self.MAXDATE1, self.MAXDATE2)
+        serie = self.vcds.NewDataSerie(
+            symbol, self.vcdsmod.CT_Days, 1, self.MAXDATE1, self.MAXDATE2
+        )
 
         syminfo = _SymInfo(serie.GetSymbolInfo())
         self.vcds.DeleteDataSource(serie)

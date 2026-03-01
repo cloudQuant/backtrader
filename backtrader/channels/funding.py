@@ -47,7 +47,16 @@ class FundingRateChannel(DataChannel):
 
     channel_type = "funding"
 
-    def __init__(self, symbol, dataname=None, maxlen=10000, validate=True, auto_fix=True, rate_threshold=0.01, **kwargs):
+    def __init__(
+        self,
+        symbol,
+        dataname=None,
+        maxlen=10000,
+        validate=True,
+        auto_fix=True,
+        rate_threshold=0.01,
+        **kwargs,
+    ):
         """Initialize the funding rate channel.
 
         Args:
@@ -59,7 +68,14 @@ class FundingRateChannel(DataChannel):
             rate_threshold: Maximum allowed rate difference threshold.
             **kwargs: Additional arguments passed to parent.
         """
-        super().__init__(symbol=symbol, maxlen=maxlen, validate=validate, auto_fix=auto_fix, dataname=dataname, **kwargs)
+        super().__init__(
+            symbol=symbol,
+            maxlen=maxlen,
+            validate=validate,
+            auto_fix=auto_fix,
+            dataname=dataname,
+            **kwargs,
+        )
         self._dataname = dataname
         self._rate_threshold = rate_threshold
         self._last_rate = None
@@ -76,7 +92,9 @@ class FundingRateChannel(DataChannel):
 
         # Rate anomaly detection
         if self._last_rate is not None and abs(event.rate) > self._rate_threshold:
-            result.warnings.append(f"High funding rate: {event.rate} (threshold: {self._rate_threshold})")
+            result.warnings.append(
+                f"High funding rate: {event.rate} (threshold: {self._rate_threshold})"
+            )
 
         self._last_rate = event.rate
         return result
@@ -121,7 +139,9 @@ class FundingRateChannel(DataChannel):
             if reader.fieldnames:
                 missing = required - set(reader.fieldnames)
                 if missing:
-                    raise ValueError(f"Missing required columns: {missing}. Found: {reader.fieldnames}")
+                    raise ValueError(
+                        f"Missing required columns: {missing}. Found: {reader.fieldnames}"
+                    )
 
             for row in reader:
                 try:
@@ -132,7 +152,8 @@ class FundingRateChannel(DataChannel):
                         asset_type=row.get("asset_type", "swap"),
                         rate=float(row["rate"]),
                         mark_price=float(row["mark_price"]),
-                        next_funding_time=_parse_optional_float(row.get("next_funding_time")) or 0.0,
+                        next_funding_time=_parse_optional_float(row.get("next_funding_time"))
+                        or 0.0,
                         predicted_rate=_parse_optional_float(row.get("predicted_rate")) or 0.0,
                     )
                     yield fe

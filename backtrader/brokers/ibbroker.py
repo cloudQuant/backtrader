@@ -575,7 +575,9 @@ class IBBroker(BrokerBase):
         Returns:
             IBOrder: The submitted buy order.
         """
-        order = self._makeorder("BUY", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs)
+        order = self._makeorder(
+            "BUY", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
+        )
 
         return self.submit(order)
 
@@ -608,7 +610,9 @@ class IBBroker(BrokerBase):
         Returns:
             IBOrder: The submitted sell order.
         """
-        order = self._makeorder("SELL", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs)
+        order = self._makeorder(
+            "SELL", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
+        )
 
         return self.submit(order)
 

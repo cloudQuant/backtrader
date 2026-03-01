@@ -96,7 +96,9 @@ class PerformanceCalculator:
             # Calculate profit factor
             if metrics["result_won_trades"] and metrics["result_lost_trades"]:
                 if metrics["result_lost_trades"] != 0:
-                    metrics["profit_factor"] = abs(metrics["result_won_trades"] / metrics["result_lost_trades"])
+                    metrics["profit_factor"] = abs(
+                        metrics["result_won_trades"] / metrics["result_lost_trades"]
+                    )
 
             # Average profit/loss per trade
             total = trade_analysis.get("total", {})
@@ -108,7 +110,9 @@ class PerformanceCalculator:
         bt_period_days = self._get_backtest_days()
         if bt_period_days and bt_period_days > 0 and metrics["total_return"] is not None:
             total_return_decimal = metrics["total_return"] / 100
-            metrics["annual_return"] = 100 * ((1 + total_return_decimal) ** (365.25 / bt_period_days) - 1)
+            metrics["annual_return"] = 100 * (
+                (1 + total_return_decimal) ** (365.25 / bt_period_days) - 1
+            )
 
         return metrics
 
@@ -135,7 +139,9 @@ class PerformanceCalculator:
         pnl_metrics = self.get_pnl_metrics()
         if pnl_metrics.get("annual_return") and metrics.get("max_pct_drawdown"):
             if metrics["max_pct_drawdown"] != 0:
-                metrics["calmar_ratio"] = abs(pnl_metrics["annual_return"] / metrics["max_pct_drawdown"])
+                metrics["calmar_ratio"] = abs(
+                    pnl_metrics["annual_return"] / metrics["max_pct_drawdown"]
+                )
 
         return metrics
 

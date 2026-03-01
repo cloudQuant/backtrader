@@ -66,7 +66,9 @@ class CCXTWebSocketManager:
             ImportError: If ccxt.pro is not installed.
         """
         if not HAS_CCXT_PRO:
-            raise ImportError("ccxt.pro is required for WebSocket support. Install with: pip install ccxtpro")
+            raise ImportError(
+                "ccxt.pro is required for WebSocket support. Install with: pip install ccxtpro"
+            )
 
         self.exchange_id = exchange_id
         self.config = config
@@ -81,7 +83,9 @@ class CCXTWebSocketManager:
         self._connected = False
         self._subscribed_symbols = set()  # Subscribed trading pairs
         self._preloaded_markets = markets  # Pre-loaded markets from store
-        self._reconnecting = False  # Prevent multiple watch loops from triggering reconnect simultaneously
+        self._reconnecting = (
+            False  # Prevent multiple watch loops from triggering reconnect simultaneously
+        )
         # C14: Reconnect callbacks — callers can register to do REST backfill
         self._reconnect_callbacks: List[Callable] = []
 
@@ -243,14 +247,18 @@ class CCXTWebSocketManager:
             # because ccxt uses list-based markets_by_id that manual copy breaks.
             try:
                 await asyncio.wait_for(self.exchange.load_markets(), timeout=15.0)
-                print(f"[WS] Markets loaded successfully ({len(self.exchange.markets or {})} markets)")
+                print(
+                    f"[WS] Markets loaded successfully ({len(self.exchange.markets or {})} markets)"
+                )
             except Exception as e:
                 print(f"[WS] load_markets failed: {e}")
                 # Fallback: try pre-loaded markets with ccxt's set_markets if available
                 if self._preloaded_markets:
                     try:
                         self.exchange.set_markets(list(self._preloaded_markets.values()))
-                        print(f"[WS] Using {len(self.exchange.markets)} pre-loaded markets from store")
+                        print(
+                            f"[WS] Using {len(self.exchange.markets)} pre-loaded markets from store"
+                        )
                     except (AttributeError, TypeError):
                         # set_markets not available, manually set minimal markets
                         self.exchange.markets = self._preloaded_markets.copy()
@@ -260,7 +268,10 @@ class CCXTWebSocketManager:
                     print("[WS] Will create market entries on demand")
                     if self.exchange.markets is None:
                         self.exchange.markets = {}
-                    if not hasattr(self.exchange, "markets_by_id") or self.exchange.markets_by_id is None:
+                    if (
+                        not hasattr(self.exchange, "markets_by_id")
+                        or self.exchange.markets_by_id is None
+                    ):
                         self.exchange.markets_by_id = {}
 
             self._connected = True
@@ -380,7 +391,9 @@ class CCXTWebSocketManager:
         self._subscriptions[key] = callback
 
         if self._loop and self._running:
-            asyncio.run_coroutine_threadsafe(self._watch_ohlcv(symbol, timeframe, callback), self._loop)
+            asyncio.run_coroutine_threadsafe(
+                self._watch_ohlcv(symbol, timeframe, callback), self._loop
+            )
 
     def subscribe_trades(self, symbol: str, callback: Callable) -> None:
         """Subscribe to real-time trade updates.
@@ -407,7 +420,9 @@ class CCXTWebSocketManager:
         self._subscriptions[key] = callback
 
         if self._loop and self._running:
-            asyncio.run_coroutine_threadsafe(self._watch_orderbook(symbol, callback, limit), self._loop)
+            asyncio.run_coroutine_threadsafe(
+                self._watch_orderbook(symbol, callback, limit), self._loop
+            )
 
     def subscribe_my_trades(self, symbol: str, callback: Callable) -> None:
         """Subscribe to user's trade updates (requires auth).
@@ -496,7 +511,9 @@ class CCXTWebSocketManager:
                 break
             except Exception as e:
                 consecutive_errors += 1
-                print(f"OHLCV watch error for {symbol} (error {consecutive_errors}/{max_consecutive_errors}): {e}")
+                print(
+                    f"OHLCV watch error for {symbol} (error {consecutive_errors}/{max_consecutive_errors}): {e}"
+                )
 
                 if consecutive_errors >= max_consecutive_errors:
                     print("Too many consecutive errors, attempting reconnect...")
@@ -608,7 +625,9 @@ class CCXTWebSocketManager:
                 break
             except Exception as e:
                 consecutive_errors += 1
-                print(f"Mark price watch error for {symbol} (error {consecutive_errors}/{max_consecutive_errors}): {e}")
+                print(
+                    f"Mark price watch error for {symbol} (error {consecutive_errors}/{max_consecutive_errors}): {e}"
+                )
 
                 if consecutive_errors >= max_consecutive_errors:
                     consecutive_errors = 0

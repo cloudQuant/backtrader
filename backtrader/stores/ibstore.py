@@ -1465,7 +1465,9 @@ class IBStore(ParameterizedSingletonMixin):
         return q
 
     # Request historical data from IB
-    def reqHistoricalData(self, contract, enddate, duration, barsize, what=None, useRTH=False, tz="", sessionend=None):
+    def reqHistoricalData(
+        self, contract, enddate, duration, barsize, what=None, useRTH=False, tz="", sessionend=None
+    ):
         """Proxy to reqHistorical Data"""
 
         # get a ticker/queue for identification/data delivery

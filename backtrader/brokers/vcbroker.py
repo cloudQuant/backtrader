@@ -460,7 +460,9 @@ class VCBroker(BrokerBase):
 
         order.addinfo(**kwargs)
 
-        vcorder = self._makeorder(order.ordtype, owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs)
+        vcorder = self._makeorder(
+            order.ordtype, owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
+        )
 
         return self.submit(order, vcorder)
 
@@ -505,7 +507,9 @@ class VCBroker(BrokerBase):
 
         order.addinfo(**kwargs)
 
-        vcorder = self._makeorder(order.ordtype, owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs)
+        vcorder = self._makeorder(
+            order.ordtype, owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
+        )
 
         return self.submit(order, vcorder)
 

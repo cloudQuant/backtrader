@@ -118,7 +118,9 @@ class Widget:
         return self._active
 
     # set_active is overriden by SelectorWidgets.
-    active = property(get_active, lambda self, active: self.set_active(active), doc="Is the widget active?")
+    active = property(
+        get_active, lambda self, active: self.set_active(active), doc="Is the widget active?"
+    )
 
     def ignore(self, event):
         """Return True if event should be ignored.

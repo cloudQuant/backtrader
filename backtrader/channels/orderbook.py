@@ -51,7 +51,9 @@ class OrderBookChannel(DataChannel):
 
     channel_type = "orderbook"
 
-    def __init__(self, symbol, dataname=None, depth=20, maxlen=10000, validate=True, auto_fix=True, **kwargs):
+    def __init__(
+        self, symbol, dataname=None, depth=20, maxlen=10000, validate=True, auto_fix=True, **kwargs
+    ):
         """Initialize the order book channel.
 
         Args:
@@ -63,7 +65,14 @@ class OrderBookChannel(DataChannel):
             auto_fix: Whether to attempt auto-fixing invalid data.
             **kwargs: Additional arguments passed to parent.
         """
-        super().__init__(symbol=symbol, maxlen=maxlen, validate=validate, auto_fix=auto_fix, dataname=dataname, **kwargs)
+        super().__init__(
+            symbol=symbol,
+            maxlen=maxlen,
+            validate=validate,
+            auto_fix=auto_fix,
+            dataname=dataname,
+            **kwargs,
+        )
         self._dataname = dataname
         self._depth = depth
         self._last_best_bid = None
@@ -139,7 +148,9 @@ class OrderBookChannel(DataChannel):
             if reader.fieldnames:
                 missing = required - set(reader.fieldnames)
                 if missing:
-                    raise ValueError(f"Missing required columns: {missing}. Found: {reader.fieldnames}")
+                    raise ValueError(
+                        f"Missing required columns: {missing}. Found: {reader.fieldnames}"
+                    )
 
             for row in reader:
                 try:

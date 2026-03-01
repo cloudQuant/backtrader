@@ -168,7 +168,9 @@ class OLS_TransformationN(PeriodN):
                 arr.append(0.0)
 
         # Calculate spread
-        for i in range(start, min(end, len(slope_array), len(intercept_array), len(d0_array), len(d1_array))):
+        for i in range(
+            start, min(end, len(slope_array), len(intercept_array), len(d0_array), len(d1_array))
+        ):
             slope = slope_array[i] if i < len(slope_array) else 0.0
             intercept = intercept_array[i] if i < len(intercept_array) else 0.0
             d0 = d0_array[i] if i < len(d0_array) else 0.0

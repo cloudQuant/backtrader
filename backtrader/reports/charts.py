@@ -51,7 +51,9 @@ class ReportChart:
         self.dpi = dpi
         self._figures = []
 
-    def plot_equity_curve(self, dates, values, benchmark_dates=None, benchmark_values=None, title="Equity Curve"):
+    def plot_equity_curve(
+        self, dates, values, benchmark_dates=None, benchmark_values=None, title="Equity Curve"
+    ):
         """Plot equity curve chart.
 
         Args:
@@ -154,7 +156,9 @@ class ReportChart:
         colors = ["green" if r > 0 else "red" for r in returns.values]
 
         # Plot bar chart
-        x_labels = [d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d) for d in returns.index]
+        x_labels = [
+            d.strftime("%Y-%m-%d") if hasattr(d, "strftime") else str(d) for d in returns.index
+        ]
         ax.bar(range(len(returns)), returns.values, color=colors, alpha=0.7)
 
         # Set x-axis labels

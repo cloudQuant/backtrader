@@ -102,7 +102,9 @@ class CryptoStore:
             print_info = True
         else:
             print_info = False
-        logger = SpdLogManager(file_name="cryptofeed.log", logger_name="feed", print_info=print_info).create_logger()
+        logger = SpdLogManager(
+            file_name="cryptofeed.log", logger_name="feed", print_info=print_info
+        ).create_logger()
         return logger
 
     def log(self, txt, level="info"):
@@ -276,7 +278,9 @@ class CryptoStore:
                 data.init_data()
                 self.log(f"unconsidered info:{data.get_all_data()}")
 
-    def download_history_bars(self, dataname, granularity, count=100, start_time=None, end_time=None):
+    def download_history_bars(
+        self, dataname, granularity, count=100, start_time=None, end_time=None
+    ):
         """Download historical bar data from the exchange.
 
         Args:
@@ -387,7 +391,9 @@ class CryptoStore:
                         f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
                         f"begin: {begin_time}, end: {current_end_time}"
                     )
-                    new_data = feed.get_kline("BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp)
+                    new_data = feed.get_kline(
+                        "BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp
+                    )
                     new_data.get_data()
                     # print("new_bar_data", type(new_bar_list), new_bar_list)  # Removed for performance
                     assert 0
@@ -403,7 +409,9 @@ class CryptoStore:
                     self.log(f"download fail, retry: {error_info}")
                     time.sleep(3)  # Pause for 3 seconds before retry
 
-            self.log(f"download all data completely:{exchange_name}, {symbol}, period: {granularity}")
+            self.log(
+                f"download all data completely:{exchange_name}, {symbol}, period: {granularity}"
+            )
         return bar_data_list
 
     def getcash(self, cache=True):

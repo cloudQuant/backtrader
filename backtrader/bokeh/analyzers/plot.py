@@ -112,7 +112,9 @@ class LivePlotAnalyzer(bt.Analyzer):
         Returns:
             BacktraderBokeh instance
         """
-        return BacktraderBokeh(style=self.p.style, scheme=self.p.scheme or Tradimo(), **self._app_kwargs)
+        return BacktraderBokeh(
+            style=self.p.style, scheme=self.p.scheme or Tradimo(), **self._app_kwargs
+        )
 
     def _on_session_destroyed(self, session_context):
         """Session destroyed callback.

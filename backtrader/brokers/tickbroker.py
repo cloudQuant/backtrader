@@ -320,7 +320,9 @@ class TickBroker(BrokerBase):
 
         matched = []
         for order in list(self._pending_orders):
-            order_data_name = getattr(order.data, "_name", None) or getattr(order.data, "symbol", str(order.data))
+            order_data_name = getattr(order.data, "_name", None) or getattr(
+                order.data, "symbol", str(order.data)
+            )
             if order_data_name != data_name:
                 continue
 
@@ -424,7 +426,9 @@ class TickBroker(BrokerBase):
             tick: The tick that triggered the fill.
         """
         # Determine position change
-        data_name = getattr(order.data, "_name", None) or getattr(order.data, "symbol", str(order.data))
+        data_name = getattr(order.data, "_name", None) or getattr(
+            order.data, "symbol", str(order.data)
+        )
         pos = self._positions[data_name]
 
         if order.isbuy():

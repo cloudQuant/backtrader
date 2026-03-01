@@ -156,13 +156,19 @@ class TradeLogger(Observer):
         os.makedirs(self.p.log_dir, exist_ok=True)
 
         if self.p.log_orders:
-            self._order_logger = self._create_file_logger("bt_order", os.path.join(self.p.log_dir, "order.log"))
+            self._order_logger = self._create_file_logger(
+                "bt_order", os.path.join(self.p.log_dir, "order.log")
+            )
 
         if self.p.log_trades:
-            self._trade_logger = self._create_file_logger("bt_trade", os.path.join(self.p.log_dir, "trade.log"))
+            self._trade_logger = self._create_file_logger(
+                "bt_trade", os.path.join(self.p.log_dir, "trade.log")
+            )
 
         if self.p.log_positions:
-            self._position_logger = self._create_file_logger("bt_position", os.path.join(self.p.log_dir, "position.log"))
+            self._position_logger = self._create_file_logger(
+                "bt_position", os.path.join(self.p.log_dir, "position.log")
+            )
 
         if self.p.log_indicators:
             self._indicator_logger = self._create_file_logger(
@@ -170,7 +176,9 @@ class TradeLogger(Observer):
             )
 
         if self.p.log_signals:
-            self._signal_logger = self._create_file_logger("bt_signal", os.path.join(self.p.log_dir, "signal.log"))
+            self._signal_logger = self._create_file_logger(
+                "bt_signal", os.path.join(self.p.log_dir, "signal.log")
+            )
 
     def _create_file_logger(self, name, file_path):
         """Create a file logger using Python standard logging.
@@ -426,7 +434,8 @@ class TradeLogger(Observer):
             "action": action,
             "size": size,
             "price": price,
-            "data_name": data_name or (self._owner.data._name if hasattr(self._owner, "data") else None),
+            "data_name": data_name
+            or (self._owner.data._name if hasattr(self._owner, "data") else None),
             "reason": reason or "",
             "strategy_name": self._get_strategy_name(),
         }
@@ -471,7 +480,9 @@ class TradeLogger(Observer):
             # File logging
             if self._position_logger:
                 if self.p.log_format == "json":
-                    self._position_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
+                    self._position_logger.info(
+                        json.dumps(log_data, ensure_ascii=False, default=str)
+                    )
                 else:
                     self._position_logger.info(
                         f"{log_data['datetime']} | {data_name} | "
@@ -505,7 +516,11 @@ class TradeLogger(Observer):
                 self._indicator_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
             else:
                 indicator_str = " | ".join(
-                    [f"{k}={v:.4f}" for k, v in indicators_data.items() if isinstance(v, (int, float))]
+                    [
+                        f"{k}={v:.4f}"
+                        for k, v in indicators_data.items()
+                        if isinstance(v, (int, float))
+                    ]
                 )
                 self._indicator_logger.info(f"{log_data['datetime']} | {indicator_str}")
 
@@ -566,8 +581,14 @@ class TradeLogger(Observer):
                         line = getattr(indicator.lines, line_name)
                         if len(line) > 0:
                             value = line[0]
-                            if value is not None and not (hasattr(value, "__float__") and float(value) != float(value)):
-                                full_name = f"{ind_name}_{line_name}" if line_name != ind_name.lower() else ind_name
+                            if value is not None and not (
+                                hasattr(value, "__float__") and float(value) != float(value)
+                            ):
+                                full_name = (
+                                    f"{ind_name}_{line_name}"
+                                    if line_name != ind_name.lower()
+                                    else ind_name
+                                )
                                 indicators_dict[full_name] = float(value)
                     except Exception:
                         continue
@@ -600,7 +621,9 @@ class TradeLogger(Observer):
         snapshot_path = os.path.join(self.p.log_dir, self.p.snapshot_file)
         try:
             with open(snapshot_path, "w", encoding="utf-8") as f:
-                yaml.dump(snapshot, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
+                yaml.dump(
+                    snapshot, f, allow_unicode=True, default_flow_style=False, sort_keys=False
+                )
         except Exception as e:
             if self.p.log_to_console:
                 print(f"[TradeLogger] Failed to save position snapshot: {e}")

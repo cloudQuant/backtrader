@@ -22,7 +22,6 @@ Example:
 
 import heapq
 import logging
-import sys
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
@@ -224,13 +223,17 @@ class DataChannel:
         if self._last_timestamp is not None:
             if event.timestamp < self._last_timestamp:
                 if self._auto_fix:
-                    result.warnings.append(f"Out-of-order timestamp: {event.timestamp} < {self._last_timestamp}")
+                    result.warnings.append(
+                        f"Out-of-order timestamp: {event.timestamp} < {self._last_timestamp}"
+                    )
                     result.auto_fixed = True
                     result.fixed_fields["timestamp"] = (event.timestamp, self._last_timestamp)
                     event.timestamp = self._last_timestamp
                 else:
                     result.valid = False
-                    result.errors.append(f"Out-of-order timestamp: {event.timestamp} < {self._last_timestamp}")
+                    result.errors.append(
+                        f"Out-of-order timestamp: {event.timestamp} < {self._last_timestamp}"
+                    )
 
         return result
 
@@ -332,7 +335,13 @@ class StreamingEventQueue:
     """
 
     def __init__(
-        self, channels=None, bars=None, preload_window=300.0, max_memory_mb=200, adaptive=True, batch_size=10000
+        self,
+        channels=None,
+        bars=None,
+        preload_window=300.0,
+        max_memory_mb=200,
+        adaptive=True,
+        batch_size=10000,
     ):
         """Initialize a StreamingEventQueue.
 
@@ -574,12 +583,20 @@ class StreamingEventQueue:
             # Shrink window
             self._window = max(self._window_min, self._window * 0.7)
             self._adjustment_count += 1
-            logger.debug("Shrinking preload window to %.0fs (memory: %.1fMB)", self._window, mem_usage / 1024 / 1024)
+            logger.debug(
+                "Shrinking preload window to %.0fs (memory: %.1fMB)",
+                self._window,
+                mem_usage / 1024 / 1024,
+            )
         elif mem_usage < self._max_memory * 0.3 and self._window < self._window_max:
             # Grow window
             self._window = min(self._window_max, self._window * 1.3)
             self._adjustment_count += 1
-            logger.debug("Growing preload window to %.0fs (memory: %.1fMB)", self._window, mem_usage / 1024 / 1024)
+            logger.debug(
+                "Growing preload window to %.0fs (memory: %.1fMB)",
+                self._window,
+                mem_usage / 1024 / 1024,
+            )
 
     def _estimate_memory_usage(self) -> int:
         """Estimate current memory usage of the heap.

@@ -90,7 +90,9 @@ class LiveDataHandler:
         if not PANDAS_AVAILABLE:
             return
 
-        df = self._app.generate_data(figid=self._figid, back=self._lookback, preserveidx=True, fill_gaps=self._fill_gaps)
+        df = self._app.generate_data(
+            figid=self._figid, back=self._lookback, preserveidx=True, fill_gaps=self._fill_gaps
+        )
 
         self._set_data(df)
 

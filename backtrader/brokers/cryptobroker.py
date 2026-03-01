@@ -184,7 +184,9 @@ class CryptoBroker(BrokerBase):
             print_info = True
         else:
             print_info = False
-        logger = SpdLogManager(file_name="cryptofeed.log", logger_name="feed", print_info=print_info).create_logger()
+        logger = SpdLogManager(
+            file_name="cryptofeed.log", logger_name="feed", print_info=print_info
+        ).create_logger()
         return logger
 
     def log(self, txt, level="info"):
@@ -408,7 +410,9 @@ class CryptoBroker(BrokerBase):
         order_price = data.get_order_price()
         trade_data = self.getdatabyname(data_name)
         self.log(f"data_name = {data_name}, order_side = {order_side}, order_price = {order_price}")
-        return CryptoOrder(None, trade_data, exectype, order_side, order_amount, order_price, "order", data)
+        return CryptoOrder(
+            None, trade_data, exectype, order_side, order_amount, order_price, "order", data
+        )
 
     def convert_bt_api_trade_to_backtrader_trade(self, data):
         """Convert bt_api_py trade data to backtrader CryptoOrder format.

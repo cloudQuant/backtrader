@@ -179,9 +179,13 @@ class BracketOrderManager:
 
         # Create entry order
         if side == "buy":
-            entry_order = self.broker.buy(owner=None, data=data, size=size, price=entry_price, exectype=entry_type)
+            entry_order = self.broker.buy(
+                owner=None, data=data, size=size, price=entry_price, exectype=entry_type
+            )
         else:
-            entry_order = self.broker.sell(owner=None, data=data, size=size, price=entry_price, exectype=entry_type)
+            entry_order = self.broker.sell(
+                owner=None, data=data, size=size, price=entry_price, exectype=entry_type
+            )
 
         bracket = BracketOrder(
             bracket_id=bracket_id,
@@ -334,7 +338,9 @@ class BracketOrderManager:
                 except Exception:
                     pass
 
-    def modify_bracket(self, bracket_id: str, stop_price: float = None, limit_price: float = None) -> bool:
+    def modify_bracket(
+        self, bracket_id: str, stop_price: float = None, limit_price: float = None
+    ) -> bool:
         """Modify stop-loss and/or take-profit prices of an active bracket.
 
         Cancels existing protection orders and creates new ones with updated

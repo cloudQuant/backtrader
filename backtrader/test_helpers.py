@@ -53,7 +53,9 @@ def get_test_value(test_file, index=0):
             from tests.original_tests.test_strategy_optimized import CHKCASH, CHKVALUES
 
             if index < len(CHKVALUES):
-                return float(CHKVALUES[index]), (float(CHKCASH[index]) if index < len(CHKCASH) else None)
+                return float(CHKVALUES[index]), (
+                    float(CHKCASH[index]) if index < len(CHKCASH) else None
+                )
 
         elif test_name == "test_strategy_unoptimized.py":
             # The unoptimized test checks specific values in the stop method
@@ -65,7 +67,9 @@ def get_test_value(test_file, index=0):
                         "cash": ["6164.16"],  # Cash value
                     }
                 if index < len(_TEST_VALUES[test_name]["values"]):
-                    return float(_TEST_VALUES[test_name]["values"][index]), float(_TEST_VALUES[test_name]["cash"][index])
+                    return float(_TEST_VALUES[test_name]["values"][index]), float(
+                        _TEST_VALUES[test_name]["cash"][index]
+                    )
     except Exception as e:
         print(f"Error accessing test values: {e}")
         traceback.print_exc()

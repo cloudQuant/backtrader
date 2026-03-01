@@ -151,7 +151,9 @@ class PercentagePriceOscillator(_PriceOscBase):
         self.lines.ppo[0] = ppo_val
 
         # Calculate signal (EMA of PPO)
-        self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + ppo_val * self.signal_alpha
+        self.lines.signal[0] = (
+            self.lines.signal[-1] * self.signal_alpha1 + ppo_val * self.signal_alpha
+        )
 
         # Calculate histogram
         self.lines.histo[0] = self.lines.ppo[0] - self.lines.signal[0]

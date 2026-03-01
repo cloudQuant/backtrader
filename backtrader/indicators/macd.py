@@ -134,7 +134,9 @@ class MACD(Indicator):
         macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
         # Calculate signal = EMA of MACD
-        self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + macd_val * self.signal_alpha
+        self.lines.signal[0] = (
+            self.lines.signal[-1] * self.signal_alpha1 + macd_val * self.signal_alpha
+        )
 
     def once(self, start, end):
         """Calculate MACD in runonce mode"""

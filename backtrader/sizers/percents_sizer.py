@@ -38,7 +38,9 @@ class PercentSizer(Sizer):
         validator=Float(min_val=0.0, max_val=100.0),
         doc="Percentage of available cash to use",
     )
-    retint = ParameterDescriptor(default=False, type_=bool, doc="Return an int size or rather the float value")
+    retint = ParameterDescriptor(
+        default=False, type_=bool, doc="Return an int size or rather the float value"
+    )
 
     def __init__(self, **kwargs):
         """Initialize the PercentSizer sizer.

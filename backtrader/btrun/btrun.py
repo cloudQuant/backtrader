@@ -511,7 +511,9 @@ def getmodfunctions(mod, funcname=None):
         list: List of function/method objects that match the criteria. If
             funcname is specified, returns a list with at most one element.
     """
-    members = inspect.getmembers(mod, inspect.isfunction) + inspect.getmembers(mod, inspect.ismethod)
+    members = inspect.getmembers(mod, inspect.isfunction) + inspect.getmembers(
+        mod, inspect.ismethod
+    )
 
     funclist = list()
     for name, member in members:
@@ -760,7 +762,9 @@ def parse_args(pargs=""):
 
     group = parser.add_argument_group(title="Data options")
     # Data options
-    group.add_argument("--data", "-d", action="append", required=True, help="Data files to be added to the system")
+    group.add_argument(
+        "--data", "-d", action="append", required=True, help="Data files to be added to the system"
+    )
 
     group = parser.add_argument_group(title="Cerebro options")
     group.add_argument(
@@ -795,7 +799,9 @@ def parse_args(pargs=""):
         ),
     )
 
-    group.add_argument("--nostdstats", action="store_true", help="Disable the standard statistics observers")
+    group.add_argument(
+        "--nostdstats", action="store_true", help="Disable the standard statistics observers"
+    )
 
     datakeys = list(DATAFORMATS)
     group.add_argument(
@@ -1108,8 +1114,12 @@ def parse_args(pargs=""):
 
     # Broker/Commissions
     group = parser.add_argument_group(title="Cash and Commission Scheme Args")
-    group.add_argument("--cash", "-cash", required=False, type=float, help="Cash to set to the broker")
-    group.add_argument("--commission", "-comm", required=False, type=float, help="Commission value to set")
+    group.add_argument(
+        "--cash", "-cash", required=False, type=float, help="Cash to set to the broker"
+    )
+    group.add_argument(
+        "--commission", "-comm", required=False, type=float, help="Commission value to set"
+    )
     group.add_argument("--margin", "-marg", required=False, type=float, help="Margin type to set")
     group.add_argument("--mult", "-mul", required=False, type=float, help="Multiplier to use")
 
@@ -1155,7 +1165,9 @@ def parse_args(pargs=""):
         "--no-slip_match",
         required=False,
         action="store_true",
-        help=("Disable slip_match, ie: matching capped at \nhigh-low if slippage goes over those limits"),
+        help=(
+            "Disable slip_match, ie: matching capped at \nhigh-low if slippage goes over those limits"
+        ),
     )
     group.add_argument(
         "--slip_out",

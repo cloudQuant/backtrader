@@ -248,7 +248,9 @@ class LinesManager:
     """Manager for lines operations without metaclass"""
 
     @staticmethod
-    def create_lines_class(base_class, name, lines=(), extralines=0, otherbases=(), linesoverride=False, lalias=None):
+    def create_lines_class(
+        base_class, name, lines=(), extralines=0, otherbases=(), linesoverride=False, lalias=None
+    ):
         """Create a lines class dynamically.
 
         Args:
@@ -373,7 +375,9 @@ class Lines:
         the baseclass will be the topmost class "Lines". This is intended to
         create a new hierarchy
         """
-        return LinesManager.create_lines_class(cls, name, lines, extralines, otherbases, linesoverride, lalias)
+        return LinesManager.create_lines_class(
+            cls, name, lines, extralines, otherbases, linesoverride, lalias
+        )
 
     @classmethod
     def _getlinealias(cls, i):
@@ -1004,8 +1008,13 @@ class Lines:
                                     from .lineiterator import LineIterator
 
                                     if LineIterator.IndType in owner_ref._lineiterators:
-                                        if value not in owner_ref._lineiterators[LineIterator.IndType]:
-                                            owner_ref._lineiterators[LineIterator.IndType].append(value)
+                                        if (
+                                            value
+                                            not in owner_ref._lineiterators[LineIterator.IndType]
+                                        ):
+                                            owner_ref._lineiterators[LineIterator.IndType].append(
+                                                value
+                                            )
                                             value._owner = owner_ref
                                 return  # Don't set the attribute directly
 
@@ -1178,7 +1187,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 list: List of non-private, non-callable attribute names.
             """
             # OPTIMIZED: Use __dict__ instead of dir() for better performance
-            return [attr for attr, val in self.__dict__.items() if not attr.startswith("_") and not callable(val)]
+            return [
+                attr
+                for attr, val in self.__dict__.items()
+                if not attr.startswith("_") and not callable(val)
+            ]
 
     plotinfo = PlotInfoObj()
 
@@ -1983,13 +1996,24 @@ def _patch_strategy_clk_update():
                     clk_len = 1
 
                 # CRITICAL FIX: Set datetime safely
-                if hasattr(self, "datas") and self.datas and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
+                if (
+                    hasattr(self, "datas")
+                    and self.datas
+                    and hasattr(self, "lines")
+                    and hasattr(self.lines, "datetime")
+                ):
                     valid_data_times = []
                     for d in self.datas:
                         try:
-                            if len(d) > 0 and hasattr(d, "datetime") and hasattr(d.datetime, "__getitem__"):
+                            if (
+                                len(d) > 0
+                                and hasattr(d, "datetime")
+                                and hasattr(d.datetime, "__getitem__")
+                            ):
                                 dt_val = d.datetime[0]
-                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
+                                if dt_val is not None and not (
+                                    isinstance(dt_val, float) and math.isnan(dt_val)
+                                ):
                                     valid_data_times.append(dt_val)
                         except (IndexError, AttributeError, TypeError):
                             continue
@@ -2007,7 +2031,8 @@ def _patch_strategy_clk_update():
             # CRITICAL FIX: Handle normal case
             if not hasattr(self, "_dlens"):
                 self._dlens = [
-                    len(d) if hasattr(d, "__len__") else 0 for d in (self.datas if hasattr(self, "datas") else [])
+                    len(d) if hasattr(d, "__len__") else 0
+                    for d in (self.datas if hasattr(self, "datas") else [])
                 ]
 
             # Get new data lengths safely
@@ -2026,7 +2051,9 @@ def _patch_strategy_clk_update():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > old_len for old_len, nl in zip(self._dlens, newdlens) if old_len is not None and nl is not None
+                    nl > old_len
+                    for old_len, nl in zip(self._dlens, newdlens)
+                    if old_len is not None and nl is not None
                 )
             ):
                 try:
@@ -2038,7 +2065,12 @@ def _patch_strategy_clk_update():
             self._dlens = newdlens
 
             # CRITICAL FIX: Set datetime safely - CHECK IF EMPTY BEFORE CALLING max()
-            if hasattr(self, "datas") and self.datas and hasattr(self, "lines") and hasattr(self.lines, "datetime"):
+            if (
+                hasattr(self, "datas")
+                and self.datas
+                and hasattr(self, "lines")
+                and hasattr(self.lines, "datetime")
+            ):
                 # CRITICAL PART: Collect valid datetime values
                 valid_data_times = [d.datetime[0] for d in self.datas if len(d)]
 

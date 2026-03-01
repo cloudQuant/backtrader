@@ -200,7 +200,11 @@ class Strategy(StrategyBase):
             delattr(cls, "notify_operation")
 
         # Register subclasses (from MetaStrategy.__init__)
-        if not getattr(cls, "aliased", False) and cls.__name__ != "Strategy" and not cls.__name__.startswith("_"):
+        if (
+            not getattr(cls, "aliased", False)
+            and cls.__name__ != "Strategy"
+            and not cls.__name__.startswith("_")
+        ):
             cls._indcol[cls.__name__] = cls
 
         # Initialize critical attributes early (from MetaStrategy.donew and dopreinit)
@@ -278,7 +282,11 @@ class Strategy(StrategyBase):
             # For TestStrategy, call its __init__ directly - it takes no kwargs
             # Look for TestStrategy's __init__ method
             for cls in self.__class__.__mro__:
-                if cls.__name__ == "TestStrategy" and hasattr(cls, "__init__") and "__init__" in cls.__dict__:
+                if (
+                    cls.__name__ == "TestStrategy"
+                    and hasattr(cls, "__init__")
+                    and "__init__" in cls.__dict__
+                ):
                     user_init = cls.__dict__["__init__"]
                     # Use OwnerContext so indicators find this strategy as owner
                     with OwnerContext.set_owner(self):
@@ -310,7 +318,11 @@ class Strategy(StrategyBase):
                 self._user_init_called = True
 
                 for cls in self.__class__.__mro__:
-                    if cls not in (Strategy, StrategyBase) and hasattr(cls, "__init__") and "__init__" in cls.__dict__:
+                    if (
+                        cls not in (Strategy, StrategyBase)
+                        and hasattr(cls, "__init__")
+                        and "__init__" in cls.__dict__
+                    ):
                         # CRITICAL FIX: Use _original_init if available to avoid calling patched_init
                         # This prevents infinite recursion when ParamsMixin patches __init__
                         if hasattr(cls, "_original_init"):
@@ -485,7 +497,11 @@ class Strategy(StrategyBase):
             clk = getattr(lineiter, "_clock", None)
 
             # CRITICAL FIX: If clock is MinimalClock, use the indicator's actual data source
-            if clk is not None and hasattr(clk, "__class__") and "MinimalClock" in clk.__class__.__name__:
+            if (
+                clk is not None
+                and hasattr(clk, "__class__")
+                and "MinimalClock" in clk.__class__.__name__
+            ):
                 if self.datas:
                     # Find which data feed the indicator's data source belongs to
                     clock_set = False
@@ -513,7 +529,11 @@ class Strategy(StrategyBase):
                 # Get the indicator's owner's _clock attribute value
                 clk = getattr(lineiter._owner, "_clock", None)
                 # CRITICAL FIX: If owner's clock is also MinimalClock, use data
-                if clk is not None and hasattr(clk, "__class__") and "MinimalClock" in clk.__class__.__name__:
+                if (
+                    clk is not None
+                    and hasattr(clk, "__class__")
+                    and "MinimalClock" in clk.__class__.__name__
+                ):
                     if self.datas:
                         clk = self.datas[0]
                     else:
@@ -624,7 +644,9 @@ class Strategy(StrategyBase):
                                         break
                             # Only update minperiod for the specific data
                             if data_idx < len(self._minperiods):
-                                self._minperiods[data_idx] = max(self._minperiods[data_idx], attr._minperiod)
+                                self._minperiods[data_idx] = max(
+                                    self._minperiods[data_idx], attr._minperiod
+                                )
                 except (AttributeError, TypeError):
                     pass
 
@@ -745,7 +767,7 @@ class Strategy(StrategyBase):
             obs: Observer instance to register.
         """
         # Ensure _analyzers exists (some observers don't call super().__init__)
-        if not hasattr(obs, '_analyzers'):
+        if not hasattr(obs, "_analyzers"):
             obs._analyzers = []
         # Set clock for strategy-wide observers
         if getattr(obs, "_stclock", False):
@@ -881,7 +903,11 @@ class Strategy(StrategyBase):
             int: Current length of the strategy
         """
         # CRITICAL FIX: Ensure data is available before clock operations
-        if getattr(self, "_data_assignment_pending", True) or not hasattr(self, "_clock") or self._clock is None:
+        if (
+            getattr(self, "_data_assignment_pending", True)
+            or not hasattr(self, "_clock")
+            or self._clock is None
+        ):
             # Try to get data assignment from cerebro if not already done
             if hasattr(self, "_ensure_data_available"):
                 self._ensure_data_available()
@@ -892,7 +918,9 @@ class Strategy(StrategyBase):
             clk_len = super()._clk_update()
             # Set datetime
             if self.datas:
-                valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
+                valid_datetimes = [
+                    d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0
+                ]
                 if valid_datetimes:
                     self.lines.datetime[0] = max(valid_datetimes)
             # Return data length
@@ -957,11 +985,11 @@ class Strategy(StrategyBase):
         for item in self.stats.items:
             if isinstance(item, list):
                 for obs in item:
-                    if not hasattr(obs, '_analyzers'):
+                    if not hasattr(obs, "_analyzers"):
                         obs._analyzers = []
                     result.append(obs)
             else:
-                if not hasattr(item, '_analyzers'):
+                if not hasattr(item, "_analyzers"):
                     item._analyzers = []
                 result.append(item)
         return result
@@ -1209,7 +1237,7 @@ class Strategy(StrategyBase):
         # Stop observers (flush logs, etc.)
         for observer in self._get_all_observers():
             try:
-                if hasattr(observer, 'stop'):
+                if hasattr(observer, "stop"):
                     observer.stop()
             except Exception:
                 pass
@@ -1302,7 +1330,9 @@ class Strategy(StrategyBase):
             if exbit.opened:
                 # If trade is closed, create new trade and save to datatrades
                 if trade.isclosed:
-                    trade = Trade(data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon)
+                    trade = Trade(
+                        data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon
+                    )
                     datatrades.append(trade)
                 # Update trade
                 trade.update(
@@ -1759,7 +1789,11 @@ class Strategy(StrategyBase):
             signal_price = (
                 price
                 if price is not None
-                else (data.close[0] if hasattr(data, "close") and hasattr(data.close, "__getitem__") else 0)
+                else (
+                    data.close[0]
+                    if hasattr(data, "close") and hasattr(data.close, "__getitem__")
+                    else 0
+                )
             )
             self._notify_signal_to_observers("buy", abs(size), signal_price, data)
             return order
@@ -1822,7 +1856,11 @@ class Strategy(StrategyBase):
             signal_price = (
                 price
                 if price is not None
-                else (data.close[0] if hasattr(data, "close") and hasattr(data.close, "__getitem__") else 0)
+                else (
+                    data.close[0]
+                    if hasattr(data, "close") and hasattr(data.close, "__getitem__")
+                    else 0
+                )
             )
             self._notify_signal_to_observers("sell", abs(size), signal_price, data)
             return order
@@ -1974,7 +2012,9 @@ class Strategy(StrategyBase):
         # Create stop-loss order
         if stopexec is not None:
             # low side / stop
-            kargs = dict(data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(stopargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -1987,7 +2027,9 @@ class Strategy(StrategyBase):
         # Create take-profit order
         if limitexec is not None:
             # high side / limit
-            kargs = dict(data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(limitargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2056,7 +2098,9 @@ class Strategy(StrategyBase):
 
         if stopexec is not None:
             # high side / stop
-            kargs = dict(data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(stopargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2068,7 +2112,9 @@ class Strategy(StrategyBase):
 
         if limitexec is not None:
             # low side / limit
-            kargs = dict(data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(limitargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2685,7 +2731,9 @@ class BtApiStrategy(Strategy):
                 file_name=self.__class__.__name__ + ".log", logger_name="strategy", print_info=True
             ).create_logger()
         else:
-            logger = SpdLogManager(file_name=log_file_name, logger_name="strategy", print_info=True).create_logger()
+            logger = SpdLogManager(
+                file_name=log_file_name, logger_name="strategy", print_info=True
+            ).create_logger()
         return logger
 
     def log(self, txt):

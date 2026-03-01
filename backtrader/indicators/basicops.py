@@ -650,7 +650,9 @@ class ExponentialSmoothing(Average):
                 # Use previous EMA value if available, otherwise use seed
                 if i > calc_start:
                     prev_ema = larray[i - 1]
-                    if prev_ema > 0.0 and not (isinstance(prev_ema, float) and math.isnan(prev_ema)):
+                    if prev_ema > 0.0 and not (
+                        isinstance(prev_ema, float) and math.isnan(prev_ema)
+                    ):
                         prev = prev_ema
 
                 # EMA formula: prev * alpha1 + current * alpha

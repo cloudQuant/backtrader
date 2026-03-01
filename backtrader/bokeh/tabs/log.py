@@ -138,7 +138,9 @@ class LogTab(BokehTab):
                 columns.append(TableColumn(field=col_name, title=col_name.capitalize()))
 
             # Create table
-            table = DataTable(source=source, columns=columns, width=800, height=400, index_position=None)
+            table = DataTable(
+                source=source, columns=columns, width=800, height=400, index_position=None
+            )
             widgets.append(table)
         else:
             widgets.append(Div(text="<p>No log messages available</p>"))

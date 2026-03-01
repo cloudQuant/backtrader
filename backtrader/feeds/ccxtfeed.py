@@ -213,12 +213,16 @@ class CCXTFeed(DataBase):
             if self._websocket_manager is None:
                 config = getattr(self.store.exchange, "config", {})
                 markets = getattr(self.store.exchange, "markets", None)
-                self._websocket_manager = CCXTWebSocketManager(self.store.exchange_id, config, markets=markets)
+                self._websocket_manager = CCXTWebSocketManager(
+                    self.store.exchange_id, config, markets=markets
+                )
                 self._websocket_manager.start()
 
             # Subscribe to OHLCV updates for this feed's symbol
             granularity = self.store.get_granularity(self._timeframe, self._compression)
-            self._websocket_manager.subscribe_ohlcv(self.p.dataname, granularity, self._on_websocket_ohlcv)
+            self._websocket_manager.subscribe_ohlcv(
+                self.p.dataname, granularity, self._on_websocket_ohlcv
+            )
 
             print(f"[WS] WebSocket subscribed for {self.p.dataname} ({granularity})")
 
@@ -353,7 +357,10 @@ class CCXTFeed(DataBase):
 
         now = time.time()
         # Check if WebSocket manager reports disconnected
-        if hasattr(self._websocket_manager, "is_connected") and not self._websocket_manager.is_connected():
+        if (
+            hasattr(self._websocket_manager, "is_connected")
+            and not self._websocket_manager.is_connected()
+        ):
             self._ws_connected = False
             return
 
@@ -406,7 +413,9 @@ class CCXTFeed(DataBase):
                 if self._consecutive_fetch_errors <= 3 or self.p.debug:
                     print(f"[CCXTFeed] Fetch error ({self._consecutive_fetch_errors}): {e}")
                 if self._consecutive_fetch_errors >= self._max_consecutive_errors:
-                    print(f"[CCXTFeed] Too many consecutive errors ({self._consecutive_fetch_errors}), backing off...")
+                    print(
+                        f"[CCXTFeed] Too many consecutive errors ({self._consecutive_fetch_errors}), backing off..."
+                    )
                 break
 
             # Drop newest bar if requested (may be incomplete)
@@ -468,7 +477,9 @@ class CCXTFeed(DataBase):
                 if attempt < self.p.max_fetch_retries - 1:
                     delay = self.p.fetch_retry_delay * (2**attempt)
                     if self.p.debug:
-                        print(f"[CCXTFeed] Fetch retry {attempt + 1}/{self.p.max_fetch_retries} in {delay:.1f}s: {e}")
+                        print(
+                            f"[CCXTFeed] Fetch retry {attempt + 1}/{self.p.max_fetch_retries} in {delay:.1f}s: {e}"
+                        )
                     time.sleep(delay)
             except ExchangeError:
                 # Exchange errors should not retry

@@ -89,7 +89,9 @@ class PeriodStats(Analyzer):
         super().__init__(*args, **kwargs)
         # Use OwnerContext so child analyzer can find this as its parent
         with OwnerContext.set_owner(self):
-            self._tr = TimeReturn(timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund)
+            self._tr = TimeReturn(
+                timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
+            )
 
     # Stop
     def stop(self):

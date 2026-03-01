@@ -165,7 +165,9 @@ class ThreadedDataManager:
                     timeframe = timeframes.get(symbol, "1h")
 
                     try:
-                        ohlcv = self.store.fetch_ohlcv(symbol, timeframe=timeframe, since=None, limit=1)
+                        ohlcv = self.store.fetch_ohlcv(
+                            symbol, timeframe=timeframe, since=None, limit=1
+                        )
 
                         if ohlcv and len(ohlcv) > 0:
                             update = DataUpdate(
@@ -303,7 +305,9 @@ class ThreadedOrderManager:
                         status = order.get("status")
                         filled = float(order.get("filled", 0))
 
-                        if status != order_info.get("last_status") or filled != order_info.get("last_filled", 0):
+                        if status != order_info.get("last_status") or filled != order_info.get(
+                            "last_filled", 0
+                        ):
                             update = OrderUpdate(
                                 order_id=order_id,
                                 status=status,

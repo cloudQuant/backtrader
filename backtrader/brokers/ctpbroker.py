@@ -113,7 +113,9 @@ class CTPBroker(BrokerBase):
 
     use_positions = BoolParam(default=True, doc="Use existing positions to kickstart the broker")
     commission = FloatParam(default=0.0, doc="Commission per contract (absolute)")
-    stop_slippage_ticks = FloatParam(default=0.0, doc="Max slippage ticks for stop orders (0=market order)")
+    stop_slippage_ticks = FloatParam(
+        default=0.0, doc="Max slippage ticks for stop orders (0=market order)"
+    )
 
     def __init__(self, **kwargs):
         """Initialize the CTPBroker with CTPStore connection.
@@ -175,7 +177,10 @@ class CTPBroker(BrokerBase):
                 final_size = self.positions[instrument].size + size
                 final_price = (
                     avg_price
-                    if ((final_size > 0 and direction == _POSI_LONG) or (final_size < 0 and direction == _POSI_SHORT))
+                    if (
+                        (final_size > 0 and direction == _POSI_LONG)
+                        or (final_size < 0 and direction == _POSI_SHORT)
+                    )
                     else self.positions[instrument].price or avg_price
                 )
                 self.positions[instrument] = Position(final_size, final_price)
@@ -551,7 +556,9 @@ class CTPBroker(BrokerBase):
                     self.notify(order)
                     return order
                 else:
-                    logger.error(f"[CTPBroker] Split order part failed: {symbol} offset={offset} vol={vol}")
+                    logger.error(
+                        f"[CTPBroker] Split order part failed: {symbol} offset={offset} vol={vol}"
+                    )
                     continue
             if first_ref is None:
                 first_ref = order_ref
@@ -638,7 +645,9 @@ class CTPBroker(BrokerBase):
 
             # Determine opened vs closed quantities
             signed_size = fill_size if order.isbuy() else -fill_size
-            is_closing = (order.isbuy() and old_pos.size < 0) or (order.issell() and old_pos.size > 0)
+            is_closing = (order.isbuy() and old_pos.size < 0) or (
+                order.issell() and old_pos.size > 0
+            )
             if is_closing:
                 closed_qty = min(fill_size, abs(old_pos.size))
                 opened_qty = fill_size - closed_qty
@@ -775,7 +784,9 @@ class CTPBroker(BrokerBase):
                         self.notify(order)
                         self.open_orders.pop(order.ref, None)
                     else:
-                        logger.error(f"[CTPBroker] Stop split order part failed: {symbol} offset={offset} vol={vol}")
+                        logger.error(
+                            f"[CTPBroker] Stop split order part failed: {symbol} offset={offset} vol={vol}"
+                        )
                     continue
                 if first_ref is None:
                     first_ref = order_ref
@@ -801,7 +812,11 @@ class CTPBroker(BrokerBase):
         On a new trading day, all 'today' positions become 'yesterday'.
         """
         try:
-            current_day = self.o.trader_spi._account.get("trading_day") if self.o.trader_spi._account else None
+            current_day = (
+                self.o.trader_spi._account.get("trading_day")
+                if self.o.trader_spi._account
+                else None
+            )
         except (AttributeError, TypeError):
             current_day = None
         if current_day is None:
@@ -810,7 +825,9 @@ class CTPBroker(BrokerBase):
             self._last_trading_day = current_day
             return
         if current_day != self._last_trading_day:
-            logger.info(f"[CTPBroker] Trading day changed: {self._last_trading_day} -> {current_day}")
+            logger.info(
+                f"[CTPBroker] Trading day changed: {self._last_trading_day} -> {current_day}"
+            )
             for detail in self._pos_detail.values():
                 detail["yd_long"] += detail["today_long"]
                 detail["today_long"] = 0

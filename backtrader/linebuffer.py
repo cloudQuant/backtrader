@@ -506,7 +506,9 @@ class LineBuffer(LineSingle, LineRootMixin):
                     binding_is_datetime = False
 
                 binding_value = value
-                if binding_is_datetime and (not isinstance(binding_value, (int, float)) or binding_value < 1.0):
+                if binding_is_datetime and (
+                    not isinstance(binding_value, (int, float)) or binding_value < 1.0
+                ):
                     binding_value = 1.0
 
                 binding[ago] = binding_value
@@ -1275,7 +1277,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 # Check if we already have data in args
                 data_count = 0
                 for arg in args:
-                    if hasattr(arg, "lines") or hasattr(arg, "_name") or str(type(arg).__name__).endswith("Data"):
+                    if (
+                        hasattr(arg, "lines")
+                        or hasattr(arg, "_name")
+                        or str(type(arg).__name__).endswith("Data")
+                    ):
                         data_count += 1
 
                 # If we need more data sources than we have, auto-assign from owner
@@ -1290,7 +1296,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         processed_datas = []
 
         for i, arg in enumerate(args):
-            if hasattr(arg, "lines") or hasattr(arg, "_name") or str(type(arg).__name__).endswith("Data"):
+            if (
+                hasattr(arg, "lines")
+                or hasattr(arg, "_name")
+                or str(type(arg).__name__).endswith("Data")
+            ):
                 processed_datas.append(arg)
                 data_count += 1
                 if data_count >= mindatas:
@@ -1307,7 +1317,9 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         try:
             from .utils import DotDict
 
-            instance.dnames = DotDict([(d._name, d) for d in instance.datas if getattr(d, "_name", "")])
+            instance.dnames = DotDict(
+                [(d._name, d) for d in instance.datas if getattr(d, "_name", "")]
+            )
         except Exception:
             instance.dnames = {}
 
@@ -1727,7 +1739,10 @@ class _LineDelay(LineActions):
         if hasattr(source_obj, "wrapped"):
             wrapped = source_obj.wrapped
             # Check if it's a repeat object
-            if isinstance(wrapped, itertools.repeat) or str(type(wrapped)) == "<class 'itertools.repeat'>":
+            if (
+                isinstance(wrapped, itertools.repeat)
+                or str(type(wrapped)) == "<class 'itertools.repeat'>"
+            ):
                 is_constant = True
                 try:
                     # Get the constant value from the repeat object
@@ -2163,7 +2178,11 @@ class LinesOperation(LineActions):
             self._once_op(nested_start, end)
         else:
             if isinstance(self.b, float):
-                (self._once_val_op_r(nested_start, end) if self.r else self._once_val_op(nested_start, end))
+                (
+                    self._once_val_op_r(nested_start, end)
+                    if self.r
+                    else self._once_val_op(nested_start, end)
+                )
             else:
                 self._once_time_op(nested_start, end)
 
@@ -2192,7 +2211,9 @@ class LinesOperation(LineActions):
         # Clip processing range to available source data
         # CRITICAL FIX: Check if b is a _LineDelay wrapping a constant (PseudoArray)
         # In this case, srcb will be empty but b[i] will return the constant
-        is_constant_b = len(srcb) == 0 and hasattr(self.b, "a") and type(self.b.a).__name__ == "PseudoArray"
+        is_constant_b = (
+            len(srcb) == 0 and hasattr(self.b, "a") and type(self.b.a).__name__ == "PseudoArray"
+        )
 
         if is_constant_b:
             # b is a _LineDelay wrapping a constant - use srca length only

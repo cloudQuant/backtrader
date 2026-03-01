@@ -400,7 +400,9 @@ class If(Logic):
 
             # Convert to boolean: non-zero values are True, zero is False
             # Use explicit comparison to handle float precision issues
-            cond_bool = (cond_val != 0.0) and (not (isinstance(cond_val, float) and math.isnan(cond_val)))
+            cond_bool = (cond_val != 0.0) and (
+                not (isinstance(cond_val, float) and math.isnan(cond_val))
+            )
 
             # Get a value - use constant if detected, otherwise array
             if a_is_constant:
@@ -491,7 +493,9 @@ class MultiLogicReduce(MultiLogic):
         if "initializer" not in kwargs:
             self.flogic = functools.partial(functools.reduce, self.flogic)
         else:
-            self.flogic = functools.partial(functools.reduce, self.flogic, initializer=kwargs["initializer"])
+            self.flogic = functools.partial(
+                functools.reduce, self.flogic, initializer=kwargs["initializer"]
+            )
 
 
 # Inheritance class, process flogic

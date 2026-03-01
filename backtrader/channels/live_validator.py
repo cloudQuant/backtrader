@@ -163,11 +163,17 @@ class LiveDataValidator:
 
         # Check crossed book (best bid >= best ask)
         if bids and asks:
-            best_bid = bids[0][0] if isinstance(bids[0], (list, tuple)) else getattr(bids[0], "price", 0)
-            best_ask = asks[0][0] if isinstance(asks[0], (list, tuple)) else getattr(asks[0], "price", 0)
+            best_bid = (
+                bids[0][0] if isinstance(bids[0], (list, tuple)) else getattr(bids[0], "price", 0)
+            )
+            best_ask = (
+                asks[0][0] if isinstance(asks[0], (list, tuple)) else getattr(asks[0], "price", 0)
+            )
             if best_bid >= best_ask:
                 self._record_anomaly(key, "crossed_book")
-                logger.warning("Crossed order book for %s: bid=%.2f >= ask=%.2f", key, best_bid, best_ask)
+                logger.warning(
+                    "Crossed order book for %s: bid=%.2f >= ask=%.2f", key, best_bid, best_ask
+                )
         return True
 
     def _validate_funding(self, key, funding):
@@ -215,7 +221,9 @@ class LiveDataValidator:
         return {
             "total_validated": self._total_validated,
             "total_rejected": self._total_rejected,
-            "rejection_rate": (self._total_rejected / self._total_validated if self._total_validated > 0 else 0.0),
+            "rejection_rate": (
+                self._total_rejected / self._total_validated if self._total_validated > 0 else 0.0
+            ),
             "anomaly_types": {str(k): v for k, v in self._anomaly_count.items()},
         }
 
@@ -232,4 +240,6 @@ class LiveDataValidator:
         Returns:
             str: Representation showing validation statistics.
         """
-        return f"LiveDataValidator(validated={self._total_validated}, rejected={self._total_rejected})"
+        return (
+            f"LiveDataValidator(validated={self._total_validated}, rejected={self._total_rejected})"
+        )

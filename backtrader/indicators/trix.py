@@ -105,7 +105,11 @@ class Trix(Indicator):
 
         for i in range(minperiod, min(end, len(ema3_array))):
             ema3_curr = ema3_array[i] if i < len(ema3_array) else 0.0
-            ema3_prev = ema3_array[i - rocperiod] if i >= rocperiod and i - rocperiod < len(ema3_array) else 0.0
+            ema3_prev = (
+                ema3_array[i - rocperiod]
+                if i >= rocperiod and i - rocperiod < len(ema3_array)
+                else 0.0
+            )
 
             if isinstance(ema3_curr, float) and math.isnan(ema3_curr):
                 larray[i] = float("nan")
@@ -155,7 +159,9 @@ class TrixSignal(Trix):
         Signal line is EMA of TRIX values.
         """
         super().next()
-        self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + self.lines.trix[0] * self.signal_alpha
+        self.lines.signal[0] = (
+            self.lines.signal[-1] * self.signal_alpha1 + self.lines.trix[0] * self.signal_alpha
+        )
 
     def once(self, start, end):
         """Calculate TRIX Signal in runonce mode.

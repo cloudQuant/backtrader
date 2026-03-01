@@ -53,8 +53,12 @@ class Fractal(PeriodN):
     plotinfo = dict(subplot=False, plotlinelabels=False, plot=True)
 
     plotlines = dict(
-        fractal_bearish=dict(marker="^", markersize=4.0, color="lightblue", fillstyle="full", ls=""),
-        fractal_bullish=dict(marker="v", markersize=4.0, color="lightblue", fillstyle="full", ls=""),
+        fractal_bearish=dict(
+            marker="^", markersize=4.0, color="lightblue", fillstyle="full", ls=""
+        ),
+        fractal_bullish=dict(
+            marker="v", markersize=4.0, color="lightblue", fillstyle="full", ls=""
+        ),
     )
     params = (
         ("period", 5),

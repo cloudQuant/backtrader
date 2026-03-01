@@ -169,7 +169,9 @@ class TrueRange(Indicator):
             larray.append(0.0)
 
         if len(high_array) > 0 and len(low_array) > 0 and len(larray) > 0:
-            larray[0] = high_array[0] - low_array[0] if len(high_array) > 0 and len(low_array) > 0 else 0.0
+            larray[0] = (
+                high_array[0] - low_array[0] if len(high_array) > 0 and len(low_array) > 0 else 0.0
+            )
 
         for i in range(1, min(end, len(high_array), len(low_array), len(close_array))):
             high_val = high_array[i] if i < len(high_array) else 0.0

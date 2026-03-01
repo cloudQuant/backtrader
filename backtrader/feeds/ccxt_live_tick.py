@@ -41,11 +41,9 @@ Example::
 import asyncio
 import logging
 import time
-import threading
-from typing import Optional
 
-from ..events import TickEvent, OrderBookSnapshot, FundingEvent
-from ..channel import Event, EventPriority
+from ..channel import EventPriority
+from ..events import FundingEvent, OrderBookSnapshot, TickEvent
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +170,9 @@ class CCXTLiveTickFeed:
             try:
                 import ccxtpro
             except ImportError:
-                raise ImportError("ccxt[pro] or ccxtpro is required for live tick feeds. Install with: pip install ccxt")
+                raise ImportError(
+                    "ccxt[pro] or ccxtpro is required for live tick feeds. Install with: pip install ccxt"
+                )
 
         exchange_class = getattr(ccxtpro, self.exchange_id, None)
         if exchange_class is None:
@@ -228,7 +228,7 @@ class CCXTLiveTickFeed:
                     )
                     self._trade_count += 1
                     self._last_heartbeat = time.time()
-            except Exception as e:
+            except Exception:
                 if not self._running:
                     break
                 raise
@@ -256,7 +256,7 @@ class CCXTLiveTickFeed:
                 )
                 self._ob_count += 1
                 self._last_heartbeat = time.time()
-            except Exception as e:
+            except Exception:
                 if not self._running:
                     break
                 raise
@@ -285,9 +285,11 @@ class CCXTLiveTickFeed:
                     self._last_heartbeat = time.time()
                 else:
                     # Exchange doesn't support funding rate WebSocket
-                    logger.info("%s does not support watch_funding_rate, skipping", self.exchange_id)
+                    logger.info(
+                        "%s does not support watch_funding_rate, skipping", self.exchange_id
+                    )
                     return
-            except Exception as e:
+            except Exception:
                 if not self._running:
                     break
                 raise

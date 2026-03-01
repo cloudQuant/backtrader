@@ -177,7 +177,9 @@ class FutuFeed(DataBase):
             dlen = self._data.qsize()
 
             # Fetch data from Futu
-            bars = self.store.fetch_ohlcv(self.p.dataname, kl_type=kl_type, start=start, limit=limit)
+            bars = self.store.fetch_ohlcv(
+                self.p.dataname, kl_type=kl_type, start=start, limit=limit
+            )
 
             # Sort by timestamp
             bars = sorted(bars, key=lambda x: x[0])

@@ -60,7 +60,14 @@ class LiveEventQueue:
         self._total_dropped = 0
         self._closed = False
 
-    def put(self, event_data, priority=EventPriority.TICK, channel_type="", channel_name="", timestamp=None):
+    def put(
+        self,
+        event_data,
+        priority=EventPriority.TICK,
+        channel_type="",
+        channel_name="",
+        timestamp=None,
+    ):
         """Add an event to the queue (thread-safe).
 
         Args:

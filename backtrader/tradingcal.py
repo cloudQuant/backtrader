@@ -39,7 +39,9 @@ _time_max = time(hour=23, minute=59, second=59, microsecond=999990)
 # Constants for seven days of the week, Monday is 0, Sunday is 6
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
 # Determine day of week, no date is 0, Monday is 1, Sunday is 7
-ISONODAY, ISOMONDAY, ISOTUESDAY, ISOWEDNESDAY, ISOTHURSDAY, ISOFRIDAY, ISOSATURDAY, ISOSUNDAY = range(8)
+ISONODAY, ISOMONDAY, ISOTUESDAY, ISOWEDNESDAY, ISOTHURSDAY, ISOFRIDAY, ISOSATURDAY, ISOSUNDAY = (
+    range(8)
+)
 # Weekend is Saturday and Sunday
 WEEKEND = [SATURDAY, SUNDAY]
 # Whether it is weekend

@@ -219,7 +219,9 @@ class Trade:
         return "\n".join(":".join((x, str(getattr(self, x)))) for x in toprint)
 
     # Initialize
-    def __init__(self, data=None, tradeid=0, historyon=False, size=0, price=0.0, value=0.0, commission=0.0):
+    def __init__(
+        self, data=None, tradeid=0, historyon=False, size=0, price=0.0, value=0.0, commission=0.0
+    ):
         """Initialize a Trade object.
 
         Args:

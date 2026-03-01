@@ -355,25 +355,45 @@ class Cerebro(ParameterizedBase):
     """
 
     # Parameter descriptors using new system
-    preload = ParameterDescriptor(default=True, type_=bool, doc="Whether to preload the different data feeds")
+    preload = ParameterDescriptor(
+        default=True, type_=bool, doc="Whether to preload the different data feeds"
+    )
     runonce = ParameterDescriptor(default=True, type_=bool, doc="Run Indicators in vectorized mode")
     maxcpus = ParameterDescriptor(default=None, doc="How many cores to use for optimization")
     stdstats = ParameterDescriptor(default=True, type_=bool, doc="Add default Observers")
-    oldbuysell = ParameterDescriptor(default=False, type_=bool, doc="Use old BuySell observer behavior")
-    oldtrades = ParameterDescriptor(default=False, type_=bool, doc="Use old Trades observer behavior")
+    oldbuysell = ParameterDescriptor(
+        default=False, type_=bool, doc="Use old BuySell observer behavior"
+    )
+    oldtrades = ParameterDescriptor(
+        default=False, type_=bool, doc="Use old Trades observer behavior"
+    )
     lookahead = ParameterDescriptor(default=0, type_=int, doc="Lookahead parameter")
     exactbars = ParameterDescriptor(default=False, doc="Memory usage control for lines objects")
-    optdatas = ParameterDescriptor(default=True, type_=bool, doc="Optimize data preloading during optimization")
-    optreturn = ParameterDescriptor(default=True, type_=bool, doc="Return simplified objects during optimization")
-    objcache = ParameterDescriptor(default=False, type_=bool, doc="Cache lines objects to reduce memory")
+    optdatas = ParameterDescriptor(
+        default=True, type_=bool, doc="Optimize data preloading during optimization"
+    )
+    optreturn = ParameterDescriptor(
+        default=True, type_=bool, doc="Return simplified objects during optimization"
+    )
+    objcache = ParameterDescriptor(
+        default=False, type_=bool, doc="Cache lines objects to reduce memory"
+    )
     live = ParameterDescriptor(default=False, type_=bool, doc="Run in live mode")
     writer = ParameterDescriptor(default=False, type_=bool, doc="Add a default WriterFile")
-    tradehistory = ParameterDescriptor(default=False, type_=bool, doc="Activate trade history logging")
+    tradehistory = ParameterDescriptor(
+        default=False, type_=bool, doc="Activate trade history logging"
+    )
     oldsync = ParameterDescriptor(default=False, type_=bool, doc="Use old synchronization behavior")
     tz = ParameterDescriptor(default=None, doc="Global timezone for strategies")
-    cheat_on_open = ParameterDescriptor(default=False, type_=bool, doc="Enable cheat-on-open execution")
-    broker_coo = ParameterDescriptor(default=True, type_=bool, doc="Auto-activate broker cheat-on-open")
-    quicknotify = ParameterDescriptor(default=False, type_=bool, doc="Deliver broker notifications quickly")
+    cheat_on_open = ParameterDescriptor(
+        default=False, type_=bool, doc="Enable cheat-on-open execution"
+    )
+    broker_coo = ParameterDescriptor(
+        default=True, type_=bool, doc="Auto-activate broker cheat-on-open"
+    )
+    quicknotify = ParameterDescriptor(
+        default=False, type_=bool, doc="Deliver broker notifications quickly"
+    )
 
     def __init__(self, **kwargs):
         """Initialize Cerebro with optional parameter overrides.
@@ -1709,7 +1729,9 @@ class Cerebro(ParameterizedBase):
                         if attrname.startswith("data"):
                             setattr(a, attrname, None)
 
-                oreturn = OptReturn(strat.params, analyzers=strat.analyzers, strategycls=type(strat))
+                oreturn = OptReturn(
+                    strat.params, analyzers=strat.analyzers, strategycls=type(strat)
+                )
                 results.append(oreturn)
 
             return results
@@ -1987,7 +2009,9 @@ class Cerebro(ParameterizedBase):
                     if onlyresample or noresample:
                         dt0 = min(d for d in dts if d is not None)
                     else:
-                        dt0 = min((d for i, d in enumerate(dts) if d is not None and i not in rsonly))
+                        dt0 = min(
+                            (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
+                        )
                     # TODO: dt0 < 1 is wrong, needs modification
                     if dt0 < 1:
                         return
@@ -2192,7 +2216,9 @@ class Cerebro(ParameterizedBase):
                                             # Also set _idx for all other lines in the data
                                             if hasattr(data.lines, "lines"):
                                                 for line in data.lines.lines:
-                                                    if hasattr(line, "_idx") and hasattr(line, "array"):
+                                                    if hasattr(line, "_idx") and hasattr(
+                                                        line, "array"
+                                                    ):
                                                         if i < len(line.array):
                                                             line._idx = i
                                             break
@@ -2254,7 +2280,9 @@ class Cerebro(ParameterizedBase):
         self.addanalyzer(analyzers.AnnualReturn, _name="annualreturn")
         self.addanalyzer(analyzers.TimeReturn, _name="timereturn", timeframe=TimeFrame.Days)
 
-    def generate_report(self, output_path, format="html", template="default", user=None, memo=None, **kwargs):
+    def generate_report(
+        self, output_path, format="html", template="default", user=None, memo=None, **kwargs
+    ):
         """Generate backtest report.
 
         Args:

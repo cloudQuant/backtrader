@@ -271,7 +271,9 @@ class BackBroker(BrokerBase):
     # Use the new parameter descriptor system
     cash = _CashDescriptor(default=10000.0, type_=float, doc="Starting cash amount")
 
-    checksubmit = ParameterDescriptor(default=True, type_=bool, doc="Check margin/cash before accepting orders")
+    checksubmit = ParameterDescriptor(
+        default=True, type_=bool, doc="Check margin/cash before accepting orders"
+    )
 
     eosbar = ParameterDescriptor(
         default=False,
@@ -289,21 +291,37 @@ class BackBroker(BrokerBase):
         default=0.0, type_=float, validator=Float(min_val=0.0), doc="Fixed slippage for orders"
     )
 
-    slip_open = ParameterDescriptor(default=False, type_=bool, doc="Apply slippage to opening prices")
+    slip_open = ParameterDescriptor(
+        default=False, type_=bool, doc="Apply slippage to opening prices"
+    )
 
-    slip_match = ParameterDescriptor(default=True, type_=bool, doc="Cap slippage at high/low prices")
+    slip_match = ParameterDescriptor(
+        default=True, type_=bool, doc="Cap slippage at high/low prices"
+    )
 
-    slip_limit = ParameterDescriptor(default=True, type_=bool, doc="Allow limit order matching with slippage capping")
+    slip_limit = ParameterDescriptor(
+        default=True, type_=bool, doc="Allow limit order matching with slippage capping"
+    )
 
-    slip_out = ParameterDescriptor(default=False, type_=bool, doc="Provide slippage even outside high-low range")
+    slip_out = ParameterDescriptor(
+        default=False, type_=bool, doc="Provide slippage even outside high-low range"
+    )
 
-    coc = ParameterDescriptor(default=False, type_=bool, doc="Cheat-On-Close: match market orders to closing price")
+    coc = ParameterDescriptor(
+        default=False, type_=bool, doc="Cheat-On-Close: match market orders to closing price"
+    )
 
-    coo = ParameterDescriptor(default=False, type_=bool, doc="Cheat-On-Open: match market orders to opening price")
+    coo = ParameterDescriptor(
+        default=False, type_=bool, doc="Cheat-On-Open: match market orders to opening price"
+    )
 
-    int2pnl = ParameterDescriptor(default=True, type_=bool, doc="Assign interest to profit and loss")
+    int2pnl = ParameterDescriptor(
+        default=True, type_=bool, doc="Assign interest to profit and loss"
+    )
 
-    shortcash = ParameterDescriptor(default=True, type_=bool, doc="Increase cash when shorting stocklike assets")
+    shortcash = ParameterDescriptor(
+        default=True, type_=bool, doc="Increase cash when shorting stocklike assets"
+    )
 
     fundstartval = ParameterDescriptor(
         default=100.0,
@@ -312,7 +330,9 @@ class BackBroker(BrokerBase):
         doc="Starting value for fund-like performance measurement",
     )
 
-    fundmode = ParameterDescriptor(default=False, type_=bool, doc="Enable fund-like performance calculation")
+    fundmode = ParameterDescriptor(
+        default=False, type_=bool, doc="Enable fund-like performance calculation"
+    )
 
     def __init__(self, **kwargs):
         """Initialize the BackBroker instance.
@@ -478,7 +498,9 @@ class BackBroker(BrokerBase):
         """
         self.set_param("shortcash", shortcash)
 
-    def set_slippage_perc(self, perc, slip_open=True, slip_limit=True, slip_match=True, slip_out=False):
+    def set_slippage_perc(
+        self, perc, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
+    ):
         """Configure percentage-based slippage.
 
         Args:
@@ -495,7 +517,9 @@ class BackBroker(BrokerBase):
         self.set_param("slip_match", slip_match)
         self.set_param("slip_out", slip_out)
 
-    def set_slippage_fixed(self, fixed, slip_open=True, slip_limit=True, slip_match=True, slip_out=False):
+    def set_slippage_fixed(
+        self, fixed, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
+    ):
         """Configure fixed-point slippage.
 
         Args:

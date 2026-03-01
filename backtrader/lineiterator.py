@@ -75,7 +75,11 @@ class LineIteratorMixin:
                 is_line_object = False
 
                 # Fast path 1: Check type name (no attribute access needed)
-                if "LineRoot" in arg_type_name or "LineSeries" in arg_type_name or "LineBuffer" in arg_type_name:
+                if (
+                    "LineRoot" in arg_type_name
+                    or "LineSeries" in arg_type_name
+                    or "LineBuffer" in arg_type_name
+                ):
                     is_line_object = True
                 else:
                     # Fast path 2: Try to access 'lines' attribute directly
@@ -90,7 +94,10 @@ class LineIteratorMixin:
                         except AttributeError:
                             # Slow path: Check class hierarchy (only if needed)
                             try:
-                                if any("line" in base.__name__.lower() for base in arg.__class__.__mro__):
+                                if any(
+                                    "line" in base.__name__.lower()
+                                    for base in arg.__class__.__mro__
+                                ):
                                     is_line_object = True
                             except (AttributeError, TypeError):
                                 pass
@@ -145,13 +152,17 @@ class LineIteratorMixin:
                         _ = _obj._mindatas
                         is_indicator_or_observer = True
                     except AttributeError:
-                        is_indicator_or_observer = "Indicator" in class_name or "Observer" in class_name
+                        is_indicator_or_observer = (
+                            "Indicator" in class_name or "Observer" in class_name
+                        )
 
                     if is_indicator_or_observer:
                         # Try to access owner.datas directly
                         try:
                             owner_datas = owner.datas
-                            if owner_datas and _obj not in owner_datas:  # Prevent circular reference
+                            if (
+                                owner_datas and _obj not in owner_datas
+                            ):  # Prevent circular reference
                                 _obj.datas = owner_datas[0 : getattr(_obj, "_mindatas", 1)]
                         except AttributeError:
                             pass
@@ -218,7 +229,9 @@ class LineIteratorMixin:
         # CRITICAL: Set up clock for different object types
         # PERFORMANCE: Use try-except instead of hasattr+getattr
         try:
-            is_strategy = (cls._ltype == LineIterator.StratType) or metabase.is_class_type(cls, "Strategy")
+            is_strategy = (cls._ltype == LineIterator.StratType) or metabase.is_class_type(
+                cls, "Strategy"
+            )
         except AttributeError:
             is_strategy = metabase.is_class_type(cls, "Strategy")
 
@@ -556,7 +569,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 list: List of non-private, non-callable attribute names.
             """
             # OPTIMIZED: Use __dict__ instead of dir() for better performance
-            return [attr for attr, val in self.__dict__.items() if not attr.startswith("_") and not callable(val)]
+            return [
+                attr
+                for attr, val in self.__dict__.items()
+                if not attr.startswith("_") and not callable(val)
+            ]
 
     plotinfo = PlotInfoObj()
 
@@ -840,7 +857,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
             from .utils import DotDict
 
             try:
-                self.dnames = DotDict([(d._name, d) for d in self.datas if d is not None and getattr(d, "_name", "")])
+                self.dnames = DotDict(
+                    [(d._name, d) for d in self.datas if d is not None and getattr(d, "_name", "")]
+                )
             except Exception:
                 self.dnames = {}
 
@@ -1209,7 +1228,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
             list: List of indicators that have line aliases.
         """
         # Get the lines from all indicators
-        return [x for x in self._lineiterators[LineIterator.IndType] if hasattr(x.lines, "getlinealiases")]
+        return [
+            x
+            for x in self._lineiterators[LineIterator.IndType]
+            if hasattr(x.lines, "getlinealiases")
+        ]
 
     def getobservers(self):
         """Get all observers registered with this lineiterator.
@@ -1240,7 +1263,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
             # CRITICAL FIX: Use the indicator's actual data source's parent data feed as clock
             # This ensures proper synchronization when indicator operates on secondary data feeds
             clock_set = False
-            if hasattr(self, "datas") and self.datas and hasattr(indicator, "datas") and indicator.datas:
+            if (
+                hasattr(self, "datas")
+                and self.datas
+                and hasattr(indicator, "datas")
+                and indicator.datas
+            ):
                 # Find which data feed the indicator's data source belongs to
                 ind_data = indicator.datas[0]
                 for data_feed in self.datas:
@@ -1262,7 +1290,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 indicator._clock = self.datas[0]
             elif hasattr(self, "_clock") and self._clock is not None:
                 # Check if clock is MinimalClock (fallback), skip it
-                if not (hasattr(self._clock, "__class__") and "MinimalClock" in self._clock.__class__.__name__):
+                if not (
+                    hasattr(self._clock, "__class__")
+                    and "MinimalClock" in self._clock.__class__.__name__
+                ):
                     indicator._clock = self._clock
                 elif hasattr(self, "data") and self.data is not None:
                     indicator._clock = self.data
@@ -1982,7 +2013,9 @@ class IndicatorBase(DataAccessor):
             from backtrader.indicators.dema import DoubleExponentialMovingAverage
 
             setattr(indicators_module, "DEMA", DoubleExponentialMovingAverage)
-            setattr(indicators_module, "DoubleExponentialMovingAverage", DoubleExponentialMovingAverage)
+            setattr(
+                indicators_module, "DoubleExponentialMovingAverage", DoubleExponentialMovingAverage
+            )
         except ImportError:
             pass
 
@@ -1990,7 +2023,9 @@ class IndicatorBase(DataAccessor):
             from backtrader.indicators.tema import TripleExponentialMovingAverage
 
             setattr(indicators_module, "TEMA", TripleExponentialMovingAverage)
-            setattr(indicators_module, "TripleExponentialMovingAverage", TripleExponentialMovingAverage)
+            setattr(
+                indicators_module, "TripleExponentialMovingAverage", TripleExponentialMovingAverage
+            )
         except ImportError:
             pass
 
@@ -2270,7 +2305,11 @@ class StrategyBase(DataAccessor):
                             return 0.0
 
                         def __len__(self):
-                            if hasattr(self, "_owner") and self._owner and hasattr(self._owner, "data"):
+                            if (
+                                hasattr(self, "_owner")
+                                and self._owner
+                                and hasattr(self._owner, "data")
+                            ):
                                 try:
                                     return len(self._owner.data)
                                 except Exception:
@@ -2330,7 +2369,11 @@ class StrategyBase(DataAccessor):
                             Returns:
                                 int: Length of owner data, or 0 if not available.
                             """
-                            if hasattr(self, "_owner") and self._owner and hasattr(self._owner, "data"):
+                            if (
+                                hasattr(self, "_owner")
+                                and self._owner
+                                and hasattr(self._owner, "data")
+                            ):
                                 try:
                                     return len(self._owner.data)
                                 except Exception:

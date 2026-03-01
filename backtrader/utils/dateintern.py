@@ -120,7 +120,9 @@ def datetime2timestamp(time_date, string_format="%Y-%m-%d %H:%M:%S.%f"):
     return timestamp
 
 
-def datestr2timestamp(datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%d %H:%M:%S.%f"):
+def datestr2timestamp(
+    datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%d %H:%M:%S.%f"
+):
     """Convert datetime to timestamp
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
@@ -360,7 +362,9 @@ def _num2date_cached(x):
     if microsecond < 10:
         microsecond = 0
 
-    dt = datetime.datetime(dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond)
+    dt = datetime.datetime(
+        dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond
+    )
 
     if microsecond > 999990:
         dt += datetime.timedelta(microseconds=1e6 - microsecond)
@@ -406,7 +410,9 @@ def num2date(x, tz=None, naive=True):
         microsecond = 0
 
     # Compose time with timezone
-    dt = datetime.datetime(dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond, tzinfo=UTC)
+    dt = datetime.datetime(
+        dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond, tzinfo=UTC
+    )
     dt = dt.astimezone(tz)
     if naive:
         dt = dt.replace(tzinfo=None)

@@ -100,7 +100,11 @@ class CryptoFeed(DataBase):
         self.subscribe_live_bars()
         self.download_history_bars()
         self.p.todate = None  # After downloading historical data, need to set todate to None, otherwise next is limited
-        print("CryptoFeed init success, debug = {}, data_num = {}".format(self.debug, self.store.GetDataNum))
+        print(
+            "CryptoFeed init success, debug = {}, data_num = {}".format(
+                self.debug, self.store.GetDataNum
+            )
+        )
 
     def get_bar_time(self):
         """Get the current bar timestamp.
@@ -167,7 +171,9 @@ class CryptoFeed(DataBase):
             print_info = True
         else:
             print_info = False
-        logger = SpdLogManager(file_name="cryptofeed.log", logger_name="feed", print_info=print_info).create_logger()
+        logger = SpdLogManager(
+            file_name="cryptofeed.log", logger_name="feed", print_info=print_info
+        ).create_logger()
         return logger
 
     def log(self, txt, level="info"):
@@ -325,7 +331,8 @@ class CryptoFeed(DataBase):
         if granularity is None:
             raise ValueError(
                 "backtrader bt_api_py module doesn't support fetching OHLCV "
-                "data for time frame %s, compression %s" % (TimeFrame.getname(timeframe), compression)
+                "data for time frame %s, compression %s"
+                % (TimeFrame.getname(timeframe), compression)
             )
 
         return granularity

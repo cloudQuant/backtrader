@@ -582,7 +582,9 @@ class OandaStore(ParameterizedSingletonMixin):
         t.start()
         return q
 
-    def _t_candles(self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst, q):
+    def _t_candles(
+        self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst, q
+    ):
         granularity = self.get_granularity(timeframe, compression)
         if granularity is None:
             e = OandaTimeFrameError()

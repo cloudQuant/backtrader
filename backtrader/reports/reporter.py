@@ -360,7 +360,9 @@ class ReportGenerator:
             str: Output file path
         """
         if not JINJA2_AVAILABLE:
-            raise ImportError("jinja2 is required for HTML report generation. Install it with: pip install jinja2")
+            raise ImportError(
+                "jinja2 is required for HTML report generation. Install it with: pip install jinja2"
+            )
 
         self._user = user
         self._memo = memo
@@ -436,7 +438,9 @@ class ReportGenerator:
             "strategy": strategy_info,
             "data": {
                 "name": data_info.get("data_name"),
-                "start_date": (str(data_info.get("start_date")) if data_info.get("start_date") else None),
+                "start_date": (
+                    str(data_info.get("start_date")) if data_info.get("start_date") else None
+                ),
                 "end_date": str(data_info.get("end_date")) if data_info.get("end_date") else None,
                 "bars": data_info.get("bars"),
             },
@@ -502,7 +506,9 @@ class ReportGenerator:
 
         if dates and values:
             # Equity curve
-            fig_equity = self.charts.plot_equity_curve(dates, values, benchmark_dates, benchmark_values)
+            fig_equity = self.charts.plot_equity_curve(
+                dates, values, benchmark_dates, benchmark_values
+            )
             if fig_equity:
                 equity_curve_img = self.charts.to_base64(fig_equity)
 
@@ -523,8 +529,12 @@ class ReportGenerator:
             "params": strategy_info.get("params", {}),
             # Data information
             "data_name": data_info.get("data_name", "Data"),
-            "start_date": (str(data_info.get("start_date", ""))[:10] if data_info.get("start_date") else "N/A"),
-            "end_date": (str(data_info.get("end_date", ""))[:10] if data_info.get("end_date") else "N/A"),
+            "start_date": (
+                str(data_info.get("start_date", ""))[:10] if data_info.get("start_date") else "N/A"
+            ),
+            "end_date": (
+                str(data_info.get("end_date", ""))[:10] if data_info.get("end_date") else "N/A"
+            ),
             "bars": data_info.get("bars", 0),
             # User information
             "user": self._user,

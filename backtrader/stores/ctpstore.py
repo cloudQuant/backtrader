@@ -516,7 +516,9 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
             logger.error(f"[CTPTrader] send_order exception: {e}")
             return None
 
-    def cancel_order_by_ref(self, instrument, order_ref, front_id=None, session_id=None, exchange_id=""):
+    def cancel_order_by_ref(
+        self, instrument, order_ref, front_id=None, session_id=None, exchange_id=""
+    ):
         """Cancel an order by order_ref.
 
         Args:
@@ -730,7 +732,9 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
             "update_time": pDepthMarketData.UpdateTime,
             "update_millisec": pDepthMarketData.UpdateMillisec,
             "trading_day": pDepthMarketData.TradingDay,
-            "action_day": (pDepthMarketData.ActionDay if hasattr(pDepthMarketData, "ActionDay") else ""),
+            "action_day": (
+                pDepthMarketData.ActionDay if hasattr(pDepthMarketData, "ActionDay") else ""
+            ),
         }
         with self._lock:
             q = self.tick_queues.get(inst)
@@ -1011,7 +1015,9 @@ class CTPStore(ParameterizedSingletonMixin):
         return self._is_connected and not self._stopped
 
     # --- Order submission ---
-    def send_order(self, symbol, direction, offset, price, volume, order_price_type=THOST_FTDC_OPT_LimitPrice):
+    def send_order(
+        self, symbol, direction, offset, price, volume, order_price_type=THOST_FTDC_OPT_LimitPrice
+    ):
         """Send an order to CTP.
 
         Args:

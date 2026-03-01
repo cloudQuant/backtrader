@@ -642,7 +642,11 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
         for i in range(start, min(end, len(adx_array))):
             if i >= period:
                 adx_curr = adx_array[i] if i < len(adx_array) else 0.0
-                adx_prev = adx_array[i - period] if i - period >= 0 and i - period < len(adx_array) else 0.0
+                adx_prev = (
+                    adx_array[i - period]
+                    if i - period >= 0 and i - period < len(adx_array)
+                    else 0.0
+                )
 
                 if isinstance(adx_curr, float) and math.isnan(adx_curr):
                     adxr_array[i] = float("nan")

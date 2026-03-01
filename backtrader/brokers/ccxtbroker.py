@@ -230,7 +230,12 @@ class CCXTBroker(BrokerBase):
         self._last_op_time = 0
 
         # Initialize threaded order manager if requested
-        if use_threaded_order_manager and not use_websocket_orders and HAS_CCXT_ENHANCEMENTS and ThreadedOrderManager:
+        if (
+            use_threaded_order_manager
+            and not use_websocket_orders
+            and HAS_CCXT_ENHANCEMENTS
+            and ThreadedOrderManager
+        ):
             self._threaded_order_manager = ThreadedOrderManager(self.store, check_interval=3.0)
             self._threaded_order_manager.start()
 
@@ -422,7 +427,9 @@ class CCXTBroker(BrokerBase):
             pos.update(signed_size, fill_price)
 
             # Determine order state by checking remaining
-            remaining = float(matching_order.ccxt_order.get("amount", 0)) - abs(matching_order.executed.size)
+            remaining = float(matching_order.ccxt_order.get("amount", 0)) - abs(
+                matching_order.executed.size
+            )
             if remaining <= 0:
                 matching_order.completed()
                 self.notify(matching_order.clone())
@@ -537,12 +544,16 @@ class CCXTBroker(BrokerBase):
                 if attempt < self._max_retries - 1:
                     delay = self._retry_delay * (2**attempt)
                     if self.debug:
-                        print(f"[CCXTBroker] API call failed (attempt {attempt + 1}/{self._max_retries}): {e}")
+                        print(
+                            f"[CCXTBroker] API call failed (attempt {attempt + 1}/{self._max_retries}): {e}"
+                        )
                         print(f"[CCXTBroker] Retrying in {delay:.1f}s...")
                     time.sleep(delay)
                 else:
                     if self.debug:
-                        print(f"[CCXTBroker] API call failed after {self._max_retries} attempts: {e}")
+                        print(
+                            f"[CCXTBroker] API call failed after {self._max_retries} attempts: {e}"
+                        )
             except ExchangeError:
                 # Exchange errors (invalid order, insufficient balance, etc.) should not retry
                 raise
@@ -674,7 +685,9 @@ class CCXTBroker(BrokerBase):
 
             # Get the order with error handling
             try:
-                ccxt_order = self._retry_api_call(self.store.fetch_order, oID, o_order.data.p.dataname)
+                ccxt_order = self._retry_api_call(
+                    self.store.fetch_order, oID, o_order.data.p.dataname
+                )
             except (NetworkError, ExchangeNotAvailable) as e:
                 print(f"[CCXTBroker] Cannot fetch order {oID}: {e}")
                 continue  # Skip this order, will retry next cycle
@@ -690,16 +703,22 @@ class CCXTBroker(BrokerBase):
             status = ccxt_order["status"]
 
             # Check for new fills
-            if "trades" in ccxt_order and ccxt_order["trades"] is not None:  # Check if this order has fills
+            if (
+                "trades" in ccxt_order and ccxt_order["trades"] is not None
+            ):  # Check if this order has fills
                 for fill in ccxt_order["trades"]:  # Iterate through all fills of this order
-                    if fill["id"] not in o_order.executed_fills:  # Whether this fill has been processed
+                    if (
+                        fill["id"] not in o_order.executed_fills
+                    ):  # Whether this fill has been processed
                         fill_id, fill_dt, fill_size, fill_price = (
                             fill["id"],
                             fill["datetime"],
                             fill["amount"],
                             fill["price"],
                         )
-                        o_order.executed_fills.add(fill_id)  # Record that this fill has been processed
+                        o_order.executed_fills.add(
+                            fill_id
+                        )  # Record that this fill has been processed
                         fill_size = (
                             fill_size if o_order.isbuy() else -fill_size
                         )  # Meet backtrader specification, sell orders or short positions use negative numbers
@@ -720,14 +739,20 @@ class CCXTBroker(BrokerBase):
                         )  # Process this fill, internally marks order status, partial or complete fill
                         # Prepare to notify upper strategy
                         # self.get_balance() #Refresh account balance (balance no longer updated, reduce communication to improve performance, can be updated as needed in strategy)
-                        pos = self.getposition(o_order.data, clone=False)  # Get corresponding position
+                        pos = self.getposition(
+                            o_order.data, clone=False
+                        )  # Get corresponding position
                         pos.update(fill_size, fill_price)  # Refresh position
                         # -------------------------------------------------------------------
                         # Using order.executed.remsize to judge if all filled may be unreliable for market buy orders,
                         # so use following code to judge if partial or complete fill
-                        if status == "open":  # If status is still open when there are fills, it must be partially filled
+                        if (
+                            status == "open"
+                        ):  # If status is still open when there are fills, it must be partially filled
                             o_order.partial()
-                        elif status == "closed":  # If status is closed when there are fills, it means completely filled
+                        elif (
+                            status == "closed"
+                        ):  # If status is closed when there are fills, it means completely filled
                             o_order.completed()
                         # -------------------------------------------------------------------
                         self.notify(o_order.clone())  # Notify strategy
@@ -737,13 +762,17 @@ class CCXTBroker(BrokerBase):
                     ccxt_order["filled"],
                     ccxt_order["average"],
                 )
-                if cum_fill_size > abs(o_order.executed.size):  # Check if there are new fills this time
+                if cum_fill_size > abs(
+                    o_order.executed.size
+                ):  # Check if there are new fills this time
                     new_cum_fill_value = (
                         cum_fill_size * average_fill_price
                     )  # Cumulative fill quantity * average fill price = cumulative fill total value
                     old_cum_fill_value = abs(o_order.executed.size) * o_order.executed.price
                     fill_value = new_cum_fill_value - old_cum_fill_value  # Value of this new fill
-                    fill_size = cum_fill_size - abs(o_order.executed.size)  # Quantity of this new fill
+                    fill_size = cum_fill_size - abs(
+                        o_order.executed.size
+                    )  # Quantity of this new fill
                     fill_price = fill_value / fill_size  # Price of this new fill
                     fill_size = (
                         fill_size if o_order.isbuy() else -fill_size
@@ -758,9 +787,13 @@ class CCXTBroker(BrokerBase):
                     # -------------------------------------------------------------------
                     # Using order.executed.remsize to judge if all filled may be unreliable for market buy orders,
                     # so use following code to judge if partial or complete fill
-                    if status == "open":  # If status is still open when there are fills, it must be partially filled
+                    if (
+                        status == "open"
+                    ):  # If status is still open when there are fills, it must be partially filled
                         o_order.partial()
-                    elif status == "closed":  # If status is closed when there are fills, it means completely filled
+                    elif (
+                        status == "closed"
+                    ):  # If status is closed when there are fills, it means completely filled
                         o_order.completed()
                     # -------------------------------------------------------------------
                     self.notify(o_order.clone())  # Notify strategy
@@ -968,8 +1001,12 @@ class CCXTBroker(BrokerBase):
         if self.debug:
             print(json.dumps(ccxt_order, indent=self.indent))
 
-        if (ccxt_order[self.mappings["closed_order"]["key"]] == self.mappings["closed_order"]["value"]) or (
-            ccxt_order[self.mappings["canceled_order"]["key"]] == self.mappings["canceled_order"]["value"]
+        if (
+            ccxt_order[self.mappings["closed_order"]["key"]]
+            == self.mappings["closed_order"]["value"]
+        ) or (
+            ccxt_order[self.mappings["canceled_order"]["key"]]
+            == self.mappings["canceled_order"]["value"]
         ):
             return order
 
@@ -1040,7 +1077,9 @@ class CCXTBroker(BrokerBase):
 
         return self.store.private_end_point(type=type, endpoint=method_str, params=params)
 
-    def create_bracket_order(self, data, size, entry_price, stop_price, limit_price, entry_type=None, side="buy"):
+    def create_bracket_order(
+        self, data, size, entry_price, stop_price, limit_price, entry_type=None, side="buy"
+    ):
         """Create a bracket order (entry + stop-loss + take-profit).
 
         A bracket order consists of three linked orders:

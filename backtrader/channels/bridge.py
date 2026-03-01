@@ -125,7 +125,9 @@ class ChannelBridge:
         Returns:
             str: Representation showing channel, fields, and event count.
         """
-        return f"ChannelBridge(channel={self.channel!r}, fields={self._fields}, count={self._count})"
+        return (
+            f"ChannelBridge(channel={self.channel!r}, fields={self._fields}, count={self._count})"
+        )
 
 
 class _BridgeLine:

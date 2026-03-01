@@ -125,7 +125,9 @@ class VWR(TimeFrameAnalyzerBase):
         self._fundmode = None
         # Use OwnerContext so child analyzer can find this as its parent
         with OwnerContext.set_owner(self):
-            self._returns = Returns(timeframe=self.p.timeframe, compression=self.p.compression, tann=self.p.tann)
+            self._returns = Returns(
+                timeframe=self.p.timeframe, compression=self.p.compression, tann=self.p.tann
+            )
 
     # Start
     def start(self):

@@ -31,7 +31,9 @@ class FixedSize(Sizer):
     """
 
     # Use new parameter descriptor system to define parameters
-    stake = ParameterDescriptor(default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations")
+    stake = ParameterDescriptor(
+        default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations"
+    )
     tranches = ParameterDescriptor(
         default=1,
         type_=int,
@@ -86,7 +88,9 @@ class FixedReverser(Sizer):
       - ``stake`` (default: ``1``)
     """
 
-    stake = ParameterDescriptor(default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations")
+    stake = ParameterDescriptor(
+        default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations"
+    )
 
     def __init__(self, **kwargs):
         """Initialize the FixedReverser sizer.
@@ -118,7 +122,9 @@ class FixedSizeTarget(Sizer):
       - ``tranches`` (default: ``1``)
     """
 
-    stake = ParameterDescriptor(default=1, type_=int, validator=Int(min_val=1), doc="Fixed target stake size")
+    stake = ParameterDescriptor(
+        default=1, type_=int, validator=Int(min_val=1), doc="Fixed target stake size"
+    )
     tranches = ParameterDescriptor(
         default=1,
         type_=int,

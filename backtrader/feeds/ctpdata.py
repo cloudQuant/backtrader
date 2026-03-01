@@ -78,7 +78,9 @@ class CTPData(DataBase):
         self.o = self._store(**kwargs)
         # Register tick queue for this instrument
         self.qlive = self.o.register(self)
-        self._instrument = self.p.dataname.split(".")[0] if "." in self.p.dataname else self.p.dataname
+        self._instrument = (
+            self.p.dataname.split(".")[0] if "." in self.p.dataname else self.p.dataname
+        )
 
         # Bar aggregation state
         self._bar_compression_secs = self._calc_bar_seconds()
@@ -132,13 +134,15 @@ class CTPData(DataBase):
 
                 symbol = self._instrument
                 if self._timeframe == 4:
-                    futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period=str(self._compression)).tail(
-                        self.p.num_init_backfill
-                    )
+                    futures_sina_df = ak.futures_zh_minute_sina(
+                        symbol=symbol, period=str(self._compression)
+                    ).tail(self.p.num_init_backfill)
                 elif self._timeframe == 5:
                     futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
                 else:
-                    futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(self.p.num_init_backfill)
+                    futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(
+                        self.p.num_init_backfill
+                    )
 
                 # C4: Flexible column mapping (handle akshare API changes)
                 if len(futures_sina_df.columns) >= 7:
@@ -179,7 +183,9 @@ class CTPData(DataBase):
                 break  # no point retrying
             except Exception as e:
                 if attempt < retries:
-                    logger.warning(f"[CTPData] Backfill attempt {attempt + 1} failed: {e}, retrying...")
+                    logger.warning(
+                        f"[CTPData] Backfill attempt {attempt + 1} failed: {e}, retrying..."
+                    )
                     import time
 
                     time.sleep(1)

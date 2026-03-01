@@ -78,7 +78,9 @@ class HaDelta(Indicator):
         """Calculate Heikin Ashi values for current bar inline."""
         if self._autoheikin:
             # ha_close = (open + high + low + close) / 4
-            ha_close = (self.data.open[0] + self.data.high[0] + self.data.low[0] + self.data.close[0]) / 4.0
+            ha_close = (
+                self.data.open[0] + self.data.high[0] + self.data.low[0] + self.data.close[0]
+            ) / 4.0
 
             # ha_open = (prev_ha_open + prev_ha_close) / 2
             if self._first_bar:

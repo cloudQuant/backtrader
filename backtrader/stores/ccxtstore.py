@@ -180,11 +180,15 @@ class CCXTStore(ParameterizedSingletonMixin):
                     if attempt < retries - 1:
                         wait_time = 2**attempt  # Exponential backoff: 1, 2, 4...
                         if debug:
-                            print(f"[CCXTStore] fetch_balance failed (attempt {attempt + 1}/{retries}): {e}")
+                            print(
+                                f"[CCXTStore] fetch_balance failed (attempt {attempt + 1}/{retries}): {e}"
+                            )
                             print(f"[CCXTStore] Retrying in {wait_time}s...")
                         time.sleep(wait_time)
                     else:
-                        print(f"[CCXTStore] Warning: Could not fetch balance after {retries} attempts: {e}")
+                        print(
+                            f"[CCXTStore] Warning: Could not fetch balance after {retries} attempts: {e}"
+                        )
                         print("[CCXTStore] Starting with zero balance. Will retry on first trade.")
                         balance = 0
 
@@ -216,7 +220,9 @@ class CCXTStore(ParameterizedSingletonMixin):
             ValueError: If the timeframe/compression combination is not supported.
         """
         if not self.exchange.has["fetchOHLCV"]:
-            raise NotImplementedError("'%s' exchange doesn't support fetching OHLCV data" % self.exchange.name)
+            raise NotImplementedError(
+                "'%s' exchange doesn't support fetching OHLCV data" % self.exchange.name
+            )
 
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
@@ -227,7 +233,8 @@ class CCXTStore(ParameterizedSingletonMixin):
 
         if self.exchange.timeframes and granularity not in self.exchange.timeframes:
             raise ValueError(
-                "'%s' exchange doesn't support fetching OHLCV data for %s time frame" % (self.exchange.name, granularity)
+                "'%s' exchange doesn't support fetching OHLCV data for %s time frame"
+                % (self.exchange.name, granularity)
             )
 
         return granularity
@@ -371,7 +378,9 @@ class CCXTStore(ParameterizedSingletonMixin):
             print(f"Fetching: {symbol}, TF: {timeframe}, Since: {since}, Limit: {limit}")
         if params is None:
             params = {}
-        return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit, params=params)
+        return self.exchange.fetch_ohlcv(
+            symbol, timeframe=timeframe, since=since, limit=limit, params=params
+        )
 
     @retry
     def fetch_order(self, oid, symbol):

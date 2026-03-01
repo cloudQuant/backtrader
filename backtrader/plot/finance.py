@@ -473,7 +473,9 @@ class VolumePlotHandler:
         ax.update_datalim(corners)
         ax.autoscale_view()
 
-        self.barcol = self.barcollection(x, opens, closes, volumes, width=width, edgeadjust=edgeadjust, **kwargs)
+        self.barcol = self.barcollection(
+            x, opens, closes, volumes, width=width, edgeadjust=edgeadjust, **kwargs
+        )
 
         # add to axes
         ax.add_collection(self.barcol)
@@ -516,7 +518,9 @@ class VolumePlotHandler:
 
         return barcol
 
-    def barcollection(self, x, opens, closes, vols, width, edgeadjust=0, vscaling=1.0, vbot=0, **kwargs):
+    def barcollection(
+        self, x, opens, closes, vols, width, edgeadjust=0, vscaling=1.0, vbot=0, **kwargs
+    ):
         """Create matplotlib collection for volume bars.
 
         Args:
@@ -803,7 +807,9 @@ class OHLCPlotHandler:
 
         barranges = [barrange(i, high, low) for i, high, low in ihighlow()]
 
-        barcol = mcol.LineCollection(barranges, colors=colors, linewidths=lw, antialiaseds=useaa, label=label, **kwargs)
+        barcol = mcol.LineCollection(
+            barranges, colors=colors, linewidths=lw, antialiaseds=useaa, label=label, **kwargs
+        )
 
         def tickopen(i, open_):
             open_ = open_ * scaling + bot
@@ -983,7 +989,9 @@ class LineOnClosePlotHandler:
         # Prepack different zips of the series values
         scaled = [close * scaling + bot for close in closes]
 
-        loc = mlines.Line2D(xs, scaled, color=self.color, lw=width, label=label, alpha=self.alpha, **kwargs)
+        loc = mlines.Line2D(
+            xs, scaled, color=self.color, lw=width, label=label, alpha=self.alpha, **kwargs
+        )
 
         return (loc,)
 
@@ -1007,6 +1015,8 @@ def plot_lineonclose(ax, x, closes, color="k", width=1.5, alpha=1.0, label="_nol
     Returns:
         Tuple containing the Line2D object.
     """
-    handler = LineOnClosePlotHandler(ax, x, closes, color=color, width=width, alpha=alpha, label=label, **kwargs)
+    handler = LineOnClosePlotHandler(
+        ax, x, closes, color=color, width=width, alpha=alpha, label=label, **kwargs
+    )
 
     return (handler.loc,)

@@ -48,7 +48,14 @@ class TickChannel(DataChannel):
     channel_type = "tick"
 
     def __init__(
-        self, symbol, dataname=None, maxlen=10000, validate=True, auto_fix=True, price_change_threshold=0.1, **kwargs
+        self,
+        symbol,
+        dataname=None,
+        maxlen=10000,
+        validate=True,
+        auto_fix=True,
+        price_change_threshold=0.1,
+        **kwargs,
     ):
         """Initialize the tick data channel.
 
@@ -61,7 +68,14 @@ class TickChannel(DataChannel):
             price_change_threshold: Maximum allowed price change (percentage).
             **kwargs: Additional arguments passed to parent.
         """
-        super().__init__(symbol=symbol, maxlen=maxlen, validate=validate, auto_fix=auto_fix, dataname=dataname, **kwargs)
+        super().__init__(
+            symbol=symbol,
+            maxlen=maxlen,
+            validate=validate,
+            auto_fix=auto_fix,
+            dataname=dataname,
+            **kwargs,
+        )
         self._dataname = dataname
         self._price_change_threshold = price_change_threshold
         self._last_price = None
@@ -82,7 +96,9 @@ class TickChannel(DataChannel):
         if self._last_price is not None and self._last_price > 0:
             change_ratio = abs(event.price - self._last_price) / self._last_price
             if change_ratio > self._price_change_threshold:
-                result.warnings.append(f"Large price change: {self._last_price} -> {event.price} ({change_ratio:.2%})")
+                result.warnings.append(
+                    f"Large price change: {self._last_price} -> {event.price} ({change_ratio:.2%})"
+                )
 
         self._last_price = event.price
         return result
@@ -118,7 +134,9 @@ class TickChannel(DataChannel):
             if reader.fieldnames:
                 missing = required - set(reader.fieldnames)
                 if missing:
-                    raise ValueError(f"Missing required columns: {missing}. Found: {reader.fieldnames}")
+                    raise ValueError(
+                        f"Missing required columns: {missing}. Found: {reader.fieldnames}"
+                    )
 
             for row in reader:
                 try:

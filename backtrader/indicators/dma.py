@@ -76,7 +76,9 @@ class DicksonMovingAverage(MovingAverageBase):
         Creates ZeroLag and Hull MA sub-indicators.
         """
         super().__init__()
-        self.ec = ZeroLagIndicator(period=self.p.period, gainlimit=self.p.gainlimit, _movav=self.p._movav)
+        self.ec = ZeroLagIndicator(
+            period=self.p.period, gainlimit=self.p.gainlimit, _movav=self.p._movav
+        )
         self.hull = self.p._hma(period=self.p.hperiod)
 
     def next(self):

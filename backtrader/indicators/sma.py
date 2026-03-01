@@ -78,12 +78,20 @@ class MovingAverageSimple(MovingAverageBase):
         current_data_len = len(self.data) if hasattr(self.data, "__len__") else 0
         is_replay_update = current_data_len == self._last_data_len and current_data_len > 0
 
-        if not is_replay_update and not (hasattr(self, "_idx") and self._idx >= 0) and cache_key in self._result_cache:
+        if (
+            not is_replay_update
+            and not (hasattr(self, "_idx") and self._idx >= 0)
+            and cache_key in self._result_cache
+        ):
             return self._result_cache[cache_key]
 
         # Phase 2: Use vectorized calculation when enough data is available
         # CRITICAL FIX: In runonce mode, use manual calculation which handles indices correctly
-        if self._vectorized_enabled and len(self.data) >= period and not (hasattr(self, "_idx") and self._idx >= 0):
+        if (
+            self._vectorized_enabled
+            and len(self.data) >= period
+            and not (hasattr(self, "_idx") and self._idx >= 0)
+        ):
             try:
                 # Extract recent prices for vectorized calculation
                 # Use range(1-period, 1) to get the last 'period' bars including current
@@ -131,7 +139,11 @@ class MovingAverageSimple(MovingAverageBase):
             # Method 3: Try close line directly
             if current_price is None and hasattr(self.data, "close"):
                 try:
-                    if hasattr(self.data.close, "array") and hasattr(self, "_idx") and self._idx >= 0:
+                    if (
+                        hasattr(self.data.close, "array")
+                        and hasattr(self, "_idx")
+                        and self._idx >= 0
+                    ):
                         if 0 <= self._idx < len(self.data.close.array):
                             current_price = float(self.data.close.array[self._idx])
                     else:
@@ -253,7 +265,8 @@ class MovingAverageSimple(MovingAverageBase):
 
             # CRITICAL FIX: If value is NaN and we have sufficient data, try manual calculation
             if sma_value is None or (
-                isinstance(sma_value, float) and (sma_value != sma_value or sma_value == float("nan"))
+                isinstance(sma_value, float)
+                and (sma_value != sma_value or sma_value == float("nan"))
             ):
                 # Try one more time with direct manual calculation
                 sma_value = self._calculate_sma_manual(period)
