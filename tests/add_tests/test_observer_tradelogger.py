@@ -21,11 +21,21 @@ import datetime
 import json
 import os
 import shutil
+import sys
 import tempfile
 
-import backtrader as bt
+import pytest
 
-from . import testcommon
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import backtrader as bt
+import testcommon
+
+pytestmark = pytest.mark.skip(
+    reason="Tests target tradelogger.py API (remote branch); "
+    "current HEAD uses trade_logger.py with different params. "
+    "See tests/integration/test_trade_logger.py for active tests."
+)
 
 
 class SMAStrategy(bt.Strategy):
