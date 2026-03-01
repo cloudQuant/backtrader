@@ -1,7 +1,9 @@
----
+- --
+
 title: 常用模式手册
 description: 实用交易模式与实现
----
+
+- --
 
 # 常用模式手册
 
@@ -18,7 +20,7 @@ description: 实用交易模式与实现
 7. [追踪止损实现](#追踪止损实现)
 8. [ bracket 订单](#bracket-订单)
 
----
+- --
 
 ## 止损与止盈
 
@@ -40,7 +42,8 @@ class FixedStopLoss(bt.Strategy):
     )
 
     def __init__(self):
-        # 跟踪入场价格用于计算止损
+
+# 跟踪入场价格用于计算止损
         self.entry_price = None
         self.order = None
 
@@ -49,15 +52,17 @@ class FixedStopLoss(bt.Strategy):
             return  # 等待待处理订单
 
         if not self.position:
-            # 入场逻辑 - 当价格突破均线上方时买入
+
+# 入场逻辑 - 当价格突破均线上方时买入
             if len(self.data) >= 20:
                 if self.data.close[0] > self.data.close[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
         else:
-            # 检查止损
+
+# 检查止损
             current_price = self.data.close[0]
-            stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
+            stop_price = self.entry_price *(1 - self.p.stop_loss_pct)
 
             if current_price <= stop_price:
                 self.order = self.close()  # 触发止损
@@ -67,7 +72,8 @@ class FixedStopLoss(bt.Strategy):
             self.order = None
             if not self.position:
                 self.entry_price = None
-```
+
+```bash
 
 ### 基于 ATR 的动态止损
 
@@ -96,23 +102,28 @@ class ATRStopLoss(bt.Strategy):
             return
 
         if not self.position:
-            # 简单入场: 价格上涨时买入
+
+# 简单入场: 价格上涨时买入
             if len(self.data) > self.p.atr_period:
                 if self.data.close[0] > self.data.close[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
-                    # 设置初始止损
-                    self.stop_price = self.entry_price - (self.atr[0] * self.p.atr_multiplier)
+
+# 设置初始止损
+                    self.stop_price = self.entry_price - (self.atr[0]*self.p.atr_multiplier)
         else:
-            # 检查止损是否触发
+
+# 检查止损是否触发
             if self.data.close[0] <= self.stop_price:
                 self.order = self.close()
             else:
-                # 移动止损: 价格有利变动时更新止损价
-                new_stop = self.data.close[0] - (self.atr[0] * self.p.atr_multiplier)
+
+# 移动止损: 价格有利变动时更新止损价
+                new_stop = self.data.close[0] - (self.atr[0]*self.p.atr_multiplier)
                 if new_stop > self.stop_price:
                     self.stop_price = new_stop
-```
+
+```bash
 
 ### 盈亏比止盈
 
@@ -140,28 +151,32 @@ class RiskRewardStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 入场条件
+
+# 入场条件
             if len(self.data) >= 20:
                 sma = bt.indicators.SMA(self.data.close, period=20)
                 if self.data.close[0] > sma[0] and self.data.close[-1] <= sma[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
-                    # 计算止损和止盈位
-                    self.stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
+
+# 计算止损和止盈位
+                    self.stop_price = self.entry_price*(1 - self.p.stop_loss_pct)
                     risk = self.entry_price - self.stop_price
-                    self.target_price = self.entry_price + (risk * self.p.risk_reward_ratio)
+                    self.target_price = self.entry_price + (risk*self.p.risk_reward_ratio)
         else:
             current_price = self.data.close[0]
 
-            # 检查止损
+# 检查止损
             if current_price <= self.stop_price:
                 self.order = self.close()
-            # 检查止盈
+
+# 检查止盈
             elif current_price >= self.target_price:
                 self.order = self.close()
-```
 
----
+```bash
+
+- --
 
 ## 动态仓位管理
 
@@ -180,19 +195,22 @@ class PercentEquitySizer(bt.Sizer):
 
     def _getsizing(self, comminfo, cash, data, isbuy):
         if isbuy:
-            # 基于权益百分比计算仓位
-            position_value = self.broker.getvalue() * (self.p.percents / 100)
+
+# 基于权益百分比计算仓位
+            position_value = self.broker.getvalue()*(self.p.percents / 100)
             size = position_value / data.close[0]
             return int(size)
         return self.broker.getposition(data).size
 
 # 在策略中使用
+
 class PercentEquityStrategy(bt.Strategy):
     params = (('trade_size', 20),)  # 每笔交易 20% 权益
 
     def __init__(self):
         self.setsizer(PercentEquitySizer(percents=self.p.trade_size))
-```
+
+```bash
 
 ### 波动率调整仓位
 
@@ -214,23 +232,24 @@ class VolatilitySizer(bt.Sizer):
         if not isbuy:
             return self.broker.getposition(data).size
 
-        # 计算 ATR
+# 计算 ATR
         if len(data) < self.p.atr_period:
             return 0
 
         atr = bt.indicators.ATR(data, period=self.p.atr_period)
-        current_atr = atr[0] if len(atr) > 0 else data.close[0] * 0.02
+        current_atr = atr[0] if len(atr) > 0 else data.close[0]*0.02
 
-        # 基于风险计算仓位
-        risk_amount = self.broker.getvalue() * self.p.risk_pct
-        stop_distance = current_atr * self.p.atr_multiplier
+# 基于风险计算仓位
+        risk_amount = self.broker.getvalue()*self.p.risk_pct
+        stop_distance = current_atr*self.p.atr_multiplier
 
         if stop_distance > 0:
             size = risk_amount / stop_distance
             return int(size)
 
         return 0
-```
+
+```bash
 
 ### 凯利公式仓位
 
@@ -239,7 +258,7 @@ class KellySizer(bt.Sizer):
     """
     使用凯利公式进行仓位管理。
 
-    凯利 % = (胜率% * 盈亏比 - 败率%) / 盈亏比
+    凯利 % = (胜率%*盈亏比 - 败率%) / 盈亏比
 
     参数:
         win_rate: 历史胜率 (0-1)
@@ -259,21 +278,22 @@ class KellySizer(bt.Sizer):
         if not isbuy:
             return self.broker.getposition(data).size
 
-        # 计算凯利百分比
+# 计算凯利百分比
         win_loss_ratio = self.p.avg_win / self.p.avg_loss
-        kelly_pct = (self.p.win_rate * win_loss_ratio - (1 - self.p.win_rate)) / win_loss_ratio
+        kelly_pct = (self.p.win_rate*win_loss_ratio - (1 - self.p.win_rate)) / win_loss_ratio
 
-        # 使用分数凯利 (半凯利以提高安全性)
-        kelly_pct = max(0, min(kelly_pct * 0.5, self.p.max_position_pct / 100))
+# 使用分数凯利 (半凯利以提高安全性)
+        kelly_pct = max(0, min(kelly_pct*0.5, self.p.max_position_pct / 100))
 
-        # 计算仓位
-        position_value = self.broker.getvalue() * kelly_pct
+# 计算仓位
+        position_value = self.broker.getvalue()*kelly_pct
         size = position_value / data.close[0]
 
         return int(size)
-```
 
----
+```bash
+
+- --
 
 ## 多指标组合
 
@@ -285,9 +305,11 @@ class TripleConfirmationStrategy(bt.Strategy):
     结合趋势、动量和波动率指标。
 
     入场条件 (需全部满足):
+
     1. 趋势: 价格位于 200 周期均线上方
     2. 动量: RSI 低于 30 (超卖)
     3. 波动率: ATR 高于平均值 (波动率扩大)
+
     """
 
     params = (
@@ -298,13 +320,14 @@ class TripleConfirmationStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 趋势指标
+
+# 趋势指标
         self.sma_trend = bt.indicators.SMA(self.data.close, period=self.p.trend_period)
 
-        # 动量指标
+# 动量指标
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
 
-        # 波动率指标
+# 波动率指标
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
         self.atr_sma = bt.indicators.SMA(self.atr, period=self.p.atr_period)
 
@@ -313,7 +336,8 @@ class TripleConfirmationStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 检查三个条件
+
+# 检查三个条件
             trend_ok = self.data.close[0] > self.sma_trend[0]
             momentum_ok = self.rsi[0] < self.p.rsi_threshold
             volatility_ok = self.atr[0] > self.atr_sma[0]
@@ -321,10 +345,12 @@ class TripleConfirmationStrategy(bt.Strategy):
             if trend_ok and momentum_ok and volatility_ok:
                 self.buy()
         else:
-            # 当 RSI 超买时退出
+
+# 当 RSI 超买时退出
             if self.rsi[0] > 70:
                 self.sell()
-```
+
+```bash
 
 ### MACD + 随机指标确认
 
@@ -334,12 +360,15 @@ class MACDStochasticStrategy(bt.Strategy):
     结合 MACD 和随机指标进行入场确认。
 
     买入时:
+
     - MACD 线上穿信号线
     - 随机指标 %K 从 20 下方上穿 %D
 
     卖出时:
+
     - MACD 线下穿信号线
     - 随机指标 %K 从 80 上方下穿 %D
+
     """
 
     params = (
@@ -351,14 +380,15 @@ class MACDStochasticStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # MACD 指标
+
+# MACD 指标
         self.macd = bt.indicators.MACD(self.data.close,
                                        period_me1=self.p.macd_fast,
                                        period_me2=self.p.macd_slow,
                                        period_signal=self.p.macd_signal)
         self.macd_cross = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
 
-        # 随机指标
+# 随机指标
         self.stoch = bt.indicators.Stochastic(self.data,
                                               period=self.p.stoch_period,
                                               period_dfast=self.p.stoch_d_period)
@@ -367,18 +397,21 @@ class MACDStochasticStrategy(bt.Strategy):
 
     def next(self):
         if not self.position:
-            # 买入信号: MACD 金叉 + 随机指标超卖区金叉
+
+# 买入信号: MACD 金叉 + 随机指标超卖区金叉
             if (self.macd_cross[0] > 0 and
                 self.stoch_cross[0] > 0 and
                 self.stoch.percK[-1] < 20):
                 self.buy()
         else:
-            # 卖出信号: MACD 死叉 + 随机指标超买区死叉
+
+# 卖出信号: MACD 死叉 + 随机指标超买区死叉
             if (self.macd_cross[0] < 0 and
                 self.stoch_cross[0] < 0 and
                 self.stoch.percK[-1] > 80):
                 self.sell()
-```
+
+```bash
 
 ### 布林带 + RSI 均值回归
 
@@ -388,12 +421,15 @@ class BBRSIReversalStrategy(bt.Strategy):
     结合布林带和 RSI 的均值回归策略。
 
     买入时:
+
     - 价格触及布林带下轨
     - RSI 低于 30
 
     卖出时:
+
     - 价格触及布林带上轨
     - RSI 高于 70
+
     """
 
     params = (
@@ -410,18 +446,21 @@ class BBRSIReversalStrategy(bt.Strategy):
 
     def next(self):
         if not self.position:
-            # 下轨买入且 RSI 确认
+
+# 下轨买入且 RSI 确认
             if (self.data.close[0] <= self.bb.lines.bot[0] and
                 self.rsi[0] < 30):
                 self.buy()
         else:
-            # 上轨卖出且 RSI 确认
+
+# 上轨卖出且 RSI 确认
             if (self.data.close[0] >= self.bb.lines.top[0] and
                 self.rsi[0] > 70):
                 self.sell()
-```
 
----
+```bash
+
+- --
 
 ## 基于时间的交易过滤
 
@@ -435,8 +474,8 @@ class SessionFilterStrategy(bt.Strategy):
     仅在一天中的特定时段交易。
 
     参数:
-        start_hour: 交易开始时间 (24小时制)
-        end_hour: 交易结束时间 (24小时制)
+        start_hour: 交易开始时间 (24 小时制)
+        end_hour: 交易结束时间 (24 小时制)
         exclude_first_bars: 跳过时段开始后的前 N 根 K 线
     """
 
@@ -454,7 +493,7 @@ class SessionFilterStrategy(bt.Strategy):
         current_time = self.data.datetime.time(0)
         in_session = (self.p.start_hour <= current_time.hour < self.p.end_hour)
 
-        # 进入新时段时重置计数器
+# 进入新时段时重置计数器
         if in_session and not self.was_in_session:
             self.bars_in_session = 0
         elif in_session:
@@ -462,14 +501,15 @@ class SessionFilterStrategy(bt.Strategy):
 
         self.was_in_session = in_session
 
-        # 跳过时段外或预热期
+# 跳过时段外或预热期
         if not in_session or self.bars_in_session < self.p.exclude_first_bars:
             return
 
-        # 交易逻辑
+# 交易逻辑
         if not self.position:
             self.buy()
-```
+
+```bash
 
 ### 星期几过滤
 
@@ -489,16 +529,17 @@ class DayOfWeekStrategy(bt.Strategy):
     def next(self):
         current_weekday = self.data.datetime.date(0).weekday()
 
-        # 仅在指定日期交易
+# 仅在指定日期交易
         if current_weekday not in self.p.trade_days:
             return
 
-        # 交易逻辑
+# 交易逻辑
         if not self.position and len(self.data) >= 20:
             sma = bt.indicators.SMA(self.data.close, period=20)
             if self.data.close[0] > sma[0]:
                 self.buy()
-```
+
+```bash
 
 ### 月份/季节性过滤
 
@@ -517,18 +558,20 @@ class SeasonalStrategy(bt.Strategy):
     def next(self):
         current_month = self.data.datetime.date(0).month
 
-        # 指定月份不交易
+# 指定月份不交易
         if current_month in self.p.avoid_months:
-            # 平掉现有仓位
+
+# 平掉现有仓位
             if self.position:
                 self.close()
             return
 
-        # 活跃月份的交易逻辑
+# 活跃月份的交易逻辑
         if not self.position and len(self.data) >= 20:
             if self.data.close[0] > self.data.close[-1]:
                 self.buy()
-```
+
+```bash
 
 ### 收盘前平仓
 
@@ -552,7 +595,7 @@ class EndOfDayExit(bt.Strategy):
         current_time = self.data.datetime.time(0)
         exit_time = datetime.time(self.p.exit_hour, self.p.exit_minute)
 
-        # 在指定时间平仓
+# 在指定时间平仓
         if current_time >= exit_time:
             if self.position and not self.exit_triggered:
                 self.close()
@@ -560,14 +603,15 @@ class EndOfDayExit(bt.Strategy):
         else:
             self.exit_triggered = False
 
-        # 收盘前的交易逻辑
+# 收盘前的交易逻辑
         if current_time < exit_time and not self.position:
             if len(self.data) >= 20:
                 if self.data.close[0] > self.data.close[-1]:
                     self.buy()
-```
 
----
+```bash
+
+- --
 
 ## 事件驱动模式
 
@@ -586,7 +630,8 @@ class OrderNotificationStrategy(bt.Strategy):
         self.pending_orders = {}  # 按引用跟踪订单
 
     def next(self):
-        # 仅在没有待处理订单时下单
+
+# 仅在没有待处理订单时下单
         if self.order:
             return
 
@@ -596,11 +641,11 @@ class OrderNotificationStrategy(bt.Strategy):
     def notify_order(self, order):
         """订单状态变化时调用。"""
 
-        # 订单仍在待处理
+# 订单仍在待处理
         if order.status in [order.Submitted, order.Accepted]:
             return
 
-        # 订单已成交
+# 订单已成交
         if order.status == order.Completed:
             if order.isbuy():
                 self.log(f'买入成交: 价格 {order.executed.price:.2f}, '
@@ -611,26 +656,27 @@ class OrderNotificationStrategy(bt.Strategy):
                         f'成本 {order.executed.value:.2f}, '
                         f'手续费 {order.executed.comm:.2f}')
 
-        # 订单已取消
+# 订单已取消
         elif order.status == order.Cancelled:
             self.log(f'订单已取消: {order.getstatusname()}')
 
-        # 订单被拒绝
+# 订单被拒绝
         elif order.status == order.Rejected:
             self.log(f'订单被拒绝: {order.getstatusname()}')
 
-        # 保证金不足
+# 保证金不足
         elif order.status == order.Margin:
             self.log(f'保证金不足: {order.getstatusname()}')
 
-        # 重置订单引用
+# 重置订单引用
         self.order = None
 
     def log(self, txt):
         """日志辅助函数。"""
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
-```
+
+```bash
 
 ### 交易通知
 
@@ -653,15 +699,18 @@ class TradeNotificationStrategy(bt.Strategy):
         if not trade.isclosed:
             return
 
-        # 计算交易指标
+# 计算交易指标
         pnl_net = trade.pnlnet  # 净利润 (扣除手续费后)
         pnl_comm = trade.commission  # 支付的手续费
         pnl_gross = trade.pnl  # 毛利润 (扣除手续费前)
 
         log_txt = (
             f'交易平仓 | '
+
             f'净盈亏: {pnl_net:.2f} | '
+
             f'毛盈亏: {pnl_gross:.2f} | '
+
             f'手续费: {pnl_comm:.2f}'
         )
 
@@ -671,7 +720,8 @@ class TradeNotificationStrategy(bt.Strategy):
     def log(self, txt):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
-```
+
+```bash
 
 ### 数据通知 (实盘交易)
 
@@ -687,35 +737,36 @@ class DataNotificationStrategy(bt.Strategy):
         self.last_data_time = None
         self.data_gap_detected = False
 
-    def notify_data(self, data, status, *args, **kwargs):
+    def notify_data(self, data, status,*args, **kwargs):
         """数据源状态变化时调用。"""
 
-        # 数据是实时的
+# 数据是实时的
         if status == data.LIVE:
             self.log('数据源实时连接')
 
-        # 数据延迟
+# 数据延迟
         elif status == data.DELAYED:
             self.log('数据源延迟')
 
-        # 数据连接断开
+# 数据连接断开
         elif status == data.DISCONNECTED:
             self.log('数据源断开 - 请检查连接')
             self.data_gap_detected = True
 
-        # 数据重新连接
+# 数据重新连接
         elif status == data.CONNECTED:
             if self.data_gap_detected:
                 self.log('数据源重新连接')
                 self.data_gap_detected = False
 
-        # 新数据到达
+# 新数据到达
         if hasattr(data, 'datetime') and len(data) > 0:
             self.last_data_time = data.datetime.datetime(0)
 
     def log(self, txt):
         print(f'{self.data.datetime.datetime(0)}: {txt}')
-```
+
+```bash
 
 ### 资金价值通知
 
@@ -736,16 +787,16 @@ class CashNotificationStrategy(bt.Strategy):
     def next(self):
         current_equity = self.broker.getvalue()
 
-        # 更新峰值权益
+# 更新峰值权益
         if current_equity > self.peak_equity:
             self.peak_equity = current_equity
 
-        # 计算回撤
+# 计算回撤
         if self.peak_equity > 0:
             self.drawdown = (self.peak_equity - current_equity) / self.peak_equity
             self.max_drawdown = max(self.max_drawdown, self.drawdown)
 
-        # 风险管理: 回撤超过阈值时停止交易
+# 风险管理: 回撤超过阈值时停止交易
         if self.drawdown > 0.20:  # 20% 最大回撤
             if self.position:
                 self.log(f'超过最大回撤: {self.drawdown:.1%}')
@@ -756,21 +807,22 @@ class CashNotificationStrategy(bt.Strategy):
         final_equity = self.broker.getvalue()
         total_return = (final_equity - self.starting_cash) / self.starting_cash
 
-        print('=' * 50)
+        print('=' *50)
         print('最终结果')
-        print('=' * 50)
+        print('='*50)
         print(f'初始资金: {self.starting_cash:.2f}')
         print(f'最终权益: {final_equity:.2f}')
         print(f'总收益率: {total_return:.2%}')
         print(f'最大回撤: {self.max_drawdown:.2%}')
-        print('=' * 50)
+        print('='*50)
 
     def log(self, txt):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
-```
 
----
+```bash
+
+- --
 
 ## 金字塔加仓
 
@@ -804,22 +856,24 @@ class PyramidStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 初始入场
+
+# 初始入场
             self.order = self.buy(size=100)
             self.initial_size = 100
             self.entry_prices.append(self.data.close[0])
             self.current_level = 0
         else:
-            # 检查是否可以加仓
+
+# 检查是否可以加仓
             if (self.current_level < self.p.pyramid_levels and
                 len(self.entry_prices) > 0):
 
                 last_entry = self.entry_prices[-1]
                 price_move_pct = (self.data.close[0] - last_entry) / last_entry
 
-                # 价格有利变动时加仓
+# 价格有利变动时加仓
                 if price_move_pct >= self.p.pyramid_distance:
-                    add_size = int(self.initial_size * self.p.level_size)
+                    add_size = int(self.initial_size*self.p.level_size)
                     self.order = self.buy(size=add_size)
                     self.entry_prices.append(self.data.close[0])
                     self.current_level += 1
@@ -827,7 +881,8 @@ class PyramidStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
+
+```bash
 
 ### 基于 ATR 的金字塔加仓
 
@@ -856,18 +911,20 @@ class ATRPyramidStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 初始入场
+
+# 初始入场
             if len(self.data) > self.p.atr_period:
                 self.order = self.buy(size=100)
                 self.entry_price = self.data.close[0]
                 self.pyramid_levels = 0
         else:
-            # 检查是否可以金字塔
+
+# 检查是否可以金字塔
             if (self.pyramid_levels < self.p.max_levels and
                 self.entry_price is not None):
 
                 profit_distance = self.data.close[0] - self.entry_price
-                atr_distance = self.atr[0] * self.p.atr_multiplier * (self.pyramid_levels + 1)
+                atr_distance = self.atr[0]*self.p.atr_multiplier*(self.pyramid_levels + 1)
 
                 if profit_distance >= atr_distance:
                     add_size = 100  # 固定加仓大小
@@ -877,7 +934,8 @@ class ATRPyramidStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
+
+```bash
 
 ### 斐波那契金字塔加仓
 
@@ -893,7 +951,7 @@ class FibonacciPyramidStrategy(bt.Strategy):
         ('profit_target', 0.10),  # 10% 利润目标
     )
 
-    # 斐波那契层级
+# 斐波那契层级
     fib_levels = [0.236, 0.382, 0.50, 0.618]
 
     def __init__(self):
@@ -907,23 +965,26 @@ class FibonacciPyramidStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 初始入场
+
+# 初始入场
             self.order = self.buy(size=100)
             self.entry_price = self.data.close[0]
-            self.target_price = self.entry_price * (1 + self.p.profit_target)
+            self.target_price = self.entry_price*(1 + self.p.profit_target)
             self.triggered_levels = []
         else:
-            # 检查每个斐波那契层级
+
+# 检查每个斐波那契层级
             profit = self.data.close[0] - self.entry_price
             total_profit = self.target_price - self.entry_price
 
             for i, fib_level in enumerate(self.fib_levels):
                 if i not in self.triggered_levels:
-                    fib_price = self.entry_price + (total_profit * fib_level)
+                    fib_price = self.entry_price + (total_profit*fib_level)
 
                     if self.data.close[0] >= fib_price:
-                        # 在此层级加仓
-                        add_size = int(100 * (1 - fib_level))  # 高层级加仓更小
+
+# 在此层级加仓
+                        add_size = int(100*(1 - fib_level))  # 高层级加仓更小
                         self.order = self.buy(size=add_size)
                         self.triggered_levels.append(i)
                         break
@@ -931,9 +992,10 @@ class FibonacciPyramidStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
 
----
+```bash
+
+- --
 
 ## 追踪止损实现
 
@@ -962,24 +1024,27 @@ class TrailingStopStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 入场逻辑
+
+# 入场逻辑
             if len(self.data) >= 20:
                 if self.data.close[0] > self.data.close[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
                     self.highest_price = self.entry_price
-                    # 设置初始止损
-                    self.stop_price = self.highest_price * (1 - self.p.trail_pct)
+
+# 设置初始止损
+                    self.stop_price = self.highest_price*(1 - self.p.trail_pct)
         else:
-            # 更新最高价
+
+# 更新最高价
             self.highest_price = max(self.highest_price, self.data.close[0])
 
-            # 更新追踪止损
-            new_stop = self.highest_price * (1 - self.p.trail_pct)
+# 更新追踪止损
+            new_stop = self.highest_price*(1 - self.p.trail_pct)
             if new_stop > self.stop_price:
                 self.stop_price = new_stop
 
-            # 检查止损
+# 检查止损
             if self.data.close[0] <= self.stop_price:
                 self.order = self.close()
 
@@ -990,7 +1055,8 @@ class TrailingStopStrategy(bt.Strategy):
                 self.entry_price = None
                 self.stop_price = None
                 self.highest_price = None
-```
+
+```bash
 
 ### ATR 追踪止损
 
@@ -1021,26 +1087,29 @@ class ATRTrailingStopStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 入场
+
+# 入场
             if len(self.data) > self.p.atr_period:
                 self.order = self.buy()
                 self.entry_price = self.data.close[0]
         else:
-            # 使用吊灯退出计算追踪止损
-            self.stop_price = self.highest_high[0] - (self.atr[0] * self.p.atr_multiplier)
 
-            # 确保止损在当前价格下方 (多头仓位)
+# 使用吊灯退出计算追踪止损
+            self.stop_price = self.highest_high[0] - (self.atr[0]*self.p.atr_multiplier)
+
+# 确保止损在当前价格下方 (多头仓位)
             if self.stop_price >= self.data.close[0]:
-                self.stop_price = self.data.close[0] * 0.99
+                self.stop_price = self.data.close[0]*0.99
 
-            # 检查止损
+# 检查止损
             if self.data.close[0] <= self.stop_price:
                 self.order = self.close()
 
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
+
+```bash
 
 ### 水位追踪止损
 
@@ -1067,7 +1136,8 @@ class HighWaterMarkTrailingStop(bt.Strategy):
             return
 
         if not self.position:
-            # 入场
+
+# 入场
             if len(self.data) >= 20:
                 sma = bt.indicators.SMA(self.data.close, period=20)
                 if self.data.close[0] > sma[0]:
@@ -1075,21 +1145,22 @@ class HighWaterMarkTrailingStop(bt.Strategy):
                     self.highest_close = self.data.close[0]
                     self.stop_price = None  # 达到最小利润前无止损
         else:
-            # 更新最高收盘价
+
+# 更新最高收盘价
             self.highest_close = max(self.highest_close, self.data.close[0])
 
-            # 计算利润
+# 计算利润
             profit_pct = (self.data.close[0] - self.highest_close) / self.highest_close
 
-            # 仅在达到最小利润后设置追踪止损
+# 仅在达到最小利润后设置追踪止损
             if profit_pct > -self.p.min_profit_pct:
-                new_stop = self.highest_close * (1 - self.p.trail_pct)
+                new_stop = self.highest_close*(1 - self.p.trail_pct)
 
-                # 仅在止损更高时更新 (追踪)
+# 仅在止损更高时更新 (追踪)
                 if self.stop_price is None or new_stop > self.stop_price:
                     self.stop_price = new_stop
 
-                # 检查止损
+# 检查止损
                 if self.data.close[0] <= self.stop_price:
                     self.order = self.close()
 
@@ -1099,7 +1170,8 @@ class HighWaterMarkTrailingStop(bt.Strategy):
             if not self.position:
                 self.highest_close = None
                 self.stop_price = None
-```
+
+```bash
 
 ### 抛物线 SAR 追踪止损
 
@@ -1120,16 +1192,18 @@ class PSARTrailingStopStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 入场: SAR 显示上升趋势时
+# 入场: SAR 显示上升趋势时
         if not self.position:
             if len(self.psar) > 2:
-                # SAR 低于价格 = 上升趋势
+
+# SAR 低于价格 = 上升趋势
                 if self.psar.psar[0] < self.data.low[0]:
                     if self.psar.psar[-1] >= self.data.low[-1]:  # 之前在上方，现在在下方
                         self.order = self.buy()
                         self.in_position = True
         else:
-            # 出场: SAR 穿越到价格上方 (趋势反转)
+
+# 出场: SAR 穿越到价格上方 (趋势反转)
             if self.psar.psar[0] > self.data.high[0]:
                 self.order = self.close()
                 self.in_position = False
@@ -1137,9 +1211,10 @@ class PSARTrailingStopStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
 
----
+```bash
+
+- --
 
 ## Bracket 订单
 
@@ -1166,12 +1241,14 @@ class BracketOrderStrategy(bt.Strategy):
         self.entry_price = None
 
     def next(self):
-        # 仅在无待处理订单时放置 bracket
+
+# 仅在无待处理订单时放置 bracket
         if any([self.entry_order, self.stop_order, self.limit_order]):
             return
 
         if not self.position:
-            # 下入场单
+
+# 下入场单
             self.entry_order = self.buy()
             self.entry_price = self.data.close[0]
 
@@ -1180,20 +1257,23 @@ class BracketOrderStrategy(bt.Strategy):
             return
 
         if order == self.entry_order:
-            # 入场单成交 - 放置 bracket
+
+# 入场单成交 - 放置 bracket
             if order.status == order.Completed:
                 self.entry_order = None
                 self.place_bracket()
 
         elif order in [self.stop_order, self.limit_order]:
-            # bracket 订单成交 - 取消另一个
+
+# bracket 订单成交 - 取消另一个
             if order.status == order.Completed:
                 self.cancel_bracket()
                 self.stop_order = None
                 self.limit_order = None
 
         elif order.status == order.Cancelled:
-            # 处理已取消的订单
+
+# 处理已取消的订单
             if order == self.entry_order:
                 self.entry_order = None
             elif order == self.stop_order:
@@ -1206,11 +1286,11 @@ class BracketOrderStrategy(bt.Strategy):
         if self.entry_price is None:
             return
 
-        # 计算止损和止盈价格
-        stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
-        limit_price = self.entry_price * (1 + self.p.take_profit_pct)
+# 计算止损和止盈价格
+        stop_price = self.entry_price*(1 - self.p.stop_loss_pct)
+        limit_price = self.entry_price*(1 + self.p.take_profit_pct)
 
-        # 放置 bracket 订单
+# 放置 bracket 订单
         self.stop_order = self.sell(exectype=order.Stop, price=stop_price)
         self.limit_order = self.sell(exectype=order.Limit, price=limit_price)
 
@@ -1220,7 +1300,8 @@ class BracketOrderStrategy(bt.Strategy):
             self.cancel(self.stop_order)
         if self.limit_order:
             self.cancel(self.limit_order)
-```
+
+```bash
 
 ### 多级 Bracket (分批平仓)
 
@@ -1268,15 +1349,17 @@ class ScaleOutBracketStrategy(bt.Strategy):
 
         elif order in self.target_orders and order.status == order.Completed:
             self.target_orders.remove(order)
-            # 第一个目标触发后将止损移至盈亏平衡
+
+# 第一个目标触发后将止损移至盈亏平衡
             if len(self.triggered_targets) == 1:
                 self.update_stop_to_breakeven()
 
-        # 跟踪哪些目标已触发
+# 跟踪哪些目标已触发
         for i, target_order in enumerate(self.target_orders):
             if target_order == order and i not in self.triggered_targets:
                 self.triggered_targets.append(i)
-                # 如果有更多目标，放置下一个
+
+# 如果有更多目标，放置下一个
                 if len(self.triggered_targets) < len(self.p.targets):
                     self.place_next_target()
 
@@ -1285,12 +1368,12 @@ class ScaleOutBracketStrategy(bt.Strategy):
         if self.entry_price is None:
             return
 
-        # 放置止损
-        stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
+# 放置止损
+        stop_price = self.entry_price*(1 - self.p.stop_loss_pct)
         self.stop_order = self.sell(size=self.position_size, exectype=order.Stop,
                                     price=stop_price)
 
-        # 放置第一个目标
+# 放置第一个目标
         self.place_next_target()
 
     def place_next_target(self):
@@ -1300,8 +1383,8 @@ class ScaleOutBracketStrategy(bt.Strategy):
             return
 
         target_pct, close_pct = self.p.targets[level]
-        target_price = self.entry_price * (1 + target_pct)
-        close_size = int(self.position_size * close_pct)
+        target_price = self.entry_price*(1 + target_pct)
+        close_size = int(self.position_size*close_pct)
 
         target_order = self.sell(size=close_size, exectype=order.Limit,
                                  price=target_price)
@@ -1312,13 +1395,13 @@ class ScaleOutBracketStrategy(bt.Strategy):
         if self.stop_order:
             self.cancel(self.stop_order)
 
-        # 计算剩余仓位大小
+# 计算剩余仓位大小
         remaining_size = self.position_size
         for _, close_pct in self.p.targets:
-            remaining_size = int(remaining_size * (1 - close_pct))
+            remaining_size = int(remaining_size*(1 - close_pct))
             break  # 只减去第一个目标
 
-        breakeven_price = self.entry_price * 1.001  # 小缓冲
+        breakeven_price = self.entry_price*1.001  # 小缓冲
         self.stop_order = self.sell(size=remaining_size, exectype=order.Stop,
                                     price=breakeven_price)
 
@@ -1327,7 +1410,8 @@ class ScaleOutBracketStrategy(bt.Strategy):
         for order in self.target_orders:
             self.cancel(order)
         self.target_orders = []
-```
+
+```bash
 
 ### 动态 Bracket 与追踪
 
@@ -1338,6 +1422,7 @@ class DynamicBracketStrategy(bt.Strategy):
 
     - 止损随价格追踪
     - 止盈根据波动率调整
+
     """
 
     params = (
@@ -1360,14 +1445,16 @@ class DynamicBracketStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 入场
+
+# 入场
             if len(self.data) > self.p.atr_period:
                 self.entry_order = self.buy()
         else:
-            # 更新追踪止损
+
+# 更新追踪止损
             self.update_trailing_stop()
 
-            # 根据波动率更新止盈
+# 根据波动率更新止盈
             self.update_take_profit()
 
     def update_trailing_stop(self):
@@ -1375,10 +1462,10 @@ class DynamicBracketStrategy(bt.Strategy):
         if self.entry_price is None or len(self.data) < 2:
             return
 
-        # 计算新止损价格
-        new_stop = self.highest_price - (self.atr[0] * self.p.stop_atr_mult)
+# 计算新止损价格
+        new_stop = self.highest_price - (self.atr[0]*self.p.stop_atr_mult)
 
-        # 价格有利变动时取消现有止损并放置新止损
+# 价格有利变动时取消现有止损并放置新止损
         if self.stop_order:
             current_stop = self.stop_order.created.price if hasattr(self.stop_order, 'created') else new_stop
 
@@ -1388,7 +1475,8 @@ class DynamicBracketStrategy(bt.Strategy):
                 self.stop_order = self.sell(size=stop_size, exectype=order.Stop,
                                             price=new_stop)
         else:
-            # 放置初始止损
+
+# 放置初始止损
             stop_size = self.position.size
             self.stop_order = self.sell(size=stop_size, exectype=order.Stop,
                                         price=new_stop)
@@ -1398,10 +1486,10 @@ class DynamicBracketStrategy(bt.Strategy):
         if self.entry_price is None:
             return
 
-        # 基于 ATR 的动态目标
-        target_price = self.entry_price + (self.atr[0] * self.p.target_atr_mult)
+# 基于 ATR 的动态目标
+        target_price = self.entry_price + (self.atr[0]* self.p.target_atr_mult)
 
-        # 仅在没有限价单或需要移动时放置/更新
+# 仅在没有限价单或需要移动时放置/更新
         if not self.limit_order:
             limit_size = self.position.size
             self.limit_order = self.sell(size=limit_size, exectype=order.Limit,
@@ -1416,11 +1504,11 @@ class DynamicBracketStrategy(bt.Strategy):
             self.entry_price = order.executed.price
             self.highest_price = order.executed.price
 
-        # 每根 K 线更新最高价
+# 每根 K 线更新最高价
         if self.position:
             self.highest_price = max(self.highest_price, self.data.close[0])
 
-        # 处理已成交订单
+# 处理已成交订单
         if order.status == order.Completed:
             if order == self.stop_order:
                 self.stop_order = None
@@ -1432,9 +1520,10 @@ class DynamicBracketStrategy(bt.Strategy):
                 if self.stop_order:
                     self.cancel(self.stop_order)
                     self.stop_order = None
-```
 
----
+```bash
+
+- --
 
 ## 使用示例
 
@@ -1445,9 +1534,11 @@ import backtrader as bt
 import backtrader.feeds as btfeeds
 
 # 创建 cerebro
+
 cerebro = bt.Cerebro()
 
 # 添加数据源
+
 data = btfeeds.CSVData(
     dataname='your_data.csv',
     datetime=0,
@@ -1461,6 +1552,7 @@ data = btfeeds.CSVData(
 cerebro.adddata(data)
 
 # 添加策略并设置参数
+
 cerebro.addstrategy(
     ATRStopLoss,
     atr_period=14,
@@ -1468,30 +1560,37 @@ cerebro.addstrategy(
 )
 
 # 设置初始资金
+
 cerebro.broker.setcash(10000.0)
 
 # 设置手续费
+
 cerebro.broker.setcommission(commission=0.001)  # 0.1%
 
 # 添加分析器
+
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
 
 # 运行
+
 results = cerebro.run()
 strat = results[0]
 
 # 打印结果
+
 print(f'夏普比率: {strat.analyzers.sharpe.get_analysis()}')
 print(f'回撤: {strat.analyzers.drawdown.get_analysis()}')
 print(f'收益: {strat.analyzers.returns.get_analysis()}')
 
 # 绘图
-cerebro.plot()
-```
 
----
+cerebro.plot()
+
+```bash
+
+- --
 
 ## 下一步
 

@@ -9,6 +9,7 @@
 ### 核心思想
 
 双低策略是可转债市场经典的投资策略，核心思想是选择"价格低"和"溢价率低"的可转债：
+
 - **价格低**：可转债价格越接近面值，下行空间有限，安全边际高
 - **溢价率低**：转股溢价率越低，可转债跟随正股上涨的能力越强
 
@@ -16,21 +17,26 @@
 
 1. **价格因子得分**：按可转债价格从低到高排序，排名越靠前得分越高
 2. **溢价率因子得分**：按转股溢价率从低到高排序，排名越靠前得分越高
-3. **综合得分** = 价格因子得分 × 权重1 + 溢价率因子得分 × 权重2
+3. **综合得分**= 价格因子得分 × 权重 1 + 溢价率因子得分 × 权重 2
 
 ### 调仓规则
 
-1. **调仓频率**：每月第一个交易日调仓
-2. **持仓数量**：可选择固定数量或按比例选择
-3. **权重配置**：等权重配置每个选中的可转债
-4. **数据对齐**：使用指数数据作为时间对齐基准
+1.**调仓频率**：每月第一个交易日调仓
+
+1. **持仓数量**：可选择固定数量或按比例选择
+2. **权重配置**：等权重配置每个选中的可转债
+3. **数据对齐**：使用指数数据作为时间对齐基准
 
 ### 策略参数
 
 | 参数名 | 类型 | 默认值 | 说明 |
+
 |-------|-----|--------|------|
+
 | first_factor_weight | float | 0.5 | 价格因子权重（0-1） |
+
 | second_factor_weight | float | 0.5 | 溢价率因子权重（0-1） |
+
 | hold_percent | int | 20 | 持有数量（>1）或百分比（<=1） |
 
 ## 适用场景
@@ -54,30 +60,36 @@
 import backtrader as bt
 
 # 加载策略
+
 from strategies.multi_extend_data.strategy import BondConvertTwoFactor, ExtendPandasFeed
 
 cerebro = bt.Cerebro()
 
 # 加载指数数据（用于时间对齐）
+
 index_data = load_index_data('bond_index_000000.csv')
 index_feed = ExtendPandasFeed(dataname=index_data)
 cerebro.adddata(index_feed, name="000000")
 
 # 加载多个可转债数据
+
 bonds = load_bond_data('bond_merged_all_data.csv')
 for symbol, data in bonds.items():
     feed = ExtendPandasFeed(dataname=data)
     cerebro.adddata(feed, name=symbol)
 
 # 添加策略
+
 cerebro.addstrategy(BondConvertTwoFactor,
                     first_factor_weight=0.5,
                     second_factor_weight=0.5,
                     hold_percent=20)
 
 # 运行回测
+
 results = cerebro.run()
-```
+
+```bash
 
 ## 参考资料
 

@@ -1,7 +1,9 @@
----
+- --
+
 title: Performance Analysis and Profiling
 description: Guide to profiling and analyzing Backtrader strategy performance
----
+
+- --
 
 # Performance Analysis and Profiling
 
@@ -36,12 +38,14 @@ class MyStrategy(bt.Strategy):
             self.buy()
 
 # Setup cerebro
+
 cerebro = bt.Cerebro()
 cerebro.addstrategy(MyStrategy)
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 cerebro.adddata(data)
 
 # Profile the execution
+
 profiler = cProfile.Profile()
 profiler.enable()
 
@@ -50,24 +54,30 @@ results = cerebro.run()
 profiler.disable()
 
 # Print results
+
 stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)  # Top 20 functions by cumulative time
-```
+
+```bash
 
 ### Saving Profile Results
 
 For detailed analysis, save profile to file:
 
 ```python
+
 # Save profile to file
+
 profiler.dump_stats('my_strategy.prof')
 
 # Load later for analysis
+
 stats = pstats.Stats('my_strategy.prof')
 stats.sort_stats('cumulative')
 stats.print_stats(30)
-```
+
+```bash
 
 ### SnakeViz Visualization
 
@@ -77,10 +87,12 @@ For visual profile analysis:
 pip install snakeviz
 
 # Generate visualization
-snakeviz my_strategy.prof
-```
 
+snakeviz my_strategy.prof
+
+```bash
 This opens an interactive visualization showing:
+
 - Icicle plot of call stack
 - Time distribution per function
 - Navigation to hot paths
@@ -120,9 +132,11 @@ def profile(output_file=None, print_stats=20):
         stats.print_stats(print_stats)
 
 # Usage
+
 with profile('strategy.prof', print_stats=30):
     cerebro.run()
-```
+
+```bash
 
 ## Hot Path Identification
 
@@ -142,14 +156,18 @@ cerebro.run()
 profiler.disable()
 
 # Sort by total time in function (not including subcalls)
+
 stats = pstats.Stats(profiler)
 stats.sort_stats('time')  # 'tottime' - time in function excluding children
+
 stats.print_stats(10)
 
 # Sort by cumulative time (including subcalls)
+
 stats.sort_stats('cumulative')
 stats.print_stats(10)
-```
+
+```bash
 
 ### Identifying Indicator Bottlenecks
 
@@ -158,7 +176,8 @@ Profile specific indicator calculations:
 ```python
 class ProfiledStrategy(bt.Strategy):
     def __init__(self):
-        # Profile indicator creation
+
+# Profile indicator creation
         import cProfile
         self.ind_profiler = cProfile.Profile()
         self.ind_profiler.enable()
@@ -171,12 +190,14 @@ class ProfiledStrategy(bt.Strategy):
         self.ind_profiler.disable()
 
     def start(self):
-        # Print indicator initialization profile
+
+# Print indicator initialization profile
         stats = pstats.Stats(self.ind_profiler)
         stats.sort_stats('cumulative')
         stats.strip_dirs()
         stats.print_stats(15)
-```
+
+```bash
 
 ### Line-by-Line Profiling
 
@@ -184,20 +205,25 @@ For detailed analysis, use line_profiler:
 
 ```bash
 pip install line_profiler
-```
+
+```bash
 
 ```python
+
 # Add @profile decorator to methods you want to profile
+
 class MyStrategy(bt.Strategy):
     @profile
     def next(self):
-        # Complex logic to analyze line-by-line
+
+# Complex logic to analyze line-by-line
         if self.data.close[0] > self.sma[0]:
             if self.rsi[0] < 30:
                 self.buy()
 
 # Run with: kernprof -l -v my_script.py
-```
+
+```bash
 
 ## Memory Profiling
 
@@ -219,7 +245,8 @@ class MemoryTrackedStrategy(bt.Strategy):
             self.buy()
 
 # Run with: python -m memory_profiler my_script.py
-```
+
+```bash
 
 ### Memory Peak Analysis
 
@@ -230,17 +257,21 @@ import tracemalloc
 import backtrader as bt
 
 # Start tracing
+
 tracemalloc.start()
 
 # Run backtest
+
 cerebro.run()
 
 # Get peak memory usage
+
 current, peak = tracemalloc.get_traced_memory()
 print(f"Current memory: {current / 10**6:.2f} MB")
 print(f"Peak memory: {peak / 10**6:.2f} MB")
 
 # Get snapshot of largest allocations
+
 snapshot = tracemalloc.take_snapshot()
 top_stats = snapshot.statistics('lineno')
 
@@ -249,7 +280,8 @@ for stat in top_stats[:10]:
     print(stat)
 
 tracemalloc.stop()
-```
+
+```bash
 
 ### Memory Profiling with mprof
 
@@ -257,15 +289,19 @@ tracemalloc.stop()
 pip install memory_profiler
 
 # Run with memory tracking
+
 mprof run python my_backtest.py
 
 # Plot memory usage over time
+
 mprof plot
 
 # Peak memory details
+
 mprof clean
 mprof run --include-children python my_backtest.py
-```
+
+```bash
 
 ### Reducing Memory Usage
 
@@ -274,20 +310,26 @@ import gc
 import backtrader as bt
 
 # Configure for low memory usage
+
 cerebro = bt.Cerebro()
 
 # Use qbuffer to limit data history
+
 data = bt.feeds.CSVGeneric(dataname='large_data.csv')
 data.qbuffer(1000)  # Keep only last 1000 bars in memory
+
 cerebro.adddata(data)
 
 # Disable observers that consume memory
+
 cerebro.run(stdstats=False)
 
 # Explicit garbage collection
+
 results = cerebro.run()
 gc.collect()
-```
+
+```bash
 
 ## Strategy-Specific Profiling
 
@@ -310,18 +352,19 @@ class TimedStrategy(bt.Strategy):
         }
 
     def next(self):
-        # Time indicator access
+
+# Time indicator access
         start = time.perf_counter()
         sma_val = self.sma[0]
         rsi_val = self.rsi[0]
         self.timings['indicator_calc'] += time.perf_counter() - start
 
-        # Time signal logic
+# Time signal logic
         start = time.perf_counter()
         signal = self.generate_signal(sma_val, rsi_val)
         self.timings['signal_generation'] += time.perf_counter() - start
 
-        # Time order execution
+# Time order execution
         start = time.perf_counter()
         if signal == 'BUY':
             self.buy()
@@ -340,7 +383,8 @@ class TimedStrategy(bt.Strategy):
         for phase, duration in self.timings.items():
             pct = (duration / total) * 100 if total > 0 else 0
             print(f"{phase}: {duration:.4f}s ({pct:.1f}%)")
-```
+
+```bash
 
 ### Per-Bar Timing
 
@@ -368,14 +412,14 @@ class PerBarTimedStrategy(bt.Strategy):
         """Time execution for current bar."""
         start = time.perf_counter()
 
-        # Your strategy logic here
+# Your strategy logic here
         if self.data.close[0] > self.sma[0]:
             self.buy()
 
         elapsed = time.perf_counter() - start
         self.bar_timings.append(elapsed)
 
-        # Warn about slow bars
+# Warn about slow bars
         if elapsed > self.p.slow_threshold:
             print(f"Slow bar at {self.data.datetime.date(0)}: {elapsed*1000:.2f}ms")
 
@@ -389,7 +433,8 @@ class PerBarTimedStrategy(bt.Strategy):
             print(f"Median: {statistics.median(self.bar_timings)*1000:.3f}ms")
             print(f"Max: {max(self.bar_timings)*1000:.3f}ms")
             print(f"Min: {min(self.bar_timings)*1000:.3f}ms")
-```
+
+```bash
 
 ### Indicator Caching Analysis
 
@@ -412,6 +457,7 @@ def test_with_cache():
     cerebro.run()
 
 # Profile both
+
 for func in [test_without_cache, test_with_cache]:
     profiler = cProfile.Profile()
     profiler.enable()
@@ -421,7 +467,8 @@ for func in [test_without_cache, test_with_cache]:
     stats.sort_stats('cumulative')
     stats.print_stats(10)
     print("-" * 50)
-```
+
+```bash
 
 ## Benchmarking Methodologies
 
@@ -457,6 +504,7 @@ def benchmark_strategy(strategycls, iterations=5):
     }
 
 # Compare strategies
+
 results = {
     'Simple': benchmark_strategy(SimpleStrategy),
     'Complex': benchmark_strategy(ComplexStrategy),
@@ -464,7 +512,8 @@ results = {
 
 for name, stats in results.items():
     print(f"{name}: {stats['mean']:.4f}s ± {stats['stdev']:.4f}s")
-```
+
+```bash
 
 ### Scale Testing
 
@@ -479,7 +528,8 @@ def benchmark_data_size(sizes):
     results = []
 
     for size in sizes:
-        # Generate data of this size
+
+# Generate data of this size
         data = generate_test_data(size)  # Your data generator
 
         cerebro = bt.Cerebro()
@@ -497,9 +547,11 @@ def benchmark_data_size(sizes):
     return results
 
 # Test with increasing data sizes
+
 sizes = [1000, 5000, 10000, 50000, 100000]
 benchmark_data_size(sizes)
-```
+
+```bash
 
 ### Progress Monitoring
 
@@ -521,13 +573,15 @@ class ProgressStrategy(bt.Strategy):
     def next(self):
         current_bar = len(self.data)
 
-        # Report progress at intervals
+# Report progress at intervals
         if current_bar - self.last_report >= self.p.report_interval:
             elapsed = time.time() - self.start_time
             bars_per_sec = current_bar / elapsed
 
             print(f"Progress: {current_bar} bars | "
+
                   f"{bars_per_sec:.0f} bars/sec | "
+
                   f"{elapsed:.0f}s elapsed")
 
             self.last_report = current_bar
@@ -538,7 +592,8 @@ class ProgressStrategy(bt.Strategy):
         total_bars = len(self.data)
         print(f"\nCompleted: {total_bars} bars in {elapsed:.2f}s")
         print(f"Average: {total_bars/elapsed:.0f} bars/sec")
-```
+
+```bash
 
 ## Performance Optimization Tips
 
@@ -552,22 +607,29 @@ class ProgressStrategy(bt.Strategy):
 ### Quick Wins
 
 ```python
+
 # 1. Disable unnecessary observers
+
 cerebro.run(stdstats=False)
 
 # 2. Disable plotting
+
 # Don't call cerebro.plot() during profiling
 
 # 3. Use preload
+
 cerebro = bt.Cerebro()
 cerebro.run(preload=True)
 
 # 4. Limit data in memory
+
 data.qbuffer(1000)
 
 # 5. Use runonce for indicators
+
 cerebro.run(runonce=True)
-```
+
+```bash
 
 ### Hot Path Optimizations
 
@@ -576,51 +638,61 @@ class OptimizedStrategy(bt.Strategy):
     """Strategy with optimized hot path."""
 
     def __init__(self):
-        # Cache attribute lookups
+
+# Cache attribute lookups
         self._data_close = self.data.close
         self._data_high = self.data.high
         self._data_low = self.data.low
         self._sma = self.sma
 
-        # Cache calculations
+# Cache calculations
         self.atr = bt.indicators.ATR(period=14)
-        self.upper_band = self._data_close + self.atr * 2
-        self.lower_band = self._data_close - self.atr * 2
+        self.upper_band = self._data_close + self.atr *2
+        self.lower_band = self._data_close - self.atr* 2
 
     def next(self):
-        # Use cached references
+
+# Use cached references
         close = self._data_close[0]
         sma = self._sma[0]
 
-        # Avoid repeated attribute access
+# Avoid repeated attribute access
         if close > sma:
-            # Direct attribute access instead of len()
+
+# Direct attribute access instead of len()
             if self.data._len > 20:  # Not len(self.data)
                 self.buy()
-```
+
+```bash
 
 ### Indicator Optimization
 
 ```python
+
 # ❌ SLOW: Calculate indicator inside next()
+
 def next(self):
     sma = bt.indicators.SMA(self.data.close, period=20)
     if self.data.close[0] > sma[0]:
         self.buy()
 
 # ✅ FAST: Calculate in __init__
+
 def __init__(self):
     self.sma = bt.indicators.SMA(period=20)
 
 def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
-```
+
+```bash
 
 ### Batch Processing
 
 ```python
+
 # For large optimizations, use optstrategy
+
 cerebro = bt.Cerebro()
 cerebro.optstrategy(
     MyStrategy,
@@ -629,13 +701,17 @@ cerebro.optstrategy(
 )
 
 # Parallel execution
+
 results = cerebro.run(maxcpu=4)
-```
+
+```bash
 
 ## Complete Profiling Example
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """Complete profiling example for Backtrader strategies."""
 
 import cProfile
@@ -653,18 +729,19 @@ class ProfilingStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # Create indicators
+
+# Create indicators
         self.sma = bt.indicators.SMA(period=self.p.period)
         self.rsi = bt.indicators.RSI(period=14)
 
-        # Timing
+# Timing
         self.next_times = []
         self.next_count = 0
 
     def next(self):
         start = time.perf_counter()
 
-        # Strategy logic
+# Strategy logic
         if self.data.close[0] > self.sma[0] and self.rsi[0] < 70:
             if not self.position:
                 self.buy()
@@ -673,7 +750,7 @@ class ProfilingStrategy(bt.Strategy):
             if self.position:
                 self.sell()
 
-        # Track timing
+# Track timing
         elapsed = time.perf_counter() - start
         self.next_times.append(elapsed)
         self.next_count += 1
@@ -691,40 +768,40 @@ class ProfilingStrategy(bt.Strategy):
 def run_profiled_backtest(data_file='data.csv'):
     """Run backtest with full profiling."""
 
-    # Memory profiling
+# Memory profiling
     tracemalloc.start()
 
-    # CPU profiling
+# CPU profiling
     profiler = cProfile.Profile()
     profiler.enable()
 
-    # Setup cerebro
+# Setup cerebro
     cerebro = bt.Cerebro()
     cerebro.addstrategy(ProfilingStrategy, period=20, verbose=True)
     data = bt.feeds.CSVGeneric(dataname=data_file)
     cerebro.adddata(data)
 
-    # Run backtest
+# Run backtest
     start_time = time.time()
     results = cerebro.run()
     total_time = time.time() - start_time
 
     profiler.disable()
 
-    # Memory results
+# Memory results
     current, peak = tracemalloc.get_traced_memory()
     print(f"\nMemory Usage:")
     print(f"  Current: {current / 10**6:.2f} MB")
     print(f"  Peak: {peak / 10**6:.2f} MB")
 
-    # CPU results
+# CPU results
     stats = pstats.Stats(profiler)
     stats.sort_stats('cumulative')
     stats.strip_dirs()
     print(f"\nTop 20 Functions by Cumulative Time:")
     stats.print_stats(20)
 
-    # Overall stats
+# Overall stats
     print(f"\nOverall Performance:")
     print(f"  Total time: {total_time:.2f}s")
     print(f"  Bars processed: {len(data)}")
@@ -734,7 +811,8 @@ def run_profiled_backtest(data_file='data.csv'):
 
 if __name__ == '__main__':
     run_profiled_backtest()
-```
+
+```bash
 
 ## Performance Analysis Checklist
 

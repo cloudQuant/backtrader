@@ -1,7 +1,9 @@
----
+- --
+
 title: Contributing to Backtrader
 description: Guidelines for contributing to Backtrader
----
+
+- --
 
 # Contributing to Backtrader
 
@@ -29,37 +31,52 @@ Thank you for your interest in contributing to Backtrader! This document provide
 ### First Time Setup
 
 ```bash
+
 # 1. Fork the repository on GitHub
-#    Click "Fork" button at https://github.com/cloudQuant/backtrader
+
+# Click "Fork" button at <https://github.com/cloudQuant/backtrader>
 
 # 2. Clone your fork
-git clone https://github.com/YOUR_USERNAME/backtrader.git
+
+git clone <https://github.com/YOUR_USERNAME/backtrader.git>
 cd backtrader
 
 # 3. Add upstream remote
-git remote add upstream https://github.com/cloudQuant/backtrader.git
+
+git remote add upstream <https://github.com/cloudQuant/backtrader.git>
 
 # 4. Install dependencies
+
 pip install -r requirements.txt
 
 # 5. Install in development mode
+
 pip install -e .
 
 # 6. Compile Cython extensions (recommended for performance)
+
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
-```
+
+```bash
 
 ### Branch Naming Conventions
 
 Use descriptive branch names that indicate the type of change:
 
 | Prefix | Purpose | Example |
+
 |--------|---------|---------|
+
 | `feat/` | New feature | `feat/websocket-reconnect` |
+
 | `fix/` | Bug fix | `fix/indicator-calculation` |
+
 | `refactor/` | Code refactoring | `refactor/broker-optimization` |
+
 | `docs/` | Documentation | `docs/api-reference` |
+
 | `test/` | Test improvements | `test/coverage-increase` |
+
 | `perf/` | Performance | `perf/line-buffer-cache` |
 
 ## Pull Request Workflow
@@ -67,14 +84,18 @@ Use descriptive branch names that indicate the type of change:
 ### Step 1: Create a Feature Branch
 
 ```bash
+
 # Sync with upstream
+
 git fetch upstream
 git checkout dev
 git merge upstream/dev
 
 # Create your feature branch
+
 git checkout -b feat/your-feature-name
-```
+
+```bash
 
 ### Step 2: Make Your Changes
 
@@ -85,15 +106,16 @@ git checkout -b feat/your-feature-name
 
 ### Step 3: Commit Your Changes
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+Follow [Conventional Commits](<https://www.conventionalcommits.org/)> format:
 
-```
+```bash
 <type>: <description>
 
 [optional body]
-```
 
-**Valid types:**
+```bash
+
+- *Valid types:**
 - `feat`: New feature
 - `fix`: Bug fix
 - `refactor`: Code refactoring
@@ -102,51 +124,66 @@ Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
 - `chore`: Maintenance tasks
 - `perf`: Performance improvements
 
-**Examples:**
+- *Examples:**
 
 ```bash
 git commit -m "feat: add WebSocket health check to CCXTFeed"
 git commit -m "fix: handle order-not-found in CCXTBroker.cancel()"
 git commit -m "perf: cache broker reference in total_value.next()"
 git commit -m "docs: update CCXT live trading guide"
-```
+
+```bash
 
 ### Step 4: Run Tests
 
 ```bash
+
 # Run pre-commit tests (P0 + P1)
+
 pytest tests/ -v -m "priority_p0 or priority_p1"
 
 # Run full test suite
+
 pytest tests/ -v -n 4
 
 # Check code formatting
+
 make format-check
 
 # Run linting
+
 make lint
-```
+
+```bash
 
 ### Step 5: Push and Create Pull Request
 
 ```bash
+
 # Push to your fork
+
 git push origin feat/your-feature-name
 
 # Create pull request on GitHub
+
 # Target: dev branch
-```
+
+```bash
 
 ### Pull Request Description Template
 
 ```markdown
+
 ## Summary
+
 Brief description of what this PR does and why.
 
 ## Changes
+
 - List of major changes
 
 ## Type of Change
+
 - [ ] Bug fix
 - [ ] New feature
 - [ ] Performance improvement
@@ -155,13 +192,17 @@ Brief description of what this PR does and why.
 - [ ] Breaking change
 
 ## Testing
+
 - Describe testing approach
 - Include test commands
+
 ```bash
 pytest tests/path/to/test.py -v
-```
+
+```bash
 
 ## Checklist
+
 - [ ] Code follows style guidelines
 - [ ] Tests pass locally
 - [ ] New tests added for new features
@@ -170,9 +211,11 @@ pytest tests/path/to/test.py -v
 - [ ] No merge conflicts with target branch
 
 ## Related Issues
+
 Fixes #123
 Related to #456
-```
+
+```bash
 
 ## Code Review Standards
 
@@ -188,12 +231,18 @@ Related to #456
 Maintainers review pull requests for:
 
 | Aspect | Criteria |
+
 |--------|----------|
-| **Functionality** | Works as intended, no regressions |
-| **Code Quality** | Readable, maintainable, follows conventions |
-| **Testing** | Adequate coverage, edge cases handled |
-| **Documentation** | Clear docstrings, user-facing changes documented |
-| **Performance** | No significant degradation, optimizations documented |
+
+| **Functionality**| Works as intended, no regressions |
+
+|**Code Quality**| Readable, maintainable, follows conventions |
+
+|**Testing**| Adequate coverage, edge cases handled |
+
+|**Documentation**| Clear docstrings, user-facing changes documented |
+
+|**Performance**| No significant degradation, optimizations documented |
 
 ### Addressing Review Feedback
 
@@ -215,55 +264,71 @@ Maintainers review pull requests for:
 Include the following information:
 
 ```markdown
+
 ## Environment
+
 - Python version: 3.11.0
 - Operating system: Ubuntu 22.04
 - Backtrader version: 1.0.0 (dev branch)
 - Installation method: pip install -e .
 
 ## Description
+
 Clear description of the bug.
 
 ## Steps to Reproduce
+
 1. Create a Cerebro instance
 2. Add data feed with...
 3. Run strategy
 4. Observe error
 
 ## Expected Behavior
+
 What should happen.
 
 ## Actual Behavior
+
 What actually happens (include error messages).
 
 ## Code Sample
+
 ```python
 import backtrader as bt
 
 # Minimal reproducible example
-```
+
+```bash
 
 ## Additional Context
+
 Logs, screenshots, or other relevant information.
-```
+
+```bash
 
 ### Feature Requests
 
 Provide the following information:
 
 ```markdown
+
 ## Problem Statement
+
 What problem does this solve? What is the use case?
 
 ## Proposed Solution
+
 Detailed description of the desired feature.
 
 ## Alternatives Considered
+
 What other approaches did you consider?
 
 ## Additional Context
+
 Examples, references, or implementation ideas.
-```
+
+```bash
 
 ## Community Guidelines
 
@@ -317,7 +382,8 @@ To certify your contribution, add a `Signed-off-by` line to your commit messages
 git commit -m "feat: add new indicator
 
 Signed-off-by: Your Name <your.email@example.com>"
-```
+
+```bash
 
 ### Automatic Sign-off
 
@@ -325,13 +391,14 @@ Configure Git to automatically add sign-off:
 
 ```bash
 git config --global commit.signoff true
-```
 
+```bash
 Then use `-s` flag:
 
 ```bash
 git commit -s -m "feat: add new indicator"
-```
+
+```bash
 
 ### DCO Certification
 

@@ -4,7 +4,7 @@
 >
 > Updated: 2026-03-01
 
----
+- --
 
 ## Table of Contents
 
@@ -17,13 +17,13 @@
 - [Part 7: Live Deployment](#part-7-live-deployment)
 - [Part 8: Continuous Monitoring & Maintenance](#part-8-continuous-monitoring--maintenance)
 
----
+- --
 
 ## Part 1: Strategy Concepts & Design
 
 ### 1.1 Strategy Development Lifecycle
 
-```
+```bash
 Idea Generation
     Theory Validation
         Data Preparation
@@ -34,7 +34,8 @@ Idea Generation
                             Live Deployment
                                 Monitoring & Maintenance
                                     Iterative Improvement
-```
+
+```bash
 
 ### 1.2 Strategy Design Framework
 
@@ -47,21 +48,26 @@ A complete trading strategy should include the following core elements:
 Strategy Name: Momentum Breakout Strategy
 
 Market Hypothesis:
+
 1. Prices tend to continue trending after breaking key resistance levels
 2. Volume expansion confirms the validity of the breakout
 3. Momentum effects persist in the short to medium term
 
 Applicable Markets:
+
 - Markets with clear trends
 - Instruments with moderate volatility
 - Highly liquid mainstream instruments
 
 Not Suitable For:
+
 - Range-bound markets
 - Low liquidity instruments
 - Extreme volatility periods
+
 """
-```
+
+```bash
 
 #### Entry Conditions
 
@@ -72,7 +78,7 @@ class EntryConditions:
     @staticmethod
     def trend_breakout(close, resistance, volume, avg_volume):
         """Trend breakout entry"""
-        return close > resistance and volume > avg_volume * 1.5
+        return close > resistance and volume > avg_volume *1.5
 
     @staticmethod
     def momentum_confirmation(rsi, macd, signal):
@@ -83,7 +89,8 @@ class EntryConditions:
     def volatility_filter(atr, price, threshold=0.02):
         """Volatility filter"""
         return (atr / price) < threshold
-```
+
+```bash
 
 #### Exit Conditions
 
@@ -94,12 +101,12 @@ class ExitConditions:
     @staticmethod
     def take_profit(entry_price, current_price, target_pct=0.03):
         """Take profit"""
-        return current_price >= entry_price * (1 + target_pct)
+        return current_price >= entry_price*(1 + target_pct)
 
     @staticmethod
     def stop_loss(entry_price, current_price, loss_pct=0.02):
         """Stop loss"""
-        return current_price <= entry_price * (1 - loss_pct)
+        return current_price <= entry_price*(1 - loss_pct)
 
     @staticmethod
     def trend_reversal(close, ma_short, ma_long):
@@ -110,7 +117,8 @@ class ExitConditions:
     def time_exit(bars_held, max_bars=50):
         """Time-based exit"""
         return bars_held >= max_bars
-```
+
+```bash
 
 #### Position Sizing
 
@@ -127,7 +135,7 @@ class PositionSizer:
     @staticmethod
     def fixed_percentage(cash, price, pct=0.1):
         """Fixed percentage of equity"""
-        value = cash * pct
+        value = cash*pct
         shares = int(value / price)
         return shares
 
@@ -135,18 +143,19 @@ class PositionSizer:
     def kelly_criterion(cash, price, win_rate, avg_win, avg_loss):
         """Kelly criterion"""
         win_loss_ratio = avg_win / abs(avg_loss)
-        kelly_pct = (win_rate * win_loss_ratio - (1 - win_rate)) / win_loss_ratio
+        kelly_pct = (win_rate*win_loss_ratio - (1 - win_rate)) / win_loss_ratio
         kelly_pct = max(0, min(kelly_pct, 0.25))  # Cap at 25%
-        return int(cash * kelly_pct / price)
+        return int(cash*kelly_pct / price)
 
     @staticmethod
     def volatility_based(cash, price, atr, risk_per_trade=0.02):
         """Volatility-based position sizing"""
-        risk_amount = cash * risk_per_trade
-        stop_distance = atr * 2
+        risk_amount = cash*risk_per_trade
+        stop_distance = atr*2
         shares = int(risk_amount / stop_distance)
         return max(1, shares)
-```
+
+```bash
 
 ### 1.3 Complete Strategy Template
 
@@ -162,22 +171,23 @@ class CompleteStrategy(bt.Strategy):
     and risk control. Customize by inheriting and overriding methods.
     """
 
-    # Strategy parameters
+# Strategy parameters
     params = (
-        # Entry parameters
+
+# Entry parameters
         ('entry_period', 20),
         ('entry_threshold', 2.0),
 
-        # Exit parameters
+# Exit parameters
         ('take_profit_pct', 0.03),
         ('stop_loss_pct', 0.02),
         ('max_hold_bars', 50),
 
-        # Position parameters
+# Position parameters
         ('position_sizing', 'fixed_pct'),  # fixed_pct, kelly, volatility
         ('position_size', 0.1),
 
-        # Risk control parameters
+# Risk control parameters
         ('max_drawdown_pct', 0.15),
         ('daily_loss_limit', 0.05),
         ('max_positions', 3),
@@ -185,48 +195,50 @@ class CompleteStrategy(bt.Strategy):
 
     def __init__(self):
         """Initialize strategy"""
-        # Data references
+
+# Data references
         self.dataclose = self.datas[0].close
         self.datahigh = self.datas[0].high
         self.datalow = self.datas[0].low
         self.datavol = self.datas[0].volume
 
-        # Initialize indicators
+# Initialize indicators
         self._init_indicators()
 
-        # Trading state
+# Trading state
         self.order: Optional[bt.Order] = None
         self.entry_price: float = 0
         self.entry_bar: int = 0
         self.bars_held: int = 0
 
-        # Statistics
+# Statistics
         self.trade_count = 0
         self.win_count = 0
         self.loss_count = 0
 
-        # Risk control
+# Risk control
         self.daily_pnl = 0
         self.peak_value = self.broker.getvalue()
         self.current_drawdown = 0
 
     def _init_indicators(self):
         """Initialize technical indicators"""
-        # Trend indicators
-        self.sma_fast = bt.indicators.SMA(self.dataclose, period=self.p.entry_period)
-        self.sma_slow = bt.indicators.SMA(self.dataclose, period=self.p.entry_period * 2)
 
-        # Volatility indicators
+# Trend indicators
+        self.sma_fast = bt.indicators.SMA(self.dataclose, period=self.p.entry_period)
+        self.sma_slow = bt.indicators.SMA(self.dataclose, period=self.p.entry_period*2)
+
+# Volatility indicators
         self.atr = bt.indicators.ATR(self.data, period=14)
 
-        # Momentum indicators
+# Momentum indicators
         self.rsi = bt.indicators.RSI(self.dataclose, period=14)
         self.macd = bt.indicators.MACD(self.dataclose)
 
-        # Volume indicators
+# Volume indicators
         self.sma_vol = bt.indicators.SMA(self.datavol, period=20)
 
-        # Breakout detection
+# Breakout detection
         self.crossover = bt.indicators.CrossOver(self.dataclose, self.sma_fast)
 
     def notify_order(self, order: bt.Order):
@@ -267,14 +279,15 @@ class CompleteStrategy(bt.Strategy):
 
     def next(self):
         """Main trading logic"""
-        # Update risk metrics
+
+# Update risk metrics
         self._update_risk_metrics()
 
-        # Risk check
+# Risk check
         if not self._risk_check():
             return
 
-        # Manage existing position
+# Manage existing position
         if self.position:
             self._manage_position()
         else:
@@ -290,7 +303,8 @@ class CompleteStrategy(bt.Strategy):
 
     def _risk_check(self) -> bool:
         """Risk check"""
-        # Check max drawdown
+
+# Check max drawdown
         if self.current_drawdown > self.p.max_drawdown_pct:
             self.log(f'Max drawdown limit exceeded: {self.current_drawdown:.2%}')
             if self.position:
@@ -301,15 +315,16 @@ class CompleteStrategy(bt.Strategy):
 
     def _check_entry(self):
         """Check entry conditions"""
-        # Wait for indicators to be ready
-        if len(self) < self.p.entry_period * 2:
+
+# Wait for indicators to be ready
+        if len(self) < self.p.entry_period*2:
             return
 
-        # Avoid duplicate orders
+# Avoid duplicate orders
         if self.order:
             return
 
-        # Entry conditions
+# Entry conditions
         if self._entry_signal():
             size = self._calculate_position_size()
             if size > 0:
@@ -317,7 +332,8 @@ class CompleteStrategy(bt.Strategy):
 
     def _entry_signal(self) -> bool:
         """Generate entry signal"""
-        # Default: golden cross entry
+
+# Default: golden cross entry
         return self.crossover > 0 and self.rsi[0] < 70
 
     def _calculate_position_size(self) -> int:
@@ -339,7 +355,7 @@ class CompleteStrategy(bt.Strategy):
 
         self.bars_held = len(self) - self.entry_bar
 
-        # Take profit check
+# Take profit check
         if ExitConditions.take_profit(
             self.entry_price, self.dataclose[0], self.p.take_profit_pct
         ):
@@ -347,7 +363,7 @@ class CompleteStrategy(bt.Strategy):
             self.log('Take profit exit')
             return
 
-        # Stop loss check
+# Stop loss check
         if ExitConditions.stop_loss(
             self.entry_price, self.dataclose[0], self.p.stop_loss_pct
         ):
@@ -355,13 +371,13 @@ class CompleteStrategy(bt.Strategy):
             self.log('Stop loss exit')
             return
 
-        # Time-based exit
+# Time-based exit
         if ExitConditions.time_exit(self.bars_held, self.p.max_hold_bars):
             self.order = self.sell(size=self.position.size)
             self.log('Time-based exit')
             return
 
-        # Trend reversal exit
+# Trend reversal exit
         if ExitConditions.trend_reversal(
             self.dataclose[0], self.sma_fast[0], self.sma_slow[0]
         ):
@@ -371,22 +387,23 @@ class CompleteStrategy(bt.Strategy):
 
     def stop(self):
         """Called when strategy ends"""
-        self.log('=' * 50)
+        self.log('='*50)
         self.log('Strategy Summary:')
         self.log(f'  Total trades: {self.trade_count}')
         self.log(f'  Winning trades: {self.win_count}')
         self.log(f'  Losing trades: {self.loss_count}')
         if self.trade_count > 0:
             self.log(f'  Win rate: {self.win_count/self.trade_count:.2%}')
-        self.log('=' * 50)
+        self.log('='*50)
 
     def log(self, txt: str):
         """Log output"""
         dt = self.datas[0].datetime.date(0)
         print(f'{dt.isoformat()} {txt}')
-```
 
----
+```bash
+
+- --
 
 ## Part 2: Data Acquisition & Preparation
 
@@ -395,12 +412,19 @@ class CompleteStrategy(bt.Strategy):
 Backtrader supports multiple data sources:
 
 | Data Source | Description | Use Case |
+
 |-----------|------|---------|
+
 | CSV Files | Local historical data | Backtesting research |
+
 | Pandas DataFrame | In-memory data | Quick testing |
+
 | Yahoo Finance | Online data | Stock backtesting |
+
 | CCXT | Cryptocurrency exchanges | Crypto trading |
+
 | Interactive Brokers | Live data | Stock/futures live trading |
+
 | CTP | Futures interface | Domestic futures live trading |
 
 ### 2.2 CSV Data Loading
@@ -444,12 +468,14 @@ def load_csv_data(
 
 
 # Usage example
+
 data = load_csv_data(
     filepath='datas/orcl-1995-2014.txt',
     fromdate=datetime(2010, 1, 1),
     todate=datetime(2014, 12, 31),
 )
-```
+
+```bash
 
 ### 2.3 Pandas Data Loading
 
@@ -467,12 +493,13 @@ def load_pandas_data(df: pd.DataFrame) -> bt.feeds.PandasData:
     Returns:
         Backtrader data feed object
     """
-    # Ensure correct data format
+
+# Ensure correct data format
     df = df.copy()
     df['datetime'] = pd.to_datetime(df['datetime'])
     df = df.set_index('datetime')
 
-    # Verify required columns
+# Verify required columns
     required_columns = ['open', 'high', 'low', 'close', 'volume']
     for col in required_columns:
         if col not in df.columns:
@@ -482,6 +509,7 @@ def load_pandas_data(df: pd.DataFrame) -> bt.feeds.PandasData:
 
 
 # Usage example
+
 def fetch_yahoo_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     """Fetch data from Yahoo Finance"""
     import yfinance as yf
@@ -491,7 +519,8 @@ def fetch_yahoo_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     df = df.reset_index()
     df.columns = [c.lower() for c in df.columns]
     return df
-```
+
+```bash
 
 ### 2.4 CCXT Cryptocurrency Data
 
@@ -558,7 +587,8 @@ def load_ccxt_live_data(
         drop_newest=True,
         backfill_start=True,
     )
-```
+
+```bash
 
 ### 2.5 Data Preprocessing
 
@@ -603,7 +633,8 @@ class DataPreprocessor:
         }).dropna()
 
         return resampled.reset_index()
-```
+
+```bash
 
 ### 2.6 Multiple Data Sources
 
@@ -639,11 +670,12 @@ class MultiDataStrategy(bt.Strategy):
             elif data.close[0] < data.sma[0] and data.rsi[0] > 30:
                 signals.append((data._name, -1))  # Bearish signal
 
-        if len(signals) >= len(self.datas) * 0.6:
+        if len(signals) >= len(self.datas)* 0.6:
             print(f'Combined signals: {signals}')
-```
 
----
+```bash
+
+- --
 
 ## Part 3: Backtesting Framework
 
@@ -726,9 +758,9 @@ class BacktestEngine:
 
     def print_results(self):
         analysis = self.get_analysis()
-        print('=' * 60)
+        print('=' *60)
         print('Backtest Results')
-        print('=' * 60)
+        print('='*60)
         print(f'Initial Cash: {analysis["initial_cash"]:,.2f}')
         print(f'Final Value: {analysis["final_value"]:,.2f}')
         print(f'Total Return: {analysis["total_return"]:.2%}')
@@ -737,13 +769,14 @@ class BacktestEngine:
         print(f'Sharpe Ratio: {sr:.2f}' if sr else 'Sharpe Ratio: N/A')
         print(f'Max Drawdown: {analysis["max_drawdown"]:.2%}')
         print(f'Max DD Length: {analysis["max_drawdown_len"]}')
-        print('-' * 60)
+        print('-'*60)
         print(f'Total Trades: {analysis["total_trades"]}')
         print(f'Won Trades: {analysis["won_trades"]}')
         print(f'Lost Trades: {analysis["lost_trades"]}')
         print(f'Win Rate: {analysis["win_rate"]:.2%}')
-        print('=' * 60)
-```
+        print('='*60)
+
+```bash
 
 ### 3.2 Visualization
 
@@ -791,7 +824,8 @@ class BacktestVisualizer:
         plt.yticks(range(len(pivot.index)), pivot.index)
         plt.title('Monthly Returns Heatmap')
         plt.show()
-```
+
+```bash
 
 ### 3.3 Performance Report Generation
 
@@ -810,9 +844,9 @@ class PerformanceReport:
 
     def generate_text_report(self) -> str:
         report = []
-        report.append('=' * 60)
+        report.append('='*60)
         report.append('Strategy Backtest Report')
-        report.append('=' * 60)
+        report.append('='*60)
         report.append(f'Report Time: {self.report_time}')
         report.append('')
         report.append('Strategy Parameters:')
@@ -830,7 +864,7 @@ class PerformanceReport:
         report.append(f'  Won Trades: {self.analysis["won_trades"]}')
         report.append(f'  Lost Trades: {self.analysis["lost_trades"]}')
         report.append(f'  Win Rate: {self.analysis["win_rate"]:.2%}')
-        report.append('=' * 60)
+        report.append('='*60)
         return '\n'.join(report)
 
     def save_json(self, filepath: str):
@@ -854,15 +888,16 @@ class PerformanceReport:
     def _calculate_score(self) -> float:
         """Calculate composite score (0-100)"""
         score = 0
-        score += min(30, max(0, self.analysis['annual_return'] * 100))
+        score += min(30, max(0, self.analysis['annual_return']*100))
         sharpe = self.analysis['sharpe_ratio'] or 0
-        score += min(30, max(0, sharpe * 10))
-        score += min(20, max(0, (1 - self.analysis['max_drawdown']) * 20))
-        score += min(20, max(0, self.analysis['win_rate'] * 20))
+        score += min(30, max(0, sharpe*10))
+        score += min(20, max(0, (1 - self.analysis['max_drawdown'])*20))
+        score += min(20, max(0, self.analysis['win_rate']* 20))
         return round(score, 2)
-```
 
----
+```bash
+
+- --
 
 ## Part 4: Parameter Optimization
 
@@ -901,6 +936,7 @@ class ParameterSpace:
 
 
 # Usage example
+
 def create_parameter_space() -> ParameterSpace:
     space = ParameterSpace()
     space.add_range('fast_period', 5, 20, 5)
@@ -910,7 +946,8 @@ def create_parameter_space() -> ParameterSpace:
     space.add_param('stop_loss_pct', [0.01, 0.02, 0.03])
     space.add_param('take_profit_pct', [0.02, 0.03, 0.05])
     return space
-```
+
+```bash
 
 ### 4.2 Grid Search Optimization
 
@@ -975,7 +1012,8 @@ class GridSearchOptimizer:
         df = pd.DataFrame(self.results)
         df = df.sort_values(by=self.metric, ascending=False)
         return df.head(n).to_dict('records')
-```
+
+```bash
 
 ### 4.3 Genetic Algorithm Optimization
 
@@ -1004,7 +1042,9 @@ class GeneticOptimizer:
             self.toolbox.register(f'attr_{name}', random.randint, min_val, max_val)
 
         self.toolbox.register('individual', tools.initCycle, creator.Individual,
-            *[getattr(self.toolbox, f'attr_{name}') for name in param_names], n=1)
+
+            - [getattr(self.toolbox, f'attr_{name}') for name in param_names], n=1)
+
         self.toolbox.register('population', tools.initRepeat, list, self.toolbox.individual)
         self.toolbox.register('mate', tools.cxTwoPoint)
         self.toolbox.register('mutate', tools.mutFlipBit, indpb=0.05)
@@ -1032,7 +1072,8 @@ class GeneticOptimizer:
         best_ind = tools.selBest(result, 1)[0]
         best_params = dict(zip(self.param_ranges.keys(), best_ind))
         return {'params': best_params, 'fitness': best_ind.fitness.values[0], 'log': log}
-```
+
+```bash
 
 ### 4.4 Avoiding Overfitting
 
@@ -1045,7 +1086,7 @@ class OverfittingDetector:
         fromdate = data.fromdate
         todate = data.todate
         time_span = (todate - fromdate).total_seconds()
-        split_time = fromdate + pd.Timedelta(seconds=time_span * train_ratio)
+        split_time = fromdate + pd.Timedelta(seconds=time_span *train_ratio)
 
         train_data = bt.feeds.GenericCSVData(dataname=data.dataname, fromdate=fromdate, todate=split_time)
         test_data = bt.feeds.GenericCSVData(dataname=data.dataname, fromdate=split_time, todate=todate)
@@ -1057,13 +1098,14 @@ class OverfittingDetector:
         return_diff = abs(train_metrics['annual_return'] - test_metrics['annual_return'])
         sharpe_diff = abs((train_metrics['sharpe_ratio'] or 0) - (test_metrics['sharpe_ratio'] or 0))
         dd_diff = abs(train_metrics['max_drawdown'] - test_metrics['max_drawdown'])
-        score = (min(return_diff, 0.5) / 0.5 * 0.4 +
-                 min(sharpe_diff, 2.0) / 2.0 * 0.3 +
-                 min(dd_diff, 0.2) / 0.2 * 0.3)
+        score = (min(return_diff, 0.5) / 0.5*0.4 +
+                 min(sharpe_diff, 2.0) / 2.0*0.3 +
+                 min(dd_diff, 0.2) / 0.2*0.3)
         return score
-```
 
----
+```bash
+
+- --
 
 ## Part 5: Risk Control Implementation
 
@@ -1106,9 +1148,9 @@ class RiskManager:
 
     def check_trailing_stop(self, current_price, trailing_pct, position_type='long'):
         if position_type == 'long':
-            return current_price < self.highest_price * (1 - trailing_pct)
+            return current_price < self.highest_price*(1 - trailing_pct)
         else:
-            return current_price > self.lowest_price * (1 + trailing_pct)
+            return current_price > self.lowest_price*(1 + trailing_pct)
 
 
 class RiskManagedStrategy(bt.Strategy):
@@ -1156,7 +1198,8 @@ class RiskManagedStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed and order.isbuy():
             self.risk_manager.update_entry_info(order.executed.price, len(self))
-```
+
+```bash
 
 ### 5.2 Position Sizing
 
@@ -1176,14 +1219,15 @@ class PositionSizer(bt.Sizer):
         if self.p.method == 'fixed':
             return int(self.p.fixed_amount / self.data.close[0])
         elif self.p.method == 'fixed_pct':
-            return int(self.broker.get_cash() * self.p.pct / self.data.close[0])
+            return int(self.broker.get_cash()*self.p.pct / self.data.close[0])
         elif self.p.method == 'volatility':
-            risk_amount = self.broker.get_cash() * self.p.risk_per_trade
+            risk_amount = self.broker.get_cash()*self.p.risk_per_trade
             atr = self.strategy.atr[0] if hasattr(self.strategy, 'atr') else (self.data.high[0] - self.data.low[0])
-            return max(1, int(risk_amount / (atr * self.p.atr_multiplier)))
+            return max(1, int(risk_amount / (atr*self.p.atr_multiplier)))
         else:
-            return int(self.broker.get_cash() * self.p.pct / self.data.close[0])
-```
+            return int(self.broker.get_cash()*self.p.pct / self.data.close[0])
+
+```bash
 
 ### 5.3 Multi-Level Risk Control
 
@@ -1197,7 +1241,7 @@ class MultiLevelRiskControl:
     def check_strategy_risk(self, strategy):
         """Single position must not exceed 30% of account."""
         if strategy.position:
-            position_value = abs(strategy.position.size * strategy.data.close[0])
+            position_value = abs(strategy.position.size*strategy.data.close[0])
             if position_value / strategy.broker.getvalue() > 0.3:
                 return False
         return True
@@ -1208,9 +1252,10 @@ class MultiLevelRiskControl:
         cash = broker.get_cash()
         exposure = (total_value - cash) / total_value
         return exposure <= 1.0
-```
 
----
+```bash
+
+- --
 
 ## Part 6: Paper Trading
 
@@ -1247,7 +1292,8 @@ class PaperTradingEngine:
             'final_value': final_value,
             'total_return': (final_value - self.initial_cash) / self.initial_cash,
         }
-```
+
+```bash
 
 ### 6.2 Paper-to-Live Evaluation
 
@@ -1275,31 +1321,48 @@ class PaperToLiveEvaluator:
         if not evaluation['reasons']:
             evaluation['ready_for_live'] = True
         return evaluation
-```
 
----
+```bash
+
+- --
 
 ## Part 7: Live Deployment
 
 ### 7.1 Live Trading System Architecture
 
-```
-+-------------------------------------------------------------+
+```bash
+
+- -------------------------------------------------------------+
+
 |                   Live Trading System                        |
-+-------------------------------------------------------------+
+
+- -------------------------------------------------------------+
+
 |                                                               |
+
 |  +-------------+    +-------------+    +-------------+       |
+
 |  |  Data Feed   | -> |  Strategy   | -> | Risk Mgmt   |     |
+
 |  |    Layer     |    |  Execution  |    |   Layer      |     |
+
 |  +-------------+    +-------------+    +-------------+       |
+
 |         |                   |                   |             |
+
 |         v                   v                   v             |
+
 |  +-------------+    +-------------+    +-------------+       |
+
 |  |  CCXTStore  |    |   Broker    |    |  Monitor    |       |
+
 |  +-------------+    +-------------+    +-------------+       |
+
 |                                                               |
-+-------------------------------------------------------------+
-```
+
+- -------------------------------------------------------------+
+
+```bash
 
 ### 7.2 Live Deployment Configuration
 
@@ -1345,7 +1408,8 @@ def load_secure_config():
     if not config.api_key or not config.secret:
         raise ValueError('Please set EXCHANGE_API_KEY and EXCHANGE_SECRET environment variables')
     return config
-```
+
+```bash
 
 ### 7.3 Live Trading Engine
 
@@ -1374,6 +1438,7 @@ class LiveTradingEngine:
 
     def start(self):
         print(f'Live Trading Started | Exchange: {self.config.exchange} | Symbol: {self.config.symbol}')
+
         self.is_running = True
         self.start_time = datetime.now()
         try:
@@ -1390,7 +1455,8 @@ class LiveTradingEngine:
         if self.start_time:
             print(f'Runtime: {datetime.now() - self.start_time}')
         print(f'Final value: {self.broker.getvalue():,.2f}')
-```
+
+```bash
 
 ### 7.4 Error Handling and Recovery
 
@@ -1415,9 +1481,10 @@ class LiveTradingErrorHandler:
             time.sleep(5)
         else:
             raise error
-```
 
----
+```bash
+
+- --
 
 ## Part 8: Continuous Monitoring & Maintenance
 
@@ -1460,7 +1527,8 @@ class LiveTradingMonitor:
         print(f'[MONITOR] {message}')
         if self.alert_callback:
             self.alert_callback(message)
-```
+
+```bash
 
 ### 8.2 Performance Analysis
 
@@ -1490,7 +1558,8 @@ class PerformanceAnalyzer:
             'avg_loss': sum(losing) / len(losing) if losing else 0,
             'profit_factor': sum(winning) / abs(sum(losing)) if losing else float('inf'),
         }
-```
+
+```bash
 
 ### 8.3 Strategy Iteration & Improvement
 
@@ -1525,14 +1594,17 @@ class StrategyIteration:
         self.params_history.append(new_params)
         self.current_version += 1
         return self.current_version
-```
 
----
+```bash
+
+- --
 
 ## Appendix: Complete Example Strategy
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """Complete example: Dual Moving Average Breakout Strategy"""
 import backtrader as bt
 from datetime import datetime
@@ -1585,16 +1657,16 @@ class DualMAStrategy(bt.Strategy):
     def _check_entry(self):
         """Golden cross with RSI filter"""
         if self.crossover > 0 and self.rsi[0] < self.p.rsi_overbought:
-            size = int(self.broker.get_cash() * self.p.position_size / self.data.close[0])
+            size = int(self.broker.get_cash()*self.p.position_size / self.data.close[0])
             self.order = self.buy(size=size)
 
     def _manage_position(self):
         price = self.data.close[0]
-        if price >= self.entry_price * (1 + self.p.take_profit_pct):
+        if price >= self.entry_price*(1 + self.p.take_profit_pct):
             self.order = self.sell(size=self.position.size)
             self.log('Take profit')
             return
-        if price <= self.entry_price * (1 - self.p.stop_loss_pct):
+        if price <= self.entry_price*(1 - self.p.stop_loss_pct):
             self.order = self.sell(size=self.position.size)
             self.log('Stop loss')
             return
@@ -1625,9 +1697,9 @@ def run_backtest():
     results = cerebro.run()
     strat = results[0]
 
-    print('=' * 60)
+    print('='*60)
     print('Backtest Results')
-    print('=' * 60)
+    print('='*60)
     print(f'Initial Cash: {100000:,.2f}')
     print(f'Final Value: {cerebro.broker.getvalue():,.2f}')
     ret = strat.analyzers.returns.get_analysis()
@@ -1639,67 +1711,82 @@ def run_backtest():
     print(f'Sharpe Ratio: {sharpe.get("sharperatio", 0):.2f}')
     print(f'Max Drawdown: {drawdown["max"]["drawdown"]:.2%}')
     print(f'Total Trades: {trades.get("total", {}).get("total", 0)}')
-    print('=' * 60)
+    print('='*60)
 
 
 if __name__ == '__main__':
     run_backtest()
-```
 
----
+```bash
+
+- --
 
 ## Common Issues & Solutions
 
 ### Issue 1: Strategy not trading
 
-**Possible causes:**
+- *Possible causes:**
 - Indicators not ready (minperiod)
 - Trading conditions too strict
 - Insufficient funds
 - Data problems
 
-**Solution:**
+- *Solution:**
+
 ```python
 def next(self):
-    # Add logging
+
+# Add logging
     self.log(f'Close: {self.data.close[0]:.2f}')
     self.log(f'Fast MA: {self.fast_ma[0]:.2f}')
     self.log(f'Slow MA: {self.slow_ma[0]:.2f}')
     self.log(f'Cash: {self.broker.get_cash():.2f}')
-```
+
+```bash
 
 ### Issue 2: Large gap between backtest and live results
 
-**Possible causes:**
+- *Possible causes:**
 - Not accounting for commission and slippage
 - Data quality issues
 - Overfitting
 - Live execution latency
 
-**Solution:**
+- *Solution:**
+
 ```python
+
 # Set realistic trading costs
+
 cerebro.broker.setcommission(commission=0.001)  # 0.1% commission
+
 cerebro.broker.set_slippage_perc(0.0005)       # 0.05% slippage
 
 # Use out-of-sample validation
+
 train_data, test_data = OverfittingDetector.train_test_split(data)
-```
+
+```bash
 
 ### Issue 3: Parameter optimization overfitting
 
-**Solution:**
+- *Solution:**
+
 ```python
+
 # Use walk-forward analysis
+
 cv_results = OverfittingDetector.walk_forward_analysis(
     strategy_class, data, param_space)
 
 # Check overfitting score
+
 score = OverfittingDetector.calculate_overfitting_score(
     train_metrics, test_metrics)
-```
 
----
+```bash
+
+- --
 
 ## Summary
 
@@ -1718,10 +1805,10 @@ Remember: There is no holy grail strategy. The key is continuous learning and im
 
 ## References
 
-- [Backtrader Documentation](https://www.backtrader.com/docu/)
-- [CCXT Documentation](https://docs.ccxt.com/)
-- [Quantitative Trading Best Practices](https://github.com/quantopian/zipline)
+- [Backtrader Documentation](<https://www.backtrader.com/docu/)>
+- [CCXT Documentation](<https://docs.ccxt.com/)>
+- [Quantitative Trading Best Practices](<https://github.com/quantopian/zipline)>
 
----
+- --
 
-*Last updated: 2026-03-01*
+- Last updated: 2026-03-01*

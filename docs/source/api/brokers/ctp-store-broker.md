@@ -1,7 +1,9 @@
----
+- --
+
 title: CTP Store and Broker API Reference
 description: Complete API reference for CTP futures trading with backtrader
----
+
+- --
 
 # CTP Store and Broker API Reference
 
@@ -77,7 +79,8 @@ graph TB
     style CTPStore fill:#e1f5fe
     style CTPBroker fill:#fff3e0
     style CTPData fill:#f3e5f5
-```
+
+```bash
 
 ### Message Flow
 
@@ -113,7 +116,8 @@ sequenceDiagram
     API-->>Trader: OnRtnTrade() - fill notification
     Trader->>Store: trade_queue.put(fill)
     Store->>App: Order notification
-```
+
+```bash
 
 ## CTPStore Class
 
@@ -123,28 +127,39 @@ The `CTPStore` class manages connections to both the trader and market data fron
 
 ```python
 class backtrader.stores.CTPStore(ParameterizedSingletonMixin)
-```
+
+```bash
 
 ### Constructor
 
 ```python
 CTPStore(ctp_setting=None, **kwargs)
-```
 
-**Parameters:**
+```bash
+
+- *Parameters:**
 
 | Parameter | Type | Default | Description |
+
 |-----------|------|---------|-------------|
+
 | `td_front` | str | See defaults | Trader front address (e.g., `tcp://180.168.146.187:10130`) |
+
 | `md_front` | str | See defaults | Market data front address |
+
 | `broker_id` | str | `"9999"` | Broker ID assigned by CTP |
+
 | `user_id` | str | Required | Your trading account ID |
+
 | `password` | str | Required | Your trading account password |
+
 | `app_id` | str | `"simnow_client_test"` | Application ID for authentication |
+
 | `auth_code` | str | `"0000000000000000"` | Authentication code |
+
 | `debug` | bool | `False` | Enable debug logging |
 
-**Default SimNow Configuration:**
+- *Default SimNow Configuration:**
 
 ```python
 DEFAULT_TD_FRONT = "tcp://182.254.243.31:30001"
@@ -152,12 +167,15 @@ DEFAULT_MD_FRONT = "tcp://182.254.243.31:30011"
 DEFAULT_BROKER_ID = "9999"
 DEFAULT_APP_ID = "simnow_client_test"
 DEFAULT_AUTH_CODE = "0000000000000000"
-```
+
+```bash
 
 ### Properties
 
 | Property | Type | Description |
+
 |----------|------|-------------|
+
 | `is_connected` | bool | Returns `True` if connected and logged in to CTP |
 
 ### Methods
@@ -167,8 +185,8 @@ DEFAULT_AUTH_CODE = "0000000000000000"
 ```python
 @classmethod
 getbroker(**kwargs) -> CTPBroker
-```
 
+```bash
 Returns a `CTPBroker` instance connected to this store.
 
 #### Data Feed Creation
@@ -176,81 +194,94 @@ Returns a `CTPBroker` instance connected to this store.
 ```python
 @classmethod
 getdata(**kwargs) -> CTPData
-```
 
+```bash
 Returns a `CTPData` feed instance.
 
 #### Store Operations
 
 ```python
+
 # Register a data feed (internal)
+
 register(feed) -> queue.Queue
 
 # Subscribe to market data for an instrument
+
 subscribe(dataname)
 
 # Stop the store and release resources
+
 stop()
 
 # Register disconnect/reconnect callbacks
+
 on_disconnect(callback: Callable)
 on_reconnect(callback: Callable)
-```
+
+```bash
 
 #### Order Operations
 
 ```python
 send_order(symbol, direction, offset, price, volume, order_price_type) -> str
-```
 
+```bash
 Submit an order to CTP.
 
-**Parameters:**
+- *Parameters:**
 
 | Parameter | Type | Description |
+
 |-----------|------|-------------|
+
 | `symbol` | str | Instrument ID (e.g., `'rb2501.SHFE'`) |
+
 | `direction` | str | `THOST_FTDC_D_Buy` ('0') or `THOST_FTDC_D_Sell` ('1') |
+
 | `offset` | str | Open/Close flag (see [CTP Constants](#ctp-constants)) |
+
 | `price` | float | Order price |
+
 | `volume` | int | Number of contracts |
+
 | `order_price_type` | str | `THOST_FTDC_OPT_LimitPrice` ('2') or `THOST_FTDC_OPT_AnyPrice` ('1') |
 
-**Returns:** `order_ref` (str) or `None` on failure
+- *Returns:** `order_ref` (str) or `None` on failure
 
 ```python
 cancel_order(symbol, order_ref, front_id=None, session_id=None) -> bool
-```
 
+```bash
 Cancel an active order.
 
 #### Account Queries
 
 ```python
 get_balance() -> None
-```
 
+```bash
 Query and update account balance with rate limiting (2 second interval).
 
 ```python
 get_cash() -> float
-```
 
+```bash
 Get current available cash.
 
 ```python
 get_value() -> float
-```
 
+```bash
 Get total account value (balance).
 
 ```python
 get_positions() -> list
-```
 
+```bash
 Query and return current positions.
 
-**Returns:** List of position dictionaries:
+- *Returns:** List of position dictionaries:
 
 ```python
 [{
@@ -262,7 +293,8 @@ Query and return current positions.
     'avg_price': 3800.0,
     'position_profit': 500.0
 }, ...]
-```
+
+```bash
 
 ## CTPBroker Class
 
@@ -272,14 +304,19 @@ The `CTPBroker` class implements order management, position tracking, and accoun
 
 ```python
 class backtrader.brokers.CTPBroker(BrokerBase)
-```
+
+```bash
 
 ### Parameters
 
 | Parameter | Type | Default | Description |
+
 |-----------|------|---------|-------------|
+
 | `use_positions` | bool | `True` | Use existing positions on startup |
+
 | `commission` | float | `0.0` | Commission per contract (absolute value) |
+
 | `stop_slippage_ticks` | float | `0.0` | Max slippage for stop orders (0=market) |
 
 ### Methods
@@ -289,25 +326,33 @@ class backtrader.brokers.CTPBroker(BrokerBase)
 ```python
 buy(owner, data, size, price=None, plimit=None, exectype=None, ...) -> Order
 sell(owner, data, size, price=None, plimit=None, exectype=None, ...) -> Order
-```
 
-**Parameters:**
+```bash
+
+- *Parameters:**
 
 | Parameter | Type | Description |
+
 |-----------|------|-------------|
+
 | `owner` | Strategy | The strategy creating the order |
+
 | `data` | Data feed | The data feed for this order |
+
 | `size` | int | Number of contracts (positive) |
+
 | `price` | float | Limit price or stop trigger price |
+
 | `plimit` | float | Limit price for stop-limit orders |
+
 | `exectype` | Order.Type | `Order.Market`, `Order.Limit`, `Order.Stop`, `Order.StopLimit` |
 
 #### Order Cancellation
 
 ```python
 cancel(order) -> Order
-```
 
+```bash
 Cancel an active order.
 
 #### Account Status
@@ -317,21 +362,25 @@ getcash() -> float
 getvalue(datas=None) -> float
 getposition(data, clone=True) -> Position
 orderstatus(order) -> int
-```
+
+```bash
 
 #### Notifications
 
 ```python
 notify(order) -> None
 get_notification() -> Order or None
-```
+
+```bash
 
 ### Position Management
 
 The broker maintains detailed position tracking for SHFE/INE exchanges:
 
 ```python
+
 # Internal position detail structure
+
 _pos_detail = {
     'rb2501': {
         'today_long': 2,    # Long positions opened today
@@ -340,7 +389,8 @@ _pos_detail = {
         'yd_short': 1       # Short positions from yesterday
     }
 }
-```
+
+```bash
 
 ## CTPData Feed
 
@@ -350,15 +400,21 @@ The `CTPData` feed provides live tick data from CTP and historical backfill from
 
 ```python
 class backtrader.feeds.ctpdata.CTPData(DataBase)
-```
+
+```bash
 
 ### Parameters
 
 | Parameter | Type | Default | Description |
+
 |-----------|------|---------|-------------|
+
 | `historical` | bool | `False` | Stop after backfill (no live data) |
+
 | `num_init_backfill` | int | `100` | Number of historical bars to load |
+
 | `tick_mode` | bool | `False` | Emit raw ticks instead of bars |
+
 | `backfill_retries` | int | `2` | Number of backfill retry attempts |
 
 ### Bar Aggregation
@@ -379,18 +435,25 @@ _TRADING_SESSIONS = [
     (9, 0, 10, 15),      # Morning session 1
     (10, 30, 11, 30),    # Morning session 2
     (13, 30, 15, 0),     # Afternoon session
+
 ]
-```
+
+```bash
 
 ## Order Types and Execution
 
 ### Supported Order Types
 
 | Order Type | Description | CTP Mapping |
+
 |------------|-------------|-------------|
+
 | `Order.Market` | Market order | `THOST_FTDC_OPT_AnyPrice` (IOC) |
+
 | `Order.Limit` | Limit order | `THOST_FTDC_OPT_LimitPrice` |
+
 | `Order.Stop` | Stop market | Local trigger + market order |
+
 | `Order.StopLimit` | Stop limit | Local trigger + limit order |
 
 ### Order Status Flow
@@ -412,26 +475,32 @@ stateDiagram-v2
         until trigger price is hit,
         then submitted to CTP
     end note
-```
+
+```bash
 
 ### Order Execution Examples
 
 #### Market Order
 
 ```python
+
 # Buy at market (uses AnyPrice + IOC in CTP)
+
 order = cerebro.broker.buy(
     owner=strategy,
     data=data,
     size=1,
     exectype=bt.Order.Market
 )
-```
+
+```bash
 
 #### Limit Order
 
 ```python
+
 # Buy with limit price
+
 order = cerebro.broker.buy(
     owner=strategy,
     data=data,
@@ -439,12 +508,15 @@ order = cerebro.broker.buy(
     price=3800.0,
     exectype=bt.Order.Limit
 )
-```
+
+```bash
 
 #### Stop Order
 
 ```python
+
 # Stop loss: sell when price drops below 3750
+
 order = cerebro.broker.sell(
     owner=strategy,
     data=data,
@@ -452,13 +524,17 @@ order = cerebro.broker.sell(
     price=3750.0,  # Stop trigger price
     exectype=bt.Order.Stop
 )
-```
+
+```bash
 
 #### Stop-Limit Order
 
 ```python
+
 # Stop-limit: sell when price drops below 3750,
+
 # but limit execution price to 3748
+
 order = cerebro.broker.sell(
     owner=strategy,
     data=data,
@@ -467,28 +543,32 @@ order = cerebro.broker.sell(
     plimit=3748.0,   # Limit price after trigger
     exectype=bt.Order.StopLimit
 )
-```
+
+```bash
 
 ### SHFE/INE Close Offset Handling
 
 For SHFE and INE exchanges, the broker automatically handles the distinction between closing today's positions and yesterday's positions:
 
 ```python
-# Automatic offset selection
-_determine_close_offsets(symbol, direction, volume)
-```
 
-**Logic:**
+# Automatic offset selection
+
+_determine_close_offsets(symbol, direction, volume)
+
+```bash
+
+- *Logic:**
 
 1. When closing long positions (selling):
    - Close `today_long` first using `THOST_FTDC_OF_CloseToday`
    - Then close `yd_long` using `THOST_FTDC_OF_CloseYesterday`
 
-2. When closing short positions (buying):
+1. When closing short positions (buying):
    - Close `today_short` first using `THOST_FTDC_OF_CloseToday`
    - Then close `yd_short` using `THOST_FTDC_OF_CloseYesterday`
 
-3. For other exchanges (DCE, CZCE, CFFEX):
+1. For other exchanges (DCE, CZCE, CFFEX):
    - Use generic `THOST_FTDC_OF_Close` for all closes
 
 ## Market Data Handling
@@ -515,7 +595,8 @@ tick = {
     'trading_day': '20250105',
     'action_day': '20250105'
 }
-```
+
+```bash
 
 ### Tick Queue Management
 
@@ -526,16 +607,20 @@ tick = {
 ### Bar Construction
 
 ```python
+
 # For each tick:
+
 1. Parse datetime and convert to China timezone
 2. Calculate incremental volume (tick_volume - last_tick_volume)
 3. In tick_mode: emit tick immediately as bar
 4. In bar mode:
+
    a. Initialize new bar if needed
    b. Check if tick belongs to current bar period
    c. If new bar period: emit completed bar, start new bar
    d. Otherwise: update current bar (OHLC, volume, OI)
-```
+
+```bash
 
 ## Account and Position Management
 
@@ -550,8 +635,10 @@ account = {
     'frozen_margin': 5000.0,   # Frozen for pending orders
     'frozen_cash': 1000.0,     # Frozen for pending orders
     'trading_day': '20250105'  # Current trading day
+
 }
-```
+
+```bash
 
 ### Position Information
 
@@ -564,19 +651,22 @@ position = {
     'today_volume': 2,         # Today's position
     'avg_price': 3800.0,       # Average opening price
     'position_profit': 500.0   # Unrealized P&L
+
 }
-```
+
+```bash
 
 ### Position Tracking
 
 The broker maintains two types of position tracking:
 
-1. **Net Position** (`Position(size, price)`)
+1. **Net Position**(`Position(size, price)`)
    - Used by backtrader strategies
    - Size: positive for long, negative for short
    - Price: weighted average entry price
 
-2. **Detailed Position** (`_pos_detail`)
+2.**Detailed Position**(`_pos_detail`)
+
    - Used for SHFE/INE close offset logic
    - Tracks today/yesterday separately
    - Tracks long/short separately
@@ -587,76 +677,111 @@ The broker maintains two types of position tracking:
 
 ```python
 THOST_FTDC_D_Buy = '0'     # Buy
+
 THOST_FTDC_D_Sell = '1'    # Sell
-```
+
+```bash
 
 ### Offset Flag (CombOffsetFlag)
 
 ```python
 THOST_FTDC_OF_Open = '0'              # Open
+
 THOST_FTDC_OF_Close = '1'             # Close (generic)
+
 THOST_FTDC_OF_CloseToday = '3'        # Close today's position
+
 THOST_FTDC_OF_CloseYesterday = '4'    # Close yesterday's position
-```
+
+```bash
 
 ### Order Price Type (OrderPriceType)
 
 ```python
 THOST_FTDC_OPT_LimitPrice = '2'   # Limit price
+
 THOST_FTDC_OPT_AnyPrice = '1'     # Market price (any price)
-```
+
+```bash
 
 ### Hedge Flag (CombHedgeFlag)
 
 ```python
 THOST_FTDC_HF_Speculation = '1'   # Speculation
+
 THOST_FTDC_HF_Arbitrage = '2'     # Arbitrage
+
 THOST_FTDC_HF_Hedge = '3'         # Hedge
-```
+
+```bash
 
 ### Time Condition (TimeCondition)
 
 ```python
 THOST_FTDC_TC_IOC = '1'   # Immediate or Cancel
+
 THOST_FTDC_TC_GFD = '3'   # Good for Day
-```
+
+```bash
 
 ### Volume Condition (VolumeCondition)
 
 ```python
 THOST_FTDC_VC_AV = '1'    # Any Volume
+
 THOST_FTDC_VC_CV = '3'    # Complete Volume
-```
+
+```bash
 
 ### Order Status (OrderStatus)
 
 ```python
 THOST_FTDC_OST_AllTraded = '0'                  # All filled
+
 THOST_FTDC_OST_PartTradedQueueing = '1'         # Partial, queuing
+
 THOST_FTDC_OST_PartTradedNotQueueing = '2'      # Partial, not queuing
+
 THOST_FTDC_OST_NoTradeQueueing = '3'            # No trade, queuing
+
 THOST_FTDC_OST_NoTradeNotQueueing = '4'         # No trade, not queuing
+
 THOST_FTDC_OST_Canceled = '5'                   # Canceled
+
 THOST_FTDC_OST_Unknown = 'a'                    # Unknown
-```
+
+```bash
 
 ## Error Codes and Handling
 
 ### Common CTP Error Codes
 
 | Error ID | Description | Action |
+
 |----------|-------------|--------|
+
 | 0 | Success | Continue |
+
 | 3 | Wrong user ID/password | Check credentials |
+
 | 6 | Not logged in | Wait for login |
+
 | 11 | No trading right | Contact broker |
+
 | 39 | Client exceeds order frequency | Slow down orders |
+
 | 42 | No instrument data | Check instrument ID |
+
 | 47 | Instrument not trading | Check market hours |
+
 | 48 | Instrument not exist | Check instrument ID |
+
 | 52 | No enough margin | Deposit funds |
+
 | 58 | Invalid instrument status | Contact broker |
+
 | 75 | Login ban (too many attempts) | Wait before retry |
+
 | 91 | Connection failed | Check network |
 
 ### Error Handling Patterns
@@ -675,11 +800,13 @@ store = bt.stores.CTPStore(
 )
 
 if not store.is_connected:
-    # Check for login error
+
+# Check for login error
     if store.trader_spi.login_error:
         err_id, err_msg = store.trader_spi.login_error
         print(f"Login failed: {err_id} - {err_msg}")
-```
+
+```bash
 
 #### Order Rejection Handling
 
@@ -687,12 +814,18 @@ if not store.is_connected:
 def notify_order(self, order):
     if order.status == order.Rejected:
         logger.error(f"Order rejected: {order}")
-        # Check for common causes:
-        # - Insufficient margin
-        # - Position limits
-        # - Invalid instrument
-        # - Market closed
-```
+
+# Check for common causes:
+
+# - Insufficient margin
+
+# - Position limits
+
+# - Invalid instrument
+
+# - Market closed
+
+```bash
 
 #### Disconnect/Reconnect Handling
 
@@ -702,12 +835,15 @@ def on_disconnect(reason):
 
 def on_reconnect():
     logger.info("CTP reconnected")
-    # Re-subscribe instruments
-    # Re-query positions
+
+# Re-subscribe instruments
+
+# Re-query positions
 
 store.on_disconnect(on_disconnect)
 store.on_reconnect(on_reconnect)
-```
+
+```bash
 
 ## SimNow Simulation Environment
 
@@ -718,13 +854,16 @@ SimNow is a free simulation environment provided by Shanghai Futures Information
 ### SimNow Front Addresses
 
 | Environment | Trader Front | Market Data Front |
+
 |-------------|--------------|-------------------|
+
 | 7x24 (Penetrating) | `tcp://182.254.243.31:30001` | `tcp://182.254.243.31:30011` |
+
 | Regular Hours | `tcp://180.168.146.187:10130` | `tcp://180.168.146.187:10131` |
 
 ### SimNow Registration
 
-1. Visit [SimNow official website](http://www.simnow.com.cn/)
+1. Visit [SimNow official website](<http://www.simnow.com.cn/)>
 2. Register for a demo account
 3. Receive:
    - Broker ID: typically `"9999"`
@@ -737,6 +876,7 @@ SimNow is a free simulation environment provided by Shanghai Futures Information
 import backtrader as bt
 
 # Create CTP store with SimNow defaults
+
 store = bt.stores.CTPStore(
     td_front='tcp://182.254.243.31:30001',  # 7x24 front
     md_front='tcp://182.254.243.31:30011',
@@ -746,7 +886,8 @@ store = bt.stores.CTPStore(
     app_id='simnow_client_test',
     auth_code='0000000000000000',
 )
-```
+
+```bash
 
 ### SimNow Trading Hours
 
@@ -768,7 +909,9 @@ The 7x24 environment allows testing anytime:
 ### Quick Reference
 
 ```python
+
 # 1. Create store
+
 store = bt.stores.CTPStore(
     td_front='tcp://182.254.243.31:30001',
     md_front='tcp://182.254.243.31:30011',
@@ -780,6 +923,7 @@ store = bt.stores.CTPStore(
 )
 
 # 2. Create data feed
+
 data = store.getdata(
     dataname='rb2501.SHFE',
     timeframe=bt.TimeFrame.Minutes,
@@ -788,20 +932,25 @@ data = store.getdata(
 )
 
 # 3. Create broker
+
 cerebro.setbroker(store.getbroker(
     use_positions=True,
     commission=1.0,
 ))
 
 # 4. Add to cerebro
+
 cerebro.adddata(data)
 cerebro.addstrategy(YourStrategy)
-```
+
+```bash
 
 ### Complete Example
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """CTP Live Trading Example with API Reference"""
 
 import backtrader as bt
@@ -846,26 +995,28 @@ class TestStrategy(bt.Strategy):
         self.log(f'TRADE CLOSED: P&L={trade.pnl:.2f}, Comm={trade.commission:.2f}')
 
     def next(self):
-        # Check cash
+
+# Check cash
         cash = self.broker.getcash()
         value = self.broker.getvalue()
 
-        # Check position
+# Check position
         pos = self.getposition()
         size = pos.size
         price = pos.price
 
-        # Place order if no pending order and no position
+# Place order if no pending order and no position
         if not self.order and size == 0:
             self.order = self.buy(size=1, exectype=bt.Order.Market)
             self.log(f'BUY ORDER PLACED: Cash={cash:.2f}, Value={value:.2f}')
 
 
 def main():
-    # Create cerebro
+
+# Create cerebro
     cerebro = bt.Cerebro()
 
-    # CTP connection settings
+# CTP connection settings
     ctp_setting = {
         'td_front': 'tcp://182.254.243.31:30001',
         'md_front': 'tcp://182.254.243.31:30011',
@@ -876,17 +1027,17 @@ def main():
         'auth_code': '0000000000000000',
     }
 
-    # Create store
+# Create store
     store = bt.stores.CTPStore(**ctp_setting)
 
-    # Check connection
+# Check connection
     if not store.is_connected:
         print("Failed to connect to CTP")
         return
 
     print(f"Connected to CTP: Cash={store.get_cash():.2f}, Value={store.get_value():.2f}")
 
-    # Add data feed
+# Add data feed
     data = store.getdata(
         dataname='rb2505.SHFE',
         timeframe=bt.TimeFrame.Minutes,
@@ -895,16 +1046,16 @@ def main():
     )
     cerebro.adddata(data)
 
-    # Set broker
+# Set broker
     cerebro.setbroker(store.getbroker(
         use_positions=True,
         commission=1.0,
     ))
 
-    # Add strategy
+# Add strategy
     cerebro.addstrategy(TestStrategy)
 
-    # Run
+# Run
     try:
         cerebro.run()
     except KeyboardInterrupt:
@@ -913,21 +1064,28 @@ def main():
 
 if __name__ == '__main__':
     main()
-```
+
+```bash
 
 ### Supported Exchanges
 
 | Exchange | Code | Example Instruments | CloseToday Required |
+
 |----------|------|---------------------|---------------------|
+
 | Shanghai Futures Exchange | SHFE | rb, hc, cu, al, au, zn, pb, ni, sn, ss | Yes |
+
 | Dalian Commodity Exchange | DCE | m, y, p, a, b, c, cs, eb, eg, fb, i, j, jd, jm, l, lh, lu, p, pg, pp, rr, v | No |
+
 | Zhengzhou Commodity Exchange | CZCE | AP, CF, CJ, CY, FG, GM, JR, LR, MA, OA, OI, PF, PK, PM, RI, RM, RS, SF, SM, SR, TA, UR, WH, ZC | No |
+
 | Shanghai International Energy | INE | sc, lu, bc, nr | Yes |
+
 | China Financial Futures Exchange | CFFEX | IC, IF, IH, IM, T, TF, TL, TS | No |
 
 ### Instrument ID Format
 
-```
+```bash
 [instrument_code][contract_month].[exchange_code]
 
 Examples:
@@ -936,7 +1094,8 @@ m2505.DCE    - Soybean Meal May 2025 on DCE
 SR505.CZCE   - White Sugar May 2025 on CZCE
 sc2505.INE   - Crude Oil May 2025 on INE
 IF2505.CFFEX - CSI 300 Index May 2025 on CFFEX
-```
+
+```bash
 
 ## See Also
 

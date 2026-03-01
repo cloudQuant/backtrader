@@ -15,32 +15,40 @@ This guide provides comprehensive instructions for using Backtrader in Jupyter n
 - [Notebook Best Practices](#notebook-best-practices)
 - [Advanced Techniques](#advanced-techniques)
 
----
+- --
 
 ## Installation and Setup
 
 ### Basic Installation
 
 ```bash
+
 # Install Jupyter
+
 pip install jupyter jupyterlab
 
 # Install plotting libraries
+
 pip install matplotlib plotly ipywidgets
 
 # Install backtrader (from source)
-git clone https://github.com/cloudQuant/backtrader.git
+
+git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader && pip install -U .
 
 # For enhanced features
+
 pip install pandas numpy scipy ipympl
-```
+
+```bash
 
 ### Notebook Configuration
 
 ```python
 %matplotlib widget  # For interactive matplotlib
+
 # or
+
 %matplotlib inline  # For static inline plots
 
 import backtrader as bt
@@ -48,16 +56,19 @@ import pandas as pd
 import numpy as np
 from IPython.display import display, HTML
 import ipywidgets as widgets
-```
 
----
+```bash
+
+- --
 
 ## Quick Start
 
 ### Minimal Backtest Example
 
 ```python
+
 # Cell 1: Setup and Data
+
 import backtrader as bt
 from datetime import datetime
 
@@ -68,6 +79,7 @@ data = bt.feeds.CSVData(
 )
 
 # Cell 2: Define Strategy
+
 class SimpleStrategy(bt.Strategy):
     params = (('period', 20),)
 
@@ -83,6 +95,7 @@ class SimpleStrategy(bt.Strategy):
                 self.sell()
 
 # Cell 3: Run Backtest
+
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(SimpleStrategy, period=20)
@@ -92,9 +105,10 @@ cerebro.broker.setcommission(commission=0.001)
 print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 results = cerebro.run()
 print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
-```
 
----
+```bash
+
+- --
 
 ## Interactive Backtesting Workflow
 
@@ -108,7 +122,8 @@ def explore_data(filepath):
     print(f"Columns: {list(df.columns)}")
     display(df.describe())
     display(df.head())
-```
+
+```bash
 
 ### Interactive Data Visualization
 
@@ -135,7 +150,8 @@ def plot_candles(data, title='Price Chart'):
 
     fig.update_layout(title=title, xaxis_rangeslider_visible=False, height=600)
     fig.show()
-```
+
+```bash
 
 ### Progress Tracking
 
@@ -154,18 +170,22 @@ class ProgressStrategy(bt.Strategy):
             progress = (self.counter / self.total_bars) * 100
             clear_output(wait=True)
             print(f"Progress: {progress:.1f}%")
-```
 
----
+```bash
+
+- --
 
 ## Visualization and Plotting
 
 ### Plotly Interactive Plotting
 
 ```python
+
 # Enable Plotly plotting in Jupyter
+
 cerebro.plot(style='plotly', iplot=True)
-```
+
+```bash
 
 ### Dashboard-style Visualization
 
@@ -194,9 +214,10 @@ def create_backtest_dashboard(cerebro, results):
     )))
 
     cerebro.plot(style='plotly', iplot=True)
-```
 
----
+```bash
+
+- --
 
 ## Parameter Sensitivity Analysis
 
@@ -220,7 +241,7 @@ def parameter_sweep(strategy_class, param_name, param_range, data):
 
     df = pd.DataFrame(results_list)
 
-    # Plot results
+# Plot results
     import plotly.graph_objects as go
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['value'], y=df['returns'], mode='lines+markers',
@@ -232,9 +253,11 @@ def parameter_sweep(strategy_class, param_name, param_range, data):
     return df
 
 # Usage
+
 results_df = parameter_sweep(SimpleStrategy, 'period', range(5, 51, 5), data)
 display(results_df)
-```
+
+```bash
 
 ### Interactive Parameter Sliders
 
@@ -266,9 +289,11 @@ def interactive_backtest(data):
     return widget
 
 # Usage
+
 interactive_widget = interactive_backtest(data)
 display(interactive_widget)
-```
+
+```bash
 
 ### Multi-Parameter Heatmap
 
@@ -296,9 +321,10 @@ def multi_parameter_heatmap(data, strategy_class, param1_name, param1_range,
     fig.show()
 
     return results
-```
 
----
+```bash
+
+- --
 
 ## Multi-Strategy Comparison
 
@@ -321,7 +347,7 @@ def compare_strategies(data, strategy_configs):
         cerebro.broker.setcash(10000.0)
         cerebro.broker.setcommission(commission=0.001)
 
-        # Add analyzers
+# Add analyzers
         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
         cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
@@ -340,7 +366,7 @@ def compare_strategies(data, strategy_configs):
     df = pd.DataFrame(comparison_results)
     display(df)
 
-    # Plot comparison
+# Plot comparison
     import plotly.graph_objects as go
     fig = go.Figure()
     fig.add_trace(go.Bar(x=df['name'], y=df['returns'] * 100,
@@ -352,6 +378,7 @@ def compare_strategies(data, strategy_configs):
     return df
 
 # Usage
+
 strategy_configs = [
     (SimpleStrategy, {'period': 10}, 'SMA(10)'),
     (SimpleStrategy, {'period': 20}, 'SMA(20)'),
@@ -359,7 +386,8 @@ strategy_configs = [
 ]
 
 comparison_df = compare_strategies(data, strategy_configs)
-```
+
+```bash
 
 ### Equity Curve Comparison
 
@@ -376,7 +404,7 @@ def plot_equity_curves(data, strategy_configs):
         cerebro.addstrategy(StrategyClass, **params)
         cerebro.broker.setcash(10000.0)
 
-        # Track equity
+# Track equity
         class EquityTracker(bt.Analyzer):
             def __init__(self):
                 self.equity = []
@@ -391,9 +419,10 @@ def plot_equity_curves(data, strategy_configs):
     fig.update_layout(title='Equity Curve Comparison', xaxis_title='Bar',
                       yaxis_title='Portfolio Value', hovermode='x unified')
     fig.show()
-```
 
----
+```bash
+
+- --
 
 ## Real-time Data Monitoring
 
@@ -429,7 +458,8 @@ class LiveMonitor:
     def stop(self):
         """Stop monitoring."""
         self.is_running = False
-```
+
+```bash
 
 ### WebSocket Data Display
 
@@ -450,9 +480,10 @@ def create_live_ticker(symbol='BTCUSDT'):
             time.sleep(5)
 
     return ticker_widget
-```
 
----
+```bash
+
+- --
 
 ## Exporting Results and Reports
 
@@ -480,7 +511,8 @@ def export_trades_to_csv(cerebro, filename='trades.csv'):
     df.to_csv(filename, index=False)
     print(f"Exported {len(df)} trades to {filename}")
     return df
-```
+
+```bash
 
 ### Export to Excel
 
@@ -505,7 +537,8 @@ def export_backtest_report(cerebro, results, filename='backtest_report.xlsx'):
         trades_df.to_excel(writer, sheet_name='Trades', index=False)
 
     print(f"Report exported to {filename}")
-```
+
+```bash
 
 ### Generate HTML Report
 
@@ -551,23 +584,32 @@ def generate_html_report(cerebro, results, filename='backtest_report.html'):
 
     print(f"HTML report saved to {filename}")
     return filename
-```
 
----
+```bash
+
+- --
 
 ## Notebook Best Practices
 
 ### Cell Organization
 
 ```python
+
 # Cell 1: Imports and configuration
+
 # Cell 2: Helper functions
+
 # Cell 3: Data loading
+
 # Cell 4: Strategy definition
+
 # Cell 5: Backtest execution
+
 # Cell 6: Results visualization
+
 # Cell 7: Export and reporting
-```
+
+```bash
 
 ### Memory Management
 
@@ -580,7 +622,8 @@ def cleanup_cerebro(cerebro):
     cerebro.analyzers = []
     import gc
     gc.collect()
-```
+
+```bash
 
 ### Progress Indicators
 
@@ -595,7 +638,8 @@ def create_progress_bar(max_value):
     box = VBox([progress, label])
     display(box)
     return progress, label
-```
+
+```bash
 
 ### Error Handling
 
@@ -610,9 +654,10 @@ def safe_backtest(cerebro):
         error_msg = f"Error: {str(e)}\n\n{traceback.format_exc()}"
         display(HTML(f"<div style='color:red'>{error_msg}</div>"))
         return None, error_msg
-```
 
----
+```bash
+
+- --
 
 ## Advanced Techniques
 
@@ -625,7 +670,8 @@ import multiprocessing
 def run_single_backtest(params):
     """Run a single backtest with given parameters."""
     cerebro = bt.Cerebro()
-    # Configure cerebro with params
+
+# Configure cerebro with params
     cerebro.run()
     return cerebro.broker.getvalue()
 
@@ -638,7 +684,8 @@ def parallel_optimization(param_combinations, n_jobs=None):
         results = list(executor.map(run_single_backtest, param_combinations))
 
     return results
-```
+
+```bash
 
 ### Strategy Persistence
 
@@ -655,7 +702,8 @@ def load_strategy(filename):
     with open(filename, 'rb') as f:
         cerebro = pickle.load(f)
     return cerebro
-```
+
+```bash
 
 ### Walk-Forward Analysis
 
@@ -678,25 +726,31 @@ def walk_forward_analysis(data, strategy_class, train_size=252, test_size=63):
         })
 
     return pd.DataFrame(results)
-```
 
----
+```bash
+
+- --
 
 ## Collaboration and Sharing
 
 ### Export Notebook to HTML
 
 ```bash
+
 # Command line
+
 jupyter nbconvert --to html your_notebook.ipynb
 
 # In notebook
+
 !jupyter nbconvert --to html notebook_guide.ipynb
-```
+
+```bash
 
 ### Template Notebooks
 
 Save common patterns as template notebooks:
+
 - `strategy_template.ipynb` - Base strategy structure
 - `analysis_template.ipynb` - Analysis and visualization
 - `optimization_template.ipynb` - Parameter optimization
@@ -710,16 +764,19 @@ notebook_metadata = {
     'date': datetime.now().isoformat(),
     'backtrader_version': bt.__version__
 }
-```
 
----
+```bash
+
+- --
 
 ## Quick Reference
 
 ### Common Notebook Patterns
 
 ```python
+
 # Pattern 1: Quick backtest
+
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy)
@@ -727,14 +784,17 @@ results = cerebro.run()
 cerebro.plot(iplot=True)
 
 # Pattern 2: Parameter optimization
+
 cerebro.optstrategy(MyStrategy, period=range(10, 31))
 results = cerebro.run()
 
 # Pattern 3: Compare with benchmark
+
 cerebro.addstrategy(MyStrategy)
 cerebro.addstrategy(BuyAndHold)
 results = cerebro.run()
-```
+
+```bash
 
 ### Keyboard Shortcuts
 
@@ -746,7 +806,7 @@ results = cerebro.run()
 - `M`: Change to markdown
 - `Y`: Change to code
 
----
+- --
 
 ## Summary
 
@@ -759,6 +819,7 @@ This guide covers the essential aspects of using Backtrader in Jupyter notebooks
 5. **Export**: Save results to CSV, Excel, and HTML reports
 
 For more information, see:
+
 - [Quick Start Guide](../opts/getting_started/quickstart.md)
 - [Strategy Development Guide](../opts/user_guide/strategies.md)
 - [Optimization Guide](../opts/user_guide/optimization.md)

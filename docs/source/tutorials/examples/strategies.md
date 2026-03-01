@@ -1,7 +1,9 @@
----
+- --
+
 title: Strategy Examples Library
 description: Complete working examples of common trading strategies
----
+
+- --
 
 # Strategy Examples Library
 
@@ -16,7 +18,7 @@ This section provides complete, working implementations of popular trading strat
 - [Arbitrage Strategy](#arbitrage-strategy-calendar-spread)
 - [Momentum Strategy](#momentum-strategy-supertrend)
 
----
+- --
 
 ## Trend Following Strategy (Dual Moving Average)
 
@@ -48,22 +50,24 @@ class DualMovingAverageStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # Calculate moving averages
+
+# Calculate moving averages
         self.short_ma = bt.indicators.SMA(self.data.close, period=self.p.short_period)
         self.long_ma = bt.indicators.SMA(self.data.close, period=self.p.long_period)
 
-        # Crossover indicator: +1 for golden cross, -1 for death cross
+# Crossover indicator: +1 for golden cross, -1 for death cross
         self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)
 
-        # Track orders to avoid duplicate entries
+# Track orders to avoid duplicate entries
         self.order = None
 
     def next(self):
-        # Wait for pending order to complete
+
+# Wait for pending order to complete
         if self.order:
             return
 
-        # No position - look for entry
+# No position - look for entry
         if not self.position:
             if self.crossover > 0:  # Golden cross
                 cash = self.broker.getcash()
@@ -72,7 +76,8 @@ class DualMovingAverageStrategy(bt.Strategy):
                 if size > 0:
                     self.order = self.buy(size=size)
         else:
-            # Have position - look for exit
+
+# Have position - look for exit
             if self.crossover < 0:  # Death cross
                 self.order = self.close()
 
@@ -81,7 +86,8 @@ class DualMovingAverageStrategy(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### Performance Expectations
 
@@ -93,11 +99,14 @@ class DualMovingAverageStrategy(bt.Strategy):
 ### Optimization Parameters
 
 | Parameter | Range | Effect |
+
 |-----------|-------|--------|
+
 | short_period | 5-20 | Shorter = more signals, more noise |
+
 | long_period | 20-60 | Longer = fewer signals, more lag |
 
----
+- --
 
 ## Mean Reversion Strategy (Bollinger Bands)
 
@@ -117,6 +126,7 @@ class BollingerBandsMeanReversion(bt.Strategy):
     and enters positions when price shows signs of reverting to the mean.
 
     Entry Rules:
+
         - Buy when price closes below lower band then rises above middle band
         - Sell when price closes above upper band then falls below middle band
 
@@ -131,14 +141,15 @@ class BollingerBandsMeanReversion(bt.Strategy):
     )
 
     def __init__(self):
-        # Bollinger Bands indicator
+
+# Bollinger Bands indicator
         self.bband = bt.indicators.BBands(
             self.data.close,
             period=self.p.period,
             devfactor=self.p.devfactor
         )
 
-        # Track signals
+# Track signals
         self.oversold = False  # Price broke below lower band
         self.overbought = False  # Price broke above upper band
         self.order = None
@@ -147,36 +158,36 @@ class BollingerBandsMeanReversion(bt.Strategy):
         if self.order:
             return
 
-        # Check for oversold condition
+# Check for oversold condition
         if self.data.close[0] < self.bband.lines.bot[0]:
             self.oversold = True
 
-        # Check for overbought condition
+# Check for overbought condition
         if self.data.close[0] > self.bband.lines.top[0]:
             self.overbought = True
 
-        # Entry: Price rose back above middle band after being oversold
+# Entry: Price rose back above middle band after being oversold
         if self.oversold and self.data.close[0] > self.bband.lines.mid[0]:
             if not self.position:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash *0.95 / self.data.close[0])
                 self.order = self.buy(size=size)
                 self.oversold = False
 
-        # Entry: Short when price falls below middle band after being overbought
+# Entry: Short when price falls below middle band after being overbought
         if self.overbought and self.data.close[0] < self.bband.lines.mid[0]:
             if not self.position:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash* 0.95 / self.data.close[0])
                 self.order = self.sell(size=size)
                 self.overbought = False
 
-        # Exit long positions
+# Exit long positions
         if self.position and self.position.size > 0:
             if self.data.close[0] > self.bband.lines.top[0]:
                 self.order = self.close()
 
-        # Exit short positions
+# Exit short positions
         if self.position and self.position.size < 0:
             if self.data.close[0] < self.bband.lines.bot[0]:
                 self.order = self.close()
@@ -186,7 +197,8 @@ class BollingerBandsMeanReversion(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### Performance Expectations
 
@@ -198,11 +210,14 @@ class BollingerBandsMeanReversion(bt.Strategy):
 ### Optimization Parameters
 
 | Parameter | Range | Effect |
+
 |-----------|-------|--------|
+
 | period | 15-30 | Affects band responsiveness |
+
 | devfactor | 1.5-2.5 | Wider bands = fewer signals |
 
----
+- --
 
 ## Breakout Strategy (Donchian Channels)
 
@@ -222,10 +237,12 @@ class DonchianChannelBreakout(bt.Strategy):
     the N-period high and sells when price breaks below the N-period low.
 
     Entry Rules:
+
         - Buy when price closes above the highest high of the period
         - Sell when price closes below the lowest low of the period
 
     Exit Rules:
+
         - Exit long when price closes below the lowest low
         - Exit short when price closes above the highest high
 
@@ -238,7 +255,8 @@ class DonchianChannelBreakout(bt.Strategy):
     )
 
     def __init__(self):
-        # Donchian Channel components
+
+# Donchian Channel components
         self.highest = bt.indicators.Highest(self.data.high, period=self.p.period)
         self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.period)
         self.order = None
@@ -247,28 +265,29 @@ class DonchianChannelBreakout(bt.Strategy):
         if self.order:
             return
 
-        # No position - look for breakout entry
+# No position - look for breakout entry
         if not self.position:
-            # Breakout above previous high
+
+# Breakout above previous high
             if self.data.close[0] > self.highest[-1]:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash *0.95 / self.data.close[0])
                 if size > 0:
                     self.order = self.buy(size=size)
 
-            # Breakdown below previous low
+# Breakdown below previous low
             elif self.data.close[0] < self.lowest[-1]:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash* 0.95 / self.data.close[0])
                 if size > 0:
                     self.order = self.sell(size=size)
 
-        # Long position - look for exit
+# Long position - look for exit
         elif self.position.size > 0:
             if self.data.close[0] < self.lowest[-1]:
                 self.order = self.close()
 
-        # Short position - look for exit
+# Short position - look for exit
         else:
             if self.data.close[0] > self.highest[-1]:
                 self.order = self.close()
@@ -278,7 +297,8 @@ class DonchianChannelBreakout(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### Performance Expectations
 
@@ -290,10 +310,12 @@ class DonchianChannelBreakout(bt.Strategy):
 ### Optimization Parameters
 
 | Parameter | Range | Effect |
+
 |-----------|-------|--------|
+
 | period | 10-40 | Shorter = more breakouts, more false signals |
 
----
+- --
 
 ## Grid Trading Strategy
 
@@ -334,52 +356,55 @@ class GridTradingStrategy(bt.Strategy):
     def next(self):
         current_price = self.data.close[0]
 
-        # Initialize grid on first bar
+# Initialize grid on first bar
         if not self.grid_initialized:
             self.base_price = current_price
             self.initialize_grid(current_price)
             self.grid_initialized = True
             return
 
-        # Check for filled orders and place opposite orders
+# Check for filled orders and place opposite orders
         self.check_filled_orders(current_price)
 
-        # Maintain grid levels
+# Maintain grid levels
         self.rebalance_grid(current_price)
 
     def initialize_grid(self, current_price):
         """Initialize buy and sell grid levels."""
         for i in range(1, self.p.grid_levels + 1):
-            buy_price = round(current_price * (1 - self.p.grid_size * i), 2)
-            sell_price = round(current_price * (1 + self.p.grid_size * i), 2)
+            buy_price = round(current_price *(1 - self.p.grid_size*i), 2)
+            sell_price = round(current_price*(1 + self.p.grid_size*i), 2)
 
-            # Place buy orders below current price
+# Place buy orders below current price
             if len([o for o in self.grid_buy_orders.values() if o]) < self.p.max_position:
                 order = self.buy(price=buy_price, exectype=bt.Order.Limit)
                 self.grid_buy_orders[buy_price] = order
 
-            # Place sell orders above current price
+# Place sell orders above current price
             if len([o for o in self.grid_sell_orders.values() if o]) < self.p.max_position:
                 order = self.sell(price=sell_price, exectype=bt.Order.Limit)
                 self.grid_sell_orders[sell_price] = order
 
     def check_filled_orders(self, current_price):
         """Check for filled orders and place profit-taking orders."""
-        # Check if any buy orders were filled
+
+# Check if any buy orders were filled
         for price, order in list(self.grid_buy_orders.items()):
             if order and order.status == order.Completed:
-                # Place sell order at next grid level for profit
-                profit_price = round(price * (1 + self.p.grid_size), 2)
+
+# Place sell order at next grid level for profit
+                profit_price = round(price*(1 + self.p.grid_size), 2)
                 if profit_price not in self.grid_sell_orders:
                     self.sell(price=profit_price, size=order.executed.size,
                              exectype=bt.Order.Limit)
                 del self.grid_buy_orders[price]
 
-        # Check if any sell orders were filled
+# Check if any sell orders were filled
         for price, order in list(self.grid_sell_orders.items()):
             if order and order.status == order.Completed:
-                # Place buy order at next grid level for profit
-                profit_price = round(price * (1 - self.p.grid_size), 2)
+
+# Place buy order at next grid level for profit
+                profit_price = round(price*(1 - self.p.grid_size), 2)
                 if profit_price not in self.grid_buy_orders:
                     self.buy(price=profit_price, size=abs(order.executed.size),
                             exectype=bt.Order.Limit)
@@ -387,24 +412,26 @@ class GridTradingStrategy(bt.Strategy):
 
     def rebalance_grid(self, current_price):
         """Maintain grid levels as price moves."""
-        # Cancel orders that are too far from current price
+
+# Cancel orders that are too far from current price
         for price, order in list(self.grid_buy_orders.items()):
-            if order and price < current_price * (1 - self.p.grid_size * (self.p.grid_levels + 2)):
+            if order and price < current_price*(1 - self.p.grid_size*(self.p.grid_levels + 2)):
                 self.cancel(order)
                 del self.grid_buy_orders[price]
 
         for price, order in list(self.grid_sell_orders.items()):
-            if order and price > current_price * (1 + self.p.grid_size * (self.p.grid_levels + 2)):
+            if order and price > current_price*(1 + self.p.grid_size* (self.p.grid_levels + 2)):
                 self.cancel(order)
                 del self.grid_sell_orders[price]
 
-        # Add new grid levels as needed
+# Add new grid levels as needed
         active_orders = len([o for o in self.grid_buy_orders.values() if o]) + \
                        len([o for o in self.grid_sell_orders.values() if o])
 
         if active_orders < self.p.max_position:
             self.initialize_grid(current_price)
-```
+
+```bash
 
 ### Performance Expectations
 
@@ -416,12 +443,16 @@ class GridTradingStrategy(bt.Strategy):
 ### Optimization Parameters
 
 | Parameter | Range | Effect |
+
 |-----------|-------|--------|
+
 | grid_size | 0.005-0.02 | Smaller = more trades, more exposure |
+
 | grid_levels | 3-10 | More levels = more capital required |
+
 | max_position | 5-20 | Limit risk exposure |
 
----
+- --
 
 ## Arbitrage Strategy (Calendar Spread)
 
@@ -452,7 +483,8 @@ class CalendarSpreadArbitrage(bt.Strategy):
     )
 
     def __init__(self):
-        # Assumes data[0] is near contract, data[1] is far contract
+
+# Assumes data[0] is near contract, data[1] is far contract
         self.near = self.datas[0]
         self.far = self.datas[1]
         self.spread_position = 0  # 1=long spread, -1=short spread, 0=flat
@@ -464,28 +496,29 @@ class CalendarSpreadArbitrage(bt.Strategy):
 
         current_spread = self.near.close[0] - self.far.close[0]
 
-        # No position - look for entry
+# No position - look for entry
         if self.spread_position == 0:
-            # Spread is low - buy near, sell far (long spread)
+
+# Spread is low - buy near, sell far (long spread)
             if current_spread < self.p.spread_low:
                 self.order = self.buy(data=self.near, size=1)
                 self.order = self.sell(data=self.far, size=1)
                 self.spread_position = 1
 
-            # Spread is high - sell near, buy far (short spread)
+# Spread is high - sell near, buy far (short spread)
             elif current_spread > self.p.spread_high:
                 self.order = self.sell(data=self.near, size=1)
                 self.order = self.buy(data=self.far, size=1)
                 self.spread_position = -1
 
-        # Long spread position - look for exit
+# Long spread position - look for exit
         elif self.spread_position == 1:
             if current_spread > self.p.spread_high:
                 self.close(data=self.near)
                 self.close(data=self.far)
                 self.spread_position = 0
 
-        # Short spread position - look for exit
+# Short spread position - look for exit
         elif self.spread_position == -1:
             if current_spread < self.p.spread_low:
                 self.close(data=self.near)
@@ -502,7 +535,8 @@ class CalendarSpreadArbitrage(bt.Strategy):
         """Log trade completion."""
         if trade.isclosed:
             print(f'Trade P&L: {trade.pnl:.2f}, Commission: {trade.commission:.2f}')
-```
+
+```bash
 
 ### Performance Expectations
 
@@ -514,11 +548,14 @@ class CalendarSpreadArbitrage(bt.Strategy):
 ### Optimization Parameters
 
 | Parameter | Range | Effect |
+
 |-----------|-------|--------|
+
 | spread_low | Varies by market | Entry for long spread |
+
 | spread_high | Varies by market | Entry for short spread |
 
----
+- --
 
 ## Momentum Strategy (SuperTrend)
 
@@ -557,8 +594,8 @@ class SuperTrendIndicator(bt.Indicator):
         atr = self.atr[0]
         hl2 = self.hl2[0]
 
-        upper_band = hl2 + self.p.multiplier * atr
-        lower_band = hl2 - self.p.multiplier * atr
+        upper_band = hl2 + self.p.multiplier *atr
+        lower_band = hl2 - self.p.multiplier*atr
 
         prev_supertrend = self.lines.supertrend[-1]
         prev_direction = self.lines.direction[-1]
@@ -606,16 +643,17 @@ class SuperTrendStrategy(bt.Strategy):
         if self.order:
             return
 
-        # Buy when trend turns from down to up
+# Buy when trend turns from down to up
         if not self.position:
             if (self.supertrend.direction[0] == 1 and
                 self.supertrend.direction[-1] == -1):
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash* 0.95 / self.data.close[0])
                 if size > 0:
                     self.order = self.buy(size=size)
         else:
-            # Exit when trend turns down
+
+# Exit when trend turns down
             if self.supertrend.direction[0] == -1:
                 self.order = self.close()
 
@@ -624,7 +662,8 @@ class SuperTrendStrategy(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### Performance Expectations
 
@@ -636,11 +675,14 @@ class SuperTrendStrategy(bt.Strategy):
 ### Optimization Parameters
 
 | Parameter | Range | Effect |
+
 |-----------|-------|--------|
+
 | period | 7-15 | Shorter = more sensitive |
+
 | multiplier | 2.0-4.0 | Higher = fewer signals, better trend filter |
 
----
+- --
 
 ## Running These Examples
 
@@ -651,12 +693,15 @@ import backtrader as bt
 import backtrader.feeds as btfeeds
 
 # Create Cerebro engine
+
 cerebro = bt.Cerebro()
 
 # Add your chosen strategy
+
 cerebro.addstrategy(DualMovingAverageStrategy, short_period=10, long_period=30)
 
 # Load data
+
 data = btfeeds.GenericCSVData(
     dataname='your_data.csv',
     dtformat='%Y-%m-%d',
@@ -671,15 +716,19 @@ data = btfeeds.GenericCSVData(
 cerebro.adddata(data)
 
 # Set initial capital and commission
+
 cerebro.broker.setcash(100000)
 cerebro.broker.setcommission(commission=0.001)
 
 # Run
+
 results = cerebro.run()
 
 # Plot
+
 cerebro.plot()
-```
+
+```bash
 
 ## Next Steps
 

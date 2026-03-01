@@ -17,7 +17,7 @@
 9. [Best Practices](#best-practices)
 10. [Troubleshooting](#troubleshooting)
 
----
+- --
 
 ## Overview
 
@@ -28,17 +28,22 @@ This guide explains how to convert the existing Markdown documentation to Sphinx
 
 The conversion process leverages MyST Parser to support both Markdown and RST content, allowing for gradual migration.
 
----
+- --
 
 ## Current Documentation Structure
 
-```
+```bash
 docs/
 ├── source/                          # Sphinx/RST source files
+
 │   ├── conf.py                      # Sphinx configuration
+
 │   ├── index.rst                    # English index
+
 │   ├── index_zh.rst                 # Chinese index
+
 │   ├── user_guide/                  # User guide RST files
+
 │   │   ├── installation.rst
 │   │   ├── quickstart.rst
 │   │   ├── concepts.rst
@@ -53,35 +58,58 @@ docs/
 │   │   ├── performance.rst
 │   │   └── faq.rst
 │   ├── api/                         # Auto-generated API docs
+
 │   ├── dev/                         # Development docs (EN)
+
 │   ├── dev_zh/                      # Development docs (ZH)
+
 │   ├── locales/                     # Translation files
+
 │   └── _static/                     # Static assets
+
 ├── user_guide/                      # Markdown versions (for reference)
+
 ├── api_reference/                   # Markdown API reference
+
 ├── architecture/                    # Markdown architecture docs
+
 ├── advanced/                        # Markdown advanced topics
+
 ├── examples/                        # Markdown examples
+
 ├── tutorials/                       # Markdown tutorials
+
 ├── developer_guide/                 # Markdown developer docs
+
 ├── migration/                       # Markdown migration guides
+
 ├── support/                         # Markdown support docs
+
 ├── index.md                         # Main documentation index
+
 ├── Makefile                         # Build commands
+
 ├── requirements.txt                 # Documentation dependencies
+
 └── .readthedocs.yaml               # RTD configuration
-```
+
+```bash
 
 ### Key Files
 
 | File | Purpose |
+
 |------|---------|
+
 | `docs/source/conf.py` | Main Sphinx configuration with MyST support |
+
 | `docs/Makefile` | Build automation for multiple languages |
+
 | `docs/requirements.txt` | Python dependencies for documentation |
+
 | `docs/.readthedocs.yaml` | RTD build configuration |
 
----
+- --
 
 ## Sphinx/RST Benefits for ReadTheDocs
 
@@ -98,34 +126,42 @@ docs/
 ### Why RST over Markdown?
 
 | Feature | RST | Markdown |
+
 |---------|-----|----------|
+
 | Sphinx Integration | Native | Requires MyST |
+
 | Auto-Doc Directives | Built-in | Limited |
+
 | Cross-References | `:ref:`, `:doc:` | Manual links |
+
 | Figures/Tables | Advanced directives | Basic HTML |
+
 | Admonitions | `.. note::` etc. | HTML blocks |
+
 | Metadata | Standard | Frontmatter only |
+
 | Extensions | 100+ available | Limited |
 
 ### ReadTheDocs Advantages
 
-- **Free hosting** for open source projects
-- **Automatic builds** on git push
-- **Versioned docs** for multiple branches/tags
-- **Analytics** for user engagement
-- **Custom domains** support
-- **PDF generation** on demand
-- **Search indexing** by major search engines
+- **Free hosting**for open source projects
+- **Automatic builds**on git push
+- **Versioned docs**for multiple branches/tags
+- **Analytics**for user engagement
+- **Custom domains**support
+- **PDF generation**on demand
+- **Search indexing**by major search engines
 
----
+- --
 
 ## Conversion Strategy and Tools
 
 ### Conversion Approach
 
-The Backtrader project uses a **hybrid approach** with MyST Parser:
+The Backtrader project uses a**hybrid approach** with MyST Parser:
 
-```
+```bash
 ┌─────────────────────────────────────────────────────────────┐
 │                    Documentation Sources                     │
 ├─────────────────────────────────────────────────────────────┤
@@ -145,16 +181,23 @@ The Backtrader project uses a **hybrid approach** with MyST Parser:
                     │  HTML / PDF     │
                     │  Documentation  │
                     └─────────────────┘
-```
+
+```bash
 
 ### Recommended Tools
 
 | Tool | Purpose | Installation |
+
 |------|---------|--------------|
+
 | `pandoc` | Universal document converter | `brew install pandoc` |
+
 | `sphinx-build` | Sphinx build command | `pip install sphinx` |
+
 | `sphinx-apidoc` | Auto-generate API docs | Included with Sphinx |
+
 | `myst-parser` | Markdown support in Sphinx | `pip install myst-parser` |
+
 | `sphinx-intl` | Translation management | `pip install sphinx-intl` |
 
 ### Conversion Methods
@@ -162,14 +205,18 @@ The Backtrader project uses a **hybrid approach** with MyST Parser:
 #### Method 1: Using Pandoc (Recommended for New Files)
 
 ```bash
+
 # Convert Markdown to RST
+
 pandoc -f markdown -t rst input.md -o output.rst
 
 # Convert entire directory
+
 for file in *.md; do
     pandoc -f markdown -t rst "$file" -o "${file%.md}.rst"
 done
-```
+
+```bash
 
 #### Method 2: Using MyST Parser (Keep as Markdown)
 
@@ -178,6 +225,7 @@ Configure MyST Parser to parse Markdown directly. No conversion needed - just en
 #### Method 3: Manual Conversion (For Complex Documents)
 
 For documents with:
+
 - Complex tables
 - Nested code blocks
 - Special directives
@@ -185,24 +233,36 @@ For documents with:
 
 Manual conversion ensures highest quality.
 
----
+- --
 
 ## RST Syntax Guide for Backtrader Docs
 
 ### Markdown to RST Mapping Table
 
 | Markdown | RST Equivalent | Notes |
+
 |----------|----------------|-------|
+
 | `# Heading` | `=====\nHeading\n=====` | Underline length matches title |
+
 | `## Subheading` | `Subheading\n-----------` | |
+
 | `**bold**` | `**bold**` | Same syntax |
+
 | `*italic*` | `*italic*` | Same syntax |
+
 | `` `code` `` | ``` ``code`` ``` | |
+
 | ```python\ncode\n``` | `.. code-block:: python` | |
+
 | `[text](url)` | `` `text <url>`_ `` | |
+
 | `![alt](img.png)` | `.. image:: img.png` | |
+
 | `- item` | `* item` | Bullet lists |
+
 | `1. item` | `#. item` | Enumerated lists |
+
 | `> quote` | `.. note::` or block quote | Use admonitions |
 
 ### RST Directives for Backtrader
@@ -219,7 +279,8 @@ Manual conversion ensures highest quality.
    class MyStrategy(bt.Strategy):
        def next(self):
            self.buy()
-```
+
+```bash
 
 #### Admonitions
 
@@ -237,9 +298,11 @@ Manual conversion ensures highest quality.
    Never use real money without proper testing!
 
 .. code-block:: python
-   # Code inside admonition
+
+# Code inside admonition
    cerebro.run()
-```
+
+```bash
 
 #### Figures and Images
 
@@ -250,7 +313,8 @@ Manual conversion ensures highest quality.
    :width: 800px
 
 Figure: The Backtrader architecture overview
-```
+
+```bash
 
 #### Tables
 
@@ -259,41 +323,49 @@ Figure: The Backtrader architecture overview
    :widths: 25 50 25
    :header-rows: 1
 
-   * - Feed Type
+   - - Feed Type
      - Description
      - Live Support
-   * - CSV
+   - - CSV
      - Load data from CSV files
      - No
-   * - Pandas
+   - - Pandas
      - Use pandas DataFrames
      - No
-   * - CCXT
+   - - CCXT
      - Cryptocurrency exchanges
      - Yes
-   * - CTP
+   - - CTP
      - Chinese futures market
      - Yes
-```
+
+```bash
 
 #### Cross-References
 
 ```rst
+
 # Reference to another document
+
 See :doc:`installation` for setup instructions.
 
 # Reference to a section within document
+
 See :ref:`cerebro-configuration` for details.
 
 # Reference to external documentation
+
 Python's `datetime module <https://docs.python.org/3/library/datetime.html>`_
 
 # Reference to API documentation
+
 :class:`bt.Strategy` provides the base for all strategies.
 
 # Reference to another project's docs
+
 :py:class:`pandas.DataFrame`
-```
+
+```bash
 
 #### Including Code Files
 
@@ -302,7 +374,8 @@ Python's `datetime module <https://docs.python.org/3/library/datetime.html>`_
    :language: python
    :lines: 1-30
    :emphasize-lines: 10-15
-```
+
+```bash
 
 ### Document Structure Template
 
@@ -323,17 +396,18 @@ Document Title
 Introduction
 ============
 
-Paragraph text with **bold** and *italic* text.
+Paragraph text with **bold** and *italic*text.
 
 Section
--------
+
+- ------
 
 Subsection
 ~~~~~~~~~~
 
 .. code-block:: python
 
-   # Code example here
+# Code example here
    import backtrader as bt
 
 .. note::
@@ -345,9 +419,10 @@ Subsection
 
    related-page1
    related-page2
-```
 
----
+```bash
+
+- --
 
 ## MyST Parser Integration
 
@@ -363,6 +438,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'myst_parser',  # Enable Markdown support
+
 ]
 
 myst_enable_extensions = [
@@ -376,20 +452,26 @@ myst_enable_extensions = [
     "smartquotes",      # Smart quote conversion
     "substitution",     # Substitutions
     "tasklist",         # GitHub-style task lists
+
 ]
 
 # Allow parsing of Markdown files in any directory
+
 myst_parser_silent_implicit_level = True
-```
+
+```bash
 
 ### MyST Syntax Examples
 
 #### Using RST Directives in Markdown
 
 ````markdown
+
 ```{note}
 This is a note using MyST syntax in Markdown!
-```
+
+```bash
+
 ````
 
 #### Cross-References in Markdown
@@ -398,11 +480,13 @@ This is a note using MyST syntax in Markdown!
 See [Installation Guide](installation.md) for setup.
 
 Or use explicit syntax: {doc}`installation`
-```
+
+```bash
 
 #### Code Blocks with Options
 
 ````markdown
+
 ```{code-block} python
 :linenos:
 :emphasize-lines: 3
@@ -412,101 +496,136 @@ import backtrader as bt
 class MyStrategy(bt.Strategy):
     def next(self):  # This line is emphasized
         self.buy()
-```
+
+```bash
+
 ````
 
 #### Figures in Markdown
 
 ```markdown
+
 ```{image} images/architecture.png
 :alt: System Architecture
 :align: center
 :width: 800px
-```
-```
+
+```bash
+
+```bash
 
 ### MyST-Specific Features
 
 | Feature | Syntax | Output |
+
 |---------|--------|--------|
+
 | Role | `{py:class}`\`bt.Strategy\` | `bt.Strategy` link |
+
 | Directive | `:::{note}` ... `:::` | Note block |
+
 | Target | `(my-target)=` | Reference target |
+
 | Citations | `[citation-key]` | Footnote citation |
 
----
+- --
 
 ## Automated Conversion Workflow
 
 ### Build Commands
 
 ```bash
+
 # Build English HTML documentation
+
 make html
 
 # Build Chinese HTML documentation
+
 make html-zh
 
 # Build both languages
+
 make html-all
 
 # Generate translation templates
+
 make gettext
 
 # Update translation files
+
 make update-po
 
 # Clean build directory
+
 make clean
 
 # Live reload server for development
+
 make livehtml
 
 # Build PDF documentation
+
 make pdf
 
 # Generate API documentation from source
+
 make apidoc
-```
+
+```bash
 
 ### sphinx-build Commands
 
 ```bash
+
 # Basic build
+
 sphinx-build -b html source build/html
 
 # Build with specific language
+
 sphinx-build -b html source build/html -D language=zh_CN
 
 # Build with warnings as errors
+
 sphinx-build -b html -W source build/html
 
 # Build with nitpicky mode (strict references)
+
 sphinx-build -b html -n --nitpicky source build/html
 
 # Verbose output
+
 sphinx-build -b html -v source build/html
 
 # Parallel build (faster for large docs)
+
 sphinx-build -b html -j auto source build/html
-```
+
+```bash
 
 ### conf.py Configuration Options
 
 ```python
+
 # Project information
+
 project = 'Backtrader'
 copyright = '2026, Backtrader Contributors'
 author = 'Backtrader Contributors'
 
 # Version info
+
 version = '0.1'     # Short version
+
 release = '0.1.0'   # Full version
 
 # Language
+
 language = 'en'     # or 'zh_CN' for Chinese
 
 # Extensions
+
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -521,6 +640,7 @@ extensions = [
 ]
 
 # Autodoc settings
+
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
@@ -532,11 +652,13 @@ autodoc_default_options = {
 }
 
 # HTML theme
+
 html_theme = 'furo'
 html_title = 'Backtrader Documentation'
 html_short_title = 'Backtrader'
 
 # Theme options
+
 html_theme_options = {
     'light_css_variables': {
         'color-brand-primary': '#2962FF',
@@ -546,9 +668,11 @@ html_theme_options = {
 }
 
 # Static files
+
 html_static_path = ['_static']
 html_css_files = ['custom.css']
-```
+
+```bash
 
 ### Auto-Documentation from Docstrings
 
@@ -568,7 +692,8 @@ Cerebro API Reference
    .. autoattribute:: Cerebro.strats
    .. automethod:: Cerebro.run
    .. automethod:: Cerebro.addstrategy
-```
+
+```bash
 
 ### Google-Style Docstrings
 
@@ -598,21 +723,23 @@ class Cerebro(object):
         maxcpu (int): Maximum CPU cores for optimization
     """
 
-    def addstrategy(self, strategy, *args, **kwargs):
+    def addstrategy(self, strategy,*args, **kwargs):
         """Add a strategy to the system.
 
         Args:
             strategy (Strategy): Strategy class to add
-            *args: Positional arguments for strategy
-            **kwargs: Keyword arguments for strategy parameters
+
+            - args: Positional arguments for strategy
+            - *kwargs: Keyword arguments for strategy parameters
 
         Returns:
             Strategy: The strategy instance
         """
         pass
-```
 
----
+```bash
+
+- --
 
 ## ReadTheDocs Deployment
 
@@ -628,6 +755,7 @@ build:
   tools:
     python: "3.10"
   commands:
+
     - cd docs
     - pip install -r requirements.txt
     - sphinx-build -b html source build/html
@@ -637,10 +765,11 @@ sphinx:
   fail_on_warning: false
 
 formats:
+
   - pdf
   - htmlzip
-```
 
+```bash
 `.readthedocs-zh.yaml` (Chinese project):
 
 ```yaml
@@ -651,6 +780,7 @@ build:
   tools:
     python: "3.10"
   commands:
+
     - cd docs
     - pip install -r requirements.txt
     - sphinx-build -b html source build/html -D language=zh_CN
@@ -660,9 +790,11 @@ sphinx:
   fail_on_warning: false
 
 formats:
+
   - pdf
   - htmlzip
-```
+
+```bash
 
 ### Deployment Workflow
 
@@ -675,14 +807,19 @@ graph LR
     E --> F[Generate HTML/PDF]
     F --> G[Deploy to CDN]
     G --> H[Available Online]
-```
+
+```bash
 
 ### Environment Variables
 
 | Variable | Description | Default |
+
 |----------|-------------|---------|
+
 | `READTHEDOCS` | True if building on RTD | `False` |
+
 | `READTHEDOCS_LANGUAGE` | Project language code | `en` |
+
 | `READTHEDOCS_VERSION` | Current version being built | `latest` |
 
 ### Language Switcher
@@ -700,16 +837,20 @@ if rtd_language in ('zh', 'zh_CN', 'zh-cn'):
 else:
     language = 'en'
     html_title = f'{project} Documentation'
-```
+
+```bash
 
 ### URL Structure
 
 | Language | URL Pattern |
-|----------|-------------|
-| English | `https://backtrader.readthedocs.io/en/latest/` |
-| Chinese | `https://backtrader-zh.readthedocs.io/zh-cn/latest/` |
 
----
+|----------|-------------|
+
+| English | `<https://backtrader.readthedocs.io/en/latest/`> |
+
+| Chinese | `<https://backtrader-zh.readthedocs.io/zh-cn/latest/`> |
+
+- --
 
 ## Best Practices
 
@@ -722,51 +863,67 @@ else:
 ### Cross-Reference Guidelines
 
 ```rst
+
 # Good: Explicit document reference
+
 :doc:`installation`
 
 # Good: Section reference with label
+
 :ref:`cerebro-configuration`
 
 # Good: API reference
+
 :class:`bt.Strategy`
 :meth:`Cerebro.run`
 :attr:`Strategy.params`
 
 # Bad: Hardcoded links (breaks on version change)
+
 `<https://backtrader.readthedocs.io/en/latest/installation.html>`_
-```
+
+```bash
 
 ### Code Block Guidelines
 
 ```rst
+
 # Always specify language for syntax highlighting
+
 .. code-block:: python
 
 # Use line numbers for long examples
+
 .. code-block:: python
    :linenos:
 
 # Emphasize important lines
+
 .. code-block:: python
    :emphasize-lines: 3,5
-```
+
+```bash
 
 ### Image Guidelines
 
 ```rst
+
 # Always provide alt text
+
 .. image:: architecture.png
    :alt: System architecture diagram
 
 # Specify alignment for better layout
+
 .. image:: logo.png
    :align: center
 
 # Limit width for large images
+
 .. image:: large_chart.png
    :width: 800px
-```
+
+```bash
 
 ### Translation Guidelines
 
@@ -785,7 +942,7 @@ When updating code:
 4. Build both languages locally
 5. Test on RTD preview branch
 
----
+- --
 
 ## Troubleshooting
 
@@ -793,24 +950,27 @@ When updating code:
 
 #### Issue: Build fails with "WARNING: undefined label"
 
-**Solution**: Ensure all referenced sections have labels:
+- *Solution**: Ensure all referenced sections have labels:
 
 ```rst
 .. _my-section-label:
 
 My Section
------------
+
+- ----------
 
 Then reference as: :ref:`my-section-label`
-```
+
+```bash
 
 #### Issue: Math equations not rendering
 
-**Solution**: Install math extension and use proper syntax:
+- *Solution**: Install math extension and use proper syntax:
 
 ```python
 extensions.append('sphinx.ext.mathjax')
-```
+
+```bash
 
 ```rst
 :math:`E = mc^2`
@@ -818,21 +978,23 @@ extensions.append('sphinx.ext.mathjax')
 .. math::
 
    \int_{-\infty}^{\infty} e^{-x^2} dx = \sqrt{\pi}
-```
+
+```bash
 
 #### Issue: Code blocks not highlighting
 
-**Solution**: Specify language explicitly:
+- *Solution**: Specify language explicitly:
 
 ```rst
 .. code-block:: python
 
 # NOT: .. code:: python (missing -block)
-```
+
+```bash
 
 #### Issue: Chinese characters showing as squares
 
-**Solution**: Ensure font support in HTML theme:
+- *Solution**: Ensure font support in HTML theme:
 
 ```python
 html_theme_options = {
@@ -840,44 +1002,57 @@ html_theme_options = {
         'font-code': 'Noto Sans SC',
     }
 }
-```
+
+```bash
 
 #### Issue: API docs not generating
 
-**Solution**: Ensure module is importable:
+- *Solution**: Ensure module is importable:
 
 ```python
+
 # In conf.py, add project root to path
+
 import sys
 import os
 sys.path.insert(0, os.path.abspath('../..'))
-```
+
+```bash
 
 ### Debug Build Issues
 
 ```bash
+
 # Verbose build output
+
 sphinx-build -b html -v source build/html
 
 # Show all warnings
+
 sphinx-build -b html -W --keep-going source build/html
 
 # Nitpicky mode for reference checking
+
 sphinx-build -b html -n --nitpicky source build/html
-```
+
+```bash
 
 ### Validation Tools
 
 ```bash
+
 # Check for broken links
+
 sphinx-build -b linkcheck source build/html
 
 # Check documentation coverage
+
 sphinx-build -b coverage source build/html
 cat build/html/python.txt.coverage
-```
 
----
+```bash
+
+- --
 
 ## Appendix
 
@@ -888,12 +1063,13 @@ Headings
 ========
 
 Sub-Headings
-------------
 
-*Italic* and **bold** text
+- -----------
 
-* Bullet list item 1
-* Bullet list item 2
+- Italic* and **bold** text
+
+- Bullet list item 1
+- Bullet list item 2
 
 1. Numbered list item 1
 2. Numbered list item 2
@@ -919,18 +1095,19 @@ Sub-Headings
 :ref:`section-label`
 
 :class:`backtrader.Strategy`
-```
+
+```bash
 
 ### Resources
 
-- [Sphinx Documentation](https://www.sphinx-doc.org/)
-- [reStructuredText Primer](https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)
-- [MyST Parser Guide](https://myst-parser.readthedocs.io/)
-- [ReadThe Docs Documentation](https://docs.readthedocs.io/)
-- [Furo Theme Documentation](https://pradyunsg.me/furo/)
+- [Sphinx Documentation](<https://www.sphinx-doc.org/)>
+- [reStructuredText Primer](<https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html)>
+- [MyST Parser Guide](<https://myst-parser.readthedocs.io/)>
+- [ReadThe Docs Documentation](<https://docs.readthedocs.io/)>
+- [Furo Theme Documentation](<https://pradyunsg.me/furo/)>
 
----
+- --
 
-**Document Version**: 1.0
-**Maintained By**: Backtrader Documentation Team
-**Last Updated**: March 1, 2026
+- *Document Version**: 1.0
+- *Maintained By**: Backtrader Documentation Team
+- *Last Updated**: March 1, 2026

@@ -1,7 +1,9 @@
----
+- --
+
 title: 绘图
 description: 可视化回测结果
----
+
+- --
 
 # 绘图
 
@@ -13,51 +15,67 @@ Backtrader 提供多种绘图选项来可视化您的回测结果。
 import backtrader as bt
 
 # 运行回测
+
 cerebro = bt.Cerebro()
+
 # ... 添加数据、策略等
+
 results = cerebro.run()
 
 # 绘制结果
+
 cerebro.plot()
-```
+
+```bash
 
 ## 绘图选项
 
 ### 图形大小
 
 ```python
+
 # 设置图形大小
+
 import matplotlib.pyplot as plt
 
 plt.rcParams['figure.figsize'] = [15, 10]
 cerebro.plot()
 plt.show()
-```
+
+```bash
 
 ### 样式
 
 ```python
+
 # 使用不同样式
+
 plt.style.use('dark_background')
 cerebro.plot()
 plt.show()
-```
+
+```bash
 
 ## Plotly 交互式绘图
 
-对于大数据集 (10万+ 点)，使用 Plotly 进行交互式缩放和平移：
+对于大数据集 (10 万+ 点)，使用 Plotly 进行交互式缩放和平移：
 
 ```python
+
 # 创建 cerebro
+
 cerebro = bt.Cerebro()
 
 # 使用 Plotly 添加绘图
+
 plotter = bt.plot.Plotly(style='plotly', scheme='plotly')
 fig = plotter.plot(cerebro, style='plotly')
 
 # 保存或显示
+
 fig.show()
-```
+
+```bash
 
 ## 绘图方案
 
@@ -67,6 +85,7 @@ fig.show()
 from backtrader.plot.scheme import Scheme
 
 # 自定义方案
+
 scheme = Scheme(
     title='我的策略回测',
     background='white',
@@ -79,7 +98,8 @@ scheme = Scheme(
 )
 
 cerebro.plot(scheme=scheme)
-```
+
+```bash
 
 ## 多数据源
 
@@ -89,8 +109,10 @@ cerebro.adddata(data1, name='AAPL')
 cerebro.adddata(data2, name='MSFT')
 
 # 绘制两个数据源
+
 cerebro.plot()
-```
+
+```bash
 
 ## 保存图表
 
@@ -101,7 +123,8 @@ import matplotlib.pyplot as plt
 
 fig = cerebro.plot()
 fig.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
-```
+
+```bash
 
 ### Plotly
 
@@ -109,7 +132,8 @@ fig.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
 plotter = bt.plot.Plotly()
 fig = plotter.plot(cerebro)
 fig.write_html('backtest_results.html')
-```
+
+```bash
 
 ## 自定义绘图
 
@@ -121,9 +145,11 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
     def next(self):
-        # SMA 自动绘制
+
+# SMA 自动绘制
         pass
-```
+
+```bash
 
 ### 禁用指标绘图
 
@@ -132,7 +158,8 @@ class MyStrategy(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
         self.sma.plotinfo.plot = False  # 不绘制
-```
+
+```bash
 
 ## Bokeh 实时绘图
 
@@ -142,16 +169,20 @@ class MyStrategy(bt.Strategy):
 from backtrader.plot import Bokeh
 
 # 创建 cerebro
+
 cerebro = bt.Cerebro()
 
 # 添加实时绘图
+
 plotter = Bokeh(style='bar', scheme='plotly')
 cerebro.setbroker(plotter.getbroker())
 
 # 运行并绘图
+
 strats = cerebro.run(plotter=plotter)
 plotter.show()
-```
+
+```bash
 
 ## 绘图示例
 
@@ -161,12 +192,15 @@ plotter.show()
 cerebro = bt.Cerebro()
 
 # 添加数据
+
 data = bt.feeds.YahooFinanceData(dataname='AAPL', ...)
 cerebro.adddata(data)
 
 # 成交量如果可用会自动绘制
+
 cerebro.plot()
-```
+
+```bash
 
 ### 多指标
 
@@ -176,7 +210,8 @@ class MyStrategy(bt.Strategy):
         self.sma20 = bt.indicators.SMA(self.data.close, period=20)
         self.sma50 = bt.indicators.SMA(self.data.close, period=50)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
-```
+
+```bash
 
 ### 回撤子图
 

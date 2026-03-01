@@ -1,7 +1,9 @@
----
+- --
+
 title: 交易策略
 description: 构建有效的交易策略
----
+
+- --
 
 # 交易策略
 
@@ -29,17 +31,20 @@ class MyStrategy(bt.Strategy):
         初始化指标和计算。
         在回测开始前调用一次。
         """
-        # 您的初始化代码
+
+# 您的初始化代码
         pass
 
     def next(self):
         """
-        每根K线调用。
+        每根 K 线调用。
         包含您的交易逻辑。
         """
-        # 您的交易逻辑
+
+# 您的交易逻辑
         pass
-```
+
+```bash
 
 ## 订单管理
 
@@ -48,39 +53,43 @@ class MyStrategy(bt.Strategy):
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # 买入默认数量
+
+# 买入默认数量
         self.buy()
 
-        # 买入指定数量
+# 买入指定数量
         self.buy(size=100)
 
-        # 卖出全部持仓
+# 卖出全部持仓
         self.sell()
 
-        # 平仓
+# 平仓
         self.close()
 
-        # 买入可用资金的百分比
+# 买入可用资金的百分比
         self.buy(size=0.5)  # 50% 的资金
-```
+
+```bash
 
 ### 限价单
 
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # 以指定价格或更好价格买入
+
+# 以指定价格或更好价格买入
         order = self.buy(price=100.0)
 
-        # 限价卖出
+# 限价卖出
         order = self.sell(limit=105.0)
 
-        # 止损单
+# 止损单
         order = self.sell(stop=95.0)
 
-        # 止损限价单
+# 止损限价单
         order = self.sell(stop=95.0, limit=94.5)
-```
+
+```bash
 
 ### 订单跟踪
 
@@ -90,11 +99,12 @@ class MyStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
-        # 只在没有待处理订单时下单
+
+# 只在没有待处理订单时下单
         if self.order:
             return
 
-        # 下单并保存引用
+# 下单并保存引用
         self.order = self.buy()
 
     def notify_order(self, order):
@@ -109,7 +119,8 @@ class MyStrategy(bt.Strategy):
                 self.log(f'卖出成交, 价格: {order.executed.price:.2f}')
 
         self.order = None  # 重置订单引用
-```
+
+```bash
 
 ## 交易通知
 
@@ -122,7 +133,8 @@ class MyStrategy(bt.Strategy):
 
         self.log(f'交易盈亏: {trade.pnl:.2f}, '
                 f'佣金: {trade.commission:.2f}')
-```
+
+```bash
 
 ## 持仓管理
 
@@ -131,12 +143,14 @@ class MyStrategy(bt.Strategy):
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # 检查是否有持仓
+
+# 检查是否有持仓
         if self.position:
             self.log(f'持仓数量: {self.position.size}')
         else:
             self.log('无持仓')
-```
+
+```bash
 
 ### 仓位管理
 
@@ -146,9 +160,11 @@ class MyStrategy(bt.Strategy):
         self.sizer = bt.sizers.FixedSize(stake=0.1)  # 每笔交易 10%
 
     def next(self):
-        # 买入组合价值的 10%
-        self.buy(size=self.broker.getcash() * 0.1 / self.data.close[0])
-```
+
+# 买入组合价值的 10%
+        self.buy(size=self.broker.getcash() *0.1 / self.data.close[0])
+
+```bash
 
 ## 止损和止盈
 
@@ -166,22 +182,25 @@ class MyStrategy(bt.Strategy):
             entry_price = self.position.price
             current_price = self.data.close[0]
 
-            # 计算止损和止盈价格
-            stop_loss = entry_price * (1 - self.p.stop_loss_pct)
-            take_profit = entry_price * (1 + self.p.take_profit_pct)
+# 计算止损和止盈价格
+            stop_loss = entry_price*(1 - self.p.stop_loss_pct)
+            take_profit = entry_price*(1 + self.p.take_profit_pct)
 
-            # 检查是否触发止损或止盈
+# 检查是否触发止损或止盈
             if current_price <= stop_loss:
                 self.sell()  # 止损
 
             elif current_price >= take_profit:
                 self.sell()  # 止盈
-```
+
+```bash
 
 ## 多策略
 
 ```python
+
 # 创建多个策略
+
 cerebro = bt.Cerebro()
 
 cerebro.addstrategy(Strategy1, period=10)
@@ -189,7 +208,8 @@ cerebro.addstrategy(Strategy2, period=20)
 cerebro.addstrategy(Strategy3, period=30)
 
 # 每个策略独立运行
-```
+
+```bash
 
 ## 基于时间的交易
 
@@ -203,7 +223,8 @@ class MyStrategy(bt.Strategy):
     )
 
     def next(self):
-        # 只在特定时段交易
+
+# 只在特定时段交易
         current_time = self.data.datetime.time(0)
 
         if current_time.hour < self.p.trade_start_hour:
@@ -212,43 +233,53 @@ class MyStrategy(bt.Strategy):
         if current_time.hour >= self.p.trade_end_hour:
             return  # 太晚
 
-        # 交易逻辑
+# 交易逻辑
         self.buy()
-```
+
+```bash
 
 ## 策略日志
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 启用日志
+
+# 启用日志
         pass
 
     def next(self):
-        # 记录日志
+
+# 记录日志
         self.log(f'收盘价: {self.data.close[0]:.2f}')
 
     def notify_order(self, order):
         self.log(f'订单状态: {order.getstatusname()}')
-```
+
+```bash
 
 ## 策略参数优化
 
 ```python
+
 # 定义参数范围
+
 cerebro.optstrategy(
     MyStrategy,
     ma_period=range(10, 31, 5),      # 10, 15, 20, 25, 30
     threshold=[0.5, 1.0, 1.5]         # 0.5, 1.0, 1.5
+
 )
 
 # 运行优化
+
 results = cerebro.run(maxcpu=1)  # 使用 1 个 CPU 核心
 
 # 获取最佳结果
+
 best_result = results[0]
 print(f'最佳参数: {best_result.params._getitems()}')
-```
+
+```bash
 
 ## 常见策略模式
 
@@ -271,7 +302,8 @@ class TrendFollowing(bt.Strategy):
             self.buy()  # 上升趋势开始
         elif self.crossover < 0:
             self.sell()  # 下降趋势开始
-```
+
+```bash
 
 ### 均值回归
 
@@ -285,15 +317,16 @@ class MeanReversion(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
         self.stddev = bt.indicators.StdDev(self.data.close, period=self.p.period)
-        self.upper_band = self.sma + self.stddev * self.p.threshold
-        self.lower_band = self.sma - self.stddev * self.p.threshold
+        self.upper_band = self.sma + self.stddev*self.p.threshold
+        self.lower_band = self.sma - self.stddev* self.p.threshold
 
     def next(self):
         if self.data.close[0] < self.lower_band[0]:
             self.buy()  # 价格过低, 买入
         elif self.data.close[0] > self.upper_band[0]:
             self.sell()  # 价格过高, 卖出
-```
+
+```bash
 
 ### 突破
 
@@ -313,7 +346,8 @@ class Breakout(bt.Strategy):
 
         elif self.data.close[0] < self.low_band[-1]:
             self.sell()  # 向下突破
-```
+
+```bash
 
 ## 下一步学习
 

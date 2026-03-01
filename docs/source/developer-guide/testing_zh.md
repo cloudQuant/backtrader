@@ -1,7 +1,9 @@
----
+- --
+
 title: 测试指南
 description: Backtrader 开发者测试实践和指南
----
+
+- --
 
 # 测试指南
 
@@ -20,7 +22,7 @@ description: Backtrader 开发者测试实践和指南
 
 ## 测试框架
 
-Backtrader 使用 **pytest** 作为测试框架。主要特性：
+Backtrader 使用 **pytest**作为测试框架。主要特性：
 
 - **pytest**: 测试运行器和断言库
 - **pytest-cov**: 覆盖率报告
@@ -30,7 +32,8 @@ Backtrader 使用 **pytest** 作为测试框架。主要特性：
 
 ```bash
 pip install pytest pytest-cov pytest-xdist
-```
+
+```bash
 
 ### 配置
 
@@ -55,22 +58,30 @@ markers =
 filterwarnings =
     ignore::RuntimeWarning
     ignore::DeprecationWarning
-```
+
+```bash
 
 ## 测试组织
 
 ### 目录结构
 
-```
+```bash
 tests/
 ├── conftest.py              # 共享夹具和配置
+
 ├── datas/                   # 测试数据文件
+
 ├── original_tests/          # 核心功能测试
+
 ├── add_tests/               # 额外测试覆盖
+
 ├── strategies/              # 策略专用测试
+
 ├── base_functions/          # 基础函数测试
+
 └── integration/             # 集成测试
-```
+
+```bash
 
 ### 测试文件命名
 
@@ -91,19 +102,21 @@ tests/
 ```python
 def test_sma_calculation():
     """测试 SMA 指标计算正确。"""
-    # 创建测试数据
+
+# 创建测试数据
     data = [1, 2, 3, 4, 5]
     period = 3
 
-    # 预期结果
+# 预期结果
     expected = 3.0  # (3 + 4 + 5) / 3
 
-    # 运行测试
+# 运行测试
     result = calculate_sma(data, period)
 
-    # 断言
+# 断言
     assert result == expected
-```
+
+```bash
 
 ### 集成测试
 
@@ -127,17 +140,23 @@ def test_ib_connection():
     cerebro.adddata(data)
     result = cerebro.run()
     assert len(result) > 0
-```
+
+```bash
 
 ### 优先级
 
 测试按优先级分类：
 
 | 优先级 | 描述 | 使用场景 |
+
 |--------|------|----------|
+
 | `priority_p0` | 关键 - 核心功能 | 必要功能、数据加载、订单执行 |
+
 | `priority_p1` | 高 - 经常使用 | 常见指标、标准策略 |
+
 | `priority_p2` | 中 - 次要功能 | 较少见的指标、边界情况 |
+
 | `priority_p3` | 低 - 很少使用 | 冷门功能、遗留代码 |
 
 ## 测试标记
@@ -162,23 +181,30 @@ def test_live_api_connection():
 async def test_websocket_feed():
     """WebSocket 专用测试。"""
     pass
-```
+
+```bash
 
 ### 使用标记运行
 
 ```bash
+
 # 仅运行关键测试
+
 pytest tests/ -m "priority_p0"
 
 # 跳过集成测试
+
 pytest tests/ -m "not integration"
 
 # 运行多个标记
+
 pytest tests/ -m "priority_p0 or priority_p1"
 
 # 跳过 WebSocket 测试
+
 pytest tests/ -m "not websocket"
-```
+
+```bash
 
 ## 编写测试
 
@@ -189,26 +215,30 @@ pytest tests/ -m "not websocket"
 ```python
 def test_indicator_calculation():
     """测试指标计算预期值。"""
-    # Arrange - 设置测试数据和条件
+
+# Arrange - 设置测试数据和条件
     cerebro = bt.Cerebro()
     data = create_test_data()
     cerebro.adddata(data)
     cerebro.addstrategy(TestStrategy)
 
-    # Act - 执行被测试的代码
+# Act - 执行被测试的代码
     result = cerebro.run()
 
-    # Assert - 验证预期结果
+# Assert - 验证预期结果
     assert len(result) == 1
     assert result[0].analyzers.sharpe.get_analysis()['sharperatio'] > 0
-```
+
+```bash
 
 ### 完整测试示例
 
 以下是测试指标的完整示例：
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """测试简单移动平均线指标。"""
 
 import backtrader as bt
@@ -236,7 +266,8 @@ class TestStrategy(bt.Strategy):
     def stop(self):
         """验证 SMA 计算。"""
         assert len(self.actual_values) > 0, "没有计算 SMA 值"
-        # 此处添加其他断言
+
+# 此处添加其他断言
 
 
 @pytest.mark.priority_p0
@@ -244,7 +275,7 @@ def test_sma_basic_calculation():
     """测试 SMA 使用基本数据正确计算。"""
     cerebro = bt.Cerebro()
 
-    # 创建简单测试数据
+# 创建简单测试数据
     data = bt.feeds.BacktraderCSVData(
         dataname='tests/datas/2006-day-001.txt',
         fromdate=datetime.datetime(2006, 1, 1),
@@ -257,11 +288,11 @@ def test_sma_basic_calculation():
 
     results = cerebro.run()
 
-    # 验证策略已运行
+# 验证策略已运行
     assert len(results) == 1
     strat = results[0]
 
-    # 验证 SMA 已计算
+# 验证 SMA 已计算
     assert hasattr(strat, 'sma')
     assert len(strat.sma) > 0
 
@@ -308,7 +339,8 @@ def test_sma_with_multiple_data_feeds():
 
     results = cerebro.run()
     assert len(results) == 1
-```
+
+```bash
 
 ### 测试策略
 
@@ -347,9 +379,10 @@ def test_strategy_buy_signal():
     results = cerebro.run()
     strat = results[0]
 
-    # 验证至少执行了一个买入订单
+# 验证至少执行了一个买入订单
     assert strat.buy_executed
-```
+
+```bash
 
 ### 使用模拟数据测试
 
@@ -395,7 +428,8 @@ def test_with_mock_data():
 
     result = cerebro.run()
     assert len(result) > 0
-```
+
+```bash
 
 ## 夹具和辅助工具
 
@@ -420,7 +454,8 @@ def cerebro_engine():
     """提供基本 Cerebro 引擎实例。"""
     cerebro = bt.Cerebro()
     yield cerebro
-    # 清理
+
+# 清理
     cerebro = None
 
 @pytest.fixture
@@ -428,7 +463,8 @@ def cerebro_with_cash(cerebro_engine):
     """提供设置了初始资金的 Cerebro。"""
     cerebro_engine.broker.setcash(10000.0)
     return cerebro_engine
-```
+
+```bash
 
 ### 使用夹具
 
@@ -440,12 +476,15 @@ def test_with_fixture(sample_data, cerebro_engine):
 
     result = cerebro_engine.run()
     assert len(result) > 0
-```
+
+```bash
 
 ### 创建自定义夹具
 
 ```python
+
 # 在您的测试文件或 conftest.py 中
+
 @pytest.fixture
 def macd_indicator():
     """创建带有标准参数的 MACD 指标。"""
@@ -456,7 +495,8 @@ def macd_indicator():
                                            period_signal=9)
 
     return MACDStrategy
-```
+
+```bash
 
 ## 覆盖率要求
 
@@ -482,20 +522,26 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
 ]
-```
+
+```bash
 
 ### 运行覆盖率
 
 ```bash
+
 # 生成覆盖率报告
+
 pytest tests/ --cov=backtrader --cov-report=term-missing
 
 # 生成 HTML 报告
+
 pytest tests/ --cov=backtrader --cov-report=html
 
 # 结合标记使用
+
 pytest tests/ -m "not integration" --cov=backtrader
-```
+
+```bash
 
 ### 覆盖率目标
 
@@ -508,56 +554,76 @@ pytest tests/ -m "not integration" --cov=backtrader
 ### 基本命令
 
 ```bash
+
 # 运行所有测试
+
 pytest tests/ -v
 
 # 并行运行（4 个工作进程）
+
 pytest tests/ -n 4 -v
 
 # 运行特定测试文件
+
 pytest tests/add_tests/test_sma.py -v
 
 # 运行特定测试函数
+
 pytest tests/add_tests/test_sma.py::test_sma_calculation -v
 
 # 首次失败时停止
+
 pytest tests/ -x
 
 # 失败时显示局部变量
+
 pytest tests/ -l
 
 # 显示详细输出和打印语句
+
 pytest tests/ -s
-```
+
+```bash
 
 ### 按类别运行
 
 ```bash
+
 # 指标测试
+
 pytest tests/add_tests/test_ind*.py tests/original_tests/test_ind*.py -v
 
 # 策略测试
+
 pytest tests/add_tests/test_strategy*.py tests/original_tests/test_strategy*.py -v
 
 # 分析器测试
+
 pytest tests/add_tests/test_analyzer*.py tests/original_tests/test_analyzer*.py -v
 
 # 经纪人测试
+
 pytest tests/add_tests/test_broker.py -v
-```
+
+```bash
 
 ### 使用 Make 运行
 
 ```bash
+
 # 运行所有测试
+
 make test
 
 # 运行带覆盖率
+
 make test-coverage
 
 # 运行特定测试文件
+
 make test-file TEST=tests/add_tests/test_sma.py
-```
+
+```bash
 
 ### 持续测试
 
@@ -566,7 +632,8 @@ make test-file TEST=tests/add_tests/test_sma.py
 ```bash
 pip install pytest-watch
 ptw tests/ -- -v
-```
+
+```bash
 
 ## 最佳实践
 
@@ -574,21 +641,27 @@ ptw tests/ -- -v
 
 1. **先写测试**（尽可能采用 TDD 方法）
 2. **使用描述性测试名称**：`test_sma_calculates_correctly()` 而不是 `test_1()`
-3. **保持测试独立** - 测试之间无共享状态
-4. **使用夹具**处理通用设置
-5. **模拟外部依赖** - API 调用、文件 I/O
-6. **测试边界情况** - 空数据、最小周期、边界条件
-7. **添加文档字符串**说明测试内容
-8. **使用标记**进行测试分类
+3. **保持测试独立**- 测试之间无共享状态
+
+4.**使用夹具**处理通用设置
+
+1. **模拟外部依赖**- API 调用、文件 I/O
+
+6.**测试边界情况**- 空数据、最小周期、边界条件
+7.**添加文档字符串**说明测试内容
+
+1. **使用标记**进行测试分类
 
 ### 不应该做的：
 
-1. **不要硬编码路径** - 使用夹具或相对路径
-2. **不要测试实现细节** - 测试行为
-3. **不要编写庞大的测试** - 一个概念一个断言
-4. **不要忽略测试** - 修复或标记为预期失败
-5. **不要在单元测试中使用实时数据**
-6. **不要提交注释掉的代码**
+1. **不要硬编码路径**- 使用夹具或相对路径
+
+2.**不要测试实现细节**- 测试行为
+3.**不要编写庞大的测试**- 一个概念一个断言
+4.**不要忽略测试**- 修复或标记为预期失败
+5.**不要在单元测试中使用实时数据**
+
+1. **不要提交注释掉的代码**
 
 ## 调试测试
 
@@ -600,28 +673,38 @@ def test_failing_case():
     import pdb; pdb.set_trace()
 
     cerebro = bt.Cerebro()
-    # ... 其余测试代码
-```
+
+# ... 其余测试代码
+
+```bash
 
 ### 使用 pytest 的 pdb
 
 ```bash
+
 # 失败时进入调试器
+
 pytest tests/ --pdb
 
 # 出错时进入调试器（不仅仅是失败）
+
 pytest tests/ --pdb --trace
-```
+
+```bash
 
 ### 打印测试输出
 
 ```bash
+
 # 显示打印语句
+
 pytest tests/ -s -v
 
 # 捕获输出但在失败时显示
+
 pytest tests/ --capture=no
-```
+
+```bash
 
 ## 测试数据
 
@@ -629,13 +712,17 @@ pytest tests/ --capture=no
 
 测试数据位于 `tests/datas/` 目录：
 
-```
+```bash
 tests/datas/
-├── 2006-day-001.txt      # 2006年日线数据
-├── 2006-day-002.txt      # 2006年日线数据（第二组）
-├── 2006-week-001.txt     # 2006年周线数据
+├── 2006-day-001.txt      # 2006 年日线数据
+
+├── 2006-day-002.txt      # 2006 年日线数据（第二组）
+
+├── 2006-week-001.txt     # 2006 年周线数据
+
 └── ...
-```
+
+```bash
 
 ### 创建测试数据
 
@@ -662,7 +749,8 @@ def create_test_csv(filename, num_bars=100):
                 0                  # openinterest
             ])
             dt += timedelta(days=1)
-```
+
+```bash
 
 ## 常见测试场景
 
@@ -685,9 +773,10 @@ def test_indicator_registration():
     cerebro.addstrategy(TestStrategy)
     cerebro.run()
 
-    # 验证策略已运行
+# 验证策略已运行
     assert len(cerebro.runstrats[0]) > 0
-```
+
+```bash
 
 ### 测试分析器
 
@@ -708,11 +797,12 @@ def test_sharpe_analyzer():
     results = cerebro.run()
     strat = results[0]
 
-    # 验证分析器存在并返回有效值
+# 验证分析器存在并返回有效值
     assert hasattr(strat.analyzers, 'sharpe')
     analysis = strat.analyzers.sharpe.get_analysis()
     assert 'sharperatio' in analysis
-```
+
+```bash
 
 ### 测试观察器
 
@@ -731,9 +821,10 @@ def test_drawdown_observer():
     results = cerebro.run()
     strat = results[0]
 
-    # 验证观察器已附加
+# 验证观察器已附加
     assert len(strat.observers) > 0
-```
+
+```bash
 
 ## 另请参阅
 

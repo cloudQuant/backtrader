@@ -1,7 +1,9 @@
----
+- --
+
 title: Backtrader Upgrade Guide
 description: Guide for upgrading between versions of Backtrader
----
+
+- --
 
 # Backtrader Upgrade Guide
 
@@ -19,92 +21,121 @@ This guide helps you upgrade between different versions of Backtrader. It covers
 - [Testing After Upgrade](#testing-after-upgrade)
 - [Troubleshooting](#troubleshooting)
 
----
+- --
 
 ## Version Overview
 
 | Version | Release Date | Status | Key Changes |
+
 |---------|--------------|--------|-------------|
-| **1.1.0** | 2026 (dev branch) | Active | Metaclass removal, 45% performance improvement, CCXT/CTP integration |
-| **1.0.0** | 2025 | Stable | Initial performance-optimized release baseline |
-| **0.x** | Pre-2025 | Legacy | Original backtrader architecture |
+
+| **1.1.0**| 2026 (dev branch) | Active | Metaclass removal, 45% performance improvement, CCXT/CTP integration |
+
+|**1.0.0**| 2025 | Stable | Initial performance-optimized release baseline |
+
+|**0.x**| Pre-2025 | Legacy | Original backtrader architecture |
 
 ### Current Stable Version: 1.1.0
 
 The dev branch (version 1.1.0) represents the actively developed version with significant improvements over the original backtrader.
 
----
+- --
 
 ## Python Version Compatibility
 
 | Python Version | 1.1.0 Status | 1.0.0 Status | Notes |
+
 |----------------|--------------|---------------|-------|
-| **3.13** | ✅ Recommended | ✅ Best Performance | ~15% faster than 3.8 |
-| **3.12** | ✅ Supported | ✅ Supported | Some dependencies may have issues |
-| **3.11** | ✅ Supported | ✅ Supported | Good performance balance |
-| **3.10** | ✅ Supported | ✅ Supported | Stable |
-| **3.9** | ✅ Supported | ✅ Supported | Minimum recommended |
-| **3.8** | ⚠️ Deprecated | ✅ Supported | Security updates only |
-| **< 3.8** | ❌ Not Supported | ❌ Not Supported | Upgrade required |
+
+|**3.13**| ✅ Recommended | ✅ Best Performance | ~15% faster than 3.8 |
+
+|**3.12**| ✅ Supported | ✅ Supported | Some dependencies may have issues |
+
+|**3.11**| ✅ Supported | ✅ Supported | Good performance balance |
+
+|**3.10**| ✅ Supported | ✅ Supported | Stable |
+
+|**3.9**| ✅ Supported | ✅ Supported | Minimum recommended |
+
+|**3.8**| ⚠️ Deprecated | ✅ Supported | Security updates only |
+
+|**< 3.8**| ❌ Not Supported | ❌ Not Supported | Upgrade required |
 
 ### Recommendation
 
 - **New Projects**: Use Python 3.11 or 3.13 for best performance
 - **Existing Projects**: Upgrade from 3.8 to 3.11+ when possible
 
----
+- --
 
 ## Upgrade Paths
 
 ### Path 1: From Original Backtrader (mementum/backtrader) to 1.1.0
 
 ```bash
+
 # Step 1: Remove original backtrader
+
 pip uninstall backtrader
 
 # Step 2: Clone this fork
-git clone https://github.com/cloudQuant/backtrader.git
+
+git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 
 # Step 3: Install dependencies
+
 pip install -r requirements.txt
 
 # Step 4: Install in development mode
+
 pip install -e .
 
 # Step 5: Verify installation
+
 python -c "import backtrader as bt; print(bt.__version__)"
+
 # Expected output: 1.1.0
-```
+
+```bash
 
 ### Path 2: From Version 1.0.0 to 1.1.0
 
 ```bash
+
 # Step 1: Pull latest changes
+
 git fetch origin
 git checkout dev  # or main branch for 1.1.0
 
 # Step 2: Update dependencies
+
 pip install -r requirements.txt --upgrade
 
 # Step 3: Reinstall
+
 pip install -e .
 
 # Step 4: (Optional) Recompile Cython extensions
+
 cd backtrader
 python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
-```
+
+```bash
 
 ### Path 3: Direct Installation from Source
 
 ```bash
-# Install with all optional dependencies
-pip install -e ".[ccxt,ctp,plotly,bokeh]"
-```
 
----
+# Install with all optional dependencies
+
+pip install -e ".[ccxt,ctp,plotly,bokeh]"
+
+```bash
+
+- --
 
 ## Breaking Changes by Version
 
@@ -115,16 +146,23 @@ pip install -e ".[ccxt,ctp,plotly,bokeh]"
 While version 1.1.0 maintains 100% API compatibility with the original backtrader, the following internal changes may affect advanced users who subclass internal components:
 
 | Change Area | Before | After | Migration Required |
+
 |-------------|--------|-------|-------------------|
-| **Metaclass Usage** | `MetaBase`, `MetaLineRoot`, `MetaIndicator` | `donew()` + `BaseMixin` pattern | No (unless overriding `__new__`) |
-| **Parameter Initialization** | In metaclass `__call__` | In `__init__` after `super().__init__()` | No for normal usage |
-| **Indicator Registration** | Automatic via metaclass | Explicit in `__init__` | No (automatic) |
+
+| **Metaclass Usage**| `MetaBase`, `MetaLineRoot`, `MetaIndicator` | `donew()` + `BaseMixin` pattern | No (unless overriding `__new__`) |
+
+|**Parameter Initialization**| In metaclass `__call__` | In `__init__` after `super().__init__()` | No for normal usage |
+
+|**Indicator Registration** | Automatic via metaclass | Explicit in `__init__` | No (automatic) |
 
 #### Code Examples
 
-**Before (Original - with metaclasses)**:
+- *Before (Original - with metaclasses)**:
+
 ```python
+
 # This still works in 1.1.0 - no changes needed!
+
 class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
@@ -134,23 +172,29 @@ class MyStrategy(bt.Strategy):
     def next(self):
         if self.data.close[0] > self.sma[0]:
             self.buy()
-```
 
-**After (1.1.0 - same code works)**:
+```bash
+
+- *After (1.1.0 - same code works)**:
+
 ```python
+
 # No changes required - API is identical
+
 class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
     def __init__(self):
-        # Parameters available after super().__init__()
+
+# Parameters available after super().__init__()
         super().__init__()  # Recommended but not required
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
 
     def next(self):
         if self.data.close[0] > self.sma[0]:
             self.buy()
-```
+
+```bash
 
 ### Version 1.0.0
 
@@ -160,7 +204,7 @@ class MyStrategy(bt.Strategy):
 - 45% performance improvement over original
 - Cython acceleration support added
 
----
+- --
 
 ## New Features Migration
 
@@ -180,7 +224,8 @@ data = bt.feeds.GenericCSVData(
 )
 cerebro.adddata(data)
 cerebro.run()
-```
+
+```bash
 
 #### After: Live Trading with CCXT
 
@@ -188,6 +233,7 @@ cerebro.run()
 import backtrader as bt
 
 # Create store for exchange connection
+
 store = bt.stores.CCXTStore(
     exchange='binance',
     currency='USDT',
@@ -199,31 +245,40 @@ store = bt.stores.CCXTStore(
 )
 
 # Get live data feed with WebSocket
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
     compression=1,
     use_websocket=True,  # Enable low-latency WebSocket
     backfill_start=True,  # Backfill historical data on start
+
 )
 
 # Get broker for live trading
+
 broker = store.getbroker(use_threaded_order_manager=True)
 
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.setbroker(broker)
 cerebro.run()
-```
+
+```bash
 
 #### Key Migration Points
 
 | Aspect | Backtesting | Live Trading |
+
 |--------|-------------|--------------|
-| **Data Source** | CSV/Pandas files | CCXT Store (REST/WebSocket) |
-| **Broker** | Simulated | Real exchange via CCXT |
-| **Order Execution** | Instant | Depends on exchange latency |
-| **Error Handling** | Not needed | Critical - implement `notify_order()` |
+
+| **Data Source**| CSV/Pandas files | CCXT Store (REST/WebSocket) |
+
+|**Broker**| Simulated | Real exchange via CCXT |
+
+|**Order Execution**| Instant | Depends on exchange latency |
+
+|**Error Handling** | Not needed | Critical - implement `notify_order()` |
 
 ### 2. CTP Futures Trading (New in 1.1.0)
 
@@ -231,6 +286,7 @@ cerebro.run()
 import backtrader as bt
 
 # CTP Store for Chinese futures markets
+
 store = bt.stores.CTPStore(
     broker_id='9999',
     investor_id='your_investor_id',
@@ -242,32 +298,44 @@ store = bt.stores.CTPStore(
 )
 
 data = store.getdata(dataname='au2506')  # Gold futures contract
+
 broker = store.getbroker()
 
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.setbroker(broker)
-```
+
+```bash
 
 ### 3. Performance Modes (New in 1.1.0)
 
 #### TS Mode (Time Series Vectorization)
 
 ```python
+
 # Optimized for single-asset strategies
+
 cerebro = bt.Cerebro()
+
 # ... setup ...
+
 cerebro.run(ts_mode=True)  # 10-50x faster for suitable strategies
-```
+
+```bash
 
 #### CS Mode (Cross-Sectional)
 
 ```python
+
 # Optimized for multi-asset portfolios
+
 cerebro = bt.Cerebro()
+
 # ... setup ...
+
 cerebro.run(cs_mode=True)  # Efficient cross-sectional signals
-```
+
+```bash
 
 ### 4. Interactive Plotting (New in 1.1.0)
 
@@ -275,22 +343,27 @@ cerebro.run(cs_mode=True)  # Efficient cross-sectional signals
 
 ```python
 cerebro.plot()  # Opens static matplotlib window
-```
+
+```bash
 
 #### After: Interactive Plotly
 
 ```python
+
 # Interactive web-based plotting
+
 cerebro.plot(style='plotly')
 
 # Or save to HTML
+
 from backtrader.plot.plot_plotly import PlotlyPlot
 plotter = PlotlyPlot(style='candle')
 figs = plotter.plot(strategy)
 figs[0].write_html('backtest.html')
-```
 
----
+```bash
+
+- --
 
 ## Data Format Migrations
 
@@ -304,7 +377,8 @@ data = bt.feeds.GenericCSVData(
     datetime=0, open=1, high=2, low=3, close=4, volume=5,
     dtformat='%Y-%m-%d',
 )
-```
+
+```bash
 
 ### Pandas Data Format
 
@@ -314,14 +388,18 @@ No changes required:
 import pandas as pd
 
 # Existing DataFrame format works
+
 df = pd.read_csv('data.csv', parse_dates=['date'], index_col='date'])
 data = bt.feeds.PandasData(dataname=df)
-```
+
+```bash
 
 ### New Data Feed Parameters (1.1.0)
 
 ```python
+
 # CCXT-specific parameters
+
 data = bt.feeds.CCXTData(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
@@ -330,10 +408,12 @@ data = bt.feeds.CCXTData(
     drop_newest=True,         # NEW: Drop incomplete current bar
     use_websocket=True,       # NEW: Enable WebSocket
     backfill_start=True,      # NEW: Backfill on connection
-)
-```
 
----
+)
+
+```bash
+
+- --
 
 ## Configuration Changes
 
@@ -347,8 +427,10 @@ cerebro = bt.Cerebro(
     preload=True,       # Preload data for performance
     runonce=True,       # Use vectorized execution
     maxcpus=4,          # Parallel optimization
+
 )
-```
+
+```bash
 
 ### Store Configuration
 
@@ -359,23 +441,25 @@ store = bt.stores.CCXTStore(
     exchange='binance',
     currency='USDT',
     config={
-        # Standard CCXT config
+
+# Standard CCXT config
         'apiKey': 'your_key',
         'secret': 'your_secret',
         'enableRateLimit': True,
 
-        # NEW: Exchange-specific options
+# NEW: Exchange-specific options
         'options': {
             'defaultType': 'future',  # For futures trading
             'adjustForTimeDifference': True,
         }
     },
 
-    # NEW: Connection management
+# NEW: Connection management
     reconnect_delay=5.0,
     max_reconnect_delay=60.0,
 )
-```
+
+```bash
 
 ### Broker Configuration
 
@@ -387,27 +471,36 @@ broker = store.getbroker(
     use_threaded_order_manager=True,  # Non-blocking order updates
     max_retries=3,                    # API retry attempts (NEW)
     retry_delay=1.0,                  # Retry base delay (NEW)
-)
-```
 
----
+)
+
+```bash
+
+- --
 
 ## Testing After Upgrade
 
 ### 1. Run Existing Tests
 
 ```bash
+
 # Run all tests
+
 pytest tests/ -n 4 -v
 
 # Run specific test categories
+
 pytest tests/original_tests/ -v    # Core functionality
+
 pytest tests/add_tests/ -v         # Additional tests
+
 pytest tests/new_functions/ -v     # New feature tests
 
 # Run with coverage
+
 pytest tests/ --cov=backtrader --cov-report=term-missing
-```
+
+```bash
 
 ### 2. Verify Strategy Output
 
@@ -418,6 +511,7 @@ import backtrader as bt
 from datetime import datetime
 
 # Your strategy
+
 class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
@@ -430,6 +524,7 @@ class MyStrategy(bt.Strategy):
             assert self.sma[0] is not None, "SMA should not be None"
 
 # Test with known data
+
 cerebro = bt.Cerebro()
 data = bt.feeds.GenericCSVData(
     dataname='test_data.csv',
@@ -441,10 +536,12 @@ cerebro.addstrategy(MyStrategy)
 strats = cerebro.run()
 
 # Verify results
+
 assert len(strats) == 1
 assert strats[0].analyzers is not None
 print("✅ Strategy test passed")
-```
+
+```bash
 
 ### 3. Performance Benchmark
 
@@ -456,13 +553,17 @@ cerebro.run()
 elapsed = time.time() - start
 
 print(f"Backtest completed in {elapsed:.2f} seconds")
+
 # Compare with previous version times
-```
+
+```bash
 
 ### 4. Numerical Precision Check
 
 ```python
+
 # Verify indicator calculations match expected values
+
 # (within floating-point precision tolerance)
 
 import numpy as np
@@ -472,146 +573,191 @@ def assert_close(actual, expected, tol=1e-10):
         f"Values differ: {actual} vs {expected}"
 
 # Test critical indicators
+
 class IndicatorTest(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
     def next(self):
         if len(self.data) == 100:  # At known point
-            # Replace with your expected value
+
+# Replace with your expected value
             assert_close(self.sma[0], 123.45, tol=1e-8)
             cerebro.runstop()
-```
 
----
+```bash
+
+- --
 
 ## Troubleshooting
 
 ### Issue 1: Import Errors After Upgrade
 
-**Symptom**:
+- *Symptom**:
+
 ```python
 ImportError: cannot import name 'CCXTStore' from 'backtrader.stores'
-```
 
-**Solution**:
 ```bash
+
+- *Solution**:
+
+```bash
+
 # Ensure you're using the correct version
+
 python -c "import backtrader; print(backtrader.__version__)"
 
 # Reinstall in development mode
+
 pip uninstall backtrader
 pip install -e /path/to/backtrader
-```
+
+```bash
 
 ### Issue 2: Cython Extensions Not Compiled
 
-**Symptom**:
+- *Symptom**:
+
 ```python
 AttributeError: module 'backtrader.utils' has no attribute 'ts_cal_value'
-```
 
-**Solution**:
 ```bash
+
+- *Solution**:
+
+```bash
+
 # Install Cython
+
 pip install cython
 
 # Recompile
+
 cd backtrader
 python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
-```
+
+```bash
 
 ### Issue 3: Different Test Results
 
-**Symptom**: Strategy produces slightly different results after upgrade.
+- *Symptom**: Strategy produces slightly different results after upgrade.
 
-**Possible Causes**:
+- *Possible Causes**:
 1. Floating-point precision improvements (within tolerance)
 2. Indicator calculation fixes (verify against known values)
 3. Data loading differences (check timezones, preprocessing)
 
-**Solution**:
+- *Solution**:
+
 ```python
+
 # Enable debug output
+
 cerebro = bt.Cerebro(stdstats=False)
 
 # Add data observers
+
 cerebro.addobserver(bt.observers.DataTriggers)
 
 # Compare bar-by-bar
+
 class DebugStrategy(bt.Strategy):
     def next(self):
         if len(self.data) % 100 == 0:
             print(f"Bar {len(self.data)}: close={self.data.close[0]:.4f}")
-```
+
+```bash
 
 ### Issue 4: WebSocket Connection Failures
 
-**Symptom**: CCXT WebSocket fails to connect.
+- *Symptom**: CCXT WebSocket fails to connect.
 
-**Solution**:
+- *Solution**:
+
 ```python
+
 # Check ccxtpro installation
+
 pip install ccxtpro
 
 # Or disable WebSocket, use REST polling
+
 data = store.getdata(
     dataname='BTC/USDT',
     use_websocket=False,  # Fall back to REST
+
 )
 
 # Verify exchange supports WebSocket
+
 import ccxtpro as ccxt
 exchange = ccxt.binance()
 print(f"WebSocket support: {exchange.has['watchOHLCV']}")
-```
+
+```bash
 
 ### Issue 5: Memory Issues on Large Backtests
 
-**Symptom**: Out of memory errors during long backtests.
+- *Symptom**: Out of memory errors during long backtests.
 
-**Solution**:
+- *Solution**:
+
 ```python
+
 # Enable memory optimization
+
 cerebro = bt.Cerebro(
     exactbars=1,  # Limited memory mode
     preload=False,  # Don't preload all data
+
 )
 
 # Or use qbuffer for data feeds
+
 data = bt.feeds.GenericCSVData(
     dataname='large_data.csv',
     qbuffer=True,  # Use circular buffer
+
 )
-```
+
+```bash
 
 ### Issue 6: Parameter Access Errors
 
-**Symptom**:
+- *Symptom**:
+
 ```python
 AttributeError: 'MyStrategy' object has no attribute 'p'
-```
 
-**Solution**:
+```bash
+
+- *Solution**:
+
 ```python
 class MyStrategy(bt.Strategy):
     params = (('period', 20),)
 
     def __init__(self):
-        # CRITICAL: Call super().__init__() FIRST
-        super().__init__()
-        # NOW parameters are available
-        self.sma = bt.indicators.SMA(period=self.p.period)
-```
 
----
+# CRITICAL: Call super().__init__() FIRST
+        super().__init__()
+
+# NOW parameters are available
+        self.sma = bt.indicators.SMA(period=self.p.period)
+
+```bash
+
+- --
 
 ## Automated Upgrade Script
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """
 upgrade_check.py - Check if your code is compatible with Backtrader 1.1.0
 
@@ -629,13 +775,16 @@ class UpgradeChecker(ast.NodeVisitor):
         self.warnings = []
 
     def visit_ClassDef(self, node):
-        # Check for Strategy subclasses
+
+# Check for Strategy subclasses
         for base in node.bases:
             if isinstance(base, ast.Name) and base.id == 'Strategy':
-                # Check __init__ method
+
+# Check __init__ method
                 for item in node.body:
                     if isinstance(item, ast.FunctionDef) and item.name == '__init__':
-                        # Check if super().__init__() is called
+
+# Check if super().__init__() is called
                         has_super = any(
                             isinstance(stmt, ast.Expr) and
                             isinstance(stmt.value, ast.Call) and
@@ -682,25 +831,36 @@ if __name__ == '__main__':
         print(f"\n✅ No issues found in {filepath}")
 
     print("\nYour code appears compatible with Backtrader 1.1.0!")
-```
 
----
+```bash
+
+- --
 
 ## Quick Reference: Before/After Summary
 
 | Feature | Before (Original) | After (1.1.0) |
-|---------|-------------------|---------------|
-| **Performance** | Baseline | 45% faster |
-| **Metaclasses** | Heavy use | Removed (internal) |
-| **Live Trading** | Limited | Full CCXT/CTP support |
-| **WebSocket** | No | Yes, with auto-reconnect |
-| **Plotting** | Matplotlib | Matplotlib + Plotly + Bokeh |
-| **Python 3.13** | Not supported | Recommended |
-| **Cython** | Optional | Enhanced core calculations |
-| **TS/CS Modes** | No | Yes, for specialized strategies |
-| **Documentation** | Basic | Comprehensive bilingual |
 
----
+|---------|-------------------|---------------|
+
+| **Performance**| Baseline | 45% faster |
+
+|**Metaclasses**| Heavy use | Removed (internal) |
+
+|**Live Trading**| Limited | Full CCXT/CTP support |
+
+|**WebSocket**| No | Yes, with auto-reconnect |
+
+|**Plotting**| Matplotlib | Matplotlib + Plotly + Bokeh |
+
+|**Python 3.13**| Not supported | Recommended |
+
+|**Cython**| Optional | Enhanced core calculations |
+
+|**TS/CS Modes**| No | Yes, for specialized strategies |
+
+|**Documentation** | Basic | Comprehensive bilingual |
+
+- --
 
 ## Additional Resources
 
@@ -710,7 +870,7 @@ if __name__ == '__main__':
 - [Project Status](../PROJECT_STATUS.md)
 - [Contributing Guidelines](../../CONTRIBUTING.md)
 
----
+- --
 
 ## Checklist for Successful Upgrade
 
@@ -726,8 +886,8 @@ if __name__ == '__main__':
 - [ ] (Optional) Try Plotly interactive plotting
 - [ ] Update any custom indicators/strategies if needed
 
----
+- --
 
-**Last Updated**: 2026-03-01
+- *Last Updated**: 2026-03-01
 
-**Version**: 1.1.0
+- *Version**: 1.1.0

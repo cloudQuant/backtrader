@@ -12,22 +12,27 @@ Copy the example configuration file:
 
 ```bash
 cp .env.example .env
-```
+
+```bash
 
 ### 2. Edit .env File
 
 Fill in your API credentials in the `.env` file:
 
 ```bash
+
 # OKX Exchange
+
 OKX_API_KEY=your_api_key_here
 OKX_SECRET=your_secret_here
 OKX_PASSWORD=your_password_here
 
 # Binance Exchange
+
 BINANCE_API_KEY=your_binance_api_key_here
 BINANCE_SECRET=your_binance_secret_here
-```
+
+```bash
 
 ### 3. Usage in Code
 
@@ -38,9 +43,11 @@ from backtrader.ccxt import load_ccxt_config_from_env
 import backtrader as bt
 
 # Auto-load config from .env
+
 config = load_ccxt_config_from_env('okx')
 
 # Create store
+
 store = bt.stores.CCXTStore(
     exchange='okx',
     currency='USDT',
@@ -49,11 +56,13 @@ store = bt.stores.CCXTStore(
 )
 
 # Get broker and data
+
 cerebro = bt.Cerebro()
 cerebro.setbroker(store.getbroker())
 cerebro.adddata(store.getdata(dataname='BTC/USDT'))
 cerebro.run()
-```
+
+```bash
 
 #### Method 2: Manual Loading (Traditional)
 
@@ -63,9 +72,11 @@ import os
 import backtrader as bt
 
 # Load .env file
+
 load_dotenv()
 
 # Manually read environment variables
+
 config = {
     'apiKey': os.getenv('OKX_API_KEY'),
     'secret': os.getenv('OKX_SECRET'),
@@ -79,22 +90,33 @@ store = bt.stores.CCXTStore(
     config=config,
     retries=5
 )
-```
+
+```bash
 
 ## Supported Exchanges
 
 The following exchanges have pre-configured environment variable mappings:
 
 | Exchange | Environment Variables |
+
 |----------|----------------------|
+
 | OKX | `OKX_API_KEY`, `OKX_SECRET`, `OKX_PASSWORD` |
+
 | Binance | `BINANCE_API_KEY`, `BINANCE_SECRET` |
+
 | Bybit | `BYBIT_API_KEY`, `BYBIT_SECRET` |
+
 | Kraken | `KRAKEN_API_KEY`, `KRAKEN_SECRET` |
+
 | KuCoin | `KUCOIN_API_KEY`, `KUCOIN_SECRET`, `KUCOIN_PASSWORD` |
+
 | Coinbase | `COINBASE_API_KEY`, `COINBASE_SECRET` |
+
 | Gate.io | `GATE_API_KEY`, `GATE_SECRET` |
+
 | Huobi | `HUOBI_API_KEY`, `HUOBI_SECRET` |
+
 | Bitget | `BITGET_API_KEY`, `BITGET_SECRET`, `BITGET_PASSWORD` |
 
 ## API Functions
@@ -103,60 +125,63 @@ The following exchanges have pre-configured environment variable mappings:
 
 Load exchange configuration from environment variables.
 
-**Parameters:**
+- *Parameters:**
 - `exchange` (str): Exchange ID (e.g., 'binance', 'okx')
 - `env_path` (str, optional): Custom .env file path
 - `enable_rate_limit` (bool, default=True): Enable rate limiting
 - `sandbox` (bool, default=False): Use sandbox/testnet mode
 
-**Returns:**
+- *Returns:**
 - `dict`: CCXT configuration dictionary
 
-**Example:**
+- *Example:**
 
 ```python
 config = load_ccxt_config_from_env('binance', enable_rate_limit=True, sandbox=True)
-```
+
+```bash
 
 ### `get_exchange_credentials(exchange)`
 
 Get only the credential fields (apiKey, secret, password), without other settings.
 
-**Parameters:**
+- *Parameters:**
 - `exchange` (str): Exchange ID
 
-**Returns:**
+- *Returns:**
 - `dict`: Dictionary containing credentials
 
-**Example:**
+- *Example:**
 
 ```python
 creds = get_exchange_credentials('okx')
 print(creds['apiKey'])
-```
+
+```bash
 
 ### `list_supported_exchanges()`
 
 Return the list of exchanges that support environment variable loading.
 
-**Returns:**
+- *Returns:**
 - `list`: List of exchange IDs
 
-**Example:**
+- *Example:**
 
 ```python
 exchanges = list_supported_exchanges()
 print(exchanges)  # ['okx', 'binance', 'bybit', ...]
-```
+
+```bash
 
 ### `load_dotenv_file(env_path=None)`
 
 Manually load a .env file.
 
-**Parameters:**
+- *Parameters:**
 - `env_path` (str, optional): Path to .env file. If None, searches default locations
 
-**Returns:**
+- *Returns:**
 - `bool`: True on success, False on failure
 
 ## Security Best Practices
@@ -165,19 +190,19 @@ Manually load a .env file.
    - `.env` is already in `.gitignore`
    - Only commit `.env.example` as a template
 
-2. **Use read-only API keys**
+1. **Use read-only API keys**
    - For backtesting and data fetching, use read-only API keys
    - Restrict IP whitelist
    - Disable withdrawal permissions
 
-3. **Sandbox testing**
+1. **Sandbox testing**
    - Test on exchange sandbox/testnet environments first
 
    ```python
    config = load_ccxt_config_from_env('okx', sandbox=True)
    ```
 
-4. **Key rotation**
+1. **Key rotation**
    - Rotate API keys regularly
    - Use different keys for different applications
 
@@ -185,36 +210,40 @@ Manually load a .env file.
 
 ### Issue: `Missing required credential`
 
-**Cause:** Required credentials missing from .env file
+- *Cause:** Required credentials missing from .env file
 
-**Solution:**
+- *Solution:**
 1. Check that .env file exists
 2. Confirm environment variable names are correct (use uppercase and underscores)
 3. Ensure there are no extra spaces or quotes
 
 ### Issue: `python-dotenv not installed`
 
-**Solution:**
+- *Solution:**
 
 ```bash
 pip install python-dotenv
-```
+
+```bash
 
 ### Issue: Credentials not loading correctly
 
-**Debug:**
+- *Debug:**
 
 ```python
 from backtrader.ccxt import load_dotenv_file
 import os
 
 # Manual load
+
 load_dotenv_file('.env')
 
 # Check environment variables
+
 print(os.getenv('OKX_API_KEY'))
 print(os.getenv('OKX_SECRET'))
-```
+
+```bash
 
 ## Complete Example
 
@@ -226,4 +255,5 @@ Run tests:
 
 ```bash
 python test_ccxt_config_helper.py
-```
+
+```bash

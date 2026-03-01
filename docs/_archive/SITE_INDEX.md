@@ -1,13 +1,15 @@
----
+- --
+
 title: Documentation Site Index
 description: Complete documentation index
----
+
+- --
 
 # Backtrader Documentation
 
 Complete documentation for the Backtrader algorithmic trading framework.
 
----
+- --
 
 ## Table of Contents
 
@@ -18,7 +20,7 @@ Complete documentation for the Backtrader algorithmic trading framework.
 5. [Architecture](#architecture)
 6. [Developer Guide](#developer-guide)
 
----
+- --
 
 ## Getting Started
 
@@ -34,7 +36,7 @@ Install Backtrader and its dependencies.
 
 Create your first backtesting strategy in 5 minutes.
 
----
+- --
 
 ## User Guide
 
@@ -66,7 +68,7 @@ Monitoring and logging strategy behavior.
 
 Visualizing backtest results.
 
----
+- --
 
 ## Live Trading
 
@@ -82,7 +84,7 @@ WebSocket usage for real-time data.
 
 Implementing funding rate arbitrage strategies.
 
----
+- --
 
 ## API Reference
 
@@ -106,7 +108,7 @@ All available data feeds.
 
 Broker implementations.
 
----
+- --
 
 ## Architecture
 
@@ -126,7 +128,7 @@ Execution phases (prenext, nextstart, next).
 
 Explicit initialization pattern.
 
----
+- --
 
 ## Developer Guide
 
@@ -150,7 +152,7 @@ Code formatting and style guide.
 
 Contribution guidelines and workflow.
 
----
+- --
 
 ## Project Documentation
 
@@ -170,7 +172,7 @@ Complete directory structure.
 
 LLM-optimized development rules.
 
----
+- --
 
 ## Additional Resources
 
@@ -186,29 +188,37 @@ Current development status.
 
 Performance improvements and benchmarks.
 
----
+- --
 
 ## Quick Search
 
 ### Common Tasks
 
 | Task | Document |
+
 |------|----------|
+
 | Install Backtrader | [Installation](user_guide/installation.md) |
+
 | Create first strategy | [Quick Start](user_guide/quickstart.md) |
+
 | Load CSV data | [Data Feeds](user_guide/data-feeds.md) |
+
 | Use indicators | [Indicators](user_guide/indicators.md) |
+
 | Add CCXT trading | [CCXT Guide](CCXT_LIVE_TRADING_GUIDE.md) |
+
 | Analyze performance | [Analyzers](user_guide/analyzers.md) |
+
 | Contribute code | [Developer Guide](developer_guide/index.md) |
 
----
+- --
 
 ## Documentation Versions
 
 - **Stable**: Matches latest release
 - **Development**: Matches dev branch (latest features)
 
----
+- --
 
-**Last Updated**: 2025-02-28
+- *Last Updated**: 2025-02-28

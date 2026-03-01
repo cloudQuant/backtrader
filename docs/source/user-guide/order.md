@@ -1,7 +1,9 @@
----
+- --
+
 title: Order API
 description: Complete Order class API reference
----
+
+- --
 
 # Order API
 
@@ -9,7 +11,7 @@ The Order system in Backtrader manages order creation, execution tracking, and s
 
 ## Class Hierarchy
 
-```
+```bash
 OrderBase
     Order
         BuyOrder
@@ -18,7 +20,8 @@ OrderBase
         SellOrder
             StopSellOrder
             StopLimitSellOrder
-```
+
+```bash
 
 ## Order Base Class
 
@@ -29,7 +32,8 @@ The base class for all order types. Provides common attributes and methods for o
 ```python
 class backtrader.OrderBase:
     """Base class for order objects."""
-```
+
+```bash
 
 ## Order Types
 
@@ -40,7 +44,8 @@ Main order class for buy/sell orders. Extends `OrderBase` with order direction a
 ```python
 class backtrader.Order(backtrader.OrderBase):
     """Order class for buy/sell orders."""
-```
+
+```bash
 
 ### `BuyOrder`
 
@@ -50,7 +55,8 @@ Buy order with `ordtype` set to `Order.Buy`.
 class backtrader.BuyOrder(backtrader.Order):
     """Buy order class."""
     ordtype = Order.Buy
-```
+
+```bash
 
 ### `SellOrder`
 
@@ -60,88 +66,137 @@ Sell order with `ordtype` set to `Order.Sell`.
 class backtrader.SellOrder(backtrader.Order):
     """Sell order class."""
     ordtype = Order.Sell
-```
+
+```bash
 
 ## Execution Types
 
 Orders can have different execution types specified via the `exectype` parameter.
 
 | Type | Constant | Description |
+
 |------|----------|-------------|
+
 | Market | `Order.Market` | Execute at current market price |
+
 | Close | `Order.Close` | Execute at session close price |
+
 | Limit | `Order.Limit` | Execute at specified price or better |
+
 | Stop | `Order.Stop` | Execute when price triggers stop level |
+
 | StopLimit | `Order.StopLimit` | Becomes limit order when stop triggers |
+
 | StopTrail | `Order.StopTrail` | Trailing stop order |
+
 | StopTrailLimit | `Order.StopTrailLimit` | Trailing stop with limit price |
+
 | Historical | `Order.Historical` | Historical order type |
 
 ```python
+
 # Get execution type from string
+
 exectype = Order.ExecType('Market')  # Returns Order.Market
-```
+
+```bash
 
 ## Order Status
 
 Orders progress through various states during their lifecycle.
 
 | Status | Constant | Description |
+
 |--------|----------|-------------|
+
 | Created | `Order.Created` | Order created but not submitted |
+
 | Submitted | `Order.Submitted` | Submitted to broker |
+
 | Accepted | `Order.Accepted` | Accepted by broker |
+
 | Partial | `Order.Partial` | Partially filled |
+
 | Completed | `Order.Completed` | Fully filled |
+
 | Canceled | `Order.Canceled` | Canceled (alias: Cancelled) |
+
 | Expired | `Order.Expired` | Order expired |
+
 | Margin | `Order.Margin` | Insufficient margin |
+
 | Rejected | `Order.Rejected` | Rejected by broker |
 
 ```python
+
 # Check order status
+
 if order.status == Order.Completed:
     print('Order filled')
 
 # Get status name
+
 status_name = order.getstatusname()  # e.g., 'Completed'
-```
+
+```bash
 
 ## Order Direction
 
 | Direction | Constant | Description |
+
 |-----------|----------|-------------|
+
 | Buy | `Order.Buy` | Buy order |
+
 | Sell | `Order.Sell` | Sell order |
 
 ```python
+
 # Check order direction
+
 if order.isbuy():
     print('Buy order')
 elif order.issell():
     print('Sell order')
-```
+
+```bash
 
 ## Order Parameters
 
 Orders are created with the following parameters via `Strategy.buy()`, `Strategy.sell()`, or `Strategy.close()`.
 
 | Parameter | Type | Default | Description |
+
 |-----------|------|---------|-------------|
+
 | `owner` | Strategy | None | Strategy creating the order |
+
 | `data` | Data feed | None | Data feed to trade |
+
 | `size` | float | None | Position size (positive for buy/sell) |
+
 | `price` | float | None | Limit/stop price |
+
 | `pricelimit` | float | None | Limit price for stop-limit orders |
+
 | `exectype` | Order.ExecType | Market | Execution type |
+
 | `valid` | date/timedelta/float | None | Order validity period |
+
 | `tradeid` | int | 0 | Trade identifier |
+
 | `oco` | Order | None | One-cancels-other order |
+
 | `trailamount` | float | None | Absolute trail amount |
+
 | `trailpercent` | float | None | Percentage trail amount |
+
 | `parent` | Order | None | Parent order (bracket orders) |
+
 | `transmit` | bool | True | Whether to transmit order |
+
 | `simulated` | bool | False | Simulated order |
+
 | `histnotify` | bool | False | Historical notification |
 
 ## Order Attributes
@@ -149,35 +204,57 @@ Orders are created with the following parameters via `Strategy.buy()`, `Strategy
 ### Creation Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `ref` | int | Unique order reference number |
+
 | `created` | OrderData | Order creation data |
+
 | `owner` | Strategy | Strategy that created the order |
+
 | `data` | Data feed | Associated data feed |
+
 | `ordtype` | int | Order type (Buy/Sell) |
+
 | `exectype` | int | Execution type |
+
 | `status` | int | Current order status |
 
 ### Execution Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `executed` | OrderData | Execution data |
+
 | `size` | float | Requested/executed size |
+
 | `price` | float | Execution price |
+
 | `value` | float | Market value |
+
 | `comm` | float | Commission |
+
 | `pnl` | float | Profit/loss (closed trades) |
+
 | `margin` | float | Margin required |
+
 | `psize` | float | Position size after execution |
+
 | `pprice` | float | Position price after execution |
 
 ### Validity Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `valid` | float | Validity date/time |
+
 | `dteos` | float | End of session date/time |
+
 | `DAY` | timedelta | Constant for day orders |
 
 ## Order Methods
@@ -191,8 +268,8 @@ Check if order can still be executed.
 ```python
 if order.alive():
     print('Order is still active')
-```
 
+```bash
 Returns `True` if status is Created, Submitted, Partial, or Accepted.
 
 #### `active(self)`
@@ -202,7 +279,8 @@ Check if order is active.
 ```python
 if order.active():
     print('Order is active')
-```
+
+```bash
 
 #### `brokerstatus(self)`
 
@@ -210,7 +288,8 @@ Get current status from broker.
 
 ```python
 status = order.brokerstatus()
-```
+
+```bash
 
 ### Type Methods
 
@@ -221,7 +300,8 @@ Returns `True` if order is a buy order.
 ```python
 if order.isbuy():
     print('Buy order')
-```
+
+```bash
 
 #### `issell(self)`
 
@@ -230,7 +310,8 @@ Returns `True` if order is a sell order.
 ```python
 if order.issell():
     print('Sell order')
-```
+
+```bash
 
 #### `getstatusname(self, status=None)`
 
@@ -238,8 +319,10 @@ Get status name as string.
 
 ```python
 name = order.getstatusname()  # e.g., 'Completed'
+
 name = order.getstatusname(Order.Submitted)  # 'Submitted'
-```
+
+```bash
 
 #### `getordername(self, exectype=None)`
 
@@ -247,8 +330,10 @@ Get execution type name as string.
 
 ```python
 name = order.getordername()  # e.g., 'Market'
+
 name = order.getordername(Order.Limit)  # 'Limit'
-```
+
+```bash
 
 #### `ordtypename(self, ordtype=None)`
 
@@ -256,8 +341,10 @@ Get order direction name as string.
 
 ```python
 name = order.ordtypename()  # e.g., 'Buy'
+
 name = order.ordtypename(Order.Sell)  # 'Sell'
-```
+
+```bash
 
 ### Lifecycle Methods
 
@@ -267,7 +354,8 @@ Mark order as submitted to broker.
 
 ```python
 order.submit(broker=self.broker)
-```
+
+```bash
 
 #### `accept(self, broker=None)`
 
@@ -275,7 +363,8 @@ Mark order as accepted by broker.
 
 ```python
 order.accept(broker=self.broker)
-```
+
+```bash
 
 #### `reject(self, broker=None)`
 
@@ -283,7 +372,8 @@ Mark order as rejected.
 
 ```python
 order.reject(broker=self.broker)
-```
+
+```bash
 
 #### `cancel(self)`
 
@@ -291,7 +381,8 @@ Cancel the order.
 
 ```python
 order.cancel()
-```
+
+```bash
 
 #### `expire(self)`
 
@@ -300,7 +391,8 @@ Mark order as expired. Returns `True` if order should expire.
 ```python
 if order.expire():
     print('Order expired')
-```
+
+```bash
 
 #### `completed(self)`
 
@@ -308,7 +400,8 @@ Mark order as completed.
 
 ```python
 order.completed()
-```
+
+```bash
 
 #### `partial(self)`
 
@@ -316,7 +409,8 @@ Mark order as partially filled.
 
 ```python
 order.partial()
-```
+
+```bash
 
 #### `margin(self)`
 
@@ -324,7 +418,8 @@ Mark order as margin call.
 
 ```python
 order.margin()
-```
+
+```bash
 
 ### Configuration Methods
 
@@ -334,7 +429,8 @@ Associate commission scheme with order.
 
 ```python
 order.addcomminfo(comminfo)
-```
+
+```bash
 
 #### `addinfo(self, **kwargs)`
 
@@ -342,7 +438,8 @@ Add custom information to order.
 
 ```python
 order.addinfo(reason='Entry', signal='MA Cross')
-```
+
+```bash
 
 #### `setposition(self, position)`
 
@@ -350,7 +447,8 @@ Set current position for the asset.
 
 ```python
 order.setposition(position)
-```
+
+```bash
 
 #### `clone(self)`
 
@@ -358,7 +456,8 @@ Clone the order object.
 
 ```python
 order_clone = order.clone()
-```
+
+```bash
 
 ## OrderData Class
 
@@ -369,27 +468,45 @@ Holds actual order data for creation and execution.
 ```python
 class backtrader.OrderData:
     """Holds actual order data for Creation and Execution."""
-```
+
+```bash
 
 ### OrderData Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `exbits` | deque | Execution bit history |
+
 | `dt` | datetime | Creation/execution time |
+
 | `size` | float | Requested/executed size |
+
 | `price` | float | Execution price |
+
 | `pricelimit` | float | Limit price for stop orders |
+
 | `plimit` | float | Property for pricelimit |
+
 | `trailamount` | float | Trailing stop amount |
+
 | `trailpercent` | float | Trailing stop percent |
+
 | `value` | float | Market value |
+
 | `comm` | float | Commission |
+
 | `pnl` | float | Profit/loss |
+
 | `margin` | float | Margin required |
+
 | `psize` | float | Position size |
+
 | `pprice` | float | Position price |
+
 | `remsize` | float | Remaining size to execute |
+
 | `pclose` | float | Previous close price |
 
 ### OrderData Methods
@@ -423,25 +540,41 @@ Holds information about a single order execution.
 ```python
 class backtrader.OrderExecutionBit:
     """Holds information about order execution."""
-```
+
+```bash
 
 ### OrderExecutionBit Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `dt` | datetime | Execution time |
+
 | `size` | float | Size executed |
+
 | `price` | float | Execution price |
+
 | `closed` | float | Size of position closed |
+
 | `opened` | float | Size of position opened |
+
 | `closedvalue` | float | Value of closed position |
+
 | `openedvalue` | float | Value of opened position |
+
 | `closedcomm` | float | Commission for closed position |
+
 | `openedcomm` | float | Commission for opened position |
+
 | `value` | float | Total market value |
+
 | `comm` | float | Total commission |
+
 | `pnl` | float | Profit/loss |
+
 | `psize` | float | Current position size |
+
 | `pprice` | float | Current position price |
 
 ## Order Lifecycle
@@ -464,7 +597,8 @@ stateDiagram-v2
     Expired --> [*]
     Rejected --> [*]
     Margin --> [*]
-```
+
+```bash
 
 ## Code Examples
 
@@ -477,13 +611,15 @@ import backtrader as bt
 
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Simple market buy
+
+# Simple market buy
         order = self.buy()
         print(f'Order ref: {order.ref}')
 
-        # Market sell
+# Market sell
         order = self.sell()
-```
+
+```bash
 
 ### Limit Order
 
@@ -492,14 +628,16 @@ Execute at specified price or better.
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Buy at limit price
+
+# Buy at limit price
         if self.data.close[0] < 100:
             order = self.buy(price=99.5, exectype=Order.Limit)
 
-        # Sell at limit price
+# Sell at limit price
         if self.data.close[0] > 100:
             order = self.sell(price=100.5, exectype=Order.Limit)
-```
+
+```bash
 
 ### Stop Order
 
@@ -512,16 +650,18 @@ class MyStrategy(bt.Strategy):
 
     def next(self):
         if not self.position:
-            # Enter with market order
+
+# Enter with market order
             order = self.buy()
         else:
             if self.entry_price is None:
                 self.entry_price = order.executed.price
 
-            # Stop loss at 2% below entry
+# Stop loss at 2% below entry
             stop_price = self.entry_price * 0.98
             self.sell(price=stop_price, exectype=Order.Stop)
-```
+
+```bash
 
 ### Stop-Limit Order
 
@@ -530,13 +670,15 @@ Becomes limit order when stop price is triggered.
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Stop at 95, then limit at 94.5
+
+# Stop at 95, then limit at 94.5
         order = self.sell(
             price=94.5,          # Limit price
             pricelimit=95.0,     # Stop trigger price
             exectype=Order.StopLimit
         )
-```
+
+```bash
 
 ### Trailing Stop Order
 
@@ -546,18 +688,20 @@ Stop price trails the market by specified amount.
 class MyStrategy(bt.Strategy):
     def next(self):
         if self.position:
-            # Trailing stop with absolute amount
+
+# Trailing stop with absolute amount
             self.sell(
                 exectype=Order.StopTrail,
                 trailamount=2.0
             )
 
-            # Trailing stop with percentage
+# Trailing stop with percentage
             self.sell(
                 exectype=Order.StopTrail,
                 trailpercent=0.05  # 5%
             )
-```
+
+```bash
 
 ### Close Order
 
@@ -567,13 +711,16 @@ Close existing position.
 class MyStrategy(bt.Strategy):
     def next(self):
         if self.position.size > 0:
-            # Close long position
+
+# Close long position
             order = self.close()
 
         if self.position.size < 0:
-            # Close short position
+
+# Close short position
             order = self.close()
-```
+
+```bash
 
 ### Order with Validity
 
@@ -584,15 +731,17 @@ from datetime import datetime, timedelta
 
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Good for day
+
+# Good for day
         order = self.buy(valid=timedelta())
 
-        # Good for 3 days
+# Good for 3 days
         order = self.buy(valid=timedelta(days=3))
 
-        # Good until specific date
+# Good until specific date
         order = self.buy(valid=datetime(2024, 12, 31))
-```
+
+```bash
 
 ### Bracket Orders
 
@@ -602,10 +751,11 @@ Entry order with attached stop-loss and take-profit.
 class MyStrategy(bt.Strategy):
     def next(self):
         if not self.position:
-            # Main entry order
+
+# Main entry order
             entry = self.buy(size=10)
 
-            # Stop loss (child order, not transmitted immediately)
+# Stop loss (child order, not transmitted immediately)
             stop_loss = self.sell(
                 size=10,
                 price=95,
@@ -614,7 +764,7 @@ class MyStrategy(bt.Strategy):
                 transmit=False
             )
 
-            # Take profit (child order, transmitted after stop)
+# Take profit (child order, transmitted after stop)
             take_profit = self.sell(
                 size=10,
                 price=110,
@@ -622,7 +772,8 @@ class MyStrategy(bt.Strategy):
                 parent=entry,
                 transmit=True  # This transmits all bracket orders
             )
-```
+
+```bash
 
 ### OCO (One-Cancels-Other)
 
@@ -632,7 +783,8 @@ Cancel one order when the other executes.
 class MyStrategy(bt.Strategy):
     def next(self):
         if not self.position:
-            # Two take-profit targets
+
+# Two take-profit targets
             tp1 = self.sell(
                 size=50,
                 price=105,
@@ -645,7 +797,8 @@ class MyStrategy(bt.Strategy):
                 exectype=Order.Limit,
                 oco=tp1  # Cancel tp1 when tp2 executes
             )
-```
+
+```bash
 
 ### Order Notification
 
@@ -683,7 +836,8 @@ class MyStrategy(bt.Strategy):
 
         elif order.status == order.Rejected:
             self.log('Order Rejected')
-```
+
+```bash
 
 ### CommissionInfo Integration
 
@@ -693,7 +847,8 @@ Orders work with commission schemes.
 class MyStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
-            # Access execution details
+
+# Access execution details
             executed_value = order.executed.value
             commission = order.executed.comm
             pnl = order.executed.pnl
@@ -704,7 +859,8 @@ class MyStrategy(bt.Strategy):
                 f'Commission: {commission:.2f}, '
                 f'PnL: {pnl:.2f}'
             )
-```
+
+```bash
 
 ## CommissionInfo
 
@@ -726,26 +882,28 @@ Internal parameter container for order configuration. Not typically used directl
 ```python
 class backtrader.OrderParams:
     """Simple parameter container for Order classes."""
-```
+
+```bash
 
 ## Best Practices
 
-1. **Always store order references** when you need to track them:
+1. **Always store order references**when you need to track them:
+
    ```python
    self.order = self.buy()
    if self.order:
        return  # Wait for order to complete
    ```
 
-2. **Check order status** before placing new orders to avoid over-trading.
+2.**Check order status**before placing new orders to avoid over-trading.
 
-3. **Use `notify_order`** to track order completion rather than polling.
+3.**Use `notify_order`**to track order completion rather than polling.
 
-4. **Set appropriate validity** for orders to avoid stale orders.
+4.**Set appropriate validity**for orders to avoid stale orders.
 
-5. **Use bracket orders** for automatic stop-loss and take-profit.
+5.**Use bracket orders**for automatic stop-loss and take-profit.
 
-6. **Consider commission** in your strategy calculations.
+6.**Consider commission** in your strategy calculations.
 
 ## Next Steps
 

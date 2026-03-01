@@ -1,7 +1,9 @@
----
+- --
+
 title: Observer API
 description: Complete Observer class API reference
----
+
+- --
 
 # Observer API
 
@@ -14,7 +16,8 @@ Unlike indicators which generate signals, observers primarily record and visuali
 ```python
 class backtrader.Observer:
     """Base class for monitoring strategy execution."""
-```
+
+```bash
 
 ## Core Attributes
 
@@ -25,7 +28,8 @@ Whether to save observer data to CSV files (default: `True`).
 ```python
 class MyObserver(bt.Observer):
     csv = True  # Include in CSV output
-```
+
+```bash
 
 ### `plotinfo`
 
@@ -36,8 +40,10 @@ plotinfo = dict(
     plot=True,       # Whether to plot this observer
     subplot=True,    # Whether to use a separate subplot
     plotname='',     # Name in plot legend
+
 )
-```
+
+```bash
 
 ### `plotlines`
 
@@ -47,8 +53,10 @@ Line-specific plotting settings.
 plotlines = dict(
     line1=dict(color='blue', linewidth=2),
     line2=dict(_plotskip=True),  # Skip plotting this line
+
 )
-```
+
+```bash
 
 ### `_stclock`
 
@@ -68,9 +76,11 @@ Called during observer initialization. Initialize tracking variables and add ana
 def __init__(self):
     super().__init__()
     self._analyzers = list()
-    # Initialize tracking variables
+
+# Initialize tracking variables
     self.peak = float('-inf')
-```
+
+```bash
 
 ### `start(self)`
 
@@ -78,9 +88,11 @@ Called at the start of the backtesting run.
 
 ```python
 def start(self):
-    # Perform initialization before data processing
+
+# Perform initialization before data processing
     self.initial_value = self._owner.broker.getvalue()
-```
+
+```bash
 
 ### `_start(self)`
 
@@ -93,7 +105,8 @@ Called for each bar before minimum period is reached. By default, observers call
 ```python
 def prenext(self):
     self.next()  # Default behavior - process every bar
-```
+
+```bash
 
 ### `next(self)`
 
@@ -102,7 +115,8 @@ Called for each bar. Contains the main logic for updating observer values.
 ```python
 def next(self):
     self.lines.cash[0] = self._owner.broker.getcash()
-```
+
+```bash
 
 ### `stop(self)`
 
@@ -123,7 +137,8 @@ class MyObserver(bt.Observer):
     def next(self):
         self.lines.metric1[0] = calculate_metric1()
         self.lines.metric2[0] = calculate_metric2()
-```
+
+```bash
 
 ## Built-in Observers
 
@@ -135,9 +150,10 @@ Tracks current cash amount in the broker.
 
 ```python
 cerebro.addobserver(bt.observers.Cash)
-```
 
-**Lines**: `cash`
+```bash
+
+- *Lines**: `cash`
 
 #### Value
 
@@ -145,12 +161,13 @@ Tracks portfolio value including cash.
 
 ```python
 cerebro.addobserver(bt.observers.Value)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `fund` (default: `None`) - Use fund value instead of total value
 
-**Lines**: `value`
+- *Lines**: `value`
 
 #### Broker
 
@@ -158,24 +175,25 @@ Combines Cash and Value observers.
 
 ```python
 cerebro.addobserver(bt.observers.Broker)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `fund` (default: `None`) - Use fund mode
 
-**Lines**: `cash`, `value`
+- *Lines**: `cash`, `value`
 
 #### FundValue
 
 Tracks fund-like value.
 
-**Lines**: `fundval`
+- *Lines**: `fundval`
 
 #### FundShares
 
 Tracks fund-like shares.
 
-**Lines**: `fundshares`
+- *Lines**: `fundshares`
 
 ### Drawdown Observers
 
@@ -185,12 +203,13 @@ Tracks current and maximum drawdown levels.
 
 ```python
 cerebro.addobserver(bt.observers.DrawDown)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `fund` (default: `None`) - Use fund mode for returns
 
-**Lines**:
+- *Lines**:
 - `drawdown` - Current drawdown percentage (plotted)
 - `maxdrawdown` - Maximum drawdown (not plotted)
 
@@ -199,13 +218,14 @@ class DrawDown(Observer):
     _stclock = True
     lines = ('drawdown', 'maxdrawdown')
     plotlines = dict(maxdrawdown=dict(_plotskip=True))
-```
+
+```bash
 
 #### DrawDownLength
 
 Tracks current drawdown length and maximum length.
 
-**Lines**:
+- *Lines**:
 - `len` - Current drawdown length
 - `maxlen` - Maximum drawdown length
 
@@ -217,28 +237,35 @@ Tracks completed trades and plots PnL when trades close.
 
 ```python
 cerebro.addobserver(bt.observers.Trades)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `pnlcomm` (default: `True`) - Show net PnL after commission
 
-**Lines**:
+- *Lines**:
 - `pnlplus` - Positive PnL values (blue markers)
 - `pnlminus` - Negative PnL values (red markers)
 
 ```python
+
 # Trades observer tracks:
+
 # - Total trades count
+
 # - Long/short trade counts
+
 # - Win/loss statistics
+
 # - Trade length statistics
-```
+
+```bash
 
 #### DataTrades
 
 Tracks PnL for multiple data feeds separately.
 
-**Parameters**:
+- *Parameters**:
 - `usenames` (default: `True`) - Use data names for labels
 
 ### BuySell Observer
@@ -247,20 +274,24 @@ Visualizes buy and sell orders on the chart.
 
 ```python
 cerebro.addobserver(bt.observers.BuySell)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `barplot` (default: `False`) - Plot signals at bar extremes
 - `bardist` (default: `0.015`) - Distance from high/low (1.5%)
 
-**Lines**:
+- *Lines**:
 - `buy` - Buy marker (green triangle up)
 - `sell` - Sell marker (red triangle down)
 
 ```python
+
 # Customize marker appearance
+
 cerebro.addobserver(bt.observers.BuySell, barplot=True, bardist=0.02)
-```
+
+```bash
 
 ### Return Observers
 
@@ -270,22 +301,27 @@ Tracks strategy returns over time periods.
 
 ```python
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `timeframe` (default: `None`) - Time aggregation period
 - `compression` (default: `None`) - Compression for sub-day timeframes
 - `fund` (default: `None`) - Use fund mode
 
-**Lines**: `timereturn`
+- *Lines**: `timereturn`
 
 ```python
+
 # Track daily returns
+
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
 
 # Track weekly returns
+
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Weeks)
-```
+
+```bash
 
 #### LogReturns
 
@@ -293,20 +329,21 @@ Tracks log returns of the strategy.
 
 ```python
 cerebro.addobserver(bt.observers.LogReturns)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `timeframe` (default: `None`) - Time aggregation period
 - `compression` (default: `None`) - Compression for sub-day timeframes
 - `fund` (default: `None`) - Use fund mode
 
-**Lines**: `logret1`
+- *Lines**: `logret1`
 
 #### LogReturns2
 
 Extends LogReturns to show two instruments.
 
-**Lines**: `logret1`, `logret2`
+- *Lines**: `logret1`, `logret2`
 
 ### Benchmark Observer
 
@@ -316,15 +353,16 @@ Compares strategy returns to a reference asset.
 data = bt.feeds.GenericCSVData(dataname='benchmark.csv')
 cerebro.adddata(data)
 cerebro.addobserver(bt.observers.Benchmark, data=data)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `data` (default: `None`) - Reference data feed
 - `_doprenext` (default: `False`) - Track from data start
 - `firstopen` (default: `False`) - Use opening price for first comparison
 - `fund` (default: `None`) - Use fund mode
 
-**Lines**: `benchmark`
+- *Lines**: `benchmark`
 
 ### TradeLogger
 
@@ -338,9 +376,10 @@ cerebro.addobserver(bt.observers.TradeLogger,
                     log_positions=True,
                     log_indicators=True,
                     log_signals=True)
-```
 
-**Parameters**:
+```bash
+
+- *Parameters**:
 - `log_dir` (default: `'./logs'`) - Directory for log files
 - `log_orders` (default: `True`) - Log order status changes
 - `log_trades` (default: `True`) - Log trade openings/closings
@@ -358,7 +397,7 @@ cerebro.addobserver(bt.observers.TradeLogger,
 - `mysql_password` (default: `''`) - MySQL password
 - `mysql_database` (default: `'backtrader'`) - MySQL database
 
-**Generated Files**:
+- *Generated Files**:
 - `order.log` - Order status changes
 - `trade.log` - Trade openings and closings
 - `position.log` - Position values every bar
@@ -396,16 +435,18 @@ class CustomMetric(bt.Observer):
         self.high_watermark = float('-inf')
 
     def next(self):
-        # Calculate custom metric
+
+# Calculate custom metric
         value = self._owner.broker.getvalue()
 
-        # Track high watermark
+# Track high watermark
         if value > self.high_watermark:
             self.high_watermark = value
 
-        # Store in line
+# Store in line
         self.lines.custom_value[0] = value - self.high_watermark
-```
+
+```bash
 
 ### Observer with Analyzer
 
@@ -427,7 +468,8 @@ class SharpeRatioObserver(bt.Observer):
 
     def __init__(self):
         super().__init__()
-        # Add analyzer as slave
+
+# Add analyzer as slave
         self._sharpe = self._owner._addanalyzer_slave(
             bt.analyzers.SharpeRatio,
             period=self.p.period,
@@ -435,10 +477,12 @@ class SharpeRatioObserver(bt.Observer):
         )
 
     def next(self):
-        # Get current Sharpe ratio from analyzer
+
+# Get current Sharpe ratio from analyzer
         if hasattr(self._sharpe, 'rets') and self._sharpe.rets:
             self.lines.sharpe[0] = self._sharpe.rets.get('sharperatio', float('NaN'))
-```
+
+```bash
 
 ### Multi-Line Observer
 
@@ -467,36 +511,42 @@ class PortfolioStats(bt.Observer):
         portfolio_value = self._owner.broker.getvalue()
         cash = self._owner.broker.getcash()
 
-        # Calculate metrics
+# Calculate metrics
         self.lines.cash_ratio[0] = cash / portfolio_value if portfolio_value else 0
         self.lines.exposure[0] = 1 - self.lines.cash_ratio[0]
 
-        # Calculate leverage (total position value / portfolio value)
+# Calculate leverage (total position value / portfolio value)
         total_position = 0
         for data in self._owner.datas:
             position = self._owner.getposition(data)
             total_position += abs(position.size) * data.close[0]
 
         self.lines.leverage[0] = total_position / portfolio_value if portfolio_value else 0
-```
+
+```bash
 
 ## Registration Process
 
 Observers are automatically registered when added via `cerebro.addobserver()`:
 
 ```python
+
 # Observer registration
+
 cerebro.addobserver(bt.observers.DrawDown)
 
 # With parameters
+
 cerebro.addobserver(bt.observers.DrawDown, fund=True)
 
 # Multiple instances
+
 cerebro.addobserver(bt.observers.DrawDown)
 cerebro.addobserver(bt.observers.Trades)
-```
 
+```bash
 The registration process:
+
 1. Observer instance is created
 2. `_ltype` is set to `LineIterator.ObsType` (2)
 3. Observer is added to strategy's `_lineiterators[ObsType]` list
@@ -505,12 +555,19 @@ The registration process:
 ## Observer vs Indicator
 
 | Feature | Observer | Indicator |
+
 |---------|----------|-----------|
+
 | Purpose | Monitor and record | Generate signals |
+
 | `_ltype` | `ObsType` (2) | `IndType` (0) |
+
 | `_stclock` | Often `True` | Usually `False` |
+
 | Default `prenext` | Calls `next()` | Does nothing |
+
 | Plotting | Subplot by default | Overlay on data |
+
 | Line calculation | External (broker/trades) | Internal calculation |
 
 ## Plotting Configuration
@@ -518,13 +575,17 @@ The registration process:
 ### Disable Plotting
 
 ```python
+
 # Individual observer
+
 cerebro.addobserver(bt.observers.DrawDown, _plot=False)
 
 # Or modify plotinfo
+
 class MyObserver(bt.Observer):
     plotinfo = dict(plot=False)
-```
+
+```bash
 
 ### Subplot Configuration
 
@@ -537,7 +598,8 @@ class MyObserver(bt.Observer):
         plotymargin=0.10,  # Y-axis margin
         plothlines=[0.0],  # Horizontal lines
     )
-```
+
+```bash
 
 ### Line Styling
 
@@ -556,7 +618,8 @@ class MyObserver(bt.Observer):
             _plotskip=True,  # Don't plot
         ),
     )
-```
+
+```bash
 
 ## Full Example
 
@@ -580,22 +643,30 @@ class MyStrategy(bt.Strategy):
                 self.sell()
 
 # Create cerebro
+
 cerebro = bt.Cerebro()
 
 # Add strategy
+
 cerebro.addstrategy(MyStrategy)
 
 # Add data
+
 data = bt.feeds.YahooFinanceData(dataname='AAPL', fromdate='2020-01-01', todate='2023-12-31')
 cerebro.adddata(data)
 
 # Add observers
+
 cerebro.addobserver(bt.observers.Broker)        # Cash and Value
+
 cerebro.addobserver(bt.observers.DrawDown)      # Drawdown tracking
+
 cerebro.addobserver(bt.observers.Trades)        # Trade PnL
+
 cerebro.addobserver(bt.observers.BuySell)       # Buy/sell markers
 
 # Add custom observer
+
 class PositionSize(bt.Observer):
     _stclock = True
     lines = ('possize',)
@@ -607,11 +678,14 @@ class PositionSize(bt.Observer):
 cerebro.addobserver(PositionSize)
 
 # Run
+
 cerebro.run()
 
 # Plot
+
 cerebro.plot()
-```
+
+```bash
 
 ## Next Steps
 

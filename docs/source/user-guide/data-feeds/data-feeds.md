@@ -1,7 +1,9 @@
----
+- --
+
 title: Data Feeds
 description: Loading data from various sources
----
+
+- --
 
 # Data Feeds
 
@@ -14,6 +16,7 @@ import backtrader as bt
 import datetime
 
 # Add data to cerebro
+
 data = bt.feeds.CSVGeneric(
     dataname='AAPL.csv',
     datetime=0,
@@ -27,7 +30,8 @@ data = bt.feeds.CSVGeneric(
 
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
-```
+
+```bash
 
 ## Data Sources
 
@@ -50,7 +54,8 @@ data = bt.feeds.CSVGeneric(
     tmformat='%H:%M:%S',
     timeframe=bt.TimeFrame.Days
 )
-```
+
+```bash
 
 #### BTC CSV (Bitcoin specific)
 
@@ -60,7 +65,8 @@ data = bt.feeds.BTCCSV(
     datetime=None,  # Auto-detect
     timeframe=bt.TimeFrame.Minutes
 )
-```
+
+```bash
 
 ### Pandas DataFrame
 
@@ -68,6 +74,7 @@ data = bt.feeds.BTCCSV(
 import pandas as pd
 
 # Create DataFrame
+
 df = pd.DataFrame({
     'datetime': pd.date_range('2023-01-01', periods=100),
     'open': np.random.randn(100).cumsum() + 100,
@@ -78,6 +85,7 @@ df = pd.DataFrame({
 })
 
 # Convert to data feed
+
 data = bt.feeds.PandasData(
     dataname=df,
     datetime=None,  # Use index as datetime
@@ -88,7 +96,8 @@ data = bt.feeds.PandasData(
     volume='volume',
     openinterest=None
 )
-```
+
+```bash
 
 ### Yahoo Finance
 
@@ -100,8 +109,10 @@ data = bt.feeds.YahooFinanceData(
     timeframe=bt.TimeFrame.Days,
     adjclose=False,  # Use adjusted close
     reversed=False   # Data order
+
 )
-```
+
+```bash
 
 ### Live Trading Data
 
@@ -111,6 +122,7 @@ data = bt.feeds.YahooFinanceData(
 from backtrader.feeds import CCXTFeed
 
 # Create store
+
 store = CCXTStore(
     exchange='binance',
     currency='USDT',
@@ -118,15 +130,18 @@ store = CCXTStore(
 )
 
 # Add data feed
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
     use_websocket=True  # Use WebSocket for live data
+
 )
 
 cerebro.adddata(data)
 cerebro.setbroker(store.getbroker())
-```
+
+```bash
 
 #### CTP (Futures)
 
@@ -135,6 +150,7 @@ from backtrader.stores import CTPStore
 from backtrader.feeds import CTPData
 
 # Create store
+
 store = CTPStore(
     userid='YOUR_ID',
     password='YOUR_PASSWORD',
@@ -144,6 +160,7 @@ store = CTPStore(
 )
 
 # Add data feed
+
 data = CTPData(
     store=store,
     dataname='au2506',  # Contract
@@ -152,7 +169,8 @@ data = CTPData(
 
 cerebro.adddata(data)
 cerebro.setbroker(store.getbroker())
-```
+
+```bash
 
 ## Multiple Data Feeds
 
@@ -160,6 +178,7 @@ cerebro.setbroker(store.getbroker())
 cerebro = bt.Cerebro()
 
 # Add multiple data feeds
+
 data1 = bt.feeds.YahooFinanceData(dataname='AAPL', ...)
 data2 = bt.feeds.YahooFinanceData(dataname='MSFT', ...)
 data3 = bt.feeds.YahooFinanceData(dataname='GOOGL', ...)
@@ -169,47 +188,59 @@ cerebro.adddata(data2, name='MSFT')
 cerebro.adddata(data3, name='GOOGL')
 
 # Access in strategy
+
 class MyStrategy(bt.Strategy):
     def next(self):
         aapl_price = self.datas[0].close[0]
         msft_price = self.datas[1].close[0]  # or self.msft.close[0]
         googl_price = self.datas[2].close[0]  # or self.googl.close[0]
-```
+
+```bash
 
 ## Data Resampling
 
 Convert data to a different timeframe.
 
 ```python
+
 # Original data is minute-based
+
 data = bt.feeds.CSVGeneric(dataname='minute_data.csv', ...)
 
 # Resample to daily
+
 cerebro = bt.Cerebro()
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Days)
 cerebro.adddata(data, name='daily')
-```
+
+```bash
 
 ## Data Filtering
 
 ### Calendar Days Filter
 
 ```python
+
 # Only trade on specific days
+
 data = bt.feeds.CSVGeneric(dataname='data.csv', ...)
 data.addfilter(bt.filters.CalendarDays())
-```
+
+```bash
 
 ### Session Filter
 
 ```python
+
 # Only trade during regular hours
+
 data = bt.feeds.CSVGeneric(dataname='data.csv', ...)
 data.addfilter(bt.filters.SessionFilter(
     starttime=datetime.time(9, 30),
     endtime=datetime.time(16, 0)
 ))
-```
+
+```bash
 
 ## Data Requirements
 
@@ -218,13 +249,21 @@ data.addfilter(bt.filters.SessionFilter(
 Each data feed requires at minimum:
 
 | Field | Required | Description |
+
 |-------|----------|-------------|
+
 | datetime | Yes | Bar timestamp |
+
 | open | Yes | Opening price |
+
 | high | Yes | Highest price |
+
 | low | Yes | Lowest price |
+
 | close | Yes | Closing price |
+
 | volume | No | Trading volume |
+
 | openinterest | No | Open interest (futures) |
 
 ### CSV Format Example
@@ -234,7 +273,8 @@ datetime,open,high,low,close,volume
 2023-01-01,100.0,102.5,99.5,101.0,1000000
 2023-01-02,101.0,103.0,100.5,102.5,1200000
 2023-01-03,102.5,104.0,102.0,103.0,900000
-```
+
+```bash
 
 ## Next Steps
 

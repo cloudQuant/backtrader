@@ -1,7 +1,9 @@
----
+- --
+
 title: LineIterator API 行线迭代器
 description: 完整的 LineIterator 类 API 参考，时间序列数据迭代的基础类
----
+
+- --
 
 # LineIterator API 行线迭代器
 
@@ -12,7 +14,8 @@ description: 完整的 LineIterator 类 API 参考，时间序列数据迭代的
 ```python
 class backtrader.LineIterator(LineIteratorMixin, LineSeries):
     """所有时间序列迭代对象的基类。"""
-```
+
+```bash
 
 ## 核心概览
 
@@ -29,35 +32,49 @@ class backtrader.LineIterator(LineIteratorMixin, LineSeries):
 ```mermaid
 classDiagram
     LineIterator <|-- IndicatorBase
+
     LineIterator <|-- ObserverBase
+
     LineIterator <|-- StrategyBase
+
     LineIterator <|-- AnalyzerBase
 
     IndicatorBase <|-- Indicator
+
     ObserverBase <|-- Observer
+
     StrategyBase <|-- Strategy
+
     AnalyzerBase <|-- Analyzer
 
     LineIterator *-- LineSeries
     LineIterator *-- "0.." LineIterator : _lineiterators
     LineIterator --> DataSeries : datas[]
-```
+
+```bash
 
 ## 类型常量
 
 `LineIterator` 定义了以下类型常量，用于区分不同的行线迭代器类型：
 
 | 常量 | 值 | 说明 |
+
 |------|-----|------|
+
 | `IndType` | 0 | 指标类型 |
+
 | `StratType` | 1 | 策略类型 |
+
 | `ObsType` | 2 | 观察器类型 |
 
 ```python
+
 # 检查对象类型
+
 if obj._ltype == LineIterator.IndType:
     print("这是一个指标")
-```
+
+```bash
 
 ## 核心属性
 
@@ -66,10 +83,13 @@ if obj._ltype == LineIterator.IndType:
 行线迭代器类型标识。
 
 ```python
+
 # 内部类属性
+
 class MyIndicator(bt.Indicator):
     _ltype = LineIterator.IndType  # = 0
-```
+
+```bash
 
 ### `_mindatas`
 
@@ -78,7 +98,8 @@ class MyIndicator(bt.Indicator):
 ```python
 class MyIndicator(bt.Indicator):
     _mindatas = 2  # 需要 2 个数据源
-```
+
+```bash
 
 ### `_nextforce`
 
@@ -87,45 +108,60 @@ class MyIndicator(bt.Indicator):
 ```python
 class MyIndicator(bt.Indicator):
     _nextforce = True  # 强制使用 next 模式
-```
+
+```bash
 
 ### `_lineiterators`
 
 按类型注册的子行线迭代器字典。
 
 ```python
+
 # 结构: {IndType: [ind1, ind2, ...], ObsType: [obs1, ...], StratType: [strat1, ...]}
+
 self._lineiterators[collections.defaultdict(list)]
-```
+
+```bash
 
 ### `datas` / `data`
 
 数据源列表和第一个数据源的便捷引用。
 
 ```python
+
 # 访问数据源
+
 self.datas[0].close[0]  # 当前收盘价
+
 self.data.close[0]      # 等同于 self.datas[0].close[0]
+
 self.data0.close[0]     # data0 也是第一个数据源的别名
-```
+
+```bash
 
 ### `_clock`
 
 用于时间同步的时钟源。
 
 ```python
+
 # 时钟通常是第一个数据源
+
 self._clock = self.datas[0]
-```
+
+```bash
 
 ### `_minperiod`
 
 产生有效输出所需的最小周期数。
 
 ```python
+
 # 在 __init__ 中设置
+
 self.addminperiod(20)  # 设置最小周期为 20
-```
+
+```bash
 
 ### `plotinfo` / `plotlines`
 
@@ -140,7 +176,8 @@ class MyIndicator(bt.Indicator):
     plotlines = dict(
         value=dict(color='blue', ls='-'),
     )
-```
+
+```bash
 
 ## 初始化流程
 
@@ -170,26 +207,32 @@ sequenceDiagram
     dopostinit->>dopostinit: 重新计算最小周期
     dopostinit->>dopostinit: 注册到所有者
     dopostinit-->>User: 返回实例
-```
+
+```bash
 
 ### 初始化阶段详解
 
 ```python
 class MyIndicator(bt.Indicator):
     def __init__(self):
-        # 1. 数据源已在 donew() 中设置
-        # self.data, self.datas, self.data0 等可用
 
-        # 2. 设置最小周期
+# 1. 数据源已在 donew() 中设置
+
+# self.data, self.datas, self.data0 等可用
+
+# 2. 设置最小周期
         self.addminperiod(self.p.period)
 
-        # 3. 创建子指标（自动注册）
+# 3. 创建子指标（自动注册）
         self.sma = bt.indicators.SMA(self.data, period=self.p.period)
 
-        # 4. dopostinit() 将在 __init__ 后自动调用
-        #    - 重新计算最小周期
-        #    - 注册到策略的 _lineiterators
-```
+# 4. dopostinit() 将在 __init__ 后自动调用
+
+# - 重新计算最小周期
+
+# - 注册到策略的 _lineiterators
+
+```bash
 
 ## 执行阶段
 
@@ -218,7 +261,8 @@ stateDiagram-v2
         正常阶段
         所有指标有效
     end note
-```
+
+```bash
 
 ### prenext()
 
@@ -230,11 +274,14 @@ def prenext(self):
     预热阶段调用。
     此时指标尚未产生有效值。
     """
-    # 示例：累积初始数据
+
+# 示例：累积初始数据
     if len(self.data) >= self.p.period - 1:
-        # 接近产生有效值
+
+# 接近产生有效值
         pass
-```
+
+```bash
 
 ### nextstart()
 
@@ -246,13 +293,15 @@ def nextstart(self):
     首次产生有效值时调用。
     默认调用 next()。
     """
-    # 默认实现
+
+# 默认实现
     self.next()
 
-    # 自定义实现示例
+# 自定义实现示例
     if hasattr(self, '_first_value'):
         self.lines.value[0] = self._first_value
-```
+
+```bash
 
 ### next()
 
@@ -264,9 +313,11 @@ def next(self):
     主要计算逻辑。
     每根 K 线调用一次。
     """
-    # 示例：简单移动平均
+
+# 示例：简单移动平均
     self.lines.value[0] = sum(self.data.close.get(size=self.p.period)) / self.p.period
-```
+
+```bash
 
 ### runonce 模式
 
@@ -278,15 +329,17 @@ def once(self, start, end):
     批处理计算。
     在一次调用中处理所有 K 线。
     """
-    # 获取底层数组
+
+# 获取底层数组
     src = self.data.close.array
     dst = self.lines.value.array
 
-    # 批量计算
+# 批量计算
     for i in range(start, end):
         if i >= self.p.period - 1:
             dst[i] = sum(src[i-self.p.period+1:i+1]) / self.p.period
-```
+
+```bash
 
 ## 指标注册系统
 
@@ -297,14 +350,16 @@ def once(self, start, end):
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 指标自动注册到 self._lineiterators[LineIterator.IndType]
+
+# 指标自动注册到 self._lineiterators[LineIterator.IndType]
         self.sma = bt.indicators.SMA(period=20)
         self.ema = bt.indicators.EMA(period=10)
 
-        # 访问已注册的指标
+# 访问已注册的指标
         indicators = self.getindicators()
         print(f"已注册 {len(indicators)} 个指标")
-```
+
+```bash
 
 ### 注册流程图
 
@@ -324,21 +379,27 @@ sequenceDiagram
     Owner->>Owner: 添加到 _lineiterators[IndType]
     Owner->>Owner: 设置 _clock
     Owner-->>Indicator: 注册完成
-```
+
+```bash
 
 ### 手动注册
 
 ```python
+
 # 手动添加指标
+
 my_indicator = MyIndicator()
 self.addindicator(my_indicator)
 
 # 获取所有指标
+
 indicators = self.getindicators()
 
 # 获取带有线条别名的指标
+
 indicator_lines = self.getindicators_lines()
-```
+
+```bash
 
 ## 所有者管理
 
@@ -347,18 +408,24 @@ indicator_lines = self.getindicators_lines()
 指标通过多种方式查找其所有者：
 
 ```python
+
 # 方法 1: 自动查找（在 dopostinit 中）
+
 # - 使用 metabase.findowner() 查找调用栈
+
 # - 使用 OwnerContext（用于字典推导式）
 
 # 方法 2: 手动设置
+
 indicator._owner = self
 
 # 方法 3: 通过 OwnerContext
+
 from backtrader.metabase import OwnerContext
 with OwnerContext.set_owner(self):
     indicators = {name: bt.indicators.SMA(period=p) for name, p in params.items()}
-```
+
+```bash
 
 ### OwnerContext 用法
 
@@ -367,81 +434,111 @@ from backtrader.metabase import OwnerContext
 
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 使用 OwnerContext 确保字典推导式中的指标正确注册
+
+# 使用 OwnerContext 确保字典推导式中的指标正确注册
         with OwnerContext.set_owner(self):
             self.indicators = {
                 'sma20': bt.indicators.SMA(period=20),
                 'sma50': bt.indicators.SMA(period=50),
                 'ema10': bt.indicators.EMA(period=10),
             }
-        # 所有指标都会正确注册到 self._lineiterators
-```
+
+# 所有指标都会正确注册到 self._lineiterators
+
+```bash
 
 ## 数据流
 
 ### 数据访问
 
 ```python
+
 # 方式 1: 通过 data 别名
+
 self.data.close[0]
 
 # 方式 2: 通过 datas 列表
+
 self.datas[0].close[0]
 
 # 方式 3: 通过 data0 别名
+
 self.data0.close[0]
 
 # 方式 4: 通过线条别名（如果定义）
+
 self.data_close[0]
 
 # 多数据源
+
 self.data1.close[0]  # 第二个数据源
+
 self.data2.close[0]  # 第三个数据源
-```
+
+```bash
 
 ### 数据别名
 
 ```python
+
 # LineIterator 自动创建数据别名
+
 # 对于第一个数据源 (data0):
-#   self.data0 -> self.datas[0]
-#   self.data0_close -> self.data0.close
-#   self.data_close -> self.data0.close
-#   self.data_0 -> self.data0.close (索引形式)
-```
+
+# self.data0 -> self.datas[0]
+
+# self.data0_close -> self.data0.close
+
+# self.data_close -> self.data0.close
+
+# self.data_0 -> self.data0.close (索引形式)
+
+```bash
 
 ### 时钟同步
 
 ```mermaid
 graph TD
     A[Clock] -->|clock_len| B[_clk_update]
+
     B -->|比较| C{clock_len vs minperiod}
+
     C -->|<| D[prenext]
+
     C -->|=| E[nextstart]
+
     C -->|>| F[next]
+
     D --> G[_next for indicators]
     E --> G
     F --> G
     G --> H[_notify]
-```
+
+```bash
 
 ## minperiod 和预热处理
 
 ### 最小周期计算
 
 ```python
+
 # 1. 数据源的最小周期
+
 data_minperiod = max(d._minperiod for d in self.datas)
 
 # 2. 子指标的最小周期
+
 ind_minperiod = max(ind._minperiod for ind in self._lineiterators[IndType])
 
 # 3. addminperiod() 添加的值
+
 added_minperiod = self._added_minperiod
 
 # 总的最小周期
+
 self._minperiod = max(data_minperiod, ind_minperiod, added_minperiod)
-```
+
+```bash
 
 ### 设置最小周期
 
@@ -450,28 +547,37 @@ class MyIndicator(bt.Indicator):
     params = (('period', 20),)
 
     def __init__(self):
-        # 方法 1: 使用 addminperiod
+
+# 方法 1: 使用 addminperiod
         self.addminperiod(self.p.period)
 
-        # 方法 2: 直接设置
-        # self._minperiod = self.p.period
-```
+# 方法 2: 直接设置
+
+# self._minperiod = self.p.period
+
+```bash
 
 ### 最小周期传播
 
 ```python
+
 # 在 dopostinit 中
+
 # 1. 从线条获取最小周期
+
 line_minperiods = [line._minperiod for line in self.lines]
 self._minperiod = max(line_minperiods)
 
 # 2. 传播到所有线条
+
 for line in self.lines:
     line.updateminperiod(self._minperiod)
 
 # 3. 重新计算周期
+
 self._periodrecalc()
-```
+
+```bash
 
 ## _once() 模式优化
 
@@ -494,37 +600,47 @@ graph LR
 
     style B4 fill:#90EE90
     style B4 stroke:#006400
-```
+
+```bash
 
 ### 性能对比
 
 | 模式 | 优点 | 缺点 | 适用场景 |
+
 |------|------|------|----------|
+
 | `next()` | 实现简单，易理解 | 每根 K 线调用，开销大 | 复杂逻辑，调试 |
+
 | `once()` | 批处理，高性能 | 需要手动管理索引 | 生产环境，大量数据 |
 
 ### once() 实现模式
 
 ```python
+
 # 模式 1: 简单循环（默认实现）
+
 def once(self, start, end):
     for i in range(start, end):
         self.forward()  # 推进索引
         self.next()     # 调用 next 逻辑
 
 # 模式 2: 数组操作（高性能）
+
 def once(self, start, end):
     src = self.data.close.array
     dst = self.lines.value.array
 
     for i in range(start, end):
         if i >= self.p.period - 1:
-            # 直接访问数组，避免方法调用开销
+
+# 直接访问数组，避免方法调用开销
             dst[i] = sum(src[i-self.p.period+1:i+1]) / self.p.period
 
 # 模式 3: Cython 加速
+
 # 在 utils/ts_cal_value/ 中实现 Cython 版本
-```
+
+```bash
 
 ### preonce() 和 oncestart()
 
@@ -542,9 +658,11 @@ def oncestart(self, start, end):
     处理 bar minperiod-1
     等同于 nextstart()
     """
-    # 默认调用 once()
+
+# 默认调用 once()
     self.once(start, end)
-```
+
+```bash
 
 ## 核心方法
 
@@ -560,11 +678,16 @@ def addindicator(self, indicator):
     Args:
         indicator: 要添加的指标实例
     """
-    # 1. 添加到 _lineiterators
-    # 2. 设置 _owner
-    # 3. 设置 _clock
-    # 4. 如果 _nextforce=True，禁用 runonce
-```
+
+# 1. 添加到 _lineiterators
+
+# 2. 设置 _owner
+
+# 3. 设置 _clock
+
+# 4. 如果 _nextforce=True，禁用 runonce
+
+```bash
 
 ### getindicators()
 
@@ -572,8 +695,10 @@ def addindicator(self, indicator):
 
 ```python
 indicators = self.getindicators()
+
 # 返回: [ind1, ind2, ...]
-```
+
+```bash
 
 ### getobservers()
 
@@ -581,47 +706,62 @@ indicators = self.getindicators()
 
 ```python
 observers = self.getobservers()
+
 # 返回: [obs1, obs2, ...]
-```
+
+```bash
 
 ### bindlines()
 
 绑定所有者的线条到此对象的线条。
 
 ```python
+
 # 绑定 owner.lines[0] 到 self.lines[0]
+
 self.bindlines(owner=0, own=0)
 
 # 绑定多个线条
+
 self.bindlines(owner=[0, 1], own=[0, 1])
 
 # 使用名称
+
 self.bindlines(owner='close', own='value')
-```
+
+```bash
 
 ### qbuffer()
 
 启用内存节省模式。
 
 ```python
+
 # 保存所有线条和指标的内存
+
 self.qbuffer(savemem=1)
 
 # 策略级别调用 - 只保存绘图指标的内存
+
 cerebro.run(runonce=False, qbuffer=True)
-```
+
+```bash
 
 ### advance()
 
 推进行位置。
 
 ```python
+
 # 推进 1 根 K 线
+
 self.advance()
 
-# 推进 N 根 K线
+# 推进 N 根 K 线
+
 self.advance(size=n)
-```
+
+```bash
 
 ## 绘图配置
 
@@ -644,7 +784,8 @@ class MyIndicator(bt.Indicator):
         plothlines=[],          # 水平线
         plotforce=False,        # 强制绘制
     )
-```
+
+```bash
 
 ### plotlines 属性
 
@@ -666,7 +807,8 @@ class MyIndicator(bt.Indicator):
             ls='--',
         )
     )
-```
+
+```bash
 
 ## 实现示例
 
@@ -681,9 +823,11 @@ class SimpleMA(bt.Indicator):
         self.addminperiod(self.p.period)
 
     def next(self):
-        # 简单移动平均
+
+# 简单移动平均
         self.lines.ma[0] = sum(self.data.close.get(size=self.p.period)) / self.p.period
-```
+
+```bash
 
 ### 示例 2: 带子指标的指标
 
@@ -697,13 +841,15 @@ class MACD(bt.Indicator):
     )
 
     def __init__(self):
-        # 创建子指标（自动注册）
+
+# 创建子指标（自动注册）
         me1 = bt.indicators.EMA(self.data, period=self.p.period_me1)
         me2 = bt.indicators.EMA(self.data, period=self.p.period_me2)
         self.lines.macd = me1 - me2
         self.lines.signal = bt.indicators.EMA(self.lines.macd, period=self.p.period_signal)
         self.lines.histogram = self.lines.macd - self.lines.signal
-```
+
+```bash
 
 ### 示例 3: 高性能 once() 实现
 
@@ -716,29 +862,32 @@ class FastSMA(bt.Indicator):
         self.addminperiod(self.p.period)
 
     def next(self):
-        # 用于 runonce=False
+
+# 用于 runonce=False
         s = sum(self.data.close.get(size=self.p.period))
         self.lines.sma[0] = s / self.p.period
 
     def once(self, start, end):
-        # 高性能批处理
+
+# 高性能批处理
         src = self.data.close.array
         dst = self.lines.sma.array
         period = self.p.period
 
-        # 使用滑动窗口优化
+# 使用滑动窗口优化
         if start < period - 1:
             start = period - 1
 
-        # 初始值
+# 初始值
         s = sum(src[start-period+1:start+1])
         dst[start] = s / period
 
-        # 滑动计算
+# 滑动计算
         for i in range(start + 1, end):
             s += src[i] - src[i - period]
             dst[i] = s / period
-```
+
+```bash
 
 ## 性能考虑
 
@@ -763,7 +912,8 @@ class MyStrategy(bt.Strategy):
         elapsed = time.time() - self._start
         print(f"处理 {len(self)} 根 K 线耗时: {elapsed:.2f} 秒")
         print(f"每秒处理: {len(self) / elapsed:.0f} 根 K 线")
-```
+
+```bash
 
 ## 常见问题
 
@@ -772,13 +922,17 @@ class MyStrategy(bt.Strategy):
 A: 确保指标已正确注册到策略的 `_lineiterators`：
 
 ```python
+
 # 检查注册状态
+
 print(self._lineiterators[LineIterator.IndType])
-```
+
+```bash
 
 ### Q: minperiod 如何计算？
 
 A: minperiod 是以下三者的最大值：
+
 1. 所有数据源的 `_minperiod`
 2. 所有子指标的 `_minperiod`
 3. `addminperiod()` 调用设置的值
@@ -794,8 +948,13 @@ A: 使用 `_getminperstatus()` 处理不同长度的数据源：
 ```python
 def _getminperstatus(self):
     """获取最小周期状态。"""
-    # 返回值:
-    #  < 0: 调用 next()
-    # == 0: 调用 nextstart()
-    #  > 0: 调用 prenext()
-```
+
+# 返回值:
+
+# < 0: 调用 next()
+
+# == 0: 调用 nextstart()
+
+# > 0: 调用 prenext()
+
+```bash

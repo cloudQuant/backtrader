@@ -1,7 +1,9 @@
----
+- --
+
 title: Line System
 description: Core data structure for time series
----
+
+- --
 
 # Line System
 
@@ -12,12 +14,18 @@ The Line System is the fundamental data structure in Backtrader for handling tim
 ```mermaid
 classDiagram
     LineRoot <|-- LineBuffer
+
     LineBuffer <|-- LineSeries
+
     LineSeries <|-- LineIterator
+
     LineIterator <|-- Indicator
+
     LineIterator <|-- Observer
+
     LineIterator <|-- Strategy
-```
+
+```bash
 
 ## Hierarchy
 
@@ -35,7 +43,8 @@ class LineRoot:
 
     def datetime(self, index=0):
         """Get datetime at index."""
-```
+
+```bash
 
 ### LineBuffer
 
@@ -54,7 +63,8 @@ class LineBuffer:
     @property
     def minperiod(self):
         """Minimum data points needed."""
-```
+
+```bash
 
 ### LineSeries
 
@@ -70,7 +80,8 @@ class LineSeries:
 
     def time(self, index=0):
         """Get time at index."""
-```
+
+```bash
 
 ### LineIterator
 
@@ -78,7 +89,8 @@ Execution phases and iteration logic:
 
 ```python
 class LineIterator:
-    # Line types
+
+# Line types
     IndType = 0  # Indicator
     ObsType = 2  # Observer
     StrType = 3  # Strategy
@@ -91,7 +103,8 @@ class LineIterator:
 
     def next(self):
         """Called for each bar after minperiod."""
-```
+
+```bash
 
 ## Access Patterns
 
@@ -100,48 +113,65 @@ class LineIterator:
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Current value
+
+# Current value
         current = self.data.close[0]
 
-        # Previous values
+# Previous values
         prev1 = self.data.close[-1]
         prev2 = self.data.close[-2]
 
-        # Slice (returns array)
+# Slice (returns array)
         recent = self.data.close.get(size=5)
-```
+
+```bash
 
 ### Data Length
 
 ```python
+
 # Total bars available
+
 total_bars = len(self.data)
 
 # Bars processed so far in next()
+
 processed_bars = len(self.data.close)
-```
+
+```bash
 
 ### Datetime Access
 
 ```python
+
 # Current bar datetime
+
 dt = self.data.datetime.datetime(0)
 date = self.data.datetime.date(0)
 time = self.data.datetime.time(0)
-```
+
+```bash
 
 ## Line Aliases
 
 Common line aliases for data feeds:
 
 | Alias | Line | Description |
+
 |-------|------|-------------|
+
 | `datetime` | datetime | Bar timestamp |
+
 | `open` | open | Opening price |
+
 | `high` | high | Highest price |
+
 | `low` | low | Lowest price |
+
 | `close` | close | Closing price |
+
 | `volume` | volume | Trading volume |
+
 | `openinterest` | openinterest | Open interest |
 
 ## Creating Custom Lines
@@ -151,9 +181,11 @@ Common line aliases for data feeds:
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Create a custom line
+
+# Create a custom line
         self.lines.custom = self.data.close  # Alias
-```
+
+```bash
 
 ### In Indicators
 
@@ -164,13 +196,15 @@ class MyIndicator(bt.Indicator):
     def __init__(self):
         super().__init__()
         self.lines.signal = self.data.close - self.data.close(-1)
-```
+
+```bash
 
 ## Performance Considerations
 
 ### Circular Buffer
 
 The circular buffer design:
+
 - Fixed memory allocation
 - Efficient append operations
 - Automatic rollover
@@ -178,10 +212,13 @@ The circular buffer design:
 ### Memory Management
 
 ```python
+
 # Use qbuffer to limit memory for long backtests
+
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 data.qbuffer(1000)  # Keep last 1000 bars in memory
-```
+
+```bash
 
 ## Common Patterns
 
@@ -190,34 +227,40 @@ data.qbuffer(1000)  # Keep last 1000 bars in memory
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Lagged close price
+
+# Lagged close price
         self.close_lag1 = self.data.close(-1)
         self.close_lag5 = self.data.close(-5)
-```
+
+```bash
 
 ### Price Change
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Price change
+
+# Price change
         self.change = self.data.close - self.data.close(-1)
 
-        # Percent change
+# Percent change
         self.pct_change = (self.data.close / self.data.close(-1)) - 1
-```
+
+```bash
 
 ### Rolling Operations
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Rolling sum (manual)
+
+# Rolling sum (manual)
         self.rolling_sum = bt.indicators.SumN(self.data.close, period=20)
 
-        # Or use indicator
+# Or use indicator
         self.sma = bt.indicators.SMA(self.data.close, period=20)
-```
+
+```bash
 
 ## See Also
 

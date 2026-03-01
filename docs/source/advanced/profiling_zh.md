@@ -1,7 +1,9 @@
----
+- --
+
 title: 性能分析与剖析
 description: Backtrader 策略性能剖析与分析指南
----
+
+- --
 
 # 性能分析与剖析
 
@@ -36,12 +38,14 @@ class MyStrategy(bt.Strategy):
             self.buy()
 
 # 设置 cerebro
+
 cerebro = bt.Cerebro()
 cerebro.addstrategy(MyStrategy)
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 cerebro.adddata(data)
 
 # 剖析执行过程
+
 profiler = cProfile.Profile()
 profiler.enable()
 
@@ -50,24 +54,30 @@ results = cerebro.run()
 profiler.disable()
 
 # 打印结果
+
 stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)  # 按累计时间排序的前 20 个函数
-```
+
+```bash
 
 ### 保存剖析结果
 
 将剖析结果保存到文件以便详细分析：
 
 ```python
+
 # 保存剖析到文件
+
 profiler.dump_stats('my_strategy.prof')
 
 # 稍后加载分析
+
 stats = pstats.Stats('my_strategy.prof')
 stats.sort_stats('cumulative')
 stats.print_stats(30)
-```
+
+```bash
 
 ### SnakeViz 可视化
 
@@ -77,10 +87,12 @@ stats.print_stats(30)
 pip install snakeviz
 
 # 生成可视化
-snakeviz my_strategy.prof
-```
 
+snakeviz my_strategy.prof
+
+```bash
 这将打开一个交互式可视化界面，显示：
+
 - 调用栈的冰柱图
 - 每个函数的时间分布
 - 热路径导航
@@ -120,9 +132,11 @@ def profile(output_file=None, print_stats=20):
         stats.print_stats(print_stats)
 
 # 使用方法
+
 with profile('strategy.prof', print_stats=30):
     cerebro.run()
-```
+
+```bash
 
 ## 热路径识别
 
@@ -142,14 +156,18 @@ cerebro.run()
 profiler.disable()
 
 # 按函数内总时间排序（不包括子调用）
+
 stats = pstats.Stats(profiler)
 stats.sort_stats('time')  # 'tottime' - 函数内时间，不包括子函数
+
 stats.print_stats(10)
 
 # 按累计时间排序（包括子调用）
+
 stats.sort_stats('cumulative')
 stats.print_stats(10)
-```
+
+```bash
 
 ### 识别指标瓶颈
 
@@ -158,7 +176,8 @@ stats.print_stats(10)
 ```python
 class ProfiledStrategy(bt.Strategy):
     def __init__(self):
-        # 剖析指标创建
+
+# 剖析指标创建
         import cProfile
         self.ind_profiler = cProfile.Profile()
         self.ind_profiler.enable()
@@ -171,12 +190,14 @@ class ProfiledStrategy(bt.Strategy):
         self.ind_profiler.disable()
 
     def start(self):
-        # 打印指标初始化剖析结果
+
+# 打印指标初始化剖析结果
         stats = pstats.Stats(self.ind_profiler)
         stats.sort_stats('cumulative')
         stats.strip_dirs()
         stats.print_stats(15)
-```
+
+```bash
 
 ### 逐行剖析
 
@@ -184,20 +205,25 @@ class ProfiledStrategy(bt.Strategy):
 
 ```bash
 pip install line_profiler
-```
+
+```bash
 
 ```python
+
 # 在要剖析的方法上添加 @profile 装饰器
+
 class MyStrategy(bt.Strategy):
     @profile
     def next(self):
-        # 逐行分析的复杂逻辑
+
+# 逐行分析的复杂逻辑
         if self.data.close[0] > self.sma[0]:
             if self.rsi[0] < 30:
                 self.buy()
 
 # 使用: kernprof -l -v my_script.py 运行
-```
+
+```bash
 
 ## 内存剖析
 
@@ -219,7 +245,8 @@ class MemoryTrackedStrategy(bt.Strategy):
             self.buy()
 
 # 使用: python -m memory_profiler my_script.py 运行
-```
+
+```bash
 
 ### 内存峰值分析
 
@@ -230,17 +257,21 @@ import tracemalloc
 import backtrader as bt
 
 # 开始跟踪
+
 tracemalloc.start()
 
 # 运行回测
+
 cerebro.run()
 
 # 获取峰值内存使用
+
 current, peak = tracemalloc.get_traced_memory()
 print(f"当前内存: {current / 10**6:.2f} MB")
 print(f"峰值内存: {peak / 10**6:.2f} MB")
 
 # 获取最大分配的快照
+
 snapshot = tracemalloc.take_snapshot()
 top_stats = snapshot.statistics('lineno')
 
@@ -249,7 +280,8 @@ for stat in top_stats[:10]:
     print(stat)
 
 tracemalloc.stop()
-```
+
+```bash
 
 ### 使用 mprof 进行内存剖析
 
@@ -257,15 +289,19 @@ tracemalloc.stop()
 pip install memory_profiler
 
 # 运行并跟踪内存
+
 mprof run python my_backtest.py
 
 # 绘制内存使用随时间变化
+
 mprof plot
 
 # 峰值内存详情
+
 mprof clean
 mprof run --include-children python my_backtest.py
-```
+
+```bash
 
 ### 减少内存使用
 
@@ -274,20 +310,26 @@ import gc
 import backtrader as bt
 
 # 配置以实现低内存使用
+
 cerebro = bt.Cerebro()
 
 # 使用 qbuffer 限制数据历史
+
 data = bt.feeds.CSVGeneric(dataname='large_data.csv')
-data.qbuffer(1000)  # 内存中仅保留最后 1000 根K线
+data.qbuffer(1000)  # 内存中仅保留最后 1000 根 K 线
+
 cerebro.adddata(data)
 
 # 禁用消耗内存的观察器
+
 cerebro.run(stdstats=False)
 
 # 显式垃圾回收
+
 results = cerebro.run()
 gc.collect()
-```
+
+```bash
 
 ## 策略专用剖析
 
@@ -310,18 +352,19 @@ class TimedStrategy(bt.Strategy):
         }
 
     def next(self):
-        # 计时指标访问
+
+# 计时指标访问
         start = time.perf_counter()
         sma_val = self.sma[0]
         rsi_val = self.rsi[0]
         self.timings['indicator_calc'] += time.perf_counter() - start
 
-        # 计时信号逻辑
+# 计时信号逻辑
         start = time.perf_counter()
         signal = self.generate_signal(sma_val, rsi_val)
         self.timings['signal_generation'] += time.perf_counter() - start
 
-        # 计时订单执行
+# 计时订单执行
         start = time.perf_counter()
         if signal == 'BUY':
             self.buy()
@@ -340,18 +383,19 @@ class TimedStrategy(bt.Strategy):
         for phase, duration in self.timings.items():
             pct = (duration / total) * 100 if total > 0 else 0
             print(f"{phase}: {duration:.4f}s ({pct:.1f}%)")
-```
 
-### 每根K线计时
+```bash
 
-识别慢速K线：
+### 每根 K 线计时
+
+识别慢速 K 线：
 
 ```python
 import time
 import backtrader as bt
 
 class PerBarTimedStrategy(bt.Strategy):
-    """跟踪每根K线的时间。"""
+    """跟踪每根 K 线的时间。"""
 
     params = (('slow_threshold', 0.001),)  # 1ms 阈值
 
@@ -365,31 +409,32 @@ class PerBarTimedStrategy(bt.Strategy):
         self.time_bar()
 
     def time_bar(self):
-        """对当前K线计时。"""
+        """对当前 K 线计时。"""
         start = time.perf_counter()
 
-        # 这里是您的策略逻辑
+# 这里是您的策略逻辑
         if self.data.close[0] > self.sma[0]:
             self.buy()
 
         elapsed = time.perf_counter() - start
         self.bar_timings.append(elapsed)
 
-        # 警告慢速K线
+# 警告慢速 K 线
         if elapsed > self.p.slow_threshold:
-            print(f"慢速K线 {self.data.datetime.date(0)}: {elapsed*1000:.2f}ms")
+            print(f"慢速 K 线 {self.data.datetime.date(0)}: {elapsed*1000:.2f}ms")
 
     def stop(self):
-        """分析K线时间统计。"""
+        """分析 K 线时间统计。"""
         import statistics
         if self.bar_timings:
-            print("\n=== K线时间统计 ===")
-            print(f"总K线数: {len(self.bar_timings)}")
+            print("\n=== K 线时间统计 ===")
+            print(f"总 K 线数: {len(self.bar_timings)}")
             print(f"平均: {statistics.mean(self.bar_timings)*1000:.3f}ms")
             print(f"中位数: {statistics.median(self.bar_timings)*1000:.3f}ms")
             print(f"最大: {max(self.bar_timings)*1000:.3f}ms")
             print(f"最小: {min(self.bar_timings)*1000:.3f}ms")
-```
+
+```bash
 
 ### 指标缓存分析
 
@@ -412,6 +457,7 @@ def test_with_cache():
     cerebro.run()
 
 # 剖析两者
+
 for func in [test_without_cache, test_with_cache]:
     profiler = cProfile.Profile()
     profiler.enable()
@@ -421,7 +467,8 @@ for func in [test_without_cache, test_with_cache]:
     stats.sort_stats('cumulative')
     stats.print_stats(10)
     print("-" * 50)
-```
+
+```bash
 
 ## 基准测试方法
 
@@ -457,6 +504,7 @@ def benchmark_strategy(strategycls, iterations=5):
     }
 
 # 比较策略
+
 results = {
     'Simple': benchmark_strategy(SimpleStrategy),
     'Complex': benchmark_strategy(ComplexStrategy),
@@ -464,7 +512,8 @@ results = {
 
 for name, stats in results.items():
     print(f"{name}: {stats['mean']:.4f}s ± {stats['stdev']:.4f}s")
-```
+
+```bash
 
 ### 规模测试
 
@@ -479,7 +528,8 @@ def benchmark_data_size(sizes):
     results = []
 
     for size in sizes:
-        # 生成此规模的数据
+
+# 生成此规模的数据
         data = generate_test_data(size)  # 您的数据生成器
 
         cerebro = bt.Cerebro()
@@ -492,14 +542,16 @@ def benchmark_data_size(sizes):
 
         bars_per_sec = size / elapsed
         results.append((size, elapsed, bars_per_sec))
-        print(f"{size} 根K线: {elapsed:.2f}s ({bars_per_sec:.0f} K线/秒)")
+        print(f"{size} 根 K 线: {elapsed:.2f}s ({bars_per_sec:.0f} K 线/秒)")
 
     return results
 
 # 测试增加的数据规模
+
 sizes = [1000, 5000, 10000, 50000, 100000]
 benchmark_data_size(sizes)
-```
+
+```bash
 
 ### 进度监控
 
@@ -521,13 +573,15 @@ class ProgressStrategy(bt.Strategy):
     def next(self):
         current_bar = len(self.data)
 
-        # 按间隔报告进度
+# 按间隔报告进度
         if current_bar - self.last_report >= self.p.report_interval:
             elapsed = time.time() - self.start_time
             bars_per_sec = current_bar / elapsed
 
-            print(f"进度: {current_bar} 根K线 | "
-                  f"{bars_per_sec:.0f} K线/秒 | "
+            print(f"进度: {current_bar} 根 K 线 | "
+
+                  f"{bars_per_sec:.0f} K 线/秒 | "
+
                   f"{elapsed:.0f}秒已过")
 
             self.last_report = current_bar
@@ -536,9 +590,10 @@ class ProgressStrategy(bt.Strategy):
         """最终报告。"""
         elapsed = time.time() - self.start_time
         total_bars = len(self.data)
-        print(f"\n完成: {total_bars} 根K线，用时 {elapsed:.2f}秒")
-        print(f"平均: {total_bars/elapsed:.0f} K线/秒")
-```
+        print(f"\n 完成: {total_bars} 根 K 线，用时 {elapsed:.2f}秒")
+        print(f"平均: {total_bars/elapsed:.0f} K 线/秒")
+
+```bash
 
 ## 性能优化技巧
 
@@ -552,22 +607,29 @@ class ProgressStrategy(bt.Strategy):
 ### 快速优化
 
 ```python
+
 # 1. 禁用不必要的观察器
+
 cerebro.run(stdstats=False)
 
 # 2. 禁用绘图
+
 # 剖析期间不调用 cerebro.plot()
 
 # 3. 使用 preload
+
 cerebro = bt.Cerebro()
 cerebro.run(preload=True)
 
 # 4. 限制内存中的数据
+
 data.qbuffer(1000)
 
 # 5. 指标使用 runonce
+
 cerebro.run(runonce=True)
-```
+
+```bash
 
 ### 热路径优化
 
@@ -576,51 +638,61 @@ class OptimizedStrategy(bt.Strategy):
     """优化热路径的策略。"""
 
     def __init__(self):
-        # 缓存属性查找
+
+# 缓存属性查找
         self._data_close = self.data.close
         self._data_high = self.data.high
         self._data_low = self.data.low
         self._sma = self.sma
 
-        # 缓存计算
+# 缓存计算
         self.atr = bt.indicators.ATR(period=14)
-        self.upper_band = self._data_close + self.atr * 2
-        self.lower_band = self._data_close - self.atr * 2
+        self.upper_band = self._data_close + self.atr *2
+        self.lower_band = self._data_close - self.atr* 2
 
     def next(self):
-        # 使用缓存的引用
+
+# 使用缓存的引用
         close = self._data_close[0]
         sma = self._sma[0]
 
-        # 避免重复的属性访问
+# 避免重复的属性访问
         if close > sma:
-            # 直接属性访问而不是 len()
+
+# 直接属性访问而不是 len()
             if self.data._len > 20:  # 不是 len(self.data)
                 self.buy()
-```
+
+```bash
 
 ### 指标优化
 
 ```python
+
 # ❌ 慢：在 next() 内计算指标
+
 def next(self):
     sma = bt.indicators.SMA(self.data.close, period=20)
     if self.data.close[0] > sma[0]:
         self.buy()
 
 # ✅ 快：在 __init__ 中计算
+
 def __init__(self):
     self.sma = bt.indicators.SMA(period=20)
 
 def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
-```
+
+```bash
 
 ### 批处理
 
 ```python
+
 # 对于大规模优化，使用 optstrategy
+
 cerebro = bt.Cerebro()
 cerebro.optstrategy(
     MyStrategy,
@@ -629,13 +701,17 @@ cerebro.optstrategy(
 )
 
 # 并行执行
+
 results = cerebro.run(maxcpu=4)
-```
+
+```bash
 
 ## 完整剖析示例
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """Backtrader 策略的完整剖析示例。"""
 
 import cProfile
@@ -653,18 +729,19 @@ class ProfilingStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 创建指标
+
+# 创建指标
         self.sma = bt.indicators.SMA(period=self.p.period)
         self.rsi = bt.indicators.RSI(period=14)
 
-        # 计时
+# 计时
         self.next_times = []
         self.next_count = 0
 
     def next(self):
         start = time.perf_counter()
 
-        # 策略逻辑
+# 策略逻辑
         if self.data.close[0] > self.sma[0] and self.rsi[0] < 70:
             if not self.position:
                 self.buy()
@@ -673,7 +750,7 @@ class ProfilingStrategy(bt.Strategy):
             if self.position:
                 self.sell()
 
-        # 跟踪计时
+# 跟踪计时
         elapsed = time.perf_counter() - start
         self.next_times.append(elapsed)
         self.next_count += 1
@@ -691,57 +768,58 @@ class ProfilingStrategy(bt.Strategy):
 def run_profiled_backtest(data_file='data.csv'):
     """运行完整剖析的回测。"""
 
-    # 内存剖析
+# 内存剖析
     tracemalloc.start()
 
-    # CPU 剖析
+# CPU 剖析
     profiler = cProfile.Profile()
     profiler.enable()
 
-    # 设置 cerebro
+# 设置 cerebro
     cerebro = bt.Cerebro()
     cerebro.addstrategy(ProfilingStrategy, period=20, verbose=True)
     data = bt.feeds.CSVGeneric(dataname=data_file)
     cerebro.adddata(data)
 
-    # 运行回测
+# 运行回测
     start_time = time.time()
     results = cerebro.run()
     total_time = time.time() - start_time
 
     profiler.disable()
 
-    # 内存结果
+# 内存结果
     current, peak = tracemalloc.get_traced_memory()
-    print(f"\n内存使用:")
+    print(f"\n 内存使用:")
     print(f"  当前: {current / 10**6:.2f} MB")
     print(f"  峰值: {peak / 10**6:.2f} MB")
 
-    # CPU 结果
+# CPU 结果
     stats = pstats.Stats(profiler)
     stats.sort_stats('cumulative')
     stats.strip_dirs()
-    print(f"\n按累计时间排序的前 20 个函数:")
+    print(f"\n 按累计时间排序的前 20 个函数:")
     stats.print_stats(20)
 
-    # 整体统计
-    print(f"\n整体性能:")
+# 整体统计
+    print(f"\n 整体性能:")
     print(f"  总时间: {total_time:.2f}s")
-    print(f"  处理的K线: {len(data)}")
-    print(f"  每秒K线数: {len(data)/total_time:.0f}")
+    print(f"  处理的 K 线: {len(data)}")
+    print(f"  每秒 K 线数: {len(data)/total_time:.0f}")
 
     return results
 
 if __name__ == '__main__':
     run_profiled_backtest()
-```
+
+```bash
 
 ## 性能分析清单
 
 - [ ] 使用 cProfile 剖析以识别热函数
 - [ ] 使用 line_profiler 进行详细代码分析
 - [ ] 使用 memory_profiler 检查内存使用
-- [ ] 建立基线指标（K线/秒、内存）
+- [ ] 建立基线指标（K 线/秒、内存）
 - [ ] 测试不同数据规模
 - [ ] 单独剖析指标计算
 - [ ] 检查不必要的属性查找

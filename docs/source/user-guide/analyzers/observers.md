@@ -1,7 +1,9 @@
----
+- --
+
 title: Observers
 description: Monitor and log strategy behavior
----
+
+- --
 
 # Observers
 
@@ -10,12 +12,16 @@ Observers monitor and record strategy behavior during backtesting. Unlike analyz
 ## Basic Usage
 
 ```python
+
 # Add observer during cerebro setup
+
 cerebro.addobserver(bt.observers.DrawDown)
 
 # Or disable default observers
+
 cerebro.run(stdstats=False)  # Disable default observers
-```
+
+```bash
 
 ## Built-in Observers
 
@@ -25,13 +31,16 @@ cerebro.run(stdstats=False)  # Disable default observers
 cerebro.addobserver(bt.observers.DrawDown)
 
 # Access in strategy
+
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Access drawdown observer
+
+# Access drawdown observer
         if hasattr(self, 'observers'):
             drawdown = self.observers.drawdown
             print(f'Drawdown: {drawdown.drawdown[0]:.2%}')
-```
+
+```bash
 
 ### Broker
 
@@ -39,10 +48,14 @@ class MyStrategy(bt.Strategy):
 cerebro.addobserver(bt.observers.Broker)
 
 # Tracks:
+
 # - Cash balance
+
 # - Portfolio value
+
 # - Positions
-```
+
+```bash
 
 ### Trades
 
@@ -50,9 +63,12 @@ cerebro.addobserver(bt.observers.Broker)
 cerebro.addobserver(bt.observers.Trades)
 
 # Records each trade
+
 # Entry/exit prices
+
 # Trade profit/loss
-```
+
+```bash
 
 ### BuySell
 
@@ -60,7 +76,8 @@ cerebro.addobserver(bt.observers.Trades)
 cerebro.addobserver(bt.observers.BuySell)
 
 # Marks buy and sell points on plots
-```
+
+```bash
 
 ### DataTrades
 
@@ -68,22 +85,31 @@ cerebro.addobserver(bt.observers.BuySell)
 cerebro.addobserver(bt.observers.DataTrades)
 
 # Records trades per data feed
-```
+
+```bash
 
 ### DrawDown
 
 ```python
+
 # Already added by default with stdstats=True
+
 # Tracks:
+
 # - Current drawdown
+
 # - Maximum drawdown
+
 # - Drawdown duration
-```
+
+```bash
 
 ### Benchmark
 
 ```python
+
 # Add a benchmark data feed
+
 data = bt.feeds.YahooFinanceData(dataname='AAPL', ...)
 bench = bt.feeds.YahooFinanceData(dataname='SPY', ...)
 
@@ -91,8 +117,10 @@ cerebro.adddata(data)
 cerebro.adddata(bench)
 
 # Add benchmark observer
+
 cerebro.addobserver(bt.observers.Benchmark, data=bench)
-```
+
+```bash
 
 ### LogReturns
 
@@ -100,8 +128,10 @@ cerebro.addobserver(bt.observers.Benchmark, data=bench)
 cerebro.addobserver(bt.observers.LogReturns)
 
 # Logs returns over time
+
 # Useful for analyzing return patterns
-```
+
+```bash
 
 ### TimeReturn
 
@@ -109,19 +139,27 @@ cerebro.addobserver(bt.observers.LogReturns)
 cerebro.addobserver(bt.observers.TimeReturn)
 
 # Returns by time period
+
 # Can specify timeframe
+
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
-```
+
+```bash
 
 ## Default Observers
 
 When you run `cerebro.run()` without `stdstats=False`, these observers are added automatically:
 
 | Observer | Purpose |
+
 |----------|---------|
+
 | `Broker` | Track broker state |
+
 | `Trades` | Record all trades |
+
 | `BuySell` | Mark buy/sell on plots |
+
 | `DrawDown` | Track drawdown metrics |
 
 ## Custom Observer
@@ -140,7 +178,8 @@ class TradeLogger(bt.Observer):
     params = dict(enabled=True)
 
     def start(self):
-        # Register to lineiterators
+
+# Register to lineiterators
         if hasattr(self, '_owner') and self._owner:
             if hasattr(self._owner, '_lineiterators'):
                 if self._ltype in self._owner._lineiterators:
@@ -151,17 +190,24 @@ class TradeLogger(bt.Observer):
         self.lines.dummy[0] = 0  # Must set a value
 
 # Add to cerebro
+
 cerebro.addobserver(TradeLogger)
-```
+
+```bash
 
 ## Observer vs Analyzer
 
 | Feature | Observer | Analyzer |
+
 |---------|----------|----------|
-| **Purpose** | Data collection | Calculation |
-| **When Called** | Every bar | After backtest |
-| **Output** | Time series data | Summary statistics |
-| **Plotting** | Can be plotted | Not plotted |
+
+| **Purpose**| Data collection | Calculation |
+
+|**When Called**| Every bar | After backtest |
+
+|**Output**| Time series data | Summary statistics |
+
+|**Plotting** | Can be plotted | Not plotted |
 
 ## Accessing Observer Data
 
@@ -172,33 +218,41 @@ strats = cerebro.run()
 strat = strats[0]
 
 # Access observer data
+
 print(strat.observers.broker.getvalue())
 print(strat.observers.drawdown.drawdown)
-```
+
+```bash
 
 ### In Strategy
 
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Access observers if available
+
+# Access observers if available
         if hasattr(self, 'observers'):
             if hasattr(self.observers, 'drawdown'):
                 dd = self.observers.drawdown.drawdown[0]
                 if dd > 0.10:  # 10% drawdown
                     self.log(f'High drawdown: {dd:.2%}')
-```
+
+```bash
 
 ## Disabling Observers
 
 ```python
+
 # Disable default observers
+
 cerebro.run(stdstats=False)
 
 # Add specific observers
+
 cerebro.addobserver(bt.observers.DrawDown)
 cerebro.addobserver(bt.observers.Trades)
-```
+
+```bash
 
 ## Plotting with Observers
 
@@ -211,10 +265,14 @@ cerebro.plot()
 plt.show()
 
 # Observers appear as subplots:
+
 # - Drawdown
+
 # - Trades
+
 # - Buy/Sell markers
-```
+
+```bash
 
 ## Next Steps
 

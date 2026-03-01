@@ -1,7 +1,9 @@
----
+- --
+
 title: 数据源
 description: 从各种来源加载数据
----
+
+- --
 
 # 数据源
 
@@ -14,6 +16,7 @@ import backtrader as bt
 import datetime
 
 # 向 cerebro 添加数据
+
 data = bt.feeds.CSVGeneric(
     dataname='AAPL.csv',
     datetime=0,
@@ -27,7 +30,8 @@ data = bt.feeds.CSVGeneric(
 
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
-```
+
+```bash
 
 ## 数据源
 
@@ -50,7 +54,8 @@ data = bt.feeds.CSVGeneric(
     tmformat='%H:%M:%S',
     timeframe=bt.TimeFrame.Days
 )
-```
+
+```bash
 
 #### BTC CSV (比特币专用)
 
@@ -60,7 +65,8 @@ data = bt.feeds.BTCCSV(
     datetime=None,  # 自动检测
     timeframe=bt.TimeFrame.Minutes
 )
-```
+
+```bash
 
 ### Pandas DataFrame
 
@@ -68,6 +74,7 @@ data = bt.feeds.BTCCSV(
 import pandas as pd
 
 # 创建 DataFrame
+
 df = pd.DataFrame({
     'datetime': pd.date_range('2023-01-01', periods=100),
     'open': np.random.randn(100).cumsum() + 100,
@@ -78,6 +85,7 @@ df = pd.DataFrame({
 })
 
 # 转换为数据源
+
 data = bt.feeds.PandasData(
     dataname=df,
     datetime=None,  # 使用索引作为日期时间
@@ -88,7 +96,8 @@ data = bt.feeds.PandasData(
     volume='volume',
     openinterest=None
 )
-```
+
+```bash
 
 ### Yahoo Finance
 
@@ -100,8 +109,10 @@ data = bt.feeds.YahooFinanceData(
     timeframe=bt.TimeFrame.Days,
     adjclose=False,  # 使用复权收盘价
     reversed=False   # 数据顺序
+
 )
-```
+
+```bash
 
 ### 实盘交易数据
 
@@ -111,6 +122,7 @@ data = bt.feeds.YahooFinanceData(
 from backtrader.feeds import CCXTFeed
 
 # 创建存储
+
 store = CCXTStore(
     exchange='binance',
     currency='USDT',
@@ -118,15 +130,18 @@ store = CCXTStore(
 )
 
 # 添加数据源
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
     use_websocket=True  # 使用 WebSocket 获取实时数据
+
 )
 
 cerebro.adddata(data)
 cerebro.setbroker(store.getbroker())
-```
+
+```bash
 
 #### CTP (期货)
 
@@ -135,6 +150,7 @@ from backtrader.stores import CTPStore
 from backtrader.feeds import CTPData
 
 # 创建存储
+
 store = CTPStore(
     userid='YOUR_ID',
     password='YOUR_PASSWORD',
@@ -144,6 +160,7 @@ store = CTPStore(
 )
 
 # 添加数据源
+
 data = CTPData(
     store=store,
     dataname='au2506',  # 合约
@@ -152,7 +169,8 @@ data = CTPData(
 
 cerebro.adddata(data)
 cerebro.setbroker(store.getbroker())
-```
+
+```bash
 
 ## 多数据源
 
@@ -160,6 +178,7 @@ cerebro.setbroker(store.getbroker())
 cerebro = bt.Cerebro()
 
 # 添加多个数据源
+
 data1 = bt.feeds.YahooFinanceData(dataname='AAPL', ...)
 data2 = bt.feeds.YahooFinanceData(dataname='MSFT', ...)
 data3 = bt.feeds.YahooFinanceData(dataname='GOOGL', ...)
@@ -169,47 +188,59 @@ cerebro.adddata(data2, name='MSFT')
 cerebro.adddata(data3, name='GOOGL')
 
 # 在策略中访问
+
 class MyStrategy(bt.Strategy):
     def next(self):
         aapl_price = self.datas[0].close[0]
         msft_price = self.datas[1].close[0]  # 或 self.msft.close[0]
         googl_price = self.datas[2].close[0]  # 或 self.googl.close[0]
-```
+
+```bash
 
 ## 数据重采样
 
 将数据转换为不同的时间周期。
 
 ```python
+
 # 原始数据是分钟级
+
 data = bt.feeds.CSVGeneric(dataname='minute_data.csv', ...)
 
 # 重采样为日线
+
 cerebro = bt.Cerebro()
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Days)
 cerebro.adddata(data, name='daily')
-```
+
+```bash
 
 ## 数据过滤
 
 ### 交易日过滤
 
 ```python
+
 # 只在特定日期交易
+
 data = bt.feeds.CSVGeneric(dataname='data.csv', ...)
 data.addfilter(bt.filters.CalendarDays())
-```
+
+```bash
 
 ### 交易时段过滤
 
 ```python
+
 # 只在正常交易时段交易
+
 data = bt.feeds.CSVGeneric(dataname='data.csv', ...)
 data.addfilter(bt.filters.SessionFilter(
     starttime=datetime.time(9, 30),
     endtime=datetime.time(16, 0)
 ))
-```
+
+```bash
 
 ## 数据要求
 
@@ -218,13 +249,21 @@ data.addfilter(bt.filters.SessionFilter(
 每个数据源至少需要：
 
 | 字段 | 必需 | 描述 |
+
 |------|------|------|
-| datetime | 是 | K线时间戳 |
+
+| datetime | 是 | K 线时间戳 |
+
 | open | 是 | 开盘价 |
+
 | high | 是 | 最高价 |
+
 | low | 是 | 最低价 |
+
 | close | 是 | 收盘价 |
+
 | volume | 否 | 成交量 |
+
 | openinterest | 否 | 持仓量 (期货) |
 
 ### CSV 格式示例
@@ -234,7 +273,8 @@ datetime,open,high,low,close,volume
 2023-01-01,100.0,102.5,99.5,101.0,1000000
 2023-01-02,101.0,103.0,100.5,102.5,1200000
 2023-01-03,102.5,104.0,102.0,103.0,900000
-```
+
+```bash
 
 ## 下一步学习
 

@@ -4,7 +4,7 @@
 
 This guide explains how to use Backtrader + CCXT for cryptocurrency live trading.
 
----
+- --
 
 ## 1. Quick Start
 
@@ -12,12 +12,14 @@ This guide explains how to use Backtrader + CCXT for cryptocurrency live trading
 
 ```bash
 pip install ccxt        # REST API
+
 pip install ccxtpro     # WebSocket (optional but recommended)
-```
+
+```bash
 
 ### 1.2 Configure Exchange
 
-**Method A: Direct Parameters**
+- *Method A: Direct Parameters**
 
 ```python
 import backtrader as bt
@@ -31,9 +33,10 @@ store = bt.stores.CCXTStore(
         'enableRateLimit': True,
     }
 )
-```
 
-**Method B: Using .env File (Recommended)**
+```bash
+
+- *Method B: Using .env File (Recommended)**
 
 Create a `.env` file:
 
@@ -42,14 +45,16 @@ EXCHANGE_ID=binance
 EXCHANGE_API_KEY=your_api_key
 EXCHANGE_SECRET=your_secret
 EXCHANGE_CURRENCY=USDT
-```
+
+```bash
 
 ```python
 from backtrader.ccxt.config_helper import load_exchange_config
 
 config = load_exchange_config()
 store = bt.stores.CCXTStore(**config)
-```
+
+```bash
 
 ### 1.3 Minimal Live Trading Example
 
@@ -70,9 +75,11 @@ class SimpleStrategy(bt.Strategy):
             self.sell(size=0.001)
 
 # Create engine
+
 cerebro = bt.Cerebro()
 
 # Create Store
+
 store = bt.stores.CCXTStore(
     exchange='binance',
     currency='USDT',
@@ -84,6 +91,7 @@ store = bt.stores.CCXTStore(
 )
 
 # Add data feed (REST polling)
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
@@ -94,17 +102,21 @@ data = store.getdata(
 cerebro.adddata(data)
 
 # Set Broker
+
 broker = store.getbroker()
 cerebro.setbroker(broker)
 
 # Add strategy
+
 cerebro.addstrategy(SimpleStrategy)
 
 # Run
-cerebro.run()
-```
 
----
+cerebro.run()
+
+```bash
+
+- --
 
 ## 2. Data Feed Configuration
 
@@ -119,8 +131,10 @@ data = store.getdata(
     drop_newest=True,       # Drop incomplete newest bar
     historical=False,       # False = live mode
     backfill_start=True,    # Backfill historical data on start
+
 )
-```
+
+```bash
 
 ### 2.2 WebSocket Mode (Recommended, Low Latency)
 
@@ -137,9 +151,10 @@ data = store.getdata(
     ws_health_check_interval=30.0,     # Health check interval
     backfill_start=True,
 )
-```
 
-**WebSocket Features**:
+```bash
+
+- *WebSocket Features**:
 - Auto-reconnect (exponential backoff: 5s → 10s → 20s → ... → 60s)
 - Automatic fallback to REST polling on disconnect
 - Auto data backfill on reconnect (triggered when gap > 60s)
@@ -159,9 +174,10 @@ data = store.getdata(
     todate=datetime(2025, 12, 31),
     ohlcv_limit=500,
 )
-```
 
----
+```bash
+
+- --
 
 ## 3. Broker Configuration
 
@@ -173,9 +189,11 @@ broker = store.getbroker(
     use_threaded_order_manager=True,    # Background order checking (recommended)
     max_retries=3,                      # API retry count
     retry_delay=1.0,                    # Base retry delay (seconds)
+
 )
 cerebro.setbroker(broker)
-```
+
+```bash
 
 ### 3.2 ThreadedOrderManager
 
@@ -184,10 +202,12 @@ When enabled, order status checks run in a background thread without blocking th
 ```python
 broker = store.getbroker(
     use_threaded_order_manager=True,    # Enable
-)
-```
 
-**Advantages**:
+)
+
+```bash
+
+- *Advantages**:
 - Strategy `next()` is not blocked by API latency
 - Order updates delivered via thread-safe queue
 - Auto-cleanup of completed/canceled orders
@@ -197,15 +217,22 @@ broker = store.getbroker(
 The broker has comprehensive built-in error handling:
 
 | Scenario | Behavior |
+
 |----------|----------|
+
 | Network timeout | Auto-retry (up to 3 times, exponential backoff) |
+
 | Exchange unavailable | Auto-retry |
+
 | Insufficient balance | Reject order, notify strategy |
+
 | Order not found | Mark as canceled, remove from tracking |
+
 | Exchange disconnected | Skip API calls, wait for reconnect |
+
 | ≥ 10 consecutive failures | Polling interval backs off from 3s to 30s |
 
-**Handling order notifications in your strategy**:
+- *Handling order notifications in your strategy**:
 
 ```python
 class MyStrategy(bt.Strategy):
@@ -214,9 +241,10 @@ class MyStrategy(bt.Strategy):
             print(f'Order completed: {order.executed.price}')
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             print(f'Order failed: {order.getstatusname()}')
-```
 
----
+```bash
+
+- --
 
 ## 4. Exchange-Specific Configuration
 
@@ -226,30 +254,43 @@ class MyStrategy(bt.Strategy):
 from backtrader.ccxt.config import ExchangeConfig
 
 # Get exchange default parameters
+
 params = ExchangeConfig.get_params('binance')
+
 # {'rateLimit': 1200, 'enableRateLimit': True, ...}
 
 # Get fee structure
+
 fees = ExchangeConfig.get_fees('binance')
+
 # {'maker': 0.001, 'taker': 0.001}
 
 # Merge user config with defaults
+
 config = ExchangeConfig.merge_config('okx', {
     'apiKey': 'your_key',
     'secret': 'your_secret',
     'password': 'your_passphrase',
 })
-```
+
+```bash
 
 ### 4.2 Supported Exchanges
 
 | Exchange | exchange_id | Special Configuration |
+
 |----------|-------------|----------------------|
+
 | Binance | `binance` | Futures require `defaultType: 'future'` |
+
 | OKX | `okx` | Requires `password` (passphrase) |
+
 | Bybit | `bybit` | Futures require `defaultType: 'linear'` |
+
 | Bitget | `bitget` | Requires `password` |
+
 | Gate.io | `gate` | — |
+
 | Huobi | `huobi` | — |
 
 ### 4.3 Futures Trading Example (Binance)
@@ -267,9 +308,10 @@ store = bt.stores.CCXTStore(
         },
     }
 )
-```
 
----
+```bash
+
+- --
 
 ## 5. Rate Limiting
 
@@ -278,13 +320,17 @@ store = bt.stores.CCXTStore(
 CCXTStore automatically integrates RateLimiter:
 
 ```python
+
 # Default: auto-configured based on exchange settings
+
 store = bt.stores.CCXTStore(exchange='binance', ...)
 
 # Custom RPM (requests per minute)
+
 from backtrader.ccxt.ratelimit import RateLimiter
 limiter = RateLimiter(requests_per_minute=600)
-```
+
+```bash
 
 ### 5.2 Adaptive Rate Limiting
 
@@ -295,10 +341,12 @@ limiter = AdaptiveRateLimiter(
     initial_rpm=1200,    # Initial RPM
     min_rpm=60,          # Minimum RPM (when rate-limited)
     max_rpm=2400,        # Maximum RPM (gradually increases when no errors)
-)
-```
 
----
+)
+
+```bash
+
+- --
 
 ## 6. Connection Management
 
@@ -310,16 +358,19 @@ Automatically manages connection health and reconnection:
 from backtrader.ccxt.connection import ConnectionManager
 
 # Usually no need to create manually; CCXTStore manages it
+
 # But you can register callbacks:
+
 manager = store._connection_manager  # If available
 
 manager.on_disconnect(lambda: print("Exchange disconnected!"))
 manager.on_reconnect(lambda: print("Reconnected"))
-```
+
+```bash
 
 ### 6.2 Reconnection Mechanism
 
-```
+```bash
 Disconnect detected (health check failure)
     │
     ├── Trigger disconnect callback
@@ -334,9 +385,10 @@ Disconnect detected (health check failure)
             └── Reconnection successful
                 ├── Trigger reconnect callback
                 └── Backfill missing data
-```
 
----
+```bash
+
+- --
 
 ## 7. Complete Live Trading Template
 
@@ -385,6 +437,7 @@ class LiveStrategy(bt.Strategy):
 
 
 # === Configuration ===
+
 cerebro = bt.Cerebro()
 
 store = bt.stores.CCXTStore(
@@ -398,6 +451,7 @@ store = bt.stores.CCXTStore(
 )
 
 # WebSocket data feed
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
@@ -410,6 +464,7 @@ data = store.getdata(
 cerebro.adddata(data)
 
 # Broker (with background order checking)
+
 broker = store.getbroker(
     use_threaded_order_manager=True,
     max_retries=3,
@@ -417,14 +472,17 @@ broker = store.getbroker(
 cerebro.setbroker(broker)
 
 # Strategy
+
 cerebro.addstrategy(LiveStrategy)
 
 # Run
+
 print('Starting live trading...')
 cerebro.run()
-```
 
----
+```bash
+
+- --
 
 ## 8. FAQ
 
@@ -434,8 +492,8 @@ Make sure `ccxtpro` is installed:
 
 ```bash
 pip install ccxtpro
-```
 
+```bash
 If the exchange doesn't support WebSocket, the system will automatically fall back to REST polling.
 
 ### Q: How do I view API call logs?
@@ -443,7 +501,8 @@ If the exchange doesn't support WebSocket, the system will automatically fall ba
 ```python
 broker = store.getbroker(debug=True)
 data = store.getdata(..., debug=True)
-```
+
+```bash
 
 ### Q: Order stuck in Submitted status?
 
@@ -462,7 +521,8 @@ data_btc = store.getdata(dataname='BTC/USDT', ...)
 data_eth = store.getdata(dataname='ETH/USDT', ...)
 cerebro.adddata(data_btc)
 cerebro.adddata(data_eth)
-```
+
+```bash
 
 ### Q: How do I handle funding rates?
 
@@ -476,16 +536,23 @@ data = CCXTFeedWithFunding(
     dataname='BTC/USDT',
     use_websocket=True,
 )
-```
 
----
+```bash
+
+- --
 
 ## 9. Reference
 
 | Document | Path |
+
 |----------|------|
+
 | Architecture | `docs/ARCHITECTURE.md` |
+
 | WebSocket Guide | `docs/WEBSOCKET_GUIDE.md` |
+
 | Funding Rate Guide | `docs/FUNDING_RATE_GUIDE.md` |
+
 | Environment Config | `CCXT_ENV_CONFIG.md` |
+
 | Tests | `tests/new_functions/test_ccxt_*.py` |

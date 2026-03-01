@@ -1,7 +1,9 @@
----
+- --
+
 title: Code Style Guide
 description: Python code formatting and style conventions for Backtrader
----
+
+- --
 
 # Code Style Guide
 
@@ -50,7 +52,9 @@ This guide covers the code formatting and style conventions used in the Backtrad
 ### Example
 
 ```python
+
 # Good: Proper spacing and line length
+
 class MyIndicator(bt.Indicator):
     """A custom indicator for demonstration."""
 
@@ -61,9 +65,11 @@ class MyIndicator(bt.Indicator):
     )
 
     def __init__(self):
-        # Calculate the indicator value
+
+# Calculate the indicator value
         self.lines.signal = bt.indicators.RSI(self.data, period=self.p.period)
-```
+
+```bash
 
 ## Import Order Conventions
 
@@ -83,21 +89,27 @@ class MyIndicator(bt.Indicator):
 ### Example
 
 ```python
+
 # Standard library
+
 import datetime
 from pathlib import Path
 
 # Third-party
+
 import numpy as np
 import pandas as pd
 
 # Local application
+
 from backtrader.indicators import Indicator
 from backtrader.lineseries import LineSeries
 
 # Relative (from current package)
+
 from .utils import calculate_value
-```
+
+```bash
 
 ### Import Aliases
 
@@ -108,32 +120,37 @@ import backtrader as bt
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-```
+
+```bash
 
 ### Wildcard Imports
 
-**Avoid wildcard imports** except for specific cases:
+- *Avoid wildcard imports** except for specific cases:
 
 ```python
+
 # Allowed in __init__.py for exposing public API
+
 from .indicator import *
 from .observers import *
 
 # Never in regular modules
-# from indicators import *  # BAD
-```
+
+# from indicators import *# BAD
+
+```bash
 
 ## Type Hint Guidelines
 
 ### When to Use Type Hints
 
-**Required for**:
+- *Required for**:
 - Public API methods
 - Complex function signatures
 - Functions returning non-obvious types
 - Class method parameters
 
-**Optional for**:
+- *Optional for**:
 - Private methods (prefixed with `_`)
 - Simple, obvious cases
 - Performance-critical code (type hints have overhead)
@@ -144,7 +161,8 @@ from .observers import *
 def calculate_sma(period: int, data: list[float]) -> float:
     """Calculate Simple Moving Average."""
     return sum(data[:period]) / period
-```
+
+```bash
 
 ### Common Types
 
@@ -158,7 +176,8 @@ def process_data(
 ) -> Dict[str, float]:
     """Process data with optional callback."""
     pass
-```
+
+```bash
 
 ### Type Hints for Backtrader
 
@@ -171,7 +190,8 @@ def register_indicator(
 ) -> None:
     """Register an indicator with its owner."""
     pass
-```
+
+```bash
 
 ### Type Checking
 
@@ -179,7 +199,8 @@ Run mypy to verify type hints:
 
 ```bash
 mypy backtrader/
-```
+
+```bash
 
 ## Docstring Conventions
 
@@ -212,8 +233,10 @@ def calculate_rsi(prices: list[float], period: int = 14) -> list[float]:
     """
     if period < 2:
         raise ValueError(f"Period must be at least 2, got {period}")
-    # Implementation...
-```
+
+# Implementation...
+
+```bash
 
 ### Class Docstrings
 
@@ -233,7 +256,8 @@ class CustomIndicator(bt.Indicator):
         >>> cerebro.addstrategy(MyStrategy)
         >>> cerebro.run()
     """
-```
+
+```bash
 
 ### Module Docstrings
 
@@ -247,34 +271,41 @@ Typical usage:
     from backtrader.indicators.custom import CustomIndicator
     cerebro.addindicator(CustomIndicator)
 """
-```
+
+```bash
 
 ## Comment Standards
 
 ### Language: English Only
 
-**All code comments must be in English**. This ensures consistency across the international codebase.
+- *All code comments must be in English**. This ensures consistency across the international codebase.
 
 ```python
+
 # Good
+
 # Calculate the signal based on price momentum
+
 signal = self.data.close[0] - self.data.close[-1]
 
 # Bad
+
 # 根据价格动量计算信号
+
 signal = self.data.close[0] - self.data.close[-1]
-```
+
+```bash
 
 ### When to Comment
 
-**DO comment**:
+- *DO comment**:
 - Complex algorithms
 - Non-obvious business logic
 - Workarounds for bugs/issues
 - Performance-critical sections
 - Public API documentation
 
-**DON'T comment**:
+- *DON'T comment**:
 - Obvious code (self-documenting)
 - Outdated information
 - Copy-pasted code without adjustment
@@ -282,36 +313,54 @@ signal = self.data.close[0] - self.data.close[-1]
 ### Comment Style
 
 ```python
+
 # Single-line comments explain why, not what
+
 # BAD:
+
 # Increment counter
+
 counter += 1
 
 # GOOD:
+
 # Reset counter after reaching threshold to prevent overflow
+
 counter = 0 if counter >= MAX_THRESHOLD else counter + 1
-```
+
+```bash
 
 ### TODO/FIXME Comments
 
 ```python
+
 # TODO: Add support for multiple timeframes
+
 # FIXME: This fails when data contains NaN values
+
 # HACK: Temporary workaround for upstream bug in numpy 1.x
+
 # NOTE: Performance optimization opportunity in hot path
-```
+
+```bash
 
 ### Block Comments
 
 ```python
+
 # The following calculation implements the EMA formula:
-# EMA(today) = Value(today) * k + EMA(yesterday) * (1 - k)
+
+# EMA(today) = Value(today) *k + EMA(yesterday)*(1 - k)
+
 # where k = 2 / (period + 1)
 #
+
 # This implementation matches the behavior of pandas.ewm()
+
 k = 2 / (period + 1)
-ema_today = current_value * k + ema_yesterday * (1 - k)
-```
+ema_today = current_value*k + ema_yesterday*(1 - k)
+
+```bash
 
 ## Naming Conventions
 
@@ -320,33 +369,48 @@ ema_today = current_value * k + ema_yesterday * (1 - k)
 Follow PEP 8 naming conventions:
 
 | Type | Convention | Example |
+
 |------|------------|---------|
+
 | Module | `lowercase_with_underscores` | `linebuffer.py` |
+
 | Class | `CapitalizedWords` | `LineIterator` |
+
 | Function | `lowercase_with_underscores` | `calculate_sma()` |
+
 | Method | `lowercase_with_underscores` | `get_value()` |
+
 | Constant | `UPPERCASE_WITH_UNDERSCORES` | `MAX_PERIOD` |
+
 | Variable | `lowercase_with_underscores` | `close_price` |
+
 | Private | `_leading_underscore` | `_internal_method()` |
+
 | Protected | `__double_underscore` | `__private_attr` |
 
 ### Backtrader-specific Names
 
 ```python
+
 # Lines (output series)
+
 class MyIndicator(bt.Indicator):
     lines = ('signal', 'trend')  # lowercase, tuple
 
 # Parameters
+
 params = (
     ('period', 14),           # lowercase
     ('use_threshold', True),
 )
 
 # Accessing
+
 self.p.period      # Parameter access
+
 self.lines.signal  # Line access
-```
+
+```bash
 
 ### Booleans
 
@@ -356,25 +420,31 @@ Use `is_` or `has_` prefix for boolean variables:
 is_valid = True
 has_data = False
 should_recalculate = True
-```
+
+```bash
 
 ### Avoid Single-letter Names
 
 Except for loop variables and mathematical notation:
 
 ```python
+
 # Good
+
 for index in range(len(data)):
     price = data[index]
 
 # Acceptable
+
 for i, price in enumerate(data):
     pass
 
 # Bad (unclear meaning)
+
 x = calculate()
 y = process(x)
-```
+
+```bash
 
 ## Code Quality Tools
 
@@ -383,14 +453,18 @@ y = process(x)
 Automatically upgrade Python syntax to newer versions:
 
 ```bash
+
 # Upgrade to Python 3.8+ syntax
+
 pyupgrade --py38-plus backtrader/
 
 # Upgrade to Python 3.11+ syntax
-pyupgrade --py311-plus backtrader/
-```
 
-**What it does**:
+pyupgrade --py311-plus backtrader/
+
+```bash
+
+- *What it does**:
 - Converts `%` formatting to f-strings
 - Replaces `super()` calls
 - Modernizes type hints
@@ -401,17 +475,22 @@ pyupgrade --py311-plus backtrader/
 Fast Python linter and formatter:
 
 ```bash
+
 # Check for issues
+
 ruff check backtrader/
 
 # Auto-fix issues
+
 ruff check --fix backtrader/
 
 # Format code
-ruff format backtrader/
-```
 
-**Configuration** (pyproject.toml):
+ruff format backtrader/
+
+```bash
+
+- *Configuration** (pyproject.toml):
 
 ```toml
 [tool.ruff]
@@ -421,41 +500,51 @@ target-version = "py38"
 [tool.ruff.lint]
 select = ["E", "F"]
 ignore = ["E501"]  # Line length handled by formatter
-```
+
+```bash
 
 ### isort
 
 Import statement organizer:
 
 ```bash
+
 # Sort imports
+
 isort backtrader/
 
 # Check without modifying
-isort --check-only backtrader/
-```
 
-**Configuration** (pyproject.toml):
+isort --check-only backtrader/
+
+```bash
+
+- *Configuration** (pyproject.toml):
 
 ```toml
 [tool.isort]
 profile = "black"
 line_length = 121
-```
+
+```bash
 
 ### mypy
 
 Static type checker:
 
 ```bash
+
 # Run type checking
+
 mypy backtrader/
 
 # Check specific file
-mypy backtrader/indicators/sma.py
-```
 
-**Configuration** (pyproject.toml):
+mypy backtrader/indicators/sma.py
+
+```bash
+
+- *Configuration**(pyproject.toml):
 
 ```toml
 [tool.mypy]
@@ -464,68 +553,88 @@ warn_return_any = true
 warn_unused_configs = true
 check_untyped_defs = true
 ignore_missing_imports = true
-```
+
+```bash
 
 ### black
 
 Code formatter (note: project uses ruff-format for consistency):
 
 ```bash
+
 # Format with Black (if needed)
+
 black --line-length 124 backtrader/
-```
+
+```bash
 
 ## Pre-commit Hooks
 
 ### Installation
 
 ```bash
+
 # Install pre-commit framework
+
 pip install pre-commit
 
 # Install hooks in your repository
+
 pre-commit install
 
 # Run manually on all files
+
 pre-commit run --all-files
-```
+
+```bash
 
 ### Hook Configuration
 
 The project uses `.pre-commit-config.yaml` with the following hooks:
 
-1. **pyupgrade**: Auto-upgrade Python syntax
-2. **ruff**: Linting and formatting
-3. **trailing-whitespace**: Remove trailing spaces
-4. **end-of-file-fixer**: Ensure newline at EOF
-5. **check-yaml/check-json**: Validate YAML and JSON files
-6. **debug-statements**: Prevent debugger commits
+1.**pyupgrade**: Auto-upgrade Python syntax
+
+1. **ruff**: Linting and formatting
+2. **trailing-whitespace**: Remove trailing spaces
+3. **end-of-file-fixer**: Ensure newline at EOF
+4. **check-yaml/check-json**: Validate YAML and JSON files
+5. **debug-statements**: Prevent debugger commits
 
 ### Using Pre-commit
 
 ```bash
+
 # Automatic: Runs on every git commit
+
 git commit -m "feat: Add new indicator"
 
 # Manual: Run on all files
+
 pre-commit run --all-files
 
 # Run on specific files
+
 pre-commit run --files backtrader/indicators/*.py
 
 # Skip hooks (not recommended)
+
 git commit --no-verify -m "WIP"
-```
+
+```bash
 
 ### Git Setup (Makefile)
 
 ```bash
+
 # Setup git hooks automatically
+
 make git-setup
 
 # This creates a pre-commit hook that runs:
+
 make pre-commit
-```
+
+```bash
 
 ### Pre-commit Output
 
@@ -540,29 +649,35 @@ ruff-format............................................................Passed
 ruff-lint................................................................Passed
 [dev abc1234] Add new feature
  1 file changed, 42 insertions(+)
-```
+
+```bash
 
 ## Quick Reference
 
 ### Before Committing
 
 ```bash
+
 # Format and check your code
+
 bash scripts/optimize_code.sh
 
 # Or manually
+
 pyupgrade --py38-plus backtrader/
 isort backtrader/
 ruff format backtrader/
 ruff check --fix backtrader/
 
 # Run tests
+
 pytest tests/ -n 4 -v
-```
+
+```bash
 
 ### IDE Configuration
 
-**VS Code** (.vscode/settings.json):
+- *VS Code** (.vscode/settings.json):
 
 ```json
 {
@@ -574,9 +689,10 @@ pytest tests/ -n 4 -v
   "ruff.lineLength": 124,
   "ruff.organizeImports": true
 }
-```
 
-**PyCharm**:
+```bash
+
+- *PyCharm**:
 - Enable "Ruff" plugin
 - Set line length to 124
 - Enable "Optimize imports on save"

@@ -1,7 +1,9 @@
----
+- --
+
 title: Common Patterns Cookbook
 description: Practical trading patterns and implementations
----
+
+- --
 
 # Common Patterns Cookbook
 
@@ -18,7 +20,7 @@ This cookbook provides practical implementations of common trading patterns in B
 7. [Trailing Stop Implementation](#trailing-stop-implementation)
 8. [Bracket Orders](#bracket-orders)
 
----
+- --
 
 ## Stop Loss and Take Profit
 
@@ -40,7 +42,8 @@ class FixedStopLoss(bt.Strategy):
     )
 
     def __init__(self):
-        # Track entry price for stop loss calculation
+
+# Track entry price for stop loss calculation
         self.entry_price = None
         self.order = None
 
@@ -49,15 +52,17 @@ class FixedStopLoss(bt.Strategy):
             return  # Wait for pending order
 
         if not self.position:
-            # Entry logic - buy when price crosses above SMA
+
+# Entry logic - buy when price crosses above SMA
             if len(self.data) >= 20:
                 if self.data.close[0] > self.data.close[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
         else:
-            # Check stop loss
+
+# Check stop loss
             current_price = self.data.close[0]
-            stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
+            stop_price = self.entry_price *(1 - self.p.stop_loss_pct)
 
             if current_price <= stop_price:
                 self.order = self.close()  # Stop loss hit
@@ -67,7 +72,8 @@ class FixedStopLoss(bt.Strategy):
             self.order = None
             if not self.position:
                 self.entry_price = None
-```
+
+```bash
 
 ### ATR-Based Stop Loss
 
@@ -96,23 +102,28 @@ class ATRStopLoss(bt.Strategy):
             return
 
         if not self.position:
-            # Simple entry: buy when price rises
+
+# Simple entry: buy when price rises
             if len(self.data) > self.p.atr_period:
                 if self.data.close[0] > self.data.close[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
-                    # Set initial stop loss
-                    self.stop_price = self.entry_price - (self.atr[0] * self.p.atr_multiplier)
+
+# Set initial stop loss
+                    self.stop_price = self.entry_price - (self.atr[0]*self.p.atr_multiplier)
         else:
-            # Check if stop loss is hit
+
+# Check if stop loss is hit
             if self.data.close[0] <= self.stop_price:
                 self.order = self.close()
             else:
-                # Trailing stop: update stop price if price moves favorably
-                new_stop = self.data.close[0] - (self.atr[0] * self.p.atr_multiplier)
+
+# Trailing stop: update stop price if price moves favorably
+                new_stop = self.data.close[0] - (self.atr[0]*self.p.atr_multiplier)
                 if new_stop > self.stop_price:
                     self.stop_price = new_stop
-```
+
+```bash
 
 ### Take Profit with Risk-Reward Ratio
 
@@ -140,28 +151,32 @@ class RiskRewardStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Entry condition
+
+# Entry condition
             if len(self.data) >= 20:
                 sma = bt.indicators.SMA(self.data.close, period=20)
                 if self.data.close[0] > sma[0] and self.data.close[-1] <= sma[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
-                    # Calculate stop and target
-                    self.stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
+
+# Calculate stop and target
+                    self.stop_price = self.entry_price*(1 - self.p.stop_loss_pct)
                     risk = self.entry_price - self.stop_price
-                    self.target_price = self.entry_price + (risk * self.p.risk_reward_ratio)
+                    self.target_price = self.entry_price + (risk*self.p.risk_reward_ratio)
         else:
             current_price = self.data.close[0]
 
-            # Check stop loss
+# Check stop loss
             if current_price <= self.stop_price:
                 self.order = self.close()
-            # Check take profit
+
+# Check take profit
             elif current_price >= self.target_price:
                 self.order = self.close()
-```
 
----
+```bash
+
+- --
 
 ## Dynamic Position Sizing
 
@@ -180,19 +195,22 @@ class PercentEquitySizer(bt.Sizer):
 
     def _getsizing(self, comminfo, cash, data, isbuy):
         if isbuy:
-            # Calculate position size based on percentage of equity
-            position_value = self.broker.getvalue() * (self.p.percents / 100)
+
+# Calculate position size based on percentage of equity
+            position_value = self.broker.getvalue()*(self.p.percents / 100)
             size = position_value / data.close[0]
             return int(size)
         return self.broker.getposition(data).size
 
 # Usage in strategy
+
 class PercentEquityStrategy(bt.Strategy):
     params = (('trade_size', 20),)  # 20% of equity per trade
 
     def __init__(self):
         self.setsizer(PercentEquitySizer(percents=self.p.trade_size))
-```
+
+```bash
 
 ### Volatility-Adjusted Sizing
 
@@ -215,23 +233,24 @@ class VolatilitySizer(bt.Sizer):
         if not isbuy:
             return self.broker.getposition(data).size
 
-        # Calculate ATR
+# Calculate ATR
         if len(data) < self.p.atr_period:
             return 0
 
         atr = bt.indicators.ATR(data, period=self.p.atr_period)
-        current_atr = atr[0] if len(atr) > 0 else data.close[0] * 0.02
+        current_atr = atr[0] if len(atr) > 0 else data.close[0]*0.02
 
-        # Calculate position size based on risk
-        risk_amount = self.broker.getvalue() * self.p.risk_pct
-        stop_distance = current_atr * self.p.atr_multiplier
+# Calculate position size based on risk
+        risk_amount = self.broker.getvalue()*self.p.risk_pct
+        stop_distance = current_atr*self.p.atr_multiplier
 
         if stop_distance > 0:
             size = risk_amount / stop_distance
             return int(size)
 
         return 0
-```
+
+```bash
 
 ### Kelly Criterion Sizing
 
@@ -240,7 +259,7 @@ class KellySizer(bt.Sizer):
     """
     Position sizing using the Kelly Criterion.
 
-    Kelly % = (Win% * WinLossRatio - Loss%) / WinLossRatio
+    Kelly % = (Win%*WinLossRatio - Loss%) / WinLossRatio
 
     Parameters:
         win_rate: Historical win rate (0-1)
@@ -260,21 +279,22 @@ class KellySizer(bt.Sizer):
         if not isbuy:
             return self.broker.getposition(data).size
 
-        # Calculate Kelly percentage
+# Calculate Kelly percentage
         win_loss_ratio = self.p.avg_win / self.p.avg_loss
-        kelly_pct = (self.p.win_rate * win_loss_ratio - (1 - self.p.win_rate)) / win_loss_ratio
+        kelly_pct = (self.p.win_rate*win_loss_ratio - (1 - self.p.win_rate)) / win_loss_ratio
 
-        # Apply fractional Kelly (half-Kelly for safety)
-        kelly_pct = max(0, min(kelly_pct * 0.5, self.p.max_position_pct / 100))
+# Apply fractional Kelly (half-Kelly for safety)
+        kelly_pct = max(0, min(kelly_pct*0.5, self.p.max_position_pct / 100))
 
-        # Calculate position size
-        position_value = self.broker.getvalue() * kelly_pct
+# Calculate position size
+        position_value = self.broker.getvalue()*kelly_pct
         size = position_value / data.close[0]
 
         return int(size)
-```
 
----
+```bash
+
+- --
 
 ## Multi-Indicator Combination
 
@@ -286,9 +306,11 @@ class TripleConfirmationStrategy(bt.Strategy):
     Combines trend, momentum, and volatility indicators.
 
     Entry conditions (all must be true):
+
     1. Trend: Price above 200-period SMA
     2. Momentum: RSI below 30 (oversold)
     3. Volatility: ATR above average (expanding volatility)
+
     """
 
     params = (
@@ -299,13 +321,14 @@ class TripleConfirmationStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # Trend indicator
+
+# Trend indicator
         self.sma_trend = bt.indicators.SMA(self.data.close, period=self.p.trend_period)
 
-        # Momentum indicator
+# Momentum indicator
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
 
-        # Volatility indicator
+# Volatility indicator
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
         self.atr_sma = bt.indicators.SMA(self.atr, period=self.p.atr_period)
 
@@ -314,7 +337,8 @@ class TripleConfirmationStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Check all three conditions
+
+# Check all three conditions
             trend_ok = self.data.close[0] > self.sma_trend[0]
             momentum_ok = self.rsi[0] < self.p.rsi_threshold
             volatility_ok = self.atr[0] > self.atr_sma[0]
@@ -322,10 +346,12 @@ class TripleConfirmationStrategy(bt.Strategy):
             if trend_ok and momentum_ok and volatility_ok:
                 self.buy()
         else:
-            # Exit when RSI becomes overbought
+
+# Exit when RSI becomes overbought
             if self.rsi[0] > 70:
                 self.sell()
-```
+
+```bash
 
 ### MACD + Stochastic Confirmation
 
@@ -335,12 +361,15 @@ class MACDStochasticStrategy(bt.Strategy):
     Combines MACD and Stochastic for entry confirmation.
 
     Buy when:
+
     - MACD line crosses above signal line
     - Stochastic %K crosses above %D from below 20
 
     Sell when:
+
     - MACD line crosses below signal line
     - Stochastic %K crosses below %D from above 80
+
     """
 
     params = (
@@ -352,14 +381,15 @@ class MACDStochasticStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # MACD indicators
+
+# MACD indicators
         self.macd = bt.indicators.MACD(self.data.close,
                                        period_me1=self.p.macd_fast,
                                        period_me2=self.p.macd_slow,
                                        period_signal=self.p.macd_signal)
         self.macd_cross = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
 
-        # Stochastic indicators
+# Stochastic indicators
         self.stoch = bt.indicators.Stochastic(self.data,
                                               period=self.p.stoch_period,
                                               period_dfast=self.p.stoch_d_period)
@@ -368,18 +398,21 @@ class MACDStochasticStrategy(bt.Strategy):
 
     def next(self):
         if not self.position:
-            # Buy signal: MACD crossover up + Stochastic crossover up from oversold
+
+# Buy signal: MACD crossover up + Stochastic crossover up from oversold
             if (self.macd_cross[0] > 0 and
                 self.stoch_cross[0] > 0 and
                 self.stoch.percK[-1] < 20):
                 self.buy()
         else:
-            # Sell signal: MACD crossover down + Stochastic crossover down from overbought
+
+# Sell signal: MACD crossover down + Stochastic crossover down from overbought
             if (self.macd_cross[0] < 0 and
                 self.stoch_cross[0] < 0 and
                 self.stoch.percK[-1] > 80):
                 self.sell()
-```
+
+```bash
 
 ### Bollinger Band + RSI Reversal
 
@@ -389,12 +422,15 @@ class BBRSIReversalStrategy(bt.Strategy):
     Mean reversion strategy combining Bollinger Bands and RSI.
 
     Buy when:
+
     - Price touches lower Bollinger Band
     - RSI is below 30
 
     Sell when:
+
     - Price touches upper Bollinger Band
     - RSI is above 70
+
     """
 
     params = (
@@ -411,18 +447,21 @@ class BBRSIReversalStrategy(bt.Strategy):
 
     def next(self):
         if not self.position:
-            # Buy at lower band with RSI confirmation
+
+# Buy at lower band with RSI confirmation
             if (self.data.close[0] <= self.bb.lines.bot[0] and
                 self.rsi[0] < 30):
                 self.buy()
         else:
-            # Sell at upper band with RSI confirmation
+
+# Sell at upper band with RSI confirmation
             if (self.data.close[0] >= self.bb.lines.top[0] and
                 self.rsi[0] > 70):
                 self.sell()
-```
 
----
+```bash
+
+- --
 
 ## Time-Based Trading Filters
 
@@ -455,7 +494,7 @@ class SessionFilterStrategy(bt.Strategy):
         current_time = self.data.datetime.time(0)
         in_session = (self.p.start_hour <= current_time.hour < self.p.end_hour)
 
-        # Reset counter when entering new session
+# Reset counter when entering new session
         if in_session and not self.was_in_session:
             self.bars_in_session = 0
         elif in_session:
@@ -463,14 +502,15 @@ class SessionFilterStrategy(bt.Strategy):
 
         self.was_in_session = in_session
 
-        # Skip if outside session or during warmup period
+# Skip if outside session or during warmup period
         if not in_session or self.bars_in_session < self.p.exclude_first_bars:
             return
 
-        # Trading logic here
+# Trading logic here
         if not self.position:
             self.buy()
-```
+
+```bash
 
 ### Day of Week Filter
 
@@ -490,16 +530,17 @@ class DayOfWeekStrategy(bt.Strategy):
     def next(self):
         current_weekday = self.data.datetime.date(0).weekday()
 
-        # Only trade on specified days
+# Only trade on specified days
         if current_weekday not in self.p.trade_days:
             return
 
-        # Trading logic
+# Trading logic
         if not self.position and len(self.data) >= 20:
             sma = bt.indicators.SMA(self.data.close, period=20)
             if self.data.close[0] > sma[0]:
                 self.buy()
-```
+
+```bash
 
 ### Month/Season-Based Filter
 
@@ -518,18 +559,20 @@ class SeasonalStrategy(bt.Strategy):
     def next(self):
         current_month = self.data.datetime.date(0).month
 
-        # Skip trading during specified months
+# Skip trading during specified months
         if current_month in self.p.avoid_months:
-            # Close any existing position
+
+# Close any existing position
             if self.position:
                 self.close()
             return
 
-        # Trading logic for active months
+# Trading logic for active months
         if not self.position and len(self.data) >= 20:
             if self.data.close[0] > self.data.close[-1]:
                 self.buy()
-```
+
+```bash
 
 ### End-of-Day Exit
 
@@ -553,7 +596,7 @@ class EndOfDayExit(bt.Strategy):
         current_time = self.data.datetime.time(0)
         exit_time = datetime.time(self.p.exit_hour, self.p.exit_minute)
 
-        # Close positions at specified time
+# Close positions at specified time
         if current_time >= exit_time:
             if self.position and not self.exit_triggered:
                 self.close()
@@ -561,14 +604,15 @@ class EndOfDayExit(bt.Strategy):
         else:
             self.exit_triggered = False
 
-        # Trading logic before exit time
+# Trading logic before exit time
         if current_time < exit_time and not self.position:
             if len(self.data) >= 20:
                 if self.data.close[0] > self.data.close[-1]:
                     self.buy()
-```
 
----
+```bash
+
+- --
 
 ## Event-Driven Patterns
 
@@ -587,7 +631,8 @@ class OrderNotificationStrategy(bt.Strategy):
         self.pending_orders = {}  # Track orders by reference
 
     def next(self):
-        # Only place new order if none pending
+
+# Only place new order if none pending
         if self.order:
             return
 
@@ -597,11 +642,11 @@ class OrderNotificationStrategy(bt.Strategy):
     def notify_order(self, order):
         """Called when order status changes."""
 
-        # Order is still pending
+# Order is still pending
         if order.status in [order.Submitted, order.Accepted]:
             return
 
-        # Order completed
+# Order completed
         if order.status == order.Completed:
             if order.isbuy():
                 self.log(f'BUY EXECUTED: Price {order.executed.price:.2f}, '
@@ -612,26 +657,27 @@ class OrderNotificationStrategy(bt.Strategy):
                         f'Cost {order.executed.value:.2f}, '
                         f'Comm {order.executed.comm:.2f}')
 
-        # Order cancelled
+# Order cancelled
         elif order.status == order.Cancelled:
             self.log(f'ORDER CANCELLED: {order.getstatusname()}')
 
-        # Order rejected
+# Order rejected
         elif order.status == order.Rejected:
             self.log(f'ORDER REJECTED: {order.getstatusname()}')
 
-        # Order margin
+# Order margin
         elif order.status == order.Margin:
             self.log(f'ORDER MARGIN: {order.getstatusname()}')
 
-        # Reset order reference
+# Reset order reference
         self.order = None
 
     def log(self, txt):
         """Logging helper."""
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
-```
+
+```bash
 
 ### Trade Notification
 
@@ -654,15 +700,18 @@ class TradeNotificationStrategy(bt.Strategy):
         if not trade.isclosed:
             return
 
-        # Calculate trade metrics
+# Calculate trade metrics
         pnl_net = trade.pnlnet  # Net profit (after commission)
         pnl_comm = trade.commission  # Commission paid
         pnl_gross = trade.pnl  # Gross profit (before commission)
 
         log_txt = (
             f'TRADE CLOSED | '
+
             f'PnL: ${pnl_net:.2f} | '
+
             f'Gross: ${pnl_gross:.2f} | '
+
             f'Comm: ${pnl_comm:.2f}'
         )
 
@@ -672,7 +721,8 @@ class TradeNotificationStrategy(bt.Strategy):
     def log(self, txt):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
-```
+
+```bash
 
 ### Data Notification (Live Trading)
 
@@ -688,35 +738,36 @@ class DataNotificationStrategy(bt.Strategy):
         self.last_data_time = None
         self.data_gap_detected = False
 
-    def notify_data(self, data, status, *args, **kwargs):
+    def notify_data(self, data, status,*args, **kwargs):
         """Called when data feed status changes."""
 
-        # Data is live
+# Data is live
         if status == data.LIVE:
             self.log('Data feed is LIVE')
 
-        # Data is delayed
+# Data is delayed
         elif status == data.DELAYED:
             self.log('Data feed is DELAYED')
 
-        # Data connection lost
+# Data connection lost
         elif status == data.DISCONNECTED:
             self.log('Data feed DISCONNECTED - Check connection')
             self.data_gap_detected = True
 
-        # Data reconnected
+# Data reconnected
         elif status == data.CONNECTED:
             if self.data_gap_detected:
                 self.log('Data feed RECONNECTED')
                 self.data_gap_detected = False
 
-        # New data arriving
+# New data arriving
         if hasattr(data, 'datetime') and len(data) > 0:
             self.last_data_time = data.datetime.datetime(0)
 
     def log(self, txt):
         print(f'{self.data.datetime.datetime(0)}: {txt}')
-```
+
+```bash
 
 ### Cash Value Notification
 
@@ -737,16 +788,16 @@ class CashNotificationStrategy(bt.Strategy):
     def next(self):
         current_equity = self.broker.getvalue()
 
-        # Update peak equity
+# Update peak equity
         if current_equity > self.peak_equity:
             self.peak_equity = current_equity
 
-        # Calculate drawdown
+# Calculate drawdown
         if self.peak_equity > 0:
             self.drawdown = (self.peak_equity - current_equity) / self.peak_equity
             self.max_drawdown = max(self.max_drawdown, self.drawdown)
 
-        # Risk management: stop trading if drawdown exceeds threshold
+# Risk management: stop trading if drawdown exceeds threshold
         if self.drawdown > 0.20:  # 20% max drawdown
             if self.position:
                 self.log(f'Max drawdown exceeded: {self.drawdown:.1%}')
@@ -757,21 +808,22 @@ class CashNotificationStrategy(bt.Strategy):
         final_equity = self.broker.getvalue()
         total_return = (final_equity - self.starting_cash) / self.starting_cash
 
-        print('=' * 50)
+        print('=' *50)
         print('FINAL RESULTS')
-        print('=' * 50)
+        print('='*50)
         print(f'Starting Cash: ${self.starting_cash:.2f}')
         print(f'Final Equity:  ${final_equity:.2f}')
         print(f'Total Return:  {total_return:.2%}')
         print(f'Max Drawdown:  {self.max_drawdown:.2%}')
-        print('=' * 50)
+        print('='*50)
 
     def log(self, txt):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
-```
 
----
+```bash
+
+- --
 
 ## Pyramiding Positions
 
@@ -805,22 +857,24 @@ class PyramidStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Initial entry
+
+# Initial entry
             self.order = self.buy(size=100)
             self.initial_size = 100
             self.entry_prices.append(self.data.close[0])
             self.current_level = 0
         else:
-            # Check if we can add to position
+
+# Check if we can add to position
             if (self.current_level < self.p.pyramid_levels and
                 len(self.entry_prices) > 0):
 
                 last_entry = self.entry_prices[-1]
                 price_move_pct = (self.data.close[0] - last_entry) / last_entry
 
-                # Add to position if price moved favorably
+# Add to position if price moved favorably
                 if price_move_pct >= self.p.pyramid_distance:
-                    add_size = int(self.initial_size * self.p.level_size)
+                    add_size = int(self.initial_size*self.p.level_size)
                     self.order = self.buy(size=add_size)
                     self.entry_prices.append(self.data.close[0])
                     self.current_level += 1
@@ -828,7 +882,8 @@ class PyramidStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
+
+```bash
 
 ### ATR-Based Pyramiding
 
@@ -857,18 +912,20 @@ class ATRPyramidStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Initial entry
+
+# Initial entry
             if len(self.data) > self.p.atr_period:
                 self.order = self.buy(size=100)
                 self.entry_price = self.data.close[0]
                 self.pyramid_levels = 0
         else:
-            # Check if we can pyramid
+
+# Check if we can pyramid
             if (self.pyramid_levels < self.p.max_levels and
                 self.entry_price is not None):
 
                 profit_distance = self.data.close[0] - self.entry_price
-                atr_distance = self.atr[0] * self.p.atr_multiplier * (self.pyramid_levels + 1)
+                atr_distance = self.atr[0]*self.p.atr_multiplier*(self.pyramid_levels + 1)
 
                 if profit_distance >= atr_distance:
                     add_size = 100  # Fixed add size
@@ -878,7 +935,8 @@ class ATRPyramidStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
+
+```bash
 
 ### Fibonacci Pyramiding
 
@@ -894,7 +952,7 @@ class FibonacciPyramidStrategy(bt.Strategy):
         ('profit_target', 0.10),  # 10% profit target
     )
 
-    # Fibonacci levels
+# Fibonacci levels
     fib_levels = [0.236, 0.382, 0.50, 0.618]
 
     def __init__(self):
@@ -908,23 +966,26 @@ class FibonacciPyramidStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Initial entry
+
+# Initial entry
             self.order = self.buy(size=100)
             self.entry_price = self.data.close[0]
-            self.target_price = self.entry_price * (1 + self.p.profit_target)
+            self.target_price = self.entry_price*(1 + self.p.profit_target)
             self.triggered_levels = []
         else:
-            # Check each Fibonacci level
+
+# Check each Fibonacci level
             profit = self.data.close[0] - self.entry_price
             total_profit = self.target_price - self.entry_price
 
             for i, fib_level in enumerate(self.fib_levels):
                 if i not in self.triggered_levels:
-                    fib_price = self.entry_price + (total_profit * fib_level)
+                    fib_price = self.entry_price + (total_profit*fib_level)
 
                     if self.data.close[0] >= fib_price:
-                        # Add position at this level
-                        add_size = int(100 * (1 - fib_level))  # Smaller adds at higher levels
+
+# Add position at this level
+                        add_size = int(100*(1 - fib_level))  # Smaller adds at higher levels
                         self.order = self.buy(size=add_size)
                         self.triggered_levels.append(i)
                         break
@@ -932,9 +993,10 @@ class FibonacciPyramidStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
 
----
+```bash
+
+- --
 
 ## Trailing Stop Implementation
 
@@ -963,24 +1025,27 @@ class TrailingStopStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Entry logic
+
+# Entry logic
             if len(self.data) >= 20:
                 if self.data.close[0] > self.data.close[-1]:
                     self.order = self.buy()
                     self.entry_price = self.data.close[0]
                     self.highest_price = self.entry_price
-                    # Set initial stop
-                    self.stop_price = self.highest_price * (1 - self.p.trail_pct)
+
+# Set initial stop
+                    self.stop_price = self.highest_price*(1 - self.p.trail_pct)
         else:
-            # Update highest price
+
+# Update highest price
             self.highest_price = max(self.highest_price, self.data.close[0])
 
-            # Update trailing stop
-            new_stop = self.highest_price * (1 - self.p.trail_pct)
+# Update trailing stop
+            new_stop = self.highest_price*(1 - self.p.trail_pct)
             if new_stop > self.stop_price:
                 self.stop_price = new_stop
 
-            # Check stop
+# Check stop
             if self.data.close[0] <= self.stop_price:
                 self.order = self.close()
 
@@ -991,7 +1056,8 @@ class TrailingStopStrategy(bt.Strategy):
                 self.entry_price = None
                 self.stop_price = None
                 self.highest_price = None
-```
+
+```bash
 
 ### ATR Trailing Stop
 
@@ -1022,26 +1088,29 @@ class ATRTrailingStopStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Entry
+
+# Entry
             if len(self.data) > self.p.atr_period:
                 self.order = self.buy()
                 self.entry_price = self.data.close[0]
         else:
-            # Calculate trailing stop using Chandelier Exit
-            self.stop_price = self.highest_high[0] - (self.atr[0] * self.p.atr_multiplier)
 
-            # Ensure stop is below current price for long position
+# Calculate trailing stop using Chandelier Exit
+            self.stop_price = self.highest_high[0] - (self.atr[0]*self.p.atr_multiplier)
+
+# Ensure stop is below current price for long position
             if self.stop_price >= self.data.close[0]:
-                self.stop_price = self.data.close[0] * 0.99
+                self.stop_price = self.data.close[0]*0.99
 
-            # Check stop
+# Check stop
             if self.data.close[0] <= self.stop_price:
                 self.order = self.close()
 
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
+
+```bash
 
 ### High-Water Mark Trailing Stop
 
@@ -1069,7 +1138,8 @@ class HighWaterMarkTrailingStop(bt.Strategy):
             return
 
         if not self.position:
-            # Entry
+
+# Entry
             if len(self.data) >= 20:
                 sma = bt.indicators.SMA(self.data.close, period=20)
                 if self.data.close[0] > sma[0]:
@@ -1077,21 +1147,22 @@ class HighWaterMarkTrailingStop(bt.Strategy):
                     self.highest_close = self.data.close[0]
                     self.stop_price = None  # No stop until minimum profit
         else:
-            # Update highest close
+
+# Update highest close
             self.highest_close = max(self.highest_close, self.data.close[0])
 
-            # Calculate profit
+# Calculate profit
             profit_pct = (self.data.close[0] - self.highest_close) / self.highest_close
 
-            # Only set trailing stop after minimum profit is achieved
+# Only set trailing stop after minimum profit is achieved
             if profit_pct > -self.p.min_profit_pct:
-                new_stop = self.highest_close * (1 - self.p.trail_pct)
+                new_stop = self.highest_close*(1 - self.p.trail_pct)
 
-                # Only update stop if it's higher (trailing)
+# Only update stop if it's higher (trailing)
                 if self.stop_price is None or new_stop > self.stop_price:
                     self.stop_price = new_stop
 
-                # Check stop
+# Check stop
                 if self.data.close[0] <= self.stop_price:
                     self.order = self.close()
 
@@ -1101,7 +1172,8 @@ class HighWaterMarkTrailingStop(bt.Strategy):
             if not self.position:
                 self.highest_close = None
                 self.stop_price = None
-```
+
+```bash
 
 ### PSAR Trailing Stop
 
@@ -1122,16 +1194,18 @@ class PSARTrailingStopStrategy(bt.Strategy):
         if self.order:
             return
 
-        # Entry: When PSAR indicates uptrend
+# Entry: When PSAR indicates uptrend
         if not self.position:
             if len(self.psar) > 2:
-                # PSAR below price = uptrend
+
+# PSAR below price = uptrend
                 if self.psar.psar[0] < self.data.low[0]:
                     if self.psar.psar[-1] >= self.data.low[-1]:  # Was above, now below
                         self.order = self.buy()
                         self.in_position = True
         else:
-            # Exit: When PSAR crosses above price (trend reversal)
+
+# Exit: When PSAR crosses above price (trend reversal)
             if self.psar.psar[0] > self.data.high[0]:
                 self.order = self.close()
                 self.in_position = False
@@ -1139,9 +1213,10 @@ class PSARTrailingStopStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status == order.Completed:
             self.order = None
-```
 
----
+```bash
+
+- --
 
 ## Bracket Orders
 
@@ -1168,12 +1243,14 @@ class BracketOrderStrategy(bt.Strategy):
         self.entry_price = None
 
     def next(self):
-        # Only place bracket if no orders are pending
+
+# Only place bracket if no orders are pending
         if any([self.entry_order, self.stop_order, self.limit_order]):
             return
 
         if not self.position:
-            # Place entry order
+
+# Place entry order
             self.entry_order = self.buy()
             self.entry_price = self.data.close[0]
 
@@ -1182,20 +1259,23 @@ class BracketOrderStrategy(bt.Strategy):
             return
 
         if order == self.entry_order:
-            # Entry order filled - place bracket
+
+# Entry order filled - place bracket
             if order.status == order.Completed:
                 self.entry_order = None
                 self.place_bracket()
 
         elif order in [self.stop_order, self.limit_order]:
-            # Bracket order filled - cancel the other
+
+# Bracket order filled - cancel the other
             if order.status == order.Completed:
                 self.cancel_bracket()
                 self.stop_order = None
                 self.limit_order = None
 
         elif order.status == order.Cancelled:
-            # Handle cancelled orders
+
+# Handle cancelled orders
             if order == self.entry_order:
                 self.entry_order = None
             elif order == self.stop_order:
@@ -1208,11 +1288,11 @@ class BracketOrderStrategy(bt.Strategy):
         if self.entry_price is None:
             return
 
-        # Calculate stop and limit prices
-        stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
-        limit_price = self.entry_price * (1 + self.p.take_profit_pct)
+# Calculate stop and limit prices
+        stop_price = self.entry_price*(1 - self.p.stop_loss_pct)
+        limit_price = self.entry_price*(1 + self.p.take_profit_pct)
 
-        # Place bracket orders
+# Place bracket orders
         self.stop_order = self.sell(exectype=order.Stop, price=stop_price)
         self.limit_order = self.sell(exectype=order.Limit, price=limit_price)
 
@@ -1222,7 +1302,8 @@ class BracketOrderStrategy(bt.Strategy):
             self.cancel(self.stop_order)
         if self.limit_order:
             self.cancel(self.limit_order)
-```
+
+```bash
 
 ### Multi-Level Bracket (Scale Out)
 
@@ -1270,15 +1351,17 @@ class ScaleOutBracketStrategy(bt.Strategy):
 
         elif order in self.target_orders and order.status == order.Completed:
             self.target_orders.remove(order)
-            # Update stop loss to breakeven after first target
+
+# Update stop loss to breakeven after first target
             if len(self.triggered_targets) == 1:
                 self.update_stop_to_breakeven()
 
-        # Track which targets have been triggered
+# Track which targets have been triggered
         for i, target_order in enumerate(self.target_orders):
             if target_order == order and i not in self.triggered_targets:
                 self.triggered_targets.append(i)
-                # Place next target if there are more
+
+# Place next target if there are more
                 if len(self.triggered_targets) < len(self.p.targets):
                     self.place_next_target()
 
@@ -1287,12 +1370,12 @@ class ScaleOutBracketStrategy(bt.Strategy):
         if self.entry_price is None:
             return
 
-        # Place stop loss
-        stop_price = self.entry_price * (1 - self.p.stop_loss_pct)
+# Place stop loss
+        stop_price = self.entry_price*(1 - self.p.stop_loss_pct)
         self.stop_order = self.sell(size=self.position_size, exectype=order.Stop,
                                     price=stop_price)
 
-        # Place first target
+# Place first target
         self.place_next_target()
 
     def place_next_target(self):
@@ -1302,8 +1385,8 @@ class ScaleOutBracketStrategy(bt.Strategy):
             return
 
         target_pct, close_pct = self.p.targets[level]
-        target_price = self.entry_price * (1 + target_pct)
-        close_size = int(self.position_size * close_pct)
+        target_price = self.entry_price*(1 + target_pct)
+        close_size = int(self.position_size*close_pct)
 
         target_order = self.sell(size=close_size, exectype=order.Limit,
                                  price=target_price)
@@ -1314,13 +1397,13 @@ class ScaleOutBracketStrategy(bt.Strategy):
         if self.stop_order:
             self.cancel(self.stop_order)
 
-        # Calculate remaining position size
+# Calculate remaining position size
         remaining_size = self.position_size
         for _, close_pct in self.p.targets:
-            remaining_size = int(remaining_size * (1 - close_pct))
+            remaining_size = int(remaining_size*(1 - close_pct))
             break  # Just subtract first target
 
-        breakeven_price = self.entry_price * 1.001  # Slight buffer
+        breakeven_price = self.entry_price*1.001  # Slight buffer
         self.stop_order = self.sell(size=remaining_size, exectype=order.Stop,
                                     price=breakeven_price)
 
@@ -1329,7 +1412,8 @@ class ScaleOutBracketStrategy(bt.Strategy):
         for order in self.target_orders:
             self.cancel(order)
         self.target_orders = []
-```
+
+```bash
 
 ### Dynamic Bracket with Trailing
 
@@ -1340,6 +1424,7 @@ class DynamicBracketStrategy(bt.Strategy):
 
     - Stop loss trails with price
     - Take profit adjusts based on volatility
+
     """
 
     params = (
@@ -1362,14 +1447,16 @@ class DynamicBracketStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # Entry
+
+# Entry
             if len(self.data) > self.p.atr_period:
                 self.entry_order = self.buy()
         else:
-            # Update trailing stop
+
+# Update trailing stop
             self.update_trailing_stop()
 
-            # Update take profit based on volatility
+# Update take profit based on volatility
             self.update_take_profit()
 
     def update_trailing_stop(self):
@@ -1377,12 +1464,13 @@ class DynamicBracketStrategy(bt.Strategy):
         if self.entry_price is None or len(self.data) < 2:
             return
 
-        # Calculate new stop price
-        new_stop = self.highest_price - (self.atr[0] * self.p.stop_atr_mult)
+# Calculate new stop price
+        new_stop = self.highest_price - (self.atr[0]*self.p.stop_atr_mult)
 
-        # Cancel existing stop and place new one if price moved favorably
+# Cancel existing stop and place new one if price moved favorably
         if self.stop_order:
-            # Get current stop price from order
+
+# Get current stop price from order
             current_stop = self.stop_order.created.price if hasattr(self.stop_order, 'created') else new_stop
 
             if new_stop > current_stop:
@@ -1391,7 +1479,8 @@ class DynamicBracketStrategy(bt.Strategy):
                 self.stop_order = self.sell(size=stop_size, exectype=order.Stop,
                                             price=new_stop)
         else:
-            # Place initial stop
+
+# Place initial stop
             stop_size = self.position.size
             self.stop_order = self.sell(size=stop_size, exectype=order.Stop,
                                         price=new_stop)
@@ -1401,10 +1490,10 @@ class DynamicBracketStrategy(bt.Strategy):
         if self.entry_price is None:
             return
 
-        # Dynamic target based on ATR
-        target_price = self.entry_price + (self.atr[0] * self.p.target_atr_mult)
+# Dynamic target based on ATR
+        target_price = self.entry_price + (self.atr[0]* self.p.target_atr_mult)
 
-        # Only place/update if we don't have a limit order or it needs moving
+# Only place/update if we don't have a limit order or it needs moving
         if not self.limit_order:
             limit_size = self.position.size
             self.limit_order = self.sell(size=limit_size, exectype=order.Limit,
@@ -1419,11 +1508,11 @@ class DynamicBracketStrategy(bt.Strategy):
             self.entry_price = order.executed.price
             self.highest_price = order.executed.price
 
-        # Update highest price on each bar
+# Update highest price on each bar
         if self.position:
             self.highest_price = max(self.highest_price, self.data.close[0])
 
-        # Handle completed orders
+# Handle completed orders
         if order.status == order.Completed:
             if order == self.stop_order:
                 self.stop_order = None
@@ -1435,9 +1524,10 @@ class DynamicBracketStrategy(bt.Strategy):
                 if self.stop_order:
                     self.cancel(self.stop_order)
                     self.stop_order = None
-```
 
----
+```bash
+
+- --
 
 ## Usage Examples
 
@@ -1448,9 +1538,11 @@ import backtrader as bt
 import backtrader.feeds as btfeeds
 
 # Create cerebro
+
 cerebro = bt.Cerebro()
 
 # Add data feed
+
 data = btfeeds.CSVData(
     dataname='your_data.csv',
     datetime=0,
@@ -1464,6 +1556,7 @@ data = btfeeds.CSVData(
 cerebro.adddata(data)
 
 # Add strategy with parameters
+
 cerebro.addstrategy(
     ATRStopLoss,
     atr_period=14,
@@ -1471,30 +1564,37 @@ cerebro.addstrategy(
 )
 
 # Set initial cash
+
 cerebro.broker.setcash(10000.0)
 
 # Set commission
+
 cerebro.broker.setcommission(commission=0.001)  # 0.1%
 
 # Add analyzers
+
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
 
 # Run
+
 results = cerebro.run()
 strat = results[0]
 
 # Print results
+
 print(f'Sharpe Ratio: {strat.analyzers.sharpe.get_analysis()}')
 print(f'DrawDown: {strat.analyzers.drawdown.get_analysis()}')
 print(f'Returns: {strat.analyzers.returns.get_analysis()}')
 
 # Plot
-cerebro.plot()
-```
 
----
+cerebro.plot()
+
+```bash
+
+- --
 
 ## Next Steps
 

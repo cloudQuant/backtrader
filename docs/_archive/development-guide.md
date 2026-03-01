@@ -11,110 +11,146 @@
 ### 1. Clone and Install
 
 ```bash
+
 # Clone the repository
-git clone https://github.com/cloudQuant/backtrader.git
+
+git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 
 # Switch to dev branch (active development)
+
 git checkout dev
 
 # Install dependencies
+
 pip install -r requirements.txt
 
 # Install in development mode
+
 pip install -e .
-```
+
+```bash
 
 ### 2. Optional: Compile Cython Extensions
 
-**Note**: Cython is being phased out in favor of C++ for future optimizations.
+- *Note**: Cython is being phased out in favor of C++ for future optimizations.
 
 ```bash
+
 # Unix/Mac
+
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
 pip install -U .
 
 # Windows
+
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..
 pip install -U .
-```
+
+```bash
 
 ### 3. Verify Installation
 
 ```bash
 python -m pytest tests/new_functions/ -v
-```
+
+```bash
 
 ## Development Commands
 
 ### Running Tests
 
 ```bash
+
 # All tests (parallel execution recommended)
+
 pytest tests/ -n 4 -v
 
 # Original tests only
+
 pytest tests/original_tests/ -v
 
 # With coverage
+
 make test-coverage
 
 # Single test with detailed output
+
 pytest tests/path/to/test_file.py::test_function_name -v --tb=short
 
 # Integration tests (requires testnet keys)
+
 pytest tests/ -m "integration" -v
 
 # Exclude integration tests (fast)
+
 pytest tests/ -m "not integration" -v
-```
+
+```bash
 
 ### Code Quality
 
 ```bash
+
 # Format code with Black
+
 make format
 
 # Check formatting
+
 make format-check
 
 # Run linter (Pylint)
+
 make lint
 
 # Type checking
+
 make type-check
 
 # Security checks
+
 make security
 
 # All quality checks
+
 make quality-check
 
 # Full code optimization script
+
 bash scripts/optimize_code.sh
-```
+
+```bash
 
 ### Documentation
 
 ```bash
+
 # Generate all documentation (en + zh)
+
 make docs
 
 # Generate English documentation
+
 make docs-en
 
 # Generate Chinese documentation
+
 make docs-zh
 
 # Build with live reload (development)
+
 make docs-live
 
 # View in browser
+
 make docs-view
 
 # See all commands
+
 make help
-```
+
+```bash
 
 ## Code Style
 
@@ -146,13 +182,17 @@ Use `isort` for automatic import sorting.
 
 ### Test Organization
 
-```
+```bash
 tests/
 ├── original_tests/     # Core functionality (300+ tests)
+
 ├── add_tests/          # Additional test coverage
+
 ├── refactor_tests/     # Metaclass removal tests
+
 └── strategies/         # Strategy-specific tests
-```
+
+```bash
 
 ### Test Naming
 
@@ -197,9 +237,11 @@ tests/
 def __init__(self):
     super().__init__()
     self.sma = bt.indicators.SMA(period=20)
-    # Verify registration
+
+# Verify registration
     assert self.sma in self._lineiterators[0]
-```
+
+```bash
 
 ### Debug Line Issues
 
@@ -213,19 +255,23 @@ def __init__(self):
 ### Branch Strategy
 
 | Branch | Purpose |
+
 |--------|---------|
+
 | `dev` | Active development (45% performance, tick-level tests, C++ integration) |
+
 | `master` | Stable version (aligned with official backtrader) |
+
 | `development` | Main branch (PR target) |
 
 ### Commit Format
 
-```
+```bash
 <type>: <description>
 
 [optional body]
-```
 
+```bash
 Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 
 ### Release Process

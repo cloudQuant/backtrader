@@ -4,7 +4,7 @@
 >
 > This reference covers the `CCXTStore` and `CCXTBroker` classes that enable live trading on 100+ cryptocurrency exchanges through a unified API.
 
----
+- --
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@
 8. [Configuration Examples](#configuration-examples)
 9. [Advanced Features](#advanced-features)
 
----
+- --
 
 ## Architecture Overview
 
@@ -76,7 +76,8 @@ graph TB
     style Broker fill:#e1f5fe
     style WS fill:#f3e5f5
     style TM fill:#f3e5f5
-```
+
+```bash
 
 ### Data Flow
 
@@ -100,15 +101,17 @@ sequenceDiagram
         St->>B: Order Update
         B->>S: notify_order(Completed)
     end
-```
 
----
+```bash
+
+- --
 
 ## CCXTStore Class
 
 The `CCXTStore` class manages connections to cryptocurrency exchanges and provides shared resources for feeds and brokers.
 
 ### Location
+
 `backtrader/stores/ccxtstore.py`
 
 ### Class Signature
@@ -119,7 +122,8 @@ class CCXTStore(ParameterizedSingletonMixin):
 
     BrokerCls = None  # Auto-registers CCXTBroker
     DataCls = None    # Auto-registers CCXTFeed
-```
+
+```bash
 
 ### Constructor
 
@@ -134,22 +138,32 @@ CCXTStore(
     use_rate_limiter: bool = True,
     use_connection_manager: bool = False,
 ) -> None
-```
 
-**Parameters:**
+```bash
+
+- *Parameters:**
 
 | Parameter | Type | Default | Description |
+
 |-----------|------|---------|-------------|
-| `exchange` | str | *required* | Exchange ID (e.g., 'binance', 'okx', 'bybit') |
-| `currency` | str | *required* | Base currency for balance (e.g., 'USDT', 'BTC') |
-| `config` | dict | *required* | Exchange configuration with API keys |
+
+| `exchange` | str | *required*| Exchange ID (e.g., 'binance', 'okx', 'bybit') |
+
+| `currency` | str |*required*| Base currency for balance (e.g., 'USDT', 'BTC') |
+
+| `config` | dict |*required*| Exchange configuration with API keys |
+
 | `retries` | int | `3` | Number of retry attempts for failed requests |
+
 | `debug` | bool | `False` | Enable debug output |
+
 | `sandbox` | bool | `False` | Use exchange testnet/sandbox mode |
+
 | `use_rate_limiter` | bool | `True` | Enable intelligent rate limiting |
+
 | `use_connection_manager` | bool | `False` | Enable auto-reconnect management |
 
-**Config Dictionary Format:**
+- *Config Dictionary Format:**
 
 ```python
 config = {
@@ -163,7 +177,8 @@ config = {
         'adjustForTimeDifference': True,
     }
 }
-```
+
+```bash
 
 ### Methods
 
@@ -172,9 +187,11 @@ config = {
 ```python
 def getdata(self, *args, **kwargs) -> CCXTFeed:
     """Returns data feed with this store instance."""
-```
 
-**Example:**
+```bash
+
+- *Example:**
+
 ```python
 data = store.getdata(
     dataname='BTC/USDT',
@@ -182,22 +199,26 @@ data = store.getdata(
     compression=5,
     historical=False,
 )
-```
+
+```bash
 
 #### getbroker()
 
 ```python
 def getbroker(self, *args, **kwargs) -> CCXTBroker:
     """Returns broker with this store instance."""
-```
 
-**Example:**
+```bash
+
+- *Example:**
+
 ```python
 broker = store.getbroker(
     use_threaded_order_manager=True,
     debug=False,
 )
-```
+
+```bash
 
 #### get_granularity()
 
@@ -215,7 +236,8 @@ def get_granularity(self, timeframe: int, compression: int) -> str:
     Raises:
         ValueError: If timeframe/compression not supported
     """
-```
+
+```bash
 
 #### create_order()
 
@@ -243,7 +265,8 @@ def create_order(
     Returns:
         Order response dict from exchange
     """
-```
+
+```bash
 
 #### cancel_order()
 
@@ -251,7 +274,8 @@ def create_order(
 @retry
 def cancel_order(self, order_id: str, symbol: str) -> dict:
     """Cancel an existing order."""
-```
+
+```bash
 
 #### fetch_order()
 
@@ -259,7 +283,8 @@ def cancel_order(self, order_id: str, symbol: str) -> dict:
 @retry
 def fetch_order(self, oid: str, symbol: str) -> dict:
     """Fetch details of a specific order."""
-```
+
+```bash
 
 #### fetch_open_orders()
 
@@ -267,7 +292,8 @@ def fetch_order(self, oid: str, symbol: str) -> dict:
 @retry
 def fetch_open_orders(self) -> list:
     """Fetch all open orders from the exchange."""
-```
+
+```bash
 
 #### fetch_ohlcv()
 
@@ -286,7 +312,8 @@ def fetch_ohlcv(
     Returns:
         List of [timestamp, open, high, low, close, volume] lists
     """
-```
+
+```bash
 
 #### get_balance()
 
@@ -297,7 +324,8 @@ def get_balance(self) -> None:
 
     Updates self._cash (free balance) and self._value (total balance)
     """
-```
+
+```bash
 
 #### get_wallet_balance()
 
@@ -314,7 +342,8 @@ def get_wallet_balance(self, params: dict = None) -> dict:
     Returns:
         Balance dict with 'free' and 'total' sub-dicts
     """
-```
+
+```bash
 
 #### private_end_point()
 
@@ -331,7 +360,8 @@ def private_end_point(self, type: str, endpoint: str, params: dict) -> dict:
     Example:
         store.private_end_point('Get', 'fapi/v2/positionRisk', {})
     """
-```
+
+```bash
 
 #### get_websocket_manager()
 
@@ -344,7 +374,8 @@ def get_websocket_manager(self) -> CCXTWebSocketManager:
     Returns:
         CCXTWebSocketManager or None if ccxt.pro not available
     """
-```
+
+```bash
 
 #### stop()
 
@@ -354,32 +385,47 @@ def stop(self) -> None:
 
     Stops WebSocket connections and connection monitoring.
     """
-```
+
+```bash
 
 ### Supported Granularities
 
 | TimeFrame | Compression | Granularity |
+
 |-----------|-------------|-------------|
+
 | Minutes | 1 | `1m` |
+
 | Minutes | 3 | `3m` |
+
 | Minutes | 5 | `5m` |
+
 | Minutes | 15 | `15m` |
+
 | Minutes | 30 | `30m` |
+
 | Minutes | 60 | `1h` |
+
 | Minutes | 240 | `4h` |
+
 | Days | 1 | `1d` |
+
 | Days | 3 | `3d` |
+
 | Weeks | 1 | `1w` |
+
 | Months | 1 | `1M` |
+
 | Years | 1 | `1y` |
 
----
+- --
 
 ## CCXTBroker Class
 
 The `CCXTBroker` class executes orders on cryptocurrency exchanges and manages portfolio state.
 
 ### Location
+
 `backtrader/brokers/ccxtbroker.py`
 
 ### Class Signature
@@ -400,7 +446,8 @@ class CCXTBroker(BrokerBase):
         "closed_order": {"key": "status", "value": "closed"},
         "canceled_order": {"key": "status", "value": "canceled"},
     }
-```
+
+```bash
 
 ### Constructor
 
@@ -413,20 +460,31 @@ CCXTBroker(
     store: CCXTStore = None,
     max_retries: int = 3,
     retry_delay: float = 1.0,
-    **kwargs,
-) -> None
-```
 
-**Parameters:**
+    - *kwargs,
+
+) -> None
+
+```bash
+
+- *Parameters:**
 
 | Parameter | Type | Default | Description |
+
 |-----------|------|---------|-------------|
+
 | `broker_mapping` | dict | `None` | Custom order type/status mappings |
+
 | `debug` | bool | `False` | Enable debug output |
+
 | `use_threaded_order_manager` | bool | `False` | Use background thread for order checking |
+
 | `use_websocket_orders` | bool | `False` | Use WebSocket for order updates (lowest latency) |
+
 | `store` | CCXTStore | `None` | Existing store instance |
+
 | `max_retries` | int | `3` | Maximum retry attempts for API calls |
+
 | `retry_delay` | float | `1.0` | Base delay for exponential backoff |
 
 ### Custom Broker Mapping
@@ -434,7 +492,9 @@ CCXTBroker(
 Some exchanges use different order type names. Use `broker_mapping` to customize:
 
 ```python
+
 # For Kraken
+
 broker_mapping = {
     'order_types': {
         bt.Order.Market: 'market',
@@ -449,7 +509,8 @@ broker_mapping = {
 }
 
 broker = CCXTBroker(broker_mapping=broker_mapping, ...)
-```
+
+```bash
 
 ### Methods
 
@@ -469,7 +530,9 @@ def buy(
     oco: int = None,
     trailamount: float = None,
     trailpercent: float = None,
-    **kwargs,
+
+    - *kwargs,
+
 ) -> CCXTOrder:
     """Create a buy order.
 
@@ -486,7 +549,8 @@ def buy(
             params={'postOnly': True}
         )
     """
-```
+
+```bash
 
 #### sell()
 
@@ -504,10 +568,13 @@ def sell(
     oco: int = None,
     trailamount: float = None,
     trailpercent: float = None,
-    **kwargs,
+
+    - *kwargs,
+
 ) -> CCXTOrder:
     """Create a sell order."""
-```
+
+```bash
 
 #### cancel()
 
@@ -521,7 +588,8 @@ def cancel(self, order: CCXTOrder) -> CCXTOrder:
     Returns:
         The canceled order instance
     """
-```
+
+```bash
 
 #### get_balance()
 
@@ -533,7 +601,8 @@ def get_balance(self) -> tuple:
         (cash, value) tuple where cash is available funds
         and value is total portfolio value
     """
-```
+
+```bash
 
 #### get_wallet_balance()
 
@@ -555,7 +624,8 @@ def get_wallet_balance(
             'ETH': {'cash': 10.0, 'value': 10.0},
         }
     """
-```
+
+```bash
 
 #### getposition()
 
@@ -570,14 +640,16 @@ def getposition(self, data: DataFeed, clone: bool = True) -> Position:
     Returns:
         Position object with size, price attributes
     """
-```
+
+```bash
 
 #### get_orders_open()
 
 ```python
 def get_orders_open(self, safe: bool = False) -> list:
     """Get all open orders from exchange."""
-```
+
+```bash
 
 #### create_bracket_order()
 
@@ -619,7 +691,8 @@ def create_bracket_order(
             side='buy'
         )
     """
-```
+
+```bash
 
 #### private_end_point()
 
@@ -633,29 +706,40 @@ def private_end_point(
     """Call a private API endpoint.
 
     Example:
-        # Get position risk on Binance Futures
+
+# Get position risk on Binance Futures
         risk = broker.private_end_point(
             'Get',
             'fapi/v2/positionRisk',
             {'symbol': 'BTCUSDT'}
         )
     """
-```
+
+```bash
 
 ### Order Status Mapping
 
 | Backtrader Status | CCXT Status | Description |
+
 |-------------------|-------------|-------------|
+
 | `Order.Created` | - | Order created locally |
+
 | `Order.Submitted` | - | Sent to exchange |
+
 | `Order.Accepted` | `open` | Accepted by exchange |
+
 | `Order.Partial` | `open` | Partially filled |
+
 | `Order.Completed` | `closed` | Fully filled |
+
 | `Order.Canceled` | `canceled` | Cancelled |
+
 | `Order.Margin` | `rejected` | Insufficient margin |
+
 | `Order.Rejected` | `rejected` | Rejected by exchange |
 
----
+- --
 
 ## Order Types and Execution
 
@@ -665,6 +749,7 @@ def private_end_point(
 import backtrader as bt
 
 # Market Order
+
 order = broker.buy(
     owner=self,
     data=self.data,
@@ -673,6 +758,7 @@ order = broker.buy(
 )
 
 # Limit Order
+
 order = broker.buy(
     owner=self,
     data=self.data,
@@ -682,6 +768,7 @@ order = broker.buy(
 )
 
 # Stop-Loss Order (market when triggered)
+
 order = broker.sell(
     owner=self,
     data=self.data,
@@ -691,6 +778,7 @@ order = broker.sell(
 )
 
 # Stop-Limit Order
+
 order = broker.buy(
     owner=self,
     data=self.data,
@@ -699,7 +787,8 @@ order = broker.buy(
     plimit=50400,   # Stop price
     exectype=bt.Order.StopLimit,
 )
-```
+
+```bash
 
 ### Order Lifecycle
 
@@ -721,14 +810,17 @@ stateDiagram-v2
     Completed --> [*]
     Canceled --> [*]
     Rejected --> [*]
-```
+
+```bash
 
 ### Exchange-Specific Parameters
 
 Pass exchange-specific options via the `params` kwarg:
 
 ```python
+
 # Binance post-only order
+
 order = broker.buy(
     owner=self,
     data=self.data,
@@ -742,6 +834,7 @@ order = broker.buy(
 )
 
 # Binance futures reduce-only
+
 order = broker.sell(
     owner=self,
     data=self.data,
@@ -755,6 +848,7 @@ order = broker.sell(
 )
 
 # OKX post-only
+
 order = broker.buy(
     owner=self,
     data=self.data,
@@ -766,22 +860,25 @@ order = broker.buy(
         'tdMode': 'cross',  # Cross margin mode
     }
 )
-```
 
----
+```bash
+
+- --
 
 ## WebSocket vs REST Modes
 
 ### REST Polling Mode (Default)
 
-**Characteristics:**
+- *Characteristics:**
 - Simple setup, no additional dependencies
 - Rate-limited polling (3-second intervals)
 - Higher latency (multi-second)
 - Works on all exchanges
 
 ```python
+
 # REST mode - default
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
@@ -791,12 +888,14 @@ data = store.getdata(
 
 broker = store.getbroker(
     use_threaded_order_manager=True,  # Background polling
+
 )
-```
+
+```bash
 
 ### WebSocket Mode (Recommended)
 
-**Characteristics:**
+- *Characteristics:**
 - Requires `ccxtpro` package
 - Push-based updates (lowest latency)
 - Lower rate limit usage
@@ -804,10 +903,13 @@ broker = store.getbroker(
 - Falls back to REST on connection issues
 
 ```python
+
 # Install ccxtpro first
+
 # pip install ccxtpro
 
 # WebSocket data feed
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
@@ -817,13 +919,17 @@ data = store.getdata(
     ws_max_reconnect_delay=60.0,
     ws_health_check_interval=30.0,
     backfill_start=True,  # Backfill on reconnect
+
 )
 
 # WebSocket order tracking
+
 broker = store.getbroker(
     use_websocket_orders=True,  # Real-time fill updates
+
 )
-```
+
+```bash
 
 ### WebSocket Architecture
 
@@ -851,76 +957,98 @@ graph LR
     OHLCV --> Feed["CCXTFeed"]
     Trades --> Feed
     MyTrades --> Broker["CCXTBroker"]
-```
+
+```bash
 
 ### Mode Comparison
 
 | Feature | REST Polling | WebSocket |
+
 |---------|--------------|-----------|
+
 | Latency | 1-5 seconds | <100ms |
+
 | Rate Limit Usage | High | Low |
+
 | Dependencies | ccxt only | ccxt + ccxtpro |
+
 | Reconnection | Manual | Automatic |
+
 | Exchange Support | Universal | Limited |
+
 | Complexity | Simple | Moderate |
 
----
+- --
 
 ## Account Data Streaming
 
 ### Balance Updates
 
-**Cached Mode (Default):**
+- *Cached Mode (Default):**
 
 ```python
+
 # Cash and value are cached to reduce API calls
+
 cash = broker.getcash()       # Returns cached value
+
 value = broker.getvalue()     # Returns cached value
 
 # Manual refresh when needed
-broker.get_balance()          # Fetches from exchange
-cash = broker.getcash()       # Now updated
-```
 
-**Multi-Currency Balances:**
+broker.get_balance()          # Fetches from exchange
+
+cash = broker.getcash()       # Now updated
+
+```bash
+
+- *Multi-Currency Balances:**
 
 ```python
+
 # Get multiple currency balances
+
 balances = broker.get_wallet_balance(
     currency_list=['USDT', 'BTC', 'ETH'],
     params={'type': 'funding'}  # Binance funding account
+
 )
 
 for currency, info in balances.items():
     print(f"{currency}: {info['cash']} available")
-```
+
+```bash
 
 ### Position Tracking
 
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Get current position
+
+# Get current position
         pos = self.getposition()
         print(f"Size: {pos.size}, Price: {pos.price}")
 
-        # Get position for specific data feed
+# Get position for specific data feed
         pos_btc = self.getposition(data=self.data_btc)
         pos_eth = self.getposition(data=self.data_eth)
 
     def notify_order(self, order):
         if order.status == order.Completed:
-            # Position has been updated
+
+# Position has been updated
             pos = self.getposition(order.data)
             print(f"New position size: {pos.size}")
-```
+
+```bash
 
 ### Order Notifications
 
 ```python
 class MyStrategy(bt.Strategy):
     def notify_order(self, order):
-        # Order reference
+
+# Order reference
         print(f"Order ref: {order.ref}")
         print(f"Order status: {order.getstatusname()}")
 
@@ -930,11 +1058,13 @@ class MyStrategy(bt.Strategy):
         elif order.status == order.Completed:
             print(f"""
             Order Completed:
+
             - Side: {'BUY' if order.isbuy() else 'SELL'}
             - Size: {order.executed.size}
             - Price: {order.executed.price}
             - Cost: {order.executed.value}
             - Commission: {order.executed.comm}
+
             """)
 
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -945,7 +1075,8 @@ class MyStrategy(bt.Strategy):
                     print(f"Error: {error}")
 
         self.order = None  # Reset order reference
-```
+
+```bash
 
 ### Trade Notifications
 
@@ -955,13 +1086,16 @@ class MyStrategy(bt.Strategy):
         """Called when a trade is closed (position fully exited)."""
         print(f"""
         Trade Closed:
+
         - PnL: {trade.pnl:.2f}
         - PnL Net: {trade.pnlcomm:.2f}
         - Commission: {trade.commission:.2f}
-        """)
-```
 
----
+        """)
+
+```bash
+
+- --
 
 ## Error Handling and Reconnection
 
@@ -970,29 +1104,44 @@ class MyStrategy(bt.Strategy):
 The broker implements exponential backoff for transient errors:
 
 ```python
+
 # Default retry configuration
+
 broker = CCXTBroker(
     store=store,
     max_retries=3,         # Maximum retry attempts
     retry_delay=1.0,       # Base delay in seconds
+
 )
 
 # Retry behavior:
+
 # Attempt 1: Immediate
-# Attempt 2: After 1 second (2^0 * 1.0)
-# Attempt 3: After 2 seconds (2^1 * 1.0)
-# Attempt 4: After 4 seconds (2^2 * 1.0)
-```
+
+# Attempt 2: After 1 second (2^0 *1.0)
+
+# Attempt 3: After 2 seconds (2^1*1.0)
+
+# Attempt 4: After 4 seconds (2^2* 1.0)
+
+```bash
 
 ### Error Categories
 
 | Error Type | Base Exception | Behavior |
+
 |------------|---------------|----------|
+
 | Network timeout | `NetworkError` | Retry with backoff |
+
 | Exchange unavailable | `ExchangeNotAvailable` | Retry with backoff |
+
 | Rate limit exceeded | `ExchangeError` (429) | Retry with backoff |
+
 | Insufficient balance | `ExchangeError` | Reject order |
+
 | Invalid order | `ExchangeError` | Reject order |
+
 | Order not found | `ExchangeError` | Cancel locally |
 
 ### Connection Manager
@@ -1001,6 +1150,7 @@ broker = CCXTBroker(
 from backtrader.ccxt.connection import ConnectionManager
 
 # Create store with connection management
+
 store = CCXTStore(
     exchange='binance',
     currency='USDT',
@@ -1009,24 +1159,30 @@ store = CCXTStore(
 )
 
 # Access connection manager
+
 cm = store.get_connection_manager()
 
 # Register callbacks
+
 def on_disconnect():
     print("Exchange disconnected!")
-    # Pause strategy, close positions, etc.
+
+# Pause strategy, close positions, etc.
 
 def on_reconnect():
     print("Reconnected to exchange")
-    # Resume strategy, backfill data, etc.
+
+# Resume strategy, backfill data, etc.
 
 cm.on_disconnect(on_disconnect)
 cm.on_reconnect(on_reconnect)
 
 # Check connection status
+
 if cm.is_connected():
     print("Connection healthy")
-```
+
+```bash
 
 ### WebSocket Reconnection
 
@@ -1041,25 +1197,31 @@ stateDiagram-v2
 
     note right of Reconnecting
         Exponential backoff:
+
         - 1st: 1s
         - 2nd: 2s
         - 3rd: 4s
         - Max: 60s
+
     end note
-```
+
+```bash
 
 ### Polling Backoff
 
 After consecutive failures, the broker reduces polling frequency:
 
 ```python
+
 # Normal polling: every 3 seconds
+
 # After 10+ failures: every 30 seconds
 
 # This prevents hammering a struggling exchange
-```
 
----
+```bash
+
+- --
 
 ## Configuration Examples
 
@@ -1069,6 +1231,7 @@ After consecutive failures, the broker reduces polling frequency:
 import backtrader as bt
 
 # Store configuration
+
 config = {
     'apiKey': 'YOUR_BINANCE_API_KEY',
     'secret': 'YOUR_BINANCE_SECRET',
@@ -1088,6 +1251,7 @@ store = bt.stores.CCXTStore(
 )
 
 # Data feed
+
 data = store.getdata(
     dataname='BTC/USDT',
     timeframe=bt.TimeFrame.Minutes,
@@ -1098,15 +1262,19 @@ data = store.getdata(
 )
 
 # Broker
+
 broker = store.getbroker(
     use_threaded_order_manager=True,
 )
-```
+
+```bash
 
 ### Binance Futures
 
 ```python
+
 # For USDT-M futures
+
 config = {
     'apiKey': 'YOUR_BINANCE_FUTURES_KEY',
     'secret': 'YOUR_BINANCE_FUTURES_SECRET',
@@ -1118,6 +1286,7 @@ config = {
 }
 
 # Or use binanceusdm store directly
+
 store = bt.stores.CCXTStore(
     exchange='binanceusdm',
     currency='USDT',
@@ -1125,17 +1294,21 @@ store = bt.stores.CCXTStore(
 )
 
 # Futures trading requires specific symbol format
+
 data = store.getdata(
     dataname='BTC/USDT:USDT',  # Perpetual futures
     timeframe=bt.TimeFrame.Minutes,
     compression=1,
 )
-```
+
+```bash
 
 ### OKX
 
 ```python
+
 # OKX requires passphrase
+
 config = {
     'apiKey': 'YOUR_OKX_API_KEY',
     'secret': 'YOUR_OKX_SECRET',
@@ -1153,12 +1326,14 @@ store = bt.stores.CCXTStore(
 )
 
 # OKX swap format
+
 data = store.getdata(
     dataname='BTC/USDT:USDT',  # Perpetual swap
     timeframe=bt.TimeFrame.Minutes,
     compression=1,
 )
-```
+
+```bash
 
 ### Bybit
 
@@ -1183,7 +1358,8 @@ data = store.getdata(
     timeframe=bt.TimeFrame.Minutes,
     compression=1,
 )
-```
+
+```bash
 
 ### Coinbase
 
@@ -1201,17 +1377,21 @@ store = bt.stores.CCXTStore(
 )
 
 # Coinbase uses different symbol format
+
 data = store.getdata(
     dataname='BTC-USD',
     timeframe=bt.TimeFrame.Minutes,
     compression=5,
 )
-```
+
+```bash
 
 ### Kraken
 
 ```python
+
 # Kraken uses different order type names
+
 broker_mapping = {
     'order_types': {
         bt.Order.Market: 'market',
@@ -1236,18 +1416,22 @@ store = bt.stores.CCXTStore(
 broker = store.getbroker(
     broker_mapping=broker_mapping,
 )
-```
+
+```bash
 
 ### Environment Variables (Recommended)
 
 ```python
+
 # .env file
+
 EXCHANGE_ID=binance
 EXCHANGE_API_KEY=your_key
 EXCHANGE_SECRET=your_secret
 EXCHANGE_CURRENCY=USDT
 
 # Python code
+
 import os
 from dotenv import load_dotenv
 
@@ -1264,9 +1448,10 @@ store = bt.stores.CCXTStore(
     currency=os.getenv('EXCHANGE_CURRENCY'),
     config=config,
 )
-```
 
----
+```bash
+
+- --
 
 ## Advanced Features
 
@@ -1276,7 +1461,8 @@ store = bt.stores.CCXTStore(
 class MyStrategy(bt.Strategy):
     def next(self):
         if not self.position:
-            # Create bracket order: entry + stop + limit
+
+# Create bracket order: entry + stop + limit
             bracket = self.broker.create_bracket_order(
                 data=self.data,
                 size=0.01,
@@ -1286,10 +1472,11 @@ class MyStrategy(bt.Strategy):
                 side='buy',
             )
 
-            # Bracket ID for tracking
+# Bracket ID for tracking
             print(f"Bracket ID: {bracket.bracket_id}")
         else:
-            # Modify existing bracket
+
+# Modify existing bracket
             bm = self.broker.get_bracket_manager()
             active = bm.get_active_brackets()
             for bracket in active:
@@ -1297,7 +1484,8 @@ class MyStrategy(bt.Strategy):
                     bracket.bracket_id,
                     stop_price=49600,  # Trail stop up
                 )
-```
+
+```bash
 
 ### Rate Limiting
 
@@ -1305,34 +1493,42 @@ class MyStrategy(bt.Strategy):
 from backtrader.ccxt.ratelimit import AdaptiveRateLimiter
 
 # Create custom rate limiter
+
 limiter = AdaptiveRateLimiter(
     initial_rpm=1200,  # Requests per minute
     min_rpm=60,        # Minimum when throttled
     max_rpm=2400,      # Maximum when no errors
+
 )
 
 # Store will use adaptive rate limiting
+
 store = CCXTStore(
     exchange='binance',
     currency='USDT',
     config=config,
     use_rate_limiter=True,
 )
-```
+
+```bash
 
 ### Multi-Strategy Trading
 
 ```python
+
 # Single store, multiple strategies
+
 cerebro = bt.Cerebro()
 
 store = bt.stores.CCXTStore(...)
 
 # Single broker for all strategies
+
 broker = store.getbroker()
 cerebro.setbroker(broker)
 
 # Multiple data feeds
+
 btc_data = store.getdata(dataname='BTC/USDT', ...)
 eth_data = store.getdata(dataname='ETH/USDT', ...)
 
@@ -1340,14 +1536,18 @@ cerebro.adddata(btc_data)
 cerebro.adddata(eth_data)
 
 # Multiple strategies
+
 cerebro.addstrategy(BTCStrategy)
 cerebro.addstrategy(ETHStrategy)
-```
+
+```bash
 
 ### WebSocket Funding Rates
 
 ```python
+
 # For perpetual futures funding rates
+
 from backtrader.feeds.ccxtfeed_funding import CCXTFeedWithFunding
 
 data = CCXTFeedWithFunding(
@@ -1362,10 +1562,11 @@ class MyStrategy(bt.Strategy):
         """Handle funding rate updates."""
         print(f"Funding Rate: {rate}, Next: {next_time}")
 
-        # Adjust position based on funding
+# Adjust position based on funding
         if rate > 0.0001:  # Positive = longs pay shorts
             self.close()  # Avoid paying funding
-```
+
+```bash
 
 ### Custom Order Validation
 
@@ -1373,11 +1574,12 @@ class MyStrategy(bt.Strategy):
 class ValidatedStrategy(bt.Strategy):
     def next(self):
         if not self.position:
-            # Pre-validate order parameters
+
+# Pre-validate order parameters
             current_price = self.data.close[0]
             min_notional = 10  # Binance minimum
 
-            # Calculate order value
+# Calculate order value
             size = 0.001
             price = 50000
             notional = size * price
@@ -1386,39 +1588,59 @@ class ValidatedStrategy(bt.Strategy):
                 print(f"Order too small: {notional} < {min_notional}")
                 size = min_notional / price
 
-            # Submit validated order
+# Submit validated order
             self.buy(size=size, price=price)
-```
 
----
+```bash
+
+- --
 
 ## API Reference Summary
 
 ### CCXTStore Key Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `exchange` | ccxt.Exchange | CCXT exchange instance |
+
 | `exchange_id` | str | Exchange identifier |
+
 | `currency` | str | Base currency |
+
 | `_cash` | float | Cached free balance |
+
 | `_value` | float | Cached total balance |
+
 | `retries` | int | Retry attempts |
+
 | `debug` | bool | Debug flag |
+
 | `_rate_limiter` | RateLimiter | Rate limiter instance |
+
 | `_ws_manager` | CCXTWebSocketManager | WebSocket manager |
 
 ### CCXTBroker Key Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `store` | CCXTStore | Associated store |
+
 | `currency` | str | Account currency |
+
 | `positions` | dict | Position objects by symbol |
+
 | `open_orders` | dict | Active orders by ID |
+
 | `cash` | float | Cached cash balance |
+
 | `value` | float | Cached total value |
+
 | `startingcash` | float | Initial cash |
+
 | `startingvalue` | float | Initial value |
 
 ### Order Execution Flow
@@ -1454,9 +1676,10 @@ sequenceDiagram
         B->>St: fetch_order("123")
         B->>S: notify(Partial/Completed)
     end
-```
 
----
+```bash
+
+- --
 
 ## See Also
 
@@ -1465,6 +1688,6 @@ sequenceDiagram
 - [Funding Rate Guide](../FUNDING_RATE_GUIDE.md) - Perpetual futures funding rates
 - [Environment Configuration](../CCXT_ENV_CONFIG.md) - Setup with environment variables
 
----
+- --
 
-*Last updated: 2026-03-01*
+- Last updated: 2026-03-01*

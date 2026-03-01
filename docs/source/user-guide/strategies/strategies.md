@@ -1,7 +1,9 @@
----
+- --
+
 title: Trading Strategies
 description: Building effective trading strategies
----
+
+- --
 
 # Trading Strategies
 
@@ -29,7 +31,8 @@ class MyStrategy(bt.Strategy):
         Initialize indicators and calculations.
         Called once before backtesting starts.
         """
-        # Your initialization code here
+
+# Your initialization code here
         pass
 
     def next(self):
@@ -37,9 +40,11 @@ class MyStrategy(bt.Strategy):
         Called for each bar.
         Contains your trading logic.
         """
-        # Your trading logic here
+
+# Your trading logic here
         pass
-```
+
+```bash
 
 ## Order Management
 
@@ -48,39 +53,43 @@ class MyStrategy(bt.Strategy):
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Buy with default size
+
+# Buy with default size
         self.buy()
 
-        # Buy specific size
+# Buy specific size
         self.buy(size=100)
 
-        # Sell entire position
+# Sell entire position
         self.sell()
 
-        # Close existing position
+# Close existing position
         self.close()
 
-        # Buy with percent of available cash
+# Buy with percent of available cash
         self.buy(size=0.5)  # 50% of cash
-```
+
+```bash
 
 ### Limit Orders
 
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Buy at specific price or better
+
+# Buy at specific price or better
         order = self.buy(price=100.0)
 
-        # Sell with limit price
+# Sell with limit price
         order = self.sell(limit=105.0)
 
-        # Stop loss order
+# Stop loss order
         order = self.sell(stop=95.0)
 
-        # Stop limit order
+# Stop limit order
         order = self.sell(stop=95.0, limit=94.5)
-```
+
+```bash
 
 ### Order Tracking
 
@@ -90,11 +99,12 @@ class MyStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
-        # Only place new order if no pending order
+
+# Only place new order if no pending order
         if self.order:
             return
 
-        # Place order and store reference
+# Place order and store reference
         self.order = self.buy()
 
     def notify_order(self, order):
@@ -109,7 +119,8 @@ class MyStrategy(bt.Strategy):
                 self.log(f'SELL EXECUTED, Price: {order.executed.price:.2f}')
 
         self.order = None  # Reset order reference
-```
+
+```bash
 
 ## Trade Notification
 
@@ -122,7 +133,8 @@ class MyStrategy(bt.Strategy):
 
         self.log(f'Trade P&L: {trade.pnl:.2f}, '
                 f'Commission: {trade.commission:.2f}')
-```
+
+```bash
 
 ## Position Management
 
@@ -131,12 +143,14 @@ class MyStrategy(bt.Strategy):
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Check if in position
+
+# Check if in position
         if self.position:
             self.log(f'Position size: {self.position.size}')
         else:
             self.log('No position')
-```
+
+```bash
 
 ### Position Sizing
 
@@ -146,9 +160,11 @@ class MyStrategy(bt.Strategy):
         self.sizer = bt.sizers.FixedSize(stake=0.1)  # 10% per trade
 
     def next(self):
-        # Buy 10% of portfolio value
-        self.buy(size=self.broker.getcash() * 0.1 / self.data.close[0])
-```
+
+# Buy 10% of portfolio value
+        self.buy(size=self.broker.getcash() *0.1 / self.data.close[0])
+
+```bash
 
 ## Stop Loss and Take Profit
 
@@ -166,22 +182,25 @@ class MyStrategy(bt.Strategy):
             entry_price = self.position.price
             current_price = self.data.close[0]
 
-            # Calculate stop loss and take profit levels
-            stop_loss = entry_price * (1 - self.p.stop_loss_pct)
-            take_profit = entry_price * (1 + self.p.take_profit_pct)
+# Calculate stop loss and take profit levels
+            stop_loss = entry_price*(1 - self.p.stop_loss_pct)
+            take_profit = entry_price*(1 + self.p.take_profit_pct)
 
-            # Check if stop loss or take profit is hit
+# Check if stop loss or take profit is hit
             if current_price <= stop_loss:
                 self.sell()  # Stop loss
 
             elif current_price >= take_profit:
                 self.sell()  # Take profit
-```
+
+```bash
 
 ## Multi-Strategy
 
 ```python
+
 # Create multiple strategies
+
 cerebro = bt.Cerebro()
 
 cerebro.addstrategy(Strategy1, period=10)
@@ -189,7 +208,8 @@ cerebro.addstrategy(Strategy2, period=20)
 cerebro.addstrategy(Strategy3, period=30)
 
 # Each strategy runs independently
-```
+
+```bash
 
 ## Time-Based Trading
 
@@ -203,7 +223,8 @@ class MyStrategy(bt.Strategy):
     )
 
     def next(self):
-        # Only trade during specific hours
+
+# Only trade during specific hours
         current_time = self.data.datetime.time(0)
 
         if current_time.hour < self.p.trade_start_hour:
@@ -212,43 +233,53 @@ class MyStrategy(bt.Strategy):
         if current_time.hour >= self.p.trade_end_hour:
             return  # Too late
 
-        # Trading logic here
+# Trading logic here
         self.buy()
-```
+
+```bash
 
 ## Strategy Logging
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Enable logging
+
+# Enable logging
         pass
 
     def next(self):
-        # Log messages
+
+# Log messages
         self.log(f'Close price: {self.data.close[0]:.2f}')
 
     def notify_order(self, order):
         self.log(f'Order status: {order.getstatusname()}')
-```
+
+```bash
 
 ## Strategy Parameters Optimization
 
 ```python
+
 # Define parameter ranges
+
 cerebro.optstrategy(
     MyStrategy,
     ma_period=range(10, 31, 5),      # 10, 15, 20, 25, 30
     threshold=[0.5, 1.0, 1.5]         # 0.5, 1.0, 1.5
+
 )
 
 # Run optimization
+
 results = cerebro.run(maxcpu=1)  # Use 1 CPU core
 
 # Get best result
+
 best_result = results[0]
 print(f'Best parameters: {best_result.params._getitems()}')
-```
+
+```bash
 
 ## Common Strategy Patterns
 
@@ -271,7 +302,8 @@ class TrendFollowing(bt.Strategy):
             self.buy()  # Uptrend start
         elif self.crossover < 0:
             self.sell()  # Downtrend start
-```
+
+```bash
 
 ### Mean Reversion
 
@@ -285,15 +317,16 @@ class MeanReversion(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
         self.stddev = bt.indicators.StdDev(self.data.close, period=self.p.period)
-        self.upper_band = self.sma + self.stddev * self.p.threshold
-        self.lower_band = self.sma - self.stddev * self.p.threshold
+        self.upper_band = self.sma + self.stddev*self.p.threshold
+        self.lower_band = self.sma - self.stddev* self.p.threshold
 
     def next(self):
         if self.data.close[0] < self.lower_band[0]:
             self.buy()  # Price too low, buy
         elif self.data.close[0] > self.upper_band[0]:
             self.sell()  # Price too high, sell
-```
+
+```bash
 
 ### Breakout
 
@@ -313,7 +346,8 @@ class Breakout(bt.Strategy):
 
         elif self.data.close[0] < self.low_band[-1]:
             self.sell()  # Breakout below
-```
+
+```bash
 
 ## Next Steps
 

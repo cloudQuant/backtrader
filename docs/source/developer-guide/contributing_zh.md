@@ -1,7 +1,9 @@
----
+- --
+
 title: 贡献指南
 description: Backtrader 贡献指南
----
+
+- --
 
 # 贡献指南
 
@@ -29,37 +31,52 @@ description: Backtrader 贡献指南
 ### 首次设置
 
 ```bash
+
 # 1. 在 GitHub 上 Fork 仓库
-#    访问 https://github.com/cloudQuant/backtrader 并点击 "Fork" 按钮
+
+# 访问 <https://github.com/cloudQuant/backtrader> 并点击 "Fork" 按钮
 
 # 2. 克隆你的 Fork
-git clone https://github.com/你的用户名/backtrader.git
+
+git clone <https://github.com/你的用户名/backtrader.git>
 cd backtrader
 
 # 3. 添加上游远程仓库
-git remote add upstream https://github.com/cloudQuant/backtrader.git
+
+git remote add upstream <https://github.com/cloudQuant/backtrader.git>
 
 # 4. 安装依赖
+
 pip install -r requirements.txt
 
 # 5. 以开发模式安装
+
 pip install -e .
 
 # 6. 编译 Cython 扩展（推荐，以获得更好性能）
+
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
-```
+
+```bash
 
 ### 分支命名约定
 
 使用描述性的分支名来指示变更类型：
 
 | 前缀 | 用途 | 示例 |
+
 |------|------|------|
+
 | `feat/` | 新功能 | `feat/websocket-reconnect` |
+
 | `fix/` | Bug 修复 | `fix/indicator-calculation` |
+
 | `refactor/` | 代码重构 | `refactor/broker-optimization` |
+
 | `docs/` | 文档 | `docs/api-reference` |
+
 | `test/` | 测试改进 | `test/coverage-increase` |
+
 | `perf/` | 性能优化 | `perf/line-buffer-cache` |
 
 ## Pull Request 流程
@@ -67,14 +84,18 @@ cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
 ### 步骤 1: 创建功能分支
 
 ```bash
+
 # 与上游同步
+
 git fetch upstream
 git checkout dev
 git merge upstream/dev
 
 # 创建你的功能分支
+
 git checkout -b feat/your-feature-name
-```
+
+```bash
 
 ### 步骤 2: 进行更改
 
@@ -85,15 +106,16 @@ git checkout -b feat/your-feature-name
 
 ### 步骤 3: 提交更改
 
-遵循 [Conventional Commits](https://www.conventionalcommits.org/) 格式：
+遵循 [Conventional Commits](<https://www.conventionalcommits.org/)> 格式：
 
-```
+```bash
 <type>: <description>
 
 [可选的正文]
-```
 
-**有效类型：**
+```bash
+
+- *有效类型：**
 - `feat`: 新功能
 - `fix`: Bug 修复
 - `refactor`: 代码重构
@@ -102,51 +124,66 @@ git checkout -b feat/your-feature-name
 - `chore`: 维护任务
 - `perf`: 性能改进
 
-**示例：**
+- *示例：**
 
 ```bash
 git commit -m "feat: 为 CCXTFeed 添加 WebSocket 健康检查"
 git commit -m "fix: 处理 CCXTBroker.cancel() 中的 order-not-found"
 git commit -m "perf: 在 total_value.next() 中缓存 broker 引用"
 git commit -m "docs: 更新 CCXT 实盘交易指南"
-```
+
+```bash
 
 ### 步骤 4: 运行测试
 
 ```bash
+
 # 运行预提交测试 (P0 + P1)
+
 pytest tests/ -v -m "priority_p0 or priority_p1"
 
 # 运行完整测试套件
+
 pytest tests/ -v -n 4
 
 # 检查代码格式
+
 make format-check
 
 # 运行代码检查
+
 make lint
-```
+
+```bash
 
 ### 步骤 5: 推送并创建 Pull Request
 
 ```bash
+
 # 推送到你的 Fork
+
 git push origin feat/your-feature-name
 
 # 在 GitHub 上创建 Pull Request
+
 # 目标分支: dev
-```
+
+```bash
 
 ### Pull Request 描述模板
 
 ```markdown
+
 ## 概述
+
 简要描述此 PR 的作用和原因。
 
 ## 变更内容
+
 - 主要变更列表
 
 ## 变更类型
+
 - [ ] Bug 修复
 - [ ] 新功能
 - [ ] 性能改进
@@ -155,13 +192,17 @@ git push origin feat/your-feature-name
 - [ ] 破坏性变更
 
 ## 测试
+
 - 描述测试方法
 - 包含测试命令
+
 ```bash
 pytest tests/path/to/test.py -v
-```
+
+```bash
 
 ## 检查清单
+
 - [ ] 代码符合风格指南
 - [ ] 本地测试通过
 - [ ] 为新功能添加测试
@@ -170,9 +211,11 @@ pytest tests/path/to/test.py -v
 - [ ] 与目标分支无合并冲突
 
 ## 相关 Issues
+
 Fixes #123
 Related to #456
-```
+
+```bash
 
 ## 代码审查标准
 
@@ -188,12 +231,18 @@ Related to #456
 维护者从以下方面审查 Pull Request：
 
 | 方面 | 标准 |
+
 |------|------|
-| **功能正确性** | 按预期工作，无回归 |
-| **代码质量** | 可读、可维护、符合约定 |
-| **测试** | 覆盖充分，处理边界情况 |
-| **文档** | 清晰的文档字符串，面向用户的变更已记录 |
-| **性能** | 无显著退化，优化已记录 |
+
+| **功能正确性**| 按预期工作，无回归 |
+
+|**代码质量**| 可读、可维护、符合约定 |
+
+|**测试**| 覆盖充分，处理边界情况 |
+
+|**文档**| 清晰的文档字符串，面向用户的变更已记录 |
+
+|**性能**| 无显著退化，优化已记录 |
 
 ### 处理审查反馈
 
@@ -215,55 +264,71 @@ Related to #456
 包含以下信息：
 
 ```markdown
+
 ## 环境
+
 - Python 版本：3.11.0
 - 操作系统：Ubuntu 22.04
 - Backtrader 版本：1.0.0 (dev 分支)
 - 安装方式：pip install -e .
 
 ## 问题描述
+
 清晰描述 Bug。
 
 ## 复现步骤
+
 1. 创建 Cerebro 实例
 2. 添加数据源...
 3. 运行策略
 4. 观察错误
 
 ## 预期行为
+
 应该发生什么。
 
 ## 实际行为
+
 实际发生了什么（包含错误信息）。
 
 ## 代码示例
+
 ```python
 import backtrader as bt
 
 # 最小可复现代码
-```
+
+```bash
 
 ## 附加信息
+
 日志、截图或其他相关信息。
-```
+
+```bash
 
 ### 功能请求
 
 提供以下信息：
 
 ```markdown
+
 ## 问题陈述
+
 这解决了什么问题？用例是什么？
 
 ## 建议的解决方案
+
 所需功能的详细描述。
 
 ## 考虑的替代方案
+
 您还考虑了哪些其他方法？
 
 ## 附加信息
+
 示例、参考或实现想法。
-```
+
+```bash
 
 ## 社区准则
 
@@ -317,7 +382,8 @@ DCO 是一个简单的声明，证明您有权提交您的贡献。
 git commit -m "feat: 添加新指标
 
 Signed-off-by: 你的名字 <your.email@example.com>"
-```
+
+```bash
 
 ### 自动签署
 
@@ -325,13 +391,14 @@ Signed-off-by: 你的名字 <your.email@example.com>"
 
 ```bash
 git config --global commit.signoff true
-```
 
+```bash
 然后使用 `-s` 标志：
 
 ```bash
 git commit -s -m "feat: 添加新指标"
-```
+
+```bash
 
 ### DCO 认证
 

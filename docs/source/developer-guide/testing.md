@@ -1,7 +1,9 @@
----
+- --
+
 title: Testing Guide
 description: Testing practices and guidelines for Backtrader developers
----
+
+- --
 
 # Testing Guide
 
@@ -20,7 +22,7 @@ This guide covers testing practices and guidelines for contributing to the Backt
 
 ## Test Framework
 
-Backtrader uses **pytest** as its testing framework. Key features:
+Backtrader uses **pytest**as its testing framework. Key features:
 
 - **pytest**: Test runner and assertion library
 - **pytest-cov**: Coverage reporting
@@ -30,7 +32,8 @@ Backtrader uses **pytest** as its testing framework. Key features:
 
 ```bash
 pip install pytest pytest-cov pytest-xdist
-```
+
+```bash
 
 ### Configuration
 
@@ -55,22 +58,30 @@ markers =
 filterwarnings =
     ignore::RuntimeWarning
     ignore::DeprecationWarning
-```
+
+```bash
 
 ## Test Organization
 
 ### Directory Structure
 
-```
+```bash
 tests/
 ├── conftest.py              # Shared fixtures and configuration
+
 ├── datas/                   # Test data files
+
 ├── original_tests/          # Core functionality tests
+
 ├── add_tests/               # Additional test coverage
+
 ├── strategies/              # Strategy-specific tests
+
 ├── base_functions/          # Base function tests
+
 └── integration/             # Integration tests
-```
+
+```bash
 
 ### Test File Naming
 
@@ -91,19 +102,21 @@ Unit tests test individual components in isolation. They should:
 ```python
 def test_sma_calculation():
     """Test SMA indicator calculates correctly."""
-    # Create test data
+
+# Create test data
     data = [1, 2, 3, 4, 5]
     period = 3
 
-    # Expected result
+# Expected result
     expected = 3.0  # (3 + 4 + 5) / 3
 
-    # Run test
+# Run test
     result = calculate_sma(data, period)
 
-    # Assert
+# Assert
     assert result == expected
-```
+
+```bash
 
 ### Integration Tests
 
@@ -127,17 +140,23 @@ def test_ib_connection():
     cerebro.adddata(data)
     result = cerebro.run()
     assert len(result) > 0
-```
+
+```bash
 
 ### Priority Levels
 
 Tests are categorized by priority:
 
 | Priority | Description | When to Use |
+
 |----------|-------------|-------------|
+
 | `priority_p0` | Critical - core functionality | Essential features, data loading, order execution |
+
 | `priority_p1` | High - frequently used | Common indicators, standard strategies |
+
 | `priority_p2` | Medium - secondary features | Less common indicators, edge cases |
+
 | `priority_p3` | Low - rarely used | Obscure features, legacy code |
 
 ## Test Markers
@@ -162,23 +181,30 @@ def test_live_api_connection():
 async def test_websocket_feed():
     """WebSocket-specific test."""
     pass
-```
+
+```bash
 
 ### Running with Markers
 
 ```bash
+
 # Run only critical tests
+
 pytest tests/ -m "priority_p0"
 
 # Skip integration tests
+
 pytest tests/ -m "not integration"
 
 # Run multiple markers
+
 pytest tests/ -m "priority_p0 or priority_p1"
 
 # Skip WebSocket tests
+
 pytest tests/ -m "not websocket"
-```
+
+```bash
 
 ## Writing Tests
 
@@ -189,26 +215,30 @@ A good test follows the Arrange-Act-Assert pattern:
 ```python
 def test_indicator_calculation():
     """Test indicator calculates expected values."""
-    # Arrange - Set up test data and conditions
+
+# Arrange - Set up test data and conditions
     cerebro = bt.Cerebro()
     data = create_test_data()
     cerebro.adddata(data)
     cerebro.addstrategy(TestStrategy)
 
-    # Act - Execute the code being tested
+# Act - Execute the code being tested
     result = cerebro.run()
 
-    # Assert - Verify expected outcomes
+# Assert - Verify expected outcomes
     assert len(result) == 1
     assert result[0].analyzers.sharpe.get_analysis()['sharperatio'] > 0
-```
+
+```bash
 
 ### Complete Test Example
 
 Here's a complete example for testing an indicator:
 
 ```python
-#!/usr/bin/env python
+
+# !/usr/bin/env python
+
 """Test Simple Moving Average indicator."""
 
 import backtrader as bt
@@ -236,7 +266,8 @@ class TestStrategy(bt.Strategy):
     def stop(self):
         """Validate SMA calculations."""
         assert len(self.actual_values) > 0, "No SMA values calculated"
-        # Additional assertions here
+
+# Additional assertions here
 
 
 @pytest.mark.priority_p0
@@ -244,7 +275,7 @@ def test_sma_basic_calculation():
     """Test SMA calculates correctly with basic data."""
     cerebro = bt.Cerebro()
 
-    # Create simple test data
+# Create simple test data
     data = bt.feeds.BacktraderCSVData(
         dataname='tests/datas/2006-day-001.txt',
         fromdate=datetime.datetime(2006, 1, 1),
@@ -257,11 +288,11 @@ def test_sma_basic_calculation():
 
     results = cerebro.run()
 
-    # Verify strategy ran
+# Verify strategy ran
     assert len(results) == 1
     strat = results[0]
 
-    # Verify SMA was calculated
+# Verify SMA was calculated
     assert hasattr(strat, 'sma')
     assert len(strat.sma) > 0
 
@@ -308,7 +339,8 @@ def test_sma_with_multiple_data_feeds():
 
     results = cerebro.run()
     assert len(results) == 1
-```
+
+```bash
 
 ### Testing Strategies
 
@@ -347,9 +379,10 @@ def test_strategy_buy_signal():
     results = cerebro.run()
     strat = results[0]
 
-    # Verify at least one buy order was executed
+# Verify at least one buy order was executed
     assert strat.buy_executed
-```
+
+```bash
 
 ### Testing with Mock Data
 
@@ -395,7 +428,8 @@ def test_with_mock_data():
 
     result = cerebro.run()
     assert len(result) > 0
-```
+
+```bash
 
 ## Fixtures and Helpers
 
@@ -420,7 +454,8 @@ def cerebro_engine():
     """Provide basic Cerebro engine instance."""
     cerebro = bt.Cerebro()
     yield cerebro
-    # Cleanup
+
+# Cleanup
     cerebro = None
 
 @pytest.fixture
@@ -428,7 +463,8 @@ def cerebro_with_cash(cerebro_engine):
     """Provide Cerebro with initial cash set."""
     cerebro_engine.broker.setcash(10000.0)
     return cerebro_engine
-```
+
+```bash
 
 ### Using Fixtures
 
@@ -440,12 +476,15 @@ def test_with_fixture(sample_data, cerebro_engine):
 
     result = cerebro_engine.run()
     assert len(result) > 0
-```
+
+```bash
 
 ### Creating Custom Fixtures
 
 ```python
+
 # In your test file or conftest.py
+
 @pytest.fixture
 def macd_indicator():
     """Create MACD indicator with standard parameters."""
@@ -456,7 +495,8 @@ def macd_indicator():
                                            period_signal=9)
 
     return MACDStrategy
-```
+
+```bash
 
 ## Coverage Requirements
 
@@ -482,20 +522,26 @@ exclude_lines = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
 ]
-```
+
+```bash
 
 ### Running Coverage
 
 ```bash
+
 # Generate coverage report
+
 pytest tests/ --cov=backtrader --cov-report=term-missing
 
 # Generate HTML report
+
 pytest tests/ --cov=backtrader --cov-report=html
 
 # Combine with markers
+
 pytest tests/ -m "not integration" --cov=backtrader
-```
+
+```bash
 
 ### Coverage Goals
 
@@ -508,56 +554,76 @@ pytest tests/ -m "not integration" --cov=backtrader
 ### Basic Commands
 
 ```bash
+
 # Run all tests
+
 pytest tests/ -v
 
 # Run with parallel execution (4 workers)
+
 pytest tests/ -n 4 -v
 
 # Run specific test file
+
 pytest tests/add_tests/test_sma.py -v
 
 # Run specific test function
+
 pytest tests/add_tests/test_sma.py::test_sma_calculation -v
 
 # Stop on first failure
+
 pytest tests/ -x
 
 # Show local variables on failure
+
 pytest tests/ -l
 
 # Verbose output with print statements
+
 pytest tests/ -s
-```
+
+```bash
 
 ### Running by Category
 
 ```bash
+
 # Indicator tests
+
 pytest tests/add_tests/test_ind*.py tests/original_tests/test_ind*.py -v
 
 # Strategy tests
+
 pytest tests/add_tests/test_strategy*.py tests/original_tests/test_strategy*.py -v
 
 # Analyzer tests
+
 pytest tests/add_tests/test_analyzer*.py tests/original_tests/test_analyzer*.py -v
 
 # Broker tests
+
 pytest tests/add_tests/test_broker.py -v
-```
+
+```bash
 
 ### Run with Make
 
 ```bash
+
 # Run all tests
+
 make test
 
 # Run with coverage
+
 make test-coverage
 
 # Run specific test file
+
 make test-file TEST=tests/add_tests/test_sma.py
-```
+
+```bash
 
 ### Continuous Testing
 
@@ -566,29 +632,33 @@ For development, use pytest-watch for automatic test execution:
 ```bash
 pip install pytest-watch
 ptw tests/ -- -v
-```
+
+```bash
 
 ## Best Practices
 
 ### DO:
 
-1. **Write tests first** (TDD approach when possible)
-2. **Use descriptive test names**: `test_sma_calculates_correctly()` not `test_1()`
-3. **Keep tests independent** - no shared state between tests
-4. **Use fixtures** for common setup
-5. **Mock external dependencies** - API calls, file I/O
-6. **Test edge cases** - empty data, minimum period, boundary conditions
-7. **Add docstrings** to explain what is being tested
-8. **Use markers** for test categorization
+1. **Write tests first**(TDD approach when possible)
+
+2.**Use descriptive test names**: `test_sma_calculates_correctly()` not `test_1()`
+
+1. **Keep tests independent**- no shared state between tests
+
+4.**Use fixtures**for common setup
+5.**Mock external dependencies**- API calls, file I/O
+6.**Test edge cases**- empty data, minimum period, boundary conditions
+7.**Add docstrings**to explain what is being tested
+8.**Use markers**for test categorization
 
 ### DON'T:
 
-1. **Don't hardcode paths** - use fixtures or relative paths
-2. **Don't test implementation details** - test behavior
-3. **Don't write monolithic tests** - one assertion per concept
-4. **Don't ignore tests** - fix or mark as expected failure
-5. **Don't use live data** in unit tests
-6. **Don't commit commented-out code**
+1.**Don't hardcode paths**- use fixtures or relative paths
+2.**Don't test implementation details**- test behavior
+3.**Don't write monolithic tests**- one assertion per concept
+4.**Don't ignore tests**- fix or mark as expected failure
+5.**Don't use live data**in unit tests
+6.**Don't commit commented-out code**
 
 ## Debugging Tests
 
@@ -600,28 +670,38 @@ def test_failing_case():
     import pdb; pdb.set_trace()
 
     cerebro = bt.Cerebro()
-    # ... rest of test
-```
+
+# ... rest of test
+
+```bash
 
 ### Using pytest's pdb
 
 ```bash
+
 # Drop into debugger on failure
+
 pytest tests/ --pdb
 
 # Drop into debugger on error (not just failure)
+
 pytest tests/ --pdb --trace
-```
+
+```bash
 
 ### Printing Test Output
 
 ```bash
+
 # Show print statements
+
 pytest tests/ -s -v
 
 # Capture output but show on failure
+
 pytest tests/ --capture=no
-```
+
+```bash
 
 ## See Also
 

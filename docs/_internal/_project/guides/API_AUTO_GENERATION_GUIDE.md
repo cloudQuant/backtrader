@@ -16,7 +16,7 @@ This guide explains how to automatically generate API documentation from Backtra
 10. [GitHub Actions Integration](#github-actions-integration)
 11. [Example Configurations](#example-configurations)
 
----
+- --
 
 ## Overview
 
@@ -40,51 +40,71 @@ graph LR
     D --> E[sphinx-build]
     E --> F[HTML/PDF Docs]
     F --> G[GitHub Pages/RTD]
-```
 
----
+```bash
+
+- --
 
 ## Tools and Frameworks
 
 ### Core Tools
 
 | Tool | Version | Purpose |
+
 |------|---------|---------|
+
 | Sphinx | >= 5.0.0 | Documentation generator |
+
 | sphinx-autodoc | bundled | Extract docstrings from Python modules |
+
 | sphinx-autosummary | bundled | Generate summary tables |
+
 | sphinx-napoleon | bundled | Parse Google/NumPy style docstrings |
+
 | sphinx-ext-viewcode | bundled | Add source code links |
+
 | sphinx-ext-intersphinx | bundled | Cross-project references |
+
 | myst-parser | >= 2.0.0 | Markdown support |
+
 | sphinx-copybutton | >= 0.5.0 | Copy button for code blocks |
+
 | furo | >= 2023.1.1 | Modern HTML theme |
 
 ### Optional Tools
 
 | Tool | Purpose |
+
 |------|---------|
+
 | sphinx-autobuild | Live reload during development |
+
 | sphinx-intl | Internationalization support |
+
 | sphinx-autodoc-typehints | Enhanced type hints display |
+
 | sphinxcontrib-bibtex | Bibliography support |
 
 ### Installation
 
 ```bash
+
 # Install documentation dependencies
+
 pip install -r docs/requirements.txt
 
 # Or install individually
+
 pip install sphinx>=5.0.0
 pip install sphinx-copybutton>=0.5.0
 pip install furo>=2023.1.1
 pip install sphinx-autobuild>=2021.3.14
 pip install sphinx-intl>=2.0.0
 pip install myst-parser>=2.0.0
-```
 
----
+```bash
+
+- --
 
 ## Docstring Conventions
 
@@ -137,7 +157,8 @@ class Indicator(LineIterator):
             NotImplementedError: If not implemented by subclass
         """
         raise NotImplementedError
-```
+
+```bash
 
 ### NumPy-Style Docstrings
 
@@ -149,7 +170,9 @@ class Cerebro(ParameterizedBase):
     including data feeds, strategies, brokers, and analyzers.
 
     Parameters
-    ----------
+
+    - ---------
+
     preload : bool, optional
         Whether to preload data feeds into memory (default: True)
     runonce : bool, optional
@@ -158,7 +181,9 @@ class Cerebro(ParameterizedBase):
         Maximum number of CPU cores for optimization (default: None)
 
     Attributes
-    ----------
+
+    - ---------
+
     datas : list
         List of data feeds added to cerebro
     strategies : list
@@ -167,7 +192,9 @@ class Cerebro(ParameterizedBase):
         Broker instance for order execution
 
     Examples
-    --------
+
+    - -------
+
     Basic backtest setup::
 
         cerebro = bt.Cerebro()
@@ -177,34 +204,51 @@ class Cerebro(ParameterizedBase):
         results = cerebro.run()
 
     Notes
-    -----
+
+    - ----
+
     Cerebro manages the entire backtesting lifecycle from data loading
     to strategy execution and result collection.
 
     See Also
-    --------
+
+    - -------
+
     Strategy : Base class for trading strategies
     Analyzer : Base class for performance analyzers
     """
-```
+
+```bash
 
 ### Docstring Sections
 
 | Section | Purpose | Required |
+
 |---------|---------|----------|
+
 | Summary | One-line description | Yes |
+
 | Extended Description | Detailed explanation | Recommended |
+
 | Parameters | Function/method parameters | For functions with params |
+
 | Attributes | Class attributes | For classes |
+
 | Returns | Return value description | For functions that return |
+
 | Raises | Exceptions that may be raised | When applicable |
+
 | Examples | Usage examples | Highly recommended |
+
 | Note | Important notes | Optional |
+
 | Warning | Warnings about usage | Optional |
+
 | See Also | Related classes/functions | Recommended |
+
 | References | External references | Optional |
 
----
+- --
 
 ## Type Hints Integration
 
@@ -220,14 +264,16 @@ def addstrategy(self, strategy, *args, **kwargs):
 
     Args:
         strategy: Strategy class to add
-        *args: Positional arguments for strategy
-        **kwargs: Keyword arguments for strategy
+
+        - args: Positional arguments for strategy
+        - *kwargs: Keyword arguments for strategy
 
     Returns:
         Self for method chaining
     """
     pass
-```
+
+```bash
 
 ### Advanced Type Hints
 
@@ -260,26 +306,32 @@ class Order:
     size: float
     price: Optional[float]
     status: Order.Status
-```
+
+```bash
 
 ### Type Hint Configuration
 
 In `conf.py`:
 
 ```python
+
 # How to display type hints
+
 autodoc_typehints = 'description'  # 'description', 'signature', 'none'
+
 autodoc_class_signature = 'separated'  # 'separated', 'full', 'hidden'
 
 # Type aliases for better documentation
+
 napoleon_type_aliases = {
     'sequence': 'typing.Sequence',
     'iterable': 'typing.Iterable',
     'array_like': 'numpy.typing.ArrayLike',
 }
-```
 
----
+```bash
+
+- --
 
 ## Sphinx Configuration
 
@@ -294,14 +346,17 @@ import sys
 from datetime import datetime
 
 # Add project root to path for autodoc
+
 sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
+
 project = 'Backtrader'
 copyright = f'{datetime.now().year}, Backtrader Contributors'
 author = 'Backtrader Contributors'
 
 # -- General configuration ---------------------------------------------------
+
 extensions = [
     'sphinx.ext.autodoc',           # Auto-generate docs from docstrings
     'sphinx.ext.autosummary',       # Generate summary tables
@@ -313,13 +368,17 @@ extensions = [
     'sphinx.ext.inheritance_diagram',  # Generate inheritance diagrams
     'sphinx_copybutton',            # Copy button for code blocks
     'myst_parser',                 # Markdown support
+
 ]
-```
+
+```bash
 
 ### Napoleon Settings
 
 ```python
+
 # Napoleon settings for Google/NumPy docstrings
+
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
@@ -331,21 +390,25 @@ napoleon_use_admonition_for_references = True
 napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
-```
+
+```bash
 
 ### Intersphinx Configuration
 
 ```python
-# Link to external documentation
-intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'pandas': ('https://pandas.pydata.org/docs/', None),
-    'matplotlib': ('https://matplotlib.org/stable/', None),
-}
-```
 
----
+# Link to external documentation
+
+intersphinx_mapping = {
+    'python': ('<https://docs.python.org/3',> None),
+    'numpy': ('<https://numpy.org/doc/stable/',> None),
+    'pandas': ('<https://pandas.pydata.org/docs/',> None),
+    'matplotlib': ('<https://matplotlib.org/stable/',> None),
+}
+
+```bash
+
+- --
 
 ## AutoDoc Settings
 
@@ -360,33 +423,41 @@ autodoc_default_options = {
     'exclude-members': '__weakref__,__dict__,__module__',  # Exclude these
     'show-inheritance': True,     # Show base classes
     'inherited-members': False,   # Don't show inherited members
+
 }
 
 # Type hints display
+
 autodoc_typehints = 'description'  # Show types in parameter descriptions
+
 autodoc_class_signature = 'separated'  # Separate class signature from docstring
-```
+
+```bash
 
 ### Skipping Dynamically Generated Classes
 
 Backtrader uses dynamic class generation for Lines and Params. These should be skipped:
 
 ```python
+
 # Patterns for dynamically generated classes to skip
+
 _SKIP_PATTERNS = [
     'Lines_lines',  # Dynamically generated Lines classes
     'Params_',      # Dynamically generated Params classes
     '_lines',       # Internal lines attributes
+
 ]
 
 def autodoc_skip_member(app, what, name, obj, skip, options):
     """Skip dynamically generated classes and internal members."""
     try:
-        # Skip private members (starting with _) except __init__
+
+# Skip private members (starting with _) except __init__
         if name.startswith('_') and name != '__init__':
             return True
 
-        # Skip dynamically generated classes with weird names
+# Skip dynamically generated classes with weird names
         obj_name = getattr(obj, '__name__', '')
         if obj_name is None:
             obj_name = type(obj).__name__
@@ -395,7 +466,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
             if pattern in str(obj_name) or pattern in name:
                 return True
 
-        # Skip classes with very long names (likely dynamically generated)
+# Skip classes with very long names (likely dynamically generated)
         if len(name) > 50:
             return True
 
@@ -404,38 +475,49 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
         return skip
 
 # Register the skip handler
+
 def setup(app):
     """Custom Sphinx setup."""
     app.connect('autodoc-skip-member', autodoc_skip_member)
-```
 
----
+```bash
+
+- --
 
 ## Generating API Docs
 
 ### Using sphinx-apidoc
 
 ```bash
+
 # Generate API documentation from source code
+
 cd docs
 sphinx-apidoc -o source/api ../backtrader \
-    --force \
-    --module-first \
-    --implicit-namespaces \
-    --separate
+
+    - -force \
+    - -module-first \
+    - -implicit-namespaces \
+    - -separate
 
 # Options explained:
+
 # --force: Overwrite existing files
+
 # --module-first: Put module documentation before class documentation
+
 # --implicit-namespaces: Use implicit namespace packages
+
 # --separate: Create separate pages for each module
-```
+
+```bash
 
 ### Manual API Reference Files
 
 For better control, create manual API reference files in `docs/source/api/`:
 
-**modules.rst:**
+- *modules.rst:**
+
 ```rst
 API Reference
 =============
@@ -451,9 +533,11 @@ This section contains the API reference documentation for Backtrader.
    analyzers
    feeds
    brokers
-```
 
-**cerebro.rst:**
+```bash
+
+- *cerebro.rst:**
+
 ```rst
 Cerebro - Main Engine
 =====================
@@ -464,7 +548,8 @@ Cerebro - Main Engine
     :show-inheritance:
 
 Cerebro Class
--------------
+
+- ------------
 
 .. autoclass:: backtrader.Cerebro
     :members:
@@ -473,12 +558,14 @@ Cerebro Class
     :private-members:
 
 OptReturn Class
-----------------
+
+- ---------------
 
 .. autoclass:: backtrader.OptReturn
     :members:
     :undoc-members:
-```
+
+```bash
 
 ### Using autosummary
 
@@ -501,7 +588,8 @@ Indicators Summary
    MACD
    BBands
    Stochastic
-```
+
+```bash
 
 ### Custom Templates
 
@@ -520,7 +608,8 @@ Create `docs/source/_templates/custom_class_template.rst`:
 
 {% if methods %}
 Methods
--------
+
+- ------
 
 .. autosummary::
    :toctree:
@@ -530,9 +619,10 @@ Methods
    {{ name }}.{{ method }}
 {% endfor %}
 {% endif %}
-```
 
----
+```bash
+
+- --
 
 ## Cross-Reference Generation
 
@@ -547,7 +637,8 @@ Use Sphinx roles to create cross-references:
 :py:func:`backtrader.indicators.SMA`
 :py:exc:`backtrader.errors.StrategyError`
 :py:data:`backtrader.__version__`
-```
+
+```bash
 
 ### External References
 
@@ -557,7 +648,8 @@ Using intersphinx:
 The strategy uses :class:`pandas.DataFrame` for data input.
 Refer to :func:`numpy.array` for array operations.
 See :meth:`matplotlib.pyplot.plot` for plotting options.
-```
+
+```bash
 
 ### Custom Cross-References
 
@@ -567,12 +659,14 @@ Define custom cross-reference targets:
 .. _cerebro-api:
 
 Cerebro API Documentation
---------------------------
+
+- -------------------------
 
 See the :ref:`cerebro-api` section for detailed information.
 
 Link to indicator documentation: :ref:`indicators-index`
-```
+
+```bash
 
 ### Inheritance Diagrams
 
@@ -581,76 +675,95 @@ Generate class hierarchy diagrams:
 ```rst
 .. inheritance-diagram:: backtrader.indicators.SMA
     :parts: 2
-```
 
----
+```bash
+
+- --
 
 ## Automated Build Pipeline
 
 ### Makefile Integration
 
 ```makefile
+
 # Documentation build targets
+
 .PHONY: docs docs-live docs-clean docs-api
 
 # Build all documentation (en + zh)
+
 docs: docs-en docs-zh
 
 # Build English documentation
+
 docs-en:
-	cd docs && sphinx-build -b html source build/html/en -D language=en
+    cd docs && sphinx-build -b html source build/html/en -D language=en
 
 # Build Chinese documentation
+
 docs-zh:
-	cd docs && sphinx-build -b html source build/html/zh -D language=zh_CN
+    cd docs && sphinx-build -b html source build/html/zh -D language=zh_CN
 
 # Build with live reload
+
 docs-live:
-	cd docs && sphinx-autobuild source build/html/en --host 0.0.0.0 --port 8000
+    cd docs && sphinx-autobuild source build/html/en --host 0.0.0.0 --port 8000
 
 # Generate API docs from source
+
 docs-api:
-	cd docs && sphinx-apidoc -o source/api ../backtrader --force --module-first
+    cd docs && sphinx-apidoc -o source/api ../backtrader --force --module-first
 
 # Clean build artifacts
+
 docs-clean:
-	rm -rf docs/build
-	rm -rf docs/source/api
+    rm -rf docs/build
+    rm -rf docs/source/api
 
 # View documentation
+
 docs-view:
-	open docs/build/html/en/index.html
-```
+    open docs/build/html/en/index.html
+
+```bash
 
 ### Pre-commit Hook
 
 ```bash
+
 # .git/hooks/pre-commit
-#!/bin/bash
+
+# !/bin/bash
 
 # Build docs to check for errors
+
 cd docs
 sphinx-build -b html source build/html/check -W --keep-going
 
-if [ $? -ne 0 ]; then
+if [$? -ne 0]; then
     echo "Documentation build failed. Please fix docstring errors."
     exit 1
 fi
 
 exit 0
-```
+
+```bash
 
 ### Docstring Coverage
 
 ```bash
+
 # Check documentation coverage
+
 sphinx-build -b coverage source build/html/coverage
 
 # View report
-cat build/html/coverage/python.txt
-```
 
----
+cat build/html/coverage/python.txt
+
+```bash
+
+- --
 
 ## GitHub Actions Integration
 
@@ -664,18 +777,26 @@ name: Documentation
 on:
   push:
     branches:
+
       - development
       - master
+
     paths:
+
       - 'docs/**'
       - 'backtrader/**'
       - '.github/workflows/docs.yml'
+
   pull_request:
     branches:
+
       - development
       - master
+
     paths:
+
       - 'docs/**'
+
   workflow_dispatch:
 
 permissions:
@@ -691,40 +812,53 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+
       - name: Checkout
+
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
+
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
+
         run: |
+
           python -m pip install --upgrade pip
           pip install -r docs/requirements.txt
           pip install -e .
 
       - name: Regenerate API docs
+
         run: |
+
           cd docs
           sphinx-apidoc -o source/api ../backtrader --force --module-first
 
       - name: Build English documentation
+
         run: |
+
           cd docs
           sphinx-build -b html source build/html/en -D language=en -W
 
       - name: Build Chinese documentation
+
         run: |
+
           cd docs
           sphinx-build -b html source build/html/zh -D language=zh_CN
 
       - name: Create index redirect
+
         run: |
+
           cat > docs/build/html/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
@@ -741,6 +875,7 @@ jobs:
             <h1>Backtrader Documentation</h1>
             <p>
               <a href="en/index.html">English</a> |
+
               <a href="zh/index.html">中文</a>
             </p>
           </body>
@@ -748,6 +883,7 @@ jobs:
           EOF
 
       - name: Upload artifact
+
         uses: actions/upload-pages-artifact@v3
         with:
           path: './docs/build/html'
@@ -759,18 +895,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'push' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/master')
+
     steps:
+
       - name: Deploy to GitHub Pages
+
         id: deployment
         uses: actions/deploy-pages@v4
-```
+
+```bash
 
 ### Read the Docs Integration
 
 `.readthedocs.yaml`:
 
 ```yaml
+
 # .readthedocs.yaml
+
 version: 2
 
 build:
@@ -779,19 +921,24 @@ build:
     python: "3.11"
   jobs:
     post_create_environment:
+
       - pip install -r docs/requirements.txt
+
     post_install:
+
       - pip install -e .
 
 sphinx:
   configuration: docs/source/conf.py
 
 formats:
+
   - pdf
   - htmlzip
-```
 
----
+```bash
+
+- --
 
 ## Example Configurations
 
@@ -804,9 +951,11 @@ import sys
 from datetime import datetime
 
 # Add project root to path
+
 sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Project information -----------------------------------------------------
+
 project = 'Backtrader'
 copyright = f'{datetime.now().year}, Backtrader Contributors'
 author = 'Backtrader Contributors'
@@ -820,6 +969,7 @@ except ImportError:
     release = '0.1'
 
 # -- General configuration ---------------------------------------------------
+
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
@@ -834,6 +984,7 @@ extensions = [
 ]
 
 # MyST Parser
+
 myst_enable_extensions = [
     "colon_fence",
     "deflist",
@@ -848,11 +999,13 @@ myst_enable_extensions = [
 ]
 
 # Autosummary
+
 autosummary_generate = True
 autosummary_imported_members = False
 autosummary_generate_overwrite = False
 
 # Autodoc
+
 autodoc_default_options = {
     'members': True,
     'member-order': 'bysource',
@@ -866,6 +1019,7 @@ autodoc_typehints = 'description'
 autodoc_class_signature = 'separated'
 
 # Skip patterns
+
 _SKIP_PATTERNS = ['Lines_lines', 'Params_', '_lines']
 
 def autodoc_skip_member(app, what, name, obj, skip, options):
@@ -880,6 +1034,7 @@ def autodoc_skip_member(app, what, name, obj, skip, options):
     return skip
 
 # Napoleon
+
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
@@ -887,28 +1042,32 @@ napoleon_use_param = True
 napoleon_use_rtype = True
 
 # Intersphinx
+
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3', None),
-    'numpy': ('https://numpy.org/doc/stable/', None),
-    'pandas': ('https://pandas.pydata.org/docs/', None),
+    'python': ('<https://docs.python.org/3',> None),
+    'numpy': ('<https://numpy.org/doc/stable/',> None),
+    'pandas': ('<https://pandas.pydata.org/docs/',> None),
 }
 
 # HTML Theme
+
 html_theme = 'furo'
 html_theme_options = {
     'light_css_variables': {
         'color-brand-primary': '#2962FF',
     },
     'navigation_with_keys': True,
-    'source_repository': 'https://github.com/cloudQuant/backtrader/',
+    'source_repository': '<https://github.com/cloudQuant/backtrader/',>
     'source_branch': 'development',
 }
 
 # Static files
+
 html_static_path = ['_static']
 html_css_files = ['custom.css']
 
 # Language
+
 language = 'en'
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 rtd_language = os.environ.get('READTHEDOCS_LANGUAGE', 'en')
@@ -922,6 +1081,7 @@ else:
     html_title = f'{project} Documentation'
 
 # Suppress warnings
+
 suppress_warnings = [
     'ref.python',
     'autosummary',
@@ -931,12 +1091,15 @@ suppress_warnings = [
 def setup(app):
     app.add_css_file('custom.css')
     app.connect('autodoc-skip-member', autodoc_skip_member)
-```
+
+```bash
 
 ### requirements.txt
 
 ```txt
+
 # Sphinx documentation dependencies
+
 sphinx>=5.0.0
 sphinx-copybutton>=0.5.0
 furo>=2023.1.1
@@ -945,11 +1108,13 @@ sphinx-intl>=2.0.0
 myst-parser>=2.0.0
 
 # Optional enhancements
+
 sphinx-autodoc-typehints>=1.23.0
 sphinxcontrib-apidoc>=0.3.0
-```
 
----
+```bash
+
+- --
 
 ## Best Practices
 
@@ -981,34 +1146,34 @@ Each module should have a module-level docstring explaining its purpose.
 
 Document private members (starting with `_`) if they are part of the public API or important for subclassing.
 
----
+- --
 
 ## Troubleshooting
 
 ### Common Issues
 
-**Issue**: Autodoc can't import a module
+- *Issue**: Autodoc can't import a module
 
-**Solution**: Ensure the module is in `sys.path` and can be imported. Check `conf.py` for correct path configuration.
+- *Solution**: Ensure the module is in `sys.path` and can be imported. Check `conf.py` for correct path configuration.
 
-**Issue**: Type hints not showing
+- *Issue**: Type hints not showing
 
-**Solution**: Install `sphinx-autodoc-typehints` and add to extensions.
+- *Solution**: Install `sphinx-autodoc-typehints` and add to extensions.
 
-**Issue**: Inheritance diagrams not rendering
+- *Issue**: Inheritance diagrams not rendering
 
-**Solution**: Install Graphiz: `apt-get install graphviz` (Linux) or `brew install graphviz` (macOS).
+- *Solution**: Install Graphiz: `apt-get install graphviz` (Linux) or `brew install graphviz` (macOS).
 
-**Issue**: Build warnings about missing references
+- *Issue**: Build warnings about missing references
 
-**Solution**: Add to `suppress_warnings` in `conf.py` or fix the references.
+- *Solution**: Add to `suppress_warnings` in `conf.py` or fix the references.
 
----
+- --
 
 ## Additional Resources
 
-- [Sphinx Documentation](https://www.sphinx-doc.org/)
-- [Napoleon Extension](https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html)
-- [sphinx-apidoc](https://www.sphinx-doc.org/en/master/man/sphinx-apidoc.html)
-- [MyST Parser](https://myst-parser.readthedocs.io/)
-- [Furo Theme](https://pradyunsg.me/furo/)
+- [Sphinx Documentation](<https://www.sphinx-doc.org/)>
+- [Napoleon Extension](<https://www.sphinx-doc.org/en/master/usage/extensions/napoleon.html)>
+- [sphinx-apidoc](<https://www.sphinx-doc.org/en/master/man/sphinx-apidoc.html)>
+- [MyST Parser](<https://myst-parser.readthedocs.io/)>
+- [Furo Theme](<https://pradyunsg.me/furo/)>

@@ -1,7 +1,9 @@
----
+- --
+
 title: 策略示例库
 description: 常见交易策略的完整工作示例
----
+
+- --
 
 # 策略示例库
 
@@ -16,7 +18,7 @@ description: 常见交易策略的完整工作示例
 - [套利策略](#套利策略日历价差)
 - [动量策略](#动量策略超级趋势)
 
----
+- --
 
 ## 趋势跟踪策略（双移动平均）
 
@@ -48,22 +50,24 @@ class DualMovingAverageStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 计算移动平均线
+
+# 计算移动平均线
         self.short_ma = bt.indicators.SMA(self.data.close, period=self.p.short_period)
         self.long_ma = bt.indicators.SMA(self.data.close, period=self.p.long_period)
 
-        # 交叉指标: 金叉为+1，死叉为-1
+# 交叉指标: 金叉为+1，死叉为-1
         self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)
 
-        # 跟踪订单以避免重复入场
+# 跟踪订单以避免重复入场
         self.order = None
 
     def next(self):
-        # 等待待处理订单完成
+
+# 等待待处理订单完成
         if self.order:
             return
 
-        # 无持仓 - 寻找入场机会
+# 无持仓 - 寻找入场机会
         if not self.position:
             if self.crossover > 0:  # 金叉
                 cash = self.broker.getcash()
@@ -72,7 +76,8 @@ class DualMovingAverageStrategy(bt.Strategy):
                 if size > 0:
                     self.order = self.buy(size=size)
         else:
-            # 有持仓 - 寻找出场机会
+
+# 有持仓 - 寻找出场机会
             if self.crossover < 0:  # 死叉
                 self.order = self.close()
 
@@ -81,23 +86,27 @@ class DualMovingAverageStrategy(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### 性能预期
 
 - **市场类型**: 在趋势市场中表现最佳
 - **震荡风险**: 在横盘/盘整市场中风险较高
-- **胜率**: 通常为35-45%（依靠少数大盈利）
-- **盈亏比**: 在强趋势中可达2:1或更高
+- **胜率**: 通常为 35-45%（依靠少数大盈利）
+- **盈亏比**: 在强趋势中可达 2:1 或更高
 
 ### 优化参数
 
 | 参数 | 范围 | 影响 |
+
 |------|------|------|
+
 | short_period | 5-20 | 周期越短=信号越多，噪音越大 |
+
 | long_period | 20-60 | 周期越长=信号越少，滞后越大 |
 
----
+- --
 
 ## 均值回归策略（布林带）
 
@@ -116,6 +125,7 @@ class BollingerBandsMeanReversion(bt.Strategy):
     使用布林带识别超买/超卖条件，并在价格显示回归均值迹象时入场。
 
     入场规则:
+
         - 当价格跌破下轨后回升至中轨时买入
         - 当价格突破上轨后回落至中轨时卖出
 
@@ -130,14 +140,15 @@ class BollingerBandsMeanReversion(bt.Strategy):
     )
 
     def __init__(self):
-        # 布林带指标
+
+# 布林带指标
         self.bband = bt.indicators.BBands(
             self.data.close,
             period=self.p.period,
             devfactor=self.p.devfactor
         )
 
-        # 跟踪信号
+# 跟踪信号
         self.oversold = False  # 价格跌破下轨
         self.overbought = False  # 价格突破上轨
         self.order = None
@@ -146,36 +157,36 @@ class BollingerBandsMeanReversion(bt.Strategy):
         if self.order:
             return
 
-        # 检查超卖条件
+# 检查超卖条件
         if self.data.close[0] < self.bband.lines.bot[0]:
             self.oversold = True
 
-        # 检查超买条件
+# 检查超买条件
         if self.data.close[0] > self.bband.lines.top[0]:
             self.overbought = True
 
-        # 入场: 价格在超卖后回升至中轨上方
+# 入场: 价格在超卖后回升至中轨上方
         if self.oversold and self.data.close[0] > self.bband.lines.mid[0]:
             if not self.position:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash *0.95 / self.data.close[0])
                 self.order = self.buy(size=size)
                 self.oversold = False
 
-        # 入场: 价格在超买后回落至中轨下方时做空
+# 入场: 价格在超买后回落至中轨下方时做空
         if self.overbought and self.data.close[0] < self.bband.lines.mid[0]:
             if not self.position:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash* 0.95 / self.data.close[0])
                 self.order = self.sell(size=size)
                 self.overbought = False
 
-        # 平多仓
+# 平多仓
         if self.position and self.position.size > 0:
             if self.data.close[0] > self.bband.lines.top[0]:
                 self.order = self.close()
 
-        # 平空仓
+# 平空仓
         if self.position and self.position.size < 0:
             if self.data.close[0] < self.bband.lines.bot[0]:
                 self.order = self.close()
@@ -185,23 +196,27 @@ class BollingerBandsMeanReversion(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### 性能预期
 
 - **市场类型**: 在横盘/震荡市场中表现最佳
 - **趋势风险**: 在强趋势市场中可能遭受较大亏损
-- **胜率**: 通常为55-65%
-- **盈亏比**: 目标为1:1至1.5:1
+- **胜率**: 通常为 55-65%
+- **盈亏比**: 目标为 1:1 至 1.5:1
 
 ### 优化参数
 
 | 参数 | 范围 | 影响 |
+
 |------|------|------|
+
 | period | 15-30 | 影响带状响应速度 |
+
 | devfactor | 1.5-2.5 | 带宽越大=信号越少 |
 
----
+- --
 
 ## 突破策略（唐奇安通道）
 
@@ -217,13 +232,15 @@ import backtrader as bt
 class DonchianChannelBreakout(bt.Strategy):
     """唐奇安通道突破策略。
 
-    当价格突破N周期最高价时买入，当价格跌破N周期最低价时卖出。
+    当价格突破 N 周期最高价时买入，当价格跌破 N 周期最低价时卖出。
 
     入场规则:
+
         - 当收盘价突破周期内最高价时买入
         - 当收盘价跌破周期内最低价时卖出
 
     出场规则:
+
         - 持有多单时，当收盘价跌破最低价时平仓
         - 持有空单时，当收盘价突破最高价时平仓
 
@@ -236,7 +253,8 @@ class DonchianChannelBreakout(bt.Strategy):
     )
 
     def __init__(self):
-        # 唐奇安通道组件
+
+# 唐奇安通道组件
         self.highest = bt.indicators.Highest(self.data.high, period=self.p.period)
         self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.period)
         self.order = None
@@ -245,28 +263,29 @@ class DonchianChannelBreakout(bt.Strategy):
         if self.order:
             return
 
-        # 无持仓 - 寻找突破入场
+# 无持仓 - 寻找突破入场
         if not self.position:
-            # 向上突破前高
+
+# 向上突破前高
             if self.data.close[0] > self.highest[-1]:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash *0.95 / self.data.close[0])
                 if size > 0:
                     self.order = self.buy(size=size)
 
-            # 向下突破前低
+# 向下突破前低
             elif self.data.close[0] < self.lowest[-1]:
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash* 0.95 / self.data.close[0])
                 if size > 0:
                     self.order = self.sell(size=size)
 
-        # 多单持仓 - 寻找出场
+# 多单持仓 - 寻找出场
         elif self.position.size > 0:
             if self.data.close[0] < self.lowest[-1]:
                 self.order = self.close()
 
-        # 空单持仓 - 寻找出场
+# 空单持仓 - 寻找出场
         else:
             if self.data.close[0] > self.highest[-1]:
                 self.order = self.close()
@@ -276,22 +295,25 @@ class DonchianChannelBreakout(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### 性能预期
 
 - **市场类型**: 在有明显趋势的市场中表现优异
 - **假突破**: 在震荡市场中常见
-- **胜率**: 通常为30-40%（依赖大趋势）
-- **盈亏比**: 在强趋势中可达3:1
+- **胜率**: 通常为 30-40%（依赖大趋势）
+- **盈亏比**: 在强趋势中可达 3:1
 
 ### 优化参数
 
 | 参数 | 范围 | 影响 |
+
 |------|------|------|
+
 | period | 10-40 | 周期越短=突破越多，假信号越多 |
 
----
+- --
 
 ## 网格交易策略
 
@@ -311,7 +333,7 @@ class GridTradingStrategy(bt.Strategy):
     当价格移动时，订单在网格水平成交并在下一水平获利。
 
     参数:
-        grid_size (float): 网格水平间的价格距离（例如0.01表示1%）
+        grid_size (float): 网格水平间的价格距离（例如 0.01 表示 1%）
         grid_levels (int): 上下各多少个网格水平（默认: 5）
         max_position (int): 最大并发持仓数（默认: 10）
     """
@@ -331,52 +353,55 @@ class GridTradingStrategy(bt.Strategy):
     def next(self):
         current_price = self.data.close[0]
 
-        # 首次运行时初始化网格
+# 首次运行时初始化网格
         if not self.grid_initialized:
             self.base_price = current_price
             self.initialize_grid(current_price)
             self.grid_initialized = True
             return
 
-        # 检查已成交订单并放置对冲订单
+# 检查已成交订单并放置对冲订单
         self.check_filled_orders(current_price)
 
-        # 维持网格水平
+# 维持网格水平
         self.rebalance_grid(current_price)
 
     def initialize_grid(self, current_price):
         """初始化买卖网格水平。"""
         for i in range(1, self.p.grid_levels + 1):
-            buy_price = round(current_price * (1 - self.p.grid_size * i), 2)
-            sell_price = round(current_price * (1 + self.p.grid_size * i), 2)
+            buy_price = round(current_price *(1 - self.p.grid_size*i), 2)
+            sell_price = round(current_price*(1 + self.p.grid_size*i), 2)
 
-            # 在当前价格下方放置买单
+# 在当前价格下方放置买单
             if len([o for o in self.grid_buy_orders.values() if o]) < self.p.max_position:
                 order = self.buy(price=buy_price, exectype=bt.Order.Limit)
                 self.grid_buy_orders[buy_price] = order
 
-            # 在当前价格上方放置卖单
+# 在当前价格上方放置卖单
             if len([o for o in self.grid_sell_orders.values() if o]) < self.p.max_position:
                 order = self.sell(price=sell_price, exectype=bt.Order.Limit)
                 self.grid_sell_orders[sell_price] = order
 
     def check_filled_orders(self, current_price):
         """检查已成交订单并放置获利订单。"""
-        # 检查买单是否成交
+
+# 检查买单是否成交
         for price, order in list(self.grid_buy_orders.items()):
             if order and order.status == order.Completed:
-                # 在下一网格水平放置卖单获利
-                profit_price = round(price * (1 + self.p.grid_size), 2)
+
+# 在下一网格水平放置卖单获利
+                profit_price = round(price*(1 + self.p.grid_size), 2)
                 if profit_price not in self.grid_sell_orders:
                     self.sell(price=profit_price, size=order.executed.size,
                              exectype=bt.Order.Limit)
                 del self.grid_buy_orders[price]
 
-        # 检查卖单是否成交
+# 检查卖单是否成交
         for price, order in list(self.grid_sell_orders.items()):
             if order and order.status == order.Completed:
-                # 在下一网格水平放置买单获利
-                profit_price = round(price * (1 - self.p.grid_size), 2)
+
+# 在下一网格水平放置买单获利
+                profit_price = round(price*(1 - self.p.grid_size), 2)
                 if profit_price not in self.grid_buy_orders:
                     self.buy(price=profit_price, size=abs(order.executed.size),
                             exectype=bt.Order.Limit)
@@ -384,24 +409,26 @@ class GridTradingStrategy(bt.Strategy):
 
     def rebalance_grid(self, current_price):
         """随着价格移动维持网格水平。"""
-        # 取消距离当前价格太远的订单
+
+# 取消距离当前价格太远的订单
         for price, order in list(self.grid_buy_orders.items()):
-            if order and price < current_price * (1 - self.p.grid_size * (self.p.grid_levels + 2)):
+            if order and price < current_price*(1 - self.p.grid_size*(self.p.grid_levels + 2)):
                 self.cancel(order)
                 del self.grid_buy_orders[price]
 
         for price, order in list(self.grid_sell_orders.items()):
-            if order and price > current_price * (1 + self.p.grid_size * (self.p.grid_levels + 2)):
+            if order and price > current_price*(1 + self.p.grid_size* (self.p.grid_levels + 2)):
                 self.cancel(order)
                 del self.grid_sell_orders[price]
 
-        # 根据需要添加新网格水平
+# 根据需要添加新网格水平
         active_orders = len([o for o in self.grid_buy_orders.values() if o]) + \
                        len([o for o in self.grid_sell_orders.values() if o])
 
         if active_orders < self.p.max_position:
             self.initialize_grid(current_price)
-```
+
+```bash
 
 ### 性能预期
 
@@ -413,12 +440,16 @@ class GridTradingStrategy(bt.Strategy):
 ### 优化参数
 
 | 参数 | 范围 | 影响 |
+
 |------|------|------|
+
 | grid_size | 0.005-0.02 | 越小=交易越多，风险敞口越大 |
+
 | grid_levels | 3-10 | 水平越多=所需资金越多 |
+
 | max_position | 5-20 | 限制风险敞口 |
 
----
+- --
 
 ## 套利策略（日历价差）
 
@@ -448,7 +479,8 @@ class CalendarSpreadArbitrage(bt.Strategy):
     )
 
     def __init__(self):
-        # 假设data[0]是近月合约，data[1]是远月合约
+
+# 假设 data[0]是近月合约，data[1]是远月合约
         self.near = self.datas[0]
         self.far = self.datas[1]
         self.spread_position = 0  # 1=做多价差, -1=做空价差, 0=无持仓
@@ -460,28 +492,29 @@ class CalendarSpreadArbitrage(bt.Strategy):
 
         current_spread = self.near.close[0] - self.far.close[0]
 
-        # 无持仓 - 寻找入场
+# 无持仓 - 寻找入场
         if self.spread_position == 0:
-            # 价差较低 - 买入近月，卖出远月（做多价差）
+
+# 价差较低 - 买入近月，卖出远月（做多价差）
             if current_spread < self.p.spread_low:
                 self.order = self.buy(data=self.near, size=1)
                 self.order = self.sell(data=self.far, size=1)
                 self.spread_position = 1
 
-            # 价差较高 - 卖出近月，买入远月（做空价差）
+# 价差较高 - 卖出近月，买入远月（做空价差）
             elif current_spread > self.p.spread_high:
                 self.order = self.sell(data=self.near, size=1)
                 self.order = self.buy(data=self.far, size=1)
                 self.spread_position = -1
 
-        # 做多价差持仓 - 寻找出场
+# 做多价差持仓 - 寻找出场
         elif self.spread_position == 1:
             if current_spread > self.p.spread_high:
                 self.close(data=self.near)
                 self.close(data=self.far)
                 self.spread_position = 0
 
-        # 做空价差持仓 - 寻找出场
+# 做空价差持仓 - 寻找出场
         elif self.spread_position == -1:
             if current_spread < self.p.spread_low:
                 self.close(data=self.near)
@@ -498,7 +531,8 @@ class CalendarSpreadArbitrage(bt.Strategy):
         """记录交易完成。"""
         if trade.isclosed:
             print(f'交易盈亏: {trade.pnl:.2f}, 手续费: {trade.commission:.2f}')
-```
+
+```bash
 
 ### 性能预期
 
@@ -510,11 +544,14 @@ class CalendarSpreadArbitrage(bt.Strategy):
 ### 优化参数
 
 | 参数 | 范围 | 影响 |
+
 |------|------|------|
+
 | spread_low | 因市场而异 | 做多价差入场点 |
+
 | spread_high | 因市场而异 | 做空价差入场点 |
 
----
+- --
 
 ## 动量策略（超级趋势）
 
@@ -530,7 +567,7 @@ import backtrader as bt
 class SuperTrendIndicator(bt.Indicator):
     """超级趋势指标。
 
-    使用ATR计算动态支撑/阻力位的趋势跟踪指标。
+    使用 ATR 计算动态支撑/阻力位的趋势跟踪指标。
     """
 
     lines = ('supertrend', 'direction')
@@ -552,8 +589,8 @@ class SuperTrendIndicator(bt.Indicator):
         atr = self.atr[0]
         hl2 = self.hl2[0]
 
-        upper_band = hl2 + self.p.multiplier * atr
-        lower_band = hl2 - self.p.multiplier * atr
+        upper_band = hl2 + self.p.multiplier *atr
+        lower_band = hl2 - self.p.multiplier*atr
 
         prev_supertrend = self.lines.supertrend[-1]
         prev_direction = self.lines.direction[-1]
@@ -580,8 +617,8 @@ class SuperTrendStrategy(bt.Strategy):
     当趋势转为上升时做多，当趋势转为下降时平仓。
 
     参数:
-        period (int): 超级趋势计算的ATR周期（默认: 10）
-        multiplier (float): 带宽的ATR倍数（默认: 3.0）
+        period (int): 超级趋势计算的 ATR 周期（默认: 10）
+        multiplier (float): 带宽的 ATR 倍数（默认: 3.0）
     """
 
     params = (
@@ -601,16 +638,17 @@ class SuperTrendStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 当趋势从下降转为上升时买入
+# 当趋势从下降转为上升时买入
         if not self.position:
             if (self.supertrend.direction[0] == 1 and
                 self.supertrend.direction[-1] == -1):
                 cash = self.broker.getcash()
-                size = int(cash * 0.95 / self.data.close[0])
+                size = int(cash* 0.95 / self.data.close[0])
                 if size > 0:
                     self.order = self.buy(size=size)
         else:
-            # 当趋势转为下降时平仓
+
+# 当趋势转为下降时平仓
             if self.supertrend.direction[0] == -1:
                 self.order = self.close()
 
@@ -619,23 +657,27 @@ class SuperTrendStrategy(bt.Strategy):
         if order.status in [order.Submitted, order.Accepted]:
             return
         self.order = None
-```
+
+```bash
 
 ### 性能预期
 
 - **市场类型**: 有持续走势的趋势市场
 - **震荡风险**: 在震荡市场中风险适中
-- **胜率**: 通常为40-50%
-- **盈亏比**: 可达2:1或更高
+- **胜率**: 通常为 40-50%
+- **盈亏比**: 可达 2:1 或更高
 
 ### 优化参数
 
 | 参数 | 范围 | 影响 |
+
 |------|------|------|
+
 | period | 7-15 | 周期越短=越敏感 |
+
 | multiplier | 2.0-4.0 | 值越大=信号越少，趋势过滤越好 |
 
----
+- --
 
 ## 运行这些示例
 
@@ -645,13 +687,16 @@ class SuperTrendStrategy(bt.Strategy):
 import backtrader as bt
 import backtrader.feeds as btfeeds
 
-# 创建Cerebro引擎
+# 创建 Cerebro 引擎
+
 cerebro = bt.Cerebro()
 
 # 添加您选择的策略
+
 cerebro.addstrategy(DualMovingAverageStrategy, short_period=10, long_period=30)
 
 # 加载数据
+
 data = btfeeds.GenericCSVData(
     dataname='your_data.csv',
     dtformat='%Y-%m-%d',
@@ -666,15 +711,19 @@ data = btfeeds.GenericCSVData(
 cerebro.adddata(data)
 
 # 设置初始资金和手续费
+
 cerebro.broker.setcash(100000)
 cerebro.broker.setcommission(commission=0.001)
 
 # 运行
+
 results = cerebro.run()
 
 # 绘图
+
 cerebro.plot()
-```
+
+```bash
 
 ## 后续步骤
 

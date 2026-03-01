@@ -1,7 +1,9 @@
----
+- --
+
 title: Quick Start Tutorial
 description: Create your first backtesting strategy in 5 minutes
----
+
+- --
 
 # Quick Start Tutorial
 
@@ -25,35 +27,44 @@ class SimpleStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # Calculate moving averages
+
+# Calculate moving averages
         self.short_ma = bt.indicators.SMA(self.data.close, period=self.p.short_period)
         self.long_ma = bt.indicators.SMA(self.data.close, period=self.p.long_period)
 
-        # Crossover indicator
+# Crossover indicator
         self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)
 
     def next(self):
-        # If not in position
+
+# If not in position
         if not self.position:
-            # Buy when short MA crosses above long MA
+
+# Buy when short MA crosses above long MA
             if self.crossover > 0:
                 self.buy()
         else:
-            # Sell when short MA crosses below long MA
+
+# Sell when short MA crosses below long MA
             if self.crossover < 0:
                 self.sell()
-```
+
+```bash
 
 ## Running the Backtest
 
 ```python
+
 # Create a cerebro instance
+
 cerebro = bt.Cerebro()
 
 # Add the strategy
+
 cerebro.addstrategy(SimpleStrategy)
 
 # Load data (example with Yahoo Finance)
+
 data = bt.feeds.YahooFinanceData(
     dataname='AAPL',
     fromdate=datetime.datetime(2023, 1, 1),
@@ -62,14 +73,18 @@ data = bt.feeds.YahooFinanceData(
 cerebro.adddata(data)
 
 # Set initial cash
+
 cerebro.broker.setcash(10000.0)
 
 # Run the backtest
+
 results = cerebro.run()
 
 # Print final portfolio value
+
 print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
-```
+
+```bash
 
 ## Plotting the Results
 
@@ -77,9 +92,11 @@ print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
 import matplotlib.pyplot as plt
 
 # Plot the results
+
 cerebro.plot()
 plt.show()
-```
+
+```bash
 
 ## Complete Example
 
@@ -107,10 +124,12 @@ class SimpleStrategy(bt.Strategy):
                 self.sell()
 
 # Create and run
+
 cerebro = bt.Cerebro()
 cerebro.addstrategy(SimpleStrategy)
 
 # Add data (using CSV file as example)
+
 data = bt.feeds.CSVGeneric(
     dataname='data.csv',
     datetime=0,
@@ -124,17 +143,21 @@ data = bt.feeds.CSVGeneric(
 cerebro.adddata(data)
 
 # Set broker
+
 cerebro.broker.setcash(10000.0)
 cerebro.broker.setcommission(commission=0.001)  # 0.1% commission
 
 # Run
+
 print(f'Starting Portfolio Value: {cerebro.broker.getvalue():.2f}')
 results = cerebro.run()
 print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
 
 # Plot
+
 cerebro.plot()
-```
+
+```bash
 
 ## What's Next?
 

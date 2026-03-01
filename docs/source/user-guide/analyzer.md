@@ -1,7 +1,9 @@
----
+- --
+
 title: Analyzer API
 description: Complete Analyzer class API reference
----
+
+- --
 
 # Analyzer API
 
@@ -12,7 +14,8 @@ The `Analyzer` class is the base class for all performance analysis tools in Bac
 ```python
 class backtrader.Analyzer:
     """Base class for all analyzers."""
-```
+
+```bash
 
 ## Parameters
 
@@ -26,8 +29,8 @@ class MyAnalyzer(bt.Analyzer):
         ('period', 20),
         ('threshold', 1.5),
     )
-```
 
+```bash
 Access parameters via `self.p.parameter_name` or `self.params.parameter_name`.
 
 ## Core Methods
@@ -41,7 +44,8 @@ def __init__(self):
     super().__init__()  # Always call super first
     self.trades = []
     self.total_pnl = 0.0
-```
+
+```bash
 
 ### `start(self)`
 
@@ -51,7 +55,8 @@ Called at the start of the backtest, after initialization is complete.
 def start(self):
     self.initial_cash = self.broker.getcash()
     self.start_value = self.broker.getvalue()
-```
+
+```bash
 
 ### `prenext(self)`
 
@@ -69,7 +74,8 @@ Called for each bar after minimum period is reached. Contains per-bar analysis l
 def next(self):
     current_value = self.broker.getvalue()
     self.values.append(current_value)
-```
+
+```bash
 
 ### `stop(self)`
 
@@ -79,7 +85,8 @@ Called at the end of the backtest. Perform final calculations.
 def stop(self):
     total_return = (self.broker.getvalue() / self.start_value) - 1
     self.rets['total_return'] = total_return
-```
+
+```bash
 
 ## Notification Methods
 
@@ -94,18 +101,27 @@ def notify_trade(self, trade):
             'pnl': trade.pnlcomm,
             'commission': trade.commission,
         })
-```
 
-**Trade Attributes**:
+```bash
+
+- *Trade Attributes**:
 
 | Attribute | Description |
+
 |-----------|-------------|
+
 | `trade.status` | Current status (Open, Closed) |
+
 | `trade.pnl` | Gross profit/loss |
+
 | `trade.pnlcomm` | Net profit/loss (after commission) |
+
 | `trade.commission` | Commission paid |
+
 | `trade.isclosed` | Whether trade is closed |
+
 | `trade.long` | Whether it was a long position |
+
 | `trade.barlen` | Number of bars in trade |
 
 ### `notify_order(self, order)`
@@ -120,19 +136,29 @@ def notify_order(self, order):
             'price': order.executed.price,
             'size': order.executed.size,
         })
-```
 
-**Order Status Values**:
+```bash
+
+- *Order Status Values**:
 
 | Status | Description |
+
 |--------|-------------|
+
 | `Order.Created` | Order created |
+
 | `Order.Submitted` | Submitted to broker |
+
 | `Order.Accepted` | Accepted by broker |
+
 | `Order.Partial` | Partially filled |
+
 | `Order.Completed` | Fully filled |
+
 | `Order.Canceled` | Canceled |
+
 | `Order.Margin` | Margin insufficient |
+
 | `Order.Rejected` | Rejected |
 
 ### `notify_cashvalue(self, cash, value)`
@@ -145,7 +171,8 @@ def notify_cashvalue(self, cash, value):
         'cash': cash,
         'value': value,
     })
-```
+
+```bash
 
 ### `notify_fund(self, cash, value, fundvalue, shares)`
 
@@ -157,7 +184,8 @@ def notify_fund(self, cash, value, fundvalue, shares):
         'fundvalue': fundvalue,
         'shares': shares,
     })
-```
+
+```bash
 
 ## Result Methods
 
@@ -170,7 +198,8 @@ def create_analysis(self):
     self.rets = OrderedDict()
     self.rets['total_trades'] = 0
     self.rets['winning_trades'] = 0
-```
+
+```bash
 
 ### `get_analysis(self)`
 
@@ -179,7 +208,8 @@ Return the analysis results. Override to return custom format.
 ```python
 def get_analysis(self):
     return self.rets
-```
+
+```bash
 
 ### `print(self)`
 
@@ -187,7 +217,8 @@ Print analysis results via standard print.
 
 ```python
 analyzer.print()  # Equivalent to print(analyzer.get_analysis())
-```
+
+```bash
 
 ### `pprint(self)`
 
@@ -195,7 +226,8 @@ Pretty print analysis results.
 
 ```python
 analyzer.pprint()  # Formatted output
-```
+
+```bash
 
 ## Built-in Analyzers
 
@@ -206,22 +238,33 @@ Calculates the Sharpe ratio using a risk-free rate.
 ```python
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
                     riskfreerate=0.01, timeframe=bt.TimeFrame.Days)
-```
+
+```bash
 
 | Parameter | Default | Description |
+
 |-----------|---------|-------------|
+
 | `riskfreerate` | 0.01 | Annual risk-free rate (1%) |
+
 | `timeframe` | TimeFrame.Years | Timeframe for calculation |
+
 | `factor` | None | Annualization factor |
+
 | `convertrate` | True | Convert annual rate to timeframe |
+
 | `annualize` | False | Return annualized Sharpe ratio |
+
 | `stddev_sample` | False | Use Bessel's correction |
+
 | `fund` | None | Use fund mode |
 
-**Output**:
+- *Output**:
+
 ```python
 {'sharperatio': 1.23}
-```
+
+```bash
 
 ### SharpeRatio_Annual
 
@@ -229,7 +272,8 @@ Annualized Sharpe ratio (same as SharpeRatio with `annualize=True`).
 
 ```python
 cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sharpe')
-```
+
+```bash
 
 ### DrawDown
 
@@ -237,13 +281,17 @@ Calculates drawdown statistics.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
-```
+
+```bash
 
 | Parameter | Default | Description |
+
 |-----------|---------|-------------|
+
 | `fund` | None | Use fund mode |
 
-**Output**:
+- *Output**:
+
 ```python
 {
     'drawdown': 5.23,        # Current drawdown in %
@@ -255,7 +303,8 @@ cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
         'len': 45,           # Maximum drawdown length
     }
 }
-```
+
+```bash
 
 ### TimeDrawDown
 
@@ -264,15 +313,18 @@ Time-frame based drawdown analyzer.
 ```python
 cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='dd',
                     timeframe=bt.TimeFrame.Months)
-```
 
-**Output**:
+```bash
+
+- *Output**:
+
 ```python
 {
     'maxdrawdown': 12.34,
     'maxdrawdownperiod': 30,
 }
-```
+
+```bash
 
 ### Returns
 
@@ -281,23 +333,31 @@ Total, average, compound and annualized returns.
 ```python
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns',
                     timeframe=bt.TimeFrame.Years, tann=252)
-```
+
+```bash
 
 | Parameter | Default | Description |
+
 |-----------|---------|-------------|
+
 | `timeframe` | None | Timeframe for returns |
+
 | `tann` | None | Annualization periods |
+
 | `fund` | None | Use fund mode |
 
-**Output**:
+- *Output**:
+
 ```python
 {
     'rtot': 0.234,      # Total log return
     'ravg': 0.001,      # Average return
     'rnorm': 0.287,     # Annualized return
     'rnorm100': 28.7,   # Annualized return in %
+
 }
-```
+
+```bash
 
 ### AnnualReturn
 
@@ -305,16 +365,19 @@ Year-by-year returns.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
-```
 
-**Output**:
+```bash
+
+- *Output**:
+
 ```python
 {
     2020: 0.15,
     2021: 0.22,
     2022: -0.08,
 }
-```
+
+```bash
 
 ### TradeAnalyzer
 
@@ -322,9 +385,11 @@ Detailed trade statistics.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
-```
 
-**Output**:
+```bash
+
+- *Output**:
+
 ```python
 {
     'total': {
@@ -363,7 +428,8 @@ cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
         'min': 1,
     }
 }
-```
+
+```bash
 
 ### SQN
 
@@ -371,9 +437,10 @@ System Quality Number (Van K. Tharp).
 
 ```python
 cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
-```
 
-**SQN Scale**:
+```bash
+
+- *SQN Scale**:
 - 1.6 - 1.9: Below average
 - 2.0 - 2.4: Average
 - 2.5 - 2.9: Good
@@ -381,13 +448,15 @@ cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 - 5.1 - 6.9: Superb
 - 7.0+: Holy Grail?
 
-**Output**:
+- *Output**:
+
 ```python
 {
     'sqn': 2.34,
     'trades': 50,
 }
-```
+
+```bash
 
 ### Calmar
 
@@ -396,21 +465,28 @@ Calmar ratio (annual return / maximum drawdown).
 ```python
 cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
                     timeframe=bt.TimeFrame.Months, period=36)
-```
+
+```bash
 
 | Parameter | Default | Description |
+
 |-----------|---------|-------------|
+
 | `timeframe` | TimeFrame.Months | Timeframe for calculation |
+
 | `period` | 36 | Lookback period |
+
 | `fund` | None | Use fund mode |
 
-**Output**:
+- *Output**:
+
 ```python
 {
     datetime(2021, 12, 31): 1.23,
     datetime(2022, 12, 31): 0.98,
 }
-```
+
+```bash
 
 ### Transactions
 
@@ -418,16 +494,19 @@ Transaction log for all executed orders.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
-```
 
-**Output**:
+```bash
+
+- *Output**:
+
 ```python
 {
     datetime(2021, 1, 1, 9, 30): [
         [100, 150.0, 0, 'AAPL', -15000.0],  # [amount, price, sid, symbol, value]
     ],
 }
-```
+
+```bash
 
 ### TimeReturn
 
@@ -436,15 +515,18 @@ Time-weighted returns by period.
 ```python
 cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='timeret',
                     timeframe=bt.TimeFrame.Months)
-```
 
-**Output**:
+```bash
+
+- *Output**:
+
 ```python
 {
     datetime(2021, 1, 31): 0.0234,
     datetime(2021, 2, 28): 0.0156,
 }
-```
+
+```bash
 
 ### Positions
 
@@ -452,7 +534,8 @@ Position analysis.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.Positions, _name='pos')
-```
+
+```bash
 
 ### TotalValue
 
@@ -460,7 +543,8 @@ Total value tracking over time.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.TotalValue, _name='tv')
-```
+
+```bash
 
 ### PyFolio
 
@@ -468,7 +552,8 @@ Integration with pyfolio library for advanced analytics.
 
 ```python
 cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
-```
+
+```bash
 
 ### Other Analyzers
 
@@ -489,9 +574,11 @@ class MyTimeFrameAnalyzer(bt.TimeFrameAnalyzerBase):
     )
 
     def on_dt_over(self):
-        # Called when timeframe period changes
+
+# Called when timeframe period changes
         pass
-```
+
+```bash
 
 ## Integration with Cerebro
 
@@ -499,31 +586,38 @@ class MyTimeFrameAnalyzer(bt.TimeFrameAnalyzerBase):
 import backtrader as bt
 
 # Create strategy
+
 class MyStrategy(bt.Strategy):
     pass
 
 # Create cerebro
+
 cerebro = bt.Cerebro()
 
 # Add strategy
+
 cerebro.addstrategy(MyStrategy)
 
 # Add analyzers
+
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
 cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
 
 # Run
+
 results = cerebro.run()
 strat = results[0]
 
 # Get analysis results
+
 print('Sharpe Ratio:', strat.analyzers.sharpe.get_analysis())
 print('Max Drawdown:', strat.analyzers.drawdown.get_analysis()['max']['drawdown'])
 print('Total Return:', strat.analyzers.returns.get_analysis()['rnorm100'])
 print('Total Trades:', strat.analyzers.ta.get_analysis()['total']['closed'])
-```
+
+```bash
 
 ## Custom Analyzer Example
 
@@ -552,7 +646,8 @@ class TradeCounter(bt.Analyzer):
     def stop(self):
         if self.rets['total'] > 0:
             self.rets['win_rate'] = self.rets['wins'] / self.rets['total']
-```
+
+```bash
 
 ### Win/Loss Ratio Analyzer
 
@@ -594,7 +689,8 @@ class WinLossRatio(bt.Analyzer):
             self.rets['win_loss_ratio'] = self.rets['avg_win'] / self.rets['avg_loss']
         else:
             self.rets['win_loss_ratio'] = float('inf') if self.wins else 0
-```
+
+```bash
 
 ### Monthly Returns Analyzer
 
@@ -620,7 +716,8 @@ class MonthlyReturns(bt.TimeFrameAnalyzerBase):
 
     def get_analysis(self):
         return self.month_returns
-```
+
+```bash
 
 ### Hold Time Analyzer
 
@@ -649,19 +746,24 @@ class HoldTimeAnalyzer(bt.Analyzer):
             self.rets['min_hold_bars'] = 0
             self.rets['max_hold_bars'] = 0
             self.rets['total_trades'] = 0
-```
+
+```bash
 
 ## Fund Mode
 
 Many analyzers support fund mode for fund-like accounting:
 
 ```python
+
 # Enable fund mode on broker
+
 cerebro.broker.set_fundmode(True, fundstart=10000.0)
 
 # Analyzer will use fund value instead of portfolio value
+
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd', fund=True)
-```
+
+```bash
 
 ## Analyzer Lifecycle
 
@@ -681,7 +783,8 @@ stateDiagram-v2
     next --> stop: Backtest ends
     stop --> get_analysis: Return results
     get_analysis --> [*]: Complete
-```
+
+```bash
 
 ## CSV Output
 
@@ -689,18 +792,21 @@ Analyzers can save results to CSV (if `csv` attribute is `True`):
 
 ```python
 cerebro.run()
+
 # Results automatically saved to CSV if configured
-```
+
+```bash
 
 ## Best Practices
 
-1. **Call `super().__init__()` first** - Always call parent constructor
-2. **Use `create_analysis()`** - Initialize result structure here
-3. **Check `trade.isclosed`** - Only count closed trades in `notify_trade`
-4. **Use OrderedDict** - Preserves insertion order for results
-5. **Handle edge cases** - Check for division by zero, empty collections
-6. **Return dict-like objects** - Use `get_analysis()` to return results
-7. **Access via strategy** - Results accessed via `strategy.analyzers.{_name}`
+1. **Call `super().__init__()` first**- Always call parent constructor
+
+2.**Use `create_analysis()`**- Initialize result structure here
+3.**Check `trade.isclosed`**- Only count closed trades in `notify_trade`
+4.**Use OrderedDict**- Preserves insertion order for results
+5.**Handle edge cases**- Check for division by zero, empty collections
+6.**Return dict-like objects**- Use `get_analysis()` to return results
+7.**Access via strategy** - Results accessed via `strategy.analyzers.{_name}`
 
 ## Next Steps
 

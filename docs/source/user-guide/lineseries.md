@@ -1,7 +1,9 @@
----
+- --
+
 title: LineSeries Time Series API
 description: Complete Backtrader LineSeries API Reference
----
+
+- --
 
 # LineSeries Time Series API
 
@@ -9,7 +11,7 @@ description: Complete Backtrader LineSeries API Reference
 
 ## Class Hierarchy
 
-```
+```bash
 LineRoot (base class for all line objects)
     LineSingle (single line object)
         LineBuffer (circular buffer implementation)
@@ -18,7 +20,8 @@ LineRoot (base class for all line objects)
             Indicator (technical indicator base class)
             DataSeries (data feed base class)
             Strategy (strategy base class)
-```
+
+```bash
 
 ## Core Concepts
 
@@ -33,13 +36,15 @@ Line is the basic unit for storing time-series data in Backtrader. It uses a cir
 
 ### Time Index Pattern
 
-```
+```bash
 Historical Data         Current         Future Data
     |                 |               |
+
     v                 v               v
   ...  [-3]  [-2]  [-1]   [0]   [1]   [2]  ...
                   Previous Bar   Current Bar
-```
+
+```bash
 
 ## LineSeries Class
 
@@ -48,23 +53,33 @@ Historical Data         Current         Future Data
 ```python
 class backtrader.LineSeries(LineMultiple, LineSeriesMixin, ParamsMixin):
     """Base class for objects managing multiple time-series lines."""
-```
+
+```bash
 
 ### Core Attributes
 
 | Attribute | Type | Description |
+
 |-----------|------|-------------|
+
 | `lines` | Lines | Container object storing all LineBuffer instances |
+
 | `plotinfo` | PlotInfoObj | Plotting configuration object |
+
 | `plotlines` | PlotLinesObj | Line plotting configuration |
+
 | `csv` | bool | Whether CSV export is supported |
 
 ### Line Operation Attributes
 
 | Attribute | Return Value | Description |
+
 |-----------|--------------|-------------|
+
 | `array` | array | Underlying array of the first line |
+
 | `line` | LineBuffer | First line (shortcut for single-line indicators) |
+
 | `l` | Lines | Alias for lines |
 
 ## Time Series Operations
@@ -74,56 +89,71 @@ class backtrader.LineSeries(LineMultiple, LineSeriesMixin, ParamsMixin):
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Current value (index 0)
+
+# Current value (index 0)
         current_close = self.data.close[0]
         current_sma = self.sma[0]
 
-        # Historical values (negative indices)
+# Historical values (negative indices)
         prev_close = self.data.close[-1]    # Previous bar
         prev_close_2 = self.data.close[-2]  # Two bars ago
         prev_close_5 = self.data.close[-5]  # Five bars ago
 
-        # Future values (positive indices, valid only in replay/live scenarios)
-        # next_close = self.data.close[1]
-```
+# Future values (positive indices, valid only in replay/live scenarios)
+
+# next_close = self.data.close[1]
+
+```bash
 
 ### Data Length
 
 ```python
 def next(self):
-    # Get data length (number of loaded bars)
+
+# Get data length (number of loaded bars)
     current_bar = len(self.data)
     total_bars = len(self)
 
-    # Check if there's enough historical data
+# Check if there's enough historical data
     if len(self.data) >= 20:
-        # Can calculate 20-period indicator
+
+# Can calculate 20-period indicator
         pass
-```
+
+```bash
 
 ### Time Operations
 
 ```python
 def next(self):
-    # Get current bar time (multiple methods)
+
+# Get current bar time (multiple methods)
     dt_num = self.data.datetime[0]              # Internal numeric format
     dt = self.data.datetime.datetime(0)         # datetime object
     dt_date = self.data.datetime.date(0)        # date object
     dt_time = self.data.datetime.time(0)        # time object
 
-    # Previous bar time
+# Previous bar time
     prev_dt = self.data.datetime.datetime(-1)
-```
+
+```bash
 
 ## Data Access Pattern Table
 
 | Expression | Meaning | Use Case |
+
 |------------|---------|----------|
+
 | `data[0]` | Current bar value | Get latest data |
+
 | `data[-1]` | Previous bar value | Get last historical value |
+
 | `data[-n]` | n bars ago value | Get value n periods ago |
+
 | `data[1]` | Next bar value | Future values in replay/live scenarios |
+
 | `len(data)` | Data length | Get number of loaded bars |
+
 | `data.array` | Underlying array | Direct access to complete data |
 
 ## Slicing and Indexing
@@ -134,28 +164,34 @@ Get a slice of data at a specified position and size:
 
 ```python
 def next(self):
-    # Get the last 3 bars' close prices
-    # Returns: [close[-2], close[-1], close[0]]
+
+# Get the last 3 bars' close prices
+
+# Returns: [close[-2], close[-1], close[0]]
     recent_3 = self.data.close.get(ago=0, size=3)
 
-    # Get the last 5 bars from current position
+# Get the last 5 bars from current position
     last_5 = self.data.close.get(ago=-4, size=5)
 
-    # Usage
+# Usage
     avg_price = sum(recent_3) / len(recent_3)
-```
+
+```bash
 
 ### Slicing Operations
 
 ```python
 def next(self):
-    # Get array slice (based on internal array index)
-    # Note: This directly operates on the underlying array
+
+# Get array slice (based on internal array index)
+
+# Note: This directly operates on the underlying array
     array_data = self.data.close.array
 
-    # Common pattern: Get the most recent N values
+# Common pattern: Get the most recent N values
     recent_values = array_data[-self.p.period:]
-```
+
+```bash
 
 ## Alignment and Synchronization
 
@@ -167,87 +203,115 @@ When using multiple data sources, Backtrader automatically aligns them:
 cerebro = bt.Cerebro()
 
 # Add multiple data sources
+
 cerebro.adddata(daily_data, name='daily')
 cerebro.adddata(weekly_data, name='weekly')
 
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Data sources are automatically aligned by date
-        # When weekly data has a new bar, next() is called for both
+
+# Data sources are automatically aligned by date
+
+# When weekly data has a new bar, next() is called for both
         daily_len = len(self.data0)  # Daily data length
         weekly_len = len(self.data1)  # Weekly data length
 
-        # Access different data sources
+# Access different data sources
         if self.data0.close[0] > self.data1.close[0]:
             self.buy(data=self.data0)
-```
+
+```bash
 
 ### Data Source Access Methods
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Method 1: Access by index
+
+# Method 1: Access by index
         self.data0 = self.datas[0]
         self.data1 = self.datas[1]
 
-        # Method 2: Access by name (requires name to be set)
+# Method 2: Access by name (requires name to be set)
         self.daily = self.getdatabyname('daily')
         self.weekly = self.getdatabyname('weekly')
-```
+
+```bash
 
 ## Period and Timeframe Handling
 
 ### TimeFrame Constants
 
 ```python
+
 # TimeFrame definitions
+
 TimeFrame.Ticks        # 1 - Tick data
+
 TimeFrame.MicroSeconds # 2 - Microseconds
+
 TimeFrame.Seconds      # 3 - Seconds
+
 TimeFrame.Minutes      # 4 - Minutes
+
 TimeFrame.Days         # 5 - Days
+
 TimeFrame.Weeks        # 6 - Weeks
+
 TimeFrame.Months       # 7 - Months
+
 TimeFrame.Years        # 8 - Years
+
 TimeFrame.NoTimeFrame  # 9 - No timeframe
-```
+
+```bash
 
 ### Getting Data Source Timeframe
 
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # Get timeframe type
+
+# Get timeframe type
         tf = self.data._timeframe
         comp = self.data._compression
 
-        # Determine data type
+# Determine data type
         if tf == bt.TimeFrame.Days:
             if comp == 1:
                 print("Daily data")
             elif comp == 7:
                 print("Weekly data (7-day compression)")
-```
+
+```bash
 
 ### TimeFrame Methods
 
 ```python
+
 # Get timeframe name
+
 name = bt.TimeFrame.getname(bt.TimeFrame.Days)
+
 # Returns: 'Day'
 
 name = bt.TimeFrame.getname(bt.TimeFrame.Minutes, 5)
+
 # Returns: 'Minutes'
 
 # Get name from constant
+
 name = bt.TimeFrame.TName(bt.TimeFrame.Days)
+
 # Returns: 'Days'
 
 # Get constant from name
+
 tf = bt.TimeFrame.TFrame('Days')
+
 # Returns: TimeFrame.Days (5)
-```
+
+```bash
 
 ## Relationship with Pandas
 
@@ -259,11 +323,13 @@ import pandas as pd
 
 class MyStrategy(bt.Strategy):
     def stop(self):
-        # Get complete data array
+
+# Get complete data array
         close_array = self.data.close.array
 
-        # Create pandas Series
-        # Note: Need to manually build date index
+# Create pandas Series
+
+# Note: Need to manually build date index
         dates = []
         for i in range(len(self.data)):
             dt = self.data.datetime.date(i)
@@ -273,7 +339,8 @@ class MyStrategy(bt.Strategy):
             'close': close_array[:len(dates)],
         }, index=dates)
         df.index.name = 'date'
-```
+
+```bash
 
 ### Create Data Feed from pandas
 
@@ -282,6 +349,7 @@ import pandas as pd
 import backtrader as bt
 
 # Create DataFrame
+
 df = pd.DataFrame({
     'datetime': pd.date_range('2020-01-01', periods=100),
     'open': np.random.randn(100).cumsum() + 100,
@@ -292,20 +360,24 @@ df = pd.DataFrame({
 })
 
 # Set index
+
 df.set_index('datetime', inplace=True)
 
 # Create data feed
+
 data = bt.feeds.PandasData(dataname=df)
-```
+
+```bash
 
 ### PandasData Parameter Mapping
 
 ```python
 class CustomPandasData(bt.feeds.PandasData):
-    # Custom column name mapping
+
+# Custom column name mapping
     lines = ('close', 'volume', 'custom_line')
 
-    # Parameter mapping
+# Parameter mapping
     params = (
         ('datetime', None),      # None = use index
         ('open', 'open_price'),
@@ -315,7 +387,8 @@ class CustomPandasData(bt.feeds.PandasData):
         ('volume', 'vol'),
         ('openinterest', None),  # None = column doesn't exist
     )
-```
+
+```bash
 
 ## Common Usage Patterns
 
@@ -331,58 +404,68 @@ class CustomIndicator(bt.Indicator):
         self.addminperiod(self.p.period)
 
     def next(self):
-        # Calculate average of the last N periods
+
+# Calculate average of the last N periods
         total = 0.0
         for i in range(self.p.period):
             total += self.data.close[-i]
 
         self.lines.value[0] = total / self.p.period
-```
+
+```bash
 
 ### Pattern 2: Compare Current and Previous Values
 
 ```python
 def next(self):
-    # Check if close price has risen consecutively
+
+# Check if close price has risen consecutively
     if (self.data.close[0] > self.data.close[-1] and
         self.data.close[-1] > self.data.close[-2] and
         self.data.close[-2] > self.data.close[-3]):
-        # 3 consecutive bars rising
+
+# 3 consecutive bars rising
         self.buy()
-```
+
+```bash
 
 ### Pattern 3: Conditional Access to Avoid Out of Bounds
 
 ```python
 def next(self):
-    # Ensure there's enough historical data
+
+# Ensure there's enough historical data
     if len(self.data) < self.p.period:
         return
 
-    # Safe access to historical data
+# Safe access to historical data
     prev_close = self.data.close[-self.p.period]
 
-    # Or use minperiod
+# Or use minperiod
     if len(self.data) > self.p.period:
-        # Sufficient data here
+
+# Sufficient data here
         pass
-```
+
+```bash
 
 ### Pattern 4: Get Complete Historical Data
 
 ```python
 def next(self):
-    # Method 1: Use array attribute
+
+# Method 1: Use array attribute
     all_closes = self.data.close.array
 
-    # Method 2: Loop to get values
+# Method 2: Loop to get values
     closes = []
     for i in range(len(self.data)):
         closes.append(self.data.close[i - len(self.data) + 1])
 
-    # Method 3: Use getzero
+# Method 3: Use getzero
     all_data = self.data.close.getzero(0, len(self.data))
-```
+
+```bash
 
 ### Pattern 5: Multi-Line Indicator Access
 
@@ -392,16 +475,18 @@ class BollingerBands(bt.Indicator):
     params = (('period', 20), ('devfactor', 2.0))
 
     def next(self):
-        # Access different output lines
+
+# Access different output lines
         mid = self.lines.mid[0]
         top = self.lines.top[0]
         bot = self.lines.bot[0]
 
-        # Or access by name
+# Or access by name
         mid = self.mid[0]
         top = self.top[0]
         bot = self.bot[0]
-```
+
+```bash
 
 ## LineSeries Methods
 
@@ -413,7 +498,8 @@ Returns the length of the LineSeries (number of processed data points).
 
 ```python
 current_length = len(self.indicator)
-```
+
+```bash
 
 #### `size(self)`
 
@@ -421,7 +507,8 @@ Returns the number of lines (excluding extra lines).
 
 ```python
 num_lines = self.indicator.size()
-```
+
+```bash
 
 ### Index Operations
 
@@ -431,23 +518,30 @@ Gets a value from the primary line.
 
 ```python
 value = self.indicator[0]      # Current value
+
 value = self.indicator[-1]     # Previous value
-```
+
+```bash
 
 #### `__call__(self, ago=None, line=-1)`
 
 Returns a delayed line or value at specified index/name.
 
 ```python
+
 # Return current line
+
 current = self.indicator()
 
 # Return line delayed by 3 periods
+
 delayed = self.indicator(ago=3)
 
 # Return current value of specified line
+
 value = self.indicator(line='close')
-```
+
+```bash
 
 ### Buffer Operations
 
@@ -456,21 +550,28 @@ value = self.indicator(line='close')
 Enable queued buffer mode to save memory.
 
 ```python
+
 # Only keep recent data
+
 self.data.qbuffer(savemem=1000)
 
 # For indicators
+
 self.sma.qbuffer()
-```
+
+```bash
 
 #### `minbuffer(self, size)`
 
 Set minimum buffer size.
 
 ```python
+
 # Ensure at least 100 data points
+
 self.indicator.minbuffer(100)
-```
+
+```bash
 
 ### Navigation Operations
 
@@ -480,7 +581,8 @@ Reset all lines to the starting position.
 
 ```python
 self.indicator.home()
-```
+
+```bash
 
 #### `rewind(self, size=1)`
 
@@ -488,7 +590,8 @@ Rewind by the specified number of positions.
 
 ```python
 self.indicator.rewind(5)  # Rewind 5 positions
-```
+
+```bash
 
 #### `advance(self, size=1)`
 
@@ -496,7 +599,8 @@ Advance by the specified number of positions.
 
 ```python
 self.indicator.advance(1)  # Advance 1 position
-```
+
+```bash
 
 #### `forward(self, value=0.0, size=1)`
 
@@ -504,7 +608,8 @@ Advance all lines and fill with values.
 
 ```python
 self.indicator.forward(size=1)
-```
+
+```bash
 
 #### `backwards(self, size=1, force=False)`
 
@@ -512,7 +617,8 @@ Move all lines backward.
 
 ```python
 self.indicator.backwards(size=1)
-```
+
+```bash
 
 #### `reset(self)`
 
@@ -520,7 +626,8 @@ Reset all lines to initial state.
 
 ```python
 self.indicator.reset()
-```
+
+```bash
 
 #### `extend(self, value=0.0, size=0)`
 
@@ -528,7 +635,8 @@ Extend all lines.
 
 ```python
 self.indicator.extend(size=10)
-```
+
+```bash
 
 ### Line Operations
 
@@ -537,15 +645,20 @@ self.indicator.extend(size=10)
 Get a line by name or index.
 
 ```python
+
 # By index
+
 line = self.indicator._getline(0)
 
 # By name
+
 line = self.indicator._getline('close')
 
 # Use minusall parameter
+
 line = self.indicator._getline(-1, minusall=True)  # Last line
-```
+
+```bash
 
 ## Performance Optimization
 
@@ -555,34 +668,43 @@ For scenarios requiring access to all data, use the array attribute directly:
 
 ```python
 def next(self):
-    # Fast access to all data
+
+# Fast access to all data
     data_array = self.data.close.array
 
-    # Use NumPy operations (if imported)
+# Use NumPy operations (if imported)
     import numpy as np
     mean = np.mean(data_array[-20:])
-```
+
+```bash
 
 ### Enable Cache Mode
 
 For long-running backtests:
 
 ```python
+
 # Set in Cerebro
+
 cerebro = bt.Cerebro()
 
 # Enable cache for data source
+
 data = bt.feeds.PandasData(dataname=df)
 cerebro.adddata(data)
 data.qbuffer(savemem=1000)  # Only keep last 1000 bars
-```
+
+```bash
 
 ### Use runonce Mode
 
 ```python
+
 # Batch processing mode, faster
+
 cerebro.run(runonce=True)
-```
+
+```bash
 
 ## Complete Examples
 
@@ -608,7 +730,8 @@ class MultiOutputIndicator(bt.Indicator):
         self.addminperiod(self.p.period)
 
     def next(self):
-        # Calculate middle band (SMA)
+
+# Calculate middle band (SMA)
         total = 0.0
         high_max = self.data.high[-self.p.period]
         low_min = self.data.low[-self.p.period]
@@ -628,21 +751,26 @@ class MultiOutputIndicator(bt.Indicator):
 
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # Create custom indicator
+
+# Create custom indicator
         self.channel = MultiOutputIndicator(self.data, period=20)
 
-        # Built-in indicator
+# Built-in indicator
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
     def next(self):
-        # Access multiple lines of custom indicator
+
+# Access multiple lines of custom indicator
         if self.data.close[0] > self.channel.upper[0]:
-            # Price breaks above upper band
+
+# Price breaks above upper band
             self.buy()
         elif self.data.close[0] < self.channel.lower[0]:
-            # Price breaks below lower band
+
+# Price breaks below lower band
             self.sell()
-```
+
+```bash
 
 ### Example 2: Historical Data Analysis
 
@@ -653,46 +781,55 @@ class AnalysisStrategy(bt.Strategy):
         self.sma50 = bt.indicators.SMA(self.data.close, period=50)
 
     def next(self):
-        # Get list of last N values
+
+# Get list of last N values
         recent_20 = self.data.close.get(ago=0, size=20)
 
-        # Calculate custom statistics
+# Calculate custom statistics
         avg = sum(recent_20) / len(recent_20)
 
-        # Check trend
+# Check trend
         if self.sma20[0] > self.sma20[-1] > self.sma20[-2]:
-            # MA rising
+
+# MA rising
             pass
 
-        # Time-based analysis
+# Time-based analysis
         current_dt = self.data.datetime.datetime(0)
         if current_dt.hour >= 9 and current_dt.hour < 15:
-            # Trading hours
+
+# Trading hours
             pass
-```
+
+```bash
 
 ### Example 3: Multi-Timeframe Analysis
 
 ```python
 class MultiTimeFrameStrategy(bt.Strategy):
     def __init__(self):
-        # Get data from different timeframes
+
+# Get data from different timeframes
         self.daily = self.data0  # Daily
         self.weekly = self.data1  # Weekly
 
-        # Create indicators for each timeframe
+# Create indicators for each timeframe
         self.daily_sma = bt.indicators.SMA(self.daily.close, period=20)
         self.weekly_sma = bt.indicators.SMA(self.weekly.close, period=20)
 
     def next(self):
-        # Check multi-timeframe alignment
+
+# Check multi-timeframe alignment
         if len(self.weekly) > len(self.weekly_sma):
-            # Weekly indicator valid
+
+# Weekly indicator valid
             if self.daily.close[0] > self.daily_sma[0]:
                 if self.weekly.close[0] > self.weekly_sma[0]:
-                    # Both timeframes trend aligned
+
+# Both timeframes trend aligned
                     self.buy(data=self.daily)
-```
+
+```bash
 
 ## Common Pitfalls
 

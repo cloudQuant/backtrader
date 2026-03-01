@@ -1,7 +1,9 @@
----
+- --
+
 title: Architecture Overview
 description: System architecture and design
----
+
+- --
 
 # Architecture Overview
 
@@ -42,18 +44,22 @@ flowchart TB
     Strat --> Ind
     Strat --> Obs
     Strat -->|Orders| Brk
+
     Brk -->|Fills| Strat
+
     Cerebro --> An
 
     LF --> Cerebro
     PS --> Strat
-```
+
+```bash
 
 ## Core Components
 
 ### Cerebro
 
 The central engine that orchestrates everything:
+
 - Manages data feeds
 - Executes strategies
 - Handles broker operations
@@ -66,34 +72,45 @@ The fundamental data structure for time series:
 ```mermaid
 classDiagram
     class LineRoot {
-        +get(size)
-        +len()
-        +datetime
+
+        - get(size)
+        - len()
+        - datetime
+
     }
 
     class LineBuffer {
-        +__getitem__(key)
-        +__setitem__(key, value)
-        +minperiod
+
+        - __getitem__(key)
+        - __setitem__(key, value)
+        - minperiod
+
     }
 
     class LineSeries {
-        +align()
-        +date()
-        +time()
+
+        - align()
+        - date()
+        - time()
+
     }
 
     class LineIterator {
-        +prenext()
-        +nextstart()
-        +next()
-        +once()
+
+        - prenext()
+        - nextstart()
+        - next()
+        - once()
+
     }
 
     LineRoot <|-- LineBuffer
+
     LineBuffer <|-- LineSeries
+
     LineSeries <|-- LineIterator
-```
+
+```bash
 
 ### Phase System
 
@@ -108,13 +125,19 @@ stateDiagram-v2
     nextstart --> next: Transition complete
     next --> next: Normal operation
     next --> [*]: Backtest ends
-```
+
+```bash
 
 | Phase | Description | Usage |
+
 |-------|-------------|-------|
+
 | `__init__` | Initialize strategy and indicators | Create indicators, set up state |
+
 | `prenext()` | Called before enough data | Skip trading logic |
+
 | `nextstart()` | First bar with valid data | One-time setup |
+
 | `next()` | Normal operation | Main trading logic |
 
 ### Observer Extension Pattern
@@ -124,10 +147,14 @@ Observers are the primary way to extend functionality:
 ```mermaid
 flowchart LR
     Strategy[Strategy] -->|1. Register| LI[_lineiterators]
+
     Observer[Observer] -->|2. Append| LI
+
     Cerebro[Cerebro] -->|3. Iterate| LI
+
     LI -->|4. Call next| Observer
-```
+
+```bash
 
 ## Data Flow
 
@@ -150,7 +177,8 @@ sequenceDiagram
     S->>B: Place order (if any)
     B->>B: Execute order
     C->>C: Continue to next bar
-```
+
+```bash
 
 ### Live Trading Flow
 
@@ -171,39 +199,54 @@ sequenceDiagram
     S->>E: Send order
     E->>S: Order fill
     S->>C: Update position
-```
+
+```bash
 
 ## Component Hierarchy
 
-```
+```bash
 backtrader/
 ├── Core Layer
 │   ├── metabase.py          # Base mixins and owner finding
+
 │   ├── lineroot.py           # Line system base
+
 │   ├── linebuffer.py         # Circular buffer storage
+
 │   ├── lineseries.py         # Time series operations
+
 │   └── lineiterator.py       # Iterator logic and phases
+
 │
 ├── Data Layer
 │   ├── feed.py               # Base feed classes
+
 │   └── feeds/                # Feed implementations
+
 │
 ├── Execution Layer
 │   ├── strategy.py           # Base strategy class
+
 │   ├── indicator.py          # Base indicator class
+
 │   ├── observer.py           # Base observer class
+
 │   ├── analyzer.py           # Base analyzer class
+
 │   └── broker.py             # Base broker class
+
 │
 └── Application Layer
     └── cerebro.py            # Main engine
-```
+
+```bash
 
 ## Design Principles
 
 ### 1. Event-Driven
 
 Cerebro processes data bar-by-bar, triggering:
+
 1. Indicator updates
 2. Strategy execution
 3. Order handling
@@ -218,12 +261,14 @@ Cerebro processes data bar-by-bar, triggering:
 ### 3. Extensibility
 
 Primary extension points:
-1. **Observers** - Data collection and monitoring
-2. **Analyzers** - Performance metrics
-3. **Indicators** - Custom calculations
-4. **Strategies** - Trading logic
-5. **Data Feeds** - New data sources
-6. **Brokers** - Order execution
+
+1. **Observers**- Data collection and monitoring
+
+2.**Analyzers**- Performance metrics
+3.**Indicators**- Custom calculations
+4.**Strategies**- Trading logic
+5.**Data Feeds**- New data sources
+6.**Brokers** - Order execution
 
 ## Post-Metaclass Architecture
 
@@ -232,26 +277,33 @@ The codebase has removed metaclass-based metaprogramming:
 ### Old Pattern (Removed)
 
 ```python
+
 # ❌ No longer used
+
 class MetaStrategy(type):
     def __call__(cls, *args, **kwargs):
-        # Metaclass magic
+
+# Metaclass magic
         pass
-```
+
+```bash
 
 ### New Pattern (Current)
 
 ```python
+
 # ✅ Explicit donew() pattern
+
 def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
 def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
-```
 
-**Benefits:**
+```bash
+
+- *Benefits:**
 - 45% performance improvement
 - Explicit initialization
 - Easier debugging

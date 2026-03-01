@@ -1,7 +1,9 @@
----
+- --
+
 title: 开发环境设置
 description: 设置开发环境
----
+
+- --
 
 # 开发环境设置
 
@@ -16,99 +18,135 @@ description: 设置开发环境
 ## 克隆仓库
 
 ```bash
-git clone https://github.com/cloudQuant/backtrader.git
+git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
-```
 
+```bash
 或使用 Gitee 镜像 (中国用户):
 
 ```bash
-git clone https://gitee.com/yunjinqi/backtrader.git
+git clone <https://gitee.com/yunjinqi/backtrader.git>
 cd backtrader
-```
+
+```bash
 
 ## 安装开发依赖
 
 ```bash
+
 # 安装依赖
+
 pip install -r requirements.txt
 
 # 以开发模式安装
+
 pip install -e .
-```
+
+```bash
 
 ## 开发命令
 
 ### 测试
 
 ```bash
+
 # 运行所有测试
+
 pytest tests/ -v
 
 # 运行特定测试文件
+
 pytest tests/strategies/test_signals.py -v
 
 # 并行运行
+
 pytest tests/ -n 4 -v
 
 # 带覆盖率
+
 pytest tests/ -m "not integration" --cov=backtrader
-```
+
+```bash
 
 ### 代码质量
 
 ```bash
+
 # 格式化代码
+
 bash scripts/optimize_code.sh
 
 # 或单独执行各步骤
+
 pyupgrade --py38-plus backtrader/
 isort backtrader/
 black --line-length 124 backtrader/
 ruff check --fix backtrader/
-```
+
+```bash
 
 ### 类型检查
 
 ```bash
+
 # 运行 mypy
+
 mypy backtrader/
 
 # 或使用 make 目标
+
 make type-check
-```
+
+```bash
 
 ### 文档
 
 ```bash
+
 # 生成文档
+
 make docs
 
 # 查看文档
+
 make docs-view
-```
+
+```bash
 
 ## 项目结构
 
-```
+```bash
 backtrader/
 ├── backtrader/           # 主包
+
 │   ├── core/            # 核心类
+
 │   ├── indicators/      # 技术指标
+
 │   ├── observers/       # 观察器
+
 │   ├── analyzers/       # 性能分析器
+
 │   ├── feeds/           # 数据源
+
 │   ├── brokers/         # 经纪人实现
+
 │   ├── stores/          # 数据存储
+
 │   └── utils/           # 工具
+
 ├── tests/                # 测试套件
+
 │   ├── original_tests/
 │   ├── add_tests/
 │   └── strategies/
 ├── docs/                 # 文档
+
 ├── scripts/              # 实用脚本
+
 └── tools/                # 开发工具
-```
+
+```bash
 
 ## Git 工作流
 
@@ -122,12 +160,12 @@ backtrader/
 
 遵循约定式提交：
 
-```
+```bash
 <type>: <description>
 
 [可选正文]
-```
 
+```bash
 类型: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 ### 创建 Pull Request
@@ -142,39 +180,51 @@ backtrader/
 ### 单元测试
 
 ```python
+
 # tests/test_my_feature.py
+
 import backtrader as bt
 import pytest
 
 def test_my_feature():
     cerebro = bt.Cerebro()
-    # ... 设置
+
+# ... 设置
     result = cerebro.run()
     assert result is not None
-```
+
+```bash
 
 ### 集成测试
 
 ```python
 @pytest.mark.integration
 def test_live_connection():
-    # 需要 testnet 凭证
+
+# 需要 testnet 凭证
     pass
-```
+
+```bash
 
 ### 运行特定测试
 
 ```bash
+
 # 指标测试
+
 pytest tests/indicators/test_sma.py
 
 # 策略测试
+
 pytest tests/strategies/test_signals.py
 
 # 使用标记
+
 pytest tests/ -m "priority_p0"  # 仅关键测试
+
 pytest tests/ -m "not integration"  # 跳过集成测试
-```
+
+```bash
 
 ## 代码风格指南
 
@@ -198,7 +248,8 @@ def calculate_sma(period: int, data: list) -> float:
         计算的 SMA 值。
     """
     pass
-```
+
+```bash
 
 ### 注释
 
@@ -215,8 +266,10 @@ import pdb
 
 def next(self):
     pdb.set_trace()
-    # 您的代码
-```
+
+# 您的代码
+
+```bash
 
 ### 日志记录
 
@@ -225,30 +278,39 @@ from backtrader.utils import SpdLogManager
 
 logger = SpdLogManager().get_logger(__name__)
 logger.info('策略已初始化')
-```
+
+```bash
 
 ### 快速测试
 
 ```python
+
 # 快速测试脚本
+
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
-    # ... 设置
+
+# ... 设置
     cerebro.run()
     cerebro.plot()
-```
+
+```bash
 
 ## Cython 编译
 
 对于性能关键的开发，编译 Cython 扩展：
 
 ```bash
+
 # Unix/Mac
+
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U .
 
 # Windows
+
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
-```
+
+```bash
 
 ## 常见问题
 
@@ -258,7 +320,8 @@ cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip instal
 
 ```bash
 python --version  # 应该是 3.8+
-```
+
+```bash
 
 ### 测试失败
 
@@ -267,13 +330,15 @@ python --version  # 应该是 3.8+
 ```bash
 pip uninstall backtrader
 pip install -e .
-```
+
+```bash
 
 ### 绘图问题 (macOS)
 
 ```bash
 pip install python.app
-```
+
+```bash
 
 ## 另请参阅
 

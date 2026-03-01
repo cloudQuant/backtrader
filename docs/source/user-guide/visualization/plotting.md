@@ -1,7 +1,9 @@
----
+- --
+
 title: Plotting
 description: Visualize backtest results
----
+
+- --
 
 # Plotting
 
@@ -13,51 +15,67 @@ Backtrader provides multiple plotting options to visualize your backtest results
 import backtrader as bt
 
 # Run backtest
+
 cerebro = bt.Cerebro()
+
 # ... add data, strategy, etc.
+
 results = cerebro.run()
 
 # Plot results
+
 cerebro.plot()
-```
+
+```bash
 
 ## Plot Options
 
 ### Figure Size
 
 ```python
+
 # Set figure size
+
 import matplotlib.pyplot as plt
 
 plt.rcParams['figure.figsize'] = [15, 10]
 cerebro.plot()
 plt.show()
-```
+
+```bash
 
 ### Style
 
 ```python
+
 # Use different style
+
 plt.style.use('dark_background')
 cerebro.plot()
 plt.show()
-```
+
+```bash
 
 ## Plotly Interactive Plotting
 
 For large datasets (100k+ points), use Plotly for interactive zooming and panning:
 
 ```python
+
 # Create cerebro
+
 cerebro = bt.Cerebro()
 
 # Add plot with Plotly
+
 plotter = bt.plot.Plotly(style='plotly', scheme='plotly')
 fig = plotter.plot(cerebro, style='plotly')
 
 # Save or show
+
 fig.show()
-```
+
+```bash
 
 ## Plot Schemes
 
@@ -67,6 +85,7 @@ Control plot appearance with schemes:
 from backtrader.plot.scheme import Scheme
 
 # Custom scheme
+
 scheme = Scheme(
     title='My Strategy Backtest',
     background='white',
@@ -79,7 +98,8 @@ scheme = Scheme(
 )
 
 cerebro.plot(scheme=scheme)
-```
+
+```bash
 
 ## Multiple Data Feeds
 
@@ -89,8 +109,10 @@ cerebro.adddata(data1, name='AAPL')
 cerebro.adddata(data2, name='MSFT')
 
 # Plot both feeds
+
 cerebro.plot()
-```
+
+```bash
 
 ## Saving Plots
 
@@ -101,7 +123,8 @@ import matplotlib.pyplot as plt
 
 fig = cerebro.plot()
 fig.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
-```
+
+```bash
 
 ### Plotly
 
@@ -109,7 +132,8 @@ fig.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
 plotter = bt.plot.Plotly()
 fig = plotter.plot(cerebro)
 fig.write_html('backtest_results.html')
-```
+
+```bash
 
 ## Custom Plots
 
@@ -121,9 +145,11 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
     def next(self):
-        # SMA is automatically plotted
+
+# SMA is automatically plotted
         pass
-```
+
+```bash
 
 ### Disabling Indicator Plots
 
@@ -132,7 +158,8 @@ class MyStrategy(bt.Strategy):
     def __init__(self):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
         self.sma.plotinfo.plot = False  # Don't plot
-```
+
+```bash
 
 ## Bokeh Live Plotting
 
@@ -142,16 +169,20 @@ For real-time visualization during backtesting:
 from backtrader.plot import Bokeh
 
 # Create cerebro
+
 cerebro = bt.Cerebro()
 
 # Add live plotting
+
 plotter = Bokeh(style='bar', scheme='plotly')
 cerebro.setbroker(plotter.getbroker())
 
 # Run with plotting
+
 strats = cerebro.run(plotter=plotter)
 plotter.show()
-```
+
+```bash
 
 ## Plot Examples
 
@@ -161,12 +192,15 @@ plotter.show()
 cerebro = bt.Cerebro()
 
 # Add data
+
 data = bt.feeds.YahooFinanceData(dataname='AAPL', ...)
 cerebro.adddata(data)
 
 # Volume is automatically plotted if available
+
 cerebro.plot()
-```
+
+```bash
 
 ### Multiple Indicators
 
@@ -176,7 +210,8 @@ class MyStrategy(bt.Strategy):
         self.sma20 = bt.indicators.SMA(self.data.close, period=20)
         self.sma50 = bt.indicators.SMA(self.data.close, period=50)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
-```
+
+```bash
 
 ### Drawdown Subplot
 

@@ -9,7 +9,9 @@
 ## Project Parts
 
 | Part ID | Type | Root Path | Description |
+
 |---------|------|-----------|-------------|
+
 | main | library | /Users/yunjinqi/Documents/量化交易框架/backtrader | Core backtrader framework |
 
 ## Key Technologies
@@ -24,36 +26,54 @@
 
 ## Directory Structure
 
-```
+```bash
 backtrader/
 ├── backtrader/           # Main package (core library)
+
 │   ├── indicators/       # Technical indicators (60+ indicators)
+
 │   ├── observers/        # Chart observers
+
 │   ├── analyzers/        # Performance analyzers
+
 │   ├── feeds/           # Data sources (CSV, pandas, live)
+
 │   ├── brokers/         # Broker implementations
+
 │   ├── stores/          # Data storage layer
+
 │   ├── signals/         # Signal system
+
 │   ├── utils/           # Utility functions
+
 │   ├── plot/            # Plotting (matplotlib, plotly)
+
 │   ├── ccxt/            # CCXT enhancement module
+
 │   └── ...
 ├── tests/               # Test suite
+
 │   ├── original_tests/  # Core functionality tests
+
 │   ├── add_tests/       # Additional tests
+
 │   └── refactor_tests/  # Metaclass removal tests
+
 ├── docs/                # Documentation
+
 ├── _bmad/               # BMAD workflow configuration
+
 └── tools/               # Utility scripts
-```
+
+```bash
 
 ## Critical Directories
 
-- **backtrader/** - Core library code
-- **backtrader/indicators/** - 60+ technical indicators
-- **backtrader/observers/** - Chart observers and data recorders
-- **backtrader/analyzers/** - Performance metrics and statistics
-- **backtrader/feeds/** - Data source adapters
-- **backtrader/brokers/** - Order execution and portfolio management
-- **backtrader/stores/** - Connection and data storage management
+- **backtrader/**- Core library code
+- **backtrader/indicators/**- 60+ technical indicators
+- **backtrader/observers/**- Chart observers and data recorders
+- **backtrader/analyzers/**- Performance metrics and statistics
+- **backtrader/feeds/**- Data source adapters
+- **backtrader/brokers/**- Order execution and portfolio management
+- **backtrader/stores/**- Connection and data storage management
 - **tests/** - Comprehensive test suite

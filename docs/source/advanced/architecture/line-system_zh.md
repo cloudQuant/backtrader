@@ -1,7 +1,9 @@
----
+- --
+
 title: Line 系统
 description: 时间序列的核心数据结构
----
+
+- --
 
 # Line 系统
 
@@ -12,12 +14,18 @@ Line 系统是 Backtrader 中处理时间序列数据的基础数据结构。
 ```mermaid
 classDiagram
     LineRoot <|-- LineBuffer
+
     LineBuffer <|-- LineSeries
+
     LineSeries <|-- LineIterator
+
     LineIterator <|-- Indicator
+
     LineIterator <|-- Observer
+
     LineIterator <|-- Strategy
-```
+
+```bash
 
 ## 层次结构
 
@@ -35,7 +43,8 @@ class LineRoot:
 
     def datetime(self, index=0):
         """获取指定索引的日期时间。"""
-```
+
+```bash
 
 ### LineBuffer
 
@@ -54,7 +63,8 @@ class LineBuffer:
     @property
     def minperiod(self):
         """所需的最小数据点数。"""
-```
+
+```bash
 
 ### LineSeries
 
@@ -70,7 +80,8 @@ class LineSeries:
 
     def time(self, index=0):
         """获取指定索引的时间。"""
-```
+
+```bash
 
 ### LineIterator
 
@@ -78,7 +89,8 @@ class LineSeries:
 
 ```python
 class LineIterator:
-    # Line 类型
+
+# Line 类型
     IndType = 0  # 指标
     ObsType = 2  # 观察器
     StrType = 3  # 策略
@@ -90,8 +102,9 @@ class LineIterator:
         """在首次满足 minperiod 时调用。"""
 
     def next(self):
-        """在满足 minperiod 后的每根K线调用。"""
-```
+        """在满足 minperiod 后的每根 K 线调用。"""
+
+```bash
 
 ## 访问模式
 
@@ -100,48 +113,65 @@ class LineIterator:
 ```python
 class MyStrategy(bt.Strategy):
     def next(self):
-        # 当前值
+
+# 当前值
         current = self.data.close[0]
 
-        # 历史值
+# 历史值
         prev1 = self.data.close[-1]
         prev2 = self.data.close[-2]
 
-        # 切片 (返回数组)
+# 切片 (返回数组)
         recent = self.data.close.get(size=5)
-```
+
+```bash
 
 ### 数据长度
 
 ```python
-# 可用的总K线数
+
+# 可用的总 K 线数
+
 total_bars = len(self.data)
 
-# next() 中已处理的K线数
+# next() 中已处理的 K 线数
+
 processed_bars = len(self.data.close)
-```
+
+```bash
 
 ### 日期时间访问
 
 ```python
-# 当前K线的日期时间
+
+# 当前 K 线的日期时间
+
 dt = self.data.datetime.datetime(0)
 date = self.data.datetime.date(0)
 time = self.data.datetime.time(0)
-```
+
+```bash
 
 ## Line 别名
 
 数据源的常用 line 别名：
 
 | 别名 | Line | 描述 |
+
 |------|------|------|
-| `datetime` | datetime | K线时间戳 |
+
+| `datetime` | datetime | K 线时间戳 |
+
 | `open` | open | 开盘价 |
+
 | `high` | high | 最高价 |
+
 | `low` | low | 最低价 |
+
 | `close` | close | 收盘价 |
+
 | `volume` | volume | 成交量 |
+
 | `openinterest` | openinterest | 持仓量 |
 
 ## 创建自定义 Line
@@ -151,9 +181,11 @@ time = self.data.datetime.time(0)
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 创建自定义 line
+
+# 创建自定义 line
         self.lines.custom = self.data.close  # 别名
-```
+
+```bash
 
 ### 在指标中
 
@@ -164,13 +196,15 @@ class MyIndicator(bt.Indicator):
     def __init__(self):
         super().__init__()
         self.lines.signal = self.data.close - self.data.close(-1)
-```
+
+```bash
 
 ## 性能考虑
 
 ### 循环缓冲区
 
 循环缓冲区设计：
+
 - 固定内存分配
 - 高效的追加操作
 - 自动滚动
@@ -178,10 +212,13 @@ class MyIndicator(bt.Indicator):
 ### 内存管理
 
 ```python
+
 # 使用 qbuffer 限制长回测的内存使用
+
 data = bt.feeds.CSVGeneric(dataname='data.csv')
-data.qbuffer(1000)  # 在内存中保留最后 1000 根K线
-```
+data.qbuffer(1000)  # 在内存中保留最后 1000 根 K 线
+
+```bash
 
 ## 常见模式
 
@@ -190,34 +227,40 @@ data.qbuffer(1000)  # 在内存中保留最后 1000 根K线
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 滞后的收盘价
+
+# 滞后的收盘价
         self.close_lag1 = self.data.close(-1)
         self.close_lag5 = self.data.close(-5)
-```
+
+```bash
 
 ### 价格变化
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 价格变化
+
+# 价格变化
         self.change = self.data.close - self.data.close(-1)
 
-        # 百分比变化
+# 百分比变化
         self.pct_change = (self.data.close / self.data.close(-1)) - 1
-```
+
+```bash
 
 ### 滚动操作
 
 ```python
 class MyStrategy(bt.Strategy):
     def __init__(self):
-        # 滚动求和 (手动)
+
+# 滚动求和 (手动)
         self.rolling_sum = bt.indicators.SumN(self.data.close, period=20)
 
-        # 或使用指标
+# 或使用指标
         self.sma = bt.indicators.SMA(self.data.close, period=20)
-```
+
+```bash
 
 ## 相关文档
 
