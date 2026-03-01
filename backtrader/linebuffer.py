@@ -2427,46 +2427,12 @@ class LineOwnOperation(LineActions):
             start: Starting index.
             end: Ending index.
         """
-        # CRITICAL FIX: Ensure source operand is processed first
-        if self._parent_a is not None and hasattr(self._parent_a, "_once"):
-            try:
-                self._parent_a._once(start, end)
-            except Exception:
-                pass
-
-        # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
         op = self.operation
 
-        # CRITICAL FIX: Ensure destination array is properly sized
-        while len(dst) < end:
-            dst.append(float("nan"))
-
-        # CRITICAL FIX: Ensure source array has required data
-        if len(srca) < end:
-            # If source array is shorter than required range, only process available data
-            end = min(end, len(srca))
-
         for i in range(start, end):
-            try:
-                # CRITICAL FIX: Bounds checking for source array
-                a_val = srca[i] if i < len(srca) else 0.0
-
-                # Ensure value is numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
-                    a_val = 0.0
-
-                result = op(a_val)
-
-                # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
-                    result = 0.0
-
-                dst[i] = result
-            except Exception:
-                # If operation fails, store 0.0
-                dst[i] = 0.0
+            dst[i] = op(srca[i])
 
     def size(self):
         """Return the number of lines in this LineActions object"""
