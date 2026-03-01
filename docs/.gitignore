@@ -1,0 +1,36 @@
+# Sphinx build outputs
+_build/
+_static/
+_templates/
+
+# Generated files
+*.pyc
+__pycache__/
+
+# Locale intermediate files (keep .po, ignore .mo)
+locales/*/LC_MESSAGES/*.mo
+
+# Sphinx auto-generated
+.doctrees/
+.pickle
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*~
+
+# Notebooks output
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/*
+
+# Temporary files
+_temp/
+*.tmp
+
+# Internal documentation (optional - comment out if you want to track)
+# _internal/

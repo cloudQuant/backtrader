@@ -1,119 +1,242 @@
-.. Backtrader documentation master file
+.. Backtrader Documentation
 
 =======================================
 Backtrader Documentation
 =======================================
 
-|github| |gitee| |python| |license|
+.. raw:: html
 
-.. |github| image:: https://img.shields.io/badge/GitHub-cloudQuant%2Fbacktrader-blue?logo=github
-   :target: https://github.com/cloudQuant/backtrader
-   :alt: GitHub
+   <div class="badges">
+     <a href="https://github.com/cloudQuant/backtrader"><img src="https://img.shields.io/badge/GitHub-cloudQuant%2Fbacktrader-blue?logo=github" alt="GitHub"></a>
+     <a href="https://gitee.com/yunjinqi/backtrader"><img src="https://img.shields.io/badge/Gitee-yunjinqi%2Fbacktrader-C71D23?logo=gitee" alt="Gitee"></a>
+     <img src="https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white" alt="Python">
+     <img src="https://img.shields.io/badge/License-GPLv3-orange" alt="License">
+     <img src="https://img.shields.io/badge/Docs-English%20%7C%20中文-1565C0" alt="i18n">
+   </div>
 
-.. |gitee| image:: https://img.shields.io/badge/Gitee-yunjinqi%2Fbacktrader-red?logo=gitee
-   :target: https://gitee.com/yunjinqi/backtrader
-   :alt: Gitee
+**Backtrader** is a feature-rich Python quantitative trading framework supporting
+backtesting and live trading, with 50+ technical indicators, multiple data sources,
+various brokers, and comprehensive analysis tools.
 
-.. |python| image:: https://img.shields.io/badge/Python-3.9+-green?logo=python
-   :alt: Python
+.. tip::
+   📖 This documentation is also available in `中文 (Chinese) <index_zh.html>`_.
 
-.. |license| image:: https://img.shields.io/badge/License-GPLv3-orange
-   :alt: License
+   ✍️ Author's blog: `yunjinqi.blog.csdn.net <https://yunjinqi.blog.csdn.net/>`_
 
-**Backtrader** is a feature-rich Python framework for backtesting and trading,
-supporting 60+ technical indicators, 20+ data sources, multiple brokers and comprehensive analysis tools.
+----
 
-.. note::
-   This documentation is available in both English and `Chinese (中文) <index_zh.html>`_.
+Why Backtrader?
+---------------
 
-   Author's Blog: `https://yunjinqi.blog.csdn.net/ <https://yunjinqi.blog.csdn.net/>`_
+.. grid:: 2 2 3 3
+   :gutter: 3
 
-Why Choose Backtrader?
------------------------
+   .. grid-item-card:: 📚 Easy to Learn
+      :class-card: sd-border-0 sd-shadow-sm
 
-- **Easy to Learn**: Gentle learning curve with intuitive API design
-- **High Performance**: 45% faster than original backtrader, supports vectorized (runonce) and event-driven (runnext) modes
-- **Rich Components**: 60+ indicators, 17+ analyzers, 21+ data sources
-- **Professional Visualization**: Plotly, Bokeh, and Matplotlib support
-- **Live Trading Ready**: Integration with CCXT crypto exchanges, CTP futures, and more
-- **Comprehensive Reports**: One-click HTML/PDF/JSON report generation
+      Gentle learning curve with intuitive API design.
+      Get your first strategy running in 5 minutes.
+
+   .. grid-item-card:: ⚡ High Performance
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Vectorized (``runonce``) and event-driven (``runnext``)
+      modes. 45%+ faster than the original.
+
+   .. grid-item-card:: 🧩 Rich Components
+      :class-card: sd-border-0 sd-shadow-sm
+
+      50+ indicators, 17+ analyzers, 21+ data feeds —
+      everything you need out of the box.
+
+   .. grid-item-card:: 📊 Professional Visualization
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Plotly, Bokeh, and Matplotlib backends with
+      one-click HTML/PDF/JSON reports.
+
+   .. grid-item-card:: 🌐 Live Trading Ready
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Interactive Brokers, CCXT (crypto), and CTP
+      (Chinese futures) — backtest to live seamlessly.
+
+   .. grid-item-card:: 🔧 Extensible
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Custom indicators, analyzers, data feeds, and
+      brokers. Plugin-friendly architecture.
+
+----
 
 Quick Start
 -----------
 
-.. code-block:: python
+.. tab-set::
 
-   import backtrader as bt
+   .. tab-item:: Install
 
-   class SmaCrossStrategy(bt.Strategy):
-       params = (('fast', 10), ('slow', 30))
+      .. code-block:: bash
 
-       def __init__(self):
-           super().__init__()
-           fast_sma = bt.indicators.SMA(period=self.params.fast)
-           slow_sma = bt.indicators.SMA(period=self.params.slow)
-           self.crossover = bt.indicators.CrossOver(fast_sma, slow_sma)
+         pip install backtrader
 
-       def next(self):
-           if not self.position and self.crossover > 0:
-               self.buy()
-           elif self.position and self.crossover < 0:
-               self.close()
+   .. tab-item:: Strategy Example
 
-   cerebro = bt.Cerebro()
-   data = bt.feeds.GenericCSVData(dataname='data.csv',
-       datetime=0, open=1, high=2, low=3, close=4, volume=5,
-       dtformat='%Y-%m-%d')
-   cerebro.adddata(data)
-   cerebro.addstrategy(SmaCrossStrategy)
-   cerebro.broker.setcash(100000)
-   cerebro.broker.setcommission(commission=0.001)
+      .. code-block:: python
 
-   cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
-   cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+         import backtrader as bt
 
-   results = cerebro.run()
-   strat = results[0]
-   print(f"Sharpe Ratio: {strat.analyzers.sharpe.get_analysis().get('sharperatio', 'N/A')}")
-   cerebro.plot(style='plotly')
+         class SmaCross(bt.Strategy):
+             params = (('pfast', 10), ('pslow', 30))
+
+             def __init__(self):
+                 sma_fast = bt.indicators.SMA(period=self.p.pfast)
+                 sma_slow = bt.indicators.SMA(period=self.p.pslow)
+                 self.crossover = bt.indicators.CrossOver(sma_fast, sma_slow)
+
+             def next(self):
+                 if not self.position and self.crossover > 0:
+                     self.buy()
+                 elif self.position and self.crossover < 0:
+                     self.close()
+
+   .. tab-item:: Run Backtest
+
+      .. code-block:: python
+
+         cerebro = bt.Cerebro()
+         data = bt.feeds.GenericCSVData(
+             dataname='data.csv',
+             datetime=0, open=1, high=2, low=3,
+             close=4, volume=5, dtformat='%Y-%m-%d')
+
+         cerebro.adddata(data)
+         cerebro.addstrategy(SmaCross)
+         cerebro.broker.setcash(100000)
+         cerebro.broker.setcommission(commission=0.001)
+
+         cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+         cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+
+         results = cerebro.run()
+         strat = results[0]
+         print(f"Sharpe: {strat.analyzers.sharpe.get_analysis()}")
+         cerebro.plot(backend='plotly')
+
+----
+
+Source Code
+-----------
+
+.. grid:: 1 1 2 2
+   :gutter: 3
+
+   .. grid-item-card:: GitHub
+      :link: https://github.com/cloudQuant/backtrader
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Primary repository — issues, pull requests, CI/CD.
+
+   .. grid-item-card:: Gitee (镜像)
+      :link: https://gitee.com/yunjinqi/backtrader
+      :class-card: sd-border-0 sd-shadow-sm
+
+      Mirror for users in mainland China with faster access.
+
+----
 
 .. toctree::
    :maxdepth: 2
    :caption: Getting Started
 
-   user_guide/installation
-   user_guide/quickstart
-   user_guide/concepts
+   getting-started/installation
+   getting-started/quickstart
 
 .. toctree::
    :maxdepth: 2
    :caption: User Guide
 
-   user_guide/data_feeds
-   user_guide/indicators
-   user_guide/strategies
-   user_guide/brokers
-   user_guide/analyzers
-   user_guide/optimization
-   user_guide/visualization
-   user_guide/live_trading
-   user_guide/performance
-   user_guide/faq
+   user-guide/concepts/concepts
+   user-guide/data-feeds/data-feeds
+   user-guide/strategies/strategies
+   user-guide/indicators/indicators
+   user-guide/analyzers/analyzers
+   user-guide/analyzers/observers
+   user-guide/brokers/brokers
+   user-guide/visualization/plotting
+   user-guide/optimization/optimization
+   user-guide/faq
 
 .. toctree::
    :maxdepth: 2
-   :caption: API Reference
+   :caption: Advanced Topics
 
-   api/modules
+   advanced/ts-mode
+   advanced/cs-mode
+   advanced/multi-strategy
+   advanced/performance-optimization
+   advanced/profiling
+   advanced/data-acquisition
+   advanced/architecture/overview
+   advanced/architecture/line-system
+   advanced/architecture/phase-system
+   advanced/architecture/post-metaclass
+   advanced/live-trading/ccxt-guide
+   advanced/live-trading/ccxt-env-config
+   advanced/live-trading/websocket
+   advanced/live-trading/funding-rate
+   user-guide/data-feeds/live/ctp-live-trading
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Tutorials
+
+   tutorials/complete-strategy
+   tutorials/notebook-guide
+   tutorials/examples/strategies
+   tutorials/examples/cookbook
 
 .. toctree::
    :maxdepth: 1
-   :caption: Development
+   :caption: API Reference
 
-   dev/contributing
-   dev/changelog
+   api/core/backtrader
+   api/analyzers/backtrader.analyzers
+   api/feeds/backtrader.feeds
+   api/indicators/backtrader.indicators
+   api/brokers/backtrader.brokers
+   api/observers/backtrader.observers
+   api/sizers/backtrader.sizers
+   api/stores/backtrader.stores
 
-Indices and tables
+.. toctree::
+   :maxdepth: 2
+   :caption: Migration
+
+   migration/from-original
+   migration/upgrade
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developer Guide
+
+   developer-guide/index
+   developer-guide/setup
+   developer-guide/testing
+   developer-guide/style
+   developer-guide/contributing
+   developer-guide/release
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Support
+
+   reference/support/faq
+   reference/support/troubleshooting
+
+----
+
+Indices and Tables
 ==================
 
 * :ref:`genindex`

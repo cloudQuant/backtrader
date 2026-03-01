@@ -4,7 +4,7 @@
 
 - *Professional Python Algorithmic Trading Backtesting Framework**
 
-[![Version](<https://img.shields.io/badge/Version-1.0.0-blue.svg)]()>
+[![Version](<https://img.shields.io/badge/Version-1.1.0-blue.svg)]()>
 [![Python](<https://img.shields.io/badge/Python-3.9%2B-green.svg)](<https://www.python.org/>)>
 [![License](<https://img.shields.io/badge/License-GPLv3-orange.svg)](<https://www.gnu.org/licenses/gpl-3.0>)>
 [![Platform](<https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()>
@@ -181,7 +181,7 @@ We especially welcome contributions in:
 
 ## 🎯 Introduction
 
-Backtrader is a powerful and flexible Python framework for backtesting trading strategies. This project is based on [backtrader](<https://www.backtrader.com/)> with extensive optimizations and feature enhancements, focusing on medium to low-frequency strategy development and backtesting.
+Backtrader is a powerful and flexible Python framework for backtesting trading strategies. This project is based on [backtrader](<https://www.backtrader.com/)> with extensive optimizations and feature enhancements, supporting **low-frequency, mid-frequency, and high-frequency** strategy development, backtesting, and live trading.
 
 ### Why Choose Backtrader?
 
@@ -204,20 +204,25 @@ Backtrader is a powerful and flexible Python framework for backtesting trading s
 ### Project Branches
 
 - **master branch**: Stable version with feature extensions and bug fixes
-- **development branch**: Development version, exploring C++ rewrite for high-frequency support
+- **development branch**: Development version with tick-level backtesting, multi-frequency trading support, and performance optimizations
 
 - --
 
 ## ✨ Key Features
 
-### 🚀 High-Performance Backtesting Engine
+### 🚀 High-Performance Multi-Frequency Backtesting Engine
 
-```bash
-Two backtesting modes supported:
-├── runonce (Vectorized) - Batch computation, optimal performance
-└── runnext (Event-driven) - Bar-by-bar, suitable for complex logic
+```
+Three backtesting modes supported:
+├── runonce (Vectorized)    - Batch computation, optimal performance
+├── runnext (Event-driven)  - Bar-by-bar, suitable for complex logic
+└── Tick-level backtesting  - Tick data support with tick+bar mixed mode
 
-```bash
+Trading frequency spectrum:
+├── Low-frequency   - Daily/weekly bars, position trading
+├── Mid-frequency   - Minute/hour bars, intraday trading
+└── High-frequency  - Tick-level data, market microstructure
+```
 
 ### 📊 Rich Visualization
 
@@ -238,13 +243,20 @@ One-click generation of professional reports including:
 
 Covering moving averages, momentum, volatility, trend indicators, and more.
 
+### 🔄 Tick-Level & Mixed-Frequency Trading
+
+- **Tick-level backtesting**: Process individual tick data for high-frequency strategy research
+- **Tick + Bar mixed mode**: Combine tick and bar data in the same strategy for multi-frequency analysis
+- **Seamless live trading**: Same strategy code works for backtesting and live trading across all frequencies
+- **Full spectrum coverage**: Low-frequency (daily), mid-frequency (minute), and high-frequency (tick) — all unified in one framework
+
 ### 📦 Modular Architecture
 
 Strategies, indicators, analyzers, and data sources can be independently extended.
 
 ### 🌍 20+ Data Source Support
 
-CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, and more.
+CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP futures, and more.
 
 - --
 
@@ -924,7 +936,7 @@ pytest tests -n 4 -v
 
 ## 🎯 项目简介
 
-Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框架。本项目基于 [backtrader](<https://www.backtrader.com/)> 进行了大量优化和功能扩展，专注于中低频交易策略的研发与回测。
+Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框架。本项目基于 [backtrader](<https://www.backtrader.com/)> 进行了大量优化和功能扩展，支持**低频、中频、高频**全频段交易策略的研发、回测与实盘交易。
 
 ### 为什么选择 Backtrader？
 
@@ -944,12 +956,14 @@ Backtrader 是一个功能强大、灵活易用的 Python 量化交易回测框�
 
 ## ✨ 核心特性
 
-- 🚀 **高性能回测引擎**：支持向量化和事件驱动两种模式
+- 🚀 **高性能多频段回测引擎**：支持向量化、事件驱动和 Tick 级别三种模式
+- 🔄 **Tick 级别回测与混合交易**：支持 Tick 数据回测、Tick + Bar 混合模式，打通低频、中频、高频全频段交易
 - 📊 **丰富的可视化**：Plotly 交互图表、Bokeh 实时图表
 - 📈 **专业回测报告**：一键生成 HTML/PDF/JSON 格式报告
 - 🔧 **50+ 内置技术指标**：均线、动量、波动率、趋势等
 - 📦 **模块化架构**：策略、指标、分析器可独立扩展
-- 🌍 **20+ 数据源支持**：CSV、Pandas、Yahoo、IB、CCXT 等
+- 🌍 **20+ 数据源支持**：CSV、Pandas、Yahoo、IB、CCXT、CTP 期货等
+- 🔗 **回测与实盘无缝衔接**：同一套策略代码可直接用于回测和实盘交易
 
 - --
 

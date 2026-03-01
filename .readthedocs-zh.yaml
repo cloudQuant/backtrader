@@ -1,6 +1,22 @@
-# Read the Docs configuration file for Chinese documentation
-# This file is used by the backtrader-zh project on RTD
-# Matches: make html-zh (sphinx-build -b html source _build/html/zh -D language=zh_CN)
+# ──────────────────────────────────────────────────────────────
+# NOTE: This file is kept for REFERENCE ONLY.
+#
+# Read the Docs always reads ".readthedocs.yaml" — it does NOT
+# read ".readthedocs-zh.yaml".  The Chinese RTD project should
+# use the same ".readthedocs.yaml" as the English project.
+#
+# How it works:
+#   1. Create an RTD project "backtrader-zh", pointing to the
+#      same GitHub repo.
+#   2. Set the project language to "Chinese" in RTD settings.
+#   3. RTD sets READTHEDOCS_LANGUAGE=zh during the build.
+#   4. conf.py detects this and builds from index_zh.rst with
+#      language=zh_CN automatically.
+#
+# If you ever need a custom build override (e.g. RTD's standard
+# sphinx runner doesn't work), you can copy the snippet below
+# into .readthedocs.yaml on a dedicated branch:
+# ──────────────────────────────────────────────────────────────
 
 version: 2
 
@@ -10,15 +26,11 @@ build:
     python: "3.11"
   jobs:
     pre_build:
+      - pip install -r docs/requirements.txt
       - pip install -e .
+    build:
+      - python -m sphinx -b html docs/source $READTHEDOCS_OUTPUT/html -D language=zh_CN -D root_doc=index_zh -D master_doc=index_zh -j auto
 
-# Build Chinese documentation - same as: make html-zh
-sphinx:
-  configuration: docs/source/conf.py
-  builder: html
-  fail_on_warning: false
-
-# Optional formats
 formats:
   - pdf
 

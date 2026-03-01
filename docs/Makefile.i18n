@@ -1,0 +1,71 @@
+# Makefile for Sphinx documentation internationalization
+
+# You can set these variables from the command line
+SPHINXOPTS    =
+SPHINXBUILD   = sphinx-build
+SPHINXINTL    = sphinx-intl
+SOURCEDIR     = source
+BUILDDIR      = build
+LOCALEDIR     = locales
+
+# Supported languages
+LANGUAGES     = zh_CN
+
+.PHONY: help gettext update-po build-lang clean-i18n
+
+help:
+	@echo "Internationalization targets:"
+	@echo "  gettext     - Extract translatable strings from source"
+	@echo "  update-po   - Update translation catalogs (.po files)"
+	@echo "  build-lang  - Build documentation for all languages"
+	@echo "  build-zh    - Build Chinese documentation"
+	@echo "  clean-i18n  - Clean translation files"
+
+# Extract translatable strings
+gettext:
+	@echo "Extracting translatable strings..."
+	$(SPHINXBUILD) -b gettext $(SOURCEDIR) $(BUILDDIR)/gettext
+	@echo "Strings extracted to $(BUILDDIR)/gettext"
+
+# Update translation catalogs
+update-po: gettext
+	@echo "Updating translation catalogs..."
+	$(SPHINXINTL) update -p $(BUILDDIR)/gettext -l zh_CN
+	@echo "Translation catalogs updated in $(LOCALEDIR)"
+
+# Build documentation for all languages
+build-lang:
+	@echo "Building documentation for all languages..."
+	@for lang in $(LANGUAGES); do \
+		echo "Building $$lang..."; \
+		$(SPHINXBUILD) -b html -D language=$$lang $(SOURCEDIR) $(BUILDDIR)/html/$$lang; \
+	done
+	@echo "All language builds complete"
+
+# Build Chinese documentation
+build-zh:
+	@echo "Building Chinese documentation..."
+	$(SPHINXBUILD) -b html -D language=zh_CN $(SOURCEDIR) $(BUILDDIR)/html/zh
+	@echo "Chinese documentation built in $(BUILDDIR)/html/zh"
+
+# Clean translation files
+clean-i18n:
+	@echo "Cleaning translation files..."
+	rm -rf $(BUILDDIR)/gettext
+	rm -rf $(LOCALEDIR)
+	@echo "Translation files cleaned"
+
+# Initialize new language
+init-lang:
+	@read -p "Enter language code (e.g., ja, fr, de): " lang; \
+	echo "Initializing $$lang..."; \
+	$(SPHINXINTL) update -p $(BUILDDIR)/gettext -l $$lang; \
+	echo "Language $$lang initialized in $(LOCALEDIR)/$$lang"
+
+# Statistics about translation progress
+stats:
+	@echo "Translation statistics:"
+	@for lang in $(LANGUAGES); do \
+		echo "\n$$lang:"; \
+		msgfmt --statistics $(LOCALEDIR)/$$lang/LC_MESSAGES/*.po 2>&1 | grep -v "done"; \
+	done

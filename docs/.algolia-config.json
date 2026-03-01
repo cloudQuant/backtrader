@@ -1,0 +1,101 @@
+{
+  "index_name": "backtrader",
+  "start_urls": [
+    {
+      "url": "https://backtrader.readthedocs.io/en/latest/",
+      "selectors_key": "default",
+      "tags": ["en"]
+    },
+    {
+      "url": "https://backtrader.readthedocs.io/zh/latest/",
+      "selectors_key": "default",
+      "tags": ["zh"]
+    }
+  ],
+  "sitemap_urls": [
+    "https://backtrader.readthedocs.io/sitemap.xml"
+  ],
+  "selectors": {
+    "default": {
+      "lvl0": {
+        "selector": ".sidebar-brand-text",
+        "default_value": "Backtrader Documentation"
+      },
+      "lvl1": "article h1",
+      "lvl2": "article h2",
+      "lvl3": "article h3",
+      "lvl4": "article h4",
+      "lvl5": "article h5",
+      "text": "article p, article li, article td"
+    }
+  },
+  "selectors_exclude": [
+    ".headerlink",
+    ".toctree-wrapper",
+    ".sidebar",
+    ".footer"
+  ],
+  "strip_chars": " .,;:#",
+  "custom_settings": {
+    "separatorsToIndex": "_",
+    "attributesForFaceting": [
+      "language",
+      "version",
+      "tags"
+    ],
+    "attributesToRetrieve": [
+      "hierarchy",
+      "content",
+      "anchor",
+      "url",
+      "url_without_anchor",
+      "type"
+    ],
+    "attributesToHighlight": [
+      "hierarchy",
+      "content"
+    ],
+    "attributesToSnippet": [
+      "content:10"
+    ],
+    "camelCaseAttributes": [
+      "hierarchy",
+      "content"
+    ],
+    "searchableAttributes": [
+      "unordered(hierarchy.lvl0)",
+      "unordered(hierarchy.lvl1)",
+      "unordered(hierarchy.lvl2)",
+      "unordered(hierarchy.lvl3)",
+      "unordered(hierarchy.lvl4)",
+      "unordered(hierarchy.lvl5)",
+      "content"
+    ],
+    "distinct": true,
+    "attributeForDistinct": "url",
+    "customRanking": [
+      "desc(weight.pageRank)",
+      "desc(weight.level)",
+      "asc(weight.position)"
+    ],
+    "ranking": [
+      "words",
+      "filters",
+      "typo",
+      "attribute",
+      "proximity",
+      "exact",
+      "custom"
+    ],
+    "highlightPreTag": "<span class='algolia-docsearch-suggestion--highlight'>",
+    "highlightPostTag": "</span>",
+    "minWordSizefor1Typo": 3,
+    "minWordSizefor2Typos": 7,
+    "allowTyposOnNumericTokens": false,
+    "minProximity": 1,
+    "ignorePlurals": true,
+    "advancedSyntax": true,
+    "attributeCriteriaComputedByMinProximity": true,
+    "removeWordsIfNoResults": "allOptional"
+  }
+}

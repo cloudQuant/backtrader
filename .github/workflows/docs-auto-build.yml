@@ -1,0 +1,105 @@
+name: Documentation CI Checks
+
+# CI-only workflow: coverage + link validation (NO deployment).
+# Deployment is handled by docs.yml → GitHub Pages.
+
+on:
+  pull_request:
+    branches: [development, master]
+    paths:
+      - 'docs/**'
+      - 'backtrader/**/*.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-coverage:
+    name: Check Documentation Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Run documentation coverage scanner
+        run: |
+          python tools/doc_coverage_scanner.py --output docs/DOC_COVERAGE_REPORT.md
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc-coverage-report
+          path: docs/DOC_COVERAGE_REPORT.md
+
+      - name: Check coverage threshold
+        run: |
+          coverage=$(python tools/doc_coverage_scanner.py | grep "Overall coverage:" | awk '{print $3}' | sed 's/%//')
+          echo "Documentation coverage: ${coverage}%"
+          if (( $(echo "$coverage < 90.0" | bc -l) )); then
+            echo "::warning::Documentation coverage (${coverage}%) is below 90% threshold"
+          fi
+
+  build-and-validate:
+    name: Build & Validate Links
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -e .
+          pip install linkchecker
+
+      - name: Build English documentation
+        run: |
+          cd docs
+          sphinx-build -b html source build/html/en -D language=en -j auto
+
+      - name: Build Chinese documentation
+        env:
+          BUILD_LANGUAGE: zh
+        run: |
+          cd docs
+          sphinx-build -b html source build/html/zh \
+            -D language=zh_CN \
+            -D root_doc=index_zh \
+            -D master_doc=index_zh \
+            -j auto
+
+      - name: Validate links
+        run: |
+          linkchecker --check-extern --ignore-url="^mailto:" \
+            --file-output=text/linkchecker-out.txt \
+            docs/build/html/en/index.html || true
+
+      - name: Upload link check report
+        uses: actions/upload-artifact@v4
+        with:
+          name: link-check-report
+          path: linkchecker-out.txt
+        if: always()

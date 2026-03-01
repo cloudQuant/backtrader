@@ -1,21 +1,16 @@
-name: Documentation
+name: Documentation → GitHub Pages
 
 on:
   push:
-    branches:
-      - development
-      - master
+    branches: [development, master]
     paths:
       - 'docs/**'
       - 'backtrader/**'
       - '.github/workflows/docs.yml'
   pull_request:
-    branches:
-      - development
-      - master
-    paths:
-      - 'docs/**'
-  workflow_dispatch:  # Allow manual trigger
+    branches: [development, master]
+    paths: ['docs/**']
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -23,8 +18,11 @@ permissions:
   id-token: write
 
 concurrency:
-  group: "pages"
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
+
+env:
+  DEPLOY_URL: https://cloudquant.github.io/backtrader
 
 jobs:
   build:
@@ -48,39 +46,72 @@ jobs:
           pip install -e .
 
       - name: Build English documentation
+        env:
+          DEPLOY_URL: ${{ env.DEPLOY_URL }}
         run: |
           cd docs
-          sphinx-build -b html source build/html/en -D language=en
+          sphinx-build -b html source build/html/en -D language=en -j auto
 
       - name: Build Chinese documentation
+        env:
+          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+          BUILD_LANGUAGE: zh
         run: |
           cd docs
-          sphinx-build -b html source build/html/zh -D language=zh_CN
+          sphinx-build -b html source build/html/zh \
+            -D language=zh_CN \
+            -D root_doc=index_zh \
+            -D master_doc=index_zh \
+            -j auto
 
-      - name: Create index redirect
+      - name: Create landing page (auto-redirect to English)
         run: |
-          cat > docs/build/html/index.html << 'EOF'
+          cat > docs/build/html/index.html << 'LANDING'
           <!DOCTYPE html>
-          <html>
+          <html lang="en">
           <head>
             <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1">
             <title>Backtrader Documentation</title>
-            <meta http-equiv="refresh" content="0; url=en/index.html">
+            <meta http-equiv="refresh" content="0;url=en/index.html">
+            <link rel="canonical" href="https://cloudquant.github.io/backtrader/en/">
             <style>
-              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-              a { color: #007bff; text-decoration: none; margin: 0 20px; font-size: 18px; }
+              *{margin:0;padding:0;box-sizing:border-box}
+              body{font-family:system-ui,-apple-system,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#E3F2FD,#BBDEFB,#E8EAF6);padding:20px}
+              .card{background:#fff;border-radius:16px;padding:48px 40px;box-shadow:0 8px 32px rgba(21,101,192,.12);text-align:center;max-width:520px;width:100%}
+              h1{color:#1565C0;font-size:2rem;margin-bottom:8px}
+              p{color:#546E7A;margin-bottom:24px}
+              .btns{display:flex;gap:16px;justify-content:center;margin-bottom:20px}
+              .btn{padding:14px 36px;border-radius:10px;font-size:1rem;font-weight:600;text-decoration:none;transition:transform .15s,box-shadow .15s}
+              .btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.15)}
+              .btn-en{background:#1565C0;color:#fff}
+              .btn-zh{background:#C71D23;color:#fff}
+              .links{display:flex;gap:12px;justify-content:center}
+              .links a{padding:8px 20px;border-radius:8px;font-size:.9rem;text-decoration:none;border:1px solid #B0BEC5;color:#37474F}
+              .links a:hover{background:#ECEFF1}
+              .redirect{color:#90A4AE;font-size:.85rem;margin-top:16px}
             </style>
           </head>
           <body>
-            <h1>Backtrader Documentation</h1>
-            <p>
-              <a href="en/index.html">English</a> |
-              <a href="zh/index.html">中文</a>
-            </p>
-            <p>Redirecting to English documentation...</p>
+            <div class="card">
+              <h1>Backtrader</h1>
+              <p>Select language / 选择语言</p>
+              <div class="btns">
+                <a class="btn btn-en" href="en/index.html">English</a>
+                <a class="btn btn-zh" href="zh/index_zh.html">中文</a>
+              </div>
+              <div class="links">
+                <a href="https://github.com/cloudQuant/backtrader" target="_blank">GitHub</a>
+                <a href="https://gitee.com/yunjinqi/backtrader" target="_blank">Gitee</a>
+              </div>
+              <p class="redirect">Redirecting to English documentation…</p>
+            </div>
           </body>
           </html>
-          EOF
+          LANDING
+
+      - name: Add .nojekyll
+        run: touch docs/build/html/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
