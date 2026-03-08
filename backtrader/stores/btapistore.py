@@ -827,6 +827,7 @@ class BtApiStore(LiveStoreBase):
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars = collections.defaultdict(collections.deque)
         self._live_bars = collections.defaultdict(collections.deque)
+        self._successful_connect_count = 0
         self.contract_metadata = {
             str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()
         }
@@ -1256,6 +1257,9 @@ class BtApiStore(LiveStoreBase):
             raise
 
         self._connected = True
+        if self._successful_connect_count > 0:
+            self.emit_runtime_event("store_reconnect_success", status="connected")
+        self._successful_connect_count += 1
         self.emit_runtime_event("store_connected", status="connected")
         self.emit_runtime_event("store_ready", status="ready")
         if str(self.provider).lower() == "ctp":

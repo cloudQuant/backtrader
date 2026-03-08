@@ -24,6 +24,24 @@ def test_store_emits_lifecycle_runtime_events():
     assert "store_disconnected" in event_types
 
 
+def test_store_emits_reconnect_success_after_restart():
+    """Restarting the same store instance should emit a reconnect-success event."""
+    client = FakeBtApiClient()
+    store = make_store(api=client, provider="okx")
+
+    store.start()
+    store.stop()
+    store.get_notifications()
+
+    store.start()
+
+    event_types = _event_types(store)
+
+    assert "store_reconnect_success" in event_types
+    assert "store_connected" in event_types
+    assert "store_ready" in event_types
+
+
 def test_store_exposes_contract_metadata_lookup():
     """Configured contract metadata should be queryable by symbol."""
     store = make_store(
