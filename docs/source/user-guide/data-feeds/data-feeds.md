@@ -278,4 +278,3 @@ datetime,open,high,low,close,volume
 
 - [Indicators](indicators.md) - Use indicators with your data
 - [Strategies](strategies.md) - Build trading strategies
-- [Live Trading](../live-trading/ccxt-guide.md) - Real-time trading

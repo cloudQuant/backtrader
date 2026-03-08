@@ -58,7 +58,7 @@ Why Backtrader?
    .. grid-item-card:: 🌐 Live Trading Ready
       :class-card: sd-border-0 sd-shadow-sm
 
-      Interactive Brokers, CCXT (crypto), and CTP
+      Interactive Brokers and CTP
       (Chinese futures) — backtest to live seamlessly.
 
    .. grid-item-card:: 🔧 Extensible
@@ -182,10 +182,6 @@ Source Code
    advanced/architecture/line-system
    advanced/architecture/phase-system
    advanced/architecture/post-metaclass
-   advanced/live-trading/ccxt-guide
-   advanced/live-trading/ccxt-env-config
-   advanced/live-trading/websocket
-   advanced/live-trading/funding-rate
    user-guide/data-feeds/live/ctp-live-trading
 
 .. toctree::

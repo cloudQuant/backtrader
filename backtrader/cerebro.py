@@ -1370,7 +1370,7 @@ class Cerebro(ParameterizedBase):
             * ``True`` – strategies are instantiated and returned
               immediately **without** entering an event loop.  This is
               useful when an external async loop drives the data (e.g.
-              ``ccxt.pro`` watchers calling ``strategy.notify_tick()``
+              external market-data watchers calling ``strategy.notify_tick()``
               directly).  Call ``cerebro.runstop()`` when done to tear
               down brokers and strategies.
 

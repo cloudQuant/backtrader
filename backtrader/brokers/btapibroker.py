@@ -6,13 +6,12 @@ from __future__ import annotations
 import collections
 import time
 
-from .livebroker import LiveBrokerBase
 from ..broker import BrokerBase
 from ..order import BuyOrder, SellOrder
 from ..position import Position
 
 
-class BtApiBroker(BrokerBase, LiveBrokerBase):
+class BtApiBroker(BrokerBase):
     """Broker implementation that routes live orders through BtApiStore."""
 
     params = (

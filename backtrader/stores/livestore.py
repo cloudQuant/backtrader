@@ -27,7 +27,7 @@ class LiveStoreBase(ABC):
 
     - Managing the network connection lifecycle.
     - Providing account balance / position queries.
-    - Creating matching :class:`LiveBrokerBase` and data-feed instances.
+    - Creating matching broker and data-feed instances.
     - Optionally subscribing to real-time market data.
 
     Subclasses **must** implement every ``@abstractmethod``.

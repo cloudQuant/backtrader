@@ -112,11 +112,11 @@ class BadIndicator(bt.Indicator):
 使用 [Conventional Commits](<https://www.conventionalcommits.org/):>
 
 ```bash
-feat: add WebSocket health check to CCXTFeed
-fix: handle order-not-found in CCXTBroker.cancel()
+feat: add live tick aggregation to BtApiFeed
+fix: keep BtApiBroker alive before first live bar
 perf: cache broker reference in total_value.next()
-docs: update CCXT live trading guide
-test: add error handling tests for CCXTBroker
+docs: update CTP live trading guide
+test: add regression coverage for live broker startup
 refactor: extract retry logic to _retry_api_call()
 
 ```bash
@@ -168,7 +168,7 @@ pytest tests/ -v -n 4
 
 # 单个测试文件
 
-pytest tests/new_functions/test_ccxt_error_handling.py -v
+pytest tests/unit/brokers/test_btapibroker.py -v
 
 ```bash
 
@@ -249,8 +249,6 @@ pytest tests/new_functions/test_ccxt_error_handling.py -v
 | 目录 | 说明 | 开发频率 |
 
 |------|------|----------|
-
-| `backtrader/ccxt/` | CCXT 实盘交易模块 | 🔥 高 |
 
 | `backtrader/brokers/` | Broker 实现 | 🔥 高 |
 

@@ -13,4 +13,3 @@ Submodules
    :maxdepth: 4
 
    backtrader.brokers.bbroker
-   backtrader.brokers.ccxtbroker

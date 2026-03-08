@@ -14,7 +14,6 @@ Submodules
 
    backtrader.feeds.blaze
    backtrader.feeds.btcsv
-   backtrader.feeds.ccxtfeed
    backtrader.feeds.chainer
    backtrader.feeds.csvgeneric
    backtrader.feeds.influxfeed

@@ -46,8 +46,6 @@ setup(
             "dash",
             "bokeh",
             "pyecharts",
-            # Optional deps needed for test collection
-            "ccxt>=4.0.0",
             "mysql-connector-python",
             "python-dotenv",
             "websockets",

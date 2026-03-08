@@ -12,5 +12,4 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   backtrader.stores.ccxtstore
    backtrader.stores.vchartfile
