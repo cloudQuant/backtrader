@@ -711,7 +711,11 @@ class TradeLogger(Observer):
         category = "system"
         if level in {"ERROR", "CRITICAL"} or event.get("error_code") or event.get("error_msg"):
             category = "error"
-        elif event_type.startswith("order_") or event_type.startswith("duplicate_"):
+        elif (
+            event_type.startswith("order_")
+            or event_type.startswith("duplicate_")
+            or event_type.startswith("batch_cancel_")
+        ):
             category = "monitor"
 
         self._log_event(

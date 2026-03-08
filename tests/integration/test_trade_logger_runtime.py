@@ -194,3 +194,59 @@ def test_trade_logger_records_monitor_thresholds_and_duplicates(tmp_path):
     assert "cancel_count_threshold_reached" in monitor_events
     assert "submit_cancel_total_threshold_reached" in monitor_events
     assert "duplicate_order_threshold_reached" in monitor_events
+
+
+@pytest.mark.integration
+def test_trade_logger_records_batch_cancel_runtime_events(tmp_path):
+    """Batch-cancel runtime events should be persisted into monitor.log."""
+    client = FakeBtApiClient(
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 100.0, 101.0, 99.0, 100.5),
+                make_bar(1, 100.5, 102.0, 100.0, 101.0),
+                make_bar(2, 101.0, 102.5, 100.5, 101.5),
+            ]
+        }
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+    cerebro = bt.Cerebro()
+
+    class BatchCancelStrategy(bt.Strategy):
+        def __init__(self):
+            self.orders = []
+            self.bar_count = 0
+
+        def next(self):
+            self.bar_count += 1
+            if self.bar_count == 1:
+                self.orders.append(
+                    self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
+                )
+                self.orders.append(
+                    self.sell(data=self.datas[0], size=1, price=99.0, exectype=bt.Order.Limit)
+                )
+                return
+
+            if self.bar_count == 2:
+                self.broker.batch_cancel(self.orders)
+                return
+
+            self.cerebro.runstop()
+
+    cerebro.setbroker(broker)
+    cerebro.adddata(data)
+    cerebro.addstrategy(BatchCancelStrategy)
+    cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(tmp_path), log_format="json")
+
+    results = cerebro.run()
+
+    assert len(results) == 1
+
+    monitor_entries = _read_json_lines(tmp_path / "monitor.log")
+    monitor_events = [entry["event_type"] for entry in monitor_entries]
+
+    assert "batch_cancel_requested" in monitor_events
+    assert "batch_cancel_completed" in monitor_events
+    assert monitor_events.count("order_cancel_request") == 2

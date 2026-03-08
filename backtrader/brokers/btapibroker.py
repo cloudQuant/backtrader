@@ -317,12 +317,56 @@ class BtApiBroker(BrokerBase):
     def batch_cancel(self, orders=None):
         """Cancel a batch of live orders and return the canceled order objects."""
         candidates = list(orders if orders is not None else self.get_orders_open())
+        requested = [self._order_runtime_details(order) for order in candidates]
+        self._emit_runtime_event(
+            "batch_cancel_requested",
+            status="submitted",
+            details={
+                "requested_count": len(candidates),
+                "orders": requested,
+            },
+        )
+
         cancelled = []
+        failures = []
         for order in candidates:
             if not order.alive():
                 continue
-            self.cancel(order)
+
+            try:
+                self.cancel(order)
+            except Exception as exc:
+                details = self._order_runtime_details(order)
+                details.update(
+                    error_code=type(exc).__name__,
+                    error_msg=str(exc),
+                )
+                failures.append(details)
+                continue
+
             cancelled.append(order)
+
+        summary = {
+            "requested_count": len(candidates),
+            "cancelled_count": len(cancelled),
+            "failure_count": len(failures),
+            "cancelled_orders": [self._order_runtime_details(order) for order in cancelled],
+            "failed_orders": failures,
+        }
+        if failures:
+            self._emit_runtime_event(
+                "batch_cancel_failed",
+                level="ERROR",
+                status="partial" if cancelled else "failed",
+                details=summary,
+            )
+        else:
+            self._emit_runtime_event(
+                "batch_cancel_completed",
+                status="completed",
+                details=summary,
+            )
+
         return cancelled
 
     def _refresh_account(self, force=False, raise_errors=False):
@@ -468,6 +512,21 @@ class BtApiBroker(BrokerBase):
         if self.store is not None and hasattr(self.store, "emit_runtime_event"):
             return self.store.emit_runtime_event(event_type, **kwargs)
         return None
+
+    def _order_runtime_details(self, order):
+        """Build a stable runtime-event payload for an order object."""
+        external_order_id = getattr(order.info, "external_order_id", None)
+        ctp_order_ref = getattr(order.info, "ctp_order_ref", None)
+        return {
+            "order_ref": getattr(order, "ref", None),
+            "external_order_id": external_order_id,
+            "ctp_order_ref": ctp_order_ref,
+            "data_name": self._position_key(order.data),
+            "side": "buy" if order.isbuy() else "sell",
+            "size": abs(float(order.size or 0.0)),
+            "price": order.price or getattr(order.created, "price", None),
+            "status": order.getstatusname(),
+        }
 
     def _drain_store_updates(self):
         """Consume remote broker updates from the store and reflect them locally."""

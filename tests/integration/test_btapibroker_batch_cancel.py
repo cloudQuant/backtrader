@@ -58,9 +58,16 @@ def test_batch_cancel_cancels_multiple_live_orders():
             {"order_ref": "btapi-2", "dataname": DEFAULT_SYMBOL},
         ]
 
-        event_types = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+        events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+        event_types = [event["event_type"] for event in events]
+        batch_completed = next(event for event in events if event["event_type"] == "batch_cancel_completed")
+
+        assert "batch_cancel_requested" in event_types
+        assert "batch_cancel_completed" in event_types
         assert event_types.count("order_cancel_request") == 2
         assert event_types.count("order_cancel_submitted") == 2
+        assert batch_completed["details"]["cancelled_count"] == 2
+        assert batch_completed["details"]["failure_count"] == 0
     finally:
         broker.stop()
 
@@ -117,5 +124,69 @@ def test_batch_cancel_keeps_partial_fill_position_and_cancels_remainder():
             {"order_ref": "btapi-2", "dataname": DEFAULT_SYMBOL},
         ]
         assert broker.positions[DEFAULT_SYMBOL].size == pytest.approx(1.0)
+    finally:
+        broker.stop()
+
+
+@pytest.mark.integration
+def test_batch_cancel_reports_partial_failures_without_aborting():
+    """Batch cancel should keep processing later orders and emit failure details."""
+
+    class FailingCancelClient(FakeBtApiClient):
+        def cancel_order(self, order_ref, dataname=None):
+            if order_ref == "btapi-2":
+                raise RuntimeError("remote cancel rejected")
+            return super().cancel_order(order_ref, dataname=dataname)
+
+    client = FailingCancelClient(
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 100.0, 101.0, 99.0, 100.5),
+                make_bar(1, 100.5, 102.0, 100.0, 101.0),
+            ]
+        }
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+
+    try:
+        order_a = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        order_b = broker.sell(
+            owner=None,
+            data=data,
+            size=1,
+            price=99.0,
+            exectype=bt.Order.Limit,
+        )
+
+        cancelled = broker.batch_cancel([order_a, order_b])
+
+        assert [order.ref for order in cancelled] == [order_a.ref]
+        assert order_a.status == bt.Order.Canceled
+        assert order_b.status == bt.Order.Accepted
+        assert client.cancelled_orders == [{"order_ref": "btapi-1", "dataname": DEFAULT_SYMBOL}]
+
+        events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+        event_types = [event["event_type"] for event in events]
+        batch_failed = next(event for event in events if event["event_type"] == "batch_cancel_failed")
+
+        assert "batch_cancel_requested" in event_types
+        assert "batch_cancel_failed" in event_types
+        assert "order_cancel_reject_remote" in event_types
+        assert batch_failed["status"] == "partial"
+        assert batch_failed["details"]["cancelled_count"] == 1
+        assert batch_failed["details"]["failure_count"] == 1
+        assert batch_failed["details"]["failed_orders"][0]["order_ref"] == order_b.ref
     finally:
         broker.stop()
