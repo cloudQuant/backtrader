@@ -781,6 +781,12 @@ class Cerebro(ParameterizedBase):
         if store not in self.stores:
             self.stores.append(store)
 
+    def _maybe_add_store(self, candidate):
+        """Register a store exposed by a broker or data feed."""
+        store = getattr(candidate, "store", None) or getattr(candidate, "_store", None)
+        if store is not None:
+            self.addstore(store)
+
     def addwriter(self, wrtcls, *args, **kwargs):
         """Adds an ``Writer`` class to the mix. Instantiation will be done at
         ``run`` time in cerebro"""
@@ -867,6 +873,8 @@ class Cerebro(ParameterizedBase):
                 self._notify_store(msg, *args, **kwargs)
                 for strat in self.runningstrats:
                     strat.notify_store(msg, *args, **kwargs)
+                    if hasattr(strat, "_notify_store_to_observers"):
+                        strat._notify_store_to_observers(msg, *args, **kwargs)
 
     def adddatacb(self, callback):
         """Adds a callback to get messages which would be handled by the
@@ -891,6 +899,8 @@ class Cerebro(ParameterizedBase):
                 self._notify_data(data, status, *args, **kwargs)
                 for strat in self.runningstrats:
                     strat.notify_data(data, status, *args, **kwargs)
+                    if hasattr(strat, "_notify_data_to_observers"):
+                        strat._notify_data_to_observers(data, status, *args, **kwargs)
 
     def _notify_data(self, data, status, *args, **kwargs):
         """Internal method to dispatch data notifications."""
@@ -1049,6 +1059,7 @@ class Cerebro(ParameterizedBase):
         # Add feed if not already present
         if feed and feed not in self.feeds:
             self.feeds.append(feed)
+        self._maybe_add_store(data)
         # Set live mode if data is live
         if data.islive():
             self._dolive = True
@@ -1207,6 +1218,7 @@ class Cerebro(ParameterizedBase):
         """
         self._broker = broker
         broker.cerebro = self
+        self._maybe_add_store(broker)
         return broker
 
     def getbroker(self):

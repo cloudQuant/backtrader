@@ -12,6 +12,7 @@ import collections
 import datetime as _dt
 import importlib
 import time
+import uuid
 from typing import Any, Deque, Dict, Iterable, List, Optional
 
 from ..events import TickEvent
@@ -495,6 +496,7 @@ class BtApiStore(LiveStoreBase):
         positions: Optional[Iterable[Dict[str, Any]]] = None,
         historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
         live_bars: Optional[Dict[str, Iterable[Any]]] = None,
+        contract_metadata: Optional[Dict[str, Dict[str, Any]]] = None,
         autostart: bool = False,
         **kwargs: Any,
     ):
@@ -516,6 +518,14 @@ class BtApiStore(LiveStoreBase):
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars = collections.defaultdict(collections.deque)
         self._live_bars = collections.defaultdict(collections.deque)
+        self.contract_metadata = {
+            str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()
+        }
+        self.session_id = (
+            f"{self.provider}-"
+            f"{_dt.datetime.utcnow().strftime('%Y%m%d%H%M%S')}-"
+            f"{uuid.uuid4().hex[:8]}"
+        )
 
         self._seed_bar_cache(self._historical_bars, historical_bars)
         self._seed_bar_cache(self._live_bars, live_bars)
@@ -542,6 +552,9 @@ class BtApiStore(LiveStoreBase):
 
     def stop(self):
         """Disconnect from the underlying bt_api_py client."""
+        if self._connected:
+            self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
+
         if self._api is not None:
             if hasattr(self._api, "disconnect"):
                 self._api.disconnect()
@@ -550,6 +563,7 @@ class BtApiStore(LiveStoreBase):
 
         self._connected = False
         self._started = False
+        self.emit_runtime_event("store_disconnected", status="disconnected")
 
     def getbroker(self, *args, **kwargs):
         """Return a BtApiBroker bound to this store."""
@@ -646,6 +660,11 @@ class BtApiStore(LiveStoreBase):
 
         if hasattr(api, "subscribe"):
             api.subscribe(dataname)
+            self.emit_runtime_event(
+                "market_data_subscribe_request",
+                details={"data_name": dataname},
+                status="submitted",
+            )
 
     def fetch_history(
         self,
@@ -737,25 +756,82 @@ class BtApiStore(LiveStoreBase):
         """Submit a backtrader order through the unified API."""
         api = self._ensure_api_ready()
         payload = self._order_to_payload(order)
+        order_ref = getattr(order, "ref", None)
+        self.emit_runtime_event(
+            "order_submit_request",
+            order_ref=order_ref,
+            details=dict(payload),
+            status="submitted",
+        )
 
-        if hasattr(api, "submit_order"):
-            return api.submit_order(payload)
+        try:
+            if hasattr(api, "submit_order"):
+                response = api.submit_order(payload)
+            elif hasattr(api, "create_order"):
+                response = api.create_order(**payload)
+            else:
+                raise BtApiStoreError("Underlying bt_api_py client does not support order submission")
+        except Exception as exc:
+            self.emit_runtime_event(
+                "order_reject_remote",
+                level="ERROR",
+                order_ref=order_ref,
+                details=dict(payload),
+                error_code=type(exc).__name__,
+                error_msg=str(exc),
+                status="rejected",
+            )
+            raise
 
-        if hasattr(api, "create_order"):
-            return api.create_order(**payload)
+        external_order_id = self._extract_external_order_id(response)
+        self.emit_runtime_event(
+            "order_submit_accepted",
+            order_ref=external_order_id or order_ref,
+            details=dict(payload),
+            status="accepted",
+        )
+        return response
 
-        raise BtApiStoreError("Underlying bt_api_py client does not support order submission")
 
     def cancel_order(self, order):
         """Cancel a submitted order through the unified API."""
         api = self._ensure_api_ready()
         order_ref = getattr(order.info, "external_order_id", None) or getattr(order, "ref", None)
         dataname = self._extract_dataname(order.data)
+        details = {"order_ref": order_ref, "data_name": dataname}
+        self.emit_runtime_event(
+            "order_cancel_request",
+            order_ref=order_ref,
+            details=details,
+            status="submitted",
+        )
 
-        if hasattr(api, "cancel_order"):
-            return api.cancel_order(order_ref, dataname=dataname)
+        try:
+            if hasattr(api, "cancel_order"):
+                response = api.cancel_order(order_ref, dataname=dataname)
+            else:
+                raise BtApiStoreError(
+                    "Underlying bt_api_py client does not support order cancellation"
+                )
+        except Exception as exc:
+            self.emit_runtime_event(
+                "order_cancel_reject_remote",
+                level="ERROR",
+                order_ref=order_ref,
+                details=details,
+                error_code=type(exc).__name__,
+                error_msg=str(exc),
+                status="rejected",
+            )
+            raise
 
-        raise BtApiStoreError("Underlying bt_api_py client does not support order cancellation")
+        self.emit_runtime_event(
+            "order_cancel_submitted",
+            order_ref=order_ref,
+            details=details,
+            status="accepted",
+        )
+        return response
 
     def push_live_bar(self, dataname: str, bar: Any):
         """Push a live bar into the local queue, primarily for tests."""
@@ -769,11 +845,49 @@ class BtApiStore(LiveStoreBase):
         """Record a store-level notification."""
         self.notifs.append((msg, args, kwargs))
 
+    def emit_runtime_event(
+        self,
+        event_type: str,
+        *,
+        level: str = "INFO",
+        status: str = "",
+        details: Optional[Dict[str, Any]] = None,
+        order_ref: Any = None,
+        error_code: str = "",
+        error_msg: str = "",
+        **extra: Any,
+    ) -> Dict[str, Any]:
+        """Emit a structured runtime event into the store notification queue."""
+        payload = {
+            "timestamp": _dt.datetime.utcnow().isoformat(timespec="milliseconds"),
+            "event_type": str(event_type),
+            "level": str(level).upper(),
+            "status": status,
+            "provider": self.provider,
+            "session_id": self.session_id,
+            "account_id_masked": self._masked_account_id(),
+            "order_ref": order_ref,
+            "error_code": error_code,
+            "error_msg": error_msg,
+            "details": dict(details or {}),
+        }
+        payload.update(extra)
+        self.put_notification("runtime_event", event=payload)
+        return payload
+
     def get_notifications(self):
         """Return and clear pending notifications."""
         items = list(self.notifs)
         self.notifs.clear()
         return items
+
+    def get_contract_metadata(self, dataname: Optional[str] = None):
+        """Return configured contract metadata for a single symbol or all symbols."""
+        if dataname is None:
+            return {key: dict(value) for key, value in self.contract_metadata.items()}
+
+        metadata = self.contract_metadata.get(str(dataname), {})
+        return dict(metadata)
 
     def _seed_bar_cache(self, target, source):
         """Seed internal bar caches from initialization data."""
@@ -799,29 +913,53 @@ class BtApiStore(LiveStoreBase):
             kwargs.update(self._api_kwargs)
             self._api = api_cls(**kwargs)
 
-        if hasattr(self._api, "connect"):
-            self._api.connect()
-        elif hasattr(self._api, "start"):
-            self._api.start()
+        self.emit_runtime_event("store_connecting", status="connecting")
+
+        try:
+            if hasattr(self._api, "connect"):
+                self._api.connect()
+            elif hasattr(self._api, "start"):
+                self._api.start()
+        except Exception as exc:
+            self.emit_runtime_event(
+                "store_error",
+                level="ERROR",
+                status="connect_failed",
+                error_code=type(exc).__name__,
+                error_msg=str(exc),
+            )
+            raise
 
         self._connected = True
+        self.emit_runtime_event("store_connected", status="connected")
+        self.emit_runtime_event("store_ready", status="ready")
+        if str(self.provider).lower() == "ctp":
+            self.emit_runtime_event("store_auth_success", status="ready")
+            self.emit_runtime_event("store_login_success", status="ready")
         self.get_balance()
         return self._api
 
     def _order_to_payload(self, order) -> Dict[str, Any]:
         """Convert a backtrader order into a generic bt_api_py payload."""
         price = order.price or order.created.price
+        data_name = self._extract_dataname(order.data)
         payload = {
-            "symbol": self._extract_dataname(order.data),
+            "symbol": data_name,
+            "data_name": data_name,
             "side": "buy" if order.isbuy() else "sell",
             "size": abs(order.size),
             "price": price,
             "order_type": order.getordername().lower(),
             "valid": order.valid,
+            "tradeid": getattr(order, "tradeid", 0),
         }
 
         if order.pricelimit is not None:
             payload["pricelimit"] = order.pricelimit
+
+        offset = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)("offset")
+        if offset:
+            payload["offset"] = offset
 
         return payload
 
@@ -835,3 +973,29 @@ class BtApiStore(LiveStoreBase):
             or getattr(data, "_dataname", None)
             or repr(data)
         )
+
+    def _masked_account_id(self) -> str:
+        """Return a masked account identifier for runtime audit logs."""
+        account_id = (
+            self._api_kwargs.get("investor_id")
+            or self._api_kwargs.get("user_id")
+            or self._config.get("investor_id")
+            or self._config.get("user_id")
+            or ""
+        )
+        account_id = str(account_id)
+        if len(account_id) <= 4:
+            return account_id
+        return f"{account_id[:2]}***{account_id[-2:]}"
+
+    @staticmethod
+    def _extract_external_order_id(response: Any):
+        """Best-effort extraction of an external order id from API responses."""
+        if isinstance(response, dict):
+            return (
+                response.get("id")
+                or response.get("order_id")
+                or response.get("orderId")
+                or response.get("external_order_id")
+            )
+        return None

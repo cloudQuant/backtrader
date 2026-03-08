@@ -164,3 +164,110 @@ def test_next_ignores_transient_refresh_failures():
         assert broker._value == pytest.approx(900.0)
     finally:
         broker.stop()
+
+
+def test_local_validation_rejects_invalid_tick_size():
+    """Broker should reject locally invalid prices without hitting the API."""
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(
+        api=client,
+        contract_metadata={DEFAULT_SYMBOL: {"min_price_tick": 0.5}},
+    )
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=100.3,
+            exectype=bt.Order.Limit,
+        )
+
+        assert order.status == bt.Order.Rejected
+        assert order.info["error_code"] == "invalid_price_tick"
+        assert client.submitted_orders == []
+
+        events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+        assert any(
+            event["event_type"] == "order_reject_local"
+            and event["error_code"] == "invalid_price_tick"
+            for event in events
+        )
+    finally:
+        broker.stop()
+
+
+def test_trading_controls_batch_cancel_and_force_logout():
+    """Trading controls should reject new orders, cancel open ones, and disconnect cleanly."""
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        broker.disable_trading("risk")
+        disabled_order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        assert disabled_order.status == bt.Order.Rejected
+
+        broker.enable_trading("clear")
+        order_a = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        order_b = broker.sell(
+            owner=None,
+            data=data,
+            size=1,
+            price=99.0,
+            exectype=bt.Order.Limit,
+        )
+        cancelled = broker.batch_cancel()
+        assert [order.ref for order in cancelled] == [order_a.ref, order_b.ref]
+        assert all(order.status == bt.Order.Canceled for order in cancelled)
+        assert len(client.cancelled_orders) == 2
+
+        broker.pause_strategy("manual")
+        paused_order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+        assert paused_order.status == bt.Order.Rejected
+
+        broker.resume_strategy("manual")
+        broker.force_logout("panic")
+        assert client.connected is False
+        assert store.is_connected is False
+
+        events = [kwargs["event"]["event_type"] for _msg, _args, kwargs in store.get_notifications()]
+        assert "trading_disabled" in events
+        assert "trading_enabled" in events
+        assert "strategy_paused" in events
+        assert "strategy_resumed" in events
+        assert "force_logout_requested" in events
+        assert "store_disconnected" in events
+    finally:
+        broker.stop()

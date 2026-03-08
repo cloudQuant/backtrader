@@ -26,9 +26,12 @@ Example:
     >>> cerebro.run()
 """
 
+import collections
 import json
 import logging
 import os
+import time
+import uuid
 from datetime import datetime
 
 from ..observer import Observer
@@ -98,10 +101,18 @@ class TradeLogger(Observer):
         log_positions=True,
         log_indicators=True,
         log_signals=True,
+        log_system=True,
+        log_monitoring=True,
+        log_errors=True,
         log_position_snapshot=True,
         snapshot_file="current_position.yaml",
         log_format="json",
         log_to_console=False,
+        submit_count_warn_threshold=0,
+        cancel_count_warn_threshold=0,
+        submit_cancel_total_warn_threshold=0,
+        duplicate_order_warn_threshold=0,
+        duplicate_order_window_seconds=60.0,
         # MySQL settings - disabled by default
         mysql_enabled=False,
         mysql_host="localhost",
@@ -127,8 +138,15 @@ class TradeLogger(Observer):
         self._position_logger = None
         self._indicator_logger = None
         self._signal_logger = None
+        self._system_logger = None
+        self._monitor_logger = None
+        self._error_logger = None
         self._mysql_conn = None
         self._last_position_state = {}
+        self._run_id = self._generate_run_id()
+        self._monitoring = collections.Counter()
+        self._duplicate_requests = collections.defaultdict(collections.deque)
+        self._triggered_thresholds = set()
         self._loggers_initialized = False
 
     def start(self):
@@ -141,6 +159,12 @@ class TradeLogger(Observer):
                     if self not in self._owner._lineiterators[self._ltype]:
                         self._owner._lineiterators[self._ltype].append(self)
         self._ensure_loggers_initialized()
+        self._log_event(
+            "system",
+            "session_started",
+            level="INFO",
+            details={"observer": self.__class__.__name__},
+        )
 
     def _ensure_loggers_initialized(self):
         """Ensure loggers are initialized (lazy initialization)."""
@@ -180,6 +204,21 @@ class TradeLogger(Observer):
                 "bt_signal", os.path.join(self.p.log_dir, "signal.log")
             )
 
+        if self.p.log_system:
+            self._system_logger = self._create_file_logger(
+                "bt_system", os.path.join(self.p.log_dir, "system.log")
+            )
+
+        if self.p.log_monitoring:
+            self._monitor_logger = self._create_file_logger(
+                "bt_monitor", os.path.join(self.p.log_dir, "monitor.log")
+            )
+
+        if self.p.log_errors:
+            self._error_logger = self._create_file_logger(
+                "bt_error", os.path.join(self.p.log_dir, "error.log")
+            )
+
     def _create_file_logger(self, name, file_path):
         """Create a file logger using Python standard logging.
 
@@ -190,8 +229,14 @@ class TradeLogger(Observer):
         Returns:
             logging.Logger instance
         """
-        logger = logging.getLogger(name)
+        logger = logging.getLogger(f"{name}:{id(self)}")
         logger.setLevel(logging.INFO)
+        logger.propagate = False
+        for handler in list(logger.handlers):
+            try:
+                handler.close()
+            except Exception:
+                pass
         logger.handlers = []  # Clear existing handlers
 
         # File handler - write to file
@@ -208,6 +253,198 @@ class TradeLogger(Observer):
             logger.addHandler(console_handler)
 
         return logger
+
+    @staticmethod
+    def _generate_run_id():
+        """Generate a stable per-run identifier for correlation."""
+        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        return f"trade-log-{timestamp}-{uuid.uuid4().hex[:8]}"
+
+    @staticmethod
+    def _log_time_str():
+        """Return the current UTC timestamp as an ISO string."""
+        return datetime.utcnow().isoformat(timespec="milliseconds")
+
+    def _store_provider(self):
+        """Return the active live provider when available."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            store = getattr(broker, "store", None)
+            if store is not None:
+                return getattr(store, "provider", "")
+            return getattr(broker, "provider", "")
+        except Exception:
+            return ""
+
+    def _session_id(self):
+        """Return the active store session id when available."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            store = getattr(broker, "store", None)
+            return getattr(store, "session_id", "") if store is not None else ""
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _safe_order_info(order, key, default=None):
+        """Read a value from order.info with a stable fallback."""
+        info = getattr(order, "info", None)
+        if info is None:
+            return default
+        if hasattr(info, key):
+            return getattr(info, key, default)
+        if hasattr(info, "get"):
+            try:
+                return info.get(key, default)
+            except Exception:
+                return default
+        return default
+
+    def _base_event(self, event_type, level="INFO", event_time=None, **fields):
+        """Create a common structured event payload."""
+        payload = {
+            "log_time": self._log_time_str(),
+            "event_time": event_time or self._get_datetime_str(),
+            "event_type": event_type,
+            "level": str(level).upper(),
+            "run_id": self._run_id,
+            "session_id": self._session_id(),
+            "provider": self._store_provider(),
+            "strategy_name": self._get_strategy_name(),
+        }
+        payload.update(fields)
+        return payload
+
+    def _emit_payload(self, logger, payload, text_line=None):
+        """Write a structured payload to a logger."""
+        if logger is None:
+            return
+
+        if self.p.log_format == "json":
+            logger.info(json.dumps(payload, ensure_ascii=False, default=str))
+            return
+
+        if text_line is None:
+            parts = [
+                payload.get("log_time", ""),
+                payload.get("level", "INFO"),
+                payload.get("event_type", ""),
+            ]
+            for key in ("data_name", "status", "error_code", "error_msg"):
+                value = payload.get(key)
+                if value not in ("", None):
+                    parts.append(f"{key}={value}")
+            details = payload.get("details")
+            if details:
+                parts.append(str(details))
+            text_line = " | ".join(str(part) for part in parts if part != "")
+
+        logger.info(text_line)
+
+    def _log_event(self, category, event_type, level="INFO", text_line=None, **fields):
+        """Route a structured event into the appropriate runtime log."""
+        logger_map = {
+            "system": self._system_logger,
+            "monitor": self._monitor_logger,
+            "error": self._error_logger,
+        }
+        payload = self._base_event(event_type, level=level, **fields)
+        self._emit_payload(logger_map.get(category), payload, text_line=text_line)
+        return payload
+
+    def _monitor_threshold(self, counter_name, threshold, event_type):
+        """Emit a warning event when a monitoring threshold is crossed."""
+        if threshold <= 0:
+            return
+
+        value = int(self._monitoring.get(counter_name, 0))
+        if value < threshold:
+            return
+
+        key = (counter_name, threshold)
+        if key in self._triggered_thresholds:
+            return
+
+        self._triggered_thresholds.add(key)
+        self._log_event(
+            "monitor",
+            event_type,
+            level="WARNING",
+            details={"counter": counter_name, "value": value, "threshold": threshold},
+        )
+
+    def _make_duplicate_key(self, action_type, details):
+        """Build a duplicate-request key within the configured time window."""
+        return (
+            action_type,
+            str(details.get("data_name") or ""),
+            str(details.get("side") or ""),
+            str(details.get("offset") or ""),
+            str(details.get("size") or ""),
+            str(details.get("price") or ""),
+            str(details.get("order_ref") or ""),
+        )
+
+    def _track_request_monitoring(self, action_type, details):
+        """Update request counters, duplicate detection, and threshold checks."""
+        if action_type == "submit":
+            self._monitoring["submit_count"] += 1
+            self._monitoring["submit_cancel_total"] += 1
+            self._monitor_threshold(
+                "submit_count",
+                int(self.p.submit_count_warn_threshold or 0),
+                "submit_count_threshold_reached",
+            )
+            self._monitor_threshold(
+                "submit_cancel_total",
+                int(self.p.submit_cancel_total_warn_threshold or 0),
+                "submit_cancel_total_threshold_reached",
+            )
+        elif action_type == "cancel":
+            self._monitoring["cancel_count"] += 1
+            self._monitoring["submit_cancel_total"] += 1
+            self._monitor_threshold(
+                "cancel_count",
+                int(self.p.cancel_count_warn_threshold or 0),
+                "cancel_count_threshold_reached",
+            )
+            self._monitor_threshold(
+                "submit_cancel_total",
+                int(self.p.submit_cancel_total_warn_threshold or 0),
+                "submit_cancel_total_threshold_reached",
+            )
+
+        key = self._make_duplicate_key(action_type, details)
+        window = float(self.p.duplicate_order_window_seconds or 0.0)
+        if window <= 0:
+            return
+
+        now = time.time()
+        queue = self._duplicate_requests[key]
+        queue.append(now)
+        while queue and (now - queue[0]) > window:
+            queue.popleft()
+
+        if len(queue) <= 1:
+            return
+
+        counter_name = f"duplicate_{action_type}_count"
+        self._monitoring[counter_name] += 1
+        self._log_event(
+            "monitor",
+            "duplicate_order_detected",
+            level="WARNING",
+            details={
+                "action_type": action_type,
+                "duplicate_count": len(queue),
+                **details,
+            },
+        )
+        self._monitor_threshold(
+            counter_name,
+            int(self.p.duplicate_order_warn_threshold or 0),
+            "duplicate_order_threshold_reached",
+        )
 
     def _init_mysql(self):
         """Initialize MySQL connection and create tables."""
@@ -382,13 +619,20 @@ class TradeLogger(Observer):
             return
 
         log_data = self._format_order(order)
+        self._emit_payload(self._order_logger, log_data, text_line=self._format_order_text(order))
 
-        # File logging
-        if self._order_logger:
-            if self.p.log_format == "json":
-                self._order_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
-            else:
-                self._order_logger.info(self._format_order_text(order))
+        if str(order.getstatusname()).lower() == "rejected":
+            self._log_event(
+                "error",
+                "order_rejected",
+                level="ERROR",
+                data_name=log_data.get("data_name"),
+                order_ref=order.ref,
+                error_code=log_data.get("error_code", ""),
+                error_msg=log_data.get("error_msg", ""),
+                status=log_data.get("status"),
+                details={"order_type": log_data.get("order_type")},
+            )
 
         # MySQL logging
         if self.p.mysql_enabled and self._mysql_conn:
@@ -402,13 +646,7 @@ class TradeLogger(Observer):
             return
 
         log_data = self._format_trade(trade)
-
-        # File logging
-        if self._trade_logger:
-            if self.p.log_format == "json":
-                self._trade_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
-            else:
-                self._trade_logger.info(self._format_trade_text(trade))
+        self._emit_payload(self._trade_logger, log_data, text_line=self._format_trade_text(trade))
 
         # MySQL logging
         if self.p.mysql_enabled and self._mysql_conn:
@@ -430,6 +668,7 @@ class TradeLogger(Observer):
             return
 
         log_data = {
+            "log_time": self._log_time_str(),
             "datetime": self._get_datetime_str(),
             "action": action,
             "size": size,
@@ -439,19 +678,88 @@ class TradeLogger(Observer):
             "reason": reason or "",
             "strategy_name": self._get_strategy_name(),
         }
-
-        # File logging
-        if self._signal_logger:
-            if self.p.log_format == "json":
-                self._signal_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
-            else:
-                self._signal_logger.info(
-                    f"{log_data['datetime']} | {action.upper()} | size={size} | price={price} | {reason or ''}"
-                )
+        self._emit_payload(
+            self._signal_logger,
+            log_data,
+            text_line=(
+                f"{log_data['log_time']} | {action.upper()} | size={size} | "
+                f"price={price} | {reason or ''}"
+            ),
+        )
 
         # MySQL logging
         if self.p.mysql_enabled and self._mysql_conn:
             self._insert_signal_mysql(log_data)
+
+    def notify_store_event(self, msg, *args, **kwargs):
+        """Log a structured runtime event forwarded from a store."""
+        self._ensure_loggers_initialized()
+
+        event = kwargs.get("event")
+        if not isinstance(event, dict):
+            event = {
+                "event_type": str(msg),
+                "level": "INFO",
+                "details": {"args": args, "kwargs": kwargs},
+            }
+
+        event_type = str(event.get("event_type") or msg or "runtime_event")
+        level = str(event.get("level") or "INFO").upper()
+        details = dict(event.get("details") or {})
+        data_name = details.get("data_name")
+
+        category = "system"
+        if level in {"ERROR", "CRITICAL"} or event.get("error_code") or event.get("error_msg"):
+            category = "error"
+        elif event_type.startswith("order_") or event_type.startswith("duplicate_"):
+            category = "monitor"
+
+        self._log_event(
+            category,
+            event_type,
+            level=level,
+            event_time=event.get("timestamp"),
+            data_name=data_name,
+            order_ref=event.get("order_ref") or details.get("order_ref"),
+            error_code=event.get("error_code", ""),
+            error_msg=event.get("error_msg", ""),
+            account_id_masked=event.get("account_id_masked", ""),
+            provider=event.get("provider") or self._store_provider(),
+            session_id=event.get("session_id") or self._session_id(),
+            status=event.get("status", ""),
+            details=details,
+        )
+
+        if event_type in {"order_submit_request", "order_reject_local", "order_reject_remote"}:
+            self._track_request_monitoring("submit", details)
+        elif event_type == "order_cancel_request":
+            self._track_request_monitoring("cancel", details)
+
+    def notify_data_event(self, data, status, *args, **kwargs):
+        """Log data-feed runtime status forwarded from Cerebro."""
+        self._ensure_loggers_initialized()
+
+        data_name = getattr(data, "_name", None) or getattr(data, "_dataname", None) or repr(data)
+        status_names = getattr(data, "_NOTIFNAMES", ())
+        if isinstance(status, int) and 0 <= status < len(status_names):
+            status_name = status_names[status]
+        else:
+            status_name = str(status)
+
+        level = "INFO"
+        if status_name in {"DISCONNECTED", "CONNBROKEN"}:
+            level = "ERROR"
+        elif status_name == "DELAYED":
+            level = "WARNING"
+
+        self._log_event(
+            "system" if level == "INFO" else "error",
+            "data_status",
+            level=level,
+            data_name=data_name,
+            status=status_name,
+            details={"args": args, "kwargs": kwargs},
+        )
 
     def _log_positions(self):
         """Log position information for all data feeds."""
@@ -469,6 +777,7 @@ class TradeLogger(Observer):
             data_name = getattr(data, "_name", str(data))
 
             log_data = {
+                "log_time": self._log_time_str(),
                 "datetime": self._get_datetime_str(),
                 "data_name": data_name,
                 "size": position.size,
@@ -479,16 +788,15 @@ class TradeLogger(Observer):
 
             # File logging
             if self._position_logger:
-                if self.p.log_format == "json":
-                    self._position_logger.info(
-                        json.dumps(log_data, ensure_ascii=False, default=str)
-                    )
-                else:
-                    self._position_logger.info(
-                        f"{log_data['datetime']} | {data_name} | "
+                self._emit_payload(
+                    self._position_logger,
+                    log_data,
+                    text_line=(
+                        f"{log_data['log_time']} | {data_name} | "
                         f"size={position.size} | price={position.price:.4f} | "
                         f"value={log_data['value']:.2f}"
-                    )
+                    ),
+                )
 
             # MySQL logging
             if self.p.mysql_enabled and self._mysql_conn:
@@ -505,6 +813,7 @@ class TradeLogger(Observer):
             return
 
         log_data = {
+            "log_time": self._log_time_str(),
             "datetime": self._get_datetime_str(),
             "strategy_name": self._get_strategy_name(),
             **indicators_data,
@@ -512,17 +821,14 @@ class TradeLogger(Observer):
 
         # File logging
         if self._indicator_logger:
-            if self.p.log_format == "json":
-                self._indicator_logger.info(json.dumps(log_data, ensure_ascii=False, default=str))
-            else:
-                indicator_str = " | ".join(
-                    [
-                        f"{k}={v:.4f}"
-                        for k, v in indicators_data.items()
-                        if isinstance(v, (int, float))
-                    ]
-                )
-                self._indicator_logger.info(f"{log_data['datetime']} | {indicator_str}")
+            indicator_str = " | ".join(
+                [f"{k}={v:.4f}" for k, v in indicators_data.items() if isinstance(v, (int, float))]
+            )
+            self._emit_payload(
+                self._indicator_logger,
+                log_data,
+                text_line=f"{log_data['log_time']} | {indicator_str}",
+            )
 
         # MySQL logging - insert each indicator separately
         if self.p.mysql_enabled and self._mysql_conn:
@@ -631,6 +937,7 @@ class TradeLogger(Observer):
     def _format_order(self, order):
         """Format order data for logging."""
         return {
+            "log_time": self._log_time_str(),
             "datetime": self._get_datetime_str(),
             "ref": order.ref,
             "order_type": "Buy" if order.isbuy() else "Sell",
@@ -643,12 +950,15 @@ class TradeLogger(Observer):
             "commission": order.executed.comm,
             "data_name": order.data._name if order.data else None,
             "strategy_name": self._get_strategy_name(),
+            "external_order_id": self._safe_order_info(order, "external_order_id"),
+            "error_code": self._safe_order_info(order, "error_code", ""),
+            "error_msg": self._safe_order_info(order, "error_msg", ""),
         }
 
     def _format_order_text(self, order):
         """Format order data as text."""
         return (
-            f"{self._get_datetime_str()} | "
+            f"{self._log_time_str()} | "
             f"{'BUY' if order.isbuy() else 'SELL'} | "
             f"ref={order.ref} | status={order.getstatusname()} | "
             f"size={order.size} | price={order.price}"
@@ -657,6 +967,7 @@ class TradeLogger(Observer):
     def _format_trade(self, trade):
         """Format trade data for logging."""
         return {
+            "log_time": self._log_time_str(),
             "datetime": self._get_datetime_str(),
             "ref": trade.ref,
             "data_name": trade.data._name,
@@ -678,7 +989,7 @@ class TradeLogger(Observer):
         """Format trade data as text."""
         status = "CLOSED" if trade.isclosed else ("OPEN" if trade.isopen else "UPDATE")
         return (
-            f"{self._get_datetime_str()} | {status} | "
+            f"{self._log_time_str()} | {status} | "
             f"ref={trade.ref} | data={trade.data._name} | "
             f"size={trade.size} | pnl={trade.pnl:.2f} | pnlcomm={trade.pnlcomm:.2f}"
         )
@@ -831,6 +1142,21 @@ class TradeLogger(Observer):
 
     def stop(self):
         """Called at the end of the backtest/live run."""
+        if self.p.log_monitoring:
+            self._log_event(
+                "monitor",
+                "monitoring_summary",
+                level="INFO",
+                details=dict(self._monitoring),
+            )
+
+        self._log_event(
+            "system",
+            "session_stopped",
+            level="INFO",
+            details={"observer": self.__class__.__name__},
+        )
+
         # Save final position snapshot
         if self.p.log_position_snapshot:
             self._save_position_snapshot()

@@ -436,6 +436,20 @@ class Strategy(StrategyBase):
                 if hasattr(observer, "notify_trade"):
                     observer.notify_trade(trade)
 
+    def _notify_store_to_observers(self, msg, *args, **kwargs):
+        """Forward store notifications to observers that support runtime events."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_store_event"):
+                    observer.notify_store_event(msg, *args, **kwargs)
+
+    def _notify_data_to_observers(self, data, status, *args, **kwargs):
+        """Forward data-feed notifications to observers that support runtime events."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_data_event"):
+                    observer.notify_data_event(data, status, *args, **kwargs)
+
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
 
