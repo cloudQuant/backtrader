@@ -6,7 +6,7 @@ import time
 import pytest
 import backtrader as bt
 
-from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_store, make_tick
+from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store, make_tick
 
 
 @pytest.mark.integration
@@ -200,3 +200,74 @@ def test_btapi_broker_keeps_live_run_waiting_before_first_tick():
 
     assert elapsed >= 0.25
     assert strategy.next_count == 0
+
+
+@pytest.mark.integration
+def test_btapi_remote_trade_updates_reach_strategy_notifications():
+    """Remote broker fills should surface through strategy notify_order/notify_trade."""
+    client = FakeBtApiClient(
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 100.0, 101.0, 99.0, 100.5),
+                make_bar(1, 100.5, 102.0, 100.0, 101.0),
+                make_bar(2, 101.0, 102.5, 100.5, 101.5),
+            ]
+        }
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+    cerebro = bt.Cerebro()
+
+    class RemoteFillStrategy(bt.Strategy):
+        def __init__(self):
+            self.submitted = False
+            self.order_statuses = []
+            self.trade_events = []
+
+        def notify_order(self, order):
+            self.order_statuses.append(order.getstatusname())
+
+        def notify_trade(self, trade):
+            self.trade_events.append(
+                {
+                    "isopen": trade.isopen,
+                    "isclosed": trade.isclosed,
+                    "size": trade.size,
+                    "price": trade.price,
+                }
+            )
+
+        def next(self):
+            if not self.submitted:
+                self.submitted = True
+                order = self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
+                client.push_broker_update(
+                    {
+                        "kind": "trade",
+                        "external_order_id": "btapi-1",
+                        "order_ref": "btapi-1",
+                        "trade_id": "trade-1",
+                        "data_name": DEFAULT_SYMBOL,
+                        "side": "buy",
+                        "offset": "open",
+                        "size": 1,
+                        "price": 101.0,
+                        "timestamp": "09:30:00",
+                    }
+                )
+                return
+            self.cerebro.runstop()
+
+    cerebro.setbroker(broker)
+    cerebro.adddata(data)
+    cerebro.addstrategy(RemoteFillStrategy)
+
+    results = cerebro.run()
+    strategy = results[0]
+
+    assert "Accepted" in strategy.order_statuses
+    assert "Completed" in strategy.order_statuses
+    assert strategy.trade_events
+    assert strategy.trade_events[-1]["isopen"] is True
+    assert strategy.trade_events[-1]["size"] == pytest.approx(1.0)

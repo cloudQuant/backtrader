@@ -155,7 +155,7 @@ def _make_mock_bars(count=10):
 
 
 @contextlib.contextmanager
-def _started_store(env_key=None):
+def _started_store(env_key=None, stop_on_exit=True):
     """Create a live BtApiStore in a subprocess-safe context."""
     env_key = env_key or os.getenv("SIMNOW_ENV", "new_7x24")
     config = create_simnow_config(env_key)
@@ -174,8 +174,9 @@ def _started_store(env_key=None):
         store.start()
         yield store, config, env_key
     finally:
-        print("\n断开 SimNow 连接...")
-        store.stop()
+        if stop_on_exit:
+            print("\n断开 SimNow 连接...")
+            store.stop()
 
 
 class SimNowTestStrategy(bt.Strategy):
@@ -270,24 +271,22 @@ def _case_account_balance():
 
 
 def _case_order_placement():
-    with _started_store() as (store, _config, _env_key):
-        print("\n=== 测试 SimNow 订单逻辑 ===")
+    with _started_store(stop_on_exit=False) as (store, _config, _env_key):
+        print("\n=== 测试 SimNow 真实委托/撤单 ===")
+
+        symbol = os.getenv("SIMNOW_ORDER_SYMBOL", os.getenv("SIMNOW_TICK_SYMBOL", "rb2610"))
+        bar_seconds = int(os.getenv("SIMNOW_ORDER_BAR_SECONDS", "5"))
+        price_offset = float(os.getenv("SIMNOW_ORDER_PRICE_OFFSET", "20"))
+        timeout_seconds = int(os.getenv("SIMNOW_ORDER_TIMEOUT", "45"))
 
         broker = BtApiBroker(store=store)
-        assert broker is not None
-        print("✓ Broker 创建成功")
-
-        symbol = "rb2505"
-        exchange = "SHFE"
         data = BtApiFeed(
             store=store,
-            dataname=f"{exchange}_{symbol}",
-            timeframe=bt.TimeFrame.Minutes,
-            compression=1,
-            historical_bars=_make_mock_bars(5),
+            dataname=symbol,
+            timeframe=bt.TimeFrame.Seconds,
+            compression=bar_seconds,
+            backfill_start=False,
         )
-        assert data is not None
-        print("✓ 数据源创建成功")
 
         cerebro = bt.Cerebro()
         cerebro.setbroker(broker)
@@ -295,24 +294,104 @@ def _case_order_placement():
 
         class OrderTestStrategy(bt.Strategy):
             def __init__(self):
-                self.order_created = False
                 self.bar_count = 0
+                self.order = None
+                self.order_statuses = []
+                self.store_events = []
+                self.remote_event_types = set()
+
+            def notify_store(self, msg, *args, **kwargs):
+                event = kwargs.get("event")
+                if not isinstance(event, dict):
+                    return
+                self.store_events.append(event)
+                event_type = str(event.get("event_type") or "")
+                if event_type in {
+                    "order_submit_request",
+                    "order_submit_accepted",
+                    "order_cancel_request",
+                    "order_cancel_submitted",
+                    "order_status_accepted",
+                    "order_status_canceled",
+                    "order_status_completed",
+                    "trade_execution",
+                    "order_reject_remote",
+                }:
+                    print(f"  store_event: {event_type} status={event.get('status', '')}")
+                if event_type in {
+                    "order_status_accepted",
+                    "order_status_canceled",
+                    "order_status_completed",
+                    "trade_execution",
+                    "order_reject_remote",
+                }:
+                    self.remote_event_types.add(event_type)
+                    self.cerebro.runstop()
+
+            def notify_order(self, order):
+                status_name = order.getstatusname()
+                self.order_statuses.append(status_name)
+                print(
+                    "  order_notify: ref=%s status=%s external_id=%s"
+                    % (
+                        order.ref,
+                        status_name,
+                        order.info.get("external_order_id", ""),
+                    )
+                )
 
             def next(self):
                 self.bar_count += 1
-                if not self.order_created:
-                    order = self.buy(size=1, exectype=bt.Order.Limit, price=3500.0)
-                    if order:
-                        self.order_created = True
-                        self.cancel(order)
-                self.cerebro.runstop()
+                if self.order is not None:
+                    return
+
+                reference_price = float(self.data.close[0])
+                limit_price = max(reference_price - price_offset, 1.0)
+                print(
+                    "  submitting limit buy: symbol=%s ref_price=%.2f limit=%.2f offset=open"
+                    % (symbol, reference_price, limit_price)
+                )
+                self.order = self.buy(
+                    size=1,
+                    exectype=bt.Order.Limit,
+                    price=limit_price,
+                    offset="open",
+                )
+                assert self.order is not None, "Failed to create live order"
+                self.cancel(self.order)
+                print("  cancel requested immediately after submit")
 
         cerebro.addstrategy(OrderTestStrategy)
-        results = cerebro.run()
-        strategy = results[0] if results else None
 
+        stop_timer = threading.Timer(timeout_seconds, cerebro.runstop)
+        stop_timer.daemon = True
+        stop_timer.start()
+        try:
+            print(f"订阅 {symbol}，等待最多 {timeout_seconds}s 完成一轮真实委托/撤单...")
+            results = cerebro.run()
+        finally:
+            stop_timer.cancel()
+
+        strategy = results[0] if results else None
         assert strategy is not None, "Strategy did not run"
-        print("✓ 订单创建和撤销逻辑测试成功")
+        if strategy.bar_count <= 0:
+            pytest.skip(f"No completed live bars received for {symbol} within {timeout_seconds}s")
+
+        event_types = {event.get("event_type") for event in strategy.store_events}
+        assert "order_submit_request" in event_types
+        assert "order_submit_accepted" in event_types
+        assert "order_cancel_request" in event_types
+        assert "order_cancel_submitted" in event_types
+        assert strategy.remote_event_types, "No remote CTP order callback event was observed"
+        print(
+            "✓ 真实委托/撤单完成: bars=%d statuses=%s remote=%s"
+            % (
+                strategy.bar_count,
+                strategy.order_statuses,
+                sorted(strategy.remote_event_types),
+            )
+        )
+        print("\n跳过显式 store.stop()，由子进程 os._exit 收尾，避免 CTP native shutdown 段错误")
 
 
 def _case_real_tick_subscription():

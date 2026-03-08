@@ -73,6 +73,7 @@ class FakeBtApiClient:
         history: Optional[Dict[str, Iterable[Dict[str, Any]]]] = None,
         live: Optional[Dict[str, Iterable[Dict[str, Any]]]] = None,
         live_ticks: Optional[Dict[str, Iterable[TickEvent]]] = None,
+        broker_updates: Optional[Iterable[Dict[str, Any]]] = None,
     ):
         self.balance = dict(balance or {"cash": 10000.0, "value": 10000.0})
         self.positions = list(positions or [])
@@ -87,6 +88,7 @@ class FakeBtApiClient:
         self.subscriptions = []
         self.submitted_orders = []
         self.cancelled_orders = []
+        self.broker_updates = collections.deque(deepcopy(list(broker_updates or [])))
 
     def connect(self):
         """Simulate opening a connection."""
@@ -144,6 +146,16 @@ class FakeBtApiClient:
         """Record an order cancellation."""
         self.cancelled_orders.append({"order_ref": order_ref, "dataname": dataname})
         return True
+
+    def poll_broker_update(self):
+        """Return the next queued broker-side update."""
+        if not self.broker_updates:
+            return None
+        return deepcopy(self.broker_updates.popleft())
+
+    def push_broker_update(self, update: Dict[str, Any]):
+        """Append a broker-side update for later polling."""
+        self.broker_updates.append(deepcopy(update))
 
 
 def make_store(

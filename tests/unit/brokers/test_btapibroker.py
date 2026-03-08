@@ -271,3 +271,58 @@ def test_trading_controls_batch_cancel_and_force_logout():
         assert "store_disconnected" in events
     finally:
         broker.stop()
+
+
+def test_remote_trade_updates_complete_orders_and_positions():
+    """Broker.next should consume remote fills and advance local order/position state."""
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "external_order_id": "btapi-1",
+                "order_ref": "btapi-1",
+                "trade_id": "trade-1",
+                "data_name": DEFAULT_SYMBOL,
+                "side": "buy",
+                "offset": "open",
+                "size": 1,
+                "price": 101.0,
+                "timestamp": "09:30:00",
+            }
+        )
+
+        broker.next()
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(1.0)
+        assert order.executed.price == pytest.approx(101.0)
+        assert broker.positions[DEFAULT_SYMBOL].size == pytest.approx(1.0)
+
+        notifications = []
+        while True:
+            notif = broker.get_notification()
+            if notif is None:
+                break
+            notifications.append(notif)
+
+        assert notifications[-1].status == bt.Order.Completed
+    finally:
+        broker.stop()

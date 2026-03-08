@@ -22,6 +22,29 @@ from .livestore import LiveStoreBase
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
 _CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
+_CTP_OFFSET_FLAG = {
+    "open": "0",
+    "close": "1",
+    "force_close": "2",
+    "close_today": "3",
+    "close_yesterday": "4",
+    "force_close_yesterday": "5",
+    "local_force_close": "6",
+}
+_CTP_OFFSET_MAP = {value: key for key, value in _CTP_OFFSET_FLAG.items()}
+_CTP_DIRECTION_FLAG = {"buy": "0", "sell": "1"}
+_CTP_DIRECTION_MAP = {value: key for key, value in _CTP_DIRECTION_FLAG.items()}
+_CTP_ORDER_STATUS_MAP = {
+    "0": "completed",
+    "1": "partial",
+    "2": "partial",
+    "3": "accepted",
+    "4": "accepted",
+    "5": "canceled",
+    "a": "submitted",
+    "b": "submitted",
+    "c": "submitted",
+}
 
 
 class BtApiStoreError(Exception):
@@ -118,6 +141,25 @@ def _build_ctp_tick_datetime(payload: Any) -> _dt.datetime:
         return default
 
 
+def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
+    """Convert a SWIG-generated CTP struct instance into a plain dict."""
+    if field is None:
+        return {}
+
+    result = {}
+    for attr in dir(field):
+        if attr.startswith("_") or attr in {"this", "thisown"}:
+            continue
+        try:
+            value = getattr(field, attr)
+        except Exception:
+            continue
+        if callable(value):
+            continue
+        result[attr] = value
+    return result
+
+
 def _normalize_bar(bar: Any) -> Dict[str, Any]:
     """Normalize historical/live bar payloads into a common dict."""
     if isinstance(bar, dict):
@@ -195,6 +237,10 @@ def _create_ctp_wrapper_class():
     """Create a wrapper class for CTP clients."""
     try:
         from bt_api_py.ctp.client import MdClient, TraderClient
+        from bt_api_py.ctp.ctp_structs_order import (
+            CThostFtdcInputOrderActionField,
+            CThostFtdcInputOrderField,
+        )
     except ImportError as exc:
         raise BtApiMissingDependencyError("bt_api_py CTP support is not available") from exc
 
@@ -220,6 +266,10 @@ def _create_ctp_wrapper_class():
             self._subscribed_aliases = set()
             self._last_total_volume = {}
             self._last_tick_price = {}
+            self._order_updates = collections.deque()
+            self._pending_orders = {}
+            self._pending_orders_by_sys_id = {}
+            self._order_ref_seq = int(time.time()) % 1000000
 
         def connect(self):
             """Connect to CTP servers."""
@@ -237,6 +287,7 @@ def _create_ctp_wrapper_class():
                 password=self.password,
             )
             self.md_client.on_tick = self._handle_md_tick
+            self.md_client.on_error = self._handle_md_error
 
             # Create trader client
             self.trader_client = TraderClient(
@@ -247,6 +298,10 @@ def _create_ctp_wrapper_class():
                 app_id=self.app_id,
                 auth_code=self.auth_code,
             )
+            self.trader_client.on_login = self._handle_trader_login
+            self.trader_client.on_order = self._handle_order
+            self.trader_client.on_trade = self._handle_trade
+            self.trader_client.on_error = self._handle_trader_error
 
             # Start clients in non-blocking mode
             self.md_client.start(block=False)
@@ -270,6 +325,8 @@ def _create_ctp_wrapper_class():
             if self.trader_client:
                 self.trader_client.stop()
             self._connected = False
+            self._pending_orders.clear()
+            self._pending_orders_by_sys_id.clear()
 
         def stop(self):
             """Stop the clients (alias for disconnect)."""
@@ -402,18 +459,150 @@ def _create_ctp_wrapper_class():
 
         def submit_order(self, payload):
             """Submit an order."""
-            # TODO: Implement order submission via trader_client
-            return None
+            if not self.trader_client or not self.trader_client.is_ready:
+                raise BtApiStoreError("CTP trader client is not ready")
+
+            data_name = str(payload.get("data_name") or payload.get("symbol") or "").strip()
+            instrument, exchange_id = _split_ctp_symbol(data_name)
+            if not instrument:
+                raise BtApiStoreError("CTP order payload requires a valid symbol")
+
+            order_type = str(payload.get("order_type") or "limit").lower()
+            if order_type not in {"limit", "market"}:
+                raise BtApiStoreError(f"Unsupported CTP order type: {order_type}")
+
+            side = str(payload.get("side") or "buy").lower()
+            direction = _CTP_DIRECTION_FLAG.get(side)
+            if direction is None:
+                raise BtApiStoreError(f"Unsupported CTP side: {side}")
+
+            offset = str(payload.get("offset") or "open").lower()
+            offset_flag = _CTP_OFFSET_FLAG.get(offset)
+            if offset_flag is None:
+                raise BtApiStoreError(f"Unsupported CTP offset flag: {offset}")
+
+            order_ref = str(payload.get("order_ref") or payload.get("bt_order_ref") or self._next_order_ref())
+            volume = _coerce_int(payload.get("size"), 0)
+            if volume <= 0:
+                raise BtApiStoreError("CTP order volume must be positive")
+
+            price = _coerce_float(payload.get("price"), 0.0)
+            req_id = self._next_request_id()
+
+            field = CThostFtdcInputOrderField()
+            field.BrokerID = self.broker_id
+            field.InvestorID = self.user_id
+            field.UserID = self.user_id
+            field.InstrumentID = instrument
+            field.Direction = direction
+            field.CombOffsetFlag = offset_flag
+            field.CombHedgeFlag = "1"
+            field.VolumeTotalOriginal = volume
+            field.MinVolume = 1
+            field.ForceCloseReason = "0"
+            field.IsAutoSuspend = 0
+            field.UserForceClose = 0
+            field.ContingentCondition = "1"
+            field.OrderRef = order_ref
+            if exchange_id:
+                field.ExchangeID = exchange_id
+
+            if order_type == "market":
+                field.OrderPriceType = "1"
+                field.TimeCondition = "1"
+                field.VolumeCondition = "1"
+                field.LimitPrice = 0.0
+            else:
+                if price <= 0:
+                    raise BtApiStoreError("CTP limit order requires a positive price")
+                field.OrderPriceType = "2"
+                field.TimeCondition = "3"
+                field.VolumeCondition = "1"
+                field.LimitPrice = price
+
+            ret = self.trader_client.api.ReqOrderInsert(field, req_id)
+            if ret != 0:
+                raise BtApiStoreError(f"CTP order send failed: ret={ret}")
+
+            self._pending_orders[order_ref] = {
+                "order_ref": order_ref,
+                "data_name": data_name or instrument,
+                "instrument": instrument,
+                "exchange_id": exchange_id,
+                "side": side,
+                "offset": offset,
+                "price": price,
+                "size": volume,
+                "front_id": int(getattr(self.trader_client, "_front_id", 0) or 0),
+                "session_id": int(getattr(self.trader_client, "_session_id", 0) or 0),
+            }
+            return {
+                "id": order_ref,
+                "order_ref": order_ref,
+                "front_id": self._pending_orders[order_ref]["front_id"],
+                "session_id": self._pending_orders[order_ref]["session_id"],
+                "exchange_id": exchange_id,
+            }
 
         def create_order(self, **kwargs):
             """Create an order."""
-            # TODO: Implement order creation via trader_client
-            return None
+            return self.submit_order(kwargs)
 
         def cancel_order(self, order_ref, dataname=None):
             """Cancel an order."""
-            # TODO: Implement order cancellation via trader_client
-            return None
+            if not self.trader_client or not self.trader_client.is_ready:
+                raise BtApiStoreError("CTP trader client is not ready")
+
+            ref = str(order_ref or "").strip()
+            if not ref:
+                raise BtApiStoreError("CTP cancel requires an order reference")
+
+            pending = self._pending_orders.get(ref) or self._pending_orders_by_sys_id.get(ref, {})
+            data_name = str(dataname or pending.get("data_name") or "").strip()
+            instrument, exchange_id = _split_ctp_symbol(data_name)
+            instrument = instrument or pending.get("instrument") or ""
+            exchange_id = exchange_id or pending.get("exchange_id") or ""
+            if not instrument:
+                raise BtApiStoreError("CTP cancel requires a symbol")
+
+            field = CThostFtdcInputOrderActionField()
+            field.BrokerID = self.broker_id
+            field.InvestorID = self.user_id
+            field.UserID = self.user_id
+            field.InstrumentID = instrument
+            field.ActionFlag = "0"
+            if exchange_id:
+                field.ExchangeID = exchange_id
+
+            order_sys_id = str(pending.get("order_sys_id") or "").strip()
+            if order_sys_id:
+                field.OrderSysID = order_sys_id
+
+            field.OrderRef = str(pending.get("order_ref") or ref)
+            field.FrontID = int(pending.get("front_id") or getattr(self.trader_client, "_front_id", 0) or 0)
+            field.SessionID = int(
+                pending.get("session_id") or getattr(self.trader_client, "_session_id", 0) or 0
+            )
+
+            req_id = self._next_request_id()
+            ret = self.trader_client.api.ReqOrderAction(field, req_id)
+            if ret != 0:
+                raise BtApiStoreError(f"CTP cancel send failed: ret={ret}")
+
+            return {
+                "id": order_sys_id or field.OrderRef,
+                "order_ref": field.OrderRef,
+                "order_sys_id": order_sys_id,
+                "front_id": field.FrontID,
+                "session_id": field.SessionID,
+                "exchange_id": exchange_id,
+            }
+
+        def poll_broker_update(self):
+            """Poll a normalized broker-side order/trade/error update."""
+            if not self._order_updates:
+                return None
+            return self._order_updates.popleft()
 
         def _handle_md_tick(self, payload):
             """Convert a raw CTP depth market data callback into queued TickEvents."""
@@ -474,6 +663,126 @@ def _create_ctp_wrapper_class():
                 event.update_time = str(getattr(payload, "UpdateTime", "") or "")
                 event.update_millisec = _coerce_int(getattr(payload, "UpdateMillisec", 0), 0)
                 self._tick_queues[alias].append(event)
+
+        def _handle_md_error(self, payload):
+            """Capture market-data-side runtime errors."""
+            details = _ctp_field_to_dict(payload)
+            self._order_updates.append(
+                {
+                    "kind": "error",
+                    "source": "md",
+                    "error_code": _coerce_int(details.get("ErrorID"), 0),
+                    "error_msg": str(details.get("ErrorMsg") or ""),
+                    "details": details,
+                }
+            )
+
+        def _handle_trader_login(self, payload):
+            """Capture trader-login metadata for later cancel requests."""
+            details = _ctp_field_to_dict(payload)
+            front_id = _coerce_int(details.get("FrontID"), 0)
+            session_id = _coerce_int(details.get("SessionID"), 0)
+            for pending in self._pending_orders.values():
+                if not pending.get("front_id"):
+                    pending["front_id"] = front_id
+                if not pending.get("session_id"):
+                    pending["session_id"] = session_id
+
+        def _handle_trader_error(self, payload):
+            """Capture trader-side runtime errors."""
+            details = _ctp_field_to_dict(payload)
+            self._order_updates.append(
+                {
+                    "kind": "error",
+                    "source": "trader",
+                    "error_code": _coerce_int(details.get("ErrorID"), 0),
+                    "error_msg": str(details.get("ErrorMsg") or ""),
+                    "details": details,
+                }
+            )
+
+        def _handle_order(self, payload):
+            """Normalize order status callbacks into broker updates."""
+            details = _ctp_field_to_dict(payload)
+            order_ref = str(details.get("OrderRef") or "").strip()
+            order_sys_id = str(details.get("OrderSysID") or "").strip()
+            pending = self._pending_orders.get(order_ref, {})
+            if order_sys_id:
+                self._pending_orders_by_sys_id[order_sys_id] = pending or {
+                    "order_ref": order_ref,
+                    "order_sys_id": order_sys_id,
+                }
+            if pending and order_sys_id:
+                pending["order_sys_id"] = order_sys_id
+            event = {
+                "kind": "order",
+                "order_ref": order_ref,
+                "external_order_id": order_sys_id or order_ref,
+                "data_name": pending.get("data_name")
+                or str(details.get("InstrumentID") or details.get("ExchangeInstID") or "").strip(),
+                "instrument": str(details.get("InstrumentID") or "").strip(),
+                "exchange_id": str(details.get("ExchangeID") or pending.get("exchange_id") or "").strip(),
+                "front_id": _coerce_int(details.get("FrontID"), _coerce_int(pending.get("front_id"), 0)),
+                "session_id": _coerce_int(
+                    details.get("SessionID"),
+                    _coerce_int(pending.get("session_id"), 0),
+                ),
+                "status": _CTP_ORDER_STATUS_MAP.get(str(details.get("OrderStatus") or "a"), "submitted"),
+                "submit_status": str(details.get("OrderSubmitStatus") or ""),
+                "status_msg": str(details.get("StatusMsg") or ""),
+                "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
+                "offset": _CTP_OFFSET_MAP.get(
+                    str(details.get("CombOffsetFlag") or "0")[:1],
+                    pending.get("offset") or "open",
+                ),
+                "price": _coerce_float(details.get("LimitPrice"), _coerce_float(pending.get("price"), 0.0)),
+                "size": _coerce_int(
+                    details.get("VolumeTotalOriginal"),
+                    _coerce_int(pending.get("size"), 0),
+                ),
+                "filled": _coerce_int(details.get("VolumeTraded"), 0),
+                "remaining": _coerce_int(details.get("VolumeTotal"), 0),
+                "timestamp": str(details.get("UpdateTime") or details.get("InsertTime") or ""),
+                "details": details,
+            }
+            self._order_updates.append(event)
+
+        def _handle_trade(self, payload):
+            """Normalize trade callbacks into broker updates."""
+            details = _ctp_field_to_dict(payload)
+            order_ref = str(details.get("OrderRef") or "").strip()
+            order_sys_id = str(details.get("OrderSysID") or "").strip()
+            pending = self._pending_orders.get(order_ref) or self._pending_orders_by_sys_id.get(order_sys_id, {})
+            event = {
+                "kind": "trade",
+                "trade_id": str(details.get("TradeID") or "").strip(),
+                "order_ref": order_ref,
+                "external_order_id": order_sys_id or order_ref,
+                "data_name": pending.get("data_name")
+                or str(details.get("InstrumentID") or details.get("ExchangeInstID") or "").strip(),
+                "instrument": str(details.get("InstrumentID") or "").strip(),
+                "exchange_id": str(details.get("ExchangeID") or pending.get("exchange_id") or "").strip(),
+                "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
+                "offset": _CTP_OFFSET_MAP.get(
+                    str(details.get("OffsetFlag") or "0")[:1],
+                    pending.get("offset") or "open",
+                ),
+                "price": _coerce_float(details.get("Price"), _coerce_float(pending.get("price"), 0.0)),
+                "size": _coerce_int(details.get("Volume"), 0),
+                "timestamp": str(details.get("TradeTime") or details.get("TradingDay") or ""),
+                "details": details,
+            }
+            self._order_updates.append(event)
+
+        def _next_order_ref(self):
+            """Generate a numeric CTP client order reference."""
+            self._order_ref_seq += 1
+            return str(self._order_ref_seq)
+
+        def _next_request_id(self):
+            """Advance and return the next trader request id."""
+            self.trader_client._req_id += 1
+            return self.trader_client._req_id
 
     return CtpClientWrapper
 
@@ -752,6 +1061,22 @@ class BtApiStore(LiveStoreBase):
             return bool(api.supports_live_ticks(dataname))
         return False
 
+    def poll_broker_update(self):
+        """Poll a normalized broker-side order/trade/error update from the API."""
+        if not self._connected:
+            return None
+
+        api = self._ensure_api_ready()
+        if not hasattr(api, "poll_broker_update"):
+            return None
+
+        update = api.poll_broker_update()
+        if update is None:
+            return None
+
+        self._emit_broker_runtime_event(update)
+        return update
+
     def submit_order(self, order):
         """Submit a backtrader order through the unified API."""
         api = self._ensure_api_ready()
@@ -946,6 +1271,7 @@ class BtApiStore(LiveStoreBase):
         payload = {
             "symbol": data_name,
             "data_name": data_name,
+            "bt_order_ref": getattr(order, "ref", None),
             "side": "buy" if order.isbuy() else "sell",
             "size": abs(order.size),
             "price": price,
@@ -960,6 +1286,12 @@ class BtApiStore(LiveStoreBase):
         offset = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)("offset")
         if offset:
             payload["offset"] = offset
+
+        exchange_id = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)(
+            "exchange_id"
+        )
+        if exchange_id:
+            payload["exchange_id"] = exchange_id
 
         return payload
 
@@ -999,3 +1331,57 @@ class BtApiStore(LiveStoreBase):
                 or response.get("external_order_id")
             )
         return None
+
+    def _emit_broker_runtime_event(self, update: Dict[str, Any]):
+        """Translate normalized broker updates into runtime notifications."""
+        kind = str(update.get("kind") or "").lower()
+        details = {
+            "data_name": update.get("data_name"),
+            "side": update.get("side"),
+            "offset": update.get("offset"),
+            "size": update.get("size"),
+            "price": update.get("price"),
+            "trade_id": update.get("trade_id"),
+            "exchange_id": update.get("exchange_id"),
+        }
+        details.update(dict(update.get("details") or {}))
+
+        if kind == "order":
+            status = str(update.get("status") or "submitted")
+            event_type = {
+                "submitted": "order_status_submitted",
+                "accepted": "order_status_accepted",
+                "partial": "order_status_partial",
+                "completed": "order_status_completed",
+                "canceled": "order_status_canceled",
+                "rejected": "order_reject_remote",
+            }.get(status, "order_status_update")
+            level = "ERROR" if status == "rejected" else "INFO"
+            self.emit_runtime_event(
+                event_type,
+                level=level,
+                status=status,
+                order_ref=update.get("external_order_id") or update.get("order_ref"),
+                error_msg=str(update.get("status_msg") or ""),
+                details=details,
+            )
+            return
+
+        if kind == "trade":
+            self.emit_runtime_event(
+                "trade_execution",
+                status="completed",
+                order_ref=update.get("external_order_id") or update.get("order_ref"),
+                details=details,
+            )
+            return
+
+        if kind == "error":
+            self.emit_runtime_event(
+                "store_error",
+                level="ERROR",
+                status="error",
+                error_code=str(update.get("error_code") or ""),
+                error_msg=str(update.get("error_msg") or ""),
+                details=details,
+            )

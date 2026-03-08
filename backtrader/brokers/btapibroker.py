@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import collections
+import datetime as _dt
 import time
 
 from ..broker import BrokerBase
@@ -45,6 +46,9 @@ class BtApiBroker(BrokerBase):
         self._contract_metadata = {
             str(key): dict(value or {}) for key, value in (self.p.contract_metadata or {}).items()
         }
+        self._orders_by_external_id = {}
+        self._orders_by_client_ref = {}
+        self._seen_trade_ids = set()
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
@@ -106,6 +110,7 @@ class BtApiBroker(BrokerBase):
 
         try:
             order.submit(self)
+            order.addcomminfo(self.getcommissioninfo(order.data))
             response = self.store.submit_order(order)
             order.accept(self)
 
@@ -119,6 +124,15 @@ class BtApiBroker(BrokerBase):
 
             if external_order_id is not None:
                 order.addinfo(external_order_id=external_order_id)
+                self._orders_by_external_id[str(external_order_id)] = order
+            order_ref = response.get("order_ref") if isinstance(response, dict) else None
+            if order_ref not in (None, ""):
+                order.addinfo(ctp_order_ref=order_ref)
+                self._orders_by_client_ref[str(order_ref)] = order
+            if isinstance(response, dict):
+                for key in ("front_id", "session_id", "exchange_id"):
+                    if key in response and response[key] not in (None, ""):
+                        order.addinfo(**{key: response[key]})
 
             self.orders[order.ref] = order
             self.notify(order)
@@ -139,6 +153,7 @@ class BtApiBroker(BrokerBase):
 
     def next(self):
         """Refresh cached balances and positions."""
+        self._drain_store_updates()
         self._refresh_account()
         self._sync_positions()
 
@@ -453,3 +468,175 @@ class BtApiBroker(BrokerBase):
         if self.store is not None and hasattr(self.store, "emit_runtime_event"):
             return self.store.emit_runtime_event(event_type, **kwargs)
         return None
+
+    def _drain_store_updates(self):
+        """Consume remote broker updates from the store and reflect them locally."""
+        if self.store is None or not hasattr(self.store, "poll_broker_update"):
+            return
+
+        while True:
+            update = self.store.poll_broker_update()
+            if update is None:
+                break
+
+            kind = str(update.get("kind") or "").lower()
+            if kind == "order":
+                self._apply_order_update(update)
+            elif kind == "trade":
+                self._apply_trade_update(update)
+
+    def _apply_order_update(self, update):
+        """Apply a normalized remote order-status update."""
+        order = self._lookup_order(update)
+        if order is None:
+            return
+
+        external_id = update.get("external_order_id")
+        order_ref = update.get("order_ref")
+        if external_id not in (None, ""):
+            order.addinfo(external_order_id=external_id)
+            self._orders_by_external_id[str(external_id)] = order
+        if order_ref not in (None, ""):
+            order.addinfo(ctp_order_ref=order_ref)
+            self._orders_by_client_ref[str(order_ref)] = order
+        for key in ("front_id", "session_id", "exchange_id"):
+            value = update.get(key)
+            if value not in (None, ""):
+                order.addinfo(**{key: value})
+
+        status = str(update.get("status") or "").lower()
+        status_msg = str(update.get("status_msg") or "")
+        if status_msg:
+            order.addinfo(error_msg=status_msg)
+
+        if status == "accepted" and order.status < order.Accepted:
+            order.accept(self)
+            self.notify(order)
+        elif status == "canceled" and order.status != order.Canceled:
+            order.cancel()
+            self.notify(order)
+        elif status == "rejected" and order.status != order.Rejected:
+            if status_msg:
+                order.addinfo(error_code="remote_reject", error_msg=status_msg)
+            order.reject(self)
+            self.notify(order)
+
+    def _apply_trade_update(self, update):
+        """Apply a normalized remote trade fill to the local order/position state."""
+        trade_id = str(update.get("trade_id") or "").strip()
+        if trade_id and trade_id in self._seen_trade_ids:
+            return
+        if trade_id:
+            self._seen_trade_ids.add(trade_id)
+
+        order = self._lookup_order(update)
+        if order is None:
+            return
+
+        fill_qty = abs(float(update.get("size") or 0.0))
+        if fill_qty <= 0:
+            return
+
+        fill_price = float(update.get("price") or 0.0)
+        signed_fill = fill_qty if str(update.get("side") or "buy").lower() == "buy" else -fill_qty
+
+        key = self._position_key(order.data)
+        position = self.positions[key]
+        old_size = position.size
+        old_price = position.price
+        psize, pprice, opened, closed = position.update(
+            signed_fill,
+            fill_price,
+            dt=self._execution_datetime(update),
+        )
+
+        comminfo = order.comminfo or self.getcommissioninfo(order.data)
+        commission = comminfo.getcommission(fill_qty, fill_price) if comminfo is not None else 0.0
+        closed_qty = abs(closed)
+        opened_qty = abs(opened)
+        closed_value = closed_qty * abs(old_price or fill_price)
+        opened_value = opened_qty * abs(fill_price)
+        pnl = 0.0
+        if closed_qty:
+            if old_size > 0:
+                pnl = closed_qty * (fill_price - old_price)
+            elif old_size < 0:
+                pnl = closed_qty * (old_price - fill_price)
+
+        order.execute(
+            dt=self._order_execution_dt(order),
+            size=signed_fill,
+            price=fill_price,
+            closed=closed,
+            closedvalue=closed_value,
+            closedcomm=commission if closed_qty else 0.0,
+            opened=opened,
+            openedvalue=opened_value,
+            openedcomm=commission if opened_qty and not closed_qty else 0.0,
+            margin=0.0,
+            pnl=pnl,
+            psize=psize,
+            pprice=pprice,
+        )
+
+        external_id = update.get("external_order_id")
+        if external_id not in (None, ""):
+            order.addinfo(external_order_id=external_id)
+            self._orders_by_external_id[str(external_id)] = order
+        if update.get("order_ref") not in (None, ""):
+            self._orders_by_client_ref[str(update["order_ref"])] = order
+
+        if order.executed.remsize:
+            order.partial()
+        else:
+            order.completed()
+        self.notify(order)
+
+    def _lookup_order(self, update):
+        """Resolve a local order object from normalized broker update identifiers."""
+        external_id = update.get("external_order_id")
+        if external_id not in (None, ""):
+            order = self._orders_by_external_id.get(str(external_id))
+            if order is not None:
+                return order
+
+        order_ref = update.get("order_ref")
+        if order_ref not in (None, ""):
+            order = self._orders_by_client_ref.get(str(order_ref))
+            if order is not None:
+                return order
+
+        details = update.get("details") or {}
+        bt_order_ref = details.get("bt_order_ref") or update.get("bt_order_ref")
+        if bt_order_ref in self.orders:
+            return self.orders[bt_order_ref]
+
+        return None
+
+    @staticmethod
+    def _execution_datetime(update):
+        """Convert a remote broker update timestamp into a best-effort datetime."""
+        stamp = update.get("timestamp")
+        if isinstance(stamp, _dt.datetime):
+            return stamp
+        if isinstance(stamp, str) and stamp:
+            today = _dt.date.today()
+            for fmt in ("%H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y%m%d %H:%M:%S"):
+                try:
+                    parsed = _dt.datetime.strptime(stamp, fmt)
+                except ValueError:
+                    continue
+                if fmt == "%H:%M:%S":
+                    return _dt.datetime.combine(today, parsed.time())
+                return parsed
+        return _dt.datetime.utcnow()
+
+    @staticmethod
+    def _order_execution_dt(order):
+        """Pick a stable execution dt compatible with backtrader order bookkeeping."""
+        try:
+            if len(order.data):
+                return order.data.datetime[0]
+        except Exception:
+            pass
+        return 0.0
