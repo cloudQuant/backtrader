@@ -250,3 +250,104 @@ def test_trade_logger_records_batch_cancel_runtime_events(tmp_path):
     assert "batch_cancel_requested" in monitor_events
     assert "batch_cancel_completed" in monitor_events
     assert monitor_events.count("order_cancel_request") == 2
+
+
+@pytest.mark.integration
+def test_trade_logger_records_batch_cancel_failures_in_error_log(tmp_path):
+    """Batch-cancel failures should be persisted into error.log."""
+
+    class FailingCancelClient(FakeBtApiClient):
+        def cancel_order(self, order_ref, dataname=None):
+            if order_ref == "btapi-2":
+                raise RuntimeError("remote cancel rejected")
+            return super().cancel_order(order_ref, dataname=dataname)
+
+    client = FailingCancelClient(
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 100.0, 101.0, 99.0, 100.5),
+                make_bar(1, 100.5, 102.0, 100.0, 101.0),
+                make_bar(2, 101.0, 102.5, 100.5, 101.5),
+            ]
+        }
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+    cerebro = bt.Cerebro()
+
+    class BatchCancelFailureStrategy(bt.Strategy):
+        def __init__(self):
+            self.orders = []
+            self.bar_count = 0
+
+        def next(self):
+            self.bar_count += 1
+            if self.bar_count == 1:
+                self.orders.append(
+                    self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
+                )
+                self.orders.append(
+                    self.sell(data=self.datas[0], size=1, price=99.0, exectype=bt.Order.Limit)
+                )
+                return
+
+            if self.bar_count == 2:
+                self.broker.batch_cancel(self.orders)
+                return
+
+            self.cerebro.runstop()
+
+    cerebro.setbroker(broker)
+    cerebro.adddata(data)
+    cerebro.addstrategy(BatchCancelFailureStrategy)
+    cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(tmp_path), log_format="json")
+
+    results = cerebro.run()
+
+    assert len(results) == 1
+
+    error_entries = _read_json_lines(tmp_path / "error.log")
+    error_events = [entry["event_type"] for entry in error_entries]
+
+    assert "order_cancel_reject_remote" in error_events
+    assert "batch_cancel_failed" in error_events
+    assert any(entry["status"] == "partial" for entry in error_entries if entry["event_type"] == "batch_cancel_failed")
+
+
+@pytest.mark.integration
+def test_trade_logger_records_reconnect_success_in_system_log(tmp_path):
+    """Reconnect-success runtime events should be persisted into system.log."""
+    client = FakeBtApiClient(
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 100.0, 101.0, 99.0, 100.5),
+                make_bar(1, 100.5, 102.0, 100.0, 101.0),
+            ]
+        }
+    )
+    store = make_store(api=client)
+    store.start()
+    store.stop()
+
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+    cerebro = bt.Cerebro()
+
+    class ReconnectStrategy(bt.Strategy):
+        def next(self):
+            self.cerebro.runstop()
+
+    cerebro.setbroker(broker)
+    cerebro.adddata(data)
+    cerebro.addstrategy(ReconnectStrategy)
+    cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(tmp_path), log_format="json")
+
+    results = cerebro.run()
+
+    assert len(results) == 1
+
+    system_entries = _read_json_lines(tmp_path / "system.log")
+    system_events = [entry["event_type"] for entry in system_entries]
+
+    assert "store_reconnect_success" in system_events
