@@ -1,10 +1,8 @@
-- --
-
+---
 title: CS (Cross-Section) Mode Guide
 description: Multi-asset portfolio optimization with cross-sectional vectorization
 
-- --
-
+---
 # CS (Cross-Section) Mode Guide
 
 CS (Cross-Section) mode is a performance optimization feature designed for multi-asset portfolio backtesting. It enables efficient cross-sectional signal generation and portfolio optimization by processing multiple assets simultaneously at each time point.
@@ -30,7 +28,7 @@ for data in datas:
     indicator.calculate(data)
     strategy.next(data)
 
-```bash
+```
 In CS mode, data is processed cross-sectionally:
 
 ```python
@@ -42,7 +40,7 @@ for t in time:
     signals = calculate_cross_sectional_signals(cross_section)
     portfolio.rebalance(signals)
 
-```bash
+```
 
 ## Performance Benefits
 
@@ -98,7 +96,7 @@ cerebro.addstrategy(MultiAssetStrategy)
 
 cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### Method 2: Environment Variable
 
@@ -110,7 +108,7 @@ export BACKTRADER_CS_MODE=1
 
 python my_portfolio_backtest.py
 
-```bash
+```
 
 ### Method 3: Configuration File
 
@@ -123,7 +121,7 @@ cs_mode = {
     'use_cython': True,
 }
 
-```bash
+```
 
 ## Code Examples
 
@@ -212,7 +210,7 @@ cerebro.broker.setcash(1000000)
 
 result = cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### Example 2: Multi-Factor Stock Selection
 
@@ -323,7 +321,7 @@ cerebro.broker.setcash(10000000)
 cerebro.addstrategy(MultiFactorStrategy)
 result = cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### Example 3: Convertible Bond Double-Low Strategy
 
@@ -448,7 +446,7 @@ cerebro.broker.setcash(100000000)
 cerebro.addstrategy(DoubleLowStrategy)
 result = cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ## CS Mode vs TS Mode
 
@@ -522,7 +520,7 @@ print(f"Standard mode: {standard_time:.2f}s")
 print(f"CS mode: {cs_time:.2f}s")
 print(f"Speedup: {standard_time/cs_time:.2f}x")
 
-```bash
+```
 
 ## Cross-Sectional Signal Generation
 
@@ -557,7 +555,7 @@ def calculate_cross_sectional_signals(self):
 
     return percentile_signals
 
-```bash
+```
 
 ### Industry Neutralization
 
@@ -582,7 +580,7 @@ def industry_neutralize(self, signals):
 
     return neutral_signals
 
-```bash
+```
 
 ## Limitations and Considerations
 
@@ -604,7 +602,7 @@ for symbol in symbols:
     data = data.reindex(index_data.index)
     cerebro.adddata(bt.feeds.PandasData(dataname=data), name=symbol)
 
-```bash
+```
 
 ### 2. Missing Data Handling
 
@@ -627,7 +625,7 @@ def next(self):
 # Proceed with valid assets only
     self._calculate_signals(valid_assets)
 
-```bash
+```
 
 ### 3. Memory Usage
 
@@ -650,7 +648,7 @@ for symbol in symbols:
         if len(cerebro.datas) >= max_assets:
             break
 
-```bash
+```
 
 ### 4. Rebalancing Frequency
 
@@ -671,7 +669,7 @@ if self.counter % 5 == 0:
 if self._is_month_end():
     self.rebalance()
 
-```bash
+```
 
 ## Advanced Configuration
 
@@ -686,7 +684,7 @@ cerebro.run(
 
 )
 
-```bash
+```
 
 ### Combining CS Mode with Optimization
 
@@ -704,7 +702,7 @@ cerebro.optstrategy(
 
 results = cerebro.run(cs_mode=True, maxcpu=4)
 
-```bash
+```
 
 ## Best Practices
 

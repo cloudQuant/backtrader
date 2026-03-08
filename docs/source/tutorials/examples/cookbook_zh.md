@@ -1,10 +1,8 @@
-- --
-
+---
 title: 常用模式手册
 description: 实用交易模式与实现
 
-- --
-
+---
 # 常用模式手册
 
 本手册提供了 Backtrader 中常见交易模式的实用实现。每个模式都包含完整的可运行示例和详细说明。
@@ -20,8 +18,7 @@ description: 实用交易模式与实现
 7. [追踪止损实现](#追踪止损实现)
 8. [ bracket 订单](#bracket-订单)
 
-- --
-
+---
 ## 止损与止盈
 
 ### 固定百分比止损
@@ -73,7 +70,7 @@ class FixedStopLoss(bt.Strategy):
             if not self.position:
                 self.entry_price = None
 
-```bash
+```
 
 ### 基于 ATR 的动态止损
 
@@ -123,7 +120,7 @@ class ATRStopLoss(bt.Strategy):
                 if new_stop > self.stop_price:
                     self.stop_price = new_stop
 
-```bash
+```
 
 ### 盈亏比止盈
 
@@ -174,10 +171,9 @@ class RiskRewardStrategy(bt.Strategy):
             elif current_price >= self.target_price:
                 self.order = self.close()
 
-```bash
+```
 
-- --
-
+---
 ## 动态仓位管理
 
 ### 权益百分比仓位
@@ -210,7 +206,7 @@ class PercentEquityStrategy(bt.Strategy):
     def __init__(self):
         self.setsizer(PercentEquitySizer(percents=self.p.trade_size))
 
-```bash
+```
 
 ### 波动率调整仓位
 
@@ -249,7 +245,7 @@ class VolatilitySizer(bt.Sizer):
 
         return 0
 
-```bash
+```
 
 ### 凯利公式仓位
 
@@ -291,10 +287,9 @@ class KellySizer(bt.Sizer):
 
         return int(size)
 
-```bash
+```
 
-- --
-
+---
 ## 多指标组合
 
 ### 趋势 + 动量 + 波动率
@@ -350,7 +345,7 @@ class TripleConfirmationStrategy(bt.Strategy):
             if self.rsi[0] > 70:
                 self.sell()
 
-```bash
+```
 
 ### MACD + 随机指标确认
 
@@ -411,7 +406,7 @@ class MACDStochasticStrategy(bt.Strategy):
                 self.stoch.percK[-1] > 80):
                 self.sell()
 
-```bash
+```
 
 ### 布林带 + RSI 均值回归
 
@@ -458,10 +453,9 @@ class BBRSIReversalStrategy(bt.Strategy):
                 self.rsi[0] > 70):
                 self.sell()
 
-```bash
+```
 
-- --
-
+---
 ## 基于时间的交易过滤
 
 ### 交易时段过滤
@@ -509,7 +503,7 @@ class SessionFilterStrategy(bt.Strategy):
         if not self.position:
             self.buy()
 
-```bash
+```
 
 ### 星期几过滤
 
@@ -539,7 +533,7 @@ class DayOfWeekStrategy(bt.Strategy):
             if self.data.close[0] > sma[0]:
                 self.buy()
 
-```bash
+```
 
 ### 月份/季节性过滤
 
@@ -571,7 +565,7 @@ class SeasonalStrategy(bt.Strategy):
             if self.data.close[0] > self.data.close[-1]:
                 self.buy()
 
-```bash
+```
 
 ### 收盘前平仓
 
@@ -609,10 +603,9 @@ class EndOfDayExit(bt.Strategy):
                 if self.data.close[0] > self.data.close[-1]:
                     self.buy()
 
-```bash
+```
 
-- --
-
+---
 ## 事件驱动模式
 
 ### 订单状态通知
@@ -676,7 +669,7 @@ class OrderNotificationStrategy(bt.Strategy):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
 
-```bash
+```
 
 ### 交易通知
 
@@ -721,7 +714,7 @@ class TradeNotificationStrategy(bt.Strategy):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
 
-```bash
+```
 
 ### 数据通知 (实盘交易)
 
@@ -766,7 +759,7 @@ class DataNotificationStrategy(bt.Strategy):
     def log(self, txt):
         print(f'{self.data.datetime.datetime(0)}: {txt}')
 
-```bash
+```
 
 ### 资金价值通知
 
@@ -820,10 +813,9 @@ class CashNotificationStrategy(bt.Strategy):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
 
-```bash
+```
 
-- --
-
+---
 ## 金字塔加仓
 
 ### 固定金字塔层级
@@ -882,7 +874,7 @@ class PyramidStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```bash
+```
 
 ### 基于 ATR 的金字塔加仓
 
@@ -935,7 +927,7 @@ class ATRPyramidStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```bash
+```
 
 ### 斐波那契金字塔加仓
 
@@ -993,10 +985,9 @@ class FibonacciPyramidStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```bash
+```
 
-- --
-
+---
 ## 追踪止损实现
 
 ### 百分比追踪止损
@@ -1056,7 +1047,7 @@ class TrailingStopStrategy(bt.Strategy):
                 self.stop_price = None
                 self.highest_price = None
 
-```bash
+```
 
 ### ATR 追踪止损
 
@@ -1109,7 +1100,7 @@ class ATRTrailingStopStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```bash
+```
 
 ### 水位追踪止损
 
@@ -1171,7 +1162,7 @@ class HighWaterMarkTrailingStop(bt.Strategy):
                 self.highest_close = None
                 self.stop_price = None
 
-```bash
+```
 
 ### 抛物线 SAR 追踪止损
 
@@ -1212,10 +1203,9 @@ class PSARTrailingStopStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```bash
+```
 
-- --
-
+---
 ## Bracket 订单
 
 ### OCO (二选一) Bracket
@@ -1301,7 +1291,7 @@ class BracketOrderStrategy(bt.Strategy):
         if self.limit_order:
             self.cancel(self.limit_order)
 
-```bash
+```
 
 ### 多级 Bracket (分批平仓)
 
@@ -1411,7 +1401,7 @@ class ScaleOutBracketStrategy(bt.Strategy):
             self.cancel(order)
         self.target_orders = []
 
-```bash
+```
 
 ### 动态 Bracket 与追踪
 
@@ -1521,10 +1511,9 @@ class DynamicBracketStrategy(bt.Strategy):
                     self.cancel(self.stop_order)
                     self.stop_order = None
 
-```bash
+```
 
-- --
-
+---
 ## 使用示例
 
 ### 运行策略
@@ -1588,10 +1577,9 @@ print(f'收益: {strat.analyzers.returns.get_analysis()}')
 
 cerebro.plot()
 
-```bash
+```
 
-- --
-
+---
 ## 下一步
 
 - [指标参考](../user_guide/indicators.md) - 可用指标

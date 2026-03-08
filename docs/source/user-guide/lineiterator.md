@@ -1,10 +1,8 @@
-- --
-
+---
 title: LineIterator API
 description: Complete LineIterator class API reference - the foundation for Indicators, Strategies, and Observers
 
-- --
-
+---
 # LineIterator API
 
 The `LineIterator` class is the foundational base class for all objects that iterate over time-series data in Backtrader. It provides the core infrastructure for `Indicator`, `Strategy`, and `Observer` classes, managing execution phases, data flow, minimum period calculations, and child object registration.
@@ -15,7 +13,7 @@ The `LineIterator` class is the foundational base class for all objects that ite
 class backtrader.LineIterator(LineSeries):
     """Base class for all time-series iterating objects."""
 
-```bash
+```
 
 ## Line Type Constants
 
@@ -38,7 +36,7 @@ The `_ltype` attribute identifies the type of LineIterator object:
 if obj._ltype == LineIterator.IndType:
     print("This is an indicator")
 
-```bash
+```
 
 ## Core Attributes
 
@@ -59,7 +57,7 @@ class StrategyBase(LineIterator):
 class ObserverBase(LineIterator):
     _ltype = LineIterator.ObsType  # = 2
 
-```bash
+```
 
 ### `_lineiterators`
 
@@ -76,7 +74,7 @@ self._lineiterators = {
 
 }
 
-```bash
+```
 
 ### `_minperiod`
 
@@ -96,7 +94,7 @@ self.addminperiod(20)
 
 period = self._minperiod
 
-```bash
+```
 
 ### `_nextforce`
 
@@ -106,7 +104,7 @@ Force cerebro to run in `next()` mode instead of `runonce()` mode.
 class MyIndicator(bt.Indicator):
     _nextforce = True  # Force next() mode for this indicator
 
-```bash
+```
 
 ### `_mindatas`
 
@@ -116,7 +114,7 @@ Minimum number of data feeds required (default: 1).
 class SpreadIndicator(bt.Indicator):
     _mindatas = 2  # Requires 2 data feeds
 
-```bash
+```
 
 ### `plotinfo` / `plotlines`
 
@@ -132,7 +130,7 @@ class MyIndicator(bt.Indicator):
         value=dict(color='blue', linewidth=2),
     )
 
-```bash
+```
 
 ## Execution Phases
 
@@ -151,7 +149,7 @@ graph LR
 
     D -->|no more data| E[stop]
 
-```bash
+```
 
 ### Phase Flow Diagram
 
@@ -175,7 +173,7 @@ sequenceDiagram
 
     L->>L: Call _notify()
 
-```bash
+```
 
 ### `prenext(self)`
 
@@ -190,7 +188,7 @@ def prenext(self):
         self._warmup_data = []
     self._warmup_data.append(self.data[0])
 
-```bash
+```
 
 ### `nextstart(self)`
 
@@ -206,7 +204,7 @@ def nextstart(self):
 # Clean up warmup data
     delattr(self, '_warmup_data')
 
-```bash
+```
 Default implementation calls `next()`.
 
 ### `next(self)`
@@ -218,7 +216,7 @@ def next(self):
     """Main calculation logic."""
     self.lines.value[0] = self.calculate()
 
-```bash
+```
 
 ### `stop(self)`
 
@@ -229,7 +227,7 @@ def stop(self):
     """Cleanup and final reporting."""
     print(f'Final value: {self.lines.value[0]}')
 
-```bash
+```
 
 ## Indicator Registration
 
@@ -242,7 +240,7 @@ indicators = self.getindicators()
 for ind in indicators:
     print(f'{ind.__class__.__name__}: {ind[0]}')
 
-```bash
+```
 
 ### `getobservers(self)`
 
@@ -251,7 +249,7 @@ Get all observers registered with this lineiterator.
 ```python
 observers = self.getobservers()
 
-```bash
+```
 
 ### `_register_indicator(self, indicator)`
 
@@ -263,7 +261,7 @@ Register an indicator with this lineiterator (automatic in most cases).
 
 self._lineiterators[LineIterator.IndType].append(indicator)
 
-```bash
+```
 
 ## Owner Management and donew() Pattern
 
@@ -295,7 +293,7 @@ def donew(cls, *args, **kwargs):
 
     return _obj, args, kwargs
 
-```bash
+```
 
 ### `dopreinit(cls, _obj, *args, **kwargs)`
 
@@ -321,7 +319,7 @@ def dopreinit(cls, _obj, *args, **kwargs):
 
     return _obj, args, kwargs
 
-```bash
+```
 
 ### `dopostinit(cls, _obj, *args, **kwargs)`
 
@@ -343,7 +341,7 @@ def dopostinit(cls, _obj, *args, **kwargs):
 
     return _obj, args, kwargs
 
-```bash
+```
 
 ## Data Flow in LineIterator
 
@@ -361,7 +359,7 @@ def _clk_update(self):
         return len(self._clock)
     return 0
 
-```bash
+```
 
 ### Data Access Patterns
 
@@ -386,7 +384,7 @@ volume = self.data.volume[0]
 data0_close = self.data0.close[0]
 data1_close = self.data1.close[0]
 
-```bash
+```
 
 ### Forward Method
 
@@ -397,7 +395,7 @@ def forward(self, value=1):
     """Advance the internal position by value steps."""
     self.lines.advance(value)
 
-```bash
+```
 
 ## Minimum Period and Warmup Handling
 
@@ -418,7 +416,7 @@ effective_minperiod = max(
 )
 effective_minperiod = max(effective_minperiod, self._minperiod)
 
-```bash
+```
 
 ### `addminperiod(self, period)`
 
@@ -429,7 +427,7 @@ def __init__(self):
     super().__init__()
     self.addminperiod(20)  # Requires 20 bars warmup
 
-```bash
+```
 
 ### `updateminperiod(self, period)`
 
@@ -441,7 +439,7 @@ Update minimum period if the new value is greater.
 
 self.updateminperiod(30)  # Sets to max(current, 30)
 
-```bash
+```
 
 ### `setminperiod(self, period)`
 
@@ -453,7 +451,7 @@ Directly set the minimum period (use with caution).
 
 self.setminperiod(10)
 
-```bash
+```
 
 ### `_periodrecalc(self)`
 
@@ -466,7 +464,7 @@ def _periodrecalc(self):
     indperiods = [ind._minperiod for ind in indicators]
     self.updateminperiod(max(indperiods or [self._minperiod]))
 
-```bash
+```
 
 ## once() Mode Optimization
 
@@ -498,7 +496,7 @@ def preonce(self, start, end):
 # Accumulate warmup data
         pass
 
-```bash
+```
 
 ### `oncestart(self, start, end)`
 
@@ -509,7 +507,7 @@ def oncestart(self, start, end):
     """Transition from preonce to once."""
     self.once(start, end)
 
-```bash
+```
 
 ### `once(self, start, end)`
 
@@ -524,7 +522,7 @@ def once(self, start, end):
     for i in range(start, end):
         dst[i] = self._calculate_at(i)
 
-```bash
+```
 
 ### Performance Considerations
 
@@ -547,7 +545,7 @@ def once(self, start, end):
 # Calculate using array access
         dst[i] = sum(src[i-period:i]) / period
 
-```bash
+```
 
 ## Internal Methods
 
@@ -577,7 +575,7 @@ def _next(self):
     elif clock_len:
         self.prenext()
 
-```bash
+```
 
 ### `_notify(self)`
 
@@ -588,7 +586,7 @@ def _notify(self):
     """Process notifications (empty by default)."""
     pass
 
-```bash
+```
 
 ### `_stage1(self)`
 
@@ -601,7 +599,7 @@ def _stage1(self):
     for data in self.datas:
         data._stage1()
 
-```bash
+```
 
 ### `_stage2(self)`
 
@@ -614,7 +612,7 @@ def _stage2(self):
     for data in self.datas:
         data._stage2()
 
-```bash
+```
 
 ## Memory Management
 
@@ -638,7 +636,7 @@ self.qbuffer(savemem=1)
 
 # -2  - Also don't save for indicators with plot=False
 
-```bash
+```
 
 ## Plotting Support
 
@@ -655,7 +653,7 @@ def _plotinit(self):
         self.plotinfo = PlotInfoObj()
     return True
 
-```bash
+```
 
 ## Base Classes
 
@@ -668,7 +666,7 @@ class IndicatorBase(DataAccessor):
     """Base class for indicators."""
     _ltype = LineIterator.IndType  # = 0
 
-```bash
+```
 
 ### `ObserverBase`
 
@@ -680,7 +678,7 @@ class ObserverBase(DataAccessor):
     _ltype = LineIterator.ObsType  # = 2
     _mindatas = 0  # Observers don't consume data arguments
 
-```bash
+```
 
 ### `StrategyBase`
 
@@ -695,7 +693,7 @@ class StrategyBase(DataAccessor):
         """Strategies override once to do nothing."""
         pass
 
-```bash
+```
 
 ## Complete Example: Custom LineIterator
 
@@ -745,7 +743,7 @@ class CustomOscillator(bt.Indicator):
 # Call regular next()
         self.next()
 
-```bash
+```
 
 ## Implementation Examples
 
@@ -773,7 +771,7 @@ class FastSMA(bt.Indicator):
         for i in range(start, end):
             dst[i] = sum(src[i-period:i]) / period
 
-```bash
+```
 
 ### Example 2: Multi-Data Indicator
 
@@ -809,7 +807,7 @@ class SpreadIndicator(bt.Indicator):
         if std != 0:
             self.lines.zscore[0] = (spread - mean) / std
 
-```bash
+```
 
 ### Example 3: Stateful Indicator (EMA)
 
@@ -854,7 +852,7 @@ class CustomEMA(bt.Indicator):
         for i in range(start, end):
             dst[i] = dst[i-1]*self.alpha1 + src[i]* self.alpha
 
-```bash
+```
 
 ## Common Pitfalls
 

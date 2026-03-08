@@ -1,10 +1,8 @@
-- --
-
+---
 title: Quick Start Tutorial
 description: Create your first backtesting strategy in 5 minutes
 
-- --
-
+---
 # Quick Start Tutorial
 
 Learn how to create a simple trading strategy and backtest it with historical data.
@@ -49,7 +47,7 @@ class SimpleStrategy(bt.Strategy):
             if self.crossover < 0:
                 self.sell()
 
-```bash
+```
 
 ## Running the Backtest
 
@@ -84,7 +82,7 @@ results = cerebro.run()
 
 print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
 
-```bash
+```
 
 ## Plotting the Results
 
@@ -96,7 +94,7 @@ import matplotlib.pyplot as plt
 cerebro.plot()
 plt.show()
 
-```bash
+```
 
 ## Complete Example
 
@@ -157,7 +155,7 @@ print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
 
 cerebro.plot()
 
-```bash
+```
 
 ## What's Next?
 

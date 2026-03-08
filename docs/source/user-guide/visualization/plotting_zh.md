@@ -1,10 +1,8 @@
-- --
-
+---
 title: 绘图
 description: 可视化回测结果
 
-- --
-
+---
 # 绘图
 
 Backtrader 提供多种绘图选项来可视化您的回测结果。
@@ -26,7 +24,7 @@ results = cerebro.run()
 
 cerebro.plot()
 
-```bash
+```
 
 ## 绘图选项
 
@@ -42,7 +40,7 @@ plt.rcParams['figure.figsize'] = [15, 10]
 cerebro.plot()
 plt.show()
 
-```bash
+```
 
 ### 样式
 
@@ -54,7 +52,7 @@ plt.style.use('dark_background')
 cerebro.plot()
 plt.show()
 
-```bash
+```
 
 ## Plotly 交互式绘图
 
@@ -75,7 +73,7 @@ fig = plotter.plot(cerebro, style='plotly')
 
 fig.show()
 
-```bash
+```
 
 ## 绘图方案
 
@@ -99,7 +97,7 @@ scheme = Scheme(
 
 cerebro.plot(scheme=scheme)
 
-```bash
+```
 
 ## 多数据源
 
@@ -112,7 +110,7 @@ cerebro.adddata(data2, name='MSFT')
 
 cerebro.plot()
 
-```bash
+```
 
 ## 保存图表
 
@@ -124,7 +122,7 @@ import matplotlib.pyplot as plt
 fig = cerebro.plot()
 fig.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
 
-```bash
+```
 
 ### Plotly
 
@@ -133,7 +131,7 @@ plotter = bt.plot.Plotly()
 fig = plotter.plot(cerebro)
 fig.write_html('backtest_results.html')
 
-```bash
+```
 
 ## 自定义绘图
 
@@ -149,7 +147,7 @@ class MyStrategy(bt.Strategy):
 # SMA 自动绘制
         pass
 
-```bash
+```
 
 ### 禁用指标绘图
 
@@ -159,7 +157,7 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
         self.sma.plotinfo.plot = False  # 不绘制
 
-```bash
+```
 
 ## Bokeh 实时绘图
 
@@ -182,7 +180,7 @@ cerebro.setbroker(plotter.getbroker())
 strats = cerebro.run(plotter=plotter)
 plotter.show()
 
-```bash
+```
 
 ## 绘图示例
 
@@ -200,7 +198,7 @@ cerebro.adddata(data)
 
 cerebro.plot()
 
-```bash
+```
 
 ### 多指标
 
@@ -211,7 +209,7 @@ class MyStrategy(bt.Strategy):
         self.sma50 = bt.indicators.SMA(self.data.close, period=50)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
 
-```bash
+```
 
 ### 回撤子图
 

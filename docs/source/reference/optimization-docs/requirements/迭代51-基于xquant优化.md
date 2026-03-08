@@ -9,8 +9,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-- --
-
+---
 # 项目分析报告
 
 ## 一、Backtrader 项目分析
@@ -50,8 +49,7 @@ Backtrader 采用**事件驱动架构**，核心组件包括：
 3. **中国市场适配不足**：交易成本模型未针对 A 股规则深度优化
 4. **API 学习曲线陡峭**：功能丰富但复杂，新手上手困难
 
-- --
-
+---
 ## 二、XQuant 项目分析
 
 ### 2.1 核心架构特点
@@ -87,7 +85,7 @@ XQuant 内置了完整的贝叶斯优化实现，特点：
 bo = BayesianOptimization(f, pbounds={'x': (-4, 4), 'y': (-3, 3)})
 bo.maximize(init_points=5, n_iter=25, acq='ei')
 
-```bash
+```
 
 #### 2.2.2 并行计算框架 (`utils/parallel.py`)
 
@@ -105,7 +103,7 @@ def run_parallel():
     for i in range(100):
         process_data(i)  # 自动并行执行
 
-```bash
+```
 特点：
 
 - 使用 AST 转换实现代码重写
@@ -137,7 +135,7 @@ class PerMoneyCommission(Commission):
         self.rate_per_money = rate
         self.min_comm = min_comm
 
-```bash
+```
 
 #### 2.2.4 详细的交易记录分析
 
@@ -148,8 +146,7 @@ class PerMoneyCommission(Commission):
 - 最大回撤分析
 - 分品种交易统计
 
-- --
-
+---
 ## 三、架构对比分析
 
 | 维度 | Backtrader | XQuant |
@@ -170,8 +167,7 @@ class PerMoneyCommission(Commission):
 
 |**性能优化**| Cython + TS/CS | 并行计算 |
 
-- --
-
+---
 # 需求文档
 
 ## 一、优化目标
@@ -224,7 +220,7 @@ optimizer = bt.optimizers.BayesianOptimizer(
 )
 best_params = optimizer.run()
 
-```bash
+```
 
 ### FR2: 并行计算装饰器
 
@@ -260,7 +256,7 @@ results = run_backtest([
     {'period': 20},
 ])
 
-```bash
+```
 
 ### FR3: A 股交易成本模型
 
@@ -302,7 +298,7 @@ future_commission = bt.commissions.ChinaFutureCommission(
 )
 cerebro.broker.setcommission(future_commission)
 
-```bash
+```
 
 ### FR4: 简化的策略 API
 
@@ -348,10 +344,9 @@ cerebro.adddata(df)  # 支持 pandas DataFrame
 
 cerebro.addstrategy(MyStrategy)
 
-```bash
+```
 
-- --
-
+---
 ## 三、非功能需求
 
 ### NFR1: 性能
@@ -369,8 +364,7 @@ cerebro.addstrategy(MyStrategy)
 - 提供完整的文档和示例
 - 错误提示清晰友好
 
-- --
-
+---
 # 设计文档
 
 ## 一、总体架构设计
@@ -402,7 +396,7 @@ backtrader/
 └── strategy/
     └── simple.py           # 新增：简化策略基类
 
-```bash
+```
 
 ## 二、详细设计
 
@@ -445,7 +439,7 @@ class BayesianOptimizer:
         """获取优化历史"""
         pass
 
-```bash
+```
 
 - *实现要点**：
 
@@ -490,7 +484,7 @@ class ParallelExecutor:
         """支持多参数的并行执行"""
         pass
 
-```bash
+```
 
 - *装饰器支持**：
 
@@ -508,7 +502,7 @@ def parallel(n_jobs=None, backend='multiprocessing'):
         return wrapper
     return decorator
 
-```bash
+```
 
 ### 2.3 A 股交易成本模型设计
 
@@ -563,7 +557,7 @@ class AStockCommission(CommissionInfo):
         transfer_fee = self._get_transfer_fee(size, price)
         return commission + stamp_duty + transfer_fee
 
-```bash
+```
 
 ### 2.4 简化策略 API 设计
 
@@ -648,7 +642,7 @@ class SeriesWrapper:
         """计算指数均线"""
         return bt.indicators.EMA(self._data, period=period)
 
-```bash
+```
 
 ## 三、依赖关系
 
@@ -666,7 +660,7 @@ joblib>=1.0.0            # 并行计算
 
 tqdm>=4.60.0             # 进度条（可选）
 
-```bash
+```
 
 ### 3.2 模块依赖图
 
@@ -688,7 +682,7 @@ tqdm>=4.60.0             # 进度条（可选）
      │ SimpleStrategy│
      └──────────────┘
 
-```bash
+```
 
 ## 四、实施计划
 
@@ -742,8 +736,7 @@ tqdm>=4.60.0             # 进度条（可选）
 - 测试贝叶斯优化的收敛速度
 - 内存使用分析
 
-- --
-
+---
 ## 附录
 
 ### A. 参考资料
@@ -805,10 +798,9 @@ best_params, best_result = optimizer.optimize()
 print(f"最优参数: {best_params}")
 print(f"夏普比率: {best_result['sharpe']:.2f}")
 
-```bash
+```
 
-- --
-
+---
 - 文档版本：v1.0*
 - 创建日期：2026-01-08*
 - 作者：Claude*

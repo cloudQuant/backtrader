@@ -1,10 +1,8 @@
-- --
-
+---
 title: 观察器
 description: 监控和记录策略行为
 
-- --
-
+---
 # 观察器
 
 观察器在回测期间监控和记录策略行为。与分析器不同，观察器专注于数据收集而非计算。
@@ -21,7 +19,7 @@ cerebro.addobserver(bt.observers.DrawDown)
 
 cerebro.run(stdstats=False)  # 禁用默认观察器
 
-```bash
+```
 
 ## 内置观察器
 
@@ -40,7 +38,7 @@ class MyStrategy(bt.Strategy):
             drawdown = self.observers.drawdown
             print(f'回撤: {drawdown.drawdown[0]:.2%}')
 
-```bash
+```
 
 ### Broker (经纪人)
 
@@ -55,7 +53,7 @@ cerebro.addobserver(bt.observers.Broker)
 
 # - 持仓
 
-```bash
+```
 
 ### Trades (交易)
 
@@ -68,7 +66,7 @@ cerebro.addobserver(bt.observers.Trades)
 
 # 交易盈亏
 
-```bash
+```
 
 ### BuySell (买卖)
 
@@ -77,7 +75,7 @@ cerebro.addobserver(bt.observers.BuySell)
 
 # 在图表上标记买卖点
 
-```bash
+```
 
 ### DataTrades (数据交易)
 
@@ -86,7 +84,7 @@ cerebro.addobserver(bt.observers.DataTrades)
 
 # 按数据源记录交易
 
-```bash
+```
 
 ### Benchmark (基准)
 
@@ -104,7 +102,7 @@ cerebro.adddata(bench)
 
 cerebro.addobserver(bt.observers.Benchmark, data=bench)
 
-```bash
+```
 
 ### LogReturns (对数收益)
 
@@ -115,7 +113,7 @@ cerebro.addobserver(bt.observers.LogReturns)
 
 # 用于分析收益模式
 
-```bash
+```
 
 ### TimeReturn (时间收益)
 
@@ -128,7 +126,7 @@ cerebro.addobserver(bt.observers.TimeReturn)
 
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 ## 默认观察器
 
@@ -177,7 +175,7 @@ class TradeLogger(bt.Observer):
 
 cerebro.addobserver(TradeLogger)
 
-```bash
+```
 
 ## 观察器 vs 分析器
 
@@ -206,7 +204,7 @@ strat = strats[0]
 print(strat.observers.broker.getvalue())
 print(strat.observers.drawdown.drawdown)
 
-```bash
+```
 
 ### 在策略中
 
@@ -221,7 +219,7 @@ class MyStrategy(bt.Strategy):
                 if dd > 0.10:  # 10% 回撤
                     self.log(f'高回撤: {dd:.2%}')
 
-```bash
+```
 
 ## 禁用观察器
 
@@ -236,7 +234,7 @@ cerebro.run(stdstats=False)
 cerebro.addobserver(bt.observers.DrawDown)
 cerebro.addobserver(bt.observers.Trades)
 
-```bash
+```
 
 ## 使用观察器绘图
 
@@ -256,7 +254,7 @@ plt.show()
 
 # - 买入/卖出标记
 
-```bash
+```
 
 ## 下一步学习
 

@@ -1,10 +1,8 @@
-- --
-
+---
 title: Cerebro API 参考
 description: 核心回测引擎 API
 
-- --
-
+---
 # Cerebro API 参考
 
 `Cerebro` 是核心回测引擎，用于协调策略、数据源、经纪人和分析器。
@@ -32,14 +30,14 @@ results = cerebro.run()
 
 cerebro.plot()
 
-```bash
+```
 
 ## 构造函数
 
 ```python
 bt.Cerebro()
 
-```bash
+```
 创建一个新的 Cerebro 实例。
 
 ## 数据管理
@@ -49,7 +47,7 @@ bt.Cerebro()
 ```python
 cerebro.adddata(data, name=None)
 
-```bash
+```
 向系统添加数据源。
 
 - **data**: 数据源实例
@@ -59,14 +57,14 @@ cerebro.adddata(data, name=None)
 data = bt.feeds.YahooFinanceData(dataname='AAPL')
 cerebro.adddata(data, name='AAPL')
 
-```bash
+```
 
 ### resampledata
 
 ```python
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Days, compression=1)
 
-```bash
+```
 添加数据并将其重采样到不同的时间周期。
 
 ### replaydata
@@ -74,7 +72,7 @@ cerebro.resampledata(data, timeframe=bt.TimeFrame.Days, compression=1)
 ```python
 cerebro.replaydata(data, timeframe=bt.TimeFrame.Weeks)
 
-```bash
+```
 添加数据并在不同的时间周期上重放。
 
 ## 策略管理
@@ -84,7 +82,7 @@ cerebro.replaydata(data, timeframe=bt.TimeFrame.Weeks)
 ```python
 cerebro.addstrategy(strategy_class, *args, **kwargs)
 
-```bash
+```
 向系统添加策略。
 
 ```python
@@ -92,14 +90,14 @@ cerebro.addstrategy(MyStrategy,
                    period=20,
                    threshold=1.5)
 
-```bash
+```
 
 ### optstrategy
 
 ```python
 cerebro.optstrategy(strategy_class, *args, **kwargs)
 
-```bash
+```
 添加策略用于优化。为要优化的参数传递可迭代对象。
 
 ```python
@@ -107,14 +105,14 @@ cerebro.optstrategy(MyStrategy,
                    period=[10, 20, 30],
                    threshold=[1.0, 1.5, 2.0])
 
-```bash
+```
 
 ### runstrategies
 
 ```python
 cerebro.runstrategies()
 
-```bash
+```
 运行回测（与 `run()` 相同）。
 
 ## 经纪人管理
@@ -124,7 +122,7 @@ cerebro.runstrategies()
 ```python
 broker = cerebro.getbroker()
 
-```bash
+```
 获取经纪人实例。
 
 ### setbroker
@@ -132,7 +130,7 @@ broker = cerebro.getbroker()
 ```python
 cerebro.setbroker(broker_instance)
 
-```bash
+```
 设置自定义经纪人实例。
 
 ### broker_setcash
@@ -140,7 +138,7 @@ cerebro.setbroker(broker_instance)
 ```python
 cerebro.broker_setcash(100000)
 
-```bash
+```
 设置初始资金。
 
 ### broker_setcommission
@@ -149,7 +147,7 @@ cerebro.broker_setcash(100000)
 cerebro.broker_setcommission(commission=0.001)
 cerebro.broker_setcommission(commission=0.001, leverage=10.0)
 
-```bash
+```
 设置佣金结构。
 
 ## 分析器管理
@@ -159,7 +157,7 @@ cerebro.broker_setcommission(commission=0.001, leverage=10.0)
 ```python
 cerebro.addanalyzer(analyzer_class, *args, **kwargs)
 
-```bash
+```
 向系统添加分析器。
 
 ```python
@@ -167,7 +165,7 @@ cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
 
-```bash
+```
 
 ## 观察器管理
 
@@ -176,13 +174,13 @@ cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
 ```python
 cerebro.addobserver(observer_class, *args, **kwargs)
 
-```bash
+```
 向系统添加观察器。
 
 ```python
 cerebro.addobserver(bt.observers.DrawDown)
 
-```bash
+```
 
 ## 写入器管理
 
@@ -191,13 +189,13 @@ cerebro.addobserver(bt.observers.DrawDown)
 ```python
 cerebro.addwriter(writer_class, *args, **kwargs)
 
-```bash
+```
 添加输出写入器。
 
 ```python
 cerebro.addwriter(bt.WriterFile, csv=True, out='results.csv')
 
-```bash
+```
 
 ## 执行
 
@@ -206,7 +204,7 @@ cerebro.addwriter(bt.WriterFile, csv=True, out='results.csv')
 ```python
 results = cerebro.run()
 
-```bash
+```
 执行回测。
 
 返回策略实例列表。
@@ -220,14 +218,14 @@ strat = strats[0]
 sharpe = strat.analyzers.sharpe.get_analysis()
 drawdown = strat.analyzers.drawdown.get_analysis()
 
-```bash
+```
 
 ### runstop
 
 ```python
 cerebro.runstop = False  # 设置为 True 以停止执行
 
-```bash
+```
 提前终止的停止标志。
 
 ## 绘图
@@ -237,7 +235,7 @@ cerebro.runstop = False  # 设置为 True 以停止执行
 ```python
 cerebro.plot(plotter=None, figsize=None, style='plotly', **kwargs)
 
-```bash
+```
 绘制结果。
 
 ```python
@@ -254,7 +252,7 @@ cerebro.plot(style='matplotlib')
 
 cerebro.plot(style='bokeh')
 
-```bash
+```
 
 ## 配置
 
@@ -263,7 +261,7 @@ cerebro.plot(style='bokeh')
 ```python
 cerebro.stdstats = True  # 启用标准观察器
 
-```bash
+```
 启用/禁用标准观察器（资金、价值、交易）。
 
 ### maxcpus
@@ -273,7 +271,7 @@ cerebro.maxcpus = None  # 使用所有 CPU
 
 cerebro.maxcpus = 4     # 使用 4 个 CPU
 
-```bash
+```
 设置优化的 CPU 限制。
 
 ## 性能选项
@@ -285,7 +283,7 @@ cerebro.runonce = True  # 使用向量化模式 (更快)
 
 cerebro.runonce = False  # 使用事件驱动模式
 
-```bash
+```
 执行模式：
 
 - `True`: 向量化 (runonce) - 简单策略更快
@@ -296,7 +294,7 @@ cerebro.runonce = False  # 使用事件驱动模式
 ```python
 cerebro.preload = True  # 将所有数据加载到内存
 
-```bash
+```
 将数据预加载到内存以加快访问。
 
 ### exactbars
@@ -304,7 +302,7 @@ cerebro.preload = True  # 将所有数据加载到内存
 ```python
 cerebro.exactbars = 1  # 在内存中保留最少的 K 线
 
-```bash
+```
 长回测的内存优化。
 
 ## 完整示例
@@ -372,7 +370,7 @@ print(f"最大回撤: {strat.analyzers.drawdown.get_analysis()['max']['drawdown'
 
 cerebro.plot(style='plotly', volume=False)
 
-```bash
+```
 
 ## 属性
 

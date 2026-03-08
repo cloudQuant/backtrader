@@ -15,8 +15,7 @@ This guide provides comprehensive instructions for using Backtrader in Jupyter n
 - [Notebook Best Practices](#notebook-best-practices)
 - [Advanced Techniques](#advanced-techniques)
 
-- --
-
+---
 ## Installation and Setup
 
 ### Basic Installation
@@ -40,7 +39,7 @@ cd backtrader && pip install -U .
 
 pip install pandas numpy scipy ipympl
 
-```bash
+```
 
 ### Notebook Configuration
 
@@ -57,10 +56,9 @@ import numpy as np
 from IPython.display import display, HTML
 import ipywidgets as widgets
 
-```bash
+```
 
-- --
-
+---
 ## Quick Start
 
 ### Minimal Backtest Example
@@ -106,10 +104,9 @@ print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 results = cerebro.run()
 print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
-```bash
+```
 
-- --
-
+---
 ## Interactive Backtesting Workflow
 
 ### Data Exploration
@@ -123,7 +120,7 @@ def explore_data(filepath):
     display(df.describe())
     display(df.head())
 
-```bash
+```
 
 ### Interactive Data Visualization
 
@@ -151,7 +148,7 @@ def plot_candles(data, title='Price Chart'):
     fig.update_layout(title=title, xaxis_rangeslider_visible=False, height=600)
     fig.show()
 
-```bash
+```
 
 ### Progress Tracking
 
@@ -171,10 +168,9 @@ class ProgressStrategy(bt.Strategy):
             clear_output(wait=True)
             print(f"Progress: {progress:.1f}%")
 
-```bash
+```
 
-- --
-
+---
 ## Visualization and Plotting
 
 ### Plotly Interactive Plotting
@@ -185,7 +181,7 @@ class ProgressStrategy(bt.Strategy):
 
 cerebro.plot(style='plotly', iplot=True)
 
-```bash
+```
 
 ### Dashboard-style Visualization
 
@@ -215,10 +211,9 @@ def create_backtest_dashboard(cerebro, results):
 
     cerebro.plot(style='plotly', iplot=True)
 
-```bash
+```
 
-- --
-
+---
 ## Parameter Sensitivity Analysis
 
 ### Single Parameter Sweep
@@ -257,7 +252,7 @@ def parameter_sweep(strategy_class, param_name, param_range, data):
 results_df = parameter_sweep(SimpleStrategy, 'period', range(5, 51, 5), data)
 display(results_df)
 
-```bash
+```
 
 ### Interactive Parameter Sliders
 
@@ -293,7 +288,7 @@ def interactive_backtest(data):
 interactive_widget = interactive_backtest(data)
 display(interactive_widget)
 
-```bash
+```
 
 ### Multi-Parameter Heatmap
 
@@ -322,10 +317,9 @@ def multi_parameter_heatmap(data, strategy_class, param1_name, param1_range,
 
     return results
 
-```bash
+```
 
-- --
-
+---
 ## Multi-Strategy Comparison
 
 ### Compare Multiple Strategies
@@ -387,7 +381,7 @@ strategy_configs = [
 
 comparison_df = compare_strategies(data, strategy_configs)
 
-```bash
+```
 
 ### Equity Curve Comparison
 
@@ -420,10 +414,9 @@ def plot_equity_curves(data, strategy_configs):
                       yaxis_title='Portfolio Value', hovermode='x unified')
     fig.show()
 
-```bash
+```
 
-- --
-
+---
 ## Real-time Data Monitoring
 
 ### Live Data Streaming
@@ -459,7 +452,7 @@ class LiveMonitor:
         """Stop monitoring."""
         self.is_running = False
 
-```bash
+```
 
 ### WebSocket Data Display
 
@@ -481,10 +474,9 @@ def create_live_ticker(symbol='BTCUSDT'):
 
     return ticker_widget
 
-```bash
+```
 
-- --
-
+---
 ## Exporting Results and Reports
 
 ### Export to CSV
@@ -512,7 +504,7 @@ def export_trades_to_csv(cerebro, filename='trades.csv'):
     print(f"Exported {len(df)} trades to {filename}")
     return df
 
-```bash
+```
 
 ### Export to Excel
 
@@ -538,7 +530,7 @@ def export_backtest_report(cerebro, results, filename='backtest_report.xlsx'):
 
     print(f"Report exported to {filename}")
 
-```bash
+```
 
 ### Generate HTML Report
 
@@ -585,10 +577,9 @@ def generate_html_report(cerebro, results, filename='backtest_report.html'):
     print(f"HTML report saved to {filename}")
     return filename
 
-```bash
+```
 
-- --
-
+---
 ## Notebook Best Practices
 
 ### Cell Organization
@@ -609,7 +600,7 @@ def generate_html_report(cerebro, results, filename='backtest_report.html'):
 
 # Cell 7: Export and reporting
 
-```bash
+```
 
 ### Memory Management
 
@@ -623,7 +614,7 @@ def cleanup_cerebro(cerebro):
     import gc
     gc.collect()
 
-```bash
+```
 
 ### Progress Indicators
 
@@ -639,7 +630,7 @@ def create_progress_bar(max_value):
     display(box)
     return progress, label
 
-```bash
+```
 
 ### Error Handling
 
@@ -655,10 +646,9 @@ def safe_backtest(cerebro):
         display(HTML(f"<div style='color:red'>{error_msg}</div>"))
         return None, error_msg
 
-```bash
+```
 
-- --
-
+---
 ## Advanced Techniques
 
 ### Parallel Backtesting
@@ -685,7 +675,7 @@ def parallel_optimization(param_combinations, n_jobs=None):
 
     return results
 
-```bash
+```
 
 ### Strategy Persistence
 
@@ -703,7 +693,7 @@ def load_strategy(filename):
         cerebro = pickle.load(f)
     return cerebro
 
-```bash
+```
 
 ### Walk-Forward Analysis
 
@@ -727,10 +717,9 @@ def walk_forward_analysis(data, strategy_class, train_size=252, test_size=63):
 
     return pd.DataFrame(results)
 
-```bash
+```
 
-- --
-
+---
 ## Collaboration and Sharing
 
 ### Export Notebook to HTML
@@ -745,7 +734,7 @@ jupyter nbconvert --to html your_notebook.ipynb
 
 !jupyter nbconvert --to html notebook_guide.ipynb
 
-```bash
+```
 
 ### Template Notebooks
 
@@ -765,10 +754,9 @@ notebook_metadata = {
     'backtrader_version': bt.__version__
 }
 
-```bash
+```
 
-- --
-
+---
 ## Quick Reference
 
 ### Common Notebook Patterns
@@ -794,7 +782,7 @@ cerebro.addstrategy(MyStrategy)
 cerebro.addstrategy(BuyAndHold)
 results = cerebro.run()
 
-```bash
+```
 
 ### Keyboard Shortcuts
 
@@ -806,8 +794,7 @@ results = cerebro.run()
 - `M`: Change to markdown
 - `Y`: Change to code
 
-- --
-
+---
 ## Summary
 
 This guide covers the essential aspects of using Backtrader in Jupyter notebooks:

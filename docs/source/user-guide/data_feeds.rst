@@ -10,7 +10,7 @@
    （open, high, low, close 等），每个 bar 是一行。
 
 数据源参数
---------
+----------
 
 所有数据源的通用参数：
 
@@ -207,7 +207,7 @@ Yahoo Finance 格式
    data.addfilter(bt.filters.CalendarDays)
 
 自定义数据源
-----------
+------------
 
 扩展数据源以包含额外列（如 PE、PB 等基本面数据）：
 
@@ -239,7 +239,7 @@ Yahoo Finance 格式
                self.buy()
 
 可复用的自定义数据类
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~
 
 为你的数据格式创建可复用的类：
 
@@ -261,7 +261,7 @@ Yahoo Finance 格式
    data = MyDataFormat(dataname='any_file.csv')
 
 在策略中访问数据
---------------
+------------------
 
 数据按添加顺序存储在 ``self.datas`` 列表中：
 
@@ -288,7 +288,7 @@ Yahoo Finance 格式
            print(f"昨日收盘: {self.data.close[-1]}")
 
 处理缺失数据
-----------
+------------
 
 对于多股票回测，某些股票可能有缺失数据（如停牌）：
 

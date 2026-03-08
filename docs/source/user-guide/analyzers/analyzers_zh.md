@@ -1,10 +1,8 @@
-- --
-
+---
 title: 分析器
 description: 策略性能分析
 
-- --
-
+---
 # 分析器
 
 分析器计算策略的性能指标。使用它们来评估策略效果。
@@ -28,7 +26,7 @@ strat = strats[0]
 sharpe = strat.analyzers.sharpe.get_analysis()
 print(f'夏普比率: {sharpe["sharperatio"]:.3f}')
 
-```bash
+```
 
 ## 可用分析器
 
@@ -48,7 +46,7 @@ cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual_return')
 
 cerebro.addanalyzer(bt.analyzers.LogReturnsRolling, _name='log_returns')
 
-```bash
+```
 
 ### 风险指标
 
@@ -66,7 +64,7 @@ cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar')
 
 cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 
-```bash
+```
 
 ### 回撤分析
 
@@ -83,7 +81,7 @@ print(f'最大回撤: {drawdown["max"]["drawdown"]:.2%}')
 print(f'最大回撤金额: {drawdown["max"]["moneydown"]:.2f}')
 print(f'最大回撤持续: {drawdown["max"]["len"]} 天')
 
-```bash
+```
 
 ### 交易分析
 
@@ -101,7 +99,7 @@ print(f'胜率: {trades["won"]["total"] / trades["total"]["total"]:.2%}')
 print(f'平均盈利: {trades["won"]["pnl"]["average"]:.2f}')
 print(f'平均亏损: {trades["lost"]["pnl"]["average"]:.2f}')
 
-```bash
+```
 
 ### 持仓分析
 
@@ -116,7 +114,7 @@ cerebro.addanalyzer(bt.analyzers.Positions, _name='positions')
 positions = strat.analyzers.positions.get_analysis()
 print(f'总持仓数: {len(positions)}')
 
-```bash
+```
 
 ### 成交分析
 
@@ -131,7 +129,7 @@ cerebro.addanalyzer(bt.analyzers.Transactions, _name='transactions')
 transactions = strat.analyzers.transactions.get_analysis()
 print(f'总成交数: {len(transactions)}')
 
-```bash
+```
 
 ### 周期统计
 
@@ -145,7 +143,7 @@ cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='period_stats')
 
 stats = strat.analyzers.period_stats.get_analysis()
 
-```bash
+```
 
 ### 时间收益分析
 
@@ -159,7 +157,7 @@ cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='time_return')
 
 time_return = strat.analyzers.time_return.get_analysis()
 
-```bash
+```
 
 ### VWR (成交量加权收益)
 
@@ -173,7 +171,7 @@ cerebro.addanalyzer(bt.analyzers.VWR, _name='vwr')
 
 vwr = strat.analyzers.vwr.get_analysis()
 
-```bash
+```
 
 ### PyFolio 集成
 
@@ -191,7 +189,7 @@ pyfolio = strat.analyzers.pyfolio.get_analysis()
 
 returns, positions, transactions, gross_lev = pyfolio
 
-```bash
+```
 
 ## 完整示例
 
@@ -275,7 +273,7 @@ print(f'年化收益: {annual_return.get("rnorm", 0):.2%}')
 print('-'* 50)
 print(f'最终组合价值: {cerebro.broker.getvalue():.2f}')
 
-```bash
+```
 
 ## 分析器输出格式
 
@@ -289,7 +287,7 @@ analyzer = strat.analyzers.name.get_analysis()
 for key, value in analyzer.items():
     print(f'{key}: {value}')
 
-```bash
+```
 
 ## 自定义分析器
 
@@ -325,7 +323,7 @@ class CustomAnalyzer(bt.Analyzer):
             'total_commission': sum(t['commission'] for t in self.trades),
         }
 
-```bash
+```
 
 ## 下一步学习
 

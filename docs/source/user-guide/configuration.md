@@ -28,7 +28,7 @@ cerebro = bt.Cerebro(
 
 )
 
-```bash
+```
 
 ### 2. 经纪商配置
 
@@ -54,7 +54,7 @@ cerebro.broker.setcommission(
 
 )
 
-```bash
+```
 
 ### 3. 数据配置
 
@@ -84,7 +84,7 @@ cerebro.resampledata(
     rightedge=True,
 )
 
-```bash
+```
 
 ## 高级配置
 
@@ -106,7 +106,7 @@ cerebro.broker.set_ordertype(ordertype=bt.Order.Stop)    # 止损单
 
 cerebro.broker.set_ordertype(ordertype=bt.Order.StopLimit)  # 止损限价单
 
-```bash
+```
 
 ### 2. 风险控制配置
 
@@ -134,7 +134,7 @@ class RiskManager(bt.Sizer):
 
 cerebro.addsizer(RiskManager)
 
-```bash
+```
 
 ### 3. 性能优化配置
 
@@ -167,7 +167,7 @@ class MemoryOptimizedStrategy(bt.Strategy):
             if self.data_close[0] > self.sma[0]:
                 self.buy()
 
-```bash
+```
 
 ### 4. 日志配置
 
@@ -195,7 +195,7 @@ class LoggedStrategy(bt.Strategy):
                 f'订单执行: {order.executed.price}, 数量: {order.executed.size}'
             )
 
-```bash
+```
 
 ## 自定义配置
 
@@ -225,7 +225,7 @@ class CustomBroker(bt.brokers.BackBroker):
 
         return price + slip
 
-```bash
+```
 
 ### 2. 自定义数据源配置
 
@@ -250,7 +250,7 @@ class CustomDataFeed(bt.feeds.GenericCSVData):
 # 自定义数据加载逻辑
         return super(CustomDataFeed, self)._loadline(linetokens)
 
-```bash
+```
 
 ### 3. 自定义指标配置
 
@@ -282,7 +282,7 @@ class CustomIndicator(bt.Indicator):
         )
     )
 
-```bash
+```
 
 ## 环境配置
 
@@ -316,7 +316,7 @@ class BacktestEnv:
         self.cerebro.addanalyzer(bt.analyzers.DrawDown)
         self.cerebro.addanalyzer(bt.analyzers.TradeAnalyzer)
 
-```bash
+```
 
 ### 2. 实盘环境
 
@@ -342,7 +342,7 @@ class LiveEnv:
     def _configure_risk_management(self):
         self.cerebro.addsizer(RiskManager)
 
-```bash
+```
 
 ## 最佳实践
 
@@ -365,7 +365,7 @@ def validate_config(cerebro):
         if data.params.timeframe < bt.TimeFrame.Minutes:
             raise ValueError("时间周期过小")
 
-```bash
+```
 
 ### 2. 性能优化
 
@@ -382,7 +382,7 @@ def optimize_performance(cerebro):
 # 设置最大 CPU 核心数
     cerebro.maxcpus = multiprocessing.cpu_count() - 1
 
-```bash
+```
 
 ### 3. 错误处理
 
@@ -398,7 +398,7 @@ def safe_run(cerebro):
         logging.error(f"回测运行错误: {e}")
         return None
 
-```bash
+```
 
 ## 常见问题
 

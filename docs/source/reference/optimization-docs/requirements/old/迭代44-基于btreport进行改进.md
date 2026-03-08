@@ -9,8 +9,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-- --
-
+---
 ## 一、项目对比分析
 
 ### 1.1 btreport 项目核心特性
@@ -59,8 +58,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 2. **可分享性**: btreport 生成 PDF 便于分享，backtrader 主要为交互式图表
 3. **指标整合**: btreport 整合了所有关键指标到一个页面
 
-- --
-
+---
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -120,8 +118,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 | US4 | 作为开发者，我想导出 JSON 格式数据以便进一步分析 | P1 |
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -148,7 +145,7 @@ backtrader/
 
 │       └── dark.html          # 深色主题模板
 
-```bash
+```
 
 ### 3.2 核心类设计
 
@@ -181,7 +178,7 @@ class PerformanceCalculator:
     def sqn_to_rating(sqn_score: float) -> str:
         """SQN 分数转人类评级"""
 
-```bash
+```
 
 #### 3.2.2 ReportChart
 
@@ -204,7 +201,7 @@ class ReportChart:
     def save_to_file(self, filename, format='png'):
         """保存图表到文件"""
 
-```bash
+```
 
 #### 3.2.3 ReportGenerator
 
@@ -227,7 +224,7 @@ class ReportGenerator:
     def generate_json(self, output_path: str):
         """生成 JSON 报告"""
 
-```bash
+```
 
 #### 3.2.4 Cerebro 扩展
 
@@ -255,7 +252,7 @@ class Cerebro:
 
         """
 
-```bash
+```
 
 ### 3.3 模板设计
 
@@ -281,7 +278,7 @@ class Cerebro:
 </body>
 </html>
 
-```bash
+```
 
 ### 3.4 数据流设计
 
@@ -297,7 +294,7 @@ ReportGenerator
     ↓
 输出文件 (HTML/PDF/JSON)
 
-```bash
+```
 
 ### 3.5 依赖管理
 
@@ -346,10 +343,9 @@ calc = bt.reports.PerformanceCalculator(strat)
 metrics = calc.get_all_metrics()
 print(metrics['sharpe_ratio'])
 
-```bash
+```
 
-- --
-
+---
 ## 四、实施计划
 
 ### 4.1 实施阶段
@@ -379,8 +375,7 @@ print(metrics['sharpe_ratio'])
 5. **P2**: JSON 导出
 6. **P2**: 自定义模板支持
 
-- --
-
+---
 ## 五、参考资料
 
 ### 5.1 关键参考代码

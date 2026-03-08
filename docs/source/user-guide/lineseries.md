@@ -1,10 +1,8 @@
-- --
-
+---
 title: LineSeries Time Series API
 description: Complete Backtrader LineSeries API Reference
 
-- --
-
+---
 # LineSeries Time Series API
 
 `LineSeries` is the core class for managing multi-line time-series data in Backtrader. It provides a unified time-series data access interface for data feeds, indicators, observers, and more, supporting historical data access, slicing operations, pandas conversion, and more.
@@ -21,7 +19,7 @@ LineRoot (base class for all line objects)
             DataSeries (data feed base class)
             Strategy (strategy base class)
 
-```bash
+```
 
 ## Core Concepts
 
@@ -44,7 +42,7 @@ Historical Data         Current         Future Data
   ...  [-3]  [-2]  [-1]   [0]   [1]   [2]  ...
                   Previous Bar   Current Bar
 
-```bash
+```
 
 ## LineSeries Class
 
@@ -54,7 +52,7 @@ Historical Data         Current         Future Data
 class backtrader.LineSeries(LineMultiple, LineSeriesMixin, ParamsMixin):
     """Base class for objects managing multiple time-series lines."""
 
-```bash
+```
 
 ### Core Attributes
 
@@ -103,7 +101,7 @@ class MyStrategy(bt.Strategy):
 
 # next_close = self.data.close[1]
 
-```bash
+```
 
 ### Data Length
 
@@ -120,7 +118,7 @@ def next(self):
 # Can calculate 20-period indicator
         pass
 
-```bash
+```
 
 ### Time Operations
 
@@ -136,7 +134,7 @@ def next(self):
 # Previous bar time
     prev_dt = self.data.datetime.datetime(-1)
 
-```bash
+```
 
 ## Data Access Pattern Table
 
@@ -176,7 +174,7 @@ def next(self):
 # Usage
     avg_price = sum(recent_3) / len(recent_3)
 
-```bash
+```
 
 ### Slicing Operations
 
@@ -191,7 +189,7 @@ def next(self):
 # Common pattern: Get the most recent N values
     recent_values = array_data[-self.p.period:]
 
-```bash
+```
 
 ## Alignment and Synchronization
 
@@ -220,7 +218,7 @@ class MyStrategy(bt.Strategy):
         if self.data0.close[0] > self.data1.close[0]:
             self.buy(data=self.data0)
 
-```bash
+```
 
 ### Data Source Access Methods
 
@@ -236,7 +234,7 @@ class MyStrategy(bt.Strategy):
         self.daily = self.getdatabyname('daily')
         self.weekly = self.getdatabyname('weekly')
 
-```bash
+```
 
 ## Period and Timeframe Handling
 
@@ -264,7 +262,7 @@ TimeFrame.Years        # 8 - Years
 
 TimeFrame.NoTimeFrame  # 9 - No timeframe
 
-```bash
+```
 
 ### Getting Data Source Timeframe
 
@@ -283,7 +281,7 @@ class MyStrategy(bt.Strategy):
             elif comp == 7:
                 print("Weekly data (7-day compression)")
 
-```bash
+```
 
 ### TimeFrame Methods
 
@@ -311,7 +309,7 @@ tf = bt.TimeFrame.TFrame('Days')
 
 # Returns: TimeFrame.Days (5)
 
-```bash
+```
 
 ## Relationship with Pandas
 
@@ -340,7 +338,7 @@ class MyStrategy(bt.Strategy):
         }, index=dates)
         df.index.name = 'date'
 
-```bash
+```
 
 ### Create Data Feed from pandas
 
@@ -367,7 +365,7 @@ df.set_index('datetime', inplace=True)
 
 data = bt.feeds.PandasData(dataname=df)
 
-```bash
+```
 
 ### PandasData Parameter Mapping
 
@@ -388,7 +386,7 @@ class CustomPandasData(bt.feeds.PandasData):
         ('openinterest', None),  # None = column doesn't exist
     )
 
-```bash
+```
 
 ## Common Usage Patterns
 
@@ -412,7 +410,7 @@ class CustomIndicator(bt.Indicator):
 
         self.lines.value[0] = total / self.p.period
 
-```bash
+```
 
 ### Pattern 2: Compare Current and Previous Values
 
@@ -427,7 +425,7 @@ def next(self):
 # 3 consecutive bars rising
         self.buy()
 
-```bash
+```
 
 ### Pattern 3: Conditional Access to Avoid Out of Bounds
 
@@ -447,7 +445,7 @@ def next(self):
 # Sufficient data here
         pass
 
-```bash
+```
 
 ### Pattern 4: Get Complete Historical Data
 
@@ -465,7 +463,7 @@ def next(self):
 # Method 3: Use getzero
     all_data = self.data.close.getzero(0, len(self.data))
 
-```bash
+```
 
 ### Pattern 5: Multi-Line Indicator Access
 
@@ -486,7 +484,7 @@ class BollingerBands(bt.Indicator):
         top = self.top[0]
         bot = self.bot[0]
 
-```bash
+```
 
 ## LineSeries Methods
 
@@ -499,7 +497,7 @@ Returns the length of the LineSeries (number of processed data points).
 ```python
 current_length = len(self.indicator)
 
-```bash
+```
 
 #### `size(self)`
 
@@ -508,7 +506,7 @@ Returns the number of lines (excluding extra lines).
 ```python
 num_lines = self.indicator.size()
 
-```bash
+```
 
 ### Index Operations
 
@@ -521,7 +519,7 @@ value = self.indicator[0]      # Current value
 
 value = self.indicator[-1]     # Previous value
 
-```bash
+```
 
 #### `__call__(self, ago=None, line=-1)`
 
@@ -541,7 +539,7 @@ delayed = self.indicator(ago=3)
 
 value = self.indicator(line='close')
 
-```bash
+```
 
 ### Buffer Operations
 
@@ -559,7 +557,7 @@ self.data.qbuffer(savemem=1000)
 
 self.sma.qbuffer()
 
-```bash
+```
 
 #### `minbuffer(self, size)`
 
@@ -571,7 +569,7 @@ Set minimum buffer size.
 
 self.indicator.minbuffer(100)
 
-```bash
+```
 
 ### Navigation Operations
 
@@ -582,7 +580,7 @@ Reset all lines to the starting position.
 ```python
 self.indicator.home()
 
-```bash
+```
 
 #### `rewind(self, size=1)`
 
@@ -591,7 +589,7 @@ Rewind by the specified number of positions.
 ```python
 self.indicator.rewind(5)  # Rewind 5 positions
 
-```bash
+```
 
 #### `advance(self, size=1)`
 
@@ -600,7 +598,7 @@ Advance by the specified number of positions.
 ```python
 self.indicator.advance(1)  # Advance 1 position
 
-```bash
+```
 
 #### `forward(self, value=0.0, size=1)`
 
@@ -609,7 +607,7 @@ Advance all lines and fill with values.
 ```python
 self.indicator.forward(size=1)
 
-```bash
+```
 
 #### `backwards(self, size=1, force=False)`
 
@@ -618,7 +616,7 @@ Move all lines backward.
 ```python
 self.indicator.backwards(size=1)
 
-```bash
+```
 
 #### `reset(self)`
 
@@ -627,7 +625,7 @@ Reset all lines to initial state.
 ```python
 self.indicator.reset()
 
-```bash
+```
 
 #### `extend(self, value=0.0, size=0)`
 
@@ -636,7 +634,7 @@ Extend all lines.
 ```python
 self.indicator.extend(size=10)
 
-```bash
+```
 
 ### Line Operations
 
@@ -658,7 +656,7 @@ line = self.indicator._getline('close')
 
 line = self.indicator._getline(-1, minusall=True)  # Last line
 
-```bash
+```
 
 ## Performance Optimization
 
@@ -676,7 +674,7 @@ def next(self):
     import numpy as np
     mean = np.mean(data_array[-20:])
 
-```bash
+```
 
 ### Enable Cache Mode
 
@@ -694,7 +692,7 @@ data = bt.feeds.PandasData(dataname=df)
 cerebro.adddata(data)
 data.qbuffer(savemem=1000)  # Only keep last 1000 bars
 
-```bash
+```
 
 ### Use runonce Mode
 
@@ -704,7 +702,7 @@ data.qbuffer(savemem=1000)  # Only keep last 1000 bars
 
 cerebro.run(runonce=True)
 
-```bash
+```
 
 ## Complete Examples
 
@@ -770,7 +768,7 @@ class MyStrategy(bt.Strategy):
 # Price breaks below lower band
             self.sell()
 
-```bash
+```
 
 ### Example 2: Historical Data Analysis
 
@@ -801,7 +799,7 @@ class AnalysisStrategy(bt.Strategy):
 # Trading hours
             pass
 
-```bash
+```
 
 ### Example 3: Multi-Timeframe Analysis
 
@@ -829,7 +827,7 @@ class MultiTimeFrameStrategy(bt.Strategy):
 # Both timeframes trend aligned
                     self.buy(data=self.daily)
 
-```bash
+```
 
 ## Common Pitfalls
 

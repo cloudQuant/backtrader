@@ -1,10 +1,8 @@
-- --
-
+---
 title: Sizer API
 description: Sizer 类完整 API 参考
 
-- --
-
+---
 # Sizer API
 
 `Sizer` 类用于计算交易订单的仓位大小。它基于可用资金、风险参数和其他因素来确定每次下单的数量。
@@ -15,7 +13,7 @@ description: Sizer 类完整 API 参考
 class backtrader.Sizer:
     """仓位计算器基类。"""
 
-```bash
+```
 
 ## 核心方法
 
@@ -27,7 +25,7 @@ class backtrader.Sizer:
 def __init__(self, **kwargs):
     super().__init__(**kwargs)
 
-```bash
+```
 
 ### `getsizing(self, data, isbuy)`
 
@@ -52,7 +50,7 @@ def getsizing(self, data, isbuy):
     comminfo = self.broker.getcommissioninfo(data)
     return self._getsizing(comminfo, self.broker.getcash(), data, isbuy)
 
-```bash
+```
 
 ### `_getsizing(self, comminfo, cash, data, isbuy)`
 
@@ -82,7 +80,7 @@ def _getsizing(self, comminfo, cash, data, isbuy):
 # 实现仓位计算逻辑
     raise NotImplementedError
 
-```bash
+```
 
 ### `set(self, strategy, broker)`
 
@@ -101,7 +99,7 @@ def set(self, strategy, broker):
     self.strategy = strategy
     self.broker = broker
 
-```bash
+```
 
 ## 内置 Sizer
 
@@ -130,7 +128,7 @@ cerebro.addsizer(bt.sizers.FixedSize, stake=100)
 
 cerebro.addsizer(bt.sizers.FixedSize, stake=100, tranches=4)
 
-```bash
+```
 
 ### FixedReverser - 固定数量反转
 
@@ -154,7 +152,7 @@ cerebro.addsizer(bt.sizers.FixedReverser, stake=100)
 
 # 有 100 股持仓时：卖出 200 股（平多 100 + 开空 100）
 
-```bash
+```
 
 ### FixedSizeTarget - 固定目标数量
 
@@ -177,7 +175,7 @@ cerebro.addsizer(bt.sizers.FixedSizeTarget, stake=1000)
 
 cerebro.target_order_size(data, target=0)  # 目标仓位为 0
 
-```bash
+```
 
 ### PercentSizer - 可用资金百分比
 
@@ -203,7 +201,7 @@ cerebro.addsizer(bt.sizers.PercentSizer, percents=30)
 
 cerebro.addsizer(bt.sizers.PercentSizer, percents=20, retint=True)
 
-```bash
+```
 
 - *注意**: 如果已有持仓，`PercentSizer` 直接使用当前持仓大小作为订单数量。
 
@@ -224,7 +222,7 @@ cerebro.addsizer(bt.sizers.AllInSizer)
 
 # 每次下单都使用全部可用资金
 
-```bash
+```
 
 ### PercentSizerInt - 整数百分比
 
@@ -245,7 +243,7 @@ cerebro.addsizer(bt.sizers.PercentSizerInt, percents=25)
 
 # 返回整数仓位大小
 
-```bash
+```
 
 ### AllInSizerInt - 全仓整数
 
@@ -264,7 +262,7 @@ cerebro.addsizer(bt.sizers.AllInSizerInt)
 
 # 每次下单都使用全部可用资金，返回整数
 
-```bash
+```
 
 ## 自定义 Sizer 开发
 
@@ -287,7 +285,7 @@ class MySizer(bt.Sizer):
         size = int(cash *self.p.my_param / price)
         return size
 
-```bash
+```
 
 ### 风险百分比 Sizer 示例
 
@@ -311,7 +309,7 @@ class RiskPercentSizer(bt.Sizer):
         size = int(risk_amount / price)
         return size
 
-```bash
+```
 
 ### ATR 风险调整 Sizer 示例
 
@@ -354,7 +352,7 @@ class ATRRiskSizer(bt.Sizer):
         max_size = int(cash / data.close[0])
         return min(size, max_size)
 
-```bash
+```
 
 ### 凯利公式 Sizer 示例
 
@@ -399,7 +397,7 @@ class KellySizer(bt.Sizer):
 
         return max(0, size)
 
-```bash
+```
 
 ## 与 Cerebro 集成
 
@@ -418,7 +416,7 @@ cerebro.addsizer(bt.sizers.FixedSize, stake=100)
 
 cerebro.addstrategy(MyStrategy)
 
-```bash
+```
 
 ### 为特定策略添加 Sizer
 
@@ -438,7 +436,7 @@ strat2 = cerebro.addstrategy(MyStrategy2)
 
 cerebro.addsizer_byidx(strat2, bt.sizers.PercentSizer, percents=50)
 
-```bash
+```
 
 ### 在策略中设置 Sizer
 
@@ -456,7 +454,7 @@ class MyStrategy(bt.Strategy):
 # 不指定 size，使用 Sizer 计算
         self.buy()
 
-```bash
+```
 
 ### 直接获取仓位大小
 
@@ -475,7 +473,7 @@ class MyStrategy(bt.Strategy):
         if buy_size > 0:
             self.buy(size=buy_size)
 
-```bash
+```
 
 ## Sizer 属性
 
@@ -503,7 +501,7 @@ def _getsizing(self, comminfo, cash, data, isbuy):
 
     return calculated_size
 
-```bash
+```
 
 ## 完整示例
 
@@ -549,7 +547,7 @@ cerebro.addstrategy(TestStrategy)
 
 result = cerebro.run()
 
-```bash
+```
 
 ## 最佳实践
 

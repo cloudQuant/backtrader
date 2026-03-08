@@ -22,7 +22,6 @@ Submodules
    backtrader.analyzers.pyfolio
    backtrader.analyzers.returns
    backtrader.analyzers.sharpe
-   backtrader.analyzers.sharpe_ratio_stats
    backtrader.analyzers.sqn
    backtrader.analyzers.timereturn
    backtrader.analyzers.total_value

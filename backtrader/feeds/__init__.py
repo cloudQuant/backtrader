@@ -2,13 +2,13 @@
 """Data Feeds Module - Data source implementations.
 
 This module provides data feed implementations for various data sources
-including CSV files, pandas DataFrames, Yahoo Finance, Interactive Brokers,
-OANDA, Quandl, InfluxDB, and more.
+including CSV files, pandas DataFrames, Yahoo Finance, Quandl, InfluxDB,
+and the unified bt_api_py live interface.
 
 Data Feed Types:
     - CSV Feeds: GenericCSVData, BTCSV, MT4CSV, SierraChart, VChartCSV
     - Pandas: PandasData for pandas DataFrame integration
-    - Online: Yahoo Finance, OANDA, Interactive Brokers, Quandl
+    - Online: Yahoo Finance, Quandl, BtApiFeed
     - Utilities: Chainer, RollOver for data manipulation
 
 Example:
@@ -36,46 +36,7 @@ from .vchart import *
 from .vchartcsv import *
 from .yahoo import *
 
-try:
-    from .ibdata import *
-except ImportError:
-    pass  # The user may not have ibpy installed
-
-try:
-    from .vcdata import *
-except ImportError:
-    pass  # The user may not have something installed
-
-try:
-    from .oanda import OandaData as OandaData
-except ImportError:
-    pass  # The user may not have something installed
-
-
 from .chainer import Chainer as Chainer
 from .rollover import RollOver as RollOver
 from .vchartfile import VChartFile as VChartFile
-
-# CCXT Feed for cryptocurrency exchanges
-try:
-    from .ccxtfeed import CCXTFeed as CCXTFeed
-except ImportError:
-    pass  # ccxt not installed
-
-# CCXT Feed with Funding Rate support
-try:
-    from .ccxtfeed_funding import CCXTFeedWithFunding as CCXTFeedWithFunding
-except ImportError:
-    pass  # ccxt not installed
-
-# CTP Data for China futures
-try:
-    from .ctpdata import CTPData as CTPData
-except ImportError:
-    pass  # ctpbee not installed
-
-# Futu Feed for HK/US/A-Share stocks
-try:
-    from .futufeed import FutuFeed as FutuFeed
-except ImportError:
-    pass  # futu-api not installed
+from .btapifeed import BtApiFeed as BtApiFeed

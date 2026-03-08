@@ -11,8 +11,7 @@ This document explains how to use WebSocket to receive real-time market data in 
 5. [Configuration Parameters](#configuration-parameters)
 6. [Troubleshooting](#troubleshooting)
 
-- --
-
+---
 ## Overview
 
 backtrader-ccxt supports three data fetching methods:
@@ -34,8 +33,7 @@ backtrader-ccxt supports three data fetching methods:
 - **Real-time**: New bars pushed immediately after candle close
 - **Multi-symbol**: Subscribe to multiple trading pairs simultaneously
 
-- --
-
+---
 ## Installation
 
 ### 1. Install ccxt.pro
@@ -43,7 +41,7 @@ backtrader-ccxt supports three data fetching methods:
 ```bash
 pip install ccxtpro
 
-```bash
+```
 
 ### 2. Verify Installation
 
@@ -51,10 +49,9 @@ pip install ccxtpro
 import ccxt.pro
 print(ccxt.__version__)  # Should display version number
 
-```bash
+```
 
-- --
-
+---
 ## Three Data Fetching Methods Compared
 
 ### Method 1: REST Polling (Default)
@@ -69,7 +66,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 - *Characteristics**:
 - Makes one HTTP request per minute
@@ -87,7 +84,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 - *Characteristics**:
 - Background thread fetches data on schedule
@@ -105,15 +102,14 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 - *Characteristics**:
 - Ultra-low latency
 - Exchange pushes data actively
 - Most quota-efficient
 
-- --
-
+---
 ## Using WebSocket
 
 ### Basic Example
@@ -149,7 +145,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 ### Complete Strategy Example
 
@@ -201,10 +197,9 @@ data = store.getdata(
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## Configuration Parameters
 
 ### CCXTFeed Parameters
@@ -249,8 +244,7 @@ The following exchanges support ccxt.pro WebSocket:
 
 > **Note**: WebSocket implementations may vary by exchange. Please verify with actual testing.
 
-- --
-
+---
 ## Data Flow
 
 ### WebSocket Data Flow
@@ -286,7 +280,7 @@ The following exchanges support ccxt.pro WebSocket:
 │                 └────────────┘                               │
 └──────────────────────────────────────────────────────────────┘
 
-```bash
+```
 
 ### Workflow
 
@@ -312,8 +306,7 @@ The following exchanges support ccxt.pro WebSocket:
    - Exponential backoff reconnection (1s → 2s → 4s...)
    - Auto-restores subscriptions after reconnect
 
-- --
-
+---
 ## Troubleshooting
 
 ### Issue 1: WebSocket Not Available
@@ -323,14 +316,14 @@ The following exchanges support ccxt.pro WebSocket:
 ```bash
 [WS] WebSocket not available. Install ccxt.pro: pip install ccxtpro
 
-```bash
+```
 
 - *Solution**:
 
 ```bash
 pip install ccxtpro
 
-```bash
+```
 
 ### Issue 2: Connection Failure
 
@@ -339,7 +332,7 @@ pip install ccxtpro
 ```bash
 WebSocket connection error: ...
 
-```bash
+```
 
 - *Possible causes**:
 1. Network issues
@@ -365,7 +358,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### Issue 4: Duplicate or Missing Data
 
@@ -377,8 +370,7 @@ data = store.getdata(
 - Use `drop_newest=True` to drop potentially incomplete newest bar
 - Ensure system time is accurate
 
-- --
-
+---
 ## Best Practices
 
 ### 1. Production Configuration
@@ -399,7 +391,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### 2. Multi-Symbol Subscription
 
@@ -418,7 +410,7 @@ for symbol in symbols:
     )
     cerebro.adddata(data)
 
-```bash
+```
 
 ### 3. Error Handling
 
@@ -436,10 +428,9 @@ class MyStrategy(bt.Strategy):
         if order.status in [order.Rejected, order.Margin]:
             self.log(f'[ERROR] Order failed: {order.status}')
 
-```bash
+```
 
-- --
-
+---
 ## Performance Comparison
 
 ### API Calls (Running for 1 Hour)
@@ -464,8 +455,7 @@ class MyStrategy(bt.Strategy):
 
 | WebSocket | 10-50ms |
 
-- --
-
+---
 ## Related Documentation
 
 - [CCXT Official Docs](<https://docs.ccxt.com/)>

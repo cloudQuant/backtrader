@@ -1,10 +1,8 @@
-- --
-
+---
 title: Strategy Examples Library
 description: Complete working examples of common trading strategies
 
-- --
-
+---
 # Strategy Examples Library
 
 This section provides complete, working implementations of popular trading strategies. Each example includes the full source code, parameter descriptions, and expected performance characteristics.
@@ -18,8 +16,7 @@ This section provides complete, working implementations of popular trading strat
 - [Arbitrage Strategy](#arbitrage-strategy-calendar-spread)
 - [Momentum Strategy](#momentum-strategy-supertrend)
 
-- --
-
+---
 ## Trend Following Strategy (Dual Moving Average)
 
 ### Overview
@@ -87,7 +84,7 @@ class DualMovingAverageStrategy(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### Performance Expectations
 
@@ -106,8 +103,7 @@ class DualMovingAverageStrategy(bt.Strategy):
 
 | long_period | 20-60 | Longer = fewer signals, more lag |
 
-- --
-
+---
 ## Mean Reversion Strategy (Bollinger Bands)
 
 ### Overview
@@ -198,7 +194,7 @@ class BollingerBandsMeanReversion(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### Performance Expectations
 
@@ -217,8 +213,7 @@ class BollingerBandsMeanReversion(bt.Strategy):
 
 | devfactor | 1.5-2.5 | Wider bands = fewer signals |
 
-- --
-
+---
 ## Breakout Strategy (Donchian Channels)
 
 ### Overview
@@ -298,7 +293,7 @@ class DonchianChannelBreakout(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### Performance Expectations
 
@@ -315,8 +310,7 @@ class DonchianChannelBreakout(bt.Strategy):
 
 | period | 10-40 | Shorter = more breakouts, more false signals |
 
-- --
-
+---
 ## Grid Trading Strategy
 
 ### Overview
@@ -431,7 +425,7 @@ class GridTradingStrategy(bt.Strategy):
         if active_orders < self.p.max_position:
             self.initialize_grid(current_price)
 
-```bash
+```
 
 ### Performance Expectations
 
@@ -452,8 +446,7 @@ class GridTradingStrategy(bt.Strategy):
 
 | max_position | 5-20 | Limit risk exposure |
 
-- --
-
+---
 ## Arbitrage Strategy (Calendar Spread)
 
 ### Overview
@@ -536,7 +529,7 @@ class CalendarSpreadArbitrage(bt.Strategy):
         if trade.isclosed:
             print(f'Trade P&L: {trade.pnl:.2f}, Commission: {trade.commission:.2f}')
 
-```bash
+```
 
 ### Performance Expectations
 
@@ -555,8 +548,7 @@ class CalendarSpreadArbitrage(bt.Strategy):
 
 | spread_high | Varies by market | Entry for short spread |
 
-- --
-
+---
 ## Momentum Strategy (SuperTrend)
 
 ### Overview
@@ -663,7 +655,7 @@ class SuperTrendStrategy(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### Performance Expectations
 
@@ -682,8 +674,7 @@ class SuperTrendStrategy(bt.Strategy):
 
 | multiplier | 2.0-4.0 | Higher = fewer signals, better trend filter |
 
-- --
-
+---
 ## Running These Examples
 
 To use any of these strategies:
@@ -728,7 +719,7 @@ results = cerebro.run()
 
 cerebro.plot()
 
-```bash
+```
 
 ## Next Steps
 

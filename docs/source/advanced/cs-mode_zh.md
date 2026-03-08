@@ -1,10 +1,8 @@
-- --
-
+---
 title: CS (横截面) 模式指南
 description: 多资产组合优化与横截面向量化
 
-- --
-
+---
 # CS (横截面) 模式指南
 
 CS (Cross-Section) 模式是专为多资产组合回测设计的性能优化功能。它通过在每个时间点同时处理多个资产,实现高效的横截面信号生成和组合优化。
@@ -30,7 +28,7 @@ for data in datas:
     indicator.calculate(data)
     strategy.next(data)
 
-```bash
+```
 在 CS 模式下,数据进行横截面处理:
 
 ```python
@@ -42,7 +40,7 @@ for t in time:
     signals = calculate_cross_sectional_signals(cross_section)
     portfolio.rebalance(signals)
 
-```bash
+```
 
 ## 性能优势
 
@@ -98,7 +96,7 @@ cerebro.addstrategy(MultiAssetStrategy)
 
 cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### 方法 2: 环境变量
 
@@ -110,7 +108,7 @@ export BACKTRADER_CS_MODE=1
 
 python my_portfolio_backtest.py
 
-```bash
+```
 
 ### 方法 3: 配置文件
 
@@ -123,7 +121,7 @@ cs_mode = {
     'use_cython': True,
 }
 
-```bash
+```
 
 ## 代码示例
 
@@ -212,7 +210,7 @@ cerebro.broker.setcash(1000000)
 
 result = cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### 示例 2: 多因子选股策略
 
@@ -322,7 +320,7 @@ cerebro.broker.setcash(10000000)
 cerebro.addstrategy(MultiFactorStrategy)
 result = cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### 示例 3: 可转债双低策略
 
@@ -447,7 +445,7 @@ cerebro.broker.setcash(100000000)
 cerebro.addstrategy(DoubleLowStrategy)
 result = cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ## CS 模式 vs TS 模式
 
@@ -521,7 +519,7 @@ print(f"标准模式: {standard_time:.2f}秒")
 print(f"CS 模式: {cs_time:.2f}秒")
 print(f"加速: {standard_time/cs_time:.2f}倍")
 
-```bash
+```
 
 ## 横截面信号生成
 
@@ -556,7 +554,7 @@ def calculate_cross_sectional_signals(self):
 
     return percentile_signals
 
-```bash
+```
 
 ### 行业中性化
 
@@ -581,7 +579,7 @@ def industry_neutralize(self, signals):
 
     return neutral_signals
 
-```bash
+```
 
 ## 限制和注意事项
 
@@ -603,7 +601,7 @@ for symbol in symbols:
     data = data.reindex(index_data.index)
     cerebro.adddata(bt.feeds.PandasData(dataname=data), name=symbol)
 
-```bash
+```
 
 ### 2. 缺失数据处理
 
@@ -626,7 +624,7 @@ def next(self):
 # 仅使用有效资产继续
     self._calculate_signals(valid_assets)
 
-```bash
+```
 
 ### 3. 内存使用
 
@@ -649,7 +647,7 @@ for symbol in symbols:
         if len(cerebro.datas) >= max_assets:
             break
 
-```bash
+```
 
 ### 4. 调仓频率
 
@@ -670,7 +668,7 @@ if self.counter % 5 == 0:
 if self._is_month_end():
     self.rebalance()
 
-```bash
+```
 
 ## 高级配置
 
@@ -685,7 +683,7 @@ cerebro.run(
 
 )
 
-```bash
+```
 
 ### CS 模式与优化结合
 
@@ -703,7 +701,7 @@ cerebro.optstrategy(
 
 results = cerebro.run(cs_mode=True, maxcpu=4)
 
-```bash
+```
 
 ## 最佳实践
 

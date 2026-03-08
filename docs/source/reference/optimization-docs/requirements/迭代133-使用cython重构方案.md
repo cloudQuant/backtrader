@@ -5,8 +5,7 @@
 
 把详细的结果写到这个文档里面。
 
-- --
-
+---
 # Cython 重构可行性研究报告
 
 ## 一、结论
@@ -61,7 +60,7 @@ __getitem__ / __setitem__: 24+ 处实现
 @property / @staticmethod: 97 处
 动态属性访问: 大量使用
 
-```bash
+```
 
 - *好消息**: 项目已移除元类(metaclass)，这是 Cython 重构的最大障碍之一。
 
@@ -119,7 +118,7 @@ def once(self, start, end):
 
 # 批量计算
 
-```bash
+```
 这些热点全部可以用 Cython 优化，预期提升**5-20 倍**。
 
 ## 四、推荐重构方案
@@ -198,7 +197,7 @@ cdef class CLineBuffer:
         self._idx += size
         self._size += size
 
-```bash
+```
 
 - *集成方式（保持 API 兼容）**:
 
@@ -227,7 +226,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             return self._cbuffer[ago]
         return self.array[self._idx + ago]
 
-```bash
+```
 
 #### 第二阶段: 指标计算核心 (1-2 周)
 
@@ -283,7 +282,7 @@ cpdef void ema_once(double[:] dst, double[:] src, int period, int start, int end
         ema = alpha *src[i] + one_minus_alpha*ema
         dst[i] = ema
 
-```bash
+```
 
 #### 第三阶段: 运算操作 (1 周)
 
@@ -332,7 +331,7 @@ cpdef void binary_op_div(double[:] dst, double[:] src1, double[:] src2, int star
         else:
             dst[i] = float('nan')
 
-```bash
+```
 
 ### 4.2 构建配置
 
@@ -374,7 +373,7 @@ setup(
     ),
 )
 
-```bash
+```
 
 - *创建 `pyproject.toml` 更新**:
 
@@ -386,7 +385,7 @@ build-backend = "setuptools.build_meta"
 [project.optional-dependencies]
 cython = ["Cython>=3.0"]
 
-```bash
+```
 
 ### 4.3 兼容性保证策略
 
@@ -408,7 +407,7 @@ def use_cython():
     """检查 Cython 加速是否可用"""
     return _CYTHON_AVAILABLE
 
-```bash
+```
 
 - *关键设计原则**:
 1. **纯 Python 回退**: Cython 模块导入失败时自动使用纯 Python 实现
@@ -435,7 +434,7 @@ python -m pytest tests/ -v --tb=short
 
 python scripts/profile_performance.py
 
-```bash
+```
 
 ## 五、预期性能提升
 
@@ -508,7 +507,7 @@ python scripts/profile_performance.py
 ├── 文档更新
 └── 版本发布
 
-```bash
+```
 
 ## 八、总结
 

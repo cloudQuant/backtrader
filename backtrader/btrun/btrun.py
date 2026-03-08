@@ -47,19 +47,9 @@ from ..strategy import Strategy
 from ..writer import WriterFile
 
 try:
-    from ..feeds.vcdata import VCData
+    from ..feeds.btapifeed import BtApiFeed
 except ImportError:
-    VCData = None
-
-try:
-    from ..feeds.ibdata import IBData
-except ImportError:
-    IBData = None
-
-try:
-    from ..feeds.oanda import OandaData
-except ImportError:
-    OandaData = None
+    BtApiFeed = None
 
 
 DATAFORMATS = dict(
@@ -73,14 +63,8 @@ DATAFORMATS = dict(
     yahoo=YahooFinanceData,
 )
 
-if VCData is not None:
-    DATAFORMATS["vcdata"] = VCData
-
-if IBData is not None:
-    DATAFORMATS["ibdata"] = (IBData,)
-
-if OandaData is not None:
-    DATAFORMATS["oandadata"] = (OandaData,)
+if BtApiFeed is not None:
+    DATAFORMATS["btapi"] = BtApiFeed
 
 TIMEFRAMES = dict(
     microseconds=TimeFrame.MicroSeconds,

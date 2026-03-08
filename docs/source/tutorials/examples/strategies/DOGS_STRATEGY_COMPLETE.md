@@ -4,8 +4,7 @@
 
 我已经成功创建了一个完整的布林带突破交易策略，专门针对 OKX DOGS/USDT 现货交易。
 
-- --
-
+---
 ## 📦 已创建的文件
 
 ### 1. 核心策略文件
@@ -27,10 +26,9 @@
 价格跌破下轨 → 卖出
 ATR 止损保护
 
-```bash
+```
 
-- --
-
+---
 ### 2. 配置工具
 
 - *文件名**: `check_okx_config_simple.py`
@@ -43,8 +41,7 @@ ATR 止损保护
 - ✓ 计算最小交易金额
 - ✓ 估算手续费
 
-- --
-
+---
 ### 3. 市场分析工具
 
 - *文件名**: `analyze_okx_min_trading.py`
@@ -61,8 +58,7 @@ ATR 止损保护
 - $0.4 可买: ~10,000 DOGS
 - 手续费率: 0.08%-0.1%
 
-- --
-
+---
 ### 4. 文档
 
 | 文件 | 说明 |
@@ -77,8 +73,7 @@ ATR 止损保护
 
 | `CCXT_ENV_CONFIG.md` | 环境变量配置指南 |
 
-- --
-
+---
 ## 🚀 快速开始
 
 ### 步骤 1: 配置 API 密钥
@@ -90,14 +85,14 @@ OKX_API_KEY=your_api_key_here
 OKX_SECRET=your_secret_here
 OKX_PASSWORD=your_password_here
 
-```bash
+```
 
 ### 步骤 2: 检查配置
 
 ```bash
 python check_okx_config_simple.py
 
-```bash
+```
 预期输出：
 
 ```bash
@@ -105,17 +100,16 @@ python check_okx_config_simple.py
 [OK] API Connection: Passed
 [OK] DOGS/USDT Spot: Passed
 
-```bash
+```
 
 ### 步骤 3: 运行策略
 
 ```bash
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
-- --
-
+---
 ## 📊 策略参数
 
 | 参数 | 值 | 说明 |
@@ -136,8 +130,7 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
 |**ATR 倍数**| 2.0 | 止损距离 |
 
-- --
-
+---
 ## ⚙️ 参数调整建议
 
 ### 不同市场环境
@@ -167,10 +160,9 @@ cerebro.addstrategy(
 
 )
 
-```bash
+```
 
-- --
-
+---
 ## 🛡️ 风险控制
 
 ### 已内置
@@ -210,10 +202,9 @@ if current_hour in [0, 1, 2, 3, 4, 5]:  # 凌晨不交易
 if self.atr[0] < self.data.close[0] * 0.01:
     return  # 波动率太低
 
-```bash
+```
 
-- --
-
+---
 ## ⚠️ 重要提示
 
 ### 1. 交易对说明
@@ -243,8 +234,7 @@ if self.atr[0] < self.data.close[0] * 0.01:
 - 建议启用 `enableRateLimit=True`
 - 避免频繁调用
 
-- --
-
+---
 ## 📈 策略特点
 
 ### 优势
@@ -262,8 +252,7 @@ if self.atr[0] < self.data.close[0] * 0.01:
 ⚠ **手续费积累**: 小额交易手续费占比高
 ⚠ **滑点风险**: 小币种流动性可能不足
 
-- --
-
+---
 ## 📝 使用示例
 
 ### 基本使用
@@ -295,10 +284,9 @@ cerebro.addstrategy(BollingerBandsStrategy)
 
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 🔍 故障排查
 
 ### 问题 1: ModuleNotFoundError
@@ -308,7 +296,7 @@ cerebro.run()
 ```bash
 pip install -e .
 
-```bash
+```
 
 ### 问题 2: API 连接失败
 
@@ -324,8 +312,7 @@ pip install -e .
 - 下单金额太小（<$0.04）
 - 交易对暂停交易
 
-- --
-
+---
 ## 📞 支持
 
 如有问题，请查看：
@@ -334,8 +321,7 @@ pip install -e .
 2. `OKX_MIN_TRADING_ANALYSIS.md` - 市场分析
 3. `CCXT_ENV_CONFIG.md` - 配置说明
 
-- --
-
+---
 ## 📜 免责声明
 
 ⚠️ **重要提示**:
@@ -349,8 +335,7 @@ pip install -e .
 
 - *交易有风险，投资需谨慎！**
 
-- --
-
+---
 ## 🎯 总结
 
 已完成功能：

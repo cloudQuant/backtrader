@@ -4,8 +4,7 @@
 
 - *交易对变更**: OKX **没有 DOGS 永续合约**，只能使用 **DOGS/USDT 现货交易**（仅做多）。
 
-- --
-
+---
 ## 已修复的问题
 
 ### 1. 历史 K 线数据加载为 0
@@ -16,7 +15,7 @@
 历史数据加载完成，K 线数量: 0
 [ERROR] 数据不足！当前只有 0 根 K 线，至少需要 61 根
 
-```bash
+```
 
 - *原因**:
 1. `hist_start_date` 参数未被 CCXTFeed 识别
@@ -45,7 +44,7 @@ def start(self):
         self._state = self._ST_HISTORBACK
         self._update_bar(start_date)
 
-```bash
+```
 
 - *策略修复** (`examples/backtrader_ccxt_okx_dogs_bollinger.py`):
 
@@ -62,7 +61,7 @@ data = store.getdata(
     ohlcv_limit=100,
 )
 
-```bash
+```
 
 ### 2. 交易对错误
 
@@ -77,7 +76,7 @@ python -c "import ccxt; ex=ccxt.okx(); ex.load_markets(); print([s for s in ex.m
 
 # 输出: ['DOGS/USD', 'DOGS/USDT'] - 都是现货，没有合约
 
-```bash
+```
 
 ### 3. 策略逻辑调整（现货只能做多）
 
@@ -101,10 +100,9 @@ python -c "import ccxt; ex=ccxt.okx(); ex.load_markets(); print([s for s in ex.m
 - 持多时价格 < 下轨 → 平多
 - 价格 <= 止损价 → 止损平仓
 
-```bash
+```
 
-- --
-
+---
 ## 使用数据加载测试脚本
 
 在运行主策略之前，先运行数据加载测试：
@@ -112,7 +110,7 @@ python -c "import ccxt; ex=ccxt.okx(); ex.load_markets(); print([s for s in ex.m
 ```bash
 python test_dogs_data.py
 
-```bash
+```
 
 - *预期输出**:
 
@@ -137,10 +135,9 @@ DOGS/USDT 现货数据加载测试
 
 [OK] 数据加载测试完成！
 
-```bash
+```
 
-- --
-
+---
 ## 改进点总结
 
 ### 已完成
@@ -187,8 +184,7 @@ DOGS/USDT 现货数据加载测试
 - *止损**:
 - 多仓止损 = 入场价 - 2×ATR
 
-- --
-
+---
 ## 运行流程
 
 ### 第一步：测试数据加载
@@ -196,7 +192,7 @@ DOGS/USDT 现货数据加载测试
 ```bash
 python test_dogs_data.py
 
-```bash
+```
 如果成功，继续运行主策略。
 
 ### 第二步：运行主策略
@@ -204,7 +200,7 @@ python test_dogs_data.py
 ```bash
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
 ### 预期输出
 
@@ -217,7 +213,7 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 ...
 数据收集完成，共 200 根 K 线
 
-```bash
+```
 
 - *策略运行**:
 
@@ -231,11 +227,10 @@ Price Information:
 ...
 ====================================================================================================
 
-```bash
+```
 如果出现 BUY 或 CLOSE 信号，则策略正常工作！
 
-- --
-
+---
 ## 参数调整建议
 
 ### 如果策略不交易
@@ -251,7 +246,7 @@ cerebro.addstrategy(
 
 )
 
-```bash
+```
 
 - *减少交易频率**:
 
@@ -264,10 +259,9 @@ cerebro.addstrategy(
 
 )
 
-```bash
+```
 
-- --
-
+---
 ## 重要提示
 
 ### 现货 vs 合约对比
@@ -294,8 +288,7 @@ cerebro.addstrategy(
 3. 设置合理的止损
 4. 不要过度交易
 
-- --
-
+---
 ## 获取帮助
 
 ### 如果还有问题
@@ -315,16 +308,14 @@ cerebro.addstrategy(
    - Backtrader 版本: `pip show backtrader`
    - CCXT 版本: `pip show ccxt`
 
-- --
-
+---
 ## 相关文档
 
 - `test_dogs_data.py` - 数据加载测试
 - `DOGS_STRATEGY_UPDATE.md` - 更新说明
 - `DOGS_STRATEGY_QUICK_REF.md` - 快速参考
 
-- --
-
+---
 ## 最终检查清单
 
 在运行策略前，确认：
@@ -340,10 +331,9 @@ cerebro.addstrategy(
 ```bash
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
-- --
-
+---
 - *更新时间**: 2026-01-20
 - *版本**: v3.0 - 现货做多版本
 - *主要变更**: 从合约改为现货交易（OKX 无 DOGS 永续合约）

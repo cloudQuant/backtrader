@@ -1,10 +1,8 @@
-- --
-
+---
 title: 策略示例库
 description: 常见交易策略的完整工作示例
 
-- --
-
+---
 # 策略示例库
 
 本节提供了流行交易策略的完整、可运行实现。每个示例都包含完整的源代码、参数说明和预期性能特征。
@@ -18,8 +16,7 @@ description: 常见交易策略的完整工作示例
 - [套利策略](#套利策略日历价差)
 - [动量策略](#动量策略超级趋势)
 
-- --
-
+---
 ## 趋势跟踪策略（双移动平均）
 
 ### 概述
@@ -87,7 +84,7 @@ class DualMovingAverageStrategy(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### 性能预期
 
@@ -106,8 +103,7 @@ class DualMovingAverageStrategy(bt.Strategy):
 
 | long_period | 20-60 | 周期越长=信号越少，滞后越大 |
 
-- --
-
+---
 ## 均值回归策略（布林带）
 
 ### 概述
@@ -197,7 +193,7 @@ class BollingerBandsMeanReversion(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### 性能预期
 
@@ -216,8 +212,7 @@ class BollingerBandsMeanReversion(bt.Strategy):
 
 | devfactor | 1.5-2.5 | 带宽越大=信号越少 |
 
-- --
-
+---
 ## 突破策略（唐奇安通道）
 
 ### 概述
@@ -296,7 +291,7 @@ class DonchianChannelBreakout(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### 性能预期
 
@@ -313,8 +308,7 @@ class DonchianChannelBreakout(bt.Strategy):
 
 | period | 10-40 | 周期越短=突破越多，假信号越多 |
 
-- --
-
+---
 ## 网格交易策略
 
 ### 概述
@@ -428,7 +422,7 @@ class GridTradingStrategy(bt.Strategy):
         if active_orders < self.p.max_position:
             self.initialize_grid(current_price)
 
-```bash
+```
 
 ### 性能预期
 
@@ -449,8 +443,7 @@ class GridTradingStrategy(bt.Strategy):
 
 | max_position | 5-20 | 限制风险敞口 |
 
-- --
-
+---
 ## 套利策略（日历价差）
 
 ### 概述
@@ -532,7 +525,7 @@ class CalendarSpreadArbitrage(bt.Strategy):
         if trade.isclosed:
             print(f'交易盈亏: {trade.pnl:.2f}, 手续费: {trade.commission:.2f}')
 
-```bash
+```
 
 ### 性能预期
 
@@ -551,8 +544,7 @@ class CalendarSpreadArbitrage(bt.Strategy):
 
 | spread_high | 因市场而异 | 做空价差入场点 |
 
-- --
-
+---
 ## 动量策略（超级趋势）
 
 ### 概述
@@ -658,7 +650,7 @@ class SuperTrendStrategy(bt.Strategy):
             return
         self.order = None
 
-```bash
+```
 
 ### 性能预期
 
@@ -677,8 +669,7 @@ class SuperTrendStrategy(bt.Strategy):
 
 | multiplier | 2.0-4.0 | 值越大=信号越少，趋势过滤越好 |
 
-- --
-
+---
 ## 运行这些示例
 
 使用任何这些策略：
@@ -723,7 +714,7 @@ results = cerebro.run()
 
 cerebro.plot()
 
-```bash
+```
 
 ## 后续步骤
 

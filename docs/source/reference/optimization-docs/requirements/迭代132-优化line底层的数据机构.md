@@ -20,7 +20,7 @@ self.array = array.array("d")  # Python 内置数组，双精度浮点
 
 self.array = collections.deque(maxlen=deque_maxlen)  # 固定大小的双端队列
 
-```bash
+```
 
 - *关键操作模式**:
 
@@ -78,7 +78,7 @@ def forward(self, value=NAN, size=1):
 
 # 如果用 numpy: np.append()会创建新数组，O(n)复杂度!
 
-```bash
+```
 
 - *性能对比测试估算** (1885 bars 数据):
 
@@ -123,7 +123,7 @@ class LineBuffer:
         import numpy as np
         return np.frombuffer(self.array, dtype=np.float64)
 
-```bash
+```
 
 1. **优化 once()方法中的批量计算**:
 
@@ -149,7 +149,7 @@ def once(self, start, end):
 
 # 写回结果
 
-```bash
+```
 
 1. **为高频指标提供专门的 numpy 加速版本**:
    - `MovingAverageSimple.once()` - 使用`np.convolve`或`cumsum`技巧
@@ -181,7 +181,7 @@ class LineBuffer:
         self._np_array[self._write_idx] = value
         self._write_idx += 1
 
-```bash
+```
 
 - *限制**: 需要提前知道数据长度，不适用于实时交易
 
@@ -208,7 +208,7 @@ class NumpyIndicatorBase(IndicatorBase):
         for i, val in enumerate(result, start):
             dst[i] = val
 
-```bash
+```
 
 ### 实施建议
 
@@ -226,8 +226,7 @@ class NumpyIndicatorBase(IndicatorBase):
 - `runonce=False`模式: 无明显变化（本身就是逐 bar 处理）
 - 整体回测速度: 预计提升 20-50%（取决于指标复杂度）
 
-- --
-
+---
 ## 补充分析：预分配 numpy 数组 + 索引赋值方案
 
 ### 问题重述
@@ -340,7 +339,7 @@ class LineBuffer:
         else:
             self._array[self._idx + ago] = value
 
-```bash
+```
 
 #### Cerebro 集成
 
@@ -374,7 +373,7 @@ def _preallocate_lines(self, obj, size):
             for ind in indicators:
                 self._preallocate_lines(ind, size)
 
-```bash
+```
 
 #### once()方法优化
 
@@ -400,7 +399,7 @@ class MovingAverageSimple(MovingAverageBase):
 # 填充 warmup 期的 NaN
         dst[:period-1] = np.nan
 
-```bash
+```
 
 ### 性能对比预估
 
@@ -443,8 +442,7 @@ class MovingAverageSimple(MovingAverageBase):
 2. **类型检查**: numpy 数组要求严格类型，需处理 None 值转换
 3. **边界情况**: 数据长度变化（如 replay 模式）需要特殊处理
 
-- --
-
+---
 ## C++量化交易系统的数组实现方案参考
 
 ### 问题本质
@@ -479,7 +477,7 @@ public:
     }
 };
 
-```bash
+```
 
 - *关键点**: `vector.reserve()` 预分配内存但不改变 size，`resize()` 预填充数据。之后的"追加"实际是索引赋值，O(1)复杂度。
 
@@ -512,7 +510,7 @@ public:
 // 使用：固定保留最近 100 个 bar
 RingBuffer<double, 100> prices;
 
-```bash
+```
 
 ### 方案 3: 内存池 (Memory Pool)
 
@@ -537,7 +535,7 @@ public:
     }
 };
 
-```bash
+```
 
 ### 方案 4: 分离存储架构
 
@@ -571,7 +569,7 @@ public:
     }
 };
 
-```bash
+```
 
 ### 方案对比
 
@@ -619,7 +617,7 @@ class LineBuffer:
 # 实时交易：动态 array
             self._use_numpy = False
 
-```bash
+```
 
 ### 结论
 

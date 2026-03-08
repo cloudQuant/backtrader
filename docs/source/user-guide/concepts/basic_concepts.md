@@ -18,7 +18,7 @@ Cerebro (回测引擎)
     ├── Analyzers (分析器)
     └── Writers (记录器)
 
-```bash
+```
 
 ## 核心组件
 
@@ -38,7 +38,7 @@ cerebro.adddata(data)
 cerebro.addstrategy(MyStrategy)
 cerebro.run()
 
-```bash
+```
 
 ### 2. Strategy（策略）
 
@@ -61,7 +61,7 @@ class MyStrategy(bt.Strategy):
 # 交易逻辑
         pass
 
-```bash
+```
 
 ### 3. DataFeeds（数据源）
 
@@ -83,7 +83,7 @@ data = bt.feeds.PandasData(
     volume='volume'
 )
 
-```bash
+```
 
 ### 4. Indicators（指标）
 
@@ -102,7 +102,7 @@ class MyIndicator(bt.Indicator):
     def next(self):
         self.lines.myline[0] = self.data.close[0]
 
-```bash
+```
 
 ### 5. Broker（经纪商）
 
@@ -117,7 +117,7 @@ class MyIndicator(bt.Indicator):
 cerebro.broker.setcash(100000.0)
 cerebro.broker.setcommission(commission=0.001)
 
-```bash
+```
 
 ### 6. Analyzers（分析器）
 
@@ -132,7 +132,7 @@ cerebro.broker.setcommission(commission=0.001)
 cerebro.addanalyzer(bt.analyzers.SharpeRatio)
 cerebro.addanalyzer(bt.analyzers.DrawDown)
 
-```bash
+```
 
 ## 数据结构
 
@@ -151,7 +151,7 @@ self.data.high   # 最高价线
 
 self.sma = bt.indicators.SMA()  # 均线
 
-```bash
+```
 
 ### 2. TimeFrame（时间框架）
 
@@ -167,7 +167,7 @@ self.sma = bt.indicators.SMA()  # 均线
 ```python
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 ## 执行流程
 

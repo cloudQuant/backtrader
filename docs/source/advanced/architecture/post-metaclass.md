@@ -1,10 +1,8 @@
-- --
-
+---
 title: Post-Metaclass Design
 description: Explicit initialization pattern without metaclasses
 
-- --
-
+---
 # Post-Metaclass Design
 
 This fork of Backtrader removes metaclass-based metaprogramming in favor of explicit initialization patterns while maintaining API compatibility.
@@ -47,7 +45,7 @@ def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
-```bash
+```
 
 ## Initialization Flow
 
@@ -64,7 +62,7 @@ flowchart TD
     I --> J[Parent __init__ creates lines]
     J --> K[Object fully initialized]
 
-```bash
+```
 
 ## Key Components
 
@@ -87,7 +85,7 @@ class BaseMixin(object):
 # 4. Prepare lines
         return _obj, args, kwargs
 
-```bash
+```
 
 ### 2. Owner Finding (findowner)
 
@@ -108,7 +106,7 @@ def findowner():
         frame =.f_back
     return None
 
-```bash
+```
 
 ### 3. Parameter Initialization
 
@@ -126,7 +124,7 @@ for key, value in kwargs.items():
     if hasattr(params, key):
         setattr(params, key, value)
 
-```bash
+```
 
 ### 4. Line Creation
 
@@ -139,7 +137,7 @@ Lines are created during parent `__init__`:
 for line_name in self._lines:
     self.lines[line_name] = LineBuffer(size)
 
-```bash
+```
 
 ## Usage Pattern
 
@@ -164,7 +162,7 @@ class MyStrategy(bt.Strategy):
         if self.sma[0] > self.p.threshold:
             self.buy()
 
-```bash
+```
 
 ### Defining an Indicator
 
@@ -179,7 +177,7 @@ class MyIndicator(bt.Indicator):
 # Calculate indicator value
         self.lines.myline = bt.indicators.SMA(period=self.p.period)
 
-```bash
+```
 
 ## Critical Rules
 
@@ -201,7 +199,7 @@ class Good(bt.Strategy):
         super().__init__()
         period = self.p.period  # OK now
 
-```bash
+```
 
 ### 2. Never Use Metaclasses
 
@@ -221,7 +219,7 @@ def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
-```bash
+```
 
 ### 3. Indicator Registration
 
@@ -234,7 +232,7 @@ Indicators must register with their owner:
 if hasattr(self, '_owner') and self._owner:
     self._owner._lineiterators.append(self)
 
-```bash
+```
 
 ## Performance Benefits
 
@@ -270,7 +268,7 @@ class MyStrategy(bt.Strategy):
 cerebro.addstrategy(MyStrategy)
 cerebro.run()  # Works exactly as before
 
-```bash
+```
 
 ## Migration Guide
 

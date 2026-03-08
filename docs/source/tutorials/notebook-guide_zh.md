@@ -15,8 +15,7 @@
 9. [结果导出与报告](#结果导出与报告)
 10. [最佳实践](#最佳实践)
 
-- --
-
+---
 ## 环境安装与设置
 
 ### 安装必要依赖
@@ -46,7 +45,7 @@ pip install pandas numpy
 
 pip install yfinance
 
-```bash
+```
 
 ### 启动 Jupyter Notebook
 
@@ -60,7 +59,7 @@ jupyter notebook
 
 jupyter lab
 
-```bash
+```
 
 ### 配置显示设置
 
@@ -86,7 +85,7 @@ pd.set_option('display.max_colwidth', None)
 
 print("环境设置完成!")
 
-```bash
+```
 
 ### 验证 Backtrader 安装
 
@@ -95,10 +94,9 @@ import backtrader as bt
 print(f"Backtrader 版本: {bt.__version__}")
 print("Backtrader 安装成功!")
 
-```bash
+```
 
-- --
-
+---
 ## 快速开始
 
 ### 第一个回测示例
@@ -164,10 +162,9 @@ print(f'初始资金: {cerebro.broker.getvalue():.2f}')
 results = cerebro.run()
 print(f'最终资金: {cerebro.broker.getvalue():.2f}')
 
-```bash
+```
 
-- --
-
+---
 ## 数据加载与探索
 
 ### 从 CSV 文件加载数据
@@ -204,7 +201,7 @@ data = bt.feeds.GenericCSVData(
     openinterest=-1
 )
 
-```bash
+```
 
 ### 从 Pandas DataFrame 加载数据
 
@@ -240,7 +237,7 @@ data = bt.feeds.PandasData(
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 
-```bash
+```
 
 ### 自定义 Pandas 数据源
 
@@ -274,7 +271,7 @@ class EnhancedPandasData(bt.feeds.PandasData):
 
 # data = EnhancedPandasData(dataname=df)
 
-```bash
+```
 
 ### 数据探索
 
@@ -330,10 +327,9 @@ plt.legend()
 plt.grid(True, alpha=0.3)
 plt.show()
 
-```bash
+```
 
-- --
-
+---
 ## 策略开发工作流
 
 ### 策略模板
@@ -406,7 +402,7 @@ class StrategyTemplate(bt.Strategy):
             elif self.data.close[0] < self.exit_ma[0]:
                 self.order = self.sell()
 
-```bash
+```
 
 ### 在笔记本中测试策略
 
@@ -459,10 +455,9 @@ cerebro, strategy = run_strategy(
     stop_loss=0.02
 )
 
-```bash
+```
 
-- --
-
+---
 ## 可视化与绘图
 
 ### 使用 Matplotlib 绘图
@@ -476,7 +471,7 @@ cerebro, strategy = run_strategy(
 fig = cerebro.plot(style='candlestick', barup='red', bardown='green')[0][0]
 fig.set_size_inches(14, 8)
 
-```bash
+```
 
 ### 使用 Plotly 交互式绘图
 
@@ -536,7 +531,7 @@ def plot_backtrader_results(cerebro, title='回测结果'):
 
 plot_backtrader_results(cerebro, 'SMA 交叉策略回测')
 
-```bash
+```
 
 ### 自定义可视化
 
@@ -593,7 +588,7 @@ def plot_custom_results(cerebro, strategy):
 
 plot_custom_results(cerebro, strategy)
 
-```bash
+```
 
 ### 收益曲线可视化
 
@@ -628,10 +623,9 @@ def plot_returns_curve(strategy):
     ax.grid(True, alpha=0.3)
     plt.show()
 
-```bash
+```
 
-- --
-
+---
 ## 参数敏感性分析
 
 ### 使用 ipywidgets 交互式参数调整
@@ -694,7 +688,7 @@ interact(
     stop_loss=FloatSlider(min=0.01, max=0.1, step=0.01, value=0.02, description='止损')
 )
 
-```bash
+```
 
 ### 参数网格搜索
 
@@ -768,7 +762,7 @@ results_df = parameter_grid_search(data, StrategyTemplate, param_grid)
 print("\n 最佳参数组合:")
 print(results_df.head())
 
-```bash
+```
 
 ### 参数热力图
 
@@ -798,7 +792,7 @@ def plot_parameter_heatmap(results_df, param1, param2, metric='returns'):
 
 plot_parameter_heatmap(results_df, 'ma_period', 'stop_loss')
 
-```bash
+```
 
 ### 参数优化曲线
 
@@ -826,10 +820,9 @@ def plot_parameter_sensitivity(results_df, param_name):
 
 plot_parameter_sensitivity(results_df, 'ma_period')
 
-```bash
+```
 
-- --
-
+---
 ## 多策略比较
 
 ### 同时运行多个策略
@@ -889,7 +882,7 @@ comparison = compare_strategies(data, strategies)
 print("\n 策略比较结果:")
 print(comparison)
 
-```bash
+```
 
 ### 策略比较可视化
 
@@ -942,7 +935,7 @@ def plot_strategy_comparison(results_df):
 
 plot_strategy_comparison(comparison)
 
-```bash
+```
 
 ### 累计收益曲线比较
 
@@ -992,10 +985,9 @@ def plot_equity_curves(data, strategies_dict, cash=10000):
 
 plot_equity_curves(data, strategies)
 
-```bash
+```
 
-- --
-
+---
 ## 实时数据监控
 
 ### 使用 CCXT 实时数据
@@ -1059,7 +1051,7 @@ data = store.getdata(
 
 # 注意：实时交易需要谨慎，建议先在测试网测试
 
-```bash
+```
 
 ### 模拟实时数据流
 
@@ -1109,10 +1101,9 @@ class MonitoringStrategy(bt.Strategy):
 
 # cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 结果导出与报告
 
 ### 导出交易记录
@@ -1158,7 +1149,7 @@ def export_trades(cerebro, strategy, filename='trades.csv'):
 trades_df = export_trades(cerebro, strategy)
 print(trades_df.head())
 
-```bash
+```
 
 ### 导出性能报告
 
@@ -1219,7 +1210,7 @@ def export_performance_report(strategy, filename='performance_report.xlsx'):
 
 export_performance_report(strategy)
 
-```bash
+```
 
 ### 生成 HTML 报告
 
@@ -1283,10 +1274,9 @@ def generate_html_report(cerebro, strategy, template='report_template.html'):
 html_report = generate_html_report(cerebro, strategy)
 display(html_report)
 
-```bash
+```
 
-- --
-
+---
 ## 最佳实践
 
 ### 笔记本组织结构
@@ -1340,7 +1330,7 @@ class MyStrategy(bt.Strategy):
 
 # 回测代码...
 
-```bash
+```
 
 ### 性能优化技巧
 
@@ -1371,7 +1361,7 @@ class CachedStrategy(bt.Strategy):
         self.close = self.data.close  # 缓存引用
         self.ma = bt.indicators.SMA(self.close, period=20)  # 只计算一次
 
-```bash
+```
 
 ### 调试技巧
 
@@ -1393,7 +1383,7 @@ class DebugStrategy(bt.Strategy):
         self.log(f'MA: {self.ma[0]:.2f}')
         self.log(f'Position: {self.position.size}')
 
-```bash
+```
 
 ### 策略版本管理
 
@@ -1427,10 +1417,9 @@ def save_backtest_results(cerebro, strategy, name):
     with open(f'{name}_results.pkl', 'wb') as f:
         pickle.dump(results, f)
 
-```bash
+```
 
-- --
-
+---
 ## 总结
 
 Jupyter Notebook 是一个强大的 Backtrader 开发环境，提供：

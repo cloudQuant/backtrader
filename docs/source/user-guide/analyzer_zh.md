@@ -1,10 +1,8 @@
-- --
-
+---
 title: 分析器 API
 description: 完整的分析器类 API 参考
 
-- --
-
+---
 # 分析器 API
 
 `Analyzer` 类是 Backtrader 中所有性能分析工具的基类。分析器用于计算和报告策略指标，包括收益率、回撤、夏普比率、交易统计等。
@@ -15,7 +13,7 @@ description: 完整的分析器类 API 参考
 class backtrader.Analyzer:
     """所有分析器的基类。"""
 
-```bash
+```
 
 ## 参数
 
@@ -30,7 +28,7 @@ class MyAnalyzer(bt.Analyzer):
         ('threshold', 1.5),
     )
 
-```bash
+```
 通过 `self.p.parameter_name` 或 `self.params.parameter_name` 访问参数。
 
 ## 核心方法
@@ -45,7 +43,7 @@ def __init__(self):
     self.trades = []
     self.total_pnl = 0.0
 
-```bash
+```
 
 ### `start(self)`
 
@@ -56,7 +54,7 @@ def start(self):
     self.initial_cash = self.broker.getcash()
     self.start_value = self.broker.getvalue()
 
-```bash
+```
 
 ### `prenext(self)`
 
@@ -75,7 +73,7 @@ def next(self):
     current_value = self.broker.getvalue()
     self.values.append(current_value)
 
-```bash
+```
 
 ### `stop(self)`
 
@@ -86,7 +84,7 @@ def stop(self):
     total_return = (self.broker.getvalue() / self.start_value) - 1
     self.rets['total_return'] = total_return
 
-```bash
+```
 
 ## 通知方法
 
@@ -102,7 +100,7 @@ def notify_trade(self, trade):
             'commission': trade.commission,
         })
 
-```bash
+```
 
 - *交易属性**：
 
@@ -137,7 +135,7 @@ def notify_order(self, order):
             'size': order.executed.size,
         })
 
-```bash
+```
 
 - *订单状态值**：
 
@@ -172,7 +170,7 @@ def notify_cashvalue(self, cash, value):
         'value': value,
     })
 
-```bash
+```
 
 ### `notify_fund(self, cash, value, fundvalue, shares)`
 
@@ -185,7 +183,7 @@ def notify_fund(self, cash, value, fundvalue, shares):
         'shares': shares,
     })
 
-```bash
+```
 
 ## 结果方法
 
@@ -199,7 +197,7 @@ def create_analysis(self):
     self.rets['total_trades'] = 0
     self.rets['winning_trades'] = 0
 
-```bash
+```
 
 ### `get_analysis(self)`
 
@@ -209,7 +207,7 @@ def create_analysis(self):
 def get_analysis(self):
     return self.rets
 
-```bash
+```
 
 ### `print(self)`
 
@@ -218,7 +216,7 @@ def get_analysis(self):
 ```python
 analyzer.print()  # 等同于 print(analyzer.get_analysis())
 
-```bash
+```
 
 ### `pprint(self)`
 
@@ -227,7 +225,7 @@ analyzer.print()  # 等同于 print(analyzer.get_analysis())
 ```python
 analyzer.pprint()  # 格式化输出
 
-```bash
+```
 
 ## 内置分析器
 
@@ -239,7 +237,7 @@ analyzer.pprint()  # 格式化输出
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
                     riskfreerate=0.01, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 | 参数 | 默认值 | 描述 |
 
@@ -264,7 +262,7 @@ cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
 ```python
 {'sharperatio': 1.23}
 
-```bash
+```
 
 ### SharpeRatio_Annual
 
@@ -273,7 +271,7 @@ cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
 ```python
 cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sharpe')
 
-```bash
+```
 
 ### DrawDown
 
@@ -282,7 +280,7 @@ cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sharpe')
 ```python
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-```bash
+```
 
 | 参数 | 默认值 | 描述 |
 
@@ -304,7 +302,7 @@ cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     }
 }
 
-```bash
+```
 
 ### TimeDrawDown
 
@@ -314,7 +312,7 @@ cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='dd',
                     timeframe=bt.TimeFrame.Months)
 
-```bash
+```
 
 - *输出**：
 
@@ -324,7 +322,7 @@ cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='dd',
     'maxdrawdownperiod': 30,
 }
 
-```bash
+```
 
 ### Returns
 
@@ -334,7 +332,7 @@ cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='dd',
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns',
                     timeframe=bt.TimeFrame.Years, tann=252)
 
-```bash
+```
 
 | 参数 | 默认值 | 描述 |
 
@@ -357,7 +355,7 @@ cerebro.addanalyzer(bt.analyzers.Returns, _name='returns',
 
 }
 
-```bash
+```
 
 ### AnnualReturn
 
@@ -366,7 +364,7 @@ cerebro.addanalyzer(bt.analyzers.Returns, _name='returns',
 ```python
 cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
 
-```bash
+```
 
 - *输出**：
 
@@ -377,7 +375,7 @@ cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
     2022: -0.08,
 }
 
-```bash
+```
 
 ### TradeAnalyzer
 
@@ -386,7 +384,7 @@ cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
 ```python
 cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
 
-```bash
+```
 
 - *输出**：
 
@@ -429,7 +427,7 @@ cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
     }
 }
 
-```bash
+```
 
 ### SQN
 
@@ -438,7 +436,7 @@ cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
 ```python
 cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 
-```bash
+```
 
 - *SQN 等级**：
 - 1.6 - 1.9：低于平均水平
@@ -458,7 +456,7 @@ cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
     'trades': 50,
 }
 
-```bash
+```
 
 ### Calmar
 
@@ -468,7 +466,7 @@ cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
                     timeframe=bt.TimeFrame.Months, period=36)
 
-```bash
+```
 
 | 参数 | 默认值 | 描述 |
 
@@ -488,7 +486,7 @@ cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
     datetime(2022, 12, 31): 0.98,
 }
 
-```bash
+```
 
 ### Transactions
 
@@ -497,7 +495,7 @@ cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
 ```python
 cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
 
-```bash
+```
 
 - *输出**：
 
@@ -508,7 +506,7 @@ cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
     ],
 }
 
-```bash
+```
 
 ### TimeReturn
 
@@ -518,7 +516,7 @@ cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
 cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='timeret',
                     timeframe=bt.TimeFrame.Months)
 
-```bash
+```
 
 - *输出**：
 
@@ -528,7 +526,7 @@ cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='timeret',
     datetime(2021, 2, 28): 0.0156,
 }
 
-```bash
+```
 
 ### Positions
 
@@ -537,7 +535,7 @@ cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='timeret',
 ```python
 cerebro.addanalyzer(bt.analyzers.Positions, _name='pos')
 
-```bash
+```
 
 ### TotalValue
 
@@ -546,7 +544,7 @@ cerebro.addanalyzer(bt.analyzers.Positions, _name='pos')
 ```python
 cerebro.addanalyzer(bt.analyzers.TotalValue, _name='tv')
 
-```bash
+```
 
 ### PyFolio
 
@@ -555,7 +553,7 @@ cerebro.addanalyzer(bt.analyzers.TotalValue, _name='tv')
 ```python
 cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
 
-```bash
+```
 
 ### 其他分析器
 
@@ -580,7 +578,7 @@ class MyTimeFrameAnalyzer(bt.TimeFrameAnalyzerBase):
 # 当时间周期变化时调用
         pass
 
-```bash
+```
 
 ## 与 Cerebro 集成
 
@@ -619,7 +617,7 @@ print('最大回撤:', strat.analyzers.drawdown.get_analysis()['max']['drawdown'
 print('总收益:', strat.analyzers.returns.get_analysis()['rnorm100'])
 print('总交易数:', strat.analyzers.ta.get_analysis()['total']['closed'])
 
-```bash
+```
 
 ## 自定义分析器示例
 
@@ -649,7 +647,7 @@ class TradeCounter(bt.Analyzer):
         if self.rets['total'] > 0:
             self.rets['win_rate'] = self.rets['wins'] / self.rets['total']
 
-```bash
+```
 
 ### 盈亏比分析器
 
@@ -692,7 +690,7 @@ class WinLossRatio(bt.Analyzer):
         else:
             self.rets['win_loss_ratio'] = float('inf') if self.wins else 0
 
-```bash
+```
 
 ### 月度收益分析器
 
@@ -719,7 +717,7 @@ class MonthlyReturns(bt.TimeFrameAnalyzerBase):
     def get_analysis(self):
         return self.month_returns
 
-```bash
+```
 
 ### 持仓时间分析器
 
@@ -749,7 +747,7 @@ class HoldTimeAnalyzer(bt.Analyzer):
             self.rets['max_hold_bars'] = 0
             self.rets['total_trades'] = 0
 
-```bash
+```
 
 ### 连续盈亏分析器
 
@@ -795,7 +793,7 @@ class StreakAnalyzer(bt.Analyzer):
         self.rets['max_win_streak'] = self.max_win_streak
         self.rets['max_loss_streak'] = self.max_loss_streak
 
-```bash
+```
 
 ### 交易时段分析器
 
@@ -829,7 +827,7 @@ class TradingHourAnalyzer(bt.Analyzer):
                     'avg_pnl': stats['pnl'] / stats['trades'],
                 }
 
-```bash
+```
 
 ## 基金模式
 
@@ -845,7 +843,7 @@ cerebro.broker.set_fundmode(True, fundstart=10000.0)
 
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd', fund=True)
 
-```bash
+```
 
 ## 分析器生命周期
 
@@ -866,7 +864,7 @@ stateDiagram-v2
     stop --> get_analysis: 返回结果
     get_analysis --> [*]: 完成
 
-```bash
+```
 
 ## CSV 输出
 
@@ -877,7 +875,7 @@ cerebro.run()
 
 # 如果配置了，结果自动保存到 CSV
 
-```bash
+```
 
 ## 最佳实践
 
@@ -941,7 +939,7 @@ print(f"年化收益: {rets['rnorm100']:.2f}%")
 print(f"总交易数: {ta['total']['closed']}")
 print(f"胜率: {ta['won']['total'] / ta['total']['closed'] * 100:.2f}%")
 
-```bash
+```
 
 ### 按数据分别分析
 
@@ -956,7 +954,7 @@ cerebro.adddata(data2, name='MSFT')
 
 cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
 
-```bash
+```
 
 ## 下一步
 

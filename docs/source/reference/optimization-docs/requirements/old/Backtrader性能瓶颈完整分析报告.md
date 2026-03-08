@@ -8,8 +8,7 @@
 - *累计影响**: **15-30 秒的额外开销**
 - *性能下降**: **6-13%**
 
-- --
-
+---
 ## 🎯 关键发现总结
 
 | 问题 | 严重程度 | 累计影响 | 调用频率 | 优化难度 |
@@ -32,8 +31,7 @@
 
 - *总计**: **15-30 秒额外开销**
 
-- --
-
+---
 ## 🔍 问题 1: Strategy.__init__ 的灾难性数据搜索
 
 ### 位置
@@ -53,7 +51,7 @@
 sargs = self.datas + list(sargs)
 strat = stratcls(*sargs, **skwargs)  # datas 在 args[0:n]
 
-```bash
+```
 但是 `Strategy.__init__` 却完全**忽略了 args**，开始进行 **3 层暴力搜索**：
 
 #### Method 1: 遍历 cerebro 的所有属性（行 154-176）
@@ -73,7 +71,7 @@ for attr_name in dir(self.cerebro):  # ⚠️ dir() 极其昂贵！
         if hasattr(self, 'datas') and self.datas:
             break
 
-```bash
+```
 
 - *性能分析**:
 - `dir(self.cerebro)` 可能返回 200+ 个属性
@@ -98,7 +96,7 @@ if (not hasattr(self, 'datas') or not self.datas) and args:
                     if hasattr(item, 'lines') and hasattr(item, '_name') and hasattr(item, 'datetime'):
                         potential_datas.append(item)
 
-```bash
+```
 
 - *讽刺之处**:
 - **args 里本来就包含 datas**（cerebro 第 1433 行传入的）
@@ -128,7 +126,7 @@ try:
                     self.datas = list(var_value.datas)
                     break
 
-```bash
+```
 
 - *性能分析**:
 - `inspect.currentframe()` - Python 中最昂贵的操作之一
@@ -176,7 +174,7 @@ def __init__(self, *args, **kwargs):
 
 # 3 层暴力搜索...
 
-```bash
+```
 
 - *应该改为**:
 
@@ -201,7 +199,7 @@ def __init__(self, *args, **kwargs):
 
 # 不需要搜索！
 
-```bash
+```
 
 - *更好的方案**（显式参数）:
 
@@ -212,7 +210,7 @@ def __init__(self, datas=None, broker=None, *args, **kwargs):
     self.broker = broker
     self.data = self.datas[0] if self.datas else None
 
-```bash
+```
 
 - *Cerebro 端配合**:
 
@@ -222,12 +220,11 @@ def __init__(self, datas=None, broker=None, *args, **kwargs):
 
 strat = stratcls(datas=self.datas, broker=self.broker, *sargs, **skwargs)
 
-```bash
+```
 
 - *预期提升**: **5 秒**
 
-- --
-
+---
 ## 🔍 问题 2: LineIterator 中的调用栈遍历
 
 ### 位置
@@ -270,7 +267,7 @@ if self._owner is None:
                         self._owner = var_value
                         break
 
-```bash
+```
 
 - *性能分析**:
 - 遍历 20 层调用栈
@@ -306,7 +303,7 @@ indicator = SMA(self.data.close)  # 不知道 owner 是谁
 
 indicator = SMA(self.data.close, _owner=self)
 
-```bash
+```
 
 - *或者在策略中自动传递**:
 
@@ -319,12 +316,11 @@ def __setattr__(self, name, value):
         value._setowner(self)
     super().__setattr__(name, value)
 
-```bash
+```
 
 - *预期提升**: **3-5 秒**
 
-- --
-
+---
 ## 🔍 问题 3: 过度的 MRO 遍历
 
 ### 位置
@@ -360,7 +356,7 @@ any('Strategy' in base.__name__ for base in cls.__mro__)
 for base in cls.__mro__[1:]:
     if hasattr(base, 'params') and hasattr(getattr(base, 'params', None), '_getitems'):
 
-```bash
+```
 
 - *性能分析**:
 - MRO 可能有 10+ 个基类
@@ -402,7 +398,7 @@ def is_strategy(cls):
         _is_strategy_cache[cls] = any('Strategy' in base.__name__ for base in cls.__mro__)
     return _is_strategy_cache[cls]
 
-```bash
+```
 
 #### 2. 使用更快的检查方法
 
@@ -419,7 +415,7 @@ any('Strategy' in base.__name__ for base in cls.__mro__)
 from . import strategy
 isinstance(obj, strategy.StrategyBase)
 
-```bash
+```
 
 #### 3. 减少不必要的检查
 
@@ -427,8 +423,7 @@ isinstance(obj, strategy.StrategyBase)
 
 - *预期提升**: **2-4 秒**
 
-- --
-
+---
 ## 🔍 问题 4: dir() 的滥用
 
 ### 位置
@@ -459,7 +454,7 @@ for attr_name in dir(self.cerebro):  # ⚠️ 极慢！
 def keys(self):
     return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
 
-```bash
+```
 
 - *为什么 dir() 慢**:
 1. 遍历对象的 MRO
@@ -507,12 +502,11 @@ for attr_name in cls._cached_attrs:
 
 # ...
 
-```bash
+```
 
 - *预期提升**: **1-3 秒**
 
-- --
-
+---
 ## 🔍 问题 5: 参数系统的性能开销
 
 ### 位置
@@ -547,7 +541,7 @@ for attr_name, attr_value in cls.__dict__.items():
 
 # ...
 
-```bash
+```
 
 - *复杂度**: O(MRO × 属性数量 × 2)
 
@@ -559,7 +553,7 @@ for base in self.__class__.__mro__[1:]:
 
 # ...
 
-```bash
+```
 每次参数访问都可能触发 MRO 遍历！
 
 ### 调用频率
@@ -583,7 +577,7 @@ for base in self.__class__.__mro__[1:]:
 if not hasattr(cls, '_resolved_params'):
     cls._resolved_params = _resolve_params_once(cls)
 
-```bash
+```
 
 #### 2. 使用更高效的参数存储
 
@@ -594,12 +588,11 @@ if not hasattr(cls, '_resolved_params'):
 class MyStrategy(Strategy):
     __slots__ = ('param1', 'param2', ...)
 
-```bash
+```
 
 - *预期提升**: **2-3 秒**
 
-- --
-
+---
 ## 🔍 问题 6: _oncepost 中的重复 _idx 设置
 
 ### 位置
@@ -622,7 +615,7 @@ def _oncepost(self):
                 for line in data_lines.lines:
                     line._idx = current_idx  # ⚠️ 即使值没变也设置
 
-```bash
+```
 
 - *问题**:
 - 每次都无条件设置 _idx
@@ -664,12 +657,11 @@ def _oncepost(self):
                     for line in data_lines.lines:
                         line._idx = current_idx
 
-```bash
+```
 
 - *预期提升**: **1-2 秒**
 
-- --
-
+---
 ## 🔍 问题 7: 过度的 hasattr/getattr 使用
 
 ### 位置
@@ -700,7 +692,7 @@ if hasattr(obj, 'attr1'):
     if hasattr(sub, 'attr2'):
         subsub = getattr(sub, 'attr2')
 
-```bash
+```
 
 - *为什么慢**:
 - `hasattr(obj, 'name')` 内部使用 `try: getattr() except: False`
@@ -742,7 +734,7 @@ except AttributeError:
 
 # 处理不存在的情况
 
-```bash
+```
 
 #### 2. 缓存属性检查结果
 
@@ -757,7 +749,7 @@ if self._has_cache:
 
 # ...
 
-```bash
+```
 
 #### 3. 合并 hasattr 和 getattr
 
@@ -775,12 +767,11 @@ if val is not None:
 
 # ...
 
-```bash
+```
 
 - *预期提升**: **1-3 秒**
 
-- --
-
+---
 ## 📊 总体性能影响汇总
 
 ### 累计时间浪费
@@ -818,8 +809,7 @@ if val is not None:
 - 但新增了这些问题: 浪费 ~20 秒
 - **净效果**: 接近抵消
 
-- --
-
+---
 ## 💡 优化方案汇总
 
 ### 优先级 P0（立即执行，高价值）
@@ -846,7 +836,7 @@ def __init__(self, *args, **kwargs):
 
 # - 删除 Method 3（调用栈遍历）
 
-```bash
+```
 
 - *工作量**: 中等（需要测试确保兼容性）
 - *风险**: 低（逻辑简化）
@@ -861,7 +851,7 @@ def __init__(self, *args, **kwargs):
 
 # 使用显式 owner 传递或延迟绑定
 
-```bash
+```
 
 - *工作量**: 易（直接删除）
 - *风险**: 低（fallback 机制存在）
@@ -881,7 +871,7 @@ def is_strategy_class(cls):
         _type_cache[cls] = any('Strategy' in b.__name__ for b in cls.__mro__)
     return _type_cache[cls]
 
-```bash
+```
 
 - *工作量**: 中等
 - *风险**: 低
@@ -894,7 +884,7 @@ def is_strategy_class(cls):
 
 for attr_name, val in obj.__dict__.items():  # 而不是 dir()
 
-```bash
+```
 
 - *工作量**: 易
 - *风险**: 低
@@ -907,7 +897,7 @@ for attr_name, val in obj.__dict__.items():  # 而不是 dir()
 
 # 避免运行时的 MRO 遍历
 
-```bash
+```
 
 - *工作量**: 中等
 - *风险**: 中
@@ -924,7 +914,7 @@ if data._last_idx != current_idx:
     data._idx = current_idx
     data._last_idx = current_idx
 
-```bash
+```
 
 - *工作量**: 易
 - *风险**: 低
@@ -937,13 +927,12 @@ if data._last_idx != current_idx:
 
 # 使用 getattr(obj, 'attr', default) 一次性获取
 
-```bash
+```
 
 - *工作量**: 中等（需要修改很多地方）
 - *风险**: 低
 
-- --
-
+---
 ## 🎯 实施计划
 
 ### 第一阶段：快速优化（预期提升 7-10 秒）
@@ -987,8 +976,7 @@ if data._last_idx != current_idx:
 
 - *验证**: 最终测试，确认总提升
 
-- --
-
+---
 ## 📈 预期最终效果
 
 ### 优化前
@@ -998,7 +986,7 @@ if data._last_idx != current_idx:
 问题开销: ~20 秒
 "理想"时间: 217 秒
 
-```bash
+```
 
 ### 优化后（分阶段）
 
@@ -1026,8 +1014,7 @@ if data._last_idx != current_idx:
 - 从 237 秒优化到 215 秒 = **22 秒 (9.3%)**
 - 理论最优（如果 print 清理生效）: 215 - 20 = **195 秒 (17.7%)**
 
-- --
-
+---
 ## 🔬 验证方法
 
 ### 1. 添加性能分析
@@ -1056,7 +1043,7 @@ def __init__(self, *args, **kwargs):
 
 # ...
 
-```bash
+```
 
 ### 2. 使用 cProfile
 
@@ -1068,7 +1055,7 @@ p = pstats.Stats('profile.stats')
 p.sort_stats('cumulative').print_stats(50)
 "
 
-```bash
+```
 重点查看：
 
 - `__init__` 方法
@@ -1091,7 +1078,7 @@ python run_selected_tests.py  # 记录时间
 git stash pop
 python run_selected_tests.py  # 对比时间
 
-```bash
+```
 
 ### 4. 单元测试
 
@@ -1100,10 +1087,9 @@ python run_selected_tests.py  # 对比时间
 ```bash
 pytest tests/ -v --tb=short
 
-```bash
+```
 
-- --
-
+---
 ## 🏆 根本原因总结
 
 ### 为什么会有这些问题？
@@ -1130,7 +1116,7 @@ pytest tests/ -v --tb=short
 ```bash
 Cerebro → Strategy(datas=...) → 指标(owner=strategy)
 
-```bash
+```
 
 - *当前的数据流**:
 
@@ -1141,7 +1127,7 @@ Cerebro → Strategy(datas 在 args 中)
         └→ 遍历调用栈
            └→ 最后勉强找到数据
 
-```bash
+```
 
 #### 3. 过度补偿
 
@@ -1154,8 +1140,7 @@ Cerebro → Strategy(datas 在 args 中)
 
 - *结果**: 正确性提高了，但性能显著下降
 
-- --
-
+---
 ## 📝 关键洞察
 
 ### 1. **Cerebro 已经正确传递数据！**
@@ -1191,8 +1176,7 @@ Python 推荐：
 - 不要 `if hasattr: use`
 - 而是 `try: use except: handle`
 
-- --
-
+---
 ## 🎯 最终建议
 
 ### 立即行动（第一阶段）
@@ -1221,8 +1205,7 @@ Python 推荐：
 2. 更高效的参数系统
 3. 减少运行时反射
 
-- --
-
+---
 - *报告完成时间**: 2025-10-26
 - *下一步**: 实施第一阶段优化
 - *预期工作量**: 2-4 小时

@@ -9,8 +9,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-- --
-
+---
 ## 一、项目对比分析
 
 ### 1.1 backtrader_plotly 项目核心特性
@@ -71,8 +70,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 |**代码结构**| 751 行简洁实现 | 1000+行 | backtrader 可简化代码 |
 
-- --
-
+---
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -134,8 +132,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 | US4 | 作为分析师，我想绘制填充区域图，直观显示指标差异 | P1 |
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 PlotlyScheme 增强
@@ -194,7 +191,7 @@ class PlotlyScheme(PlotScheme):
         colidx = self.tab10_index[idx % len(self.tab10_index)]
         return colors[colidx % len(colors)]
 
-```bash
+```
 
 ### 3.2 图例文本处理
 
@@ -237,7 +234,7 @@ class PlotlyPlot(ParameterizedBase):
             return self.p.scheme.wrap_legend_text(label, max_width)
         return wrap_legend_text(label, max_width)
 
-```bash
+```
 
 ### 3.3 填充区域图实现
 
@@ -340,7 +337,7 @@ class PlotlyPlot(ParameterizedBase):
 
         return color
 
-```bash
+```
 
 ### 3.4 小数位数控制
 
@@ -372,7 +369,7 @@ class PlotlyPlot(ParameterizedBase):
         for i in range(1, self.pinf.nrows + 1):
             self.fig.update_yaxes(tickformat=tick_format, row=i)
 
-```bash
+```
 
 ### 3.5 API 设计
 
@@ -408,7 +405,7 @@ cerebro.plot(
 
 )
 
-```bash
+```
 
 ### 3.6 配色方案对比
 
@@ -453,10 +450,9 @@ plot/
     ├── TABLEAU10_LIGHT         # Tableau 10 Light 配色
     └── get_color_scheme()      # 获取配色方案函数
 
-```bash
+```
 
-- --
-
+---
 ## 四、实施计划
 
 ### 4.1 实施阶段
@@ -485,8 +481,7 @@ plot/
 4. **P1**: 填充区域图增强
 5. **P2**: 自定义配色方案
 
-- --
-
+---
 ## 五、参考资料
 
 ### 5.1 关键参考代码

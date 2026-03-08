@@ -4,8 +4,7 @@
 >
 > 本参考文档涵盖 `CCXTStore` 和 `CCXTBroker` 类，通过统一 API 实现 100+ 加密货币交易所的实盘交易。
 
-- --
-
+---
 ## 目录
 
 1. [架构概览](#架构概览)
@@ -18,8 +17,7 @@
 8. [配置示例](#配置示例)
 9. [高级功能](#高级功能)
 
-- --
-
+---
 ## 架构概览
 
 ```mermaid
@@ -77,7 +75,7 @@ graph TB
     style WS fill:#f3e5f5
     style TM fill:#f3e5f5
 
-```bash
+```
 
 ### 数据流
 
@@ -102,10 +100,9 @@ sequenceDiagram
         B->>S: notify_order(Completed)
     end
 
-```bash
+```
 
-- --
-
+---
 ## CCXTStore 类
 
 `CCXTStore` 类管理加密货币交易所的连接，为数据源和经纪商提供共享资源。
@@ -123,7 +120,7 @@ class CCXTStore(ParameterizedSingletonMixin):
     BrokerCls = None  # 自动注册 CCXTBroker
     DataCls = None    # 自动注册 CCXTFeed
 
-```bash
+```
 
 ### 构造函数
 
@@ -139,7 +136,7 @@ CCXTStore(
     use_connection_manager: bool = False,
 ) -> None
 
-```bash
+```
 
 - *参数说明：**
 
@@ -178,7 +175,7 @@ config = {
     }
 }
 
-```bash
+```
 
 ### 主要方法
 
@@ -188,7 +185,7 @@ config = {
 def getdata(self, *args, **kwargs) -> CCXTFeed:
     """返回使用此存储实例的数据源"""
 
-```bash
+```
 
 - *示例：**
 
@@ -200,7 +197,7 @@ data = store.getdata(
     historical=False,
 )
 
-```bash
+```
 
 #### getbroker()
 
@@ -208,7 +205,7 @@ data = store.getdata(
 def getbroker(self, *args, **kwargs) -> CCXTBroker:
     """返回使用此存储实例的经纪商"""
 
-```bash
+```
 
 - *示例：**
 
@@ -218,7 +215,7 @@ broker = store.getbroker(
     debug=False,
 )
 
-```bash
+```
 
 #### create_order()
 
@@ -247,7 +244,7 @@ def create_order(
         交易所的订单响应字典
     """
 
-```bash
+```
 
 #### cancel_order()
 
@@ -256,7 +253,7 @@ def create_order(
 def cancel_order(self, order_id: str, symbol: str) -> dict:
     """取消现有订单"""
 
-```bash
+```
 
 #### fetch_order()
 
@@ -265,7 +262,7 @@ def cancel_order(self, order_id: str, symbol: str) -> dict:
 def fetch_order(self, oid: str, symbol: str) -> dict:
     """获取特定订单的详细信息"""
 
-```bash
+```
 
 #### fetch_ohlcv()
 
@@ -285,7 +282,7 @@ def fetch_ohlcv(
         [时间戳, 开盘, 最高, 最低, 收盘, 成交量] 列表的列表
     """
 
-```bash
+```
 
 #### get_balance()
 
@@ -297,7 +294,7 @@ def get_balance(self) -> None:
     更新 self._cash（可用余额）和 self._value（总余额）
     """
 
-```bash
+```
 
 #### get_wallet_balance()
 
@@ -315,7 +312,7 @@ def get_wallet_balance(self, params: dict = None) -> dict:
         包含 'free' 和 'total' 子字典的余额字典
     """
 
-```bash
+```
 
 #### get_websocket_manager()
 
@@ -329,7 +326,7 @@ def get_websocket_manager(self) -> CCXTWebSocketManager:
         CCXTWebSocketManager 或 None（如果 ccxt.pro 不可用）
     """
 
-```bash
+```
 
 #### stop()
 
@@ -340,7 +337,7 @@ def stop(self) -> None:
     停止 WebSocket 连接和连接监控
     """
 
-```bash
+```
 
 ### 支持的时间粒度
 
@@ -372,8 +369,7 @@ def stop(self) -> None:
 
 | Years | 1 | `1y` |
 
-- --
-
+---
 ## CCXTBroker 类
 
 `CCXTBroker` 类在加密货币交易所执行订单并管理投资组合状态。
@@ -401,7 +397,7 @@ class CCXTBroker(BrokerBase):
         "canceled_order": {"key": "status", "value": "canceled"},
     }
 
-```bash
+```
 
 ### 构造函数
 
@@ -419,7 +415,7 @@ CCXTBroker(
 
 ) -> None
 
-```bash
+```
 
 - *参数说明：**
 
@@ -464,7 +460,7 @@ broker_mapping = {
 
 broker = CCXTBroker(broker_mapping=broker_mapping, ...)
 
-```bash
+```
 
 ### 主要方法
 
@@ -504,7 +500,7 @@ def buy(
         )
     """
 
-```bash
+```
 
 #### sell()
 
@@ -528,7 +524,7 @@ def sell(
 ) -> CCXTOrder:
     """创建卖单"""
 
-```bash
+```
 
 #### cancel()
 
@@ -543,7 +539,7 @@ def cancel(self, order: CCXTOrder) -> CCXTOrder:
         被取消的订单实例
     """
 
-```bash
+```
 
 #### get_balance()
 
@@ -556,7 +552,7 @@ def get_balance(self) -> tuple:
         value 为总投资组合价值
     """
 
-```bash
+```
 
 #### get_wallet_balance()
 
@@ -579,7 +575,7 @@ def get_wallet_balance(
         }
     """
 
-```bash
+```
 
 #### getposition()
 
@@ -595,7 +591,7 @@ def getposition(self, data: DataFeed, clone: bool = True) -> Position:
         包含 size、price 属性的 Position 对象
     """
 
-```bash
+```
 
 #### create_bracket_order()
 
@@ -638,7 +634,7 @@ def create_bracket_order(
         )
     """
 
-```bash
+```
 
 ### 订单状态映射
 
@@ -662,8 +658,7 @@ def create_bracket_order(
 
 | `Order.Rejected` | `rejected` | 被交易所拒绝 |
 
-- --
-
+---
 ## 订单类型与执行
 
 ### 订单类型
@@ -711,7 +706,7 @@ order = broker.buy(
     exectype=bt.Order.StopLimit,
 )
 
-```bash
+```
 
 ### 订单生命周期
 
@@ -734,7 +729,7 @@ stateDiagram-v2
     Canceled --> [*]
     Rejected --> [*]
 
-```bash
+```
 
 ### 交易所特定参数
 
@@ -784,10 +779,9 @@ order = broker.buy(
     }
 )
 
-```bash
+```
 
-- --
-
+---
 ## WebSocket 与 REST 模式
 
 ### REST 轮询模式（默认）
@@ -814,7 +808,7 @@ broker = store.getbroker(
 
 )
 
-```bash
+```
 
 ### WebSocket 模式（推荐）
 
@@ -852,7 +846,7 @@ broker = store.getbroker(
 
 )
 
-```bash
+```
 
 ### 模式对比
 
@@ -872,8 +866,7 @@ broker = store.getbroker(
 
 | 复杂度 | 简单 | 中等 |
 
-- --
-
+---
 ## 账户数据流
 
 ### 余额更新
@@ -894,7 +887,7 @@ broker.get_balance()          # 从交易所获取
 
 cash = broker.getcash()       # 现在已更新
 
-```bash
+```
 
 - *多币种余额：**
 
@@ -911,7 +904,7 @@ balances = broker.get_wallet_balance(
 for currency, info in balances.items():
     print(f"{currency}: {info['cash']} 可用")
 
-```bash
+```
 
 ### 持仓跟踪
 
@@ -934,7 +927,7 @@ class MyStrategy(bt.Strategy):
             pos = self.getposition(order.data)
             print(f"新持仓数量: {pos.size}")
 
-```bash
+```
 
 ### 订单通知
 
@@ -970,10 +963,9 @@ class MyStrategy(bt.Strategy):
 
         self.order = None  # 重置订单引用
 
-```bash
+```
 
-- --
-
+---
 ## 错误处理与重连
 
 ### 重试逻辑
@@ -1001,7 +993,7 @@ broker = CCXTBroker(
 
 # 第 4 次: 4 秒后 (2^2* 1.0)
 
-```bash
+```
 
 ### 错误类别
 
@@ -1059,7 +1051,7 @@ cm.on_reconnect(on_reconnect)
 if cm.is_connected():
     print("连接健康")
 
-```bash
+```
 
 ### WebSocket 重连
 
@@ -1082,10 +1074,9 @@ stateDiagram-v2
 
     end note
 
-```bash
+```
 
-- --
-
+---
 ## 配置示例
 
 ### 币安现货
@@ -1130,7 +1121,7 @@ broker = store.getbroker(
     use_threaded_order_manager=True,
 )
 
-```bash
+```
 
 ### 币安合约
 
@@ -1164,7 +1155,7 @@ data = store.getdata(
     compression=1,
 )
 
-```bash
+```
 
 ### OKX
 
@@ -1196,7 +1187,7 @@ data = store.getdata(
     compression=1,
 )
 
-```bash
+```
 
 ### Bybit
 
@@ -1222,7 +1213,7 @@ data = store.getdata(
     compression=1,
 )
 
-```bash
+```
 
 ### 环境变量（推荐）
 
@@ -1254,10 +1245,9 @@ store = bt.stores.CCXTStore(
     config=config,
 )
 
-```bash
+```
 
-- --
-
+---
 ## 高级功能
 
 ### 括号订单（OCO）
@@ -1290,7 +1280,7 @@ class MyStrategy(bt.Strategy):
                     stop_price=49600,  # 移动止损
                 )
 
-```bash
+```
 
 ### 限流控制
 
@@ -1315,7 +1305,7 @@ store = CCXTStore(
     use_rate_limiter=True,
 )
 
-```bash
+```
 
 ### 多策略交易
 
@@ -1345,7 +1335,7 @@ cerebro.adddata(eth_data)
 cerebro.addstrategy(BTCStrategy)
 cerebro.addstrategy(ETHStrategy)
 
-```bash
+```
 
 ### WebSocket 资金费率
 
@@ -1371,10 +1361,9 @@ class MyStrategy(bt.Strategy):
         if rate > 0.0001:  # 正费率：多头付费给空头
             self.close()  # 避免支付资金费率
 
-```bash
+```
 
-- --
-
+---
 ## API 参考总结
 
 ### CCXTStore 关键属性
@@ -1423,8 +1412,7 @@ class MyStrategy(bt.Strategy):
 
 | `startingvalue` | float | 初始价值 |
 
-- --
-
+---
 ## 另见
 
 - [CCXT 实盘交易指南](../CCXT_LIVE_TRADING_GUIDE.md) - 完整实盘交易设置
@@ -1432,6 +1420,5 @@ class MyStrategy(bt.Strategy):
 - [资金费率指南](../FUNDING_RATE_GUIDE.md) - 永续合约资金费率
 - [环境配置](../CCXT_ENV_CONFIG.md) - 使用环境变量设置
 
-- --
-
+---
 - 最后更新: 2026-03-01*

@@ -1,10 +1,8 @@
-- --
-
+---
 title: 交易经纪商 API
 description: 完整的经纪商类 API 参考文档
 
-- --
-
+---
 # 交易经纪商 API
 
 `Broker` 类负责 Backtrader 中的订单执行、持仓跟踪和资金管理。它在回测期间模拟经纪商行为，支持多种订单类型、佣金方案和保证金要求。
@@ -18,7 +16,7 @@ class backtrader.BrokerBase:
 class backtrader.brokers.BackBroker:
     """回测用的经纪商模拟器（别名：BrokerBack）。"""
 
-```bash
+```
 
 ## 经纪商参数
 
@@ -30,7 +28,7 @@ class backtrader.brokers.BackBroker:
 cerebro = bt.Cerebro()
 cerebro.broker.setcash(100000.0)
 
-```bash
+```
 
 ### `commission`（默认：CommInfoBase(percabs=True)）
 
@@ -46,7 +44,7 @@ cerebro.broker.setcommission(commission=0.001)  # 0.1%
 
 cerebro.broker.setcommission(commission=2.0, commtype=bt.CommInfoBase.COMM_FIXED)
 
-```bash
+```
 
 ### `checksubmit`（默认：True）
 
@@ -103,7 +101,7 @@ cash = cerebro.broker.getcash()
 
 cash = self.broker.getcash()
 
-```bash
+```
 
 ### `setcash(amount)` / `set_cash(amount)`
 
@@ -112,7 +110,7 @@ cash = self.broker.getcash()
 ```python
 cerebro.broker.setcash(100000.0)
 
-```bash
+```
 
 ### `getvalue(datas=None)` / `get_value(datas=None)`
 
@@ -128,7 +126,7 @@ total_value = self.broker.getvalue()
 
 data_value = self.broker.getvalue([self.data])
 
-```bash
+```
 
 ### `add_cash(amount)` / `add_cash(amount)`
 
@@ -144,7 +142,7 @@ cerebro.broker.add_cash(50000.0)
 
 cerebro.broker.add_cash(-10000.0)
 
-```bash
+```
 
 ## 持仓管理
 
@@ -158,7 +156,7 @@ size = position.size  # 正值=多头，负值=空头
 
 price = position.price  # 平均入场价格
 
-```bash
+```
 
 - *持仓属性**：
 
@@ -208,7 +206,7 @@ cerebro.broker.setcommission(
 
 )
 
-```bash
+```
 
 - *参数**：
 
@@ -247,7 +245,7 @@ class MyCommInfo(bt.CommInfoBase):
 
 cerebro.broker.addcommissioninfo(MyCommInfo(), name='AAPL')
 
-```bash
+```
 
 ## 订单管理
 
@@ -270,7 +268,7 @@ order = cerebro.broker.buy(
     price=100.0
 )
 
-```bash
+```
 
 - *参数**：
 
@@ -318,7 +316,7 @@ order = self.sell()
 
 order = self.sell(price=95.0, exectype=bt.Order.Stop)
 
-```bash
+```
 
 ### `cancel(order, bracket=False)`
 
@@ -327,7 +325,7 @@ order = self.sell(price=95.0, exectype=bt.Order.Stop)
 ```python
 self.cancel(order)
 
-```bash
+```
 
 ### `get_orders_open(safe=False)`
 
@@ -343,7 +341,7 @@ open_orders = self.broker.get_orders_open()
 
 open_orders = self.broker.get_orders_open(safe=True)
 
-```bash
+```
 
 ## 订单类型
 
@@ -354,7 +352,7 @@ open_orders = self.broker.get_orders_open(safe=True)
 ```python
 order = self.buy()  # 市价单
 
-```bash
+```
 
 ### 限价单
 
@@ -366,7 +364,7 @@ order = self.buy()  # 市价单
 
 order = self.buy(price=100.0, exectype=bt.Order.Limit)
 
-```bash
+```
 
 ### 止损单
 
@@ -378,7 +376,7 @@ order = self.buy(price=100.0, exectype=bt.Order.Limit)
 
 order = self.sell(price=95.0, exectype=bt.Order.Stop)
 
-```bash
+```
 
 ### 止损限价单
 
@@ -390,7 +388,7 @@ order = self.sell(price=95.0, exectype=bt.Order.Stop)
 
 order = self.sell(price=94.5, plimit=95.0, exectype=bt.Order.StopLimit)
 
-```bash
+```
 
 ### 收盘单
 
@@ -399,7 +397,7 @@ order = self.sell(price=94.5, plimit=95.0, exectype=bt.Order.StopLimit)
 ```python
 order = self.buy(exectype=bt.Order.Close)
 
-```bash
+```
 
 ### 追踪止损单
 
@@ -409,7 +407,7 @@ order = self.buy(exectype=bt.Order.Close)
 order = self.sell(trailamount=2.0, exectype=bt.Order.StopTrail)
 order = self.sell(trailpercent=0.05, exectype=bt.Order.StopTrail)
 
-```bash
+```
 
 ## 滑点配置
 
@@ -424,7 +422,7 @@ cerebro.broker.set_slippage_perc(
     slip_out=False
 )
 
-```bash
+```
 
 ### 固定滑点
 
@@ -436,7 +434,7 @@ cerebro.broker.set_slippage_fixed(
     slip_match=True
 )
 
-```bash
+```
 
 ## 基金模式
 
@@ -455,7 +453,7 @@ cerebro.broker.set_fundmode(True, fundstartval=100.0)
 fund_value = cerebro.broker.get_fundvalue()
 fund_shares = cerebro.broker.get_fundshares()
 
-```bash
+```
 
 ### `set_fundstartval(fundstartval)`
 
@@ -464,7 +462,7 @@ fund_shares = cerebro.broker.get_fundshares()
 ```python
 cerebro.broker.set_fundstartval(100.0)
 
-```bash
+```
 
 ## 其他配置方法
 
@@ -475,7 +473,7 @@ cerebro.broker.set_fundstartval(100.0)
 ```python
 cerebro.broker.set_coc(True)  # 允许当日执行
 
-```bash
+```
 
 ### `set_coo(coo)`
 
@@ -484,7 +482,7 @@ cerebro.broker.set_coc(True)  # 允许当日执行
 ```python
 cerebro.broker.set_coo(True)
 
-```bash
+```
 
 ### `set_checksubmit(checksubmit)`
 
@@ -493,7 +491,7 @@ cerebro.broker.set_coo(True)
 ```python
 cerebro.broker.set_checksubmit(False)  # 禁用检查
 
-```bash
+```
 
 ### `set_filler(filler)`
 
@@ -508,7 +506,7 @@ def my_filler(order, price, ago):
 
 cerebro.broker.set_filler(my_filler)
 
-```bash
+```
 
 ## 历史订单
 
@@ -526,7 +524,7 @@ orders = [
 ]
 cerebro.broker.add_order_history(orders, notify=False)
 
-```bash
+```
 
 ### `set_fund_history(fund)`
 
@@ -542,7 +540,7 @@ fund_history = [
 ]
 cerebro.broker.set_fund_history(fund_history)
 
-```bash
+```
 
 ## 佣金信息类
 
@@ -560,7 +558,7 @@ comminfo = bt.CommInfoBase(
     leverage=2.0
 )
 
-```bash
+```
 
 ### CommissionInfo
 
@@ -578,7 +576,7 @@ cerebro.broker.setcommission(
     interest=3.0
 )
 
-```bash
+```
 
 ### ComminfoFuturesPercent
 
@@ -609,7 +607,7 @@ cerebro = bt.Cerebro()
 broker = bt.brokers.BackBroker(cash=100000)
 cerebro.setbroker(broker)
 
-```bash
+```
 
 ### CCXTBroker
 
@@ -626,7 +624,7 @@ broker = bt.brokers.CCXTBroker(
 )
 cerebro.setbroker(broker)
 
-```bash
+```
 
 ### CTPBroker
 
@@ -723,7 +721,7 @@ cerebro.broker.set_slippage_perc(perc=0.0005)  # 0.05%
 result = cerebro.run()
 print(f'最终价值: {cerebro.broker.getvalue():.2f}')
 
-```bash
+```
 
 ## 下一步
 

@@ -35,7 +35,7 @@
     ↓
 触发止损 或 跌破下轨 → 卖出（平多）
 
-```bash
+```
 
 - *注意**: 由于 DOGS/USDT 没有永续合约，只能做现货交易（单向做多）。
 
@@ -59,7 +59,7 @@
 ```bash
 python check_okx_config_simple.py
 
-```bash
+```
 
 #### b) 市场分析工具
 
@@ -77,7 +77,7 @@ python check_okx_config_simple.py
 ```bash
 python analyze_okx_min_trading.py
 
-```bash
+```
 
 ### 3. DOGS/USDT 分析结果
 
@@ -111,14 +111,13 @@ OKX_API_KEY=your_api_key_here
 OKX_SECRET=your_secret_here
 OKX_PASSWORD=your_password_here
 
-```bash
+```
 
 #### .env.example 模板
 
 已创建完整的配置模板，包含多个交易所的配置示例。
 
-- --
-
+---
 ## 🚀 使用步骤
 
 ### 步骤 1: 配置 API 密钥
@@ -137,14 +136,14 @@ notepad .env  # Windows
 
 nano .env     # Linux/Mac
 
-```bash
+```
 
 ### 步骤 2: 检查配置
 
 ```bash
 python check_okx_config_simple.py
 
-```bash
+```
 预期输出：
 
 ```bash
@@ -152,17 +151,16 @@ python check_okx_config_simple.py
 [OK] API Connection: Passed
 [OK] DOGS/USDT Spot: Passed
 
-```bash
+```
 
 ### 步骤 3: 运行策略
 
 ```bash
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
-- --
-
+---
 ## 📊 策略特点
 
 ### 优势
@@ -181,8 +179,7 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 4. **滑点风险**: 小币种流动性可能不足
 5. **API 限制**: 频繁交易可能触及速率限制
 
-- --
-
+---
 ## 🛡️ 风险控制建议
 
 ### 1. 资金管理
@@ -201,7 +198,7 @@ order_size = 5.0        # 5 USDT 每次
 
 cerebro.broker.setcash(100.0)  # 100 USDT 起始
 
-```bash
+```
 
 ### 2. 时间过滤
 
@@ -213,7 +210,7 @@ current_hour = datetime.now().hour
 if current_hour in [0, 1, 2, 3, 4, 5]:  # 凌晨不交易
     return
 
-```bash
+```
 
 ### 3. 波动率过滤
 
@@ -224,7 +221,7 @@ if current_hour in [0, 1, 2, 3, 4, 5]:  # 凌晨不交易
 if self.atr[0] < self.data.close[0] * 0.01:  # ATR < 1%
     return  # 波动率太低，不交易
 
-```bash
+```
 
 ### 4. 交易次数限制
 
@@ -238,10 +235,9 @@ max_daily_trades = 10
 
 min_trade_interval = 60  # 分钟
 
-```bash
+```
 
-- --
-
+---
 ## 📈 参数优化建议
 
 ### 不同市场环境
@@ -269,10 +265,9 @@ cerebro.optstrategy(
     atr_mult=[1.5, 2.0, 2.5],
 )
 
-```bash
+```
 
-- --
-
+---
 ## 📁 文件清单
 
 ### 核心文件
@@ -293,8 +288,7 @@ cerebro.optstrategy(
    - `.env` - 实际配置（不提交）
    - `.env.example` - 配置模板
 
-- --
-
+---
 ## ⚠️ 重要提示
 
 ### 1. 测试建议
@@ -326,8 +320,7 @@ cerebro.optstrategy(
 
 - *交易有风险，投资需谨慎！**
 
-- --
-
+---
 ## 🔗 相关链接
 
 - [OKX 官网](<https://www.okx.com/)>
@@ -336,8 +329,7 @@ cerebro.optstrategy(
 - [CCXT 文档](<https://docs.ccxt.com/)>
 - [布林带指标介绍](<https://www.investopedia.com/terms/b/bollingerbands.asp)>
 
-- --
-
+---
 ## 📝 更新日志
 
 - **2025-01-20**: 初始版本
@@ -346,8 +338,7 @@ cerebro.optstrategy(
   - 添加市场分析工具
   - 创建完整文档
 
-- --
-
+---
 ## 🎉 总结
 
 已成功实现了一个完整的布林带突破交易策略，包括：

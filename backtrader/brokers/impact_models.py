@@ -1,6 +1,6 @@
 """Market impact models for order book depth matching.
 
-Provides pluggable market impact models used by OrderBookBroker to
+Provides pluggable market impact models used by TickBroker to
 estimate price impact of large orders consuming depth levels.
 
 Models:

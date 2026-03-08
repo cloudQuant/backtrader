@@ -29,8 +29,7 @@ ccxt-store 是 CCXT 库与 backtrader 的集成 Store，具有以下核心特点
 5. **多交易所**: 多交易所支持
 6. **实时交易**: 实时交易接口
 
-- --
-
+---
 ## 研究分析
 
 ### ccxt-store 项目架构特点总结
@@ -61,7 +60,7 @@ ccxt-store 是 CCXT 库与 backtrader 的集成 Store，具有以下核心特点
 │  └── 智能 K 线处理                                        │
 └─────────────────────────────────────────────────────────┘
 
-```bash
+```
 
 #### 2. 多线程架构
 
@@ -103,8 +102,7 @@ ccxt-store 使用专门的线程处理不同操作:
 4. **无多线程**: 所有操作同步阻塞
 5. **缺少关键功能**: Bracket 订单、智能填充检测等
 
-- --
-
+---
 ## 需求规格文档
 
 ### 1. CCXT Broker 重构
@@ -164,7 +162,7 @@ class CCXTBroker(bt.BrokerBase):
     def _bracketize(self, order, stopprice, stopexec, limitprice, limitexec):
         """创建 Bracket 订单"""
 
-```bash
+```
 
 ### 2. CCXT Feed 重构
 
@@ -221,7 +219,7 @@ class CCXTFeed(bt.DataBase):
     def _backfill(self):
         """回填缺失数据"""
 
-```bash
+```
 
 ### 3. WebSocket 实时数据
 
@@ -270,7 +268,7 @@ class CCXTWebSocket:
     def is_connected(self):
         """检查连接状态"""
 
-```bash
+```
 
 ### 4. 多线程架构
 
@@ -323,7 +321,7 @@ class ThreadedBroker:
     def start_balance_thread(self):
         """启动余额线程"""
 
-```bash
+```
 
 ### 5. 队重限制优化
 
@@ -373,7 +371,7 @@ class RateLimiter:
 def retry_with_backoff(retries=3, base_delay=1.0):
     """带指数退避的重试装饰器"""
 
-```bash
+```
 
 ### 6. 交易所特定配置
 
@@ -436,10 +434,9 @@ class ExchangeConfig:
     def get_timeframe(cls, exchange, bt_tf):
         """获取交易所时间框架"""
 
-```bash
+```
 
-- --
-
+---
 ## 设计文档
 
 ### 整体架构设计
@@ -472,7 +469,7 @@ backtrader/
     │   └── mapping.py         # 订单映射
     └── utils.py               # 工具函数
 
-```bash
+```
 
 ### 详细设计
 
@@ -753,7 +750,7 @@ class CCXTBroker(BrokerBase):
         """获取钱包余额"""
         return self.get_balance()
 
-```bash
+```
 
 #### 2. CCXTFeed 重写
 
@@ -965,7 +962,7 @@ class CCXTFeed(bt.DataBase):
         """停止数据源"""
         self._running = False
 
-```bash
+```
 
 #### 3. WebSocket 支持
 
@@ -1079,7 +1076,7 @@ class WebSocketFeed(CCXTFeed):
         import asyncio
         asyncio.run(watch_loop())
 
-```bash
+```
 
 #### 4. 限流管理
 
@@ -1173,7 +1170,7 @@ def retry_with_backoff(max_retries=3, base_delay=1.0, max_delay=60.0):
         return wrapper
     return decorator
 
-```bash
+```
 
 #### 5. Bracket 订单
 
@@ -1276,7 +1273,7 @@ class BracketOrderManager:
 # 清理 bracket 记录
         del self.brackets[bracket['entry']]
 
-```bash
+```
 
 ### 使用示例
 
@@ -1326,7 +1323,7 @@ cerebro.adddata(data)
 
 result = cerebro.run()
 
-```bash
+```
 
 #### 示例 2: 实盘交易
 
@@ -1348,7 +1345,7 @@ cerebro.setbroker(CCXTBroker(
     use_websocket=True
 ))
 
-```bash
+```
 
 #### 示例 3: Bracket 订单
 
@@ -1376,7 +1373,7 @@ class BracketStrategy(bt.Strategy):
                     limit_price=limit
                 )
 
-```bash
+```
 
 ### 实施计划
 
@@ -1401,8 +1398,7 @@ class BracketStrategy(bt.Strategy):
 3. 添加更多性能监控
 4. 实现自动重连优化
 
-- --
-
+---
 ## 总结
 
 通过借鉴 ccxt-store 项目的设计理念，Backtrader 的 CCXT 集成可以进行以下改进：

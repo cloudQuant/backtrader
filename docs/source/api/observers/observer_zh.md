@@ -1,10 +1,8 @@
-- --
-
+---
 title: 观察器 API
 description: 完整的观察器类 API 参考文档
 
-- --
-
+---
 # 观察器 API
 
 `Observer` 类是用于监控策略执行和在回测期间收集数据的基类。观察器跟踪现金、价值、回撤、交易和其他绩效指标等指标。
@@ -17,7 +15,7 @@ description: 完整的观察器类 API 参考文档
 class backtrader.Observer:
     """监控策略执行的基类。"""
 
-```bash
+```
 
 ## 核心属性
 
@@ -29,7 +27,7 @@ class backtrader.Observer:
 class MyObserver(bt.Observer):
     csv = True  # 包含在 CSV 输出中
 
-```bash
+```
 
 ### `plotinfo`
 
@@ -43,7 +41,7 @@ plotinfo = dict(
 
 )
 
-```bash
+```
 
 ### `plotlines`
 
@@ -56,7 +54,7 @@ plotlines = dict(
 
 )
 
-```bash
+```
 
 ### `_stclock`
 
@@ -80,7 +78,7 @@ def __init__(self):
 # 初始化跟踪变量
     self.peak = float('-inf')
 
-```bash
+```
 
 ### `start(self)`
 
@@ -92,7 +90,7 @@ def start(self):
 # 在数据处理之前执行初始化
     self.initial_value = self._owner.broker.getvalue()
 
-```bash
+```
 
 ### `_start(self)`
 
@@ -106,7 +104,7 @@ def start(self):
 def prenext(self):
     self.next()  # 默认行为 - 处理每个 bar
 
-```bash
+```
 
 ### `next(self)`
 
@@ -116,7 +114,7 @@ def prenext(self):
 def next(self):
     self.lines.cash[0] = self._owner.broker.getcash()
 
-```bash
+```
 
 ### `stop(self)`
 
@@ -138,7 +136,7 @@ class MyObserver(bt.Observer):
         self.lines.metric1[0] = calculate_metric1()
         self.lines.metric2[0] = calculate_metric2()
 
-```bash
+```
 
 ## 内置观察器
 
@@ -151,7 +149,7 @@ class MyObserver(bt.Observer):
 ```python
 cerebro.addobserver(bt.observers.Cash)
 
-```bash
+```
 
 - *线条**: `cash`
 
@@ -162,7 +160,7 @@ cerebro.addobserver(bt.observers.Cash)
 ```python
 cerebro.addobserver(bt.observers.Value)
 
-```bash
+```
 
 - *参数**:
 - `fund`（默认：`None`）- 使用基金价值而非总价值
@@ -176,7 +174,7 @@ cerebro.addobserver(bt.observers.Value)
 ```python
 cerebro.addobserver(bt.observers.Broker)
 
-```bash
+```
 
 - *参数**:
 - `fund`（默认：`None`）- 使用基金模式
@@ -204,7 +202,7 @@ cerebro.addobserver(bt.observers.Broker)
 ```python
 cerebro.addobserver(bt.observers.DrawDown)
 
-```bash
+```
 
 - *参数**:
 - `fund`（默认：`None`）- 使用基金模式计算收益
@@ -219,7 +217,7 @@ class DrawDown(Observer):
     lines = ('drawdown', 'maxdrawdown')
     plotlines = dict(maxdrawdown=dict(_plotskip=True))
 
-```bash
+```
 
 #### DrawDownLength
 
@@ -238,7 +236,7 @@ class DrawDown(Observer):
 ```python
 cerebro.addobserver(bt.observers.Trades)
 
-```bash
+```
 
 - *参数**:
 - `pnlcomm`（默认：`True`）- 显示扣除佣金后的净盈亏
@@ -259,7 +257,7 @@ cerebro.addobserver(bt.observers.Trades)
 
 # - 交易长度统计
 
-```bash
+```
 
 #### DataTrades
 
@@ -275,7 +273,7 @@ cerebro.addobserver(bt.observers.Trades)
 ```python
 cerebro.addobserver(bt.observers.BuySell)
 
-```bash
+```
 
 - *参数**:
 - `barplot`（默认：`False`）- 在 bar 极值处绘制信号
@@ -291,7 +289,7 @@ cerebro.addobserver(bt.observers.BuySell)
 
 cerebro.addobserver(bt.observers.BuySell, barplot=True, bardist=0.02)
 
-```bash
+```
 
 ### 收益观察器
 
@@ -302,7 +300,7 @@ cerebro.addobserver(bt.observers.BuySell, barplot=True, bardist=0.02)
 ```python
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 - *参数**:
 - `timeframe`（默认：`None`）- 时间聚合周期
@@ -321,7 +319,7 @@ cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
 
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Weeks)
 
-```bash
+```
 
 #### LogReturns
 
@@ -330,7 +328,7 @@ cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Weeks)
 ```python
 cerebro.addobserver(bt.observers.LogReturns)
 
-```bash
+```
 
 - *参数**:
 - `timeframe`（默认：`None`）- 时间聚合周期
@@ -354,7 +352,7 @@ data = bt.feeds.GenericCSVData(dataname='benchmark.csv')
 cerebro.adddata(data)
 cerebro.addobserver(bt.observers.Benchmark, data=data)
 
-```bash
+```
 
 - *参数**:
 - `data`（默认：`None`）- 参考数据源
@@ -377,7 +375,7 @@ cerebro.addobserver(bt.observers.TradeLogger,
                     log_indicators=True,
                     log_signals=True)
 
-```bash
+```
 
 - *参数**:
 - `log_dir`（默认：`'./logs'`）- 日志文件目录
@@ -446,7 +444,7 @@ class CustomMetric(bt.Observer):
 # 存储到线条中
         self.lines.custom_value[0] = value - self.high_watermark
 
-```bash
+```
 
 ### 使用分析器的观察器
 
@@ -482,7 +480,7 @@ class SharpeRatioObserver(bt.Observer):
         if hasattr(self._sharpe, 'rets') and self._sharpe.rets:
             self.lines.sharpe[0] = self._sharpe.rets.get('sharperatio', float('NaN'))
 
-```bash
+```
 
 ### 多线条观察器
 
@@ -523,7 +521,7 @@ class PortfolioStats(bt.Observer):
 
         self.lines.leverage[0] = total_position / portfolio_value if portfolio_value else 0
 
-```bash
+```
 
 ## 注册流程
 
@@ -544,7 +542,7 @@ cerebro.addobserver(bt.observers.DrawDown, fund=True)
 cerebro.addobserver(bt.observers.DrawDown)
 cerebro.addobserver(bt.observers.Trades)
 
-```bash
+```
 注册流程：
 
 1. 创建观察器实例
@@ -585,7 +583,7 @@ cerebro.addobserver(bt.observers.DrawDown, _plot=False)
 class MyObserver(bt.Observer):
     plotinfo = dict(plot=False)
 
-```bash
+```
 
 ### 子图配置
 
@@ -599,7 +597,7 @@ class MyObserver(bt.Observer):
         plothlines=[0.0],  # 水平线
     )
 
-```bash
+```
 
 ### 线条样式
 
@@ -619,7 +617,7 @@ class MyObserver(bt.Observer):
         ),
     )
 
-```bash
+```
 
 ## 完整示例
 
@@ -685,7 +683,7 @@ cerebro.run()
 
 cerebro.plot()
 
-```bash
+```
 
 ## 下一步
 

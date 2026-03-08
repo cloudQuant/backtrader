@@ -11,8 +11,7 @@
 5. [配置参数](#配置参数)
 6. [故障排除](#故障排除)
 
-- --
-
+---
 ## 概述
 
 backtrader-ccxt 支持三种数据获取方式：
@@ -34,8 +33,7 @@ backtrader-ccxt 支持三种数据获取方式：
 - **实时性**：K 线收盘后立即推送
 - **多交易对**：可同时订阅多个交易对
 
-- --
-
+---
 ## 安装依赖
 
 ### 1. 安装 ccxt.pro
@@ -43,13 +41,13 @@ backtrader-ccxt 支持三种数据获取方式：
 ```bash
 pip install ccxtpro
 
-```bash
+```
 或者使用国内镜像：
 
 ```bash
 pip install ccxt.pro -i <https://pypi.tuna.tsinghua.edu.cn/simple>
 
-```bash
+```
 
 ### 2. 验证安装
 
@@ -57,10 +55,9 @@ pip install ccxt.pro -i <https://pypi.tuna.tsinghua.edu.cn/simple>
 import ccxt.pro
 print(ccxt.__version__)  # 应显示版本号
 
-```bash
+```
 
-- --
-
+---
 ## 三种数据获取方式对比
 
 ### 方式 1：REST 轮询（默认）
@@ -75,7 +72,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 - *特点**：
 - 每分钟发起一次 HTTP 请求
@@ -93,7 +90,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 - *特点**：
 - 后台线程定时获取数据
@@ -111,15 +108,14 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 - *特点**：
 - 极低延迟
 - 交易所主动推送
 - 最节省配额
 
-- --
-
+---
 ## 使用 WebSocket
 
 ### 基础示例
@@ -155,7 +151,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 ### 完整策略示例
 
@@ -210,10 +206,9 @@ data = store.getdata(
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 配置参数
 
 ### CCXTFeed 参数
@@ -258,8 +253,7 @@ cerebro.run()
 
 > **注意**：不同交易所的 WebSocket 实现可能有所不同，请以实际测试为准。
 
-- --
-
+---
 ## 数据流程
 
 ### WebSocket 数据流程
@@ -295,7 +289,7 @@ cerebro.run()
 │                 └────────────┘                                     │
 └─────────────────────────────────────────────────────────────┘
 
-```bash
+```
 
 ### 工作流程
 
@@ -319,8 +313,7 @@ cerebro.run()
    - 指数退避重连（1 秒 → 2 秒 → 4 秒...）
    - 重连后自动恢复订阅
 
-- --
-
+---
 ## 故障排除
 
 ### 问题 1：WebSocket 不可用
@@ -330,14 +323,14 @@ cerebro.run()
 ```bash
 [WS] WebSocket not available. Install ccxt.pro: pip install ccxtpro
 
-```bash
+```
 
 - *解决方法**：
 
 ```bash
 pip install ccxtpro
 
-```bash
+```
 
 ### 问题 2：连接失败
 
@@ -346,7 +339,7 @@ pip install ccxtpro
 ```bash
 WebSocket connection error: ...
 
-```bash
+```
 
 - *可能原因**：
 1. 网络问题
@@ -372,7 +365,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### 问题 4：数据重复或缺失
 
@@ -384,8 +377,7 @@ data = store.getdata(
 - 使用 `drop_newest=True` 丢弃可能不完整的最新 K 线
 - 确保系统时间准确
 
-- --
-
+---
 ## 最佳实践
 
 ### 1. 生产环境配置
@@ -406,7 +398,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### 2. 多交易对订阅
 
@@ -425,7 +417,7 @@ for symbol in symbols:
     )
     cerebro.adddata(data)
 
-```bash
+```
 
 ### 3. 错误处理
 
@@ -443,10 +435,9 @@ class MyStrategy(bt.Strategy):
         if order.status in [order.Rejected, order.Margin]:
             self.log(f'[ERROR] 订单失败: {order.status}')
 
-```bash
+```
 
-- --
-
+---
 ## 性能对比
 
 ### API 调用次数（运行 1 小时）
@@ -471,8 +462,7 @@ class MyStrategy(bt.Strategy):
 
 | WebSocket | 10-50ms |
 
-- --
-
+---
 ## 相关文档
 
 - [CCXT 官方文档](<https://docs.ccxt.com/)>

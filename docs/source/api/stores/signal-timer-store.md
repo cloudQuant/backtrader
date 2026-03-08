@@ -7,8 +7,7 @@ This document provides a comprehensive reference for three important Backtrader 
 2.**Timer API**- Time-based event scheduling during backtesting
 3.**Store API** - External data source and broker connection management
 
-- --
-
+---
 ## Signal API
 
 The Signal API provides a declarative approach to trading where decisions are driven by signal indicators rather than explicit order placement logic. Signals are numeric values that indicate when to enter or exit positions.
@@ -54,7 +53,7 @@ The following signal type constants are defined in `backtrader.signal`:
 ```python
 class backtrader.Signal(data)
 
-```bash
+```
 The `Signal` class wraps a data line to provide trading signal values. It inherits from `Indicator` and exposes a single signal line.
 
 - *Example: Creating a Signal from an indicator**
@@ -72,14 +71,14 @@ class MyStrategy(bt.SignalStrategy):
 # Add long signal when fast SMA crosses above slow SMA
         self.signal_add(bt.SIGNAL_LONG, bt.ind.CrossOver(sma_fast, sma_slow))
 
-```bash
+```
 
 ### SignalStrategy Class
 
 ```python
 class backtrader.SignalStrategy
 
-```bash
+```
 `SignalStrategy` is a specialized `Strategy` subclass that automatically executes trades based on signal indicators.
 
 #### Parameters
@@ -101,7 +100,7 @@ class backtrader.SignalStrategy
 ```python
 def signal_add(self, sigtype, signal)
 
-```bash
+```
 Add a signal indicator to the strategy.
 
 - *Parameters:**
@@ -123,7 +122,7 @@ class MySignalStrategy(bt.SignalStrategy):
 
         self.signal_add(bt.SIGNAL_LONG, rsi_signal)
 
-```bash
+```
 
 #### Signal Processing Logic
 
@@ -184,14 +183,14 @@ cerebro.adddata(data)
 cerebro.addstrategy(MultiSignalStrategy)
 results = cerebro.run()
 
-```bash
+```
 
 ### Using cerebro.add_signal()
 
 ```python
 cerebro.add_signal(sigtype, sigcls, *sigargs, **sigkwargs)
 
-```bash
+```
 Add a signal to the strategy through cerebro.
 
 - *Parameters:**
@@ -222,10 +221,9 @@ cerebro.add_signal(
     bt.indicators.SMA(period=30)
 )
 
-```bash
+```
 
-- --
-
+---
 ## Timer API
 
 The Timer API allows scheduling time-based notifications during backtesting. Timers can trigger at specific times of day, session boundaries, or at repeating intervals.
@@ -247,7 +245,7 @@ The Timer API allows scheduling time-based notifications during backtesting. Tim
 ```python
 class backtrader.Timer(**kwargs)
 
-```bash
+```
 
 - *Parameters:**
 
@@ -290,7 +288,7 @@ def add_timer(self, when, offset=timedelta(), repeat=timedelta(),
               weekdays=[], weekcarry=False, monthdays=[], monthcarry=True,
               allow=None, tzdata=None, cheat=False, *args, **kwargs)
 
-```bash
+```
 Add a timer to the strategy.
 
 - *Parameters:**
@@ -313,7 +311,7 @@ Add a timer to the strategy.
 ```python
 def notify_timer(self, timer, when, *args, **kwargs)
 
-```bash
+```
 Override this method to receive timer notifications.
 
 - *Parameters:**
@@ -353,7 +351,7 @@ class SessionStartStrategy(bt.Strategy):
 # Regular strategy logic
         pass
 
-```bash
+```
 
 #### Example 2: Specific Time Timer
 
@@ -377,7 +375,7 @@ class TimeBasedStrategy(bt.Strategy):
             if order.status == order.Submitted:
                 self.cancel(order)
 
-```bash
+```
 
 #### Example 3: Repeating Timer
 
@@ -398,7 +396,7 @@ class RepeatingTimerStrategy(bt.Strategy):
         self.execution_count += 1
         print(f'Repeating timer #{self.execution_count} at {when}')
 
-```bash
+```
 
 #### Example 4: Monthday Timer
 
@@ -420,7 +418,7 @@ class MonthlyRebalanceStrategy(bt.Strategy):
 
 # Rebalancing logic here
 
-```bash
+```
 
 #### Example 5: Custom Allow Function
 
@@ -444,10 +442,9 @@ class ConditionalTimerStrategy(bt.Strategy):
     def notify_timer(self, timer, when, *args, **kwargs):
         print(f'EOM timer triggered at {when}')
 
-```bash
+```
 
-- --
-
+---
 ## Store API
 
 The Store API provides a unified interface for connecting to external data sources and brokers. Stores manage connections, handle authentication, and provide data feeds and broker instances.
@@ -457,7 +454,7 @@ The Store API provides a unified interface for connecting to external data sourc
 ```python
 class backtrader.Store
 
-```bash
+```
 Base class for all Store implementations. Stores typically implement the singleton pattern to share connections between data feeds and brokers.
 
 #### Class Attributes
@@ -481,7 +478,7 @@ Base class for all Store implementations. Stores typically implement the singlet
 ```python
 def getdata(self, *args, **kwargs)
 
-```bash
+```
 Create a data feed associated with this store.
 
 - *Returns:** A data feed instance connected to this store
@@ -492,7 +489,7 @@ Create a data feed associated with this store.
 @classmethod
 def getbroker(cls, *args, **kwargs)
 
-```bash
+```
 Create a broker associated with this store.
 
 - *Returns:** A broker instance connected to this store
@@ -502,7 +499,7 @@ Create a broker associated with this store.
 ```python
 def start(self, data=None, broker=None)
 
-```bash
+```
 Start the store and initialize connections.
 
 ##### stop()
@@ -510,7 +507,7 @@ Start the store and initialize connections.
 ```python
 def stop(self)
 
-```bash
+```
 Stop the store and clean up resources.
 
 ##### put_notification()
@@ -518,7 +515,7 @@ Stop the store and clean up resources.
 ```python
 def put_notification(self, msg, *args, **kwargs)
 
-```bash
+```
 Add a message to the notification queue.
 
 ##### get_notifications()
@@ -526,7 +523,7 @@ Add a message to the notification queue.
 ```python
 def get_notifications(self)
 
-```bash
+```
 Return pending store notifications.
 
 ### Available Store Implementations
@@ -563,7 +560,7 @@ data = store.getdata(
 broker = store.getbroker()
 cerebro.setbroker(broker)
 
-```bash
+```
 
 - *CCXTStore Parameters:**
 
@@ -624,7 +621,7 @@ store.cancel_order(order_id, 'BTC/USDT')
 if store.is_connected():
     print("Connected to exchange")
 
-```bash
+```
 
 #### CTPStore - China Futures Market
 
@@ -656,7 +653,7 @@ data = store.getdata(
 
 broker = store.getbroker()
 
-```bash
+```
 
 - *CTPStore Features:**
 
@@ -709,7 +706,7 @@ store.on_reconnect(lambda: print('Reconnected'))
 if store.is_connected:
     print("Connected to CTP")
 
-```bash
+```
 
 #### IBStore - Interactive Brokers
 
@@ -739,7 +736,7 @@ data = store.getdata(
 
 broker = store.getbroker()
 
-```bash
+```
 
 - *IBStore Parameters:**
 
@@ -788,7 +785,7 @@ cerebro.setbroker(store.getbroker())
 
 results = cerebro.run()
 
-```bash
+```
 
 #### Pattern 2: Store with Custom Data Feed
 
@@ -818,7 +815,7 @@ data = CustomCCXTFeed(
     compression=15
 )
 
-```bash
+```
 
 #### Pattern 3: Store Notifications
 
@@ -851,7 +848,7 @@ cerebro = bt.Cerebro()
 cerebro.addstrategy(NotificationStrategy)
 cerebro.setbroker(store.getbroker())
 
-```bash
+```
 
 #### Pattern 4: Store Connection Monitoring
 
@@ -887,7 +884,7 @@ class MonitoredStrategy(bt.Strategy):
 
 # Normal trading logic
 
-```bash
+```
 
 ### Store Best Practices
 
@@ -916,8 +913,7 @@ class MonitoredStrategy(bt.Strategy):
    - Use context managers where applicable
    - Ensure threads are properly terminated
 
-- --
-
+---
 ## Summary
 
 | API | Purpose | Key Classes |
@@ -966,4 +962,4 @@ class AdvancedStrategy(bt.SignalStrategy):
         if msg == 'DISCONNECTED':
             print('Warning: Disconnected from exchange')
 
-```bash
+```

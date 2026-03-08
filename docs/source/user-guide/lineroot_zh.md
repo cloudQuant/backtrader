@@ -1,10 +1,8 @@
-- --
-
+---
 title: LineRoot API 参考
 description: LineRoot 基类完整 API 参考文档
 
-- --
-
+---
 # LineRoot API 参考
 
 `LineRoot` 是 Backtrader 中所有基于线（line）的数据结构的公共基类。它提供了周期管理、迭代管理、操作管理和丰富比较运算符的核心接口。
@@ -78,7 +76,7 @@ classDiagram
 
     LineSeries "1" *-- "N" LineBuffer : contains
 
-```bash
+```
 
 ## 类定义
 
@@ -95,7 +93,7 @@ class backtrader.LineRoot(LineRootMixin, metabase.BaseMixin):
 
     """
 
-```bash
+```
 
 ## 类属性
 
@@ -121,7 +119,7 @@ obj.setminperiod(20)
 
 obj.updateminperiod(30)
 
-```bash
+```
 
 ### `_opstage`
 
@@ -154,7 +152,7 @@ obj.updateminperiod(30)
 
 owner = obj._owner
 
-```bash
+```
 
 ## 类型常量
 
@@ -168,7 +166,7 @@ LineRoot.StratType = 1  # 策略类型
 
 LineRoot.ObsType = 2    # 观察器类型
 
-```bash
+```
 
 ## 核心方法
 
@@ -183,7 +181,7 @@ class MyStrategy(bt.Strategy):
 # 覆盖默认的最小周期
         self.setminperiod(5)
 
-```bash
+```
 
 ### `updateminperiod(self, minperiod: int) -> None`
 
@@ -197,7 +195,7 @@ class MyStrategy(bt.Strategy):
 
 obj.updateminperiod(20)  # _minperiod = max(obj._minperiod, 20)
 
-```bash
+```
 
 ### `addminperiod(self, minperiod: int) -> None`
 
@@ -214,7 +212,7 @@ obj.updateminperiod(20)  # _minperiod = max(obj._minperiod, 20)
 ```python
 num_lines = obj.size()
 
-```bash
+```
 
 ## 迭代方法
 
@@ -228,7 +226,7 @@ def prenext(self):
 # 在预热期执行的操作
     self.log(f'预热中... {len(self)} / {self._minperiod}')
 
-```bash
+```
 
 ### `nextstart(self) -> None`
 
@@ -241,7 +239,7 @@ def nextstart(self):
 # 调用父类实现以触发 next()
     super().nextstart()
 
-```bash
+```
 
 ### `next(self) -> None`
 
@@ -254,7 +252,7 @@ def next(self):
     if self.data.close[0] > self.data.close[-1]:
         self.buy()
 
-```bash
+```
 
 ## 一次性运行方法 (Once Mode)
 
@@ -282,7 +280,7 @@ def next(self):
 
 obj.qbuffer(savemem=1)
 
-```bash
+```
 
 - *参数**:
 - `savemem` (int): 内存节省级别
@@ -309,7 +307,7 @@ class LineSingle(LineRoot):
         """无条件增加最小周期。"""
         self._minperiod += minperiod
 
-```bash
+```
 
 ## LineMultiple 类
 
@@ -350,7 +348,7 @@ class LineMultiple(LineRoot):
         for line in self.lines:
             line.minbuffer(size)
 
-```bash
+```
 
 ## LineRootMixin 类
 
@@ -378,7 +376,7 @@ class LineRootMixin:
 
         return _obj, args, kwargs
 
-```bash
+```
 
 ## 运算符重载
 
@@ -424,7 +422,7 @@ result = -obj
 
 result = abs(obj)
 
-```bash
+```
 
 ### 比较运算符
 
@@ -454,7 +452,7 @@ condition = obj == 5
 
 condition = obj != 5
 
-```bash
+```
 
 ### 布尔转换
 
@@ -467,7 +465,7 @@ if obj:
 # 当 obj[0] 不为 0、None 或 NaN 时执行
     pass
 
-```bash
+```
 
 ## Line 访问模式
 
@@ -489,7 +487,7 @@ previous_value = data.close[-1]
 
 older_value = data.close[-5]
 
-```bash
+```
 
 ### 索引规则
 
@@ -516,7 +514,7 @@ second_line = data.lines[1]
 
 num_lines = data.size()
 
-```bash
+```
 
 ## 所有者关系
 
@@ -530,7 +528,7 @@ indicator = bt.indicators.SMA(data.close, period=20)
 
 # indicator._owner 会指向包含它的策略
 
-```bash
+```
 
 ### OwnerContext
 
@@ -546,7 +544,7 @@ with OwnerContext.set_owner(strategy):
 # 在此上下文中创建的所有指标都会以 strategy 为所有者
     sma = bt.indicators.SMA(data.close, period=20)
 
-```bash
+```
 
 ## 完整示例
 
@@ -597,7 +595,7 @@ class CustomIndicator(bt.Indicator):
 # 首次达到最小周期
         self.log('指标开始产生有效值')
 
-```bash
+```
 
 ## 周期管理示例
 
@@ -629,7 +627,7 @@ class MultiIndicator(bt.Indicator):
 
 # self.setminperiod(30)
 
-```bash
+```
 
 ## 与 LineBuffer、LineSeries 的关系
 
@@ -653,7 +651,7 @@ graph TD
     style D fill:#bbf,stroke:#333,stroke-width:2px
     style E fill:#bbf,stroke:#333,stroke-width:2px
 
-```bash
+```
 
 - *关系说明**:
 
@@ -685,7 +683,7 @@ def next(self):
 # 正常逻辑
     pass
 
-```bash
+```
 
 ### 访问历史值
 
@@ -702,7 +700,7 @@ def next(self):
     sma_indicator = bt.indicators.SMA(self.data.close, period=20)
     current_sma = sma_indicator[0]
 
-```bash
+```
 
 ### 组合运算
 
@@ -716,7 +714,7 @@ def __init__(self):
 # 比较返回布尔线
     self.bullish = self.data.close > self.data.open
 
-```bash
+```
 
 ## 下一步学习
 

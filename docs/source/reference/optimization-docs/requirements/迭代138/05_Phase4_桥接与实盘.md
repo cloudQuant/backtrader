@@ -2,8 +2,7 @@
 
 > 周期: 2 周 | 优先级: 🟡 中 | 风险: 中
 
-- --
-
+---
 ## 1. 目标
 
 实现 Channel 到 LineSeries 的可选桥接，以及实盘 WebSocket 数据接入。
@@ -15,8 +14,7 @@
 - ✅ CCXT WebSocket 集成
 - ✅ 实盘数据验证
 
-- --
-
+---
 ## 2. 实施内容
 
 ### 2.1 ChannelBridge 实现（4 天）
@@ -99,7 +97,7 @@ class BridgeStrategy(bt.Strategy):
     def next(self):
         print(f"Tick Price: {self.tick_price[0]}, SMA: {self.sma[0]}")
 
-```bash
+```
 
 - *测试**: `tests/phase4/test_channel_bridge.py`
 
@@ -137,10 +135,9 @@ def test_bridge_with_indicator():
 
 # ...
 
-```bash
+```
 
-- --
-
+---
 ### 2.2 LiveEventQueue 实现（3 天）
 
 - *文件**: `backtrader/channels/live_queue.py`
@@ -194,10 +191,9 @@ class LiveEventQueue:
         """停止队列"""
         self._stopped = True
 
-```bash
+```
 
-- --
-
+---
 ### 2.3 CCXT WebSocket 集成（5 天）
 
 - *文件**: `backtrader/feeds/ccxt_live_tick.py`
@@ -282,7 +278,7 @@ def run_live_trading():
 # 停止
     feed.stop()
 
-```bash
+```
 
 - *测试**: `tests/phase4/test_live_trading.py`
 
@@ -312,10 +308,9 @@ def test_ccxt_websocket_integration():
 
 # ...
 
-```bash
+```
 
-- --
-
+---
 ### 2.4 实盘数据验证（2 天）
 
 - *文件**: `backtrader/channels/live_validator.py`
@@ -365,10 +360,9 @@ class LiveDataValidator:
         """获取异常报告"""
         return self._anomaly_count
 
-```bash
+```
 
-- --
-
+---
 ## 3. 交付物
 
 ### 3.1 代码
@@ -390,8 +384,7 @@ class LiveDataValidator:
 - [ ] 实盘交易指南
 - [ ] ChannelBridge 使用说明
 
-- --
-
+---
 ## 4. 验收标准
 
 ### 4.1 功能验收
@@ -413,8 +406,7 @@ class LiveDataValidator:
 - [ ] 回归测试 100%通过
 - [ ] 向后兼容性保持
 
-- --
-
+---
 ## 5. 时间表
 
 | 任务 | 工作量 |
@@ -431,8 +423,7 @@ class LiveDataValidator:
 
 - *总计**: 14 天（2 周）
 
-- --
-
+---
 ## 6. 风险与应对
 
 | 风险 | 概率 | 影响 | 应对措施 |
@@ -445,8 +436,7 @@ class LiveDataValidator:
 
 | Bridge 性能问题 | 低 | 中 | 文档说明限制 |
 
-- --
-
+---
 ## 7. 下一步
 
 Phase 4 完成后，进入 Phase 5：文档与示例。

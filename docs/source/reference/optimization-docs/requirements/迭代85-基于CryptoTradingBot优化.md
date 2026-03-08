@@ -29,8 +29,7 @@ CryptoTradingBot 是一个加密货币自动交易机器人，具有以下核心
 5. **风控系统**: 风险管理模块
 6. **策略管理**: 策略管理机制
 
-- --
-
+---
 ## 一、项目对比分析
 
 ### 1.1 架构设计对比
@@ -94,7 +93,7 @@ safety: {
   AK47         // 多发模式
 }
 
-```bash
+```
 
 - *优势**：
 - 参数化报价策略
@@ -108,7 +107,7 @@ safety: {
 // 每个交易对使用独立的数据库
 /var/lib/K/db/K-COINBASE-BTC-USD.db*
 
-```bash
+```
 
 - *优势**：
 - WAL 模式提高并发性能
@@ -125,7 +124,7 @@ safety: {
 cp etc/K.sh.dist X.sh && chmod +x X.sh
 K=X.sh make start
 
-```bash
+```
 
 - *优势**：
 - 单机多实例
@@ -170,7 +169,7 @@ sop: {
   tradesSize     // 同时调整大小和频率
 }
 
-```bash
+```
 
 #### 1.2.7 实时监控指标
 
@@ -227,8 +226,7 @@ Backtrader 通常单实例运行：
 - 配置文件隔离
 - 统一的生命周期管理
 
-- --
-
+---
 ## 二、需求文档
 
 ### 2.1 优化目标
@@ -337,8 +335,7 @@ Backtrader 通常单实例运行：
 - 配置文件隔离
 - 统一启停命令
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 Web UI 架构设计
@@ -505,7 +502,7 @@ class BacktraderServer:
         import uvicorn
         uvicorn.run(self.app, host=self.host, port=self.port)
 
-```bash
+```
 
 #### 3.1.2 前端 UI (简洁版)
 
@@ -682,7 +679,7 @@ class BacktraderServer:
 </body>
 </html>
 
-```bash
+```
 
 ### 3.2 做市策略引擎设计
 
@@ -994,7 +991,7 @@ class MarketMakingStrategy(bt.Strategy):
             if self.p.safety == 'ping_pong' and order.ref == self._ping_order.ref:
                 self._ping_order = None
 
-```bash
+```
 
 ### 3.3 WebSocket 支持设计
 
@@ -1127,7 +1124,7 @@ class WSCerebro(bt.Cerebro):
 # 原有 run 逻辑
         return self._original_run()
 
-```bash
+```
 
 ### 3.4 SQLite 持久化设计
 
@@ -1463,7 +1460,7 @@ class BacktraderDB:
         if hasattr(self._local, 'conn'):
             self._local.conn.close()
 
-```bash
+```
 
 ### 3.5 风险管理模块设计
 
@@ -1654,7 +1651,7 @@ class RiskAwareStrategy(bt.Strategy):
         else:
             self.risk_mgr._consecutive_losses = 0
 
-```bash
+```
 
 ### 3.6 多实例管理设计
 
@@ -1860,7 +1857,7 @@ if __name__ == "__main__":
 
     cli()
 
-```bash
+```
 
 ### 3.7 实现优先级
 
@@ -1889,8 +1886,7 @@ if __name__ == "__main__":
 3. 默认行为完全保持不变
 4. 提供独立安装选项
 
-- --
-
+---
 ## 四、使用示例
 
 ### 4.1 完整的做市策略示例
@@ -1956,7 +1952,7 @@ db = BacktraderDB("crypto_market_maker.db")
 
 result = cerebro.run()
 
-```bash
+```
 
 ### 4.2 带 Web UI 的完整示例
 
@@ -1985,10 +1981,9 @@ server_thread.start()
 
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 五、总结
 
 通过借鉴 CryptoTradingBot 的优秀设计，Backtrader 可以获得：

@@ -2,8 +2,7 @@
 
 > 周期: 1 周 | 优先级: 🔴 最高 | 风险: 低
 
-- --
-
+---
 ## 1. 目标
 
 验证 Tick 级架构的可行性，并实施必须的优化项，为后续 Phase 奠定基础。
@@ -30,8 +29,7 @@
 
 | 异常隔离 | 单策略崩溃不影响其他 | 集成测试 |
 
-- --
-
+---
 ## 2. 实施内容
 
 ### 2.1 StreamingEventQueue 原型（2 天）
@@ -117,7 +115,7 @@ class StreamingEventQueue:
             self._ensure_preload(self._current_ts + 60)
         return self._heap[0] if self._heap else None
 
-```bash
+```
 
 - *测试**: `tests/phase0/test_streaming_queue_basic.py`
 
@@ -155,10 +153,9 @@ def test_memory_usage():
 # 使用 5 分钟窗口，应该只加载约 60K 条
     pass  # 详细实现
 
-```bash
+```
 
-- --
-
+---
 #### 2.1.2 统一事件数据结构（1 天）
 
 - *新增**: `backtrader/events.py`
@@ -218,7 +215,7 @@ class TickEvent(EventData):
             return False
         return True
 
-```bash
+```
 
 - *说明**：
 - 统一现有的`TickerData`、`OrderBookData`、`FundingRateData`格式
@@ -298,7 +295,7 @@ class StreamingEventQueue:
 
         return event
 
-```bash
+```
 
 - *测试**: `tests/phase0/test_adaptive_window.py`
 
@@ -322,10 +319,9 @@ def test_window_expand_on_low_memory():
 
 # ... 详细实现 ...
 
-```bash
+```
 
-- --
-
+---
 ### 2.2 数据验证与修复（1.5 天）
 
 #### 2.2.1 DataChannel 基类
@@ -399,10 +395,9 @@ class DataChannel:
         """加载数据 - 子类实现"""
         raise NotImplementedError
 
-```bash
+```
 
-- --
-
+---
 #### 2.2.2 TickChannel 验证
 
 - *文件**: `backtrader/channels/tick.py`
@@ -509,7 +504,7 @@ class TickChannel(DataChannel):
                 )
                 yield event
 
-```bash
+```
 
 - *测试**: `tests/phase0/test_data_validation.py`
 
@@ -534,10 +529,9 @@ def test_out_of_order_fixed():
     assert len(channel._buffer) == 2
     assert channel._buffer[1].timestamp == 100.001  # 修复后的时间戳
 
-```bash
+```
 
-- --
-
+---
 ### 2.3 策略异常隔离（1.5 天）
 
 #### 2.3.1 Cerebro 异常处理
@@ -619,7 +613,7 @@ class StrategyDisabledException(Exception):
     """策略被禁用异常"""
     pass
 
-```bash
+```
 
 - *测试**: `tests/phase0/test_strategy_isolation.py`
 
@@ -657,10 +651,9 @@ def test_strategy_disabled_after_max_errors():
 
 # ... 详细实现 ...
 
-```bash
+```
 
-- --
-
+---
 ## 3. 性能基准测试（1 天）
 
 ### 3.1 内存基准
@@ -735,7 +728,7 @@ def benchmark_memory():
 if __name__ == '__main__':
     benchmark_memory()
 
-```bash
+```
 
 ### 3.2 性能基准
 
@@ -765,10 +758,9 @@ def benchmark_event_processing():
 if __name__ == '__main__':
     benchmark_event_processing()
 
-```bash
+```
 
-- --
-
+---
 ## 4. 交付物
 
 ### 4.1 代码
@@ -793,8 +785,7 @@ if __name__ == '__main__':
 - [ ] 性能基准测试报告
 - [ ] 已知问题清单
 
-- --
-
+---
 ## 5. 验收标准
 
 ### 5.1 功能验收
@@ -816,8 +807,7 @@ if __name__ == '__main__':
 - [ ] 所有测试通过
 - [ ] 代码审查通过
 
-- --
-
+---
 ## 6. 风险与应对
 
 | 风险 | 概率 | 影响 | 应对措施 |
@@ -830,8 +820,7 @@ if __name__ == '__main__':
 
 | 数据验证规则不完整 | 中 | 低 | 迭代完善 |
 
-- --
-
+---
 ## 7. 时间表
 
 | 任务 | 工作量 | 开始 | 结束 |
@@ -848,8 +837,7 @@ if __name__ == '__main__':
 
 | 性能基准测试 | 1 天 | Day 6 | Day 7 |
 
-- --
-
+---
 ## 8. 下一步
 
 Phase 0 完成后，进入 Phase 1：核心基础设施开发。

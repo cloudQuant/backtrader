@@ -1,10 +1,8 @@
-- --
-
+---
 title: Post-Metaclass 设计
 description: 无元类的显式初始化模式
 
-- --
-
+---
 # Post-Metaclass 设计
 
 这个 Backtrader 分支移除了基于元类的元编程，改用显式初始化模式，同时保持 API 兼容性。
@@ -47,7 +45,7 @@ def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
-```bash
+```
 
 ## 初始化流程
 
@@ -64,7 +62,7 @@ flowchart TD
     I --> J[父类 __init__ 创建 lines]
     J --> K[对象完全初始化]
 
-```bash
+```
 
 ## 核心组件
 
@@ -87,7 +85,7 @@ class BaseMixin(object):
 # 4. 准备 lines
         return _obj, args, kwargs
 
-```bash
+```
 
 ### 2. 所有者查找 (findowner)
 
@@ -108,7 +106,7 @@ def findowner():
         frame = frame.f_back
     return None
 
-```bash
+```
 
 ### 3. 参数初始化
 
@@ -126,7 +124,7 @@ for key, value in kwargs.items():
     if hasattr(params, key):
         setattr(params, key, value)
 
-```bash
+```
 
 ### 4. Line 创建
 
@@ -139,7 +137,7 @@ Lines 在父类 `__init__` 期间创建：
 for line_name in self._lines:
     self.lines[line_name] = LineBuffer(size)
 
-```bash
+```
 
 ## 使用模式
 
@@ -164,7 +162,7 @@ class MyStrategy(bt.Strategy):
         if self.sma[0] > self.p.threshold:
             self.buy()
 
-```bash
+```
 
 ### 定义指标
 
@@ -179,7 +177,7 @@ class MyIndicator(bt.Indicator):
 # 计算指标值
         self.lines.myline = bt.indicators.SMA(period=self.p.period)
 
-```bash
+```
 
 ## 关键规则
 
@@ -201,7 +199,7 @@ class Good(bt.Strategy):
         super().__init__()
         period = self.p.period  # 现在可以了
 
-```bash
+```
 
 ### 2. 永远不要使用元类
 
@@ -221,7 +219,7 @@ def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
-```bash
+```
 
 ### 3. 指标注册
 
@@ -234,7 +232,7 @@ def __new__(cls, *args, **kwargs):
 if hasattr(self, '_owner') and self._owner:
     self._owner._lineiterators.append(self)
 
-```bash
+```
 
 ## 性能优势
 
@@ -270,7 +268,7 @@ class MyStrategy(bt.Strategy):
 cerebro.addstrategy(MyStrategy)
 cerebro.run()  # 完全像以前一样工作
 
-```bash
+```
 
 ## 迁移指南
 

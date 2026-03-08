@@ -13,7 +13,7 @@ Copy the example configuration file:
 ```bash
 cp .env.example .env
 
-```bash
+```
 
 ### 2. Edit .env File
 
@@ -32,7 +32,7 @@ OKX_PASSWORD=your_password_here
 BINANCE_API_KEY=your_binance_api_key_here
 BINANCE_SECRET=your_binance_secret_here
 
-```bash
+```
 
 ### 3. Usage in Code
 
@@ -62,7 +62,7 @@ cerebro.setbroker(store.getbroker())
 cerebro.adddata(store.getdata(dataname='BTC/USDT'))
 cerebro.run()
 
-```bash
+```
 
 #### Method 2: Manual Loading (Traditional)
 
@@ -91,7 +91,7 @@ store = bt.stores.CCXTStore(
     retries=5
 )
 
-```bash
+```
 
 ## Supported Exchanges
 
@@ -139,7 +139,7 @@ Load exchange configuration from environment variables.
 ```python
 config = load_ccxt_config_from_env('binance', enable_rate_limit=True, sandbox=True)
 
-```bash
+```
 
 ### `get_exchange_credentials(exchange)`
 
@@ -157,7 +157,7 @@ Get only the credential fields (apiKey, secret, password), without other setting
 creds = get_exchange_credentials('okx')
 print(creds['apiKey'])
 
-```bash
+```
 
 ### `list_supported_exchanges()`
 
@@ -172,7 +172,7 @@ Return the list of exchanges that support environment variable loading.
 exchanges = list_supported_exchanges()
 print(exchanges)  # ['okx', 'binance', 'bybit', ...]
 
-```bash
+```
 
 ### `load_dotenv_file(env_path=None)`
 
@@ -224,7 +224,7 @@ Manually load a .env file.
 ```bash
 pip install python-dotenv
 
-```bash
+```
 
 ### Issue: Credentials not loading correctly
 
@@ -243,7 +243,7 @@ load_dotenv_file('.env')
 print(os.getenv('OKX_API_KEY'))
 print(os.getenv('OKX_SECRET'))
 
-```bash
+```
 
 ## Complete Example
 
@@ -256,4 +256,4 @@ Run tests:
 ```bash
 python test_ccxt_config_helper.py
 
-```bash
+```

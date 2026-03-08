@@ -15,8 +15,7 @@ This comprehensive guide helps you diagnose and resolve common issues when using
 - [Getting Help Resources](#getting-help-resources)
 - [Issue Reporting Template](#issue-reporting-template)
 
-- --
-
+---
 ## Error Diagnosis Techniques
 
 ### Enable Verbose Logging
@@ -42,7 +41,7 @@ cerebro = bt.Cerebro()
 
 cerebro.run(stdstats=False)  # Disable default observers for cleaner output
 
-```bash
+```
 
 ### Strategy State Inspection
 
@@ -67,7 +66,7 @@ class DebugStrategy(bt.Strategy):
     def next(self):
         self.log(f'Next - Close: {self.data.close[0]:.2f} - Position: {self.position.size}')
 
-```bash
+```
 
 ### Line/Indicator Inspection
 
@@ -91,7 +90,7 @@ class IndicatorInspectionStrategy(bt.Strategy):
             print(f"  SMA minperiod: {self.sma._minperiod}")
             print(f"  SMA size: {len(self.sma)}")
 
-```bash
+```
 
 ### Cerebro State Inspection
 
@@ -111,10 +110,9 @@ print(f"Observers: {len(cerebro.observers)}")
 print(f"Broker cash: {cerebro.broker.get_cash()}")
 print(f"Broker commission: {cerebro.broker.getcommission()}")
 
-```bash
+```
 
-- --
-
+---
 ## Strategy Debugging
 
 ### Using pdb for Interactive Debugging
@@ -135,7 +133,7 @@ class DebuggableStrategy(bt.Strategy):
         if self.data.close[0] > self.sma[0]:
             self.buy()
 
-```bash
+```
 
 #### Debugging Indicator Values
 
@@ -161,7 +159,7 @@ class DebugStrategy(bt.Strategy):
         if cross > 0 and cross_prev <= 0:
             print(f"GOLDEN CROSS at bar {len(self)}")
 
-```bash
+```
 
 ### Common Strategy Issues
 
@@ -177,7 +175,7 @@ class DebugStrategy(bt.Strategy):
 data = bt.feeds.GenericCSVData(dataname='data.csv')
 print(f"Data bars loaded: {len(data)}")
 
-```bash
+```
 
 1. Verify minimum period is satisfied:
 
@@ -192,7 +190,7 @@ class MinPeriodStrategy(bt.Strategy):
     def nextstart(self):
         print(f"First valid bar - len: {len(self)}")
 
-```bash
+```
 
 - *Solutions**:
 - Ensure data has enough bars for all indicators
@@ -217,7 +215,7 @@ class SafeStrategy(bt.Strategy):
 
 # ...
 
-```bash
+```
 
 #### Issue: Multiple Orders Executing Same Bar
 
@@ -243,7 +241,7 @@ class OrderTrackingStrategy(bt.Strategy):
         if order.status in [order.Completed, order.Cancelled, order.Rejected]:
             self.order = None
 
-```bash
+```
 
 ### Logging Best Practices
 
@@ -291,10 +289,9 @@ class LoggingStrategy(bt.Strategy):
             f'Price: {order.created.price:.2f}'
         )
 
-```bash
+```
 
-- --
-
+---
 ## Data Feed Issues
 
 ### Missing Bars
@@ -319,7 +316,7 @@ class GapDetectionStrategy(bt.Strategy):
             if actual_delta > expected_delta *1.5:
                 print(f"Gap detected: {prev_time} -> {current_time}")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -347,7 +344,7 @@ df = df.fillna(method='ffill')
 
 data = bt.feeds.PandasData(dataname=df)
 
-```bash
+```
 
 ### Timezone Problems
 
@@ -365,7 +362,7 @@ class TimezoneCheckStrategy(bt.Strategy):
             print(f"Bar {len(self)}: {self.data.datetime.datetime(0)}")
             print(f"  Timezone: {self.data.datetime._tz}")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -380,14 +377,14 @@ data = bt.feeds.PandasData(
 
 )
 
-```bash
+```
 
 1. Normalize timezone before loading:
 
 ```python
 df.index = df.index.tz_localize('UTC').tz_convert('US/Eastern')
 
-```bash
+```
 
 1. Use `tzinput` parameter:
 
@@ -399,7 +396,7 @@ data = bt.feeds.YahooFinanceData(
     todate=datetime(2023, 12, 31)
 )
 
-```bash
+```
 
 ### Data Validation
 
@@ -437,7 +434,7 @@ if validate_data(data):
 else:
     print("Data validation failed!")
 
-```bash
+```
 
 ### Pandas Data Issues
 
@@ -453,7 +450,7 @@ print(df.head())
 print(df.columns)
 print(df.dtypes)
 
-```bash
+```
 
 - *Solution**: Use correct data feed or specify column mapping:
 
@@ -479,7 +476,7 @@ class CustomPandasData(bt.feeds.PandasData):
 
 data = CustomPandasData(dataname=df)
 
-```bash
+```
 
 ### CSV Data Loading Issues
 
@@ -495,7 +492,7 @@ from datetime import datetime
 test_date = datetime.strptime('2020-01-15', '%Y-%m-%d')
 print(test_date)  # Should print: 2020-01-15 00:00:00
 
-```bash
+```
 
 - *Solution**: Specify correct format:
 
@@ -515,7 +512,7 @@ data = bt.feeds.GenericCSVData(
     compression=1
 )
 
-```bash
+```
 
 ### Multiple Data Feed Issues
 
@@ -530,7 +527,7 @@ class MultiDataCheckStrategy(bt.Strategy):
         for i, data in enumerate(self.datas):
             print(f"  Data {i}: {data.datetime.date(0)} - Close: {data.close[0]:.2f}")
 
-```bash
+```
 
 - *Solution**: Use same timeframe and compression for all feeds, or use `resampledata`:
 
@@ -546,10 +543,9 @@ data2 = bt.feeds.PandasData(dataname=df_hourly)
 cerebro.resampledata(data2, timeframe=bt.TimeFrame.Days, compression=1)
 cerebro.adddata(data1)
 
-```bash
+```
 
-- --
-
+---
 ## Order Execution Problems
 
 ### Rejected Orders
@@ -571,7 +567,7 @@ class CashTrackingStrategy(bt.Strategy):
             print(f"  Required: {order.created.price *order.created.size*1.001:.2f}")
             print(f"  Available: {self.broker.get_cash():.2f}")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -590,7 +586,7 @@ def next(self):
         if size > 0:
             self.buy(size=size)
 
-```bash
+```
 
 1. Use `order_target_percent`:
 
@@ -600,7 +596,7 @@ def next(self):
 
 self.order_target_percent(target=0.5)
 
-```bash
+```
 
 #### Problem: Invalid Order Price
 
@@ -617,7 +613,7 @@ class OrderValidationStrategy(bt.Strategy):
         if self.data.close[0] < self.data.low[0]:
             print(f"Warning: Close < Low at bar {len(self)}")
 
-```bash
+```
 
 - *Solution**: Use price validation:
 
@@ -635,7 +631,7 @@ def next(self):
 
     self.buy(price=limit_price, exectype=bt.Order.Limit)
 
-```bash
+```
 
 ### Partial Fills
 
@@ -651,7 +647,7 @@ class FillTrackingStrategy(bt.Strategy):
         elif order.status == order.Completed:
             print(f"Completed: {order.executed.size} at {order.executed.price:.2f}")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -660,7 +656,7 @@ class FillTrackingStrategy(bt.Strategy):
 ```python
 self.buy(exectype=bt.Order.Limit, price=limit_price, valid=bt.Order.ValidAllOrNone)
 
-```bash
+```
 
 1. Handle partial fills:
 
@@ -679,7 +675,7 @@ class PartialFillStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.filled_size += order.executed.size
 
-```bash
+```
 
 ### Order Status Tracking
 
@@ -711,7 +707,7 @@ class OrderStatusStrategy(bt.Strategy):
         elif order.status == order.Expired:
             print(f'{date} Order {order.ref} - Expired')
 
-```bash
+```
 
 ### Commission Calculation Issues
 
@@ -728,7 +724,7 @@ for date, txn_list in transactions.items():
     for txn in txn_list:
         print(f"{date}: {txn[0]:.2f} @ {txn[1]:.2f}, Comm: {txn[4]:.4f}")
 
-```bash
+```
 
 - *Solution**: Configure commission correctly:
 
@@ -753,7 +749,7 @@ class FixedCommInfo(bt.CommInfoBase):
 
 cerebro.broker.addcommissioninfo(FixedCommInfo())
 
-```bash
+```
 
 ### Slippage Simulation
 
@@ -767,10 +763,9 @@ cerebro.broker.set_slippage_perc(0.001)  # 0.1% slippage
 
 cerebro.broker.set_slippage_fixed(0.01)  # Fixed slippage
 
-```bash
+```
 
-- --
-
+---
 ## Performance Bottlenecks
 
 ### Profiling Backtest Execution
@@ -799,7 +794,7 @@ ps.print_stats(20)  # Top 20 functions
 
 print(s.getvalue())
 
-```bash
+```
 
 #### Using line_profiler
 
@@ -817,7 +812,7 @@ def next(self):
 
 # Run with: kernprof -l -v your_script.py
 
-```bash
+```
 
 ### Slow Optimization Runs
 
@@ -835,7 +830,7 @@ end = time.time()
 print(f"Optimization took {end - start:.2f} seconds")
 print(f"Total combinations: {len(results)}")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -847,7 +842,7 @@ print(f"Total combinations: {len(results)}")
 
 cerebro.run(runonce=True)
 
-```bash
+```
 
 1. Limit parameter combinations:
 
@@ -861,7 +856,7 @@ cerebro.optstrategy(MyStrategy, period=range(5, 105, 1))
 
 cerebro.optstrategy(MyStrategy, period=range(5, 105, 10))
 
-```bash
+```
 
 1. Use preload and exactbars:
 
@@ -874,7 +869,7 @@ cerebro = bt.Cerebro(
 
 )
 
-```bash
+```
 
 ### Indicator Performance
 
@@ -893,7 +888,7 @@ class TimedIndicator(bt.Indicator):
         end = time.time()
         print(f"Indicator init took {end - start:.4f} seconds")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -919,7 +914,7 @@ class FastSMA(bt.Indicator):
             else:
                 dst[i] = float('nan')
 
-```bash
+```
 
 1. Use Cython for critical calculations:
 
@@ -929,7 +924,7 @@ class FastSMA(bt.Indicator):
 
 # Use pre-compiled Cython modules for 10-100x speedup
 
-```bash
+```
 
 ### Data Loading Performance
 
@@ -954,7 +949,7 @@ df.to_parquet('data.parquet')  # Much faster to load later
 df = pd.read_parquet('data.parquet')
 data = bt.feeds.PandasData(dataname=df)
 
-```bash
+```
 
 ```python
 
@@ -968,7 +963,7 @@ cerebro = bt.Cerebro(preload=True, exactbars=1)
 
 # 2: Keep full dataset (default)
 
-```bash
+```
 
 ### Memory Issues
 
@@ -983,7 +978,7 @@ import os
 process = psutil.Process(os.getpid())
 print(f"Memory usage: {process.memory_info().rss / 1024 / 1024:.2f} MB")
 
-```bash
+```
 
 - *Solutions**:
 
@@ -995,14 +990,14 @@ print(f"Memory usage: {process.memory_info().rss / 1024 / 1024:.2f} MB")
 
 self.data.qbuffer(size=1000)  # Keep only last 1000 bars
 
-```bash
+```
 
 1. Use `exactbars` in cerebro:
 
 ```python
 cerebro = bt.Cerebro(exactbars=1)  # Minimal memory usage
 
-```bash
+```
 
 1. Process data in batches:
 
@@ -1021,7 +1016,7 @@ def run_chunked_backtest(data, chunk_size=1000):
         results.append(chunk_result)
     return results
 
-```bash
+```
 
 ### Visualization Performance
 
@@ -1034,7 +1029,7 @@ def run_chunked_backtest(data, chunk_size=1000):
 ```python
 cerebro.plot(backend='plotly', style='candle')
 
-```bash
+```
 
 1. Downsample data for visualization:
 
@@ -1054,7 +1049,7 @@ def downsample(df, rule='1D'):
 df_full = pd.read_csv('data.csv')
 df_plot = downsample(df_full, '1W')  # Weekly for plotting
 
-```bash
+```
 
 1. Disable plotting for optimization:
 
@@ -1069,10 +1064,9 @@ results = cerebro.run()
 best_strategy = results[0]
 cerebro.plot(strat=best_strategy)
 
-```bash
+```
 
-- --
-
+---
 ## Platform-Specific Issues
 
 ### Windows-Specific Issues
@@ -1100,7 +1094,7 @@ if __name__ == '__main__':
 
     results = cerebro.run(maxcpus=4)
 
-```bash
+```
 
 #### Issue: Path Handling Problems
 
@@ -1122,7 +1116,7 @@ data = bt.feeds.GenericCSVData(
 
 )
 
-```bash
+```
 
 #### Issue: Time Limit Exceeded
 
@@ -1144,7 +1138,7 @@ import multiprocessing
 
 pool = multiprocessing.Pool(processes=2, timeout=300)
 
-```bash
+```
 
 ### macOS-Specific Issues
 
@@ -1169,7 +1163,7 @@ plt.ion()
 cerebro.plot()
 plt.ioff()
 
-```bash
+```
 
 #### Issue: High DPI Display Issues
 
@@ -1187,7 +1181,7 @@ plt.ioff()
 import matplotlib.pyplot as plt
 plt.rcParams['figure.dpi'] = 144
 
-```bash
+```
 
 ### Linux-Specific Issues
 
@@ -1209,7 +1203,7 @@ sudo apt-get install pkg-config
 
 pip install --upgrade matplotlib pandas numpy
 
-```bash
+```
 
 #### Issue: File Permission Errors
 
@@ -1230,10 +1224,9 @@ data_dir.mkdir(exist_ok=True)
 if not os.access(data_dir, os.W_OK):
     print(f"Warning: No write permission for {data_dir}")
 
-```bash
+```
 
-- --
-
+---
 ## Memory Leaks and Resource Management
 
 ### Detecting Memory Leaks
@@ -1257,7 +1250,7 @@ top_stats = snapshot2.compare_to(snapshot1, 'lineno')
 for stat in top_stats[:10]:
     print(stat)
 
-```bash
+```
 
 #### Using memory_profiler
 
@@ -1275,7 +1268,7 @@ def run_backtest():
     results = cerebro.run()
     return results
 
-```bash
+```
 
 ### Common Memory Leak Sources
 
@@ -1299,7 +1292,7 @@ class CleanStrategy(bt.Strategy):
 # Clean up references when done
         self._data_ref = None
 
-```bash
+```
 
 #### Issue: Large Indicator History
 
@@ -1317,7 +1310,7 @@ class MemoryEfficientIndicator(bt.Indicator):
 # Keep only last 1000 values
         self.lines.buffer.qbuffer(size=1000)
 
-```bash
+```
 
 ### Resource Cleanup
 
@@ -1350,10 +1343,9 @@ class CleanStrategy(bt.Strategy):
             import gc
             gc.collect()
 
-```bash
+```
 
-- --
-
+---
 ## Common Error Patterns
 
 ### IndexError
@@ -1378,7 +1370,7 @@ class FixedStrategy(bt.Strategy):
             return
         avg = (self.data.close[-1] + self.data.close[0]) / 2
 
-```bash
+```
 
 ### AttributeError
 
@@ -1401,7 +1393,7 @@ class FixedStrategy(bt.Strategy):
     def next(self):
         value = self.sma[0]
 
-```bash
+```
 
 ### TypeError
 
@@ -1417,7 +1409,7 @@ cerebro.broker.setcash("100000")  # Wrong!
 
 cerebro.broker.setcash(100000.0)
 
-```bash
+```
 
 ### ValueError
 
@@ -1434,10 +1426,9 @@ sma = bt.indicators.SMA(period=-10)  # Wrong!
 period = max(1, int(user_input_period))
 sma = bt.indicators.SMA(period=period)
 
-```bash
+```
 
-- --
-
+---
 ## Getting Help Resources
 
 ### Official Resources
@@ -1496,10 +1487,9 @@ Is performance acceptable? --> No --> Optimization needed --> See Performance se
   v
 Success!
 
-```bash
+```
 
-- --
-
+---
 ## Issue Reporting Template
 
 When reporting an issue, use this template:
@@ -1526,7 +1516,7 @@ import backtrader as bt
 
 # ... minimal code to reproduce the issue
 
-```bash
+```
 
 1. Data file or description (sanitized if necessary)
 
@@ -1567,8 +1557,7 @@ What other solutions have you considered?
 
 Any other context, mockups, or examples?
 
-- --
-
+---
 ## Quick Reference: Common Error Messages
 
 | Error | Cause | Solution |
@@ -1589,6 +1578,5 @@ Any other context, mockups, or examples?
 
 | `AssertionError` | Failed assertion in code | Check assertion conditions, may be data issue |
 
-- --
-
+---
 For additional help, please refer to the main documentation or open an issue on GitHub.

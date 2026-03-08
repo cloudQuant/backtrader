@@ -29,8 +29,7 @@ forwardtrader 是一个前向测试框架，专注于策略的前向验证，具
 5. **结果对比**: 回测与前向结果对比
 6. **渐进验证**: 滚动窗口验证
 
-- --
-
+---
 ## 项目对比分析
 
 ### Backtrader vs ForwardTrader 架构对比
@@ -98,8 +97,7 @@ forwardtrader 是一个前向测试框架，专注于策略的前向验证，具
 - **优先平今**: 可配置平仓顺序
 - **保证金计算**: 区分今昨仓保证金
 
-- --
-
+---
 ## 需求文档
 
 ### 需求概述
@@ -321,8 +319,7 @@ forwardtrader 是一个前向测试框架，专注于策略的前向验证，具
 - 支持 Windows/Linux/MacOS
 - 支持 Python 3.7+
 
-- --
-
+---
 ## 设计文档
 
 ### 整体架构设计
@@ -395,7 +392,7 @@ backtrader/
 
 │       └── storage.py      # 存储接口
 
-```bash
+```
 
 ### 详细设计
 
@@ -449,7 +446,7 @@ class PhaseManager:
         self.current_phase = PhaseType.FORWARD
         self._switched = True
 
-```bash
+```
 
 - *1.2 前向测试引擎**
 
@@ -537,7 +534,7 @@ class ForwardTestEngine:
             self.forward_results
         )
 
-```bash
+```
 
 - *1.3 前向测试配置**
 
@@ -586,7 +583,7 @@ class ForwardConfig:
     output_dir: str = "./forward_results"
     save_records: bool = True
 
-```bash
+```
 
 #### 2. 过拟合检测
 
@@ -636,7 +633,7 @@ class OverfittingDetector:
 # 综合判断逻辑
         return "unknown"
 
-```bash
+```
 
 - *2.2 结果对比器**
 
@@ -716,7 +713,7 @@ class ResultComparator:
 
         return "\n".join(report)
 
-```bash
+```
 
 - *2.3 检测指标**
 
@@ -786,7 +783,7 @@ class StabilityMetrics:
 
         return np.mean(profits) / np.mean(losses)
 
-```bash
+```
 
 #### 3. 智能重连机制
 
@@ -874,7 +871,7 @@ class ConnectionManager:
             self.reconnect_times.clear()
             self._emit('reset')
 
-```bash
+```
 
 - *3.2 重连策略**
 
@@ -952,7 +949,7 @@ class ReconnectStrategy:
 
         return True
 
-```bash
+```
 
 - *3.3 连接状态**
 
@@ -970,7 +967,7 @@ class ConnectionState(Enum):
     RECONNECTING = "reconnecting"
     ERROR = "error"
 
-```bash
+```
 
 #### 4. Tick 级数据处理
 
@@ -1032,7 +1029,7 @@ class TickData(DataBase):
         """获取下一个 Tick（子类实现）"""
         pass
 
-```bash
+```
 
 - *4.2 Tick 聚合器**
 
@@ -1127,7 +1124,7 @@ class TickAggregator:
 # 使用最后一个 Tick 的报价
         return self.ticks[-1].quote
 
-```bash
+```
 
 - *4.3 多档行情**
 
@@ -1179,7 +1176,7 @@ class MultiLevelQuote:
             return (self.ask_price1 + self.bid_price1) / 2
         return 0
 
-```bash
+```
 
 #### 5. 交易时间管理
 
@@ -1253,7 +1250,7 @@ class TradingCalendar:
 
         return None
 
-```bash
+```
 
 - *5.2 交易时段**
 
@@ -1332,7 +1329,7 @@ class TradingSchedule:
         """判断是否为夜盘"""
         return self.get_session_name(symbol, check_time) == "night"
 
-```bash
+```
 
 - *5.3 时间过滤器**
 
@@ -1371,7 +1368,7 @@ class TimeFilter:
             if not self.should_filter(d['datetime'], symbol)
         ]
 
-```bash
+```
 
 #### 6. 今昨仓管理
 
@@ -1435,7 +1432,7 @@ class PositionManager:
             else:
                 return position['yesterday_short'] + position['today_short']
 
-```bash
+```
 
 - *6.2 今仓管理**
 
@@ -1485,7 +1482,7 @@ class TodayPosition:
         """净持仓（多-空）"""
         return self.long_volume - self.short_volume
 
-```bash
+```
 
 - *6.3 昨仓管理**
 
@@ -1515,7 +1512,7 @@ class YesterdayPosition:
         """净持仓"""
         return self.long_volume - self.short_volume
 
-```bash
+```
 
 #### 7. 数据持久化
 
@@ -1603,7 +1600,7 @@ class TradeRecorder:
                 writer.writeheader()
             writer.writerow(row)
 
-```bash
+```
 
 - *7.2 导出器**
 
@@ -1683,7 +1680,7 @@ class ResultExporter:
 
         return "\n".join(lines)
 
-```bash
+```
 
 ### 实现计划
 
@@ -1769,7 +1766,7 @@ result = engine.run()
 comparison = engine.get_comparison()
 print(comparison.generate_report())
 
-```bash
+```
 
 ### 使用示例
 
@@ -1811,7 +1808,7 @@ detector = OverfittingDetector()
 detection = detector.detect(results['history'], results['forward'])
 print(f"过拟合检测结果: {detection['verdict']}")
 
-```bash
+```
 
 - *Tick 数据处理示例：**
 
@@ -1839,7 +1836,7 @@ class MyStrategy(bt.Strategy):
             if spread < self.p.max_spread:
                 self.buy()
 
-```bash
+```
 
 - *连接管理使用示例：**
 
@@ -1867,7 +1864,7 @@ if not manager.check_connection():
 
 manager.reset_daily(reset_time=time(21, 20))
 
-```bash
+```
 
 ### 测试策略
 

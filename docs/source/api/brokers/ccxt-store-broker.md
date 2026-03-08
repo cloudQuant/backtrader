@@ -4,8 +4,7 @@
 >
 > This reference covers the `CCXTStore` and `CCXTBroker` classes that enable live trading on 100+ cryptocurrency exchanges through a unified API.
 
-- --
-
+---
 ## Table of Contents
 
 1. [Architecture Overview](#architecture-overview)
@@ -18,8 +17,7 @@
 8. [Configuration Examples](#configuration-examples)
 9. [Advanced Features](#advanced-features)
 
-- --
-
+---
 ## Architecture Overview
 
 ```mermaid
@@ -77,7 +75,7 @@ graph TB
     style WS fill:#f3e5f5
     style TM fill:#f3e5f5
 
-```bash
+```
 
 ### Data Flow
 
@@ -102,10 +100,9 @@ sequenceDiagram
         B->>S: notify_order(Completed)
     end
 
-```bash
+```
 
-- --
-
+---
 ## CCXTStore Class
 
 The `CCXTStore` class manages connections to cryptocurrency exchanges and provides shared resources for feeds and brokers.
@@ -123,7 +120,7 @@ class CCXTStore(ParameterizedSingletonMixin):
     BrokerCls = None  # Auto-registers CCXTBroker
     DataCls = None    # Auto-registers CCXTFeed
 
-```bash
+```
 
 ### Constructor
 
@@ -139,7 +136,7 @@ CCXTStore(
     use_connection_manager: bool = False,
 ) -> None
 
-```bash
+```
 
 - *Parameters:**
 
@@ -178,7 +175,7 @@ config = {
     }
 }
 
-```bash
+```
 
 ### Methods
 
@@ -188,7 +185,7 @@ config = {
 def getdata(self, *args, **kwargs) -> CCXTFeed:
     """Returns data feed with this store instance."""
 
-```bash
+```
 
 - *Example:**
 
@@ -200,7 +197,7 @@ data = store.getdata(
     historical=False,
 )
 
-```bash
+```
 
 #### getbroker()
 
@@ -208,7 +205,7 @@ data = store.getdata(
 def getbroker(self, *args, **kwargs) -> CCXTBroker:
     """Returns broker with this store instance."""
 
-```bash
+```
 
 - *Example:**
 
@@ -218,7 +215,7 @@ broker = store.getbroker(
     debug=False,
 )
 
-```bash
+```
 
 #### get_granularity()
 
@@ -237,7 +234,7 @@ def get_granularity(self, timeframe: int, compression: int) -> str:
         ValueError: If timeframe/compression not supported
     """
 
-```bash
+```
 
 #### create_order()
 
@@ -266,7 +263,7 @@ def create_order(
         Order response dict from exchange
     """
 
-```bash
+```
 
 #### cancel_order()
 
@@ -275,7 +272,7 @@ def create_order(
 def cancel_order(self, order_id: str, symbol: str) -> dict:
     """Cancel an existing order."""
 
-```bash
+```
 
 #### fetch_order()
 
@@ -284,7 +281,7 @@ def cancel_order(self, order_id: str, symbol: str) -> dict:
 def fetch_order(self, oid: str, symbol: str) -> dict:
     """Fetch details of a specific order."""
 
-```bash
+```
 
 #### fetch_open_orders()
 
@@ -293,7 +290,7 @@ def fetch_order(self, oid: str, symbol: str) -> dict:
 def fetch_open_orders(self) -> list:
     """Fetch all open orders from the exchange."""
 
-```bash
+```
 
 #### fetch_ohlcv()
 
@@ -313,7 +310,7 @@ def fetch_ohlcv(
         List of [timestamp, open, high, low, close, volume] lists
     """
 
-```bash
+```
 
 #### get_balance()
 
@@ -325,7 +322,7 @@ def get_balance(self) -> None:
     Updates self._cash (free balance) and self._value (total balance)
     """
 
-```bash
+```
 
 #### get_wallet_balance()
 
@@ -343,7 +340,7 @@ def get_wallet_balance(self, params: dict = None) -> dict:
         Balance dict with 'free' and 'total' sub-dicts
     """
 
-```bash
+```
 
 #### private_end_point()
 
@@ -361,7 +358,7 @@ def private_end_point(self, type: str, endpoint: str, params: dict) -> dict:
         store.private_end_point('Get', 'fapi/v2/positionRisk', {})
     """
 
-```bash
+```
 
 #### get_websocket_manager()
 
@@ -375,7 +372,7 @@ def get_websocket_manager(self) -> CCXTWebSocketManager:
         CCXTWebSocketManager or None if ccxt.pro not available
     """
 
-```bash
+```
 
 #### stop()
 
@@ -386,7 +383,7 @@ def stop(self) -> None:
     Stops WebSocket connections and connection monitoring.
     """
 
-```bash
+```
 
 ### Supported Granularities
 
@@ -418,8 +415,7 @@ def stop(self) -> None:
 
 | Years | 1 | `1y` |
 
-- --
-
+---
 ## CCXTBroker Class
 
 The `CCXTBroker` class executes orders on cryptocurrency exchanges and manages portfolio state.
@@ -447,7 +443,7 @@ class CCXTBroker(BrokerBase):
         "canceled_order": {"key": "status", "value": "canceled"},
     }
 
-```bash
+```
 
 ### Constructor
 
@@ -465,7 +461,7 @@ CCXTBroker(
 
 ) -> None
 
-```bash
+```
 
 - *Parameters:**
 
@@ -510,7 +506,7 @@ broker_mapping = {
 
 broker = CCXTBroker(broker_mapping=broker_mapping, ...)
 
-```bash
+```
 
 ### Methods
 
@@ -550,7 +546,7 @@ def buy(
         )
     """
 
-```bash
+```
 
 #### sell()
 
@@ -574,7 +570,7 @@ def sell(
 ) -> CCXTOrder:
     """Create a sell order."""
 
-```bash
+```
 
 #### cancel()
 
@@ -589,7 +585,7 @@ def cancel(self, order: CCXTOrder) -> CCXTOrder:
         The canceled order instance
     """
 
-```bash
+```
 
 #### get_balance()
 
@@ -602,7 +598,7 @@ def get_balance(self) -> tuple:
         and value is total portfolio value
     """
 
-```bash
+```
 
 #### get_wallet_balance()
 
@@ -625,7 +621,7 @@ def get_wallet_balance(
         }
     """
 
-```bash
+```
 
 #### getposition()
 
@@ -641,7 +637,7 @@ def getposition(self, data: DataFeed, clone: bool = True) -> Position:
         Position object with size, price attributes
     """
 
-```bash
+```
 
 #### get_orders_open()
 
@@ -649,7 +645,7 @@ def getposition(self, data: DataFeed, clone: bool = True) -> Position:
 def get_orders_open(self, safe: bool = False) -> list:
     """Get all open orders from exchange."""
 
-```bash
+```
 
 #### create_bracket_order()
 
@@ -692,7 +688,7 @@ def create_bracket_order(
         )
     """
 
-```bash
+```
 
 #### private_end_point()
 
@@ -715,7 +711,7 @@ def private_end_point(
         )
     """
 
-```bash
+```
 
 ### Order Status Mapping
 
@@ -739,8 +735,7 @@ def private_end_point(
 
 | `Order.Rejected` | `rejected` | Rejected by exchange |
 
-- --
-
+---
 ## Order Types and Execution
 
 ### Order Types
@@ -788,7 +783,7 @@ order = broker.buy(
     exectype=bt.Order.StopLimit,
 )
 
-```bash
+```
 
 ### Order Lifecycle
 
@@ -811,7 +806,7 @@ stateDiagram-v2
     Canceled --> [*]
     Rejected --> [*]
 
-```bash
+```
 
 ### Exchange-Specific Parameters
 
@@ -861,10 +856,9 @@ order = broker.buy(
     }
 )
 
-```bash
+```
 
-- --
-
+---
 ## WebSocket vs REST Modes
 
 ### REST Polling Mode (Default)
@@ -891,7 +885,7 @@ broker = store.getbroker(
 
 )
 
-```bash
+```
 
 ### WebSocket Mode (Recommended)
 
@@ -929,7 +923,7 @@ broker = store.getbroker(
 
 )
 
-```bash
+```
 
 ### WebSocket Architecture
 
@@ -958,7 +952,7 @@ graph LR
     Trades --> Feed
     MyTrades --> Broker["CCXTBroker"]
 
-```bash
+```
 
 ### Mode Comparison
 
@@ -978,8 +972,7 @@ graph LR
 
 | Complexity | Simple | Moderate |
 
-- --
-
+---
 ## Account Data Streaming
 
 ### Balance Updates
@@ -1000,7 +993,7 @@ broker.get_balance()          # Fetches from exchange
 
 cash = broker.getcash()       # Now updated
 
-```bash
+```
 
 - *Multi-Currency Balances:**
 
@@ -1017,7 +1010,7 @@ balances = broker.get_wallet_balance(
 for currency, info in balances.items():
     print(f"{currency}: {info['cash']} available")
 
-```bash
+```
 
 ### Position Tracking
 
@@ -1040,7 +1033,7 @@ class MyStrategy(bt.Strategy):
             pos = self.getposition(order.data)
             print(f"New position size: {pos.size}")
 
-```bash
+```
 
 ### Order Notifications
 
@@ -1076,7 +1069,7 @@ class MyStrategy(bt.Strategy):
 
         self.order = None  # Reset order reference
 
-```bash
+```
 
 ### Trade Notifications
 
@@ -1093,10 +1086,9 @@ class MyStrategy(bt.Strategy):
 
         """)
 
-```bash
+```
 
-- --
-
+---
 ## Error Handling and Reconnection
 
 ### Retry Logic
@@ -1124,7 +1116,7 @@ broker = CCXTBroker(
 
 # Attempt 4: After 4 seconds (2^2* 1.0)
 
-```bash
+```
 
 ### Error Categories
 
@@ -1182,7 +1174,7 @@ cm.on_reconnect(on_reconnect)
 if cm.is_connected():
     print("Connection healthy")
 
-```bash
+```
 
 ### WebSocket Reconnection
 
@@ -1205,7 +1197,7 @@ stateDiagram-v2
 
     end note
 
-```bash
+```
 
 ### Polling Backoff
 
@@ -1219,10 +1211,9 @@ After consecutive failures, the broker reduces polling frequency:
 
 # This prevents hammering a struggling exchange
 
-```bash
+```
 
-- --
-
+---
 ## Configuration Examples
 
 ### Binance Spot
@@ -1267,7 +1258,7 @@ broker = store.getbroker(
     use_threaded_order_manager=True,
 )
 
-```bash
+```
 
 ### Binance Futures
 
@@ -1301,7 +1292,7 @@ data = store.getdata(
     compression=1,
 )
 
-```bash
+```
 
 ### OKX
 
@@ -1333,7 +1324,7 @@ data = store.getdata(
     compression=1,
 )
 
-```bash
+```
 
 ### Bybit
 
@@ -1359,7 +1350,7 @@ data = store.getdata(
     compression=1,
 )
 
-```bash
+```
 
 ### Coinbase
 
@@ -1384,7 +1375,7 @@ data = store.getdata(
     compression=5,
 )
 
-```bash
+```
 
 ### Kraken
 
@@ -1417,7 +1408,7 @@ broker = store.getbroker(
     broker_mapping=broker_mapping,
 )
 
-```bash
+```
 
 ### Environment Variables (Recommended)
 
@@ -1449,10 +1440,9 @@ store = bt.stores.CCXTStore(
     config=config,
 )
 
-```bash
+```
 
-- --
-
+---
 ## Advanced Features
 
 ### Bracket Orders (OCO)
@@ -1485,7 +1475,7 @@ class MyStrategy(bt.Strategy):
                     stop_price=49600,  # Trail stop up
                 )
 
-```bash
+```
 
 ### Rate Limiting
 
@@ -1510,7 +1500,7 @@ store = CCXTStore(
     use_rate_limiter=True,
 )
 
-```bash
+```
 
 ### Multi-Strategy Trading
 
@@ -1540,7 +1530,7 @@ cerebro.adddata(eth_data)
 cerebro.addstrategy(BTCStrategy)
 cerebro.addstrategy(ETHStrategy)
 
-```bash
+```
 
 ### WebSocket Funding Rates
 
@@ -1566,7 +1556,7 @@ class MyStrategy(bt.Strategy):
         if rate > 0.0001:  # Positive = longs pay shorts
             self.close()  # Avoid paying funding
 
-```bash
+```
 
 ### Custom Order Validation
 
@@ -1591,10 +1581,9 @@ class ValidatedStrategy(bt.Strategy):
 # Submit validated order
             self.buy(size=size, price=price)
 
-```bash
+```
 
-- --
-
+---
 ## API Reference Summary
 
 ### CCXTStore Key Attributes
@@ -1677,10 +1666,9 @@ sequenceDiagram
         B->>S: notify(Partial/Completed)
     end
 
-```bash
+```
 
-- --
-
+---
 ## See Also
 
 - [CCXT Live Trading Guide](../CCXT_LIVE_TRADING_GUIDE.md) - Complete live trading setup
@@ -1688,6 +1676,5 @@ sequenceDiagram
 - [Funding Rate Guide](../FUNDING_RATE_GUIDE.md) - Perpetual futures funding rates
 - [Environment Configuration](../CCXT_ENV_CONFIG.md) - Setup with environment variables
 
-- --
-
+---
 - Last updated: 2026-03-01*

@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """Live Broker Abstract Base Class.
 
-Defines the common interface that all live trading broker implementations
-(CCXT, CTP, IB, Crypto, etc.) should conform to. Existing brokers are
-**not** required to inherit from this class immediately — it serves as
-a reference contract for new implementations and gradual migration.
+Defines the common interface for live trading broker implementations.
+The current project direction uses ``BtApiBroker`` as the unified adapter
+and keeps this base class as the reference contract for future providers.
 
 Classes:
     LiveBrokerBase: Abstract base for live-trading broker adapters.

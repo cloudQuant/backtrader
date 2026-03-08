@@ -9,8 +9,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-- --
-
+---
 ## 一、项目对比分析
 
 ### 1.1 backtrader_bokeh 项目核心特性
@@ -71,8 +70,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 |**内存管理**| lookback 控制 | 全量加载 | backtrader 可优化内存 |
 
-- --
-
+---
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -143,8 +141,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 | US4 | 作为用户，我想自定义主题以符合个人偏好 | P1 |
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -198,7 +195,7 @@ backtrader/
 │       ├── __init__.py
 │       └── helpers.py          # 辅助函数
 
-```bash
+```
 
 ### 3.2 核心类设计
 
@@ -263,7 +260,7 @@ class TradimoScheme(BokehScheme):
         self.bardown = '#00ff00'
         self.background_fill = '#ffffff'
 
-```bash
+```
 
 #### 3.2.2 标签页系统
 
@@ -342,7 +339,7 @@ class LogTab(BokehTab):
         table = self._create_log_table()
         return table, 'Log'
 
-```bash
+```
 
 #### 3.2.3 实时绘图分析器
 
@@ -392,7 +389,7 @@ class LivePlotAnalyzer(bt.Analyzer):
             for client in self._clients.values():
                 client.next()
 
-```bash
+```
 
 #### 3.2.4 实时客户端
 
@@ -454,7 +451,7 @@ class LiveClient:
         if not self._paused:
             self._datahandler.update()
 
-```bash
+```
 
 ### 3.3 API 设计
 
@@ -499,7 +496,7 @@ class MyCustomTab(bt.bokeh.BokehTab):
 
 bt.bokeh.register_tab(MyCustomTab)
 
-```bash
+```
 
 ### 3.4 组件化架构
 
@@ -547,7 +544,7 @@ bt.bokeh.register_tab(MyCustomTab)
 │  └──────────────────┘  └──────────────────┘              │
 └────────────────────────────────────────────────────────────┘
 
-```bash
+```
 
 ### 3.5 数据流设计
 
@@ -568,7 +565,7 @@ Backtrader Cerebro.run()
     │                                       │
     └──────────────────────────────────────→ 浏览器更新
 
-```bash
+```
 
 ### 3.6 与 Plotly 的关系
 
@@ -588,8 +585,7 @@ Backtrader Cerebro.run()
 
 - *建议**: 将 Bokeh 作为可选的实时绘图后端，与 Plotly 共存。
 
-- --
-
+---
 ## 四、实施计划
 
 ### 4.1 实施阶段
@@ -622,8 +618,7 @@ Backtrader Cerebro.run()
 6. **P2**: 自定义标签页支持
 7. **P2**: 高级主题定制
 
-- --
-
+---
 ## 五、参考资料
 
 ### 5.1 关键参考代码

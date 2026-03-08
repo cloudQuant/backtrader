@@ -1,10 +1,8 @@
-- --
-
+---
 title: LineIterator API 行线迭代器
 description: 完整的 LineIterator 类 API 参考，时间序列数据迭代的基础类
 
-- --
-
+---
 # LineIterator API 行线迭代器
 
 `LineIterator` 是 Backtrader 中所有按时间序列迭代对象的基类。它是 `Indicator`、`Strategy`、`Observer` 和 `Analyzer` 的基础，管理数据馈送、执行阶段、指标注册和时钟同步。
@@ -15,7 +13,7 @@ description: 完整的 LineIterator 类 API 参考，时间序列数据迭代的
 class backtrader.LineIterator(LineIteratorMixin, LineSeries):
     """所有时间序列迭代对象的基类。"""
 
-```bash
+```
 
 ## 核心概览
 
@@ -51,7 +49,7 @@ classDiagram
     LineIterator *-- "0.." LineIterator : _lineiterators
     LineIterator --> DataSeries : datas[]
 
-```bash
+```
 
 ## 类型常量
 
@@ -74,7 +72,7 @@ classDiagram
 if obj._ltype == LineIterator.IndType:
     print("这是一个指标")
 
-```bash
+```
 
 ## 核心属性
 
@@ -89,7 +87,7 @@ if obj._ltype == LineIterator.IndType:
 class MyIndicator(bt.Indicator):
     _ltype = LineIterator.IndType  # = 0
 
-```bash
+```
 
 ### `_mindatas`
 
@@ -99,7 +97,7 @@ class MyIndicator(bt.Indicator):
 class MyIndicator(bt.Indicator):
     _mindatas = 2  # 需要 2 个数据源
 
-```bash
+```
 
 ### `_nextforce`
 
@@ -109,7 +107,7 @@ class MyIndicator(bt.Indicator):
 class MyIndicator(bt.Indicator):
     _nextforce = True  # 强制使用 next 模式
 
-```bash
+```
 
 ### `_lineiterators`
 
@@ -121,7 +119,7 @@ class MyIndicator(bt.Indicator):
 
 self._lineiterators[collections.defaultdict(list)]
 
-```bash
+```
 
 ### `datas` / `data`
 
@@ -137,7 +135,7 @@ self.data.close[0]      # 等同于 self.datas[0].close[0]
 
 self.data0.close[0]     # data0 也是第一个数据源的别名
 
-```bash
+```
 
 ### `_clock`
 
@@ -149,7 +147,7 @@ self.data0.close[0]     # data0 也是第一个数据源的别名
 
 self._clock = self.datas[0]
 
-```bash
+```
 
 ### `_minperiod`
 
@@ -161,7 +159,7 @@ self._clock = self.datas[0]
 
 self.addminperiod(20)  # 设置最小周期为 20
 
-```bash
+```
 
 ### `plotinfo` / `plotlines`
 
@@ -177,7 +175,7 @@ class MyIndicator(bt.Indicator):
         value=dict(color='blue', ls='-'),
     )
 
-```bash
+```
 
 ## 初始化流程
 
@@ -208,7 +206,7 @@ sequenceDiagram
     dopostinit->>dopostinit: 注册到所有者
     dopostinit-->>User: 返回实例
 
-```bash
+```
 
 ### 初始化阶段详解
 
@@ -232,7 +230,7 @@ class MyIndicator(bt.Indicator):
 
 # - 注册到策略的 _lineiterators
 
-```bash
+```
 
 ## 执行阶段
 
@@ -262,7 +260,7 @@ stateDiagram-v2
         所有指标有效
     end note
 
-```bash
+```
 
 ### prenext()
 
@@ -281,7 +279,7 @@ def prenext(self):
 # 接近产生有效值
         pass
 
-```bash
+```
 
 ### nextstart()
 
@@ -301,7 +299,7 @@ def nextstart(self):
     if hasattr(self, '_first_value'):
         self.lines.value[0] = self._first_value
 
-```bash
+```
 
 ### next()
 
@@ -317,7 +315,7 @@ def next(self):
 # 示例：简单移动平均
     self.lines.value[0] = sum(self.data.close.get(size=self.p.period)) / self.p.period
 
-```bash
+```
 
 ### runonce 模式
 
@@ -339,7 +337,7 @@ def once(self, start, end):
         if i >= self.p.period - 1:
             dst[i] = sum(src[i-self.p.period+1:i+1]) / self.p.period
 
-```bash
+```
 
 ## 指标注册系统
 
@@ -359,7 +357,7 @@ class MyStrategy(bt.Strategy):
         indicators = self.getindicators()
         print(f"已注册 {len(indicators)} 个指标")
 
-```bash
+```
 
 ### 注册流程图
 
@@ -380,7 +378,7 @@ sequenceDiagram
     Owner->>Owner: 设置 _clock
     Owner-->>Indicator: 注册完成
 
-```bash
+```
 
 ### 手动注册
 
@@ -399,7 +397,7 @@ indicators = self.getindicators()
 
 indicator_lines = self.getindicators_lines()
 
-```bash
+```
 
 ## 所有者管理
 
@@ -425,7 +423,7 @@ from backtrader.metabase import OwnerContext
 with OwnerContext.set_owner(self):
     indicators = {name: bt.indicators.SMA(period=p) for name, p in params.items()}
 
-```bash
+```
 
 ### OwnerContext 用法
 
@@ -445,7 +443,7 @@ class MyStrategy(bt.Strategy):
 
 # 所有指标都会正确注册到 self._lineiterators
 
-```bash
+```
 
 ## 数据流
 
@@ -475,7 +473,7 @@ self.data1.close[0]  # 第二个数据源
 
 self.data2.close[0]  # 第三个数据源
 
-```bash
+```
 
 ### 数据别名
 
@@ -493,7 +491,7 @@ self.data2.close[0]  # 第三个数据源
 
 # self.data_0 -> self.data0.close (索引形式)
 
-```bash
+```
 
 ### 时钟同步
 
@@ -514,7 +512,7 @@ graph TD
     F --> G
     G --> H[_notify]
 
-```bash
+```
 
 ## minperiod 和预热处理
 
@@ -538,7 +536,7 @@ added_minperiod = self._added_minperiod
 
 self._minperiod = max(data_minperiod, ind_minperiod, added_minperiod)
 
-```bash
+```
 
 ### 设置最小周期
 
@@ -555,7 +553,7 @@ class MyIndicator(bt.Indicator):
 
 # self._minperiod = self.p.period
 
-```bash
+```
 
 ### 最小周期传播
 
@@ -577,7 +575,7 @@ for line in self.lines:
 
 self._periodrecalc()
 
-```bash
+```
 
 ## _once() 模式优化
 
@@ -601,7 +599,7 @@ graph LR
     style B4 fill:#90EE90
     style B4 stroke:#006400
 
-```bash
+```
 
 ### 性能对比
 
@@ -640,7 +638,7 @@ def once(self, start, end):
 
 # 在 utils/ts_cal_value/ 中实现 Cython 版本
 
-```bash
+```
 
 ### preonce() 和 oncestart()
 
@@ -662,7 +660,7 @@ def oncestart(self, start, end):
 # 默认调用 once()
     self.once(start, end)
 
-```bash
+```
 
 ## 核心方法
 
@@ -687,7 +685,7 @@ def addindicator(self, indicator):
 
 # 4. 如果 _nextforce=True，禁用 runonce
 
-```bash
+```
 
 ### getindicators()
 
@@ -698,7 +696,7 @@ indicators = self.getindicators()
 
 # 返回: [ind1, ind2, ...]
 
-```bash
+```
 
 ### getobservers()
 
@@ -709,7 +707,7 @@ observers = self.getobservers()
 
 # 返回: [obs1, obs2, ...]
 
-```bash
+```
 
 ### bindlines()
 
@@ -729,7 +727,7 @@ self.bindlines(owner=[0, 1], own=[0, 1])
 
 self.bindlines(owner='close', own='value')
 
-```bash
+```
 
 ### qbuffer()
 
@@ -745,7 +743,7 @@ self.qbuffer(savemem=1)
 
 cerebro.run(runonce=False, qbuffer=True)
 
-```bash
+```
 
 ### advance()
 
@@ -761,7 +759,7 @@ self.advance()
 
 self.advance(size=n)
 
-```bash
+```
 
 ## 绘图配置
 
@@ -785,7 +783,7 @@ class MyIndicator(bt.Indicator):
         plotforce=False,        # 强制绘制
     )
 
-```bash
+```
 
 ### plotlines 属性
 
@@ -808,7 +806,7 @@ class MyIndicator(bt.Indicator):
         )
     )
 
-```bash
+```
 
 ## 实现示例
 
@@ -827,7 +825,7 @@ class SimpleMA(bt.Indicator):
 # 简单移动平均
         self.lines.ma[0] = sum(self.data.close.get(size=self.p.period)) / self.p.period
 
-```bash
+```
 
 ### 示例 2: 带子指标的指标
 
@@ -849,7 +847,7 @@ class MACD(bt.Indicator):
         self.lines.signal = bt.indicators.EMA(self.lines.macd, period=self.p.period_signal)
         self.lines.histogram = self.lines.macd - self.lines.signal
 
-```bash
+```
 
 ### 示例 3: 高性能 once() 实现
 
@@ -887,7 +885,7 @@ class FastSMA(bt.Indicator):
             s += src[i] - src[i - period]
             dst[i] = s / period
 
-```bash
+```
 
 ## 性能考虑
 
@@ -913,7 +911,7 @@ class MyStrategy(bt.Strategy):
         print(f"处理 {len(self)} 根 K 线耗时: {elapsed:.2f} 秒")
         print(f"每秒处理: {len(self) / elapsed:.0f} 根 K 线")
 
-```bash
+```
 
 ## 常见问题
 
@@ -927,7 +925,7 @@ A: 确保指标已正确注册到策略的 `_lineiterators`：
 
 print(self._lineiterators[LineIterator.IndType])
 
-```bash
+```
 
 ### Q: minperiod 如何计算？
 
@@ -957,4 +955,4 @@ def _getminperstatus(self):
 
 # > 0: 调用 prenext()
 
-```bash
+```

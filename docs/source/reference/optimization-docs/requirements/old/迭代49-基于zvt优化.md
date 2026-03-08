@@ -9,8 +9,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
-- --
-
+---
 ## 架构对比分析
 
 ### Backtrader 核心特点
@@ -47,8 +46,7 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 2. **社区较小**: 相比 Backtrader 生态不够完善
 3. **实时交易支持弱**: 主要面向研究场景
 
-- --
-
+---
 ## 需求规格文档
 
 ### 1. 统一的 Factor 系统 (优先级: 高)
@@ -127,8 +125,7 @@ Backtrader 需要引入统一的因子计算框架，支持数据转换、累积
 2. 支持按 Entity 分组计算因子
 3. 支持跨 Entity 的因子排名
 
-- --
-
+---
 ## 设计文档
 
 ### 1. Factor 系统设计
@@ -146,7 +143,7 @@ Backtrader 需要引入统一的因子计算框架，支持数据转换、累积
         │ Transformer  │ │Accumulator│ │  Scorer   │
         └──────────────┘ └───────────┘ └───────────┘
 
-```bash
+```
 
 #### 1.2 类设计
 
@@ -197,7 +194,7 @@ class FactorBase(LineIterator):
         """获取目标列表"""
         return self.targets.get(target_type, [])
 
-```bash
+```
 
 #### 1.3 Transformer 设计
 
@@ -221,7 +218,7 @@ class MaTransformer(Transformer):
             result[f'ma{window}'] = self._compute_ma(data, window)
         return result
 
-```bash
+```
 
 #### 1.4 Accumulator 设计
 
@@ -241,7 +238,7 @@ class Accumulator(object):
         """
         raise NotImplementedError
 
-```bash
+```
 
 #### 1.5 Scorer 设计
 
@@ -269,7 +266,7 @@ class QuantileScorer(Scorer):
     def score(self, data):
         return pd.cut(data, bins=self.p.levels, labels=False)
 
-```bash
+```
 
 ### 2. 统一数据接口设计
 
@@ -309,7 +306,7 @@ def register_feed(name, capabilities=None):
         return cls
     return decorator
 
-```bash
+```
 
 #### 2.2 统一查询接口
 
@@ -341,7 +338,7 @@ class FeedBase(with_metaclass(MetaBase, LineSeries)):
         """
         raise NotImplementedError
 
-```bash
+```
 
 ### 3. 目标选择系统设计
 
@@ -389,7 +386,7 @@ class TargetSelector(object):
         else:
             return df.nsmallest(n).index.tolist()
 
-```bash
+```
 
 ### 4. 因子持久化设计
 
@@ -420,7 +417,7 @@ class FactorStorage(object):
         """检查因子值是否存在"""
         pass
 
-```bash
+```
 
 ### 5. 使用示例
 
@@ -456,7 +453,7 @@ class MaFactor(bt.FactorBase):
         self.targets['long'] = cross_up[cross_up].index.tolist()
         self.targets['short'] = cross_down[cross_down].index.tolist()
 
-```bash
+```
 
 #### 5.2 策略中使用因子
 
@@ -486,7 +483,7 @@ class FactorStrategy(bt.Strategy):
                     target=self.p.position_pct
                 )
 
-```bash
+```
 
 ### 6. 实施路线图
 
@@ -521,8 +518,7 @@ class FactorStrategy(bt.Strategy):
 - [ ] 性能对比测试
 - [ ] 文档更新
 
-- --
-
+---
 ## 附录: 关键文件路径
 
 ### Backtrader 关键文件

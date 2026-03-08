@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """Live Store Abstract Base Class.
 
-Defines the common interface that all live trading store implementations
-(CCXT, CTP, IB, Crypto, etc.) should conform to. Existing stores are
-**not** required to inherit from this class immediately — it serves as
-a reference contract for new implementations and gradual migration.
+Defines the common interface for live trading store implementations.
+The current project direction uses ``BtApiStore`` as the unified adapter
+and keeps this base class as the reference contract for future providers.
 
 Classes:
     LiveStoreBase: Abstract base for live-trading store adapters.

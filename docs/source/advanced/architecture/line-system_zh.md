@@ -1,10 +1,8 @@
-- --
-
+---
 title: Line 系统
 description: 时间序列的核心数据结构
 
-- --
-
+---
 # Line 系统
 
 Line 系统是 Backtrader 中处理时间序列数据的基础数据结构。
@@ -25,7 +23,7 @@ classDiagram
 
     LineIterator <|-- Strategy
 
-```bash
+```
 
 ## 层次结构
 
@@ -44,7 +42,7 @@ class LineRoot:
     def datetime(self, index=0):
         """获取指定索引的日期时间。"""
 
-```bash
+```
 
 ### LineBuffer
 
@@ -64,7 +62,7 @@ class LineBuffer:
     def minperiod(self):
         """所需的最小数据点数。"""
 
-```bash
+```
 
 ### LineSeries
 
@@ -81,7 +79,7 @@ class LineSeries:
     def time(self, index=0):
         """获取指定索引的时间。"""
 
-```bash
+```
 
 ### LineIterator
 
@@ -104,7 +102,7 @@ class LineIterator:
     def next(self):
         """在满足 minperiod 后的每根 K 线调用。"""
 
-```bash
+```
 
 ## 访问模式
 
@@ -124,7 +122,7 @@ class MyStrategy(bt.Strategy):
 # 切片 (返回数组)
         recent = self.data.close.get(size=5)
 
-```bash
+```
 
 ### 数据长度
 
@@ -138,7 +136,7 @@ total_bars = len(self.data)
 
 processed_bars = len(self.data.close)
 
-```bash
+```
 
 ### 日期时间访问
 
@@ -150,7 +148,7 @@ dt = self.data.datetime.datetime(0)
 date = self.data.datetime.date(0)
 time = self.data.datetime.time(0)
 
-```bash
+```
 
 ## Line 别名
 
@@ -185,7 +183,7 @@ class MyStrategy(bt.Strategy):
 # 创建自定义 line
         self.lines.custom = self.data.close  # 别名
 
-```bash
+```
 
 ### 在指标中
 
@@ -197,7 +195,7 @@ class MyIndicator(bt.Indicator):
         super().__init__()
         self.lines.signal = self.data.close - self.data.close(-1)
 
-```bash
+```
 
 ## 性能考虑
 
@@ -218,7 +216,7 @@ class MyIndicator(bt.Indicator):
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 data.qbuffer(1000)  # 在内存中保留最后 1000 根 K 线
 
-```bash
+```
 
 ## 常见模式
 
@@ -232,7 +230,7 @@ class MyStrategy(bt.Strategy):
         self.close_lag1 = self.data.close(-1)
         self.close_lag5 = self.data.close(-5)
 
-```bash
+```
 
 ### 价格变化
 
@@ -246,7 +244,7 @@ class MyStrategy(bt.Strategy):
 # 百分比变化
         self.pct_change = (self.data.close / self.data.close(-1)) - 1
 
-```bash
+```
 
 ### 滚动操作
 
@@ -260,7 +258,7 @@ class MyStrategy(bt.Strategy):
 # 或使用指标
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
-```bash
+```
 
 ## 相关文档
 

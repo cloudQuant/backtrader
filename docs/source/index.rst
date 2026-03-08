@@ -197,18 +197,20 @@ Source Code
    tutorials/examples/strategies
    tutorials/examples/cookbook
 
-.. toctree::
-   :maxdepth: 1
-   :caption: API Reference
+.. only:: not offline
 
-   api/core/backtrader
-   api/analyzers/backtrader.analyzers
-   api/feeds/backtrader.feeds
-   api/indicators/backtrader.indicators
-   api/brokers/backtrader.brokers
-   api/observers/backtrader.observers
-   api/sizers/backtrader.sizers
-   api/stores/backtrader.stores
+   .. toctree::
+      :maxdepth: 1
+      :caption: API Reference
+
+      api/core/backtrader
+      api/analyzers/backtrader.analyzers
+      api/feeds/backtrader.feeds
+      api/indicators/backtrader.indicators
+      api/brokers/backtrader.brokers
+      api/observers/backtrader.observers
+      api/sizers/backtrader.sizers
+      api/stores/backtrader.stores
 
 .. toctree::
    :maxdepth: 2

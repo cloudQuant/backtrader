@@ -2,8 +2,7 @@
 
 > 周期: 3 周 | 优先级: 🔴 高 | 风险: 中
 
-- --
-
+---
 ## 1. 目标
 
 实现 Tick 级架构的核心基础设施，包括完整的 Channel 体系、Strategy 回调机制和优化的通知系统。
@@ -30,8 +29,7 @@
 
 | 代码覆盖率 | >= 80% | pytest-cov |
 
-- --
-
+---
 ## 2. 实施内容
 
 ### 2.1 OrderBookChannel 实现（3 天）
@@ -173,7 +171,7 @@ class OrderBookChannel(DataChannel):
                 )
                 yield event
 
-```bash
+```
 
 - *测试**: `tests/phase1/test_orderbook_channel.py`
 
@@ -219,10 +217,9 @@ def test_orderbook_properties():
     assert ob.total_volume('bid', 3) == 6.0
     assert ob.total_volume('ask', 3) == 7.5
 
-```bash
+```
 
-- --
-
+---
 ### 2.2 FundingRateChannel 实现（2 天）
 
 - *文件**: `backtrader/channels/funding.py`
@@ -312,10 +309,9 @@ class FundingRateChannel(DataChannel):
                 )
                 yield event
 
-```bash
+```
 
-- --
-
+---
 ### 2.3 Strategy 回调机制（4 天）
 
 #### 2.3.1 Strategy 基类扩展
@@ -408,7 +404,7 @@ class StrategyBase(LineIterator):
         else:
             self.on_channel(channel, event.data)
 
-```bash
+```
 
 - *测试**: `tests/phase1/test_strategy_callbacks.py`
 
@@ -453,10 +449,9 @@ def test_strategy_callbacks():
     assert strat.ob_count > 0
     assert strat.funding_count > 0
 
-```bash
+```
 
-- --
-
+---
 ### 2.4 优先级通知队列（3 天）
 
 - *文件**: `backtrader/cerebro.py`
@@ -533,7 +528,7 @@ class Cerebro:
             owner = notif.order.owner or runstrats[0]
             owner._addnotification(notif.order, quicknotify=True)
 
-```bash
+```
 
 - *测试**: `tests/phase1/test_notification_priority.py`
 
@@ -562,10 +557,9 @@ def test_notification_priority_order():
 
 # ...
 
-```bash
+```
 
-- --
-
+---
 ### 2.5 Channel 共享模式（4 天）
 
 - *文件**: `backtrader/channel.py`
@@ -610,7 +604,7 @@ class DataChannel:
 
 # ... 验证和添加逻辑 ...
 
-```bash
+```
 
 - *文件**: `backtrader/cerebro.py`
 
@@ -658,7 +652,7 @@ class Cerebro:
             strat._channels = {}
         strat._channels[(channel.channel_type, channel.symbol)] = channel
 
-```bash
+```
 
 - *测试**: `tests/phase1/test_channel_sharing.py`
 
@@ -688,10 +682,9 @@ def test_shared_isolated_mode():
 
 # ... 验证共享数据但状态隔离 ...
 
-```bash
+```
 
-- --
-
+---
 ### 2.6 Cerebro 集成（5 天）
 
 - *文件**: `backtrader/cerebro.py`
@@ -776,10 +769,9 @@ class Cerebro:
         for strat in runstrats:
             strat._bar_by_name = self._bar_by_name
 
-```bash
+```
 
-- --
-
+---
 ## 3. 交付物
 
 ### 3.1 代码
@@ -805,8 +797,7 @@ class Cerebro:
 - [ ] API 文档更新
 - [ ] 使用示例
 
-- --
-
+---
 ## 4. 验收标准
 
 ### 4.1 功能验收
@@ -828,8 +819,7 @@ class Cerebro:
 - [ ] 1020 个现有测试全部通过
 - [ ] 向后兼容性 100%
 
-- --
-
+---
 ## 5. 时间表
 
 | 任务 | 工作量 | 开始 | 结束 |
@@ -848,8 +838,7 @@ class Cerebro:
 
 | Cerebro 集成 | 5 天 | Day 17 | Day 21 |
 
-- --
-
+---
 ## 6. 风险与应对
 
 | 风险 | 概率 | 影响 | 应对措施 |
@@ -862,8 +851,7 @@ class Cerebro:
 
 | 回归问题 | 低 | 高 | 持续回归测试 |
 
-- --
-
+---
 ## 7. 下一步
 
 Phase 1 完成后，进入 Phase 2：回测引擎与 Broker 实现。

@@ -1,10 +1,8 @@
-- --
-
+---
 title: Performance Analysis and Profiling
 description: Guide to profiling and analyzing Backtrader strategy performance
 
-- --
-
+---
 # Performance Analysis and Profiling
 
 Effective performance analysis is crucial for optimizing quantitative trading strategies. This guide provides comprehensive techniques for profiling Backtrader strategies, identifying bottlenecks, and measuring performance improvements.
@@ -59,7 +57,7 @@ stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)  # Top 20 functions by cumulative time
 
-```bash
+```
 
 ### Saving Profile Results
 
@@ -77,7 +75,7 @@ stats = pstats.Stats('my_strategy.prof')
 stats.sort_stats('cumulative')
 stats.print_stats(30)
 
-```bash
+```
 
 ### SnakeViz Visualization
 
@@ -90,7 +88,7 @@ pip install snakeviz
 
 snakeviz my_strategy.prof
 
-```bash
+```
 This opens an interactive visualization showing:
 
 - Icicle plot of call stack
@@ -136,7 +134,7 @@ def profile(output_file=None, print_stats=20):
 with profile('strategy.prof', print_stats=30):
     cerebro.run()
 
-```bash
+```
 
 ## Hot Path Identification
 
@@ -167,7 +165,7 @@ stats.print_stats(10)
 stats.sort_stats('cumulative')
 stats.print_stats(10)
 
-```bash
+```
 
 ### Identifying Indicator Bottlenecks
 
@@ -197,7 +195,7 @@ class ProfiledStrategy(bt.Strategy):
         stats.strip_dirs()
         stats.print_stats(15)
 
-```bash
+```
 
 ### Line-by-Line Profiling
 
@@ -206,7 +204,7 @@ For detailed analysis, use line_profiler:
 ```bash
 pip install line_profiler
 
-```bash
+```
 
 ```python
 
@@ -223,7 +221,7 @@ class MyStrategy(bt.Strategy):
 
 # Run with: kernprof -l -v my_script.py
 
-```bash
+```
 
 ## Memory Profiling
 
@@ -246,7 +244,7 @@ class MemoryTrackedStrategy(bt.Strategy):
 
 # Run with: python -m memory_profiler my_script.py
 
-```bash
+```
 
 ### Memory Peak Analysis
 
@@ -281,7 +279,7 @@ for stat in top_stats[:10]:
 
 tracemalloc.stop()
 
-```bash
+```
 
 ### Memory Profiling with mprof
 
@@ -301,7 +299,7 @@ mprof plot
 mprof clean
 mprof run --include-children python my_backtest.py
 
-```bash
+```
 
 ### Reducing Memory Usage
 
@@ -329,7 +327,7 @@ cerebro.run(stdstats=False)
 results = cerebro.run()
 gc.collect()
 
-```bash
+```
 
 ## Strategy-Specific Profiling
 
@@ -384,7 +382,7 @@ class TimedStrategy(bt.Strategy):
             pct = (duration / total) * 100 if total > 0 else 0
             print(f"{phase}: {duration:.4f}s ({pct:.1f}%)")
 
-```bash
+```
 
 ### Per-Bar Timing
 
@@ -434,7 +432,7 @@ class PerBarTimedStrategy(bt.Strategy):
             print(f"Max: {max(self.bar_timings)*1000:.3f}ms")
             print(f"Min: {min(self.bar_timings)*1000:.3f}ms")
 
-```bash
+```
 
 ### Indicator Caching Analysis
 
@@ -468,7 +466,7 @@ for func in [test_without_cache, test_with_cache]:
     stats.print_stats(10)
     print("-" * 50)
 
-```bash
+```
 
 ## Benchmarking Methodologies
 
@@ -513,7 +511,7 @@ results = {
 for name, stats in results.items():
     print(f"{name}: {stats['mean']:.4f}s ± {stats['stdev']:.4f}s")
 
-```bash
+```
 
 ### Scale Testing
 
@@ -551,7 +549,7 @@ def benchmark_data_size(sizes):
 sizes = [1000, 5000, 10000, 50000, 100000]
 benchmark_data_size(sizes)
 
-```bash
+```
 
 ### Progress Monitoring
 
@@ -593,7 +591,7 @@ class ProgressStrategy(bt.Strategy):
         print(f"\nCompleted: {total_bars} bars in {elapsed:.2f}s")
         print(f"Average: {total_bars/elapsed:.0f} bars/sec")
 
-```bash
+```
 
 ## Performance Optimization Tips
 
@@ -629,7 +627,7 @@ data.qbuffer(1000)
 
 cerebro.run(runonce=True)
 
-```bash
+```
 
 ### Hot Path Optimizations
 
@@ -663,7 +661,7 @@ class OptimizedStrategy(bt.Strategy):
             if self.data._len > 20:  # Not len(self.data)
                 self.buy()
 
-```bash
+```
 
 ### Indicator Optimization
 
@@ -685,7 +683,7 @@ def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
 
-```bash
+```
 
 ### Batch Processing
 
@@ -704,7 +702,7 @@ cerebro.optstrategy(
 
 results = cerebro.run(maxcpu=4)
 
-```bash
+```
 
 ## Complete Profiling Example
 
@@ -812,7 +810,7 @@ def run_profiled_backtest(data_file='data.csv'):
 if __name__ == '__main__':
     run_profiled_backtest()
 
-```bash
+```
 
 ## Performance Analysis Checklist
 

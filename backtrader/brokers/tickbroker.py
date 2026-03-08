@@ -1,8 +1,9 @@
-"""Tick-level broker for pure tick-based order matching.
+"""Tick-level broker for unified tick and order book matching.
 
-Provides TickBroker which matches orders against tick data instead of
-bar data, supporting realistic slippage, partial fills, and all standard
-order types (Market, Limit, Stop, StopLimit).
+Provides TickBroker which matches orders against tick data and order book
+snapshots instead of bar data, supporting realistic slippage, partial fills,
+depth-aware matching, and all standard order types (Market, Limit, Stop,
+StopLimit).
 
 Example:
     Using TickBroker with Cerebro::
@@ -40,6 +41,8 @@ class TickBroker(BrokerBase):
         checksubmit: Check cash before accepting orders (default: True).
         coo: Execute on Close-of-Order (default: False).
         coc: Execute on Close-of-Cancel (default: False).
+        max_depth_levels: Maximum order book levels to traverse (default: 20).
+        enable_impact: Enable market impact adjustments (default: False).
     """
 
     cash = ParameterDescriptor(default=100000.0, doc="Starting cash")
@@ -49,14 +52,17 @@ class TickBroker(BrokerBase):
     checksubmit = ParameterDescriptor(default=True, doc="Check cash before accepting")
     coo = ParameterDescriptor(default=False, doc="Close-on-Open")
     coc = ParameterDescriptor(default=False, doc="Close-on-Close")
+    max_depth_levels = ParameterDescriptor(default=20, doc="Max depth levels to traverse")
+    enable_impact = ParameterDescriptor(default=False, doc="Enable market impact model")
 
-    def __init__(self, **kwargs):
+    def __init__(self, impact_model=None, **kwargs):
         """Initialize the TickBroker.
 
         Sets up internal state for cash, positions, orders, and notifications.
         Uses default cash value from the 'cash' parameter.
 
         Args:
+            impact_model: Optional market impact model for order book matching.
             **kwargs: Additional arguments passed to BrokerBase.
         """
         super().__init__(**kwargs)
@@ -71,6 +77,8 @@ class TickBroker(BrokerBase):
         self._fundshares = 1.0
         self._fundmode = False
         self._last_tick = {}
+        self._last_orderbook = {}
+        self._impact_model = impact_model
         self._tick_count = 0
 
     def start(self):
@@ -339,6 +347,42 @@ class TickBroker(BrokerBase):
             except ValueError:
                 pass
 
+    def process_orderbook(self, ob_event, data=None):
+        """Process an order book snapshot and match pending orders.
+
+        Args:
+            ob_event: OrderBookSnapshot with current depth.
+            data: The data feed associated with this snapshot (optional).
+        """
+        data_name = ob_event.symbol
+        self._last_orderbook[data_name] = ob_event
+
+        matched = []
+        for order in list(self._pending_orders):
+            order_data_name = getattr(order.data, "_name", None) or getattr(
+                order.data, "symbol", str(order.data)
+            )
+            if order_data_name != data_name:
+                continue
+
+            result = self._try_match_orderbook(order, ob_event)
+            if result is None:
+                continue
+
+            fill_price, fill_size = result
+            if fill_size <= 0:
+                continue
+
+            self._execute(order, fill_price, fill_size, ob_event, source="orderbook_depth")
+            if order.status == Order.Completed or not self.get_param("allow_partial"):
+                matched.append(order)
+
+        for order in matched:
+            try:
+                self._pending_orders.remove(order)
+            except ValueError:
+                pass
+
     def _try_match(self, order, tick):
         """Try to match an order against a tick.
 
@@ -397,6 +441,101 @@ class TickBroker(BrokerBase):
 
         return None
 
+    def _try_match_orderbook(self, order, ob_event):
+        """Try to match an order against order book depth levels.
+
+        Args:
+            order: The order to match.
+            ob_event: The current OrderBookSnapshot.
+
+        Returns:
+            Tuple of (avg_fill_price, fill_size) or None.
+        """
+        exectype = order.exectype
+        target_size = self._get_remaining_size(order)
+        max_levels = self.get_param("max_depth_levels")
+
+        if exectype == Order.Market:
+            if order.isbuy():
+                return self._match_buy_orderbook(ob_event.asks, target_size, max_levels, None)
+            return self._match_sell_orderbook(ob_event.bids, target_size, max_levels, None)
+
+        if exectype == Order.Limit:
+            limit_price = order.price
+            if order.isbuy():
+                if ob_event.asks and ob_event.asks[0][0] <= limit_price:
+                    return self._match_buy_orderbook(
+                        ob_event.asks, target_size, max_levels, limit_price
+                    )
+            elif ob_event.bids and ob_event.bids[0][0] >= limit_price:
+                return self._match_sell_orderbook(
+                    ob_event.bids, target_size, max_levels, limit_price
+                )
+
+        if exectype == Order.Stop:
+            stop_price = order.price
+            if order.isbuy():
+                if ob_event.asks and ob_event.asks[0][0] >= stop_price:
+                    return self._match_buy_orderbook(ob_event.asks, target_size, max_levels, None)
+            elif ob_event.bids and ob_event.bids[0][0] <= stop_price:
+                return self._match_sell_orderbook(ob_event.bids, target_size, max_levels, None)
+
+        return None
+
+    def _match_buy_orderbook(self, asks, target_size, max_levels, limit_price):
+        """Match a buy order against ask depth."""
+        total_filled = 0.0
+        total_cost = 0.0
+
+        for level_index, (price, qty) in enumerate(asks):
+            if level_index >= max_levels:
+                break
+            if limit_price is not None and price > limit_price:
+                break
+
+            remaining = target_size - total_filled
+            fill_at_level = min(qty, remaining)
+
+            if self.get_param("enable_impact") and self._impact_model:
+                price = self._apply_market_impact(price, fill_at_level, is_buy=True)
+
+            total_cost += price * fill_at_level
+            total_filled += fill_at_level
+            if total_filled >= target_size:
+                break
+
+        if total_filled <= 0:
+            return None
+
+        return (total_cost / total_filled, total_filled)
+
+    def _match_sell_orderbook(self, bids, target_size, max_levels, limit_price):
+        """Match a sell order against bid depth."""
+        total_filled = 0.0
+        total_revenue = 0.0
+
+        for level_index, (price, qty) in enumerate(bids):
+            if level_index >= max_levels:
+                break
+            if limit_price is not None and price < limit_price:
+                break
+
+            remaining = target_size - total_filled
+            fill_at_level = min(qty, remaining)
+
+            if self.get_param("enable_impact") and self._impact_model:
+                price = self._apply_market_impact(price, fill_at_level, is_buy=False)
+
+            total_revenue += price * fill_at_level
+            total_filled += fill_at_level
+            if total_filled >= target_size:
+                break
+
+        if total_filled <= 0:
+            return None
+
+        return (total_revenue / total_filled, total_filled)
+
     def _apply_slippage(self, price, is_buy):
         """Apply slippage to a fill price.
 
@@ -416,14 +555,25 @@ class TickBroker(BrokerBase):
         else:
             return price - slip
 
-    def _execute(self, order, fill_price, fill_size, tick):
+    def _apply_market_impact(self, price, size, is_buy):
+        """Apply a market impact model if enabled."""
+        if self._impact_model is None:
+            return price
+
+        impact = self._impact_model.calculate_impact(price, size)
+        if is_buy:
+            return price + impact
+        return price - impact
+
+    def _execute(self, order, fill_price, fill_size, event, source="tick"):
         """Execute a fill on an order.
 
         Args:
             order: The order being filled.
             fill_price: The execution price.
             fill_size: The execution size.
-            tick: The tick that triggered the fill.
+            event: The event that triggered the fill.
+            source: Source tag for order history.
         """
         # Determine position change
         data_name = getattr(order.data, "_name", None) or getattr(
@@ -448,7 +598,7 @@ class TickBroker(BrokerBase):
 
         # Complete the order
         order.execute(
-            dt=tick.timestamp,
+            dt=event.timestamp,
             size=fill_size if order.isbuy() else -fill_size,
             price=fill_price,
             closed=0,
@@ -462,19 +612,27 @@ class TickBroker(BrokerBase):
             psize=pos.size,
             pprice=pos.price,
         )
-        order.completed()
         self.notify(order)
 
         self._order_history.append(
             {
-                "timestamp": tick.timestamp,
+                "timestamp": event.timestamp,
                 "symbol": data_name,
                 "side": "buy" if order.isbuy() else "sell",
                 "price": fill_price,
                 "size": fill_size,
-                "tick_price": tick.price,
+                "source": source,
+                "reference_price": getattr(event, "price", None),
             }
         )
+
+    @staticmethod
+    def _get_remaining_size(order):
+        """Return remaining absolute size for an order."""
+        remaining = getattr(getattr(order, "executed", None), "remsize", None)
+        if remaining is None:
+            remaining = order.size
+        return abs(remaining)
 
     def next(self):
         """Called by Cerebro on each iteration.

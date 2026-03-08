@@ -1,10 +1,8 @@
-- --
-
+---
 title: 代码风格指南
 description: Backtrader 的 Python 代码格式和风格约定
 
-- --
-
+---
 # 代码风格指南
 
 本指南涵盖 Backtrader 项目中使用的代码格式和风格约定。遵循这些准则可以确保代码的一致性、可读性和可维护性。
@@ -69,7 +67,7 @@ class MyIndicator(bt.Indicator):
 # 计算指标值
         self.lines.signal = bt.indicators.RSI(self.data, period=self.p.period)
 
-```bash
+```
 
 ## 导入顺序约定
 
@@ -109,7 +107,7 @@ from backtrader.lineseries import LineSeries
 
 from .utils import calculate_value
 
-```bash
+```
 
 ### 导入别名
 
@@ -121,7 +119,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-```bash
+```
 
 ### 通配符导入
 
@@ -138,7 +136,7 @@ from .observers import *
 
 # from indicators import *# 不好
 
-```bash
+```
 
 ## 类型提示指南
 
@@ -162,7 +160,7 @@ def calculate_sma(period: int, data: list[float]) -> float:
     """计算简单移动平均线。"""
     return sum(data[:period]) / period
 
-```bash
+```
 
 ### 常用类型
 
@@ -177,7 +175,7 @@ def process_data(
     """处理数据，带有可选回调。"""
     pass
 
-```bash
+```
 
 ### Backtrader 的类型提示
 
@@ -191,7 +189,7 @@ def register_indicator(
     """将指标注册到其所有者。"""
     pass
 
-```bash
+```
 
 ### 类型检查
 
@@ -200,7 +198,7 @@ def register_indicator(
 ```bash
 mypy backtrader/
 
-```bash
+```
 
 ## 文档字符串约定
 
@@ -236,7 +234,7 @@ def calculate_rsi(prices: list[float], period: int = 14) -> list[float]:
 
 # 实现代码...
 
-```bash
+```
 
 ### 类文档字符串
 
@@ -256,7 +254,7 @@ class CustomIndicator(bt.Indicator):
         >>> cerebro.run()
     """
 
-```bash
+```
 
 ### 模块文档字符串
 
@@ -271,7 +269,7 @@ class CustomIndicator(bt.Indicator):
     cerebro.addindicator(CustomIndicator)
 """
 
-```bash
+```
 
 ## 注释标准
 
@@ -293,7 +291,7 @@ signal = self.data.close[0] - self.data.close[-1]
 
 signal = self.data.close[0] - self.data.close[-1]
 
-```bash
+```
 
 ### 何时添加注释
 
@@ -327,7 +325,7 @@ counter += 1
 
 counter = 0 if counter >= MAX_THRESHOLD else counter + 1
 
-```bash
+```
 
 ### TODO/FIXME 注释
 
@@ -341,7 +339,7 @@ counter = 0 if counter >= MAX_THRESHOLD else counter + 1
 
 # NOTE: 热路径中的性能优化机会
 
-```bash
+```
 
 ### 块注释
 
@@ -359,7 +357,7 @@ counter = 0 if counter >= MAX_THRESHOLD else counter + 1
 k = 2 / (period + 1)
 ema_today = current_value*k + ema_yesterday*(1 - k)
 
-```bash
+```
 
 ## 命名约定
 
@@ -409,7 +407,7 @@ self.p.period      # 参数访问
 
 self.lines.signal  # 线访问
 
-```bash
+```
 
 ### 布尔值
 
@@ -420,7 +418,7 @@ is_valid = True
 has_data = False
 should_recalculate = True
 
-```bash
+```
 
 ### 避免单字母名称
 
@@ -443,7 +441,7 @@ for i, price in enumerate(data):
 x = calculate()
 y = process(x)
 
-```bash
+```
 
 ## 代码质量工具
 
@@ -461,7 +459,7 @@ pyupgrade --py38-plus backtrader/
 
 pyupgrade --py311-plus backtrader/
 
-```bash
+```
 
 - *功能**:
 - 将 `%` 格式化转换为 f-strings
@@ -487,7 +485,7 @@ ruff check --fix backtrader/
 
 ruff format backtrader/
 
-```bash
+```
 
 - *配置** (pyproject.toml):
 
@@ -500,7 +498,7 @@ target-version = "py38"
 select = ["E", "F"]
 ignore = ["E501"]  # 行长度由格式化工具处理
 
-```bash
+```
 
 ### isort
 
@@ -516,7 +514,7 @@ isort backtrader/
 
 isort --check-only backtrader/
 
-```bash
+```
 
 - *配置** (pyproject.toml):
 
@@ -525,7 +523,7 @@ isort --check-only backtrader/
 profile = "black"
 line_length = 121
 
-```bash
+```
 
 ### mypy
 
@@ -541,7 +539,7 @@ mypy backtrader/
 
 mypy backtrader/indicators/sma.py
 
-```bash
+```
 
 - *配置**(pyproject.toml):
 
@@ -553,7 +551,7 @@ warn_unused_configs = true
 check_untyped_defs = true
 ignore_missing_imports = true
 
-```bash
+```
 
 ### black
 
@@ -565,7 +563,7 @@ ignore_missing_imports = true
 
 black --line-length 124 backtrader/
 
-```bash
+```
 
 ## Pre-commit 钩子
 
@@ -585,7 +583,7 @@ pre-commit install
 
 pre-commit run --all-files
 
-```bash
+```
 
 ### 钩子配置
 
@@ -619,7 +617,7 @@ pre-commit run --files backtrader/indicators/*.py
 
 git commit --no-verify -m "WIP"
 
-```bash
+```
 
 ### Git 设置 (Makefile)
 
@@ -633,7 +631,7 @@ make git-setup
 
 make pre-commit
 
-```bash
+```
 
 ### Pre-commit 输出
 
@@ -649,7 +647,7 @@ ruff-lint................................................................Passed
 [dev abc1234] 添加新功能
  1 file changed, 42 insertions(+)
 
-```bash
+```
 
 ## 快速参考
 
@@ -672,7 +670,7 @@ ruff check --fix backtrader/
 
 pytest tests/ -n 4 -v
 
-```bash
+```
 
 ### IDE 配置
 
@@ -689,7 +687,7 @@ pytest tests/ -n 4 -v
   "ruff.organizeImports": true
 }
 
-```bash
+```
 
 - *PyCharm**:
 - 启用 "Ruff" 插件

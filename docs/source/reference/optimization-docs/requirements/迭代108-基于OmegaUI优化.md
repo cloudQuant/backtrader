@@ -26,8 +26,7 @@ OmegaUI 是一个基于 Dash 框架的量化交易 Web UI 系统，为 backtrade
 - **socket_logging.py**: WebSocket 实时日志推送
 - **backtest.py**: 回测基类，可继承实现具体策略
 
-- --
-
+---
 ## 一、架构对比分析
 
 ### 1.1 整体架构对比
@@ -64,7 +63,7 @@ cerebro.plot()
 
 fig, ax = pf.create_full_tear_sheet(returns)
 
-```bash
+```
 
 - *OmegaUI 的可视化方案**：
 
@@ -86,7 +85,7 @@ def create_figure(returns, title):
 # ...
     return fig  # 返回 Plotly Figure 对象
 
-```bash
+```
 
 - *优势对比**：
 - **Backtrader**: 简单直接，适合快速查看
@@ -109,7 +108,7 @@ def create_figure(returns, title):
 ```bash
 回测进程 → Redis Handler → Redis Pub/Sub → SocketIO Server → Browser
 
-```bash
+```
 
 ### 1.4 参数管理对比
 
@@ -122,7 +121,7 @@ class MyStrategy(bt.Strategy):
         ('exit_factor', 2.0),
     )
 
-```bash
+```
 
 - *OmegaUI 动态参数**：
 
@@ -138,7 +137,7 @@ def params_list(module_name, strategy_name, symbol):
         params.append({'Parameter': key, 'Value': value})
     return params  # 返回可编辑表格
 
-```bash
+```
 
 - *优势**：UI 中可实时修改参数，无需重启应用
 
@@ -171,15 +170,14 @@ class Backtest(object):
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
         return cerebro
 
-```bash
+```
 
 - *设计优势**：
 - 抽象出可扩展的基类
 - 预配置常用 Analyzers
 - 参数与策略解耦
 
-- --
-
+---
 ## 二、需求规格说明书
 
 ### 2.1 交互式可视化模块
@@ -432,8 +430,7 @@ class Backtest(object):
 - [ ] 支持 100 并发任务
 - [ ] 完整的 API 文档
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 交互式可视化组件设计
@@ -692,7 +689,7 @@ class KLneChartGenerator:
 
         return fig
 
-```bash
+```
 
 #### 3.1.2 使用示例
 
@@ -724,7 +721,7 @@ fig.write_html("backtest_results.html")
 kline_gen = KLneChartGenerator()
 kline_fig = kline_gen.create_candlestick(data_df, volume=True)
 
-```bash
+```
 
 ### 3.2 实时日志系统设计
 
@@ -862,7 +859,7 @@ def run_backtest_with_logging(session_id: str, strategy_class, **kwargs):
         logger.error(f"Backtest failed: {str(e)}")
         raise
 
-```bash
+```
 
 #### 3.2.2 WebSocket 服务端
 
@@ -927,7 +924,7 @@ if __name__ == '__main__':
     server = BacktestWebSocketServer()
     server.run()
 
-```bash
+```
 
 ### 3.3 动态参数管理系统
 
@@ -1123,7 +1120,7 @@ if not errors:
     cerebro = bt.Cerebro()
     cerebro.addstrategy(MyStrategy, **user_params)
 
-```bash
+```
 
 ### 3.4 统计分析模块
 
@@ -1375,7 +1372,7 @@ class StatsFormatter:
             }
         }
 
-```bash
+```
 
 ### 3.5 Dash 应用集成
 
@@ -1428,13 +1425,13 @@ class BacktestApp:
 # 运行按钮
             html.Button('Run Backtest', id='run-btn', n_clicks=0, className='btn btn-primary mb-3'),
 
-# 结果区域
+            # 结果区域
             html.Div(id='results-container', style={'display': 'none'}, children=[
 
-# 图表
+                # 图表
                 dcc.Graph(id='tearsheet-chart'),
 
-# 统计指标
+                # 统计指标
                 html.Div(id='stats-display', className='mt-4')
             ])
         ])
@@ -1565,10 +1562,9 @@ if __name__ == '__main__':
     app = BacktestApp()
     app.run()
 
-```bash
+```
 
-- --
-
+---
 ## 四、实施路线图
 
 ### 阶段一：核心可视化（1-2 个月）
@@ -1629,8 +1625,7 @@ if __name__ == '__main__':
 
 ### 总时间估算：4-7 个月
 
-- --
-
+---
 ## 五、总结
 
 ### 5.1 OmegaUI 的核心优势

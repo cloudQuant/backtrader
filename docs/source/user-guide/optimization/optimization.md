@@ -15,7 +15,7 @@ class MyStrategy(bt.Strategy):
         ('risk_ratio', 0.02),   # Risk ratio
     )
 
-```bash
+```
 
 ### Running Optimization
 
@@ -32,7 +32,7 @@ cerebro.optstrategy(
     risk_ratio=[0.01, 0.02, 0.03]
 )
 
-```bash
+```
 
 ## Optimization Methods
 
@@ -63,7 +63,7 @@ for fast in params_grid['fast_period']:
             result = cerebro.run()
             results.append((fast, slow, rsi, result[0].analyzers.returns.get_analysis()))
 
-```bash
+```
 
 ### 2. Genetic Algorithm Optimization
 
@@ -93,7 +93,7 @@ toolbox.register("attr_fast", random.randint, 5, 20)
 toolbox.register("attr_slow", random.randint, 20, 40)
 toolbox.register("attr_rsi", random.choice, [7, 14, 21])
 
-```bash
+```
 
 ### 3. Bayesian Optimization
 
@@ -123,7 +123,7 @@ res = gp_minimize(
     random_state=1
 )
 
-```bash
+```
 
 ## Evaluation Metrics
 
@@ -139,7 +139,7 @@ class OptimizationAnalyzer(bt.Analyzer):
             'trades': len(self.strategy.analyzers.trades.get_analysis())
         }
 
-```bash
+```
 
 ### 2. Stability Assessment
 
@@ -152,7 +152,7 @@ def stability_score(results):
     mean = np.mean(returns)
     return mean / std if std != 0 else float('inf')
 
-```bash
+```
 
 ### 3. Overfitting Detection
 
@@ -168,7 +168,7 @@ def detect_overfitting(results, train_data, test_data):
 # Calculate performance gap
     return abs(train_performance - test_performance)
 
-```bash
+```
 
 ## Optimization Strategies
 
@@ -185,7 +185,7 @@ def time_window_optimization(strategy_class, data, window_size):
         results.append(window_results)
     return analyze_window_results(results)
 
-```bash
+```
 
 ### 2. Staged Optimization
 
@@ -218,7 +218,7 @@ def staged_optimization(strategy_class, data):
     )
     return fine_results
 
-```bash
+```
 
 ### 3. Cross-Validation
 
@@ -250,7 +250,7 @@ def cross_validation(strategy_class, data, n_splits=5):
 
     return analyze_cv_results(results)
 
-```bash
+```
 
 ## Results Analysis
 
@@ -285,7 +285,7 @@ def analyze_optimization_results(results):
 
     return performance
 
-```bash
+```
 
 ### 2. Parameter Sensitivity Analysis
 
@@ -304,7 +304,7 @@ def parameter_sensitivity(results):
 
     return sensitivity
 
-```bash
+```
 
 ### 3. Stability Analysis
 
@@ -323,7 +323,7 @@ def stability_analysis(results, window_size=20):
     plt.title('Strategy Stability Trend')
     plt.show()
 
-```bash
+```
 
 ## Best Practices
 
@@ -351,7 +351,7 @@ def prevent_overfitting(strategy_class, data):
     if detect_overfitting(train_results, test_results) > 0.3:
         print("Warning: possible overfitting detected")
 
-```bash
+```
 
 ### 2. Parameter Constraints
 
@@ -367,7 +367,7 @@ def validate_parameters(params):
 
     return True
 
-```bash
+```
 
 ### 3. Computational Efficiency
 
@@ -382,7 +382,7 @@ def parallel_optimization(strategy_class, param_grid):
         )
     return results
 
-```bash
+```
 
 ## Common Issues
 

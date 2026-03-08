@@ -1,10 +1,8 @@
-- --
-
+---
 title: Code Style Guide
 description: Python code formatting and style conventions for Backtrader
 
-- --
-
+---
 # Code Style Guide
 
 This guide covers the code formatting and style conventions used in the Backtrader project. Following these guidelines ensures consistent, readable, and maintainable code.
@@ -69,7 +67,7 @@ class MyIndicator(bt.Indicator):
 # Calculate the indicator value
         self.lines.signal = bt.indicators.RSI(self.data, period=self.p.period)
 
-```bash
+```
 
 ## Import Order Conventions
 
@@ -109,7 +107,7 @@ from backtrader.lineseries import LineSeries
 
 from .utils import calculate_value
 
-```bash
+```
 
 ### Import Aliases
 
@@ -121,7 +119,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-```bash
+```
 
 ### Wildcard Imports
 
@@ -138,7 +136,7 @@ from .observers import *
 
 # from indicators import *# BAD
 
-```bash
+```
 
 ## Type Hint Guidelines
 
@@ -162,7 +160,7 @@ def calculate_sma(period: int, data: list[float]) -> float:
     """Calculate Simple Moving Average."""
     return sum(data[:period]) / period
 
-```bash
+```
 
 ### Common Types
 
@@ -177,7 +175,7 @@ def process_data(
     """Process data with optional callback."""
     pass
 
-```bash
+```
 
 ### Type Hints for Backtrader
 
@@ -191,7 +189,7 @@ def register_indicator(
     """Register an indicator with its owner."""
     pass
 
-```bash
+```
 
 ### Type Checking
 
@@ -200,7 +198,7 @@ Run mypy to verify type hints:
 ```bash
 mypy backtrader/
 
-```bash
+```
 
 ## Docstring Conventions
 
@@ -236,7 +234,7 @@ def calculate_rsi(prices: list[float], period: int = 14) -> list[float]:
 
 # Implementation...
 
-```bash
+```
 
 ### Class Docstrings
 
@@ -257,7 +255,7 @@ class CustomIndicator(bt.Indicator):
         >>> cerebro.run()
     """
 
-```bash
+```
 
 ### Module Docstrings
 
@@ -272,7 +270,7 @@ Typical usage:
     cerebro.addindicator(CustomIndicator)
 """
 
-```bash
+```
 
 ## Comment Standards
 
@@ -294,7 +292,7 @@ signal = self.data.close[0] - self.data.close[-1]
 
 signal = self.data.close[0] - self.data.close[-1]
 
-```bash
+```
 
 ### When to Comment
 
@@ -328,7 +326,7 @@ counter += 1
 
 counter = 0 if counter >= MAX_THRESHOLD else counter + 1
 
-```bash
+```
 
 ### TODO/FIXME Comments
 
@@ -342,7 +340,7 @@ counter = 0 if counter >= MAX_THRESHOLD else counter + 1
 
 # NOTE: Performance optimization opportunity in hot path
 
-```bash
+```
 
 ### Block Comments
 
@@ -360,7 +358,7 @@ counter = 0 if counter >= MAX_THRESHOLD else counter + 1
 k = 2 / (period + 1)
 ema_today = current_value*k + ema_yesterday*(1 - k)
 
-```bash
+```
 
 ## Naming Conventions
 
@@ -410,7 +408,7 @@ self.p.period      # Parameter access
 
 self.lines.signal  # Line access
 
-```bash
+```
 
 ### Booleans
 
@@ -421,7 +419,7 @@ is_valid = True
 has_data = False
 should_recalculate = True
 
-```bash
+```
 
 ### Avoid Single-letter Names
 
@@ -444,7 +442,7 @@ for i, price in enumerate(data):
 x = calculate()
 y = process(x)
 
-```bash
+```
 
 ## Code Quality Tools
 
@@ -462,7 +460,7 @@ pyupgrade --py38-plus backtrader/
 
 pyupgrade --py311-plus backtrader/
 
-```bash
+```
 
 - *What it does**:
 - Converts `%` formatting to f-strings
@@ -488,7 +486,7 @@ ruff check --fix backtrader/
 
 ruff format backtrader/
 
-```bash
+```
 
 - *Configuration** (pyproject.toml):
 
@@ -501,7 +499,7 @@ target-version = "py38"
 select = ["E", "F"]
 ignore = ["E501"]  # Line length handled by formatter
 
-```bash
+```
 
 ### isort
 
@@ -517,7 +515,7 @@ isort backtrader/
 
 isort --check-only backtrader/
 
-```bash
+```
 
 - *Configuration** (pyproject.toml):
 
@@ -526,7 +524,7 @@ isort --check-only backtrader/
 profile = "black"
 line_length = 121
 
-```bash
+```
 
 ### mypy
 
@@ -542,7 +540,7 @@ mypy backtrader/
 
 mypy backtrader/indicators/sma.py
 
-```bash
+```
 
 - *Configuration**(pyproject.toml):
 
@@ -554,7 +552,7 @@ warn_unused_configs = true
 check_untyped_defs = true
 ignore_missing_imports = true
 
-```bash
+```
 
 ### black
 
@@ -566,7 +564,7 @@ Code formatter (note: project uses ruff-format for consistency):
 
 black --line-length 124 backtrader/
 
-```bash
+```
 
 ## Pre-commit Hooks
 
@@ -586,7 +584,7 @@ pre-commit install
 
 pre-commit run --all-files
 
-```bash
+```
 
 ### Hook Configuration
 
@@ -620,7 +618,7 @@ pre-commit run --files backtrader/indicators/*.py
 
 git commit --no-verify -m "WIP"
 
-```bash
+```
 
 ### Git Setup (Makefile)
 
@@ -634,7 +632,7 @@ make git-setup
 
 make pre-commit
 
-```bash
+```
 
 ### Pre-commit Output
 
@@ -650,7 +648,7 @@ ruff-lint................................................................Passed
 [dev abc1234] Add new feature
  1 file changed, 42 insertions(+)
 
-```bash
+```
 
 ## Quick Reference
 
@@ -673,7 +671,7 @@ ruff check --fix backtrader/
 
 pytest tests/ -n 4 -v
 
-```bash
+```
 
 ### IDE Configuration
 
@@ -690,7 +688,7 @@ pytest tests/ -n 4 -v
   "ruff.organizeImports": true
 }
 
-```bash
+```
 
 - *PyCharm**:
 - Enable "Ruff" plugin

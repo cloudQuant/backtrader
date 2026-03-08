@@ -29,8 +29,7 @@ QUANTAXIS 是一个增量化/模块化的量化金融框架，具有以下核心
 5. **因子框架**: 因子计算和存储框架
 6. **可视化**: 回测结果可视化和报表
 
-- --
-
+---
 ## 项目对比分析
 
 ### Backtrader vs QUANTAXIS 架构对比
@@ -90,8 +89,7 @@ QUANTAXIS 是一个增量化/模块化的量化金融框架，具有以下核心
 - **实时监控**: 交易信号、持仓、盈亏实时展示
 - **交互式图表**: K 线图、技术指标、交易记录
 
-- --
-
+---
 ## 需求文档
 
 ### 需求概述
@@ -235,8 +233,7 @@ QUANTAXIS 是一个增量化/模块化的量化金融框架，具有以下核心
 - 新增市场类型通过配置实现
 - 新增因子通过继承实现
 
-- --
-
+---
 ## 设计文档
 
 ### 整体架构设计
@@ -281,7 +278,7 @@ backtrader/
 
 │   └── position.py        # 增强：持仓管理
 
-```bash
+```
 
 ### 详细设计
 
@@ -341,7 +338,7 @@ MARKET_CONFIGS = {
 
 }
 
-```bash
+```
 
 - *1.2 数据源市场类型识别**
 
@@ -361,7 +358,7 @@ def detect_market_type(data):
 # ... 更多判断逻辑
     return MarketType.STOCK_CN
 
-```bash
+```
 
 #### 2. 数据存储层
 
@@ -429,7 +426,7 @@ class MongoDataStore(DataStore):
         cursor = collection.find(query).sort('datetime', 1)
         return pd.DataFrame(list(cursor))
 
-```bash
+```
 
 #### 3. 因子框架
 
@@ -474,7 +471,7 @@ class Factor(Indicator):
 # 实现 IR 计算
         pass
 
-```bash
+```
 
 - *3.2 因子计算引擎**
 
@@ -530,7 +527,7 @@ class FactorEngine:
                 for config in factor_configs
             }
 
-```bash
+```
 
 - *3.3 因子分析工具**
 
@@ -574,7 +571,7 @@ class FactorAnalyzer:
         """计算因子换手率"""
         return (factor_current != factor_prev).sum() / len(factor_current)
 
-```bash
+```
 
 #### 4. 增强持仓管理
 
@@ -628,7 +625,7 @@ class Position:
         self._margin_long = (self._long_today + self._long_his) *price*margin_rate
         self._margin_short = (self._short_today + self._short_his)*price*margin_rate
 
-```bash
+```
 
 #### 5. Web 可视化
 
@@ -676,7 +673,7 @@ class BacktraderWebServer:
         """启动服务器"""
         self.socketio.run(self.app, host=self.host, port=self.port)
 
-```bash
+```
 
 ### 实现计划
 
@@ -736,7 +733,7 @@ cerebro.set_market_type(bt.MarketType.FUTURE_CN)
 cerebro.set_data_store(bt.MongoDataStore("mongodb://localhost/"))
 cerebro.add_factor(bt.factors.MomentumFactor(period=20))
 
-```bash
+```
 
 ### 测试策略
 

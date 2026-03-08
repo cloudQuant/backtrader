@@ -47,7 +47,7 @@ html_theme_options = {
     }
 }
 
-```bash
+```
 
 #### 更新 `.algolia-config.json`
 
@@ -67,15 +67,15 @@ html_theme_options = {
 
 docker run -it --env-file=.env -e "CONFIG=$(cat .algolia-config.json | jq -r tostring)" algolia/docsearch-scraper
 
-```bash
+```
 
 ### 创建 `.env` 文件
 
-```env
+```bash
 APPLICATION_ID=YOUR_APP_ID
 API_KEY=YOUR_API_KEY
 
-```bash
+```
 
 ## 自动化索引
 
@@ -121,7 +121,7 @@ jobs:
 
             algolia/docsearch-scraper
 
-```bash
+```
 
 ### 配置 Secrets
 
@@ -153,7 +153,7 @@ docsearch({
   }
 });
 
-```bash
+```
 
 ## 搜索优化
 
@@ -219,7 +219,7 @@ curl -L <https://install.meilisearch.com> | sh
 
 ./meilisearch --master-key="YOUR_MASTER_KEY"
 
-```bash
+```
 
 ### 3. Typesense
 
@@ -238,7 +238,7 @@ docker run -p 8108:8108 \
   - -data-dir /data \
   - -api-key=YOUR_API_KEY
 
-```bash
+```
 
 ## 故障排除
 
@@ -278,7 +278,6 @@ docker run -p 8108:8108 \
 2. 在 GitHub 提 Issue
 3. 联系 Algolia 支持团队
 
-- --
-
+---
 - *更新日期**: 2026-03-01
 - *维护者**: Backtrader 文档团队

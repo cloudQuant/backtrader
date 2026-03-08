@@ -4,8 +4,7 @@
 
 - *交易对**: DOGS/USDT **现货交易**（仅做多，无合约）
 
-- --
-
+---
 ## 快速启动
 
 ```bash
@@ -28,10 +27,9 @@ python test_dogs_data.py
 
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
-- --
-
+---
 ## 策略参数速查表
 
 ### 核心参数
@@ -66,10 +64,9 @@ cerebro.addstrategy(
 
 )
 
-```bash
+```
 
-- --
-
+---
 ## Bar 输出信息解读
 
 每个 bar 会显示：
@@ -85,7 +82,7 @@ ATR:              波动率
 Position:         持仓、入场价、浮亏、止损
 Signals:         当前交易信号
 
-```bash
+```
 
 ### 关键指标说明
 
@@ -99,8 +96,7 @@ Signals:         当前交易信号
 - 20-80%: 中性区
 - > 80%: 超买区（可能回调）
 
-- --
-
+---
 ## 交易信号一览表
 
 ### 现货做多逻辑
@@ -115,8 +111,7 @@ Signals:         当前交易信号
 
 | 价格 ≤ 止损价 | 多 | 止损平仓 |
 
-- --
-
+---
 ## 手数计算
 
 ```python
@@ -135,10 +130,9 @@ Signals:         当前交易信号
 if 实际下单 < 1:
     实际下单 = 1
 
-```bash
+```
 
-- --
-
+---
 ## 常见调整
 
 ### 保守策略（减少交易）
@@ -150,7 +144,7 @@ devfactor=2.5,          # 更宽的带宽
 
 atr_mult=2.5,           # 更宽的止损
 
-```bash
+```
 
 ### 激进策略（增加交易）
 
@@ -161,10 +155,9 @@ devfactor=1.5,          # 更窄的带宽
 
 atr_mult=1.5,           # 更紧的止损
 
-```bash
+```
 
-- --
-
+---
 ## 风险控制
 
 ### 内置
@@ -180,8 +173,7 @@ atr_mult=1.5,           # 更紧的止损
 3. **账户总止损**: 50% 资金
 4. **避开重大新闻**: 发布前后不交易
 
-- --
-
+---
 ## 性能优化建议
 
 ### 1. 参数优化
@@ -196,7 +188,7 @@ cerebro.optstrategy(
     atr_mult=[1.5, 2.0, 2.5],
 )
 
-```bash
+```
 
 ### 2. 过滤条件
 
@@ -220,10 +212,9 @@ if 0 <= current_hour < 6:  # 凌晨不交易
 if self.atr[0] < self.data.close[0] *0.01:
     return
 
-```bash
+```
 
-- --
-
+---
 ## 故障排查
 
 ### 问题 1: 找不到 DOGS/USDT 交易对
@@ -240,7 +231,7 @@ dataname='DOGS/USDT'
 
 dataname='DOGS/USD:USDT'  # 不存在的合约
 
-```bash
+```
 
 ### 问题 2: 手数太小
 
@@ -250,7 +241,7 @@ dataname='DOGS/USD:USDT'  # 不存在的合约
 if size < 1:
     size = 1
 
-```bash
+```
 
 ### 问题 3: 日志太多
 
@@ -259,18 +250,16 @@ if size < 1:
 ```python
 log_bars=False
 
-```bash
+```
 
-- --
-
+---
 ## 相关文档
 
 - `DOGS_STRATEGY_UPDATE.md` - 详细更新说明
 - `DOGS_BOLLINGER_STRATEGY_GUIDE.md` - 使用指南
 - `DOGS_STRATEGY_FIX.md` - 问题修复总结
 
-- --
-
+---
 ## 快速命令
 
 ```bash
@@ -291,10 +280,9 @@ python check_okx_config_simple.py
 
 python test_dogs_data.py
 
-```bash
+```
 
-- --
-
+---
 ## 交易示例输出
 
 ```bash
@@ -317,10 +305,9 @@ Trading Signals:
 [LONG ENTRY] 突破上轨开多: 价格=$0.000040, 上轨=$0.000041, 数量=10000
 [ORDER EXECUTED] 买入: 价格=$0.000040, 数量=10000, 金额=$0.40 USDT
 
-```bash
+```
 
-- --
-
+---
 ## 现货 vs 合约对比
 
 | 特性 | 现货 | 合约 |
@@ -337,7 +324,6 @@ Trading Signals:
 
 - *注意**: OKX 不提供 DOGS 永续合约，只能使用现货交易。
 
-- --
-
+---
 - *更新日期**: 2026-01-20
 - *版本**: v3.0 - 现货做多版本

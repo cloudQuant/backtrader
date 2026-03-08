@@ -29,8 +29,7 @@ poboquant 是一个 Python 量化交易框架，具有以下核心特点：
 5. **可视化**: 交易可视化
 6. **API 设计**: API 接口设计
 
-- --
-
+---
 ## 一、项目对比分析
 
 ### 1.1 架构设计对比
@@ -93,7 +92,7 @@ def OnTradeAccountDisconnected(context, accountname):
 
 # 处理断线重连
 
-```bash
+```
 
 - *优势**：
 - 事件名称直观，易于理解
@@ -116,7 +115,7 @@ if i.contract != g.code and GetVarietyByCode(g.code) == GetVarietyByCode(i.contr
     context.myacc.InsertOrder(i.contract, BSType.SellClose, closeprice, volume)
     context.myacc.InsertOrder(g.code, BSType.BuyOpen, newprice, volume)
 
-```bash
+```
 
 - *优势**：
 - 自动识别主力合约
@@ -149,7 +148,7 @@ QuickInsertOrder(account, code, 'buy', 'open', price, volume)
 
 InsertAbsStopLossPosition(account, code, 'buy', stop_price, volume)
 
-```bash
+```
 
 - *优势**：
 - 区分开平仓
@@ -175,7 +174,7 @@ dea = MACDindi.GetValue("DEA")
 
 # 支持的指标：MACD, KDJ, ATR, RSI, BOLL 等
 
-```bash
+```
 
 - *优势**：
 - 动态创建指标
@@ -193,7 +192,7 @@ def OnMarketQuotationInitialEx(context, exchange, daynight):
 
 # 盘前持仓检查
 
-```bash
+```
 
 - *优势**：
 - 区分交易所和日夜盘
@@ -214,7 +213,7 @@ def OnTimer(context, timerid):
 # 定时任务
         KillTimer(g.timer)
 
-```bash
+```
 
 - *优势**：
 - 支持定时任务
@@ -261,7 +260,7 @@ PoboQuant 提供了大量实用的策略示例：
 
 QuickInsertOrder(account, code, direction, offset, price, volume)
 
-```bash
+```
 
 #### 1.3.5 指标工厂模式
 
@@ -271,10 +270,9 @@ QuickInsertOrder(account, code, direction, offset, price, volume)
 
 indicator = CreateIndicator("MACD", params={...})
 
-```bash
+```
 
-- --
-
+---
 ## 二、需求文档
 
 ### 2.1 优化目标
@@ -381,8 +379,7 @@ indicator = CreateIndicator("MACD", params={...})
 - 定时精度±1 秒
 - 支持多定时器
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 事件钩子系统设计
@@ -509,7 +506,7 @@ class EventsMixin:
                 timer['handler']()
                 timer['next_run'] = current_time + timedelta(seconds=timer['interval'])
 
-```bash
+```
 
 #### 3.1.2 集成到 Strategy
 
@@ -571,7 +568,7 @@ class MyStrategy(EventfulStrategy):
         if self.data.close[0] > self.data.close[-1]:
             self.buy()
 
-```bash
+```
 
 ### 3.2 主力合约管理器设计
 
@@ -782,7 +779,7 @@ class MainContractManager:
             print(f"Contract switch failed: {e}")
             return False
 
-```bash
+```
 
 #### 3.2.2 集成到 Strategy
 
@@ -859,7 +856,7 @@ class MainContractStrategy(bt.Strategy):
 
         self._last_switch_check = self.datetime.datetime(0)
 
-```bash
+```
 
 ### 3.3 订单类型扩展设计
 
@@ -919,7 +916,7 @@ class ConditionOrder:
         """停用订单"""
         self.is_active = False
 
-```bash
+```
 
 #### 3.3.2 扩展 Broker 接口
 
@@ -1067,7 +1064,7 @@ class FuturesBroker(bt.Broker):
         self._condition_orders.append(tp_order)
         return tp_order
 
-```bash
+```
 
 ### 3.4 快速下单接口设计
 
@@ -1216,7 +1213,7 @@ class MyStrategy(QuickOrderStrategy):
         if hasattr(self, 'order'):
             self.order.buy_open(size=10)  # 开多 10 手
 
-```bash
+```
 
 ### 3.5 断线重连机制设计
 
@@ -1360,7 +1357,7 @@ class ReconnectableStrategy(bt.Strategy):
         """策略主逻辑（子类覆盖）"""
         pass
 
-```bash
+```
 
 ### 3.6 实现优先级
 
@@ -1389,8 +1386,7 @@ class ReconnectableStrategy(bt.Strategy):
 3. 默认行为完全保持不变
 4. 提供传统 API 的封装方法
 
-- --
-
+---
 ## 四、使用示例
 
 ### 4.1 完整策略示例
@@ -1477,7 +1473,7 @@ cerebro.addstrategy(
 
 result = cerebro.run()
 
-```bash
+```
 
 ### 4.2 简化的策略编写
 
@@ -1501,10 +1497,9 @@ class SimpleEventStrategy(EventfulStrategy):
     def next(self):
         pass  # 不需要 next，逻辑都在事件中
 
-```bash
+```
 
-- --
-
+---
 ## 五、总结
 
 通过借鉴 PoboQuant 的实用设计，Backtrader 可以获得：

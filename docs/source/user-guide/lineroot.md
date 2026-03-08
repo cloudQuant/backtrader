@@ -1,10 +1,8 @@
-- --
-
+---
 title: LineRoot API Reference
 description: Base class for line-based time-series data structures
 
-- --
-
+---
 # LineRoot API Reference
 
 `LineRoot` is the foundational base class for all line-based objects in Backtrader. It provides the core interface for time-series data management, period handling, and operator overloading for arithmetic and comparison operations.
@@ -93,7 +91,7 @@ classDiagram
 
     }
 
-```bash
+```
 
 ## Core Concepts
 
@@ -120,7 +118,7 @@ LineRoot implements a two-stage operation system:
 ```python
 obj._minperiod  # int: Minimum periods needed before valid output
 
-```bash
+```
 The minimum number of bars required before the object produces valid output.
 
 ```python
@@ -130,14 +128,14 @@ The minimum number of bars required before the object produces valid output.
 sma = bt.indicators.SMA(period=20)
 print(sma._minperiod)  # 20
 
-```bash
+```
 
 ### `_opstage`
 
 ```python
 obj._opstage  # int: Current operation stage (1 or 2)
 
-```bash
+```
 Controls whether operations create objects (stage 1) or return values (stage 2).
 
 ### `_OwnerCls`
@@ -145,7 +143,7 @@ Controls whether operations create objects (stage 1) or return values (stage 2).
 ```python
 obj._OwnerCls  # type: Expected owner class type
 
-```bash
+```
 Specifies the class type that should own this object. Used by `findowner()`.
 
 ### Type Constants
@@ -157,7 +155,7 @@ LineRoot.StratType # 1 - Strategy type
 
 LineRoot.ObsType   # 2 - Observer type
 
-```bash
+```
 Used to identify object types in the line hierarchy.
 
 ## Period Management Methods
@@ -167,7 +165,7 @@ Used to identify object types in the line hierarchy.
 ```python
 obj.setminperiod(minperiod: int) -> None
 
-```bash
+```
 Directly set the minimum period requirement.
 
 - *Parameters:**
@@ -183,14 +181,14 @@ class MyStrategy(bt.Strategy):
 # Don't wait for full SMA - start after 20 bars
         self.sma.setminperiod(20)
 
-```bash
+```
 
 ### `updateminperiod()`
 
 ```python
 obj.updateminperiod(minperiod: int) -> None
 
-```bash
+```
 Update minimum period to the maximum of current and provided value.
 
 - *Parameters:**
@@ -206,14 +204,14 @@ class MyIndicator(bt.Indicator):
 
 # _minperiod automatically becomes max(10, 20) = 20
 
-```bash
+```
 
 ### `addminperiod()`
 
 ```python
 obj.addminperiod(minperiod: int) -> None
 
-```bash
+```
 Add to minimum period (with overlap adjustment). Subtracts 1 to account for overlapping periods.
 
 - *Note:** Implementation differs between `LineSingle` and `LineMultiple`.
@@ -223,7 +221,7 @@ Add to minimum period (with overlap adjustment). Subtracts 1 to account for over
 ```python
 obj.incminperiod(minperiod: int) -> None
 
-```bash
+```
 Increment minimum period without considerations (no overlap adjustment).
 
 ## Execution Phase Methods
@@ -233,7 +231,7 @@ Increment minimum period without considerations (no overlap adjustment).
 ```python
 obj.prenext() -> None
 
-```bash
+```
 Called during the minimum period phase when not enough data is available yet.
 
 - *Override** to customize pre-period behavior:
@@ -245,14 +243,14 @@ class MyIndicator(bt.Indicator):
 # Called each bar until minperiod is reached
         print(f"Accumulating data: {len(self)} bars")
 
-```bash
+```
 
 ### `nextstart()`
 
 ```python
 obj.nextstart() -> None
 
-```bash
+```
 Called once when minimum period is first satisfied, before normal `next()` calls.
 
 - *Default:** Automatically calls `next()`.
@@ -264,14 +262,14 @@ def nextstart(self):
     print(f"Indicator ready! First valid value: {self.line[0]}")
     self.next()  # Continue with normal next()
 
-```bash
+```
 
 ### `next()`
 
 ```python
 obj.next() -> None
 
-```bash
+```
 Called for each bar after minimum period is satisfied.
 
 - *Override** to implement calculation logic:
@@ -280,7 +278,7 @@ Called for each bar after minimum period is satisfied.
 def next(self):
     self.line[0] = self.data.close[0] *2
 
-```bash
+```
 
 ### `preonce()` and `once()`
 
@@ -288,7 +286,7 @@ def next(self):
 obj.preonce(start: int, end: int) -> None
 obj.once(start: int, end: int) -> None
 
-```bash
+```
 Called during vectorized (`once`) mode for batch processing.
 
 - *Parameters:**
@@ -304,14 +302,14 @@ def once(self, start, end):
     for i in range(start, end):
         self.line.array[i] = self.data.close.array[i] *2
 
-```bash
+```
 
 ### `oncestart()`
 
 ```python
 obj.oncestart(start: int, end: int) -> None
 
-```bash
+```
 Called once in `once` mode when minimum period is first satisfied.
 
 ## Arithmetic Operators
@@ -354,7 +352,7 @@ result = abs(-data.close)
 
 result = -data.close
 
-```bash
+```
 
 ### Comparison Operators
 
@@ -367,7 +365,7 @@ cross_down = data.close < data.low
 equals = data.close == data.open
 not_equals = data.close != data.open
 
-```bash
+```
 
 ## Line Management
 
@@ -376,7 +374,7 @@ not_equals = data.close != data.open
 ```python
 obj.lines  # Lines collection
 
-```bash
+```
 Container for all line objects in a multi-line object.
 
 ```python
@@ -393,7 +391,7 @@ close_line = data.lines.close
 
 num_lines = len(obj.lines)
 
-```bash
+```
 
 ### `linealias` Descriptor
 
@@ -408,21 +406,21 @@ class MyIndicator(bt.Indicator):
 indicator.lines.signal[0]
 indicator.lines.trend[0]
 
-```bash
+```
 
 ### `size()`
 
 ```python
 obj.size() -> int
 
-```bash
+```
 Return the number of lines in this object.
 
 ```python
 data = bt.feeds.YahooFinanceData(dataname='AAPL')
 print(data.size())  # Number of data lines (OHLCV)
 
-```bash
+```
 
 ## Buffer Management
 
@@ -431,7 +429,7 @@ print(data.size())  # Number of data lines (OHLCV)
 ```python
 obj.qbuffer(savemem: int = 0) -> None
 
-```bash
+```
 Change lines to implement minimum-size queue buffer scheme for memory efficiency.
 
 - *Parameters:**
@@ -444,14 +442,14 @@ Change lines to implement minimum-size queue buffer scheme for memory efficiency
 for data in cerebro.datas:
     data.qbuffer(savemem=1)
 
-```bash
+```
 
 ### `minbuffer()`
 
 ```python
 obj.minbuffer(size: int) -> None
 
-```bash
+```
 Notify object of minimum buffer size requirement.
 
 ## Owner Relationships
@@ -461,7 +459,7 @@ Notify object of minimum buffer size requirement.
 ```python
 obj._owner  # Reference to owning object
 
-```bash
+```
 Set automatically via `findowner()` during construction.
 
 ### Owner Finding (LineRootMixin)
@@ -471,7 +469,7 @@ Set automatically via `findowner()` during construction.
 def donew(cls, *args, **kwargs):
     """Create instance with owner finding logic"""
 
-```bash
+```
 The `LineRootMixin.donew()` method:
 
 1. Creates the object instance
@@ -504,7 +502,7 @@ LineRoot.StratType # 1 - For strategies
 
 LineRoot.ObsType   # 2 - For observers
 
-```bash
+```
 Used in `_ltype` attribute to identify object type:
 
 ```python
@@ -513,7 +511,7 @@ if obj._ltype == LineRoot.IndType:
 # This is an indicator
     pass
 
-```bash
+```
 
 ## Line Access Patterns
 
@@ -529,7 +527,7 @@ current_close = data.close[0]
 
 current_sma = self.sma[0]
 
-```bash
+```
 
 ### Past Values (Positive Indices)
 
@@ -543,7 +541,7 @@ prev_close = data.close[-1]
 
 close_5_ago = data.close[-5]
 
-```bash
+```
 
 ### Setting Values
 
@@ -553,7 +551,7 @@ close_5_ago = data.close[-5]
 
 self.signal[0] = 1 if data.close[0] > data.close[-1] else -1
 
-```bash
+```
 
 ### Checking Data Availability
 
@@ -564,7 +562,7 @@ def next(self):
     if len(self.data) >= 2:
         change = self.data.close[0] - self.data.close[-1]
 
-```bash
+```
 
 ## LineSingle vs LineMultiple
 
@@ -580,7 +578,7 @@ class LineSingle(LineRoot):
     def incminperiod(self, minperiod):
         self._minperiod += minperiod
 
-```bash
+```
 
 ### LineMultiple
 
@@ -598,7 +596,7 @@ class LineMultiple(LineRoot):
         self._stage1()
         self.lines.reset()
 
-```bash
+```
 
 ## Operation Methods (Internal)
 
@@ -609,14 +607,14 @@ obj._stage1()  # Set operation stage to 1 (construction)
 
 obj._stage2()  # Set operation stage to 2 (execution)
 
-```bash
+```
 
 ### `_operation()`
 
 ```python
 obj._operation(other, operation, r=False, intify=False)
 
-```bash
+```
 Internal method for two-operand operations.
 
 ### `_operationown()`
@@ -624,7 +622,7 @@ Internal method for two-operand operations.
 ```python
 obj._operationown(operation)
 
-```bash
+```
 Internal method for single-operand operations.
 
 ## Boolean Context
@@ -645,7 +643,7 @@ if self.cross:
 # True if cross line has non-zero value
     pass
 
-```bash
+```
 
 ## Usage Examples
 
@@ -669,7 +667,7 @@ class PriceChange(bt.Indicator):
                 self.lines.change[0] / self.data.close[-1] * 100
             )
 
-```bash
+```
 
 ### Using Period Management
 
@@ -688,7 +686,7 @@ class AdaptiveStrategy(bt.Strategy):
 # Both SMAs are ready
             pass
 
-```bash
+```
 
 ### Line Operations
 
@@ -701,7 +699,7 @@ class Momentum(bt.Indicator):
 # Using arithmetic operators creates line operations
         self.lines.momentum = self.data.close - self.data.close(-period)
 
-```bash
+```
 
 ## Performance Considerations
 
@@ -723,7 +721,7 @@ class CrossOver(bt.Indicator):
         self.lines.cross = bt.indicators.CrossOver(
             self.data.close, self.data.close(-1))
 
-```bash
+```
 
 ### Multi-Line Indicator
 
@@ -738,7 +736,7 @@ class BollingerBands(bt.Indicator):
         self.lines.top = self.lines.mid + self.p.devfactor *bt.indicators.StandardDeviation(self.data, period=self.p.period)
         self.lines.bot = self.lines.mid - self.p.devfactor* bt.indicators.StandardDeviation(self.data, period=self.p.period)
 
-```bash
+```
 
 ## Related Classes
 

@@ -1,10 +1,8 @@
-- --
-
+---
 title: Strategy API
 description: Complete Strategy class API reference
 
-- --
-
+---
 # Strategy API
 
 The `Strategy` class is the base class for all user-defined trading strategies in Backtrader. It provides order management, position tracking, indicator integration, and event-driven execution.
@@ -15,7 +13,7 @@ The `Strategy` class is the base class for all user-defined trading strategies i
 class backtrader.Strategy:
     """Base class for trading strategies."""
 
-```bash
+```
 
 ## Parameters
 
@@ -30,7 +28,7 @@ class MyStrategy(bt.Strategy):
         ('threshold', 1.5),
     )
 
-```bash
+```
 Access parameters via `self.p.parameter_name` or `self.params.parameter_name`.
 
 ## Core Methods
@@ -44,7 +42,7 @@ def __init__(self):
     super().__init__()  # Always call super first
     self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
 
-```bash
+```
 
 ### `start(self)`
 
@@ -54,7 +52,7 @@ Called before backtesting begins, after initialization is complete.
 def start(self):
     self.initial_cash = self.broker.getcash()
 
-```bash
+```
 
 ### `prenext(self)`
 
@@ -73,7 +71,7 @@ def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
 
-```bash
+```
 
 ### `stop(self)`
 
@@ -84,7 +82,7 @@ def stop(self):
     final_value = self.broker.getvalue()
     print(f'Final Portfolio Value: {final_value}')
 
-```bash
+```
 
 ## Order Methods
 
@@ -130,7 +128,7 @@ order = self.buy(size=10)
 
 order = self.buy(stoplimit=95.0, price=94.5)
 
-```bash
+```
 
 ### `sell(self, **kwargs)`
 
@@ -146,7 +144,7 @@ order = self.sell()
 
 order = self.sell(stop=95.0)
 
-```bash
+```
 
 ### `close(self, **kwargs)`
 
@@ -162,7 +160,7 @@ order = self.close()
 
 order = self.close(price=105.0)
 
-```bash
+```
 
 ### `cancel(self, order)`
 
@@ -171,7 +169,7 @@ Cancel a pending order.
 ```python
 self.cancel(order)
 
-```bash
+```
 
 ## Order Notification
 
@@ -193,7 +191,7 @@ def notify_order(self, order):
     elif order.status in [order.Canceled, order.Margin, order.Rejected]:
         self.log(f'Order {order.getstatusname()}')
 
-```bash
+```
 
 - *Order Status Values**:
 
@@ -230,7 +228,7 @@ def notify_trade(self, trade):
 
     self.log(f'Trade P&L: {trade.pnl:.2f}, Commission: {trade.commission:.2f}')
 
-```bash
+```
 
 - *Trade Attributes**:
 
@@ -268,7 +266,7 @@ if self.position:
     size = self.position.size
     price = self.position.price
 
-```bash
+```
 
 - *Position Attributes**:
 
@@ -289,7 +287,7 @@ Get position object for specific data feed.
 ```python
 position = self.getposition(self.datas[1])
 
-```bash
+```
 
 ## Data Access
 
@@ -312,7 +310,7 @@ price2 = self.datas[1].close[0]
 
 price = self.aapl.close[0]
 
-```bash
+```
 
 ### `getdatabyname(self, name)`
 
@@ -321,7 +319,7 @@ Get data feed by name.
 ```python
 data = self.getdatabyname('AAPL')
 
-```bash
+```
 
 ## Broker Access
 
@@ -333,7 +331,7 @@ Access broker methods.
 cash = self.broker.getcash()
 value = self.broker.getvalue()
 
-```bash
+```
 
 - *Common Broker Methods**:
 
@@ -363,7 +361,7 @@ def next(self):
     if self.crossover > 0:
         self.buy()
 
-```bash
+```
 
 ## Logging
 
@@ -375,7 +373,7 @@ Log messages with timestamp.
 def next(self):
     self.log(f'Close: {self.data.close[0]:.2f}')
 
-```bash
+```
 
 ## Strategy Lifecycle
 
@@ -391,7 +389,7 @@ stateDiagram-v2
     next --> stop: Backtest ends
     stop --> [*]: Cleanup
 
-```bash
+```
 
 ## Multiple Data Feeds
 
@@ -409,7 +407,7 @@ class MyStrategy(bt.Strategy):
         if self.data0.close[0] > self.data1.close[0]:
             self.buy(data=self.data0)
 
-```bash
+```
 
 ## Timer Events
 
@@ -429,7 +427,7 @@ def __init__(self):
 def notify_timer(self, timer, when):
     self.log(f'Timer fired at {when}')
 
-```bash
+```
 
 ## Data Events
 
@@ -442,7 +440,7 @@ def notify_data(self, data, status, *args, **kwargs):
     if status == data.LIVE:
         self.log(f'{data._name} is now LIVE')
 
-```bash
+```
 
 ## Signal Strategy
 
@@ -456,7 +454,7 @@ class MySignalStrategy(bt.SignalStrategy):
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
         self.signal_add(bt.SIGNAL_LONG, self.data.close > self.sma)
 
-```bash
+```
 
 ## Full Example
 
@@ -510,7 +508,7 @@ class MyStrategy(bt.Strategy):
     def stop(self):
         self.log(f'Final Value: {self.broker.getvalue():.2f}')
 
-```bash
+```
 
 ## Next Steps
 

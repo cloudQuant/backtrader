@@ -29,8 +29,7 @@ backtradercpp 是 backtrader 的 C++实现版本，具有以下核心特点：
 5. **数据结构**: 高效数据结构设计
 6. **API 设计**: C++ API 设计模式
 
-- --
-
+---
 ## 一、项目对比分析
 
 ### 1.1 架构设计对比
@@ -62,7 +61,7 @@ using VecArrXd = Eigen::Array<double, Eigen::Dynamic, 1>;
 using RowArrayXd = Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using VecArrXi = Eigen::Array<int, Eigen::Dynamic, 1>;
 
-```bash
+```
 
 - *优势**：
 - 编译时优化，SIMD 指令自动向量化
@@ -77,7 +76,7 @@ template <typename T> class FeedDataBuffer {
     boost::circular_buffer<T> data_;  // 固定容量循环缓冲
 };
 
-```bash
+```
 
 - *优势**：
 - 固定内存占用，避免动态分配
@@ -90,7 +89,7 @@ template <typename T> class FeedDataBuffer {
 enum State { Valid, Invalid, Finished };
 std::vector<State> status_;  // 每个数据源独立状态
 
-```bash
+```
 
 - *优势**：
 - 清晰的状态转换
@@ -108,7 +107,7 @@ for (int i = 0; i < assets_; ++i) {
     std::getline(adj_files[i], adj_line_buffer[i]);
 }
 
-```bash
+```
 
 - *优势**：
 - 多资产数据并行加载
@@ -127,7 +126,7 @@ struct EvalOpen : GenericPriceEvaluator {
     double v = 0;
 };
 
-```bash
+```
 
 - *优势**：
 - 灵活的价格计算策略
@@ -143,7 +142,7 @@ class StrategyDumpUtil {
     void set_timed_var(const ptime& t, const std::string& key, double v);
 };
 
-```bash
+```
 
 - *优势**：
 - 支持策略状态保存/恢复
@@ -159,7 +158,7 @@ class TableRunner {
     GenerateCartesianProduct(...);
 };
 
-```bash
+```
 
 - *优势**：
 - 自动生成参数组合
@@ -177,8 +176,7 @@ class TableRunner {
 5. **笛卡尔积**: itertools.product
 6. **并行 I/O**: concurrent.futures ThreadPoolExecutor
 
-- --
-
+---
 ## 二、需求文档
 
 ### 2.1 优化目标
@@ -283,8 +281,7 @@ class TableRunner {
 - 与现有 API 完全兼容
 - 性能测试通过
 
-- --
-
+---
 ## 三、设计文档
 
 ### 3.1 循环缓冲区设计
@@ -375,7 +372,7 @@ class CyclicBuffer(Generic[T]):
     def __repr__(self) -> str:
         return f"CyclicBuffer(size={len(self)}/{self._capacity}, data={list(self._buffer)})"
 
-```bash
+```
 
 #### 3.1.2 集成到 LineSeries
 
@@ -403,7 +400,7 @@ class LineSeries:
     def __len__(self) -> int:
         return len(self._buffer)
 
-```bash
+```
 
 ### 3.2 并行数据加载器设计
 
@@ -501,7 +498,7 @@ class ParallelCSVLoader:
 
         return results
 
-```bash
+```
 
 #### 3.2.2 集成到 CSV Data Feed
 
@@ -530,7 +527,7 @@ class CSVDirectoryDataFeed(bt.FeedBase):
 # 原有的顺序加载逻辑
             self._data_frames = self._load_sequential()
 
-```bash
+```
 
 ### 3.3 价格评估器框架设计
 
@@ -573,7 +570,7 @@ class PriceEvaluator:
         """缩放因子"""
         return ScaleEvaluator(self, factor)
 
-```bash
+```
 
 #### 3.3.2 内置评估器
 
@@ -665,7 +662,7 @@ def with_limit(
 ) -> PriceEvaluator:
     return LimitEvaluator(evaluator, limit_up, limit_down)
 
-```bash
+```
 
 #### 3.3.3 在 Strategy 中使用
 
@@ -708,7 +705,7 @@ cerebro.addstrategy(
 
 )
 
-```bash
+```
 
 ### 3.4 策略状态管理器设计
 
@@ -873,7 +870,7 @@ class StateManager:
         self._timed_variables.clear()
         self._bar_count = 0
 
-```bash
+```
 
 #### 3.4.2 集成到 Strategy
 
@@ -935,7 +932,7 @@ class MyStrategy(StatefulStrategy):
 
 # 自动保存由 on_bar 处理
 
-```bash
+```
 
 ### 3.5 参数优化器设计
 
@@ -1142,7 +1139,7 @@ class ParamOptimizer:
 
         return opt_result
 
-```bash
+```
 
 #### 3.5.2 使用示例
 
@@ -1192,7 +1189,7 @@ for r in result.results:
     if r.error is None:
         print(f"{r.params}: sharpe={r.metrics.get('sharpe', 'N/A')}")
 
-```bash
+```
 
 ### 3.6 零拷贝数据访问设计
 
@@ -1313,7 +1310,7 @@ class LineBuffer:
         actual_idx = (self._idx - self._len + key) % self._size
         return self._array[actual_idx]
 
-```bash
+```
 
 ### 3.7 实现优先级
 
@@ -1342,8 +1339,7 @@ class LineBuffer:
 3. 默认行为保持不变
 4. 提供渐进式迁移路径
 
-- --
-
+---
 ## 四、实施计划
 
 ### 阶段一：循环缓冲区（3 天）
@@ -1383,8 +1379,7 @@ class LineBuffer:
 2. LineBuffer 重构
 3. 内存测试
 
-- --
-
+---
 ## 五、总结
 
 通过借鉴 BacktraderCpp 的以下优秀设计，Backtrader 可以获得显著的性能提升：

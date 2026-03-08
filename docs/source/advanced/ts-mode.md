@@ -1,10 +1,8 @@
-- --
-
+---
 title: TS (Time Series) Mode Guide
 description: Time series vectorization for fast backtesting
 
-- --
-
+---
 # TS (Time Series) Mode Guide
 
 TS (Time Series) mode is a performance optimization feature that uses vectorized operations with pandas and NumPy to accelerate backtesting. This guide explains how to use TS mode effectively.
@@ -29,7 +27,7 @@ for i in range(len(data)):
     indicator.calculate(i)
     strategy.next(i)
 
-```bash
+```
 In TS mode, data is processed in vectorized batches:
 
 ```python
@@ -38,7 +36,7 @@ In TS mode, data is processed in vectorized batches:
 
 indicator.once(0, len(data))  # Calculate all values at once
 
-```bash
+```
 
 ## Performance Benefits
 
@@ -74,7 +72,7 @@ cerebro.addstrategy(MyStrategy)
 
 cerebro.run(ts_mode=True)
 
-```bash
+```
 
 ### Method 2: Environment Variable
 
@@ -86,7 +84,7 @@ export BACKTRADER_TS_MODE=1
 
 python my_backtest.py
 
-```bash
+```
 
 ### Method 3: Configuration File
 
@@ -99,7 +97,7 @@ ts_mode = {
     'use_cython': True,
 }
 
-```bash
+```
 
 ## When to Use TS Mode
 
@@ -159,7 +157,7 @@ cerebro.addstrategy(SMACross)
 
 result = cerebro.run(ts_mode=True)
 
-```bash
+```
 
 ### Example 2: Multi-Indicator Strategy
 
@@ -203,7 +201,7 @@ cerebro.addstrategy(MultiIndicator)
 
 result = cerebro.run(ts_mode=True)
 
-```bash
+```
 
 ### Example 3: Custom Vectorized Indicator
 
@@ -262,7 +260,7 @@ cerebro = bt.Cerebro()
 cerebro.addstrategy(MomentumStrategy)
 result = cerebro.run(ts_mode=True)  # Uses vectorized once()
 
-```bash
+```
 
 ## Cython Acceleration
 
@@ -289,7 +287,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```bash
+```
 
 ### Verifying Cython is Available
 
@@ -308,7 +306,7 @@ cerebro = bt.Cerebro()
 
 result = cerebro.run(ts_mode=True, use_cython=True)
 
-```bash
+```
 
 ## Performance Benchmarks
 
@@ -360,7 +358,7 @@ print(f"Standard mode: {standard_time:.2f}s")
 print(f"TS mode: {ts_time:.2f}s")
 print(f"Speedup: {standard_time/ts_time:.2f}x")
 
-```bash
+```
 
 ## Limitations and Considerations
 
@@ -395,7 +393,7 @@ class ProblematicStrategy(bt.Strategy):
 
 # Some action based on counter
 
-```bash
+```
 
 ### 2. Data Feed Requirements
 
@@ -423,7 +421,7 @@ data = bt.feeds.CSVGeneric(
 
 )
 
-```bash
+```
 
 ### 3. Indicator Requirements
 
@@ -444,7 +442,7 @@ class MyIndicator(bt.Indicator):
         for i in range(start, end):
             self.lines.output.array[i] = self.data.close.array[i]* 2
 
-```bash
+```
 
 ### 4. Memory Usage
 
@@ -463,7 +461,7 @@ data.qbuffer(10000)  # Keep only 10K bars in memory
 
 cerebro.adddata(data)
 
-```bash
+```
 
 ## Advanced Configuration
 
@@ -478,7 +476,7 @@ cerebro.run(
 
 )
 
-```bash
+```
 
 ### Disabling Specific Optimizations
 
@@ -493,7 +491,7 @@ cerebro.run(
 
 )
 
-```bash
+```
 
 ## Troubleshooting
 

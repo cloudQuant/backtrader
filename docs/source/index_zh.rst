@@ -190,18 +190,20 @@ Backtrader 中文文档
    tutorials/examples/strategies_zh
    tutorials/examples/cookbook_zh
 
-.. toctree::
-   :maxdepth: 1
-   :caption: API 参考
+.. only:: not offline
 
-   api/core/backtrader
-   api/analyzers/backtrader.analyzers
-   api/feeds/backtrader.feeds
-   api/indicators/backtrader.indicators
-   api/brokers/backtrader.brokers
-   api/observers/backtrader.observers
-   api/sizers/backtrader.sizers
-   api/stores/backtrader.stores
+   .. toctree::
+      :maxdepth: 1
+      :caption: API 参考
+
+      api/core/backtrader
+      api/analyzers/backtrader.analyzers
+      api/feeds/backtrader.feeds
+      api/indicators/backtrader.indicators
+      api/brokers/backtrader.brokers
+      api/observers/backtrader.observers
+      api/sizers/backtrader.sizers
+      api/stores/backtrader.stores
 
 .. toctree::
    :maxdepth: 2

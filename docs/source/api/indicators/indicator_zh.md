@@ -1,10 +1,8 @@
-- --
-
+---
 title: Indicator API 指标
 description: 完整的 Indicator 类 API 参考，用于自定义技术指标
 
-- --
-
+---
 # Indicator API 指标
 
 `Indicator` 类是 Backtrader 中所有技术指标的基类。它为创建自定义指标提供基础，管理线条数据、最小周期、计算逻辑以及与策略执行流程的自动集成。
@@ -15,7 +13,7 @@ description: 完整的 Indicator 类 API 参考，用于自定义技术指标
 class backtrader.Indicator(IndicatorBase):
     """所有技术指标的基类。"""
 
-```bash
+```
 
 ## 核心属性
 
@@ -27,7 +25,7 @@ class backtrader.Indicator(IndicatorBase):
 class MyIndicator(bt.Indicator):
     lines = ('value1', 'value2',)
 
-```bash
+```
 
 ### `params`
 
@@ -40,7 +38,7 @@ class MyIndicator(bt.Indicator):
         ('multiplier', 2.0),
     )
 
-```bash
+```
 通过 `self.p.parameter_name` 或 `self.params.parameter_name` 访问参数。
 
 ### `alias`
@@ -51,7 +49,7 @@ class MyIndicator(bt.Indicator):
 class MyIndicator(bt.Indicator):
     alias = ('MyInd', 'CustomIndicator',)
 
-```bash
+```
 
 ### `_mindatas`
 
@@ -61,7 +59,7 @@ class MyIndicator(bt.Indicator):
 class MyIndicator(bt.Indicator):
     _mindatas = 2  # 需要 2 个数据源
 
-```bash
+```
 
 ### `plotinfo` / `plotlines`
 
@@ -75,7 +73,7 @@ class MyIndicator(bt.Indicator):
         value2=dict(ls='--'),
     )
 
-```bash
+```
 
 ## 核心方法
 
@@ -93,7 +91,7 @@ def __init__(self):
 # 创建子指标
     self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
 
-```bash
+```
 
 - *重要提示**：始终首先调用 `super().__init__()` 以确保正确的初始化。
 
@@ -107,7 +105,7 @@ def prenext(self):
 # 在预热期间跟踪值
     self._sum += self.data[0]
 
-```bash
+```
 
 ### `nextstart(self)`
 
@@ -119,7 +117,7 @@ def nextstart(self):
 # 使用第一个有效值初始化
     self.lines.value[0] = self._sum / self.p.period
 
-```bash
+```
 
 ### `next(self)`
 
@@ -131,7 +129,7 @@ def next(self):
 # 计算当前 K 线的指标值
     self.lines.value[0] = self.calculate()
 
-```bash
+```
 
 ### `once(self, start, end)`
 
@@ -147,7 +145,7 @@ def once(self, start, end):
     for i in range(start, end):
         dst[i] = self._calculate_at(i)
 
-```bash
+```
 如果只覆盖 `next()` 而不覆盖 `once()`，Backtrader 会自动使用 `next()` 生成 `once()`。
 
 ## 最小周期管理
@@ -163,7 +161,7 @@ def __init__(self):
 # 在产生有效输出之前需要 'period' 根 K 线
     self.addminperiod(self.p.period)
 
-```bash
+```
 实际最小周期计算方式：
 
 1. 所有数据源最小周期的最大值
@@ -190,7 +188,7 @@ value = self.indicator.lines[0][0]
 
 value = self.indicator[0]
 
-```bash
+```
 
 ### 历史访问
 
@@ -210,7 +208,7 @@ previous = self.lines.value[-1]
 
 past = self.lines.value[-n]
 
-```bash
+```
 
 ### 设置线条值
 
@@ -220,7 +218,7 @@ past = self.lines.value[-n]
 def next(self):
     self.lines.value[0] = calculated_value
 
-```bash
+```
 
 ## 指标开发模式
 
@@ -243,7 +241,7 @@ class SimpleMA(bt.Indicator):
         sma = sum(self.data[-i] for i in range(self.p.period)) / self.p.period
         self.lines.sma[0] = sma
 
-```bash
+```
 
 ### 模式 2：使用子指标
 
@@ -262,7 +260,7 @@ class CustomOscillator(bt.Indicator):
     def next(self):
         self.lines.osc[0] = self.fast_ma[0] - self.slow_ma[0]
 
-```bash
+```
 
 ### 模式 3：多线指标
 
@@ -291,7 +289,7 @@ class Bands(bt.Indicator):
         self.lines.top[0] = mid + self.p.devfactor *stddev
         self.lines.bot[0] = mid - self.p.devfactor*stddev
 
-```bash
+```
 
 ### 模式 4：带状态的指标
 
@@ -318,7 +316,7 @@ class EMA(bt.Indicator):
 # EMA 公式：EMA(今天) = EMA(昨天)*alpha1 + 价格(今天)*alpha
         self.lines.ema[0] = self.lines.ema[-1]*self.alpha1 + self.data[0]* self.alpha
 
-```bash
+```
 
 ### 模式 5：多数据输入
 
@@ -335,7 +333,7 @@ class Spread(bt.Indicator):
     def next(self):
         self.lines.spread[0] = self.data0[0] - self.data1[0]
 
-```bash
+```
 
 ## 计算模式
 
@@ -351,7 +349,7 @@ def next(self):
 # 仅计算当前 K 线
     self.lines.value[0] = calculation()
 
-```bash
+```
 
 ### once() 模式（性能）
 
@@ -365,7 +363,7 @@ def once(self, start, end):
     for i in range(start, end):
         dst[i] = calculation(src, i)
 
-```bash
+```
 如果只实现 `next()`，Backtrader 会自动通过每根 K 线调用 `next()` 生成 `once()`。为获得最佳性能，应直接实现 `once()`。
 
 ## 指标注册
@@ -385,7 +383,7 @@ class MyStrategy(bt.Strategy):
         if self.crossover[0] > 0:
             self.buy()
 
-```bash
+```
 
 ## 内置指标参考
 
@@ -535,7 +533,7 @@ class MyStrategy(bt.Strategy):
         if self.rvi[0] > 1.5 and self.data.close[0] > self.sma[0]:
             self.buy()
 
-```bash
+```
 
 ## 绘图配置
 
@@ -589,7 +587,7 @@ bt.Indicator.usecache(True)
 
 bt.Indicator.cleancache()
 
-```bash
+```
 
 ## 常见陷阱
 

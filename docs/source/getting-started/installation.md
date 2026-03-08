@@ -1,10 +1,8 @@
-- --
-
+---
 title: Installation Guide
 description: How to install and set up Backtrader
 
-- --
-
+---
 # Installation Guide
 
 ## Requirements
@@ -24,7 +22,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-```bash
+```
 
 ### From Gitee (For users in China)
 
@@ -34,7 +32,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-```bash
+```
 
 ### Development Mode
 
@@ -46,7 +44,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -e .
 
-```bash
+```
 
 ## Dependencies
 
@@ -61,7 +59,7 @@ matplotlib>=3.3.0
 python-dateutil>=2.8.0
 pytz>=2021.1
 
-```bash
+```
 
 ### Optional Dependencies
 
@@ -77,7 +75,7 @@ pip install plotly>=5.0.0
 
 pip install pyecharts>=1.9.0
 
-```bash
+```
 
 #### Live Trading
 
@@ -91,7 +89,7 @@ pip install ccxt
 
 pip install ctp-python
 
-```bash
+```
 
 #### Development
 
@@ -101,7 +99,7 @@ pip install ctp-python
 
 pip install -r requirements.txt
 
-```bash
+```
 
 ## Verify Installation
 
@@ -111,7 +109,7 @@ import backtrader as bt
 print(f"Backtrader version: {bt.__version__}")
 print("Installation successful!")
 
-```bash
+```
 
 ## Development Setup
 
@@ -126,7 +124,7 @@ If you encounter import errors, ensure you have the correct Python version:
 ```bash
 python --version  # Should be 3.8+
 
-```bash
+```
 
 ### Plotting Issues
 
@@ -135,14 +133,14 @@ For matplotlib issues on macOS:
 ```bash
 pip install python.app
 
-```bash
+```
 For headless environments, use the Agg backend:
 
 ```python
 import matplotlib
 matplotlib.use('Agg')
 
-```bash
+```
 
 ## Next Steps
 

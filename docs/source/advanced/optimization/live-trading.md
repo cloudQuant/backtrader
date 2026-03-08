@@ -3,8 +3,7 @@
 > 生成时间：2026-02-25
 > 分析范围：`backtrader/brokers/ccxtbroker.py`, `backtrader/stores/ccxtstore.py`, `backtrader/feeds/ccxtfeed.py`, `backtrader/feeds/ccxtfeed_funding.py`, `backtrader/ccxt/*`, `backtrader/brokers/ctpbroker.py`, `backtrader/feeds/ctpdata.py`, `backtrader/stores/ctpstore.py`
 
-- --
-
+---
 ## 一、CCXT 模块优化清单
 
 ### 🔴 P0 — 严重 Bug / 数据安全
@@ -75,8 +74,7 @@
 
 | C25 |**WS manager 缺少心跳/ping**| `ccxt/websocket.py` | 没有主动 ping 机制检测僵死连接。只靠数据超时判断。 | 添加 ping/pong 心跳或定期 fetch_time() 健康检查 |
 
-- --
-
+---
 ## 二、CTP 模块优化清单
 
 ### 🔴 P0 — 严重 Bug / 数据安全
@@ -135,8 +133,7 @@
 
 | T19 |**bar 时间对齐不处理跨夜盘**| `ctpdata.py:314-342` | `_align_bar_time()` 的 `session_ends` 用 `tick_dt.replace()`，跨午夜的夜盘（23:00→02:30）会产生错误的对齐。 | 正确处理跨午夜的时段边界 |
 
-- --
-
+---
 ## 三、CCXT 和 CTP 共性问题
 
 | # | 问题 | 说明 | 建议 |
@@ -157,8 +154,7 @@
 
 | G7 |**缺少多账户支持**| 两个模块都是单账户设计。无法同一策略对接多个账户。 | 在 Store 层支持多账户管理，Broker 通过 account_id 区分 |
 
-- --
-
+---
 ## 四、优先级排序建议
 
 ### 第一优先（影响正确性）

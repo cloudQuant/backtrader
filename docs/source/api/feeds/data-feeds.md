@@ -1,10 +1,8 @@
-- --
-
+---
 title: Data Feeds API
 description: Complete Data Feed API reference for Backtrader
 
-- --
-
+---
 # Data Feeds API
 
 Data feeds are the source of price/volume data for backtesting and live trading in Backtrader. They provide OHLCV (Open, High, Low, Close, Volume, OpenInterest) data with datetime indexing.
@@ -22,7 +20,7 @@ AbstractDataBase (base class for all feeds)
         CCXTFeed (cryptocurrency exchanges)
         ... and more
 
-```bash
+```
 
 ## Core Classes
 
@@ -34,7 +32,7 @@ Base class for all data feed implementations.
 class backtrader.AbstractDataBase:
     """Base class for all data feed implementations."""
 
-```bash
+```
 
 #### Parameters
 
@@ -94,7 +92,7 @@ Full-featured data feed class. Inherits all functionality from `AbstractDataBase
 class backtrader.DataBase(backtrader.AbstractDataBase):
     """Full-featured data feed class."""
 
-```bash
+```
 
 ## Line System
 
@@ -137,7 +135,7 @@ class MyStrategy(bt.Strategy):
 # Length of data
         current_len = len(self.data)
 
-```bash
+```
 
 ### Data Indexing
 
@@ -199,7 +197,7 @@ tf = bt.TimeFrame.TFrame('Days')  # Returns TimeFrame.Days
 
 name = bt.TimeFrame.TName(bt.TimeFrame.Days)  # Returns 'Days'
 
-```bash
+```
 
 ## Built-in Data Feeds
 
@@ -228,7 +226,7 @@ data = bt.feeds.GenericCSVData(
 
 )
 
-```bash
+```
 
 - *CSV Parameters:**
 
@@ -293,7 +291,7 @@ data = bt.feeds.YahooFinanceCSVData(
 
 )
 
-```bash
+```
 
 - *Yahoo CSV Parameters:**
 
@@ -320,7 +318,7 @@ Parses backtrader's test CSV format.
 ```python
 data = bt.feeds.BacktraderCSVData(dataname='test.csv')
 
-```bash
+```
 Format: `YYYY-MM-DD [HH:MM:SS] open high low close volume openinterest`
 
 ### Pandas Feeds
@@ -362,7 +360,7 @@ data = bt.feeds.PandasData(
 
 )
 
-```bash
+```
 
 - *PandasData Parameters:**
 
@@ -418,7 +416,7 @@ data = bt.feeds.PandasDirectData(
     openinterest=6,
 )
 
-```bash
+```
 
 ### Live/Online Feeds
 
@@ -454,7 +452,7 @@ data = bt.feeds.CCXTFeed(
 
 )
 
-```bash
+```
 
 - *CCXTFeed Parameters:**
 
@@ -497,7 +495,7 @@ data = bt.feeds.YahooFinanceData(
 
 )
 
-```bash
+```
 
 ### Other Feeds
 
@@ -510,7 +508,7 @@ data = bt.feeds.Quandl(
     fromdate=datetime(2020, 1, 1),
 )
 
-```bash
+```
 
 #### Interactive Brokers
 
@@ -522,7 +520,7 @@ data = bt.feeds.IBData(
     clientId=1,
 )
 
-```bash
+```
 
 #### OANDA
 
@@ -533,7 +531,7 @@ data = bt.feeds.OandaData(
     access_token='YOUR_TOKEN',
 )
 
-```bash
+```
 
 ## Data Feed Methods
 
@@ -553,7 +551,7 @@ class MyFeed(bt.CSVDataBase):
 
 # Custom initialization
 
-```bash
+```
 
 #### `stop(self)`
 
@@ -565,7 +563,7 @@ def stop(self):
 # Custom cleanup
     super().stop()
 
-```bash
+```
 
 #### `preload(self)`
 
@@ -578,7 +576,7 @@ Loads all data into memory before backtesting.
 data = bt.feeds.PandasData(dataname=df)
 data.preload()  # Manual preload
 
-```bash
+```
 
 ### Data Access Methods
 
@@ -589,7 +587,7 @@ Convert datetime to internal numeric format.
 ```python
 dt_num = data.date2num(datetime(2023, 1, 1))
 
-```bash
+```
 
 #### `num2date(self, dt=None, tz=None, naive=True)`
 
@@ -600,7 +598,7 @@ dt = data.num2date()  # Current bar datetime
 
 dt = data.num2date(data.lines.datetime[-1])  # Previous bar
 
-```bash
+```
 
 ### Cloning Methods
 
@@ -613,7 +611,7 @@ data_clone = data.clone()  # Exact copy
 
 data_clone = data.clone(timeframe=bt.TimeFrame.Weeks)  # Different timeframe
 
-```bash
+```
 
 #### `copyas(self, _dataname, **kwargs)`
 
@@ -622,7 +620,7 @@ Copy with a different name.
 ```python
 data_copy = data.copyas('AAPL_Copy')
 
-```bash
+```
 
 ### Status Methods
 
@@ -634,7 +632,7 @@ Returns True if this is a live data feed.
 if data.islive():
     print("This is a live data feed")
 
-```bash
+```
 
 #### `haslivedata(self)`
 
@@ -649,7 +647,7 @@ notifs = data.get_notifications()
 for status, args, kwargs in notifs:
     print(f"Status: {status}")
 
-```bash
+```
 
 ## Data Filters
 
@@ -667,7 +665,7 @@ data.addfilter(lambda x: x.close[0] > x.open[0])  # Keep only green bars
 
 data.addfilter(bt.filters.SessionData, session_end=time(15, 0))
 
-```bash
+```
 
 ### Built-in Filters
 
@@ -678,7 +676,7 @@ Filters bars to specific trading session.
 ```python
 data.addfilter(bt.filters.SessionFilter)
 
-```bash
+```
 
 #### SessionData
 
@@ -687,7 +685,7 @@ Fills missing session data.
 ```python
 data.addfilter(bt.filters.SessionData)
 
-```bash
+```
 
 #### CalendarFilter
 
@@ -696,7 +694,7 @@ Filters based on trading calendar.
 ```python
 data.addfilter(bt.filters.CalendarFilter)
 
-```bash
+```
 
 ## Resampling and Replay
 
@@ -719,7 +717,7 @@ data.resample(
 
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Weeks, compression=1)
 
-```bash
+```
 
 ### Replay
 
@@ -739,7 +737,7 @@ data.replay(
 
 cerebro.replaydata(data, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 ## Custom Data Feed
 
@@ -776,7 +774,7 @@ class MyCSVData(bt.CSVDataBase):
 
         return True
 
-```bash
+```
 
 ### Creating a Custom Live Feed
 
@@ -828,7 +826,7 @@ class MyLiveData(bt.DataBase):
     def islive(self):
         return True
 
-```bash
+```
 
 ### Creating a Feed with Custom Lines
 
@@ -845,7 +843,7 @@ class ExtendedData(bt.feeds.PandasData):
         ('dividend', -1),
     )
 
-```bash
+```
 
 ## Working with Multiple Data Feeds
 
@@ -871,7 +869,7 @@ class MyStrategy(bt.Strategy):
         if self.aapl.close[0] > self.msft.close[0]:
             self.buy(data=self.aapl)
 
-```bash
+```
 
 ### Data Feed Synchronization
 
@@ -887,7 +885,7 @@ data_hourly = bt.feeds.PandasData(dataname=hourly_df, name='hourly')
 cerebro.adddata(data_daily)
 cerebro.adddata(data_hourly)
 
-```bash
+```
 
 ## Performance Tips
 
@@ -899,7 +897,7 @@ cerebro.adddata(data_hourly)
 
 cerebro.run(preload=True)
 
-```bash
+```
 
 ### Memory Management
 
@@ -911,7 +909,7 @@ data = bt.feeds.PandasData(dataname=large_df)
 cerebro.adddata(data)
 data.qbuffer(savemem=1000)  # Keep only 1000 bars in memory
 
-```bash
+```
 
 ### No Caching
 
@@ -921,7 +919,7 @@ data.qbuffer(savemem=1000)  # Keep only 1000 bars in memory
 
 cerebro.run preload=True, runonce=True, exactbars=False
 
-```bash
+```
 
 ## Complete Examples
 
@@ -972,7 +970,7 @@ cerebro.addstrategy(SmaCross)
 
 results = cerebro.run()
 
-```bash
+```
 
 ### Example 2: Pandas DataFrame
 
@@ -1002,7 +1000,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 ### Example 3: Resampling
 
@@ -1035,7 +1033,7 @@ cerebro.adddata(data, name='minutes')
 
 cerebro.run()
 
-```bash
+```
 
 ### Example 4: Multiple Feeds
 
@@ -1070,7 +1068,7 @@ cerebro.adddata(bt.feeds.PandasData(dataname=df2), name='Asset2')
 cerebro.addstrategy(MultiAssetStrategy)
 cerebro.run()
 
-```bash
+```
 
 ## Next Steps
 

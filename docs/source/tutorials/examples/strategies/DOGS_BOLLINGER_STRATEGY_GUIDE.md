@@ -39,10 +39,9 @@
     ↓
 触发止损或升破中轨 → 平空仓
 
-```bash
+```
 
-- --
-
+---
 ## 🚀 快速开始
 
 ### 1. 环境准备
@@ -58,7 +57,7 @@ pip install backtrader ccxt python-dotenv
 cd D:\source_code\backtrader
 pip install -e .
 
-```bash
+```
 
 ### 2. 配置 API 密钥
 
@@ -72,7 +71,7 @@ OKX_API_KEY=your_api_key_here
 OKX_SECRET=your_secret_here
 OKX_PASSWORD=your_password_here
 
-```bash
+```
 ⚠️ **重要提示**：
 
 - 请使用 OKX 的**合约交易 API 密钥**
@@ -91,10 +90,9 @@ cd D:\source_code\backtrader
 
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
-- --
-
+---
 ## ⚙️ 策略配置
 
 ### 修改参数
@@ -112,7 +110,7 @@ cerebro.addstrategy(
 
 )
 
-```bash
+```
 
 ### 常见参数调整
 
@@ -140,15 +138,14 @@ cerebro.broker.setcash(10.0)  # 10 USDT（测试用）
 
 order_size=0.4  # 每次 0.4 USDT
 
-```bash
+```
 ⚠️ **风险提示**：
 
 - 下单金额 0.4 USDT 非常小，手续费占比较高
 - 建议测试时使用小额，实盘时适当增加
 - 确保账户有足够的保证金
 
-- --
-
+---
 ## 📊 策略特点
 
 ### 优势
@@ -173,8 +170,7 @@ order_size=0.4  # 每次 0.4 USDT
 - ❌ **震荡市场**: 横盘整理市场
 - ❌ **低波动市场**: 价格变化不大的市场
 
-- --
-
+---
 ## 🛡️ 风险管理
 
 ### 内置风险控制
@@ -211,10 +207,9 @@ daily_loss_limit = 2.0  # 2 USDT
 
 # 当总资金亏损达到 50%时停止交易
 
-```bash
+```
 
-- --
-
+---
 ## 📈 性能优化
 
 ### 1. 参数优化
@@ -232,7 +227,7 @@ cerebro.optstrategy(
     atr_mult=[1.5, 2.0, 2.5],
 )
 
-```bash
+```
 
 ### 2. 过滤条件
 
@@ -256,7 +251,7 @@ current_hour = datetime.now().hour
 if 0 <= current_hour < 8:  # 凌晨不交易
     return
 
-```bash
+```
 
 ### 3. 仓位管理优化
 
@@ -270,10 +265,9 @@ if atr_value > self.data.close[0]*0.02:  # 高波动
 else:  # 正常波动
     size = self.p.order_size / current_price
 
-```bash
+```
 
-- --
-
+---
 ## 🔧 故障排查
 
 ### 问题 1: API 连接失败
@@ -305,7 +299,7 @@ print(f"可用保证金: {balance['USDT']['free']}")
 
 # 增加下单金额或检查交易对状态
 
-```bash
+```
 
 ### 问题 3: 策略不交易
 
@@ -324,10 +318,9 @@ def next(self):
             f'上轨: {self.top[0]:.6f}, '
             f'下轨: {self.bot[0]:.6f}')
 
-```bash
+```
 
-- --
-
+---
 ## 📚 相关资源
 
 ### 文件说明
@@ -343,8 +336,7 @@ def next(self):
 - [CCXT 文档](<https://docs.ccxt.com/)>
 - [布林带指标介绍](<https://www.investopedia.com/terms/b/bollingerbands.asp)>
 
-- --
-
+---
 ## ⚠️ 免责声明
 
 本策略仅供学习和研究目的使用。加密货币合约交易具有高风险，可能导致全部资金损失。

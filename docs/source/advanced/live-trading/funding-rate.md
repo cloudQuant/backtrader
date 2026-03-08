@@ -2,8 +2,7 @@
 
 This document explains how to use **WebSocket real-time**funding rate data for perpetual contract trading strategy development in Backtrader.
 
-- --
-
+---
 ## Table of Contents
 
 1. [What is Funding Rate](#what-is-funding-rate)
@@ -13,8 +12,7 @@ This document explains how to use **WebSocket real-time**funding rate data for p
 5. [Strategy Examples](#strategy-examples)
 6. [Exchange Support](#exchange-support)
 
-- --
-
+---
 ## What is Funding Rate
 
 ### Funding Rate Overview
@@ -30,7 +28,7 @@ Perpetual contracts have no expiration date. To anchor the contract price to the
 ```bash
 Funding Fee = Position Value × Funding Rate
 
-```bash
+```
 Example:
 
 - Holding a 100 USDT long position
@@ -53,8 +51,7 @@ Example:
 
 | < -0.05% | Extreme fear, overcrowded shorts | Consider long arbitrage |
 
-- --
-
+---
 ## Quick Start
 
 ### Install Dependencies
@@ -69,7 +66,7 @@ pip install ccxtpro
 
 pip install ccxt[pro]
 
-```bash
+```
 
 ### Using the Funding Rate Data Feed
 
@@ -107,7 +104,7 @@ data = CCXTFeedWithFunding(
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 
-```bash
+```
 
 ### Accessing Funding Rate in Strategy
 
@@ -147,10 +144,9 @@ class MyStrategy(bt.Strategy):
         elif current_funding < -0.0005:  # Below -0.05%
             self.buy()   # Long arbitrage
 
-```bash
+```
 
-- --
-
+---
 ## WebSocket Real-Time Data
 
 ### WebSocket Connection Notes
@@ -165,7 +161,7 @@ CCXTFeedWithFunding **requires**a WebSocket connection to work. When WebSocket i
 
 pip install ccxtpro
 
-```bash
+```
 
 ### WebSocket Subscribed Data Streams
 
@@ -202,7 +198,7 @@ WebSocket OHLCV Push          WebSocket Funding Push
                self.lines.funding_rate[0]
                self.lines.mark_price[0]
 
-```bash
+```
 
 ### Error Handling
 
@@ -222,10 +218,9 @@ except WebSocketRequiredError as e:
 
 # Make sure ccxt.pro is installed: pip install ccxtpro
 
-```bash
+```
 
-- --
-
+---
 ## API Reference
 
 ### CCXTFeedWithFunding
@@ -274,10 +269,9 @@ manager.subscribe_funding_rate(symbol, callback)
 
 manager.subscribe_mark_price(symbol, callback)
 
-```bash
+```
 
-- --
-
+---
 ## Strategy Examples
 
 ### Example 1: Real-Time Funding Rate Monitor
@@ -321,7 +315,7 @@ class FundingMonitor(bt.Strategy):
         print(f"  Annualized: {funding*3*365*100:.2f}%")
         print(f"{'='*60}\n")
 
-```bash
+```
 
 ### Example 2: Funding Rate Arbitrage Strategy
 
@@ -361,7 +355,7 @@ class FundingArbitrage(bt.Strategy):
             else:
                 self.buy(size=abs(position.size))
 
-```bash
+```
 
 ### Example 3: Mark Price Spread Trading
 
@@ -392,10 +386,9 @@ class MarkPriceArbitrage(bt.Strategy):
         elif premium < -self.p.premium_threshold:
             self.sell()  # Short on discount
 
-```bash
+```
 
-- --
-
+---
 ## Exchange Support
 
 ### WebSocket Funding Rate Support
@@ -438,7 +431,7 @@ data = CCXTFeedWithFunding(
     use_websocket=True
 )
 
-```bash
+```
 
 #### OKX
 
@@ -461,10 +454,9 @@ data = CCXTFeedWithFunding(
     use_websocket=True
 )
 
-```bash
+```
 
-- --
-
+---
 ## Debugging and Monitoring
 
 ### Enable Debug Output
@@ -477,7 +469,7 @@ data = CCXTFeedWithFunding(
 
 )
 
-```bash
+```
 
 ### Debug Output Example
 
@@ -489,10 +481,9 @@ data = CCXTFeedWithFunding(
 [FUNDING WS] Rate: 0.00010000, Mark: 43250.50000000
 [FUNDING WS] Rate: 0.00010500, Mark: 43252.30000000
 
-```bash
+```
 
-- --
-
+---
 ## Important Notes
 
 1.**ccxt.pro License**: ccxt.pro requires a commercial license for production use
@@ -555,8 +546,7 @@ If you encounter WebSocket connection issues, check the following:
 
 | `Authentication failed` | Incorrect API key | Verify API key configuration |
 
-- --
-
+---
 ## Related Documentation
 
 - [WebSocket Guide](./websocket.md)

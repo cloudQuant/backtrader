@@ -7,8 +7,7 @@
 - **更新日期**: 2026-01-20
 - **作者**: Backtrader 开发团队
 
-- --
-
+---
 ## 1. 背景与目标
 
 ### 1.1 背景
@@ -37,8 +36,7 @@ Backtrader 已经具备基础的 CCXT 集成功能，包括：
 4. **智能限流**: 自动适应交易所 API 限制
 5. **灵活配置**: 支持不同交易所的特定配置
 
-- --
-
+---
 ## 2. 现状分析
 
 ### 2.1 当前 Backtrader CCXT 实现
@@ -56,7 +54,7 @@ Backtrader 已经具备基础的 CCXT 集成功能，包括：
 - ❌ WebSocket 支持
 - ❌ 多线程架构
 
-```bash
+```
 
 #### CCXTBroker (`backtrader/brokers/ccxtbroker.py`)
 
@@ -71,7 +69,7 @@ Backtrader 已经具备基础的 CCXT 集成功能，包括：
 - ❌ 多线程订单检查
 - ❌ 智能余额缓存
 
-```bash
+```
 
 #### CCXTFeed (`backtrader/feeds/ccxtfeed.py`)
 
@@ -85,7 +83,7 @@ Backtrader 已经具备基础的 CCXT 集成功能，包括：
 - ❌ 智能回填
 - ❌ 多线程更新
 
-```bash
+```
 
 ### 2.2 backtrader-crypto 参考实现对比
 
@@ -116,8 +114,7 @@ Backtrader 已经具备基础的 CCXT 集成功能，包括：
 当前 Backtrader 的 CCXT 实现**已经是可用的**，与 backtrader-crypto 基本等效。
 主要优化方向应聚焦于**新功能增强**而非重构现有代码。
 
-- --
-
+---
 ## 3. 需求规格
 
 ### 3.1 功能需求矩阵
@@ -169,7 +166,7 @@ class CCXTWebSocketManager:
     async def disconnect(self)
     def is_connected(self) -> bool
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 能够建立 WebSocket 连接
@@ -177,8 +174,7 @@ class CCXTWebSocketManager:
 - [ ] 断线后能自动重连
 - [ ] 重连后能恢复订阅
 
-- --
-
+---
 #### CCXT-002: 多线程数据更新架构
 
 - *描述**: 将数据更新操作移到独立线程，避免阻塞主策略循环
@@ -198,15 +194,14 @@ class ThreadedDataManager:
     def get_data(self, timeout: float = None) -> Optional[dict]
     def is_running(self) -> bool
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 数据更新不阻塞主线程
 - [ ] 数据队列线程安全
 - [ ] 能够优雅关闭线程
 
-- --
-
+---
 #### CCXT-003: 多线程订单状态检查
 
 - *描述**: 将订单状态检查移到独立线程
@@ -227,15 +222,14 @@ class ThreadedOrderManager:
     def remove_order(self, order_id: str)
     def get_updates(self) -> List[OrderUpdate]
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 订单检查不阻塞主线程
 - [ ] 订单状态变化能及时通知
 - [ ] 能够优雅关闭线程
 
-- --
-
+---
 #### CCXT-004: Bracket 订单支持
 
 - *描述**: 实现 OCO（One-Cancels-Other）订单组合
@@ -269,7 +263,7 @@ class BracketOrderManager:
     def cancel_bracket(self, bracket_id: str)
     def on_order_update(self, order: CCXTOrder)
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 能够创建 Bracket 订单
@@ -277,8 +271,7 @@ class BracketOrderManager:
 - [ ] OCO 逻辑正确执行
 - [ ] 能够修改和取消 Bracket 订单
 
-- --
-
+---
 #### CCXT-005: 智能限流管理器
 
 - *描述**: 实现智能 API 调用频率控制
@@ -304,15 +297,14 @@ def retry_with_backoff(
     max_delay: float = 60.0
 ) -> Callable  # 装饰器
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 不触及交易所 API 限制
 - [ ] 重试机制正确工作
 - [ ] 性能开销可接受
 
-- --
-
+---
 #### CCXT-006: 自动重连机制
 
 - *描述**: 实现网络断开后的自动重连和状态恢复
@@ -334,7 +326,7 @@ class ConnectionManager:
     def reconnect(self) -> bool
     def get_missed_data(self, symbol: str, since: int) -> List
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 能够检测连接断开
@@ -342,8 +334,7 @@ class ConnectionManager:
 - [ ] 重连后能恢复状态
 - [ ] 能够回填缺失数据
 
-- --
-
+---
 #### CCXT-007: 交易所配置系统
 
 - *描述**: 统一管理不同交易所的特定配置
@@ -371,15 +362,14 @@ class ExchangeConfig:
     @classmethod
     def get_params(cls, exchange: str) -> dict
 
-```bash
+```
 
 - *验收标准**:
 - [ ] 支持主流交易所配置
 - [ ] 配置可扩展
 - [ ] 默认配置合理
 
-- --
-
+---
 ## 4. 架构设计
 
 ### 4.1 目录结构
@@ -409,7 +399,7 @@ backtrader/
         ├── __init__.py
         └── bracket.py        # Bracket 订单
 
-```bash
+```
 
 ### 4.2 模块依赖图
 
@@ -444,7 +434,7 @@ backtrader/
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 
-```bash
+```
 
 ### 4.3 数据流设计
 
@@ -455,7 +445,7 @@ Exchange API ──REST──> CCXTStore ──Queue──> CCXTFeed ──> Str
      ▲                                                      │
      └──────────────────Order─────────────────────────────-─┘
 
-```bash
+```
 
 #### 4.3.2 WebSocket 模式数据流（增强后）
 
@@ -466,7 +456,7 @@ Exchange API ──────┤                                  ├──> C
      ▲                                                          │
      └──────────────────────Order───────────────────────────────┘
 
-```bash
+```
 
 ### 4.4 线程模型
 
@@ -482,10 +472,9 @@ Main Thread (Strategy Loop)
      └── Balance Thread (CCXTBroker)
          └── Balance Update Polling
 
-```bash
+```
 
-- --
-
+---
 ## 5. 详细设计
 
 ### 5.1 WebSocket 模块设计
@@ -586,7 +575,7 @@ class CCXTWebSocketManager:
                 print(f"Reconnect failed: {e}")
                 delay = min(delay * 2, self._max_reconnect_delay)
 
-```bash
+```
 
 ### 5.2 多线程管理模块设计
 
@@ -689,7 +678,7 @@ class ThreadedDataManager:
                 print(f"Data update error: {e}")
                 time.sleep(self.update_interval)
 
-```bash
+```
 
 ### 5.3 限流管理模块设计
 
@@ -779,7 +768,7 @@ def retry_with_backoff(
         return wrapper
     return decorator
 
-```bash
+```
 
 ### 5.4 Bracket 订单模块设计
 
@@ -959,10 +948,9 @@ class BracketOrderManager:
         if bracket.limit_order:
             self.broker.cancel(bracket.limit_order)
 
-```bash
+```
 
-- --
-
+---
 ## 6. 实施计划
 
 ### 6.1 阶段划分
@@ -1035,8 +1023,7 @@ class BracketOrderManager:
 
 | M3 | 第 5 周末 | 全部功能完成，文档完善 |
 
-- --
-
+---
 ## 7. 测试计划
 
 ### 7.1 单元测试
@@ -1098,7 +1085,7 @@ class TestRetryWithBackoff:
         assert result == "success"
         assert call_count == 3
 
-```bash
+```
 
 ### 7.2 集成测试
 
@@ -1139,7 +1126,7 @@ class TestCCXTIntegration:
 # 需要沙盒环境测试
         pass
 
-```bash
+```
 
 ### 7.3 端到端测试
 
@@ -1177,10 +1164,9 @@ class TestCCXTEndToEnd:
 # 运行
         cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 8. 使用示例
 
 ### 8.1 基础回测
@@ -1232,7 +1218,7 @@ cerebro.addstrategy(SMAStrategy)
 result = cerebro.run()
 cerebro.plot()
 
-```bash
+```
 
 ### 8.2 实盘交易
 
@@ -1304,7 +1290,7 @@ cerebro.addstrategy(LiveStrategy)
 
 cerebro.run()
 
-```bash
+```
 
 ### 8.3 Bracket 订单使用
 
@@ -1340,10 +1326,9 @@ class BracketStrategy(bt.Strategy):
                 )
                 print(f'创建 Bracket 订单: {bracket.bracket_id}')
 
-```bash
+```
 
-- --
-
+---
 ## 9. 风险与缓解
 
 | 风险 | 影响 | 概率 | 缓解措施 |
@@ -1358,8 +1343,7 @@ class BracketStrategy(bt.Strategy):
 
 | 网络不稳定 | 订单丢失 | 低 | 订单持久化，状态恢复机制 |
 
-- --
-
+---
 ## 10. 附录
 
 ### 10.1 交易所支持矩阵
@@ -1401,10 +1385,7 @@ class BracketStrategy(bt.Strategy):
 
 | WebSocket | 双向实时通信协议 |
 
-- --
-
-- --
-
+---
 ## 11. 已完成的整合工作
 
 ### 11.1 整合概述
@@ -1453,7 +1434,7 @@ pip install ctpbee
 
 pip install futu-api
 
-```bash
+```
 
 ### 11.5 使用示例
 
@@ -1482,7 +1463,7 @@ cerebro.setbroker(broker)
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 #### CTP 中国期货交易
 
@@ -1508,7 +1489,7 @@ cerebro.setbroker(broker)
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 #### Futu 港美 A 股交易
 
@@ -1535,10 +1516,9 @@ cerebro.setbroker(broker)
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 12. CCXT 增强模块实现
 
 ### 12.1 新增模块目录结构
@@ -1561,7 +1541,7 @@ backtrader/ccxt/
     ├── __init__.py
     └── bracket.py        # Bracket 订单 (CCXT-004)
 
-```bash
+```
 
 ### 12.2 模块功能说明
 
@@ -1599,7 +1579,7 @@ limiter.acquire()  # 阻塞直到可以调用
 def fetch_data():
     return exchange.fetch_ohlcv(symbol)
 
-```bash
+```
 
 #### 多线程数据管理
 
@@ -1616,7 +1596,7 @@ update = manager.get_update(timeout=1.0)
 if update:
     print(f"Got {update.data_type} for {update.symbol}")
 
-```bash
+```
 
 #### Bracket 订单
 
@@ -1641,7 +1621,7 @@ bracket = bracket_mgr.create_bracket(
 def notify_order(self, order):
     bracket_mgr.on_order_update(order)
 
-```bash
+```
 
 #### 交易所配置
 
@@ -1660,10 +1640,9 @@ timeframe = ExchangeConfig.get_timeframe('binance', (bt.TimeFrame.Minutes, 60))
 
 params = ExchangeConfig.get_params('binance')
 
-```bash
+```
 
-- --
-
+---
 ## 13. 模块集成完成
 
 ### 13.1 CCXTStore 集成
@@ -1688,7 +1667,7 @@ store = CCXTStore(
 
 )
 
-```bash
+```
 
 ### 13.2 CCXTBroker 集成
 
@@ -1713,7 +1692,7 @@ bracket = broker.create_bracket_order(
     side="buy"
 )
 
-```bash
+```
 
 ### 13.3 CCXTFeed 集成
 
@@ -1732,7 +1711,7 @@ data = CCXTFeed(
     ...
 )
 
-```bash
+```
 
 ### 13.4 单元测试
 
@@ -1749,8 +1728,7 @@ data = CCXTFeed(
 - `TestBracketOrder`
 - `TestBracketOrderManager`
 
-- --
-
+---
 ## 文档历史
 
 | 版本 | 日期 | 作者 | 变更说明 |

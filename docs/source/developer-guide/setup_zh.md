@@ -1,10 +1,8 @@
-- --
-
+---
 title: 开发环境设置
 description: 设置开发环境
 
-- --
-
+---
 # 开发环境设置
 
 本指南介绍如何设置 Backtrader 开发环境。
@@ -21,14 +19,14 @@ description: 设置开发环境
 git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 
-```bash
+```
 或使用 Gitee 镜像 (中国用户):
 
 ```bash
 git clone <https://gitee.com/yunjinqi/backtrader.git>
 cd backtrader
 
-```bash
+```
 
 ## 安装开发依赖
 
@@ -42,7 +40,7 @@ pip install -r requirements.txt
 
 pip install -e .
 
-```bash
+```
 
 ## 开发命令
 
@@ -66,7 +64,7 @@ pytest tests/ -n 4 -v
 
 pytest tests/ -m "not integration" --cov=backtrader
 
-```bash
+```
 
 ### 代码质量
 
@@ -83,7 +81,7 @@ isort backtrader/
 black --line-length 124 backtrader/
 ruff check --fix backtrader/
 
-```bash
+```
 
 ### 类型检查
 
@@ -97,7 +95,7 @@ mypy backtrader/
 
 make type-check
 
-```bash
+```
 
 ### 文档
 
@@ -111,7 +109,7 @@ make docs
 
 make docs-view
 
-```bash
+```
 
 ## 项目结构
 
@@ -146,7 +144,7 @@ backtrader/
 
 └── tools/                # 开发工具
 
-```bash
+```
 
 ## Git 工作流
 
@@ -165,7 +163,7 @@ backtrader/
 
 [可选正文]
 
-```bash
+```
 类型: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 ### 创建 Pull Request
@@ -193,7 +191,7 @@ def test_my_feature():
     result = cerebro.run()
     assert result is not None
 
-```bash
+```
 
 ### 集成测试
 
@@ -204,7 +202,7 @@ def test_live_connection():
 # 需要 testnet 凭证
     pass
 
-```bash
+```
 
 ### 运行特定测试
 
@@ -224,7 +222,7 @@ pytest tests/ -m "priority_p0"  # 仅关键测试
 
 pytest tests/ -m "not integration"  # 跳过集成测试
 
-```bash
+```
 
 ## 代码风格指南
 
@@ -249,7 +247,7 @@ def calculate_sma(period: int, data: list) -> float:
     """
     pass
 
-```bash
+```
 
 ### 注释
 
@@ -269,7 +267,7 @@ def next(self):
 
 # 您的代码
 
-```bash
+```
 
 ### 日志记录
 
@@ -279,7 +277,7 @@ from backtrader.utils import SpdLogManager
 logger = SpdLogManager().get_logger(__name__)
 logger.info('策略已初始化')
 
-```bash
+```
 
 ### 快速测试
 
@@ -294,7 +292,7 @@ if __name__ == '__main__':
     cerebro.run()
     cerebro.plot()
 
-```bash
+```
 
 ## Cython 编译
 
@@ -310,7 +308,7 @@ cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip 
 
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
 
-```bash
+```
 
 ## 常见问题
 
@@ -321,7 +319,7 @@ cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip instal
 ```bash
 python --version  # 应该是 3.8+
 
-```bash
+```
 
 ### 测试失败
 
@@ -331,14 +329,14 @@ python --version  # 应该是 3.8+
 pip uninstall backtrader
 pip install -e .
 
-```bash
+```
 
 ### 绘图问题 (macOS)
 
 ```bash
 pip install python.app
 
-```bash
+```
 
 ## 另请参阅
 

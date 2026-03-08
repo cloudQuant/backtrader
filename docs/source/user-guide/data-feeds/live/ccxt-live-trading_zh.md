@@ -4,8 +4,7 @@
 
 本指南介绍如何使用 Backtrader + CCXT 进行加密货币实盘交易。
 
-- --
-
+---
 ## 1. 快速开始
 
 ### 1.1 安装依赖
@@ -15,7 +14,7 @@ pip install ccxt        # REST API
 
 pip install ccxtpro     # WebSocket (可选但推荐)
 
-```bash
+```
 
 ### 1.2 配置交易所
 
@@ -34,19 +33,19 @@ store = bt.stores.CCXTStore(
     }
 )
 
-```bash
+```
 
 - *方式 B: 使用 .env 文件 (推荐)**
 
 创建 `.env` 文件:
 
-```env
+```bash
 EXCHANGE_ID=binance
 EXCHANGE_API_KEY=your_api_key
 EXCHANGE_SECRET=your_secret
 EXCHANGE_CURRENCY=USDT
 
-```bash
+```
 
 ```python
 from backtrader.ccxt.config_helper import load_exchange_config
@@ -54,7 +53,7 @@ from backtrader.ccxt.config_helper import load_exchange_config
 config = load_exchange_config()
 store = bt.stores.CCXTStore(**config)
 
-```bash
+```
 
 ### 1.3 最小实盘示例
 
@@ -114,10 +113,9 @@ cerebro.addstrategy(SimpleStrategy)
 
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 2. 数据源配置
 
 ### 2.1 REST 轮询模式 (默认)
@@ -134,7 +132,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### 2.2 WebSocket 模式 (推荐，低延迟)
 
@@ -152,7 +150,7 @@ data = store.getdata(
     backfill_start=True,
 )
 
-```bash
+```
 
 - *WebSocket 特性**:
 - 自动重连 (指数退避: 5s -> 10s -> 20s -> ... -> 60s)
@@ -175,10 +173,9 @@ data = store.getdata(
     ohlcv_limit=500,
 )
 
-```bash
+```
 
-- --
-
+---
 ## 3. Broker 配置
 
 ### 3.1 基础配置
@@ -193,7 +190,7 @@ broker = store.getbroker(
 )
 cerebro.setbroker(broker)
 
-```bash
+```
 
 ### 3.2 ThreadedOrderManager
 
@@ -205,7 +202,7 @@ broker = store.getbroker(
 
 )
 
-```bash
+```
 
 - *优势**:
 - 策略 `next()` 不因 API 延迟阻塞
@@ -242,10 +239,9 @@ class MyStrategy(bt.Strategy):
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             print(f'订单失败: {order.getstatusname()}')
 
-```bash
+```
 
-- --
-
+---
 ## 4. 交易所特定配置
 
 ### 4.1 使用 ExchangeConfig
@@ -273,7 +269,7 @@ config = ExchangeConfig.merge_config('okx', {
     'password': 'your_passphrase',
 })
 
-```bash
+```
 
 ### 4.2 支持的交易所
 
@@ -309,10 +305,9 @@ store = bt.stores.CCXTStore(
     }
 )
 
-```bash
+```
 
-- --
-
+---
 ## 5. 限流管理
 
 ### 5.1 自动限流
@@ -330,7 +325,7 @@ store = bt.stores.CCXTStore(exchange='binance', ...)
 from backtrader.ccxt.ratelimit import RateLimiter
 limiter = RateLimiter(requests_per_minute=600)
 
-```bash
+```
 
 ### 5.2 自适应限流
 
@@ -344,10 +339,9 @@ limiter = AdaptiveRateLimiter(
 
 )
 
-```bash
+```
 
-- --
-
+---
 ## 6. 连接管理
 
 ### 6.1 ConnectionManager
@@ -366,7 +360,7 @@ manager = store._connection_manager  # 如果存在
 manager.on_disconnect(lambda: print("交易所断连!"))
 manager.on_reconnect(lambda: print("已重新连接"))
 
-```bash
+```
 
 ### 6.2 重连机制
 
@@ -389,10 +383,9 @@ manager.on_reconnect(lambda: print("已重新连接"))
                 ├── 触发 reconnect 回调
                 └── 回补缺失数据
 
-```bash
+```
 
-- --
-
+---
 ## 7. 完整实盘模板
 
 ```python
@@ -483,10 +476,9 @@ cerebro.addstrategy(LiveStrategy)
 print('Starting live trading...')
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 8. 常见问题
 
 ### Q: WebSocket 连接失败怎么办?
@@ -496,7 +488,7 @@ cerebro.run()
 ```bash
 pip install ccxtpro
 
-```bash
+```
 如果交易所不支持 WebSocket，系统会自动回退到 REST 轮询。
 
 ### Q: 如何查看 API 调用日志?
@@ -505,7 +497,7 @@ pip install ccxtpro
 broker = store.getbroker(debug=True)
 data = store.getdata(..., debug=True)
 
-```bash
+```
 
 ### Q: 订单一直 Submitted 状态?
 
@@ -525,7 +517,7 @@ data_eth = store.getdata(dataname='ETH/USDT', ...)
 cerebro.adddata(data_btc)
 cerebro.adddata(data_eth)
 
-```bash
+```
 
 ### Q: 如何处理资金费率?
 
@@ -540,10 +532,9 @@ data = CCXTFeedWithFunding(
     use_websocket=True,
 )
 
-```bash
+```
 
-- --
-
+---
 ## 9. 实用提示
 
 ### 安全建议
@@ -565,8 +556,7 @@ data = CCXTFeedWithFunding(
 - **启用 ThreadedOrderManager**- 避免订单检查阻塞策略执行
 - **合理设置限流参数** - 根据交易所限制调整 RPM
 
-- --
-
+---
 ## 10. 参考
 
 | 文档 | 路径 |

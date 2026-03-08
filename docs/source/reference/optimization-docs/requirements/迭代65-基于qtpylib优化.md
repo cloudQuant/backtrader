@@ -29,8 +29,7 @@ qtpylib 是一个 Pythonic 的算法交易库，具有以下核心特点：
 5. **报表生成**: 交易报表生成
 6. **历史数据**: 历史数据管理
 
-- --
-
+---
 ## 研究分析
 
 ### QTPyLib 架构特点总结
@@ -49,7 +48,7 @@ class MyStrategy(Algo):
     def on_fill(self, instrument, order):
         self.sms(f"Order filled: {order}")
 
-```bash
+```
 
 - 6 个核心回调：`on_start`, `on_tick`, `on_bar`, `on_quote`, `on_orderbook`, `on_fill`
 - Instrument 对象封装了数据和交易方法
@@ -68,7 +67,7 @@ class MyStrategy(Algo):
                     │  (持久化)   │
                     └─────────────┘
 
-```bash
+```
 
 - Blotter 作为独立进程运行
 - 负责数据采集、清洗、重采样、存储、广播
@@ -116,8 +115,7 @@ class MyStrategy(Algo):
 6. **期货合约**: 无自动滚动功能
 7. **Bracket 订单**: 需要手动实现
 
-- --
-
+---
 ## 需求规格文档
 
 ### 1. 简化策略 API (Simplified Strategy API)
@@ -157,7 +155,7 @@ class SimpleStrategy(bt.Strategy):
     def instrument(self, data):
         return InstrumentWrapper(data, self)
 
-```bash
+```
 
 ### 2. Blotter 数据服务架构
 
@@ -196,7 +194,7 @@ class Blotter:
     def history(self, symbols, start, end, resolution):
         """查询历史数据"""
 
-```bash
+```
 
 ### 3. 通知系统 (Notification System)
 
@@ -243,7 +241,7 @@ class NotificationManager:
         for provider in self.providers:
             provider.send(message, level=level)
 
-```bash
+```
 
 ### 4. 数据持久化增强 (Data Persistence)
 
@@ -287,7 +285,7 @@ class DatabaseStore(ABC):
 class MySQLStore(DatabaseStore):
     """MySQL 存储实现"""
 
-```bash
+```
 
 ### 5. 报表和仪表板 (Reports & Dashboard)
 
@@ -330,7 +328,7 @@ class Dashboard:
     def add_endpoint(self, path, handler):
         """添加自定义 API 端点"""
 
-```bash
+```
 
 ### 6. 订单管理增强 (Order Management)
 
@@ -370,7 +368,7 @@ class BracketOrder:
 
 self.buy_bracket(size=100, target=105, stop=95)
 
-```bash
+```
 
 ### 7. 期货连续合约 (Futures Continuous Contract)
 
@@ -392,8 +390,7 @@ self.buy_bracket(size=100, target=105, stop=95)
 
 | FUT-004 | 支持多种滚动规则 | P2 |
 
-- --
-
+---
 ## 设计文档
 
 ### 整体架构设计
@@ -471,7 +468,7 @@ backtrader/
     ├── api/                   # API 端点
     └── templates/             # HTML 模板
 
-```bash
+```
 
 ### 详细设计
 
@@ -498,7 +495,7 @@ class NotificationProvider(ABC):
         """
         pass
 
-```bash
+```
 
 ```python
 
@@ -534,7 +531,7 @@ class EmailNotification(NotificationProvider):
             server.login(self.username, self.password)
             server.send_message(msg)
 
-```bash
+```
 
 ```python
 
@@ -554,7 +551,7 @@ class SMSNotification(NotificationProvider):
         elif self.provider == 'nexmo':
             self._send_nexmo(message, recipients)
 
-```bash
+```
 
 ```python
 
@@ -590,7 +587,7 @@ class NotificationManager:
             except Exception as e:
                 print(f"Notification failed: {e}")
 
-```bash
+```
 
 #### 2. 策略集成通知
 
@@ -646,7 +643,7 @@ class NotifiedStrategy(bt.Strategy):
             level = 'INFO' if pnl > 0 else 'WARNING'
             self.notifier.notify(msg, level=level)
 
-```bash
+```
 
 #### 3. Bracket 订单设计
 
@@ -744,7 +741,7 @@ class BracketStrategy(bt.Strategy):
         )
         return bracket.execute()
 
-```bash
+```
 
 #### 4. 数据库存储设计
 
@@ -775,7 +772,7 @@ class DatabaseStore(ABC):
     @abstractmethod
     def save_order(self, order): pass
 
-```bash
+```
 
 ```python
 
@@ -823,7 +820,7 @@ class MySQLStore(DatabaseStore):
         ))
         self.connection.commit()
 
-```bash
+```
 
 #### 5. Web 仪表板设计
 
@@ -908,7 +905,7 @@ class Dashboard:
         """启动仪表板"""
         self.app.run(host=self.host, port=self.port, debug=False)
 
-```bash
+```
 
 #### 6. Blotter 数据服务设计
 
@@ -1000,7 +997,7 @@ class BlotterSubscriber:
             if symbol in self.callbacks:
                 self.callbacks[symbol](data)
 
-```bash
+```
 
 ### 使用示例
 
@@ -1039,7 +1036,7 @@ class MyStrategy(NotifiedStrategy):
             if self.data.close[0] < self.sma[0]:
                 self.sell(size=self.position.size)
 
-```bash
+```
 
 #### 示例 2: Bracket 订单
 
@@ -1059,7 +1056,7 @@ class BracketStrategy(bt.Strategy):
                 oco=True
             )
 
-```bash
+```
 
 #### 示例 3: 使用仪表板
 
@@ -1086,7 +1083,7 @@ for i, strat in enumerate(strats):
 
 dashboard.run()
 
-```bash
+```
 
 ### 实施计划
 
@@ -1111,8 +1108,7 @@ dashboard.run()
 3. 时序数据库支持
 4. 完整的 Blotter 服务
 
-- --
-
+---
 ## 总结
 
 通过借鉴 QTPyLib 的设计理念，Backtrader 可以扩展以下能力：

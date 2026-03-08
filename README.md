@@ -22,18 +22,20 @@
 
 ---
 
-## ⚡ Performance Improvements (Development Branch)
+## ⚡ Performance Snapshot
 
-The `development` branch has undergone extensive performance optimizations, achieving **45% faster execution **compared to the master branch while removing metaprogramming complexity.
+The active `dev` branch carries the optimization work that was originally developed on
+`development`. Historical internal benchmarks on a 119-strategy suite showed about 45%
+lower total execution time than `master`.
 
 ### 📊 Benchmark Results
 
-| Metric | Master Branch | Development Branch | Improvement |
+| Metric | Master Branch | Dev Branch | Improvement |
 |--------|---------------|-------------------|-------------|
-|** Total Execution Time **| 553.12s | 305.36s |**-44.8%**⚡ |
-|** Strategies Tested **| 119 | 119 | ✓ |
-|** Test Pass Rate **| 100% | 100% | ✓ |
-|** Code Quality ** | ✓ | ✓ | ✓ |
+| **Total Execution Time** | 553.12s | 305.36s | **-44.8%** |
+| **Strategies Tested** | 119 | 119 | ✓ |
+| **Test Pass Rate** | 100% | 100% | ✓ |
+| **Code Quality** | ✓ | ✓ | ✓ |
 
 *Benchmark: 119 strategy backtests on identical hardware (Python 3.13, 12 parallel processes)*
 
@@ -56,7 +58,9 @@ We welcome contributions to improve code quality, fix bugs, and enhance performa
 
 ### 🐛 Reporting Indicator Discrepancies
 
-If you find that the `development` branch produces different results than the `master` branch for the same strategy, this likely indicates an indicator calculation bug. Please help us fix it!
+If you find that the `dev` branch produces different results than the `master`
+branch for the same strategy, this likely indicates an indicator calculation bug.
+Please help us fix it.
 
 ### 📝 Pull Request Guidelines
 
@@ -66,7 +70,7 @@ To submit a pull request, please follow these steps:
 
 Add a new test case that:
 
-- ✅ Passes on **both** `master` and `development` branches
+- ✅ Passes on **both** `master` and `dev` branches
 - ✅ Demonstrates the bug or validates the fix
 - ✅ Includes clear assertions and expected values
 
@@ -186,8 +190,8 @@ Backtrader is a powerful and flexible Python framework for backtesting trading s
 
 ### Project Branches
 
-- **master branch**: Stable version with feature extensions and bug fixes
-- **development branch**: Development version with tick-level backtesting, multi-frequency trading support, and performance optimizations
+- **master branch**: Stable release branch
+- **dev branch**: Active development branch for ongoing work and performance changes
 
 ---
 
@@ -275,7 +279,7 @@ CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP future
 - **OS**: Windows / macOS / Linux
 - **RAM**: 4GB+ recommended
 
-### From GitHub (Recommended)
+### From GitHub (Primary)
 
 > **Note**: This project is NOT on PyPI. Install from source only.
 
@@ -286,7 +290,7 @@ pip install -r requirements.txt
 pip install -U .
 
 ```
-### From Gitee (For users in China)
+### From Gitee (Mirror)
 
 ```
 git clone https://gitee.com/yunjinqi/backtrader.git
@@ -301,7 +305,7 @@ pip install -U .
 import backtrader as bt
 print(f"Backtrader version: {bt.__version__}")
 
-# Output: Backtrader version: 1.0.0
+# Output: Backtrader version: 1.1.0
 
 ```
 ### Run Tests
@@ -737,18 +741,19 @@ This project is licensed under [GPLv3](LICENSE).
 
 ---
 
-## ⚡ 性能优化成果（Development 分支）
+## ⚡ 性能概览
 
-`development` 分支经过大量性能优化，在移除元编程复杂性的同时，实现了相比 master 分支 **45% 的性能提升**。
+当前活跃的 `dev` 分支承接了原 `development` 分支上的优化工作。根据历史内部基准，
+在 119 个策略回测样本上，相比 `master` 分支总执行时间约下降 45%。
 
 ### 📊 基准测试结果
 
-| 指标 | Master 分支 | Development 分支 | 提升幅度 |
+| 指标 | Master 分支 | Dev 分支 | 提升幅度 |
 |------|-------------|------------------|----------|
-| **总执行时间**| 553.12 秒 | 305.36 秒 |**-44.8%**⚡ |
-|**测试策略数**| 119 | 119 | ✓ |
-|**测试通过率**| 100% | 100% | ✓ |
-|**代码质量** | ✓ | ✓ | ✓ |
+| **总执行时间** | 553.12 秒 | 305.36 秒 | **-44.8%** |
+| **测试策略数** | 119 | 119 | ✓ |
+| **测试通过率** | 100% | 100% | ✓ |
+| **代码质量** | ✓ | ✓ | ✓ |
 
 - 基准测试：在相同硬件上运行 119 个策略回测（Python 3.13，12 并行进程）*
 
@@ -794,7 +799,7 @@ This project is licensed under [GPLv3](LICENSE).
 
 ### 🐛 报告指标差异
 
-如果您发现 `development` 分支与 `master` 分支在相同策略下产生不同结果，这很可能表明存在指标计算 bug。请帮助我们修复！
+如果您发现 `dev` 分支与 `master` 分支在相同策略下产生不同结果，这很可能表明存在指标计算 bug。请帮助我们修复。
 
 ### 📝 Pull Request 提交规范
 
@@ -804,7 +809,7 @@ This project is licensed under [GPLv3](LICENSE).
 
 添加一个新的测试用例，要求：
 
-- ✅ 在 **master**和**development**分支上都能通过
+- ✅ 在 **master** 和 **dev** 分支上都能通过
 - ✅ 能够演示 bug 或验证修复
 - ✅ 包含清晰的断言和预期值
 
@@ -927,7 +932,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-# 或从 Gitee 克隆（国内用户推荐）
+# 或从 Gitee 镜像克隆
 
 git clone https://gitee.com/yunjinqi/backtrader.git
 cd backtrader

@@ -1,4 +1,7 @@
-.PHONY: help test test-original lint format type-check security install dev-install clean
+.PHONY: help test test-original lint format type-check security install dev-install clean docs docs-en docs-zh docs-clean docs-offline docs-offline-zh docs-view docs-view-zh
+
+DOCS_BUILD_DIR := docs/_build/html
+DOCS_MPLCONFIGDIR ?= $(CURDIR)/docs/.mplconfig
 
 help:  ## Show this help message
 	@echo "Available commands:"
@@ -62,28 +65,34 @@ benchmark:  ## Run performance benchmarks
 	python -m pytest tests/original_tests/ --benchmark-only
 
 docs:  ## Generate all documentation (en + zh)
-	cd docs/_source && make all
+	$(MAKE) docs-offline
+	$(MAKE) docs-offline-zh
 
 docs-en:  ## Generate English documentation
-	cd docs/_source && make en
+	$(MAKE) docs-offline
 
 docs-zh:  ## Generate Chinese documentation
-	cd docs/_source && make zh
+	$(MAKE) docs-offline-zh
+
+docs-offline:  ## Build English docs locally without network-only extensions
+	mkdir -p $(DOCS_BUILD_DIR)/en $(DOCS_MPLCONFIGDIR)
+	DOCS_OFFLINE=1 BUILD_LANGUAGE=en MPLCONFIGDIR=$(DOCS_MPLCONFIGDIR) \
+		python -m sphinx -b html docs/source $(DOCS_BUILD_DIR)/en
+
+docs-offline-zh:  ## Build Chinese docs locally without network-only extensions
+	mkdir -p $(DOCS_BUILD_DIR)/zh $(DOCS_MPLCONFIGDIR)
+	DOCS_OFFLINE=1 BUILD_LANGUAGE=zh MPLCONFIGDIR=$(DOCS_MPLCONFIGDIR) \
+		python -m sphinx -b html -D language=zh_CN -D root_doc=index_zh -D master_doc=index_zh \
+		docs/source $(DOCS_BUILD_DIR)/zh
 
 docs-clean:  ## Clean generated documentation
-	cd docs/_source && make clean
-
-docs-live:  ## Build English docs with live reload (for development)
-	cd docs/_source && make livehtml
-
-docs-live-zh:  ## Build Chinese docs with live reload (for development)
-	cd docs/_source && make livehtml-zh
+	rm -rf docs/_build
 
 docs-view:  ## Open English documentation in browser
-	open docs/_source/en/_build/html/index.html
+	open $(DOCS_BUILD_DIR)/en/index.html
 
 docs-view-zh:  ## Open Chinese documentation in browser
-	open docs/_source/zh/_build/html/index.html
+	open $(DOCS_BUILD_DIR)/zh/index_zh.html
 
 git-setup:  ## Setup git hooks for development
 	@echo "Setting up git hooks..."

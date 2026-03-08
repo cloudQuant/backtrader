@@ -1,10 +1,8 @@
-- --
-
+---
 title: 从原版 Backtrader 迁移指南
 description: 如何从原版 backtrader 迁移到这个增强版分支
 
-- --
-
+---
 # 从原版 Backtrader 迁移指南
 
 本指南帮助您从原版 [backtrader](<https://github.com/mementum/backtrader)> 迁移到这个增强版分支。好消息是：**您的现有代码无需任何修改即可正常工作**，因为我们保持了 100% 的 API 兼容性。
@@ -77,7 +75,7 @@ data = store.getdata(
 
 broker = store.getbroker(use_threaded_order_manager=True)
 
-```bash
+```
 详情参见 [CCXT 实盘交易指南](../CCXT_LIVE_TRADING_GUIDE.md)。
 
 ### 2. CTP 期货支持（中国市场）
@@ -94,7 +92,7 @@ store = bt.stores.CTPStore(
     md_address='tcp://180.168.146.187:10131',
 )
 
-```bash
+```
 
 ### 3. 增强的性能模式
 
@@ -106,7 +104,7 @@ store = bt.stores.CTPStore(
 cerebro = bt.Cerebro()
 cerebro.run(ts_mode=True)  # 适合的策略加速 10-50 倍
 
-```bash
+```
 
 #### CS 模式（横截面）
 
@@ -116,7 +114,7 @@ cerebro.run(ts_mode=True)  # 适合的策略加速 10-50 倍
 cerebro = bt.Cerebro()
 cerebro.run(cs_mode=True)  # 高效的横截面信号
 
-```bash
+```
 
 ### 4. Plotly 交互式绘图
 
@@ -126,7 +124,7 @@ cerebro.run(cs_mode=True)  # 高效的横截面信号
 
 cerebro.plot(style='plotly')
 
-```bash
+```
 支持：
 
 - 在 10 万+ 数据点上缩放和平移
@@ -153,7 +151,7 @@ pip install -e .
 
 # pip install backtrader-enhanced
 
-```bash
+```
 
 ### 第 2 步：测试现有代码
 
@@ -169,7 +167,7 @@ python my_strategy.py
 
 pytest tests/ -v
 
-```bash
+```
 
 - *预期结果**：一切与之前完全相同。
 
@@ -189,7 +187,7 @@ cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip 
 
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
 
-```bash
+```
 
 #### 使用性能模式
 
@@ -203,7 +201,7 @@ cerebro.run(ts_mode=True)
 
 cerebro.run(cs_mode=True)
 
-```bash
+```
 
 ### 第 4 步：迁移到实盘交易（可选）
 
@@ -226,7 +224,7 @@ cerebro.adddata(data)
 broker = store.getbroker()
 cerebro.setbroker(broker)
 
-```bash
+```
 
 ## 迁移前后代码示例
 
@@ -251,7 +249,7 @@ cerebro = bt.Cerebro()
 cerebro.addstrategy(MyStrategy)
 cerebro.run()
 
-```bash
+```
 
 - *之后（本分支）**：完全相同 - 无需更改！
 
@@ -265,7 +263,7 @@ data = bt.feeds.YahooFinanceData(dataname='AAPL', fromdate=datetime(...))
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 - *之后（本分支 - 实盘交易）**：
 
@@ -286,7 +284,7 @@ cerebro.adddata(data)
 cerebro.setbroker(broker)
 cerebro.run()  # 现在进行实盘交易！
 
-```bash
+```
 
 ### 示例 3：性能优化
 
@@ -299,7 +297,7 @@ cerebro = bt.Cerebro()
 
 cerebro.run()  # 标准执行
 
-```bash
+```
 
 - *之后（本分支 - 已优化）**：
 
@@ -320,7 +318,7 @@ cerebro.run(cs_mode=True)
 
 cerebro.run()  # 自动使用编译优化
 
-```bash
+```
 
 ## 常见迁移问题
 
@@ -334,7 +332,7 @@ cerebro.run()  # 自动使用编译优化
 pip uninstall backtrader
 pip install -e /path/to/this/fork
 
-```bash
+```
 
 ### 问题 2：Cython 编译失败
 
@@ -355,7 +353,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```bash
+```
 
 ### 问题 3：WebSocket 连接问题
 
@@ -377,7 +375,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### 问题 4：测试结果不同
 
@@ -462,7 +460,7 @@ pytest tests/new_functions/ -v
 
 pytest tests/ --cov=backtrader --cov-report=term-missing
 
-```bash
+```
 
 ## 成功迁移清单
 
@@ -501,7 +499,7 @@ make docs
 
 make format
 
-```bash
+```
 
 ### 性能提示
 
@@ -520,6 +518,5 @@ make format
 4.**监控连接健康**使用 ConnectionManager 回调
 5.**处理错误** 在 `notify_order()` 中实现稳健交易
 
-- --
-
+---
 - *恭喜！** 您已准备好使用这个增强版 backtrader 分支。您的现有代码可以正常工作，并且现在可以访问强大的实盘交易和性能改进功能。

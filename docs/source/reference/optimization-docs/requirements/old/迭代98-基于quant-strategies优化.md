@@ -29,8 +29,7 @@ quant-strategies 是量化交易策略合集，具有以下核心特点：
 5. **策略评价**: 策略评价方法
 6. **代码组织**: 代码组织方式
 
-- --
-
+---
 ## 项目对比分析
 
 ### Backtrader vs Quant-Strategies
@@ -70,8 +69,7 @@ quant-strategies 是量化交易策略合集，具有以下核心特点：
 5. **统一评价报告**：完整的策略绩效报告
 6. **强化学习集成**：RL 策略框架
 
-- --
-
+---
 ## 功能需求文档
 
 ### FR-01 策略工厂 [高优先级]
@@ -233,8 +231,7 @@ quant-strategies 是量化交易策略合集，具有以下核心特点：
 - 支持 100+参数组合批量回测
 - 结果格式统一
 
-- --
-
+---
 ## 设计文档
 
 ### 1. 策略工厂设计
@@ -327,7 +324,7 @@ def register_strategy(metadata: StrategyMetadata):
         return cls
     return decorator
 
-```bash
+```
 
 #### 1.2 策略工厂
 
@@ -382,7 +379,7 @@ class StrategyFactory:
 
         return results
 
-```bash
+```
 
 ### 2. 市场情绪策略设计
 
@@ -551,7 +548,7 @@ class MarketSentimentIndicator(bt.Indicator):
         else:
             self.state = 'neutral'
 
-```bash
+```
 
 #### 2.2 市场情绪策略
 
@@ -715,7 +712,7 @@ class MarketSentimentStrategy(bt.Strategy):
         if order.status in [order.Completed]:
             self.order = None
 
-```bash
+```
 
 ### 3. 双动量策略设计
 
@@ -811,7 +808,7 @@ class DualMomentumStrategy(bt.Strategy):
                 target_size = int(target_value / d.close[0])
                 self.order_target_size(data=d, target=target_size)
 
-```bash
+```
 
 ### 4. 多账户对冲系统设计
 
@@ -955,7 +952,7 @@ class DualMAHedgingStrategy(HedgingStrategy):
         """平对冲仓位"""
         print("平对冲仓")
 
-```bash
+```
 
 ### 5. 增强风险管理设计
 
@@ -1052,7 +1049,7 @@ class VolatilityAdjustedSizer(bt.Sizer):
         account_value = broker.getvalue()
         return int(account_value*target_size / data.close[0])
 
-```bash
+```
 
 ### 6. 策略评价报告设计
 
@@ -1205,7 +1202,7 @@ class StrategyReport:
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html)
 
-```bash
+```
 
 ### 7. 回测引擎封装设计
 
@@ -1292,7 +1289,7 @@ def quick_backtest(strategy_name: str,
 # 运行回测
     return engine.run()
 
-```bash
+```
 
 ### 8. 强化学习策略框架设计
 
@@ -1457,10 +1454,9 @@ class RLTradingStrategy(bt.Strategy):
         elif action == 2 and self.position:
             self.sell()
 
-```bash
+```
 
-- --
-
+---
 ## 实施计划
 
 ### 第一阶段：策略工厂（1 周）
@@ -1505,8 +1501,7 @@ class RLTradingStrategy(bt.Strategy):
 3. FinRL 集成
 4. 示例和文档
 
-- --
-
+---
 ## API 兼容性保证
 
 1. **策略继承自 bt.Strategy**：所有策略保持原有接口
@@ -1514,8 +1509,7 @@ class RLTradingStrategy(bt.Strategy):
 3. **分析器使用原生接口**：不改变 analyzer 使用方式
 4. **新增功能独立模块**：不影响现有代码
 
-- --
-
+---
 ## 使用示例
 
 ### 示例 1：使用策略工厂
@@ -1548,7 +1542,7 @@ strategy = factory.create_strategy(
     momentum_short=12
 )
 
-```bash
+```
 
 ### 示例 2：快速回测
 
@@ -1574,7 +1568,7 @@ metrics = report.generate_metrics()
 print(f"夏普比率: {metrics['sharpe_ratio']:.2f}")
 report.generate_html_report('report.html')
 
-```bash
+```
 
 ### 示例 3：情绪策略使用
 
@@ -1600,7 +1594,7 @@ cerebro.addstrategy(
 
 results = cerebro.run()
 
-```bash
+```
 
 ### 示例 4：多账户对冲
 

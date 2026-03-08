@@ -1,10 +1,8 @@
-- --
-
+---
 title: 执行阶段系统
 description: 理解 Backtrader 的执行阶段
 
-- --
-
+---
 # 执行阶段系统
 
 Backtrader 通过不同的阶段来执行策略，以处理指标和数据源的最小周期要求。
@@ -20,7 +18,7 @@ stateDiagram-v2
     Next --> Next: 正常执行
     Next --> [*]: 数据结束
 
-```bash
+```
 
 ## 1. Prenext 阶段
 
@@ -38,7 +36,7 @@ class MyStrategy(bt.Strategy):
 # 当 len(self.data) < self.sma.minperiod 时调用
         print(f"K 线 {len(self)}: 正在累积数据...")
 
-```bash
+```
 
 - *特点：**
 - 从第 0 根 K 线运行到 `minperiod - 1`
@@ -57,7 +55,7 @@ def nextstart(self):
 
 # 默认实现会自动调用 next()
 
-```bash
+```
 
 - *特点：**
 - 在第 `minperiod` 根 K 线时运行一次
@@ -75,7 +73,7 @@ def next(self):
     if self.sma[0] > self.data.close[0]:
         self.sell()
 
-```bash
+```
 
 - *特点：**
 - 从第 `minperiod` 根 K 线运行到数据结束
@@ -105,7 +103,7 @@ class MyStrategy(bt.Strategy):
 
 # Strategy.minperiod = 50 (最大值)
 
-```bash
+```
 
 ## 实际示例
 
@@ -145,7 +143,7 @@ cerebro.adddata(data)
 cerebro.addstrategy(PhaseExample)
 cerebro.run()
 
-```bash
+```
 
 ## 执行顺序
 
@@ -171,7 +169,7 @@ sequenceDiagram
     Strategy->>Cerebro: 订单 (可选)
     Cerebro->>Cerebro: 处理订单
 
-```bash
+```
 
 ## 关键要点
 
@@ -203,4 +201,4 @@ class BadStrategy(bt.Strategy):
     def prenext(self):
         value = self.sma[0]  # 可能是 NaN 或无效值！
 
-```bash
+```

@@ -1,10 +1,8 @@
-- --
-
+---
 title: Strategy API
 description: Strategy 类完整 API 参考
 
-- --
-
+---
 # Strategy API
 
 `Strategy` 类是 Backtrader 中所有用户定义交易策略的基类。它提供订单管理、持仓跟踪、指标集成和事件驱动执行。
@@ -15,7 +13,7 @@ description: Strategy 类完整 API 参考
 class backtrader.Strategy:
     """交易策略基类。"""
 
-```bash
+```
 
 ## 参数
 
@@ -30,7 +28,7 @@ class MyStrategy(bt.Strategy):
         ('threshold', 1.5),
     )
 
-```bash
+```
 通过 `self.p.parameter_name` 或 `self.params.parameter_name` 访问参数。
 
 ## 核心方法
@@ -44,7 +42,7 @@ def __init__(self):
     super().__init__()  # 始终先调用 super
     self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
 
-```bash
+```
 
 ### `start(self)`
 
@@ -54,7 +52,7 @@ def __init__(self):
 def start(self):
     self.initial_cash = self.broker.getcash()
 
-```bash
+```
 
 ### `prenext(self)`
 
@@ -73,7 +71,7 @@ def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
 
-```bash
+```
 
 ### `stop(self)`
 
@@ -84,7 +82,7 @@ def stop(self):
     final_value = self.broker.getvalue()
     print(f'最终组合价值: {final_value}')
 
-```bash
+```
 
 ## 订单方法
 
@@ -130,7 +128,7 @@ order = self.buy(size=10)
 
 order = self.buy(stoplimit=95.0, price=94.5)
 
-```bash
+```
 
 ### `sell(self, **kwargs)`
 
@@ -146,7 +144,7 @@ order = self.sell()
 
 order = self.sell(stop=95.0)
 
-```bash
+```
 
 ### `close(self, **kwargs)`
 
@@ -162,7 +160,7 @@ order = self.close()
 
 order = self.close(price=105.0)
 
-```bash
+```
 
 ### `cancel(self, order)`
 
@@ -171,7 +169,7 @@ order = self.close(price=105.0)
 ```python
 self.cancel(order)
 
-```bash
+```
 
 ## 订单通知
 
@@ -193,7 +191,7 @@ def notify_order(self, order):
     elif order.status in [order.Canceled, order.Margin, order.Rejected]:
         self.log(f'订单 {order.getstatusname()}')
 
-```bash
+```
 
 - *订单状态值**:
 
@@ -230,7 +228,7 @@ def notify_trade(self, trade):
 
     self.log(f'交易盈亏: {trade.pnl:.2f}, 佣金: {trade.commission:.2f}')
 
-```bash
+```
 
 - *交易属性**:
 
@@ -268,7 +266,7 @@ if self.position:
     size = self.position.size
     price = self.position.price
 
-```bash
+```
 
 - *持仓属性**:
 
@@ -289,7 +287,7 @@ if self.position:
 ```python
 position = self.getposition(self.datas[1])
 
-```bash
+```
 
 ## 数据访问
 
@@ -312,7 +310,7 @@ price2 = self.datas[1].close[0]
 
 price = self.aapl.close[0]
 
-```bash
+```
 
 ### `getdatabyname(self, name)`
 
@@ -321,7 +319,7 @@ price = self.aapl.close[0]
 ```python
 data = self.getdatabyname('AAPL')
 
-```bash
+```
 
 ## 经纪人访问
 
@@ -333,7 +331,7 @@ data = self.getdatabyname('AAPL')
 cash = self.broker.getcash()
 value = self.broker.getvalue()
 
-```bash
+```
 
 - *常用经纪人方法**:
 
@@ -363,7 +361,7 @@ def next(self):
     if self.crossover > 0:
         self.buy()
 
-```bash
+```
 
 ## 日志记录
 
@@ -375,7 +373,7 @@ def next(self):
 def next(self):
     self.log(f'收盘价: {self.data.close[0]:.2f}')
 
-```bash
+```
 
 ## 策略生命周期
 
@@ -391,7 +389,7 @@ stateDiagram-v2
     next --> stop: 回测结束
     stop --> [*]: 清理
 
-```bash
+```
 
 ## 多数据源
 
@@ -409,7 +407,7 @@ class MyStrategy(bt.Strategy):
         if self.data0.close[0] > self.data1.close[0]:
             self.buy(data=self.data0)
 
-```bash
+```
 
 ## 定时器事件
 
@@ -429,7 +427,7 @@ def __init__(self):
 def notify_timer(self, timer, when):
     self.log(f'定时器触发于 {when}')
 
-```bash
+```
 
 ## 数据事件
 
@@ -442,7 +440,7 @@ def notify_data(self, data, status, *args, **kwargs):
     if status == data.LIVE:
         self.log(f'{data._name} 现已实时')
 
-```bash
+```
 
 ## 信号策略
 
@@ -456,7 +454,7 @@ class MySignalStrategy(bt.SignalStrategy):
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.period)
         self.signal_add(bt.SIGNAL_LONG, self.data.close > self.sma)
 
-```bash
+```
 
 ## 完整示例
 
@@ -510,7 +508,7 @@ class MyStrategy(bt.Strategy):
     def stop(self):
         self.log(f'最终价值: {self.broker.getvalue():.2f}')
 
-```bash
+```
 
 ## 下一步学习
 

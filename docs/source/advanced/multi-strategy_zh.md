@@ -1,10 +1,8 @@
-- --
-
+---
 title: 多策略回测
 description: 在 backtrader 中运行和管理多个策略的指南
 
-- --
-
+---
 # 多策略回测
 
 同时运行多个策略可以分散交易方法、比较绩效并构建稳健的交易系统。本指南介绍在 backtrader 中进行多策略组合管理的技术。
@@ -33,7 +31,7 @@ results = cerebro.run()
 for i, strat in enumerate(results):
     print(f"策略 {i}: 最终价值 {strat.broker.getvalue()}")
 
-```bash
+```
 
 ## 策略组合管理
 
@@ -68,7 +66,7 @@ class EqualWeightStrategy(bt.Strategy):
 # 在子类中重写
         return False
 
-```bash
+```
 
 ### 风险平价分配
 
@@ -91,7 +89,7 @@ class RiskParityStrategy(bt.Strategy):
         account_risk = self.broker.getvalue()*self.p.target_risk
         return int(account_risk / risk_per_share) if risk_per_share > 0 else 0
 
-```bash
+```
 
 ## 资源分配
 
@@ -127,7 +125,7 @@ class CapitalAllocator(bt.Strategy):
 # 实现取决于分配方法
         pass
 
-```bash
+```
 
 ### 佣金分摊
 
@@ -143,7 +141,7 @@ class CommissionSplitter(bt.CommissionInfo):
 # 如果涉及多个策略，分摊佣金
         return comm / len(self.p.strategies) if self.p.strategies else comm
 
-```bash
+```
 
 ## 结果聚合
 
@@ -184,7 +182,7 @@ cerebro.addanalyzer(PortfolioAnalyzer, _name='portfolio')
 results = cerebro.run()
 portfolio_analysis = results[0].analyzers.portfolio.get_analysis()
 
-```bash
+```
 
 ### 多策略比较
 
@@ -219,7 +217,7 @@ def compare_strategies(strategies, data_path):
 
     return results_summary
 
-```bash
+```
 
 ## 策略相关性分析
 
@@ -256,7 +254,7 @@ strategies = [MomentumStrategy, MeanReversionStrategy, BreakoutStrategy]
 corr_matrix = calculate_strategy_correlations(strategies, 'data.csv')
 print(corr_matrix)
 
-```bash
+```
 
 ### 低相关性组合
 
@@ -298,7 +296,7 @@ class LowCorrelationSelector(bt.Strategy):
 
         return selected[:self.p.max_strategies]
 
-```bash
+```
 
 ## 并行执行
 
@@ -341,7 +339,7 @@ def parallel_optimize(strat_class, data_path, param_grid, n_workers=4):
     results.sort(key=lambda x: x['sharpe'], reverse=True)
     return results
 
-```bash
+```
 
 ### 独立策略执行
 
@@ -368,7 +366,7 @@ def run_strategies_independent(strategies_config):
 
     return results
 
-```bash
+```
 
 ## 跨策略风险管理
 
@@ -412,7 +410,7 @@ class PortfolioStopLoss(bt.Strategy):
         """在子类中重写。"""
         pass
 
-```bash
+```
 
 ### 持仓层面风险控制
 
@@ -440,7 +438,7 @@ class MultiStrategyPositionSizer(bt.Sizer):
         price = data.close[0]
         return int(max_size / price) if price > 0 else 0
 
-```bash
+```
 
 ## 完整示例
 
@@ -664,7 +662,7 @@ if __name__ == '__main__':
 # 运行组合
     results = run_multi_strategy_portfolio('data.csv')
 
-```bash
+```
 
 ## 最佳实践
 

@@ -1,10 +1,8 @@
-- --
-
+---
 title: Line System
 description: Core data structure for time series
 
-- --
-
+---
 # Line System
 
 The Line System is the fundamental data structure in Backtrader for handling time series data.
@@ -25,7 +23,7 @@ classDiagram
 
     LineIterator <|-- Strategy
 
-```bash
+```
 
 ## Hierarchy
 
@@ -44,7 +42,7 @@ class LineRoot:
     def datetime(self, index=0):
         """Get datetime at index."""
 
-```bash
+```
 
 ### LineBuffer
 
@@ -64,7 +62,7 @@ class LineBuffer:
     def minperiod(self):
         """Minimum data points needed."""
 
-```bash
+```
 
 ### LineSeries
 
@@ -81,7 +79,7 @@ class LineSeries:
     def time(self, index=0):
         """Get time at index."""
 
-```bash
+```
 
 ### LineIterator
 
@@ -104,7 +102,7 @@ class LineIterator:
     def next(self):
         """Called for each bar after minperiod."""
 
-```bash
+```
 
 ## Access Patterns
 
@@ -124,7 +122,7 @@ class MyStrategy(bt.Strategy):
 # Slice (returns array)
         recent = self.data.close.get(size=5)
 
-```bash
+```
 
 ### Data Length
 
@@ -138,7 +136,7 @@ total_bars = len(self.data)
 
 processed_bars = len(self.data.close)
 
-```bash
+```
 
 ### Datetime Access
 
@@ -150,7 +148,7 @@ dt = self.data.datetime.datetime(0)
 date = self.data.datetime.date(0)
 time = self.data.datetime.time(0)
 
-```bash
+```
 
 ## Line Aliases
 
@@ -185,7 +183,7 @@ class MyStrategy(bt.Strategy):
 # Create a custom line
         self.lines.custom = self.data.close  # Alias
 
-```bash
+```
 
 ### In Indicators
 
@@ -197,7 +195,7 @@ class MyIndicator(bt.Indicator):
         super().__init__()
         self.lines.signal = self.data.close - self.data.close(-1)
 
-```bash
+```
 
 ## Performance Considerations
 
@@ -218,7 +216,7 @@ The circular buffer design:
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 data.qbuffer(1000)  # Keep last 1000 bars in memory
 
-```bash
+```
 
 ## Common Patterns
 
@@ -232,7 +230,7 @@ class MyStrategy(bt.Strategy):
         self.close_lag1 = self.data.close(-1)
         self.close_lag5 = self.data.close(-5)
 
-```bash
+```
 
 ### Price Change
 
@@ -246,7 +244,7 @@ class MyStrategy(bt.Strategy):
 # Percent change
         self.pct_change = (self.data.close / self.data.close(-1)) - 1
 
-```bash
+```
 
 ### Rolling Operations
 
@@ -260,7 +258,7 @@ class MyStrategy(bt.Strategy):
 # Or use indicator
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
-```bash
+```
 
 ## See Also
 

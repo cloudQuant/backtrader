@@ -17,7 +17,7 @@ from backtrader.parameters import (
 
 )
 
-```bash
+```
 
 ## Your First Parameterized Class
 
@@ -30,7 +30,7 @@ class MyIndicator(bt.Indicator):
         ('factor', 2.0),
     )
 
-```bash
+```
 
 ### New Way (Enhanced)
 
@@ -50,7 +50,7 @@ class MyIndicator(ParameterizedBase):
         doc="Multiplication factor"
     )
 
-```bash
+```
 
 ## Key Benefits You Get Immediately
 
@@ -64,7 +64,7 @@ indicator = MyIndicator(period="twenty")  # ❌ Auto-converts or errors
 
 indicator = MyIndicator(period=20)        # ✅ Works correctly
 
-```bash
+```
 
 ### 2. Validation
 
@@ -78,7 +78,7 @@ indicator = MyIndicator(period=500)   # ❌ Out of range
 
 indicator = MyIndicator(period=20)    # ✅ Valid
 
-```bash
+```
 
 ### 3. Better Error Messages
 
@@ -88,7 +88,7 @@ indicator = MyIndicator(period=20)    # ✅ Valid
 
 # New system: "Parameter 'period' expects int between 1 and 100, got -5"
 
-```bash
+```
 
 ## Common Parameter Patterns
 
@@ -102,7 +102,7 @@ period = ParameterDescriptor(
     doc="Trading period in days"
 )
 
-```bash
+```
 
 ### 2. Float with Range
 
@@ -114,7 +114,7 @@ alpha = ParameterDescriptor(
     doc="Smoothing factor"
 )
 
-```bash
+```
 
 ### 3. Choice Parameter
 
@@ -125,7 +125,7 @@ mode = ParameterDescriptor(
     doc="Moving average type"
 )
 
-```bash
+```
 
 ### 4. Boolean Parameter
 
@@ -136,7 +136,7 @@ enabled = ParameterDescriptor(
     doc="Enable this feature"
 )
 
-```bash
+```
 
 ### 5. Optional Parameter
 
@@ -148,7 +148,7 @@ custom_value = ParameterDescriptor(
     doc="Optional custom value"
 )
 
-```bash
+```
 
 ## Using Parameters (Same as Before!)
 
@@ -164,7 +164,7 @@ class MyStrategy(ParameterizedBase):
         print(self.params.period)         # ✅ Legacy way
         print(self.get_param('period'))   # ✅ New way (recommended)
 
-```bash
+```
 
 ## Complete Example: Simple Strategy
 
@@ -212,7 +212,7 @@ strategy1 = SimpleMAStrategy()                           # Use defaults
 
 strategy2 = SimpleMAStrategy(fast_period=5, slow_period=15)  # Custom values
 
-```bash
+```
 
 ## Instant Upgrades: Using Factory Functions
 
@@ -228,7 +228,7 @@ class QuickIndicator(ParameterizedBase):
     enabled = BoolParam(default=True, doc="Enable indicator")
     name = StringParam(default="indicator", min_length=1, doc="Indicator name")
 
-```bash
+```
 
 ## Migration Strategy: Start Small
 
@@ -243,7 +243,7 @@ You don't need to migrate everything at once:
 class LegacyStrategy(bt.Strategy):
     params = (('period', 20),)
 
-```bash
+```
 
 ### 2. Use New System for New Classes
 
@@ -254,7 +254,7 @@ class LegacyStrategy(bt.Strategy):
 class ModernIndicator(ParameterizedBase):
     period = ParameterDescriptor(default=20, type_=int)
 
-```bash
+```
 
 ### 3. They Work Together Seamlessly
 
@@ -266,7 +266,7 @@ class MixedStrategy(bt.Strategy):
 
 # Both work the same way!
 
-```bash
+```
 
 ## Advanced Features (When You Need Them)
 
@@ -286,7 +286,7 @@ class AdvancedStrategy(ParameterizedBase):
 # Update as a group
         self._param_manager.set_group('MA_PERIODS', {'fast_period': 5, 'slow_period': 15})
 
-```bash
+```
 
 ### Change Callbacks
 
@@ -304,7 +304,7 @@ class ReactiveIndicator(ParameterizedBase):
 
         self._param_manager.add_change_callback(on_period_change, 'period')
 
-```bash
+```
 
 ## Performance: It's Faster!
 
@@ -328,7 +328,7 @@ indicator = MyIndicator(period="20")
 
 indicator = MyIndicator(period=20)
 
-```bash
+```
 
 ### Validation Errors
 
@@ -342,7 +342,7 @@ indicator = MyIndicator(period=-5)  # Error: must be >= 1
 
 indicator = MyIndicator(period=20)
 
-```bash
+```
 
 ### Parameter Not Found
 
@@ -356,7 +356,7 @@ print(indicator.p.periods)  # Error: should be 'period'
 
 print(indicator.p.period)
 
-```bash
+```
 
 ## Next Steps
 

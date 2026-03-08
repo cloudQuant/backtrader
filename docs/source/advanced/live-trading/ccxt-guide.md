@@ -4,8 +4,7 @@
 
 This guide explains how to use Backtrader + CCXT for cryptocurrency live trading.
 
-- --
-
+---
 ## 1. Quick Start
 
 ### 1.1 Install Dependencies
@@ -15,7 +14,7 @@ pip install ccxt        # REST API
 
 pip install ccxtpro     # WebSocket (optional but recommended)
 
-```bash
+```
 
 ### 1.2 Configure Exchange
 
@@ -34,19 +33,19 @@ store = bt.stores.CCXTStore(
     }
 )
 
-```bash
+```
 
 - *Method B: Using .env File (Recommended)**
 
 Create a `.env` file:
 
-```env
+```bash
 EXCHANGE_ID=binance
 EXCHANGE_API_KEY=your_api_key
 EXCHANGE_SECRET=your_secret
 EXCHANGE_CURRENCY=USDT
 
-```bash
+```
 
 ```python
 from backtrader.ccxt.config_helper import load_exchange_config
@@ -54,7 +53,7 @@ from backtrader.ccxt.config_helper import load_exchange_config
 config = load_exchange_config()
 store = bt.stores.CCXTStore(**config)
 
-```bash
+```
 
 ### 1.3 Minimal Live Trading Example
 
@@ -114,10 +113,9 @@ cerebro.addstrategy(SimpleStrategy)
 
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 2. Data Feed Configuration
 
 ### 2.1 REST Polling Mode (Default)
@@ -134,7 +132,7 @@ data = store.getdata(
 
 )
 
-```bash
+```
 
 ### 2.2 WebSocket Mode (Recommended, Low Latency)
 
@@ -152,7 +150,7 @@ data = store.getdata(
     backfill_start=True,
 )
 
-```bash
+```
 
 - *WebSocket Features**:
 - Auto-reconnect (exponential backoff: 5s → 10s → 20s → ... → 60s)
@@ -175,10 +173,9 @@ data = store.getdata(
     ohlcv_limit=500,
 )
 
-```bash
+```
 
-- --
-
+---
 ## 3. Broker Configuration
 
 ### 3.1 Basic Configuration
@@ -193,7 +190,7 @@ broker = store.getbroker(
 )
 cerebro.setbroker(broker)
 
-```bash
+```
 
 ### 3.2 ThreadedOrderManager
 
@@ -205,7 +202,7 @@ broker = store.getbroker(
 
 )
 
-```bash
+```
 
 - *Advantages**:
 - Strategy `next()` is not blocked by API latency
@@ -242,10 +239,9 @@ class MyStrategy(bt.Strategy):
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
             print(f'Order failed: {order.getstatusname()}')
 
-```bash
+```
 
-- --
-
+---
 ## 4. Exchange-Specific Configuration
 
 ### 4.1 Using ExchangeConfig
@@ -273,7 +269,7 @@ config = ExchangeConfig.merge_config('okx', {
     'password': 'your_passphrase',
 })
 
-```bash
+```
 
 ### 4.2 Supported Exchanges
 
@@ -309,10 +305,9 @@ store = bt.stores.CCXTStore(
     }
 )
 
-```bash
+```
 
-- --
-
+---
 ## 5. Rate Limiting
 
 ### 5.1 Automatic Rate Limiting
@@ -330,7 +325,7 @@ store = bt.stores.CCXTStore(exchange='binance', ...)
 from backtrader.ccxt.ratelimit import RateLimiter
 limiter = RateLimiter(requests_per_minute=600)
 
-```bash
+```
 
 ### 5.2 Adaptive Rate Limiting
 
@@ -344,10 +339,9 @@ limiter = AdaptiveRateLimiter(
 
 )
 
-```bash
+```
 
-- --
-
+---
 ## 6. Connection Management
 
 ### 6.1 ConnectionManager
@@ -366,7 +360,7 @@ manager = store._connection_manager  # If available
 manager.on_disconnect(lambda: print("Exchange disconnected!"))
 manager.on_reconnect(lambda: print("Reconnected"))
 
-```bash
+```
 
 ### 6.2 Reconnection Mechanism
 
@@ -386,10 +380,9 @@ Disconnect detected (health check failure)
                 ├── Trigger reconnect callback
                 └── Backfill missing data
 
-```bash
+```
 
-- --
-
+---
 ## 7. Complete Live Trading Template
 
 ```python
@@ -480,10 +473,9 @@ cerebro.addstrategy(LiveStrategy)
 print('Starting live trading...')
 cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 8. FAQ
 
 ### Q: What if WebSocket connection fails?
@@ -493,7 +485,7 @@ Make sure `ccxtpro` is installed:
 ```bash
 pip install ccxtpro
 
-```bash
+```
 If the exchange doesn't support WebSocket, the system will automatically fall back to REST polling.
 
 ### Q: How do I view API call logs?
@@ -502,7 +494,7 @@ If the exchange doesn't support WebSocket, the system will automatically fall ba
 broker = store.getbroker(debug=True)
 data = store.getdata(..., debug=True)
 
-```bash
+```
 
 ### Q: Order stuck in Submitted status?
 
@@ -522,7 +514,7 @@ data_eth = store.getdata(dataname='ETH/USDT', ...)
 cerebro.adddata(data_btc)
 cerebro.adddata(data_eth)
 
-```bash
+```
 
 ### Q: How do I handle funding rates?
 
@@ -537,10 +529,9 @@ data = CCXTFeedWithFunding(
     use_websocket=True,
 )
 
-```bash
+```
 
-- --
-
+---
 ## 9. Reference
 
 | Document | Path |

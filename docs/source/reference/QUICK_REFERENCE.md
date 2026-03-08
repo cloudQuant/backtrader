@@ -14,7 +14,7 @@ python tools/doc_coverage_scanner.py --output docs/DOC_COVERAGE_REPORT.md
 
 python tools/doc_coverage_scanner.py --root backtrader/cerebro.py
 
-```bash
+```
 
 ### 2. 链接验证
 
@@ -28,7 +28,7 @@ python tools/doc_link_validator.py --output docs/LINK_VALIDATION_REPORT.md
 
 python tools/doc_link_validator.py --check-external --output docs/LINK_VALIDATION_REPORT.md
 
-```bash
+```
 
 ### 3. Docstring 增强
 
@@ -38,7 +38,7 @@ python tools/doc_link_validator.py --check-external --output docs/LINK_VALIDATIO
 
 python tools/docstring_enhancer.py --scan backtrader/ --output docs/DOCSTRING_REPORT.md
 
-```bash
+```
 
 ### 4. 一致性检查
 
@@ -48,7 +48,7 @@ python tools/docstring_enhancer.py --scan backtrader/ --output docs/DOCSTRING_RE
 
 python tools/doc_consistency_checker.py --output docs/CONSISTENCY_REPORT.md
 
-```bash
+```
 
 ## 📖 文档构建
 
@@ -69,7 +69,7 @@ make html SPHINXOPTS="-D language=zh_CN"
 
 make -f Makefile.i18n build-zh
 
-```bash
+```
 
 ### 实时预览
 
@@ -77,7 +77,7 @@ make -f Makefile.i18n build-zh
 cd docs
 sphinx-autobuild source build/html
 
-```bash
+```
 
 ## 🔄 国际化工作流
 
@@ -87,21 +87,21 @@ sphinx-autobuild source build/html
 cd docs
 make -f Makefile.i18n gettext
 
-```bash
+```
 
 ### 更新翻译目录
 
 ```bash
 make -f Makefile.i18n update-po
 
-```bash
+```
 
 ### 构建多语言文档
 
 ```bash
 make -f Makefile.i18n build-lang
 
-```bash
+```
 
 ## 📊 报告位置
 
@@ -129,7 +129,7 @@ python tools/doc_link_validator.py --output docs/reports/links_$(date +%Y%m%d).m
 
 python tools/doc_consistency_checker.py --output docs/reports/consistency_$(date +%Y%m%d).md
 
-```bash
+```
 
 ### 发布前检查
 
@@ -139,7 +139,7 @@ python tools/doc_consistency_checker.py --output docs/reports/consistency_$(date
 
 ./scripts/check_docs.sh  # 需要创建此脚本
 
-```bash
+```
 
 ## 📚 重要文档
 

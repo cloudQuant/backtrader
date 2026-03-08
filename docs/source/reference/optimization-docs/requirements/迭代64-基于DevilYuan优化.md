@@ -29,8 +29,7 @@ DevilYuan 是一个 A 股量化交易系统，具有以下核心特点：
 5. **交易引擎**: 交易执行引擎
 6. **监控报警**: 监控和报警系统
 
-- --
-
+---
 ## 框架对比分析
 
 ### 架构设计对比
@@ -75,8 +74,7 @@ DevilYuan 是一个 A 股量化交易系统，具有以下核心特点：
 5. **实时监控**: 微信通知和策略监控
 6. **多账户**: 支持多个模拟/实盘账户
 
-- --
-
+---
 ## 需求规格文档
 
 ### 需求 1: PyQt 图形界面
@@ -186,8 +184,7 @@ DevilYuan 是一个 A 股量化交易系统，具有以下核心特点：
 - 实时性: 报警延迟<5 秒
 - 可靠性: 报警送达率>99%
 
-- --
-
+---
 ## 设计文档
 
 ### 1. PyQt 图形界面设计
@@ -214,7 +211,7 @@ from .basic_window import BtBasicMainWindow
 
 __all__ = ['BtMainWindow', 'BtBasicMainWindow']
 
-```bash
+```
 
 #### 1.2 主窗口设计
 
@@ -293,7 +290,7 @@ class BtMainWindow(QMainWindow):
         window = BtSettingsWindow(self)
         window.show()
 
-```bash
+```
 
 #### 1.3 基础窗口类
 
@@ -388,7 +385,7 @@ class BtBasicMainWindow(QMainWindow):
                 f'<font color="{color}">{msg}</font>'
             )
 
-```bash
+```
 
 #### 1.4 回测窗口
 
@@ -555,7 +552,7 @@ class BtBackTestThread(QThread):
 
         self.finished.emit(result_dict)
 
-```bash
+```
 
 ### 2. 增强事件引擎设计
 
@@ -822,7 +819,7 @@ class BtTimerHand(threading.Thread):
 
             time.sleep(0.1)  # 100ms 检查间隔
 
-```bash
+```
 
 #### 2.2 事件定义
 
@@ -888,7 +885,7 @@ class BtEvent:
         """设置事件数据"""
         self.data[key] = value
 
-```bash
+```
 
 ### 3. 策略回放功能设计
 
@@ -1109,7 +1106,7 @@ class BtParallelBackTest:
             'results': results,
         }
 
-```bash
+```
 
 ### 4. 数据管理模块设计
 
@@ -1320,7 +1317,7 @@ class BtDataManager:
 
         return True
 
-```bash
+```
 
 ### 5. 实盘交易引擎设计
 
@@ -1563,7 +1560,7 @@ class BtAccountManager:
         """所有账户总市值"""
         return sum(acc.value for acc in self._accounts.values())
 
-```bash
+```
 
 ### 6. 监控报警系统设计
 
@@ -1812,7 +1809,7 @@ class BtLogNotifier(BtNotifier):
         with open(self._log_file, 'a') as f:
             f.write(f"{timestamp} [{level}] {title}\n{message}\n\n")
 
-```bash
+```
 
 #### 6.2 微信通知器(可选)
 
@@ -1866,7 +1863,7 @@ class BtWeChatNotifier(BtNotifier):
             print(f"WeChat send error: {e}")
             return False
 
-```bash
+```
 
 ### 7. 实施计划
 
@@ -1916,7 +1913,7 @@ data = data_mgr.loadData('AAPL', start, end)
 parallel = bt.BtParallelBackTest(cerebro)
 results = parallel.runPeriods(start, end, [data])
 
-```bash
+```
 
 #### 7.3 目录结构
 
@@ -1962,10 +1959,9 @@ backtrader/
     ├── monitor_window.py  # 监控窗口
     └── settings_window.py # 设置窗口
 
-```bash
+```
 
-- --
-
+---
 ## 总结
 
 通过借鉴 DevilYuan 的设计思想，backtrader 可以在保持通用性的同时，获得以下改进：

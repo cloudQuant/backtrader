@@ -1,10 +1,8 @@
-- --
-
+---
 title: Multi-Strategy Backtesting
 description: Guide for running and managing multiple strategies in backtrader
 
-- --
-
+---
 # Multi-Strategy Backtesting
 
 Running multiple strategies simultaneously allows you to diversify your approach, compare performance, and build robust trading systems. This guide covers techniques for multi-strategy portfolio management in backtrader.
@@ -33,7 +31,7 @@ results = cerebro.run()
 for i, strat in enumerate(results):
     print(f"Strategy {i}: Final Value {strat.broker.getvalue()}")
 
-```bash
+```
 
 ## Strategy Portfolio Management
 
@@ -68,7 +66,7 @@ class EqualWeightStrategy(bt.Strategy):
 # Override in subclass
         return False
 
-```bash
+```
 
 ### Risk Parity Allocation
 
@@ -91,7 +89,7 @@ class RiskParityStrategy(bt.Strategy):
         account_risk = self.broker.getvalue()*self.p.target_risk
         return int(account_risk / risk_per_share) if risk_per_share > 0 else 0
 
-```bash
+```
 
 ## Resource Allocation
 
@@ -127,7 +125,7 @@ class CapitalAllocator(bt.Strategy):
 # Implementation depends on allocation method
         pass
 
-```bash
+```
 
 ### Commission Splitting
 
@@ -143,7 +141,7 @@ class CommissionSplitter(bt.CommissionInfo):
 # Split commission if multiple strategies involved
         return comm / len(self.p.strategies) if self.p.strategies else comm
 
-```bash
+```
 
 ## Results Aggregation
 
@@ -184,7 +182,7 @@ cerebro.addanalyzer(PortfolioAnalyzer, _name='portfolio')
 results = cerebro.run()
 portfolio_analysis = results[0].analyzers.portfolio.get_analysis()
 
-```bash
+```
 
 ### Multi-Strategy Comparison
 
@@ -219,7 +217,7 @@ def compare_strategies(strategies, data_path):
 
     return results_summary
 
-```bash
+```
 
 ## Strategy Correlation Analysis
 
@@ -256,7 +254,7 @@ strategies = [MomentumStrategy, MeanReversionStrategy, BreakoutStrategy]
 corr_matrix = calculate_strategy_correlations(strategies, 'data.csv')
 print(corr_matrix)
 
-```bash
+```
 
 ### Low-Correlation Portfolio
 
@@ -298,7 +296,7 @@ class LowCorrelationSelector(bt.Strategy):
 
         return selected[:self.p.max_strategies]
 
-```bash
+```
 
 ## Parallel Execution
 
@@ -341,7 +339,7 @@ def parallel_optimize(strat_class, data_path, param_grid, n_workers=4):
     results.sort(key=lambda x: x['sharpe'], reverse=True)
     return results
 
-```bash
+```
 
 ### Independent Strategy Execution
 
@@ -368,7 +366,7 @@ def run_strategies_independent(strategies_config):
 
     return results
 
-```bash
+```
 
 ## Risk Management Across Strategies
 
@@ -412,7 +410,7 @@ class PortfolioStopLoss(bt.Strategy):
         """Override in subclass."""
         pass
 
-```bash
+```
 
 ### Position-Level Risk Controls
 
@@ -440,7 +438,7 @@ class MultiStrategyPositionSizer(bt.Sizer):
         price = data.close[0]
         return int(max_size / price) if price > 0 else 0
 
-```bash
+```
 
 ## Complete Example
 
@@ -664,7 +662,7 @@ if __name__ == '__main__':
 # Run the portfolio
     results = run_multi_strategy_portfolio('data.csv')
 
-```bash
+```
 
 ## Best Practices
 

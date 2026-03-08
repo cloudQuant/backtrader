@@ -1,10 +1,8 @@
-- --
-
+---
 title: Filter API
 description: Filter 类完整 API 参考
 
-- --
-
+---
 # Filter API
 
 `Filter` 类是 Backtrader 中数据过滤的基类。Filter 可以应用于数据源，用于修改或过滤 K 线数据，支持日历日填充、交易时段过滤、自定义数据转换等功能。
@@ -15,7 +13,7 @@ description: Filter 类完整 API 参考
 class backtrader.Filter:
     """数据过滤器基类。"""
 
-```bash
+```
 
 ## 核心 Filter
 
@@ -27,7 +25,7 @@ class backtrader.Filter:
 class Filter(ParameterizedBase):
     """数据过滤器基类。"""
 
-```bash
+```
 
 ### 生命周期方法
 
@@ -39,7 +37,7 @@ class Filter(ParameterizedBase):
 def __init__(self, data, **kwargs):
     super().__init__(**kwargs)
 
-```bash
+```
 
 - *参数**:
 - `data`: 要过滤的数据源
@@ -53,7 +51,7 @@ def __init__(self, data, **kwargs):
 def nextstart(self, data):
     pass
 
-```bash
+```
 
 #### `next(self, data)`
 
@@ -63,7 +61,7 @@ def nextstart(self, data):
 def next(self, data):
     pass
 
-```bash
+```
 
 ## 内置 Filter
 
@@ -75,7 +73,7 @@ def next(self, data):
 class CalendarDays(ParameterizedBase):
     """日历日填充过滤器。"""
 
-```bash
+```
 
 - *参数**:
 
@@ -105,7 +103,7 @@ data.addfilter(bt.filters.CalendarDays(fill_price=None))
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 
-```bash
+```
 
 - *填充逻辑**:
 - 检测 K 线之间超过 1 天的间隔
@@ -120,7 +118,7 @@ cerebro.adddata(data)
 class SessionFiller(ParameterizedBase):
     """交易时段 K 线填充过滤器。"""
 
-```bash
+```
 
 - *参数**:
 
@@ -152,7 +150,7 @@ data = bt.feeds.GenericCSVData(
 
 data.addfilter(bt.filters.SessionFiller())
 
-```bash
+```
 
 ### SessionFilter / SessionFilterSimple
 
@@ -165,7 +163,7 @@ class SessionFilter(ParameterizedBase):
 class SessionFilterSimple(ParameterizedBase):
     """简单交易时段过滤器。"""
 
-```bash
+```
 
 - *使用示例**:
 
@@ -187,7 +185,7 @@ data.addfilter_simple(bt.filters.SessionFilterSimple())
 
 data.addfilter(bt.filters.SessionFilter())
 
-```bash
+```
 
 - *过滤逻辑**:
 - 保留 `sessionstart` 到 `sessionend` 之间的 K 线
@@ -201,7 +199,7 @@ data.addfilter(bt.filters.SessionFilter())
 class DataFilter(AbstractDataBase):
     """函数式数据过滤器。"""
 
-```bash
+```
 
 - *参数**:
 
@@ -226,7 +224,7 @@ def my_filter(data):
 data = bt.feeds.GenericCSVData(dataname='data.csv')
 data.addfilter(bt.filters.DataFilter(funcfilter=my_filter))
 
-```bash
+```
 
 - *过滤函数签名**:
 - 输入: `data` - 数据源对象
@@ -240,7 +238,7 @@ data.addfilter(bt.filters.DataFilter(funcfilter=my_filter))
 class DataFiller(AbstractDataBase):
     """数据缺口填充器。"""
 
-```bash
+```
 
 - *参数**:
 
@@ -268,7 +266,7 @@ data = bt.feeds.GenericCSVData(
 
 data.addfilter(bt.filters.DataFiller(fill_price=None))
 
-```bash
+```
 
 ### HeikinAshi
 
@@ -278,7 +276,7 @@ data.addfilter(bt.filters.DataFiller(fill_price=None))
 class HeikinAshi:
     """Heikin Ashi K 线过滤器。"""
 
-```bash
+```
 
 - *计算公式**:
 - HA Close = (Open + High + Low + Close) / 4
@@ -292,7 +290,7 @@ class HeikinAshi:
 data = bt.feeds.GenericCSVData(dataname='data.csv')
 data.addfilter(bt.filters.HeikinAshi())
 
-```bash
+```
 
 ### Renko
 
@@ -302,7 +300,7 @@ data.addfilter(bt.filters.HeikinAshi())
 class Renko(Filter):
     """Renko 砖形图过滤器。"""
 
-```bash
+```
 
 - *参数**:
 
@@ -335,7 +333,7 @@ data.addfilter(bt.filters.Renko(size=10))
 
 data.addfilter(bt.filters.Renko(autosize=50))
 
-```bash
+```
 
 ### DaySplitterClose
 
@@ -345,7 +343,7 @@ data.addfilter(bt.filters.Renko(autosize=50))
 class DaySplitterClose(ParameterizedBase):
     """日线拆分过滤器。"""
 
-```bash
+```
 
 - *参数**:
 
@@ -365,7 +363,7 @@ data.addfilter(bt.filters.DaySplitterClose(closevol=0.5))
 
 cerebro.replaydata(data, timeframe=bt.TimeFrame.Minutes)
 
-```bash
+```
 
 - *拆分逻辑**:
 - 第一部分 OHLX: 开盘时间，Close = (Open + High + Low) / 3
@@ -379,7 +377,7 @@ cerebro.replaydata(data, timeframe=bt.TimeFrame.Minutes)
 class BarReplayerOpen:
     """K 线开盘拆分过滤器。"""
 
-```bash
+```
 
 - *使用示例**:
 
@@ -387,7 +385,7 @@ class BarReplayerOpen:
 data = bt.feeds.GenericCSVData(dataname='data.csv')
 data.addfilter(bt.filters.BarReplayerOpen())
 
-```bash
+```
 
 ## 与数据源集成
 
@@ -402,7 +400,7 @@ data.addfilter(bt.filters.BarReplayerOpen())
 def addfilter(self, p, *args, **kwargs):
     """添加过滤器到数据源。"""
 
-```bash
+```
 
 - *参数**:
 - `p`: 过滤器类或实例
@@ -425,7 +423,7 @@ data.addfilter(bt.filters.CalendarDays(fill_price=None))
 
 data.addfilter_simple(bt.filters.SessionFilterSimple())
 
-```bash
+```
 
 ### 应用多个过滤器
 
@@ -440,7 +438,7 @@ data.addfilter(bt.filters.SessionFiller())             # 填充时段内缺口
 
 data.addfilter(bt.filters.HeikinAshi())                # 转换为 Heikin Ashi
 
-```bash
+```
 
 ## 自定义 Filter 开发
 
@@ -466,7 +464,7 @@ class MondayFilter:
 
 data.addfilter_simple(MondayFilter)
 
-```bash
+```
 
 ### 高级过滤器
 
@@ -504,7 +502,7 @@ class PriceRangeFilter(bt.Filter):
 
 data.addfilter(PriceRangeFilter, min_price=50, max_price=500)
 
-```bash
+```
 
 ### 带状态的过滤器
 
@@ -543,7 +541,7 @@ class VolumeSpikeFilter(bt.Filter):
 
 data.addfilter(VolumeSpikeFilter, threshold=3.0, period=30)
 
-```bash
+```
 
 ## Filter 生命周期
 
@@ -555,7 +553,7 @@ stateDiagram-v2
     next --> next: 处理 K 线
     next --> [*]: 数据处理结束
 
-```bash
+```
 
 ## 常见使用场景
 
@@ -576,7 +574,7 @@ data = bt.feeds.GenericCSVData(
 
 data.addfilter_simple(bt.filters.SessionFilterSimple())
 
-```bash
+```
 
 ### 场景 2: 填充缺失数据并转换 K 线类型
 
@@ -591,7 +589,7 @@ data = bt.feeds.GenericCSVData(
 data.addfilter(bt.filters.SessionFiller(fill_price=None))
 data.addfilter(bt.filters.HeikinAshi())
 
-```bash
+```
 
 ### 场景 3: 日线数据回放为分钟线
 
@@ -609,7 +607,7 @@ data.addfilter(bt.filters.DaySplitterClose(closevol=0.5))
 
 cerebro.replaydata(data, timeframe=bt.TimeFrame.Minutes)
 
-```bash
+```
 
 ### 场景 4: 过滤低成交量 K 线
 
@@ -625,7 +623,7 @@ class LowVolumeFilter:
 
 data.addfilter_simple(LowVolumeFilter, min_volume=5000)
 
-```bash
+```
 
 ## 注意事项
 

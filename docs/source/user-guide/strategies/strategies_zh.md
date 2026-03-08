@@ -1,10 +1,8 @@
-- --
-
+---
 title: 交易策略
 description: 构建有效的交易策略
 
-- --
-
+---
 # 交易策略
 
 策略包含您的交易逻辑和决策规则。本指南涵盖策略开发模式和最佳实践。
@@ -44,7 +42,7 @@ class MyStrategy(bt.Strategy):
 # 您的交易逻辑
         pass
 
-```bash
+```
 
 ## 订单管理
 
@@ -69,7 +67,7 @@ class MyStrategy(bt.Strategy):
 # 买入可用资金的百分比
         self.buy(size=0.5)  # 50% 的资金
 
-```bash
+```
 
 ### 限价单
 
@@ -89,7 +87,7 @@ class MyStrategy(bt.Strategy):
 # 止损限价单
         order = self.sell(stop=95.0, limit=94.5)
 
-```bash
+```
 
 ### 订单跟踪
 
@@ -120,7 +118,7 @@ class MyStrategy(bt.Strategy):
 
         self.order = None  # 重置订单引用
 
-```bash
+```
 
 ## 交易通知
 
@@ -134,7 +132,7 @@ class MyStrategy(bt.Strategy):
         self.log(f'交易盈亏: {trade.pnl:.2f}, '
                 f'佣金: {trade.commission:.2f}')
 
-```bash
+```
 
 ## 持仓管理
 
@@ -150,7 +148,7 @@ class MyStrategy(bt.Strategy):
         else:
             self.log('无持仓')
 
-```bash
+```
 
 ### 仓位管理
 
@@ -164,7 +162,7 @@ class MyStrategy(bt.Strategy):
 # 买入组合价值的 10%
         self.buy(size=self.broker.getcash() *0.1 / self.data.close[0])
 
-```bash
+```
 
 ## 止损和止盈
 
@@ -193,7 +191,7 @@ class MyStrategy(bt.Strategy):
             elif current_price >= take_profit:
                 self.sell()  # 止盈
 
-```bash
+```
 
 ## 多策略
 
@@ -209,7 +207,7 @@ cerebro.addstrategy(Strategy3, period=30)
 
 # 每个策略独立运行
 
-```bash
+```
 
 ## 基于时间的交易
 
@@ -236,7 +234,7 @@ class MyStrategy(bt.Strategy):
 # 交易逻辑
         self.buy()
 
-```bash
+```
 
 ## 策略日志
 
@@ -255,7 +253,7 @@ class MyStrategy(bt.Strategy):
     def notify_order(self, order):
         self.log(f'订单状态: {order.getstatusname()}')
 
-```bash
+```
 
 ## 策略参数优化
 
@@ -279,7 +277,7 @@ results = cerebro.run(maxcpu=1)  # 使用 1 个 CPU 核心
 best_result = results[0]
 print(f'最佳参数: {best_result.params._getitems()}')
 
-```bash
+```
 
 ## 常见策略模式
 
@@ -303,7 +301,7 @@ class TrendFollowing(bt.Strategy):
         elif self.crossover < 0:
             self.sell()  # 下降趋势开始
 
-```bash
+```
 
 ### 均值回归
 
@@ -326,7 +324,7 @@ class MeanReversion(bt.Strategy):
         elif self.data.close[0] > self.upper_band[0]:
             self.sell()  # 价格过高, 卖出
 
-```bash
+```
 
 ### 突破
 
@@ -347,7 +345,7 @@ class Breakout(bt.Strategy):
         elif self.data.close[0] < self.low_band[-1]:
             self.sell()  # 向下突破
 
-```bash
+```
 
 ## 下一步学习
 

@@ -1,10 +1,8 @@
-- --
-
+---
 title: Analyzer API
 description: Complete Analyzer class API reference
 
-- --
-
+---
 # Analyzer API
 
 The `Analyzer` class is the base class for all performance analysis tools in Backtrader. Analyzers calculate and report strategy metrics including returns, drawdowns, Sharpe ratio, trade statistics, and more.
@@ -15,7 +13,7 @@ The `Analyzer` class is the base class for all performance analysis tools in Bac
 class backtrader.Analyzer:
     """Base class for all analyzers."""
 
-```bash
+```
 
 ## Parameters
 
@@ -30,7 +28,7 @@ class MyAnalyzer(bt.Analyzer):
         ('threshold', 1.5),
     )
 
-```bash
+```
 Access parameters via `self.p.parameter_name` or `self.params.parameter_name`.
 
 ## Core Methods
@@ -45,7 +43,7 @@ def __init__(self):
     self.trades = []
     self.total_pnl = 0.0
 
-```bash
+```
 
 ### `start(self)`
 
@@ -56,7 +54,7 @@ def start(self):
     self.initial_cash = self.broker.getcash()
     self.start_value = self.broker.getvalue()
 
-```bash
+```
 
 ### `prenext(self)`
 
@@ -75,7 +73,7 @@ def next(self):
     current_value = self.broker.getvalue()
     self.values.append(current_value)
 
-```bash
+```
 
 ### `stop(self)`
 
@@ -86,7 +84,7 @@ def stop(self):
     total_return = (self.broker.getvalue() / self.start_value) - 1
     self.rets['total_return'] = total_return
 
-```bash
+```
 
 ## Notification Methods
 
@@ -102,7 +100,7 @@ def notify_trade(self, trade):
             'commission': trade.commission,
         })
 
-```bash
+```
 
 - *Trade Attributes**:
 
@@ -137,7 +135,7 @@ def notify_order(self, order):
             'size': order.executed.size,
         })
 
-```bash
+```
 
 - *Order Status Values**:
 
@@ -172,7 +170,7 @@ def notify_cashvalue(self, cash, value):
         'value': value,
     })
 
-```bash
+```
 
 ### `notify_fund(self, cash, value, fundvalue, shares)`
 
@@ -185,7 +183,7 @@ def notify_fund(self, cash, value, fundvalue, shares):
         'shares': shares,
     })
 
-```bash
+```
 
 ## Result Methods
 
@@ -199,7 +197,7 @@ def create_analysis(self):
     self.rets['total_trades'] = 0
     self.rets['winning_trades'] = 0
 
-```bash
+```
 
 ### `get_analysis(self)`
 
@@ -209,7 +207,7 @@ Return the analysis results. Override to return custom format.
 def get_analysis(self):
     return self.rets
 
-```bash
+```
 
 ### `print(self)`
 
@@ -218,7 +216,7 @@ Print analysis results via standard print.
 ```python
 analyzer.print()  # Equivalent to print(analyzer.get_analysis())
 
-```bash
+```
 
 ### `pprint(self)`
 
@@ -227,7 +225,7 @@ Pretty print analysis results.
 ```python
 analyzer.pprint()  # Formatted output
 
-```bash
+```
 
 ## Built-in Analyzers
 
@@ -239,7 +237,7 @@ Calculates the Sharpe ratio using a risk-free rate.
 cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
                     riskfreerate=0.01, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 | Parameter | Default | Description |
 
@@ -264,7 +262,7 @@ cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
 ```python
 {'sharperatio': 1.23}
 
-```bash
+```
 
 ### SharpeRatio_Annual
 
@@ -273,7 +271,7 @@ Annualized Sharpe ratio (same as SharpeRatio with `annualize=True`).
 ```python
 cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='sharpe')
 
-```bash
+```
 
 ### DrawDown
 
@@ -282,7 +280,7 @@ Calculates drawdown statistics.
 ```python
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-```bash
+```
 
 | Parameter | Default | Description |
 
@@ -304,7 +302,7 @@ cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     }
 }
 
-```bash
+```
 
 ### TimeDrawDown
 
@@ -314,7 +312,7 @@ Time-frame based drawdown analyzer.
 cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='dd',
                     timeframe=bt.TimeFrame.Months)
 
-```bash
+```
 
 - *Output**:
 
@@ -324,7 +322,7 @@ cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='dd',
     'maxdrawdownperiod': 30,
 }
 
-```bash
+```
 
 ### Returns
 
@@ -334,7 +332,7 @@ Total, average, compound and annualized returns.
 cerebro.addanalyzer(bt.analyzers.Returns, _name='returns',
                     timeframe=bt.TimeFrame.Years, tann=252)
 
-```bash
+```
 
 | Parameter | Default | Description |
 
@@ -357,7 +355,7 @@ cerebro.addanalyzer(bt.analyzers.Returns, _name='returns',
 
 }
 
-```bash
+```
 
 ### AnnualReturn
 
@@ -366,7 +364,7 @@ Year-by-year returns.
 ```python
 cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
 
-```bash
+```
 
 - *Output**:
 
@@ -377,7 +375,7 @@ cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
     2022: -0.08,
 }
 
-```bash
+```
 
 ### TradeAnalyzer
 
@@ -386,7 +384,7 @@ Detailed trade statistics.
 ```python
 cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
 
-```bash
+```
 
 - *Output**:
 
@@ -429,7 +427,7 @@ cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
     }
 }
 
-```bash
+```
 
 ### SQN
 
@@ -438,7 +436,7 @@ System Quality Number (Van K. Tharp).
 ```python
 cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 
-```bash
+```
 
 - *SQN Scale**:
 - 1.6 - 1.9: Below average
@@ -456,7 +454,7 @@ cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
     'trades': 50,
 }
 
-```bash
+```
 
 ### Calmar
 
@@ -466,7 +464,7 @@ Calmar ratio (annual return / maximum drawdown).
 cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
                     timeframe=bt.TimeFrame.Months, period=36)
 
-```bash
+```
 
 | Parameter | Default | Description |
 
@@ -486,7 +484,7 @@ cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar',
     datetime(2022, 12, 31): 0.98,
 }
 
-```bash
+```
 
 ### Transactions
 
@@ -495,7 +493,7 @@ Transaction log for all executed orders.
 ```python
 cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
 
-```bash
+```
 
 - *Output**:
 
@@ -506,7 +504,7 @@ cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
     ],
 }
 
-```bash
+```
 
 ### TimeReturn
 
@@ -516,7 +514,7 @@ Time-weighted returns by period.
 cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='timeret',
                     timeframe=bt.TimeFrame.Months)
 
-```bash
+```
 
 - *Output**:
 
@@ -526,7 +524,7 @@ cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='timeret',
     datetime(2021, 2, 28): 0.0156,
 }
 
-```bash
+```
 
 ### Positions
 
@@ -535,7 +533,7 @@ Position analysis.
 ```python
 cerebro.addanalyzer(bt.analyzers.Positions, _name='pos')
 
-```bash
+```
 
 ### TotalValue
 
@@ -544,7 +542,7 @@ Total value tracking over time.
 ```python
 cerebro.addanalyzer(bt.analyzers.TotalValue, _name='tv')
 
-```bash
+```
 
 ### PyFolio
 
@@ -553,7 +551,7 @@ Integration with pyfolio library for advanced analytics.
 ```python
 cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
 
-```bash
+```
 
 ### Other Analyzers
 
@@ -578,7 +576,7 @@ class MyTimeFrameAnalyzer(bt.TimeFrameAnalyzerBase):
 # Called when timeframe period changes
         pass
 
-```bash
+```
 
 ## Integration with Cerebro
 
@@ -617,7 +615,7 @@ print('Max Drawdown:', strat.analyzers.drawdown.get_analysis()['max']['drawdown'
 print('Total Return:', strat.analyzers.returns.get_analysis()['rnorm100'])
 print('Total Trades:', strat.analyzers.ta.get_analysis()['total']['closed'])
 
-```bash
+```
 
 ## Custom Analyzer Example
 
@@ -647,7 +645,7 @@ class TradeCounter(bt.Analyzer):
         if self.rets['total'] > 0:
             self.rets['win_rate'] = self.rets['wins'] / self.rets['total']
 
-```bash
+```
 
 ### Win/Loss Ratio Analyzer
 
@@ -690,7 +688,7 @@ class WinLossRatio(bt.Analyzer):
         else:
             self.rets['win_loss_ratio'] = float('inf') if self.wins else 0
 
-```bash
+```
 
 ### Monthly Returns Analyzer
 
@@ -717,7 +715,7 @@ class MonthlyReturns(bt.TimeFrameAnalyzerBase):
     def get_analysis(self):
         return self.month_returns
 
-```bash
+```
 
 ### Hold Time Analyzer
 
@@ -747,7 +745,7 @@ class HoldTimeAnalyzer(bt.Analyzer):
             self.rets['max_hold_bars'] = 0
             self.rets['total_trades'] = 0
 
-```bash
+```
 
 ## Fund Mode
 
@@ -763,7 +761,7 @@ cerebro.broker.set_fundmode(True, fundstart=10000.0)
 
 cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd', fund=True)
 
-```bash
+```
 
 ## Analyzer Lifecycle
 
@@ -784,7 +782,7 @@ stateDiagram-v2
     stop --> get_analysis: Return results
     get_analysis --> [*]: Complete
 
-```bash
+```
 
 ## CSV Output
 
@@ -795,7 +793,7 @@ cerebro.run()
 
 # Results automatically saved to CSV if configured
 
-```bash
+```
 
 ## Best Practices
 

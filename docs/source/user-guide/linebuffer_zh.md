@@ -1,10 +1,8 @@
-- --
-
+---
 title: LineBuffer API 参考文档
 description: 完整的 LineBuffer 类 API 参考，循环缓冲区实现
 
-- --
-
+---
 # LineBuffer API 参考文档
 
 `LineBuffer` 是 Backtrader 中最核心的数据结构之一，实现了高效的时间序列数据循环缓冲区。它约 1950 行代码，为整个框架提供数据存储和访问的基础设施。
@@ -15,7 +13,7 @@ description: 完整的 LineBuffer 类 API 参考，循环缓冲区实现
 class backtrader.LineBuffer(LineSingle, LineRootMixin):
     """实现循环缓冲区的时间序列数据存储。"""
 
-```bash
+```
 LineBuffer 定义了一个类似 `array.array` 的接口，其中索引 0 始终指向当前活跃的值。这种设计使得在处理时间序列数据时，无需传递索引变量即可访问当前值。
 
 ### 核心特性
@@ -52,7 +50,7 @@ buffer.mode == LineBuffer.UnBounded  # True
 buffer.qbuffer(savemem=1, extrasize=0)
 buffer.mode == LineBuffer.QBuffer  # True
 
-```bash
+```
 
 ### 内存布局示意图
 
@@ -88,7 +86,7 @@ graph TD
     O --> P
     O --> Q
 
-```bash
+```
 
 ### 数据存储模型
 
@@ -106,7 +104,7 @@ class LineBuffer:
         self.extension = 0              # 扩展区
         self.mode = self.UnBounded      # 运行模式
 
-```bash
+```
 
 ## 核心属性
 
@@ -120,7 +118,7 @@ class LineBuffer:
 
 raw_data = line_buffer.array
 
-```bash
+```
 
 ### `_idx`
 
@@ -136,7 +134,7 @@ current_idx = line_buffer._idx
 
 line_buffer.set_idx(100)
 
-```bash
+```
 
 ### `lencount`
 
@@ -153,7 +151,7 @@ logical_len = len(line_buffer)  # 返回 lencount
 actual_len = len(line_buffer.array)
 logical_len = line_buffer.lencount
 
-```bash
+```
 
 ### `maxlen`
 
@@ -166,7 +164,7 @@ QBuffer 模式下的最大长度限制。
 line_buffer.qbuffer(savemem=1)
 line_buffer.maxlen  # 默认为 _minperiod 的值
 
-```bash
+```
 
 ### `extension`
 
@@ -179,7 +177,7 @@ line_buffer.maxlen  # 默认为 _minperiod 的值
 line_buffer.extend(size=5)
 line_buffer.extension  # 5
 
-```bash
+```
 
 ### `bindings`
 
@@ -196,7 +194,7 @@ line_buffer.addbinding(other_line)
 
 line_buffer[0] = 100.0  # other_line[0] 也会被设置为 100.0
 
-```bash
+```
 
 ## 数据操作方法
 
@@ -230,7 +228,7 @@ previous = buffer[-1]    # 前一个值
 
 five_back = buffer[-5]   # 5 个周期前的值
 
-```bash
+```
 
 - *性能优化**：此方法经过热路径优化，是整个框架中最频繁调用的方法之一。
 
@@ -252,7 +250,7 @@ buffer[-1] = 99.0
 
 buffer[1] = 101.0
 
-```bash
+```
 
 - *性能特性**：
 - 自动扩展数组以容纳索引
@@ -278,7 +276,7 @@ values = buffer.get(ago=-3, size=2)
 
 # 返回: [buffer[-4], buffer[-3]]
 
-```bash
+```
 
 ### `set(value, ago=0)` - 设置值（优化版）
 
@@ -290,7 +288,7 @@ values = buffer.get(ago=-3, size=2)
 
 buffer.set(100.0, ago=0)
 
-```bash
+```
 
 ## 缓冲区导航
 
@@ -301,7 +299,7 @@ buffer.set(100.0, ago=0)
 ```python
 buffer.home()  # _idx = -1, lencount = 0
 
-```bash
+```
 底层缓冲区保持不变，使用 `buflen()` 获取实际数据长度。
 
 ### `forward(value=NaN, size=1)` - 向前移动
@@ -322,7 +320,7 @@ buffer.forward(value=0.0)
 
 buffer.forward(size=5)
 
-```bash
+```
 
 - *行为特性**：
 - 指标线条使用 NaN 填充
@@ -348,7 +346,7 @@ buffer.backwards(size=5)
 
 buffer.backwards(size=1, force=True)
 
-```bash
+```
 
 ### `advance(size=1)` - 前进逻辑索引
 
@@ -362,7 +360,7 @@ buffer.advance()
 buffer._idx += 1
 buffer.lencount += 1
 
-```bash
+```
 
 ### `rewind(size=1)` - 回退逻辑索引
 
@@ -376,7 +374,7 @@ buffer.rewind()
 buffer._idx -= 1
 buffer.lencount -= 1
 
-```bash
+```
 
 ## 内存管理
 
@@ -404,7 +402,7 @@ buffer.qbuffer(savemem=1, extrasize=0)
 
 # lenmark = maxlen - (not extrasize)
 
-```bash
+```
 
 - *内存效果**：
 
@@ -426,7 +424,7 @@ buffer.qbuffer(savemem=1, extrasize=0)
 
 # 节省: ~97% 内存
 
-```bash
+```
 
 ### `minbuffer(size)` - 确保最小缓冲区大小
 
@@ -442,7 +440,7 @@ buffer.minbuffer(100)
 
 # buffer.maxlen = 100
 
-```bash
+```
 
 ### `extend(value=float('nan'), size=0)` - 扩展缓冲区
 
@@ -459,7 +457,7 @@ buffer.extension  # 5
 
 buffer.extend(value=0.0, size=3)
 
-```bash
+```
 
 ## 缓冲区信息
 
@@ -472,7 +470,7 @@ logical_len = len(buffer)
 
 # 等价于: buffer.lencount
 
-```bash
+```
 
 - *性能优化**：直接返回 `lencount`，避免复杂计算。
 
@@ -494,7 +492,7 @@ len(buffer)      # 逻辑长度（已处理的数据点）
 
 buffer.buflen()  # 物理容量（实际存储的数据量）
 
-```bash
+```
 
 ## 线条绑定
 
@@ -518,7 +516,7 @@ source.addbinding(target)
 source[0] = 100.0
 print(target[0])  # 100.0
 
-```bash
+```
 
 - *应用场景**：
 - 指标输出线条绑定到策略访问
@@ -539,7 +537,7 @@ line.bind2lines(0)  # 绑定到第 0 条线
 
 line.bind2lines('close')  # 绑定到名为 'close' 的线条
 
-```bash
+```
 
 ## exactbars 参数效果
 
@@ -566,7 +564,7 @@ cerebro.run(exactbars=-1)     # 同 True
 
 cerebro.run(exactbars=-2)     # 最小内存模式
 
-```bash
+```
 
 ### 内存对比表
 
@@ -590,7 +588,7 @@ cerebro.run(exactbars=-2)     # 最小内存模式
 
 # exactbars=-2:    ~1 × 8 字节 × 线条数
 
-```bash
+```
 
 ## 性能优化技术
 
@@ -604,7 +602,7 @@ self._is_datetime_line = "datetime" in str(self._name).lower()
 self._is_indicator = self._ltype == 0
 self._default_value = float("nan") if self._is_indicator else 0.0
 
-```bash
+```
 
 ### 2. 快速 NaN 检测
 
@@ -615,7 +613,7 @@ self._default_value = float("nan") if self._is_indicator else 0.0
 if value != value:  # NaN 检测
     value = self._default_value
 
-```bash
+```
 
 ### 3. 属性直接访问
 
@@ -629,7 +627,7 @@ self._size = 0
 
 # ... 所有属性在 __init__ 中初始化
 
-```bash
+```
 
 ### 4. 批量数组扩展
 
@@ -645,7 +643,7 @@ self.array.extend([value] *size)  # 一次性
 
 # self.array.append(value)
 
-```bash
+```
 
 ### 5. 缓存优化
 
@@ -661,7 +659,7 @@ if ago == 0 and tz is None and naive:
         self._dt_cache_value == value):
         return self._dt_cache_dt  # 缓存命中
 
-```bash
+```
 
 ### 性能对比
 
@@ -701,7 +699,7 @@ dt = buffer.datetime(tz=pytz.UTC)
 
 dt = buffer.datetime(naive=True)
 
-```bash
+```
 
 ### `date(ago=0)` - 获取日期
 
@@ -712,7 +710,7 @@ date_obj = buffer.date()
 
 # 返回: datetime.date 对象
 
-```bash
+```
 
 ### `time(ago=0)` - 获取时间
 
@@ -723,7 +721,7 @@ time_obj = buffer.time()
 
 # 返回: datetime.time 对象
 
-```bash
+```
 
 ### 便捷方法
 
@@ -743,7 +741,7 @@ tm = buffer.tm()
 
 tm_raw = buffer.tm_raw()
 
-```bash
+```
 
 ### 时间比较方法
 
@@ -761,7 +759,7 @@ buffer.tm_gt(other, ago=0)  # 大于
 
 buffer.tm_ge(other, ago=0)  # 大于等于
 
-```bash
+```
 
 ## 子类
 
@@ -775,7 +773,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
     _ltype = LineRoot.IndType  # 指标类型
     plotlines = object()        # 绘图配置
 
-```bash
+```
 
 ### LinesOperation / LineOwnOperation
 
@@ -791,7 +789,7 @@ result = LinesOperation(line1, line2, operator.sub)
 
 result = LineOwnOperation(line, operator.neg)
 
-```bash
+```
 
 ### _LineDelay / _LineForward
 
@@ -807,7 +805,7 @@ delayed = LineDelay(line, ago=-10)  # 10 个周期前的值
 
 forward = LineForward(line, ago=5)   # 5 个周期后的值
 
-```bash
+```
 
 ### PseudoArray
 
@@ -823,7 +821,7 @@ pseudo = PseudoArray(itertools.repeat(1.0))
 
 pseudo = PseudoArray([1, 2, 3, 4, 5])
 
-```bash
+```
 
 ## 缓冲区操作示例
 
@@ -854,7 +852,7 @@ print(buffer[-1])  # 80.0 (前一个值)
 
 print(buffer[-5])  # 50.0 (5 个周期前)
 
-```bash
+```
 
 ### QBuffer 模式
 
@@ -877,7 +875,7 @@ print(len(buffer))      # 100 (逻辑长度)
 
 print(buffer.maxlen)    # 实际存储的限制
 
-```bash
+```
 
 ### 线条绑定
 
@@ -902,7 +900,7 @@ source[0] = 100.0
 
 print(target[0])  # 100.0 (自动同步)
 
-```bash
+```
 
 ### 使用 extend 进行前瞻
 
@@ -923,7 +921,7 @@ buffer[2] = 120.0
 buffer.forward()
 print(buffer[0])  # 110.0
 
-```bash
+```
 
 ## 常见用例
 
@@ -943,7 +941,7 @@ class MyIndicator(bt.Indicator):
 # 设置输出值
         self.lines.output[0] = self.calculate()
 
-```bash
+```
 
 ### 数据访问
 
@@ -963,7 +961,7 @@ class MyStrategy(bt.Strategy):
 # 获取多个值
         prices = close.get(ago=0, size=5)
 
-```bash
+```
 
 ### 内存优化
 
@@ -985,7 +983,7 @@ cerebro.run(runonce=True)  # 预加载所有数据
 
 # 然后线条会使用 qbuffer 模式
 
-```bash
+```
 
 ## 注意事项
 

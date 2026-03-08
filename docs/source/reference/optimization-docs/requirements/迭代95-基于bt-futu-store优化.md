@@ -29,8 +29,7 @@ bt-futu-store 是富途证券与 backtrader 的集成 Store，具有以下核心
 5. **数据订阅**: 实时数据订阅
 6. **账户集成**: 账户信息集成
 
-- --
-
+---
 # Backtrader 优化需求文档 - 基于 bt-futu-store
 
 ## 1. 项目对比分析
@@ -67,7 +66,7 @@ Cerebro → Broker → Store → ExchangeAPI
                 ↓
              Feed → Store → MarketAPI
 
-```bash
+```
 
 #### 1.2.2 多市场框架
 
@@ -83,7 +82,7 @@ class FutuStore:
 
 # ... 统一接口，不同实现
 
-```bash
+```
 
 #### 1.2.3 事件处理器模式
 
@@ -103,7 +102,7 @@ class FutuTradeDealHandler(ft.TradeDealHandlerBase):
 
 # ... 处理成交信息
 
-```bash
+```
 
 #### 1.2.4 完整的订单类型支持
 
@@ -118,7 +117,7 @@ elif order.exectype == bt.Order.Limit:
 
 # Stop, StopLimit, StopTrail 等
 
-```bash
+```
 
 #### 1.2.5 Bracket 订单支持
 
@@ -131,10 +130,9 @@ if stopside is not None:
 if takeside is not None:
     okwargs['takeProfitOnFill'] = v20.transaction.TakeProfitDetails(...)
 
-```bash
+```
 
-- --
-
+---
 ## 2. 需求文档
 
 ### 2.1 功能需求
@@ -258,8 +256,7 @@ if takeside is not None:
 - 支持 Python 3.7+
 - 向后兼容现有策略
 
-- --
-
+---
 ## 3. 设计文档
 
 ### 3.1 架构设计
@@ -300,7 +297,7 @@ backtrader/
 └── feeds/
     └── storefeed.py         # Store 通用 Feed
 
-```bash
+```
 
 ### 3.2 类设计
 
@@ -672,7 +669,7 @@ class BaseStore(ParameterizedSingletonMixin, ABC):
         """是否已认证"""
         return self._authenticated
 
-```bash
+```
 
 #### 3.2.2 富途 Store 实现
 
@@ -1142,7 +1139,7 @@ class FutuStore(BaseStore):
 # 简化实现，实际应该查询合约信息
         return 2
 
-```bash
+```
 
 #### 3.2.3 Store 通用 Broker
 
@@ -1373,7 +1370,7 @@ class StoreCommInfo(CommInfoBase):
         else:
             return abs(size)*self.p.commission* self.p.mult
 
-```bash
+```
 
 #### 3.2.4 Store 通用 Feed
 
@@ -1552,7 +1549,7 @@ class StoreFeed(DataBase):
         """是否为实时数据"""
         return True
 
-```bash
+```
 
 ### 3.3 使用示例
 
@@ -1656,7 +1653,7 @@ result = cerebro.run()
 
 print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
 
-```bash
+```
 
 ### 3.4 扩展其他 Store
 
@@ -1693,10 +1690,9 @@ class XueqiuStore(BaseStore):
 
 # ... 实现其他抽象方法
 
-```bash
+```
 
-- --
-
+---
 ## 4. 实施计划
 
 ### 阶段 1: 基础架构 (优先级: 高)
@@ -1733,8 +1729,7 @@ class XueqiuStore(BaseStore):
 3. 性能优化
 4. 错误处理完善
 
-- --
-
+---
 ## 5. 测试策略
 
 ### 5.1 单元测试
@@ -1755,8 +1750,7 @@ class XueqiuStore(BaseStore):
 - 订单执行测试
 - 异常恢复测试
 
-- --
-
+---
 ## 6. 风险与对策
 
 | 风险 | 影响 | 对策 |
@@ -1773,8 +1767,7 @@ class XueqiuStore(BaseStore):
 
 | 兼容性 | 低 | 充分测试+版本管理 |
 
-- --
-
+---
 ## 7. 总结
 
 通过借鉴 bt-futu-store 的设计，backtrader 可以实现:

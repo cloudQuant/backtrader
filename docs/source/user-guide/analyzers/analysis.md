@@ -26,7 +26,7 @@ print(f'年化收益率: {strat.analyzers.returns.get_analysis()["rnorm"]:.2%}')
 print(f'夏普比率: {strat.analyzers.sharpe.get_analysis()["sharperatio"]:.2f}')
 print(f'最大回撤: {strat.analyzers.drawdown.get_analysis()["max"]["drawdown"]:.2%}')
 
-```bash
+```
 
 ### 2. 交易统计
 
@@ -49,7 +49,7 @@ print(f'胜率: {trade_analysis.won.total/trade_analysis.total.total:.2%}')
 print(f'平均盈利: {trade_analysis.won.pnl.average:.2f}')
 print(f'平均亏损: {trade_analysis.lost.pnl.average:.2f}')
 
-```bash
+```
 
 ### 3. 时间序列分析
 
@@ -72,7 +72,7 @@ time_returns.cumsum().plot()
 plt.title('累计收益率')
 plt.show()
 
-```bash
+```
 
 ## 自定义分析器
 
@@ -103,7 +103,7 @@ class CustomAnalyzer(bt.Analyzer):
             'returns': self.returns
         }
 
-```bash
+```
 
 ### 2. 风险分析器
 
@@ -152,7 +152,7 @@ class RiskAnalyzer(bt.Analyzer):
         downside_std = np.std(downside_returns)*np.sqrt(252)
         return (np.mean(excess_returns)*252) / downside_std
 
-```bash
+```
 
 ## 性能报告
 
@@ -204,7 +204,7 @@ class HTMLReporter:
 # 生成图表 HTML
         pass
 
-```bash
+```
 
 ### 2. 导出 Excel 报告
 
@@ -239,7 +239,7 @@ class ExcelReporter:
         })
         metrics.to_excel(writer, sheet_name='Performance', index=False)
 
-```bash
+```
 
 ## 可视化分析
 
@@ -270,7 +270,7 @@ def plot_returns(strategy_results):
     plt.tight_layout()
     plt.show()
 
-```bash
+```
 
 ### 2. 交易分析图表
 
@@ -294,7 +294,7 @@ def plot_trades(strategy_results):
     plt.tight_layout()
     plt.show()
 
-```bash
+```
 
 ## 风险管理
 
@@ -334,7 +334,7 @@ def calculate_max_drawdown(returns):
     drawdown = (cum_returns - running_max) / running_max
     return drawdown.min()
 
-```bash
+```
 
 ### 2. 风险监控
 
@@ -383,7 +383,7 @@ class RiskMonitor(bt.Analyzer):
         if metrics['var'] < -self.p.daily_var_limit:
             self.alerts.append(f'超过 VaR 限制: {metrics["var"]:.2%}')
 
-```bash
+```
 
 ## 最佳实践
 

@@ -6,8 +6,7 @@
 
 - *原因**: OKX 不提供 DOGS 永续合约，只有现货交易。
 
-- --
-
+---
 ## 最新改进
 
 ### 1. 历史数据加载修复
@@ -41,7 +40,7 @@
 - 持多时跌破下轨 → 平多
 - 触及止损 → 强制平仓
 
-```bash
+```
 
 ### 3. 详细的 Bar 信息输出（保留）
 
@@ -80,7 +79,7 @@ Trading Signals:
   >>> HOLD LONG (In position)
 ====================================================================================================
 
-```bash
+```
 
 ### 4. 手数取整（保留）
 
@@ -99,10 +98,9 @@ def calculate_order_size(self, price):
 
     return size
 
-```bash
+```
 
-- --
-
+---
 ## CCXTFeed 改进
 
 ### 新增参数
@@ -153,10 +151,9 @@ def start(self):
         self._state = self._ST_LIVE
         self.put_notification(self.LIVE)
 
-```bash
+```
 
-- --
-
+---
 ## 策略文件变更
 
 ### 文件: `examples/backtrader_ccxt_okx_dogs_bollinger.py`
@@ -186,7 +183,7 @@ data = store.getdata(
     ohlcv_limit=100,
 )
 
-```bash
+```
 
 - *策略类调整**:
 
@@ -202,7 +199,7 @@ self.short_stop_price = None  # 空仓止损价
 
 self.stop_price = None  # 止损价
 
-```bash
+```
 
 - *交易逻辑简化**:
 
@@ -230,10 +227,9 @@ self.stop_price = None  # 止损价
 
 # 3. 持多时跌破下轨 → 平多
 
-```bash
+```
 
-- --
-
+---
 ## 完整交易逻辑（现货）
 
 ### 多头策略
@@ -259,10 +255,9 @@ self.stop_price = None  # 止损价
    ├─ 触及止损 → 强制平仓
    └─ 记录交易盈亏
 
-```bash
+```
 
-- --
-
+---
 ## 测试脚本
 
 ### 文件: `test_dogs_data.py`
@@ -282,10 +277,9 @@ data = store.getdata(
     ohlcv_limit=100,
 )
 
-```bash
+```
 
-- --
-
+---
 ## 运行方法
 
 ### 步骤 1: 测试数据加载
@@ -293,7 +287,7 @@ data = store.getdata(
 ```bash
 python test_dogs_data.py
 
-```bash
+```
 
 - *预期输出**:
 
@@ -305,17 +299,16 @@ DOGS/USDT 现货数据加载测试
 数据收集完成，共 200 根 K 线
 [OK] 数据加载测试完成！
 
-```bash
+```
 
 ### 步骤 2: 运行策略
 
 ```bash
 python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
-```bash
+```
 
-- --
-
+---
 ## 策略参数说明
 
 ### 布林带参数
@@ -346,8 +339,7 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
 | order_size | 0.4 | 0.4-10.0 | 每次下单金额（USDT） |
 
-- --
-
+---
 ## 重要提示
 
 ### 1. 合约 vs 现货
@@ -384,8 +376,7 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 - 设置合理的止损
 - 不要过度交易
 
-- --
-
+---
 ## 文件更新总结
 
 - *主文件**: `examples/backtrader_ccxt_okx_dogs_bollinger.py`
@@ -411,8 +402,7 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 - ✓ 改用 DOGS/USDT 现货数据源
 - ✓ 更新参数配置
 
-- --
-
+---
 ## 总结
 
 所有改进已完成：
@@ -427,7 +417,6 @@ python examples/backtrader_ccxt_okx_dogs_bollinger.py
 
 - *现在可以运行策略了！** 🚀
 
-- --
-
+---
 - *更新时间**: 2026-01-20
 - *版本**: v3.0 - 现货做多版本

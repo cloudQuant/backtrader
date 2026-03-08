@@ -1,10 +1,8 @@
-- --
-
+---
 title: Developer Guide Index
 description: Guidelines for contributors
 
-- --
-
+---
 # Developer Guide
 
 Welcome to the Backtrader development guide. This section covers everything you need to contribute to the project.
@@ -51,7 +49,7 @@ flowchart LR
 
     H -->|Approved| I[Merge]
 
-```bash
+```
 
 ## Core Principles
 
@@ -73,7 +71,7 @@ def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
-```bash
+```
 
 ### 2. Initialization Order
 
@@ -92,7 +90,7 @@ class GoodStrategy(bt.Strategy):
         super().__init__()
         period = self.p.period
 
-```bash
+```
 
 ### 3. Specific Exception Handling
 
@@ -113,7 +111,7 @@ except (NetworkError, ExchangeError) as e:
     logger.error(f"Order failed: {e}")
     raise
 
-```bash
+```
 
 ## Adding Features
 
@@ -156,7 +154,7 @@ tests/
 
 └── strategies/         # Strategy-specific tests
 
-```bash
+```
 
 ### Test Markers
 

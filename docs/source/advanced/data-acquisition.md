@@ -1,10 +1,8 @@
-- --
-
+---
 title: Data Acquisition Guide
 description: Comprehensive guide for acquiring, cleaning, and storing market data for Backtrader
 
-- --
-
+---
 # Data Acquisition Guide
 
 Reliable data is the foundation of successful backtesting. This guide covers everything you need to know about acquiring, cleaning, storing, and validating market data for Backtrader.
@@ -34,7 +32,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 ### Pandas DataFrame Loading
 
@@ -52,7 +50,7 @@ data = bt.feeds.PandasData(dataname=df)
 
 cerebro.adddata(data)
 
-```bash
+```
 
 ## Exchange Data Interfaces
 
@@ -97,7 +95,7 @@ data_live = store.getdata(
     backfill_start=True
 )
 
-```bash
+```
 
 #### Binance Futures
 
@@ -119,7 +117,7 @@ data = store.getdata(
     compression=15
 )
 
-```bash
+```
 
 #### OKX Exchange
 
@@ -141,7 +139,7 @@ data = store.getdata(
     compression=5
 )
 
-```bash
+```
 
 #### Bybit Exchange
 
@@ -157,7 +155,7 @@ store = bt.stores.CCXTStore(
     }
 )
 
-```bash
+```
 
 ### Traditional Market Data
 
@@ -178,7 +176,7 @@ data = bt.feeds.YahooFinanceData(
 
 cerebro.adddata(data)
 
-```bash
+```
 
 #### Interactive Brokers
 
@@ -193,7 +191,7 @@ data = bt.feeds.IBData(
     historical=True
 )
 
-```bash
+```
 
 #### OANDA
 
@@ -214,7 +212,7 @@ data = store.getdata(
     compression=15
 )
 
-```bash
+```
 
 #### Quandl
 
@@ -228,7 +226,7 @@ data = bt.feeds.QuandlData(
     todate=datetime(2023, 12, 31)
 )
 
-```bash
+```
 
 ### Database Data Sources
 
@@ -249,7 +247,7 @@ data = bt.feeds.InfluxDB(
     timeframe=bt.TimeFrame.Minutes
 )
 
-```bash
+```
 
 ## Data Cleaning and Preprocessing
 
@@ -288,7 +286,7 @@ def clean_ohlcv_data(df):
 df = pd.read_csv('raw_data.csv', parse_dates=['datetime'])
 df_clean = clean_ohlcv_data(df)
 
-```bash
+```
 
 ### Timezone Handling
 
@@ -311,7 +309,7 @@ def standardize_timezone(df, timezone='UTC'):
 df = pd.read_csv('data.csv', parse_dates=['datetime'], index_col='datetime')
 df = standardize_timezone(df, 'UTC')
 
-```bash
+```
 
 ### Resampling Data
 
@@ -343,7 +341,7 @@ def resample_data(df, timeframe='15T'):
 
 df_15m = resample_data(df_tick, '15T')
 
-```bash
+```
 
 ### Outlier Detection
 
@@ -381,7 +379,7 @@ df_capped['close'] = np.where(
     df['close']
 )
 
-```bash
+```
 
 ## Data Storage Solutions
 
@@ -401,7 +399,7 @@ df.to_csv('market_data.csv', index=True)
 
 df = pd.read_csv('market_data.csv', parse_dates=['datetime'], index_col='datetime')
 
-```bash
+```
 
 ### Parquet Format
 
@@ -423,7 +421,7 @@ df = pd.read_parquet('market_data.parquet')
 
 data = bt.feeds.PandasData(dataname=df)
 
-```bash
+```
 
 ### HDF5 Format
 
@@ -445,7 +443,7 @@ df = pd.read_hdf('market_data.h5', key='data')
 
 df_new.to_hdf('market_data.h5', key='data', mode='a', append=True, format='table')
 
-```bash
+```
 
 ### Database Storage
 
@@ -465,7 +463,7 @@ df.to_sql('ohlcv', conn, if_exists='replace', index=True)
 df = pd.read_sql('SELECT *FROM ohlcv', conn, parse_dates=['datetime'], index_col='datetime')
 conn.close()
 
-```bash
+```
 
 #### PostgreSQL (Production)
 
@@ -482,7 +480,7 @@ df.to_sql('ohlcv', engine, if_exists='append', index=True)
 
 df = pd.read_sql('SELECT*FROM ohlcv WHERE symbol = "BTC/USDT"', engine, parse_dates=['datetime'], index_col='datetime')
 
-```bash
+```
 
 #### TimescaleDB (Time-series optimized)
 
@@ -503,7 +501,7 @@ with engine.connect() as conn:
 
 df.to_sql('ohlcv', engine, if_exists='append', index=True)
 
-```bash
+```
 
 ## Real-time Data Handling
 
@@ -545,7 +543,7 @@ cerebro.adddata(data)
 cerebro.addstrategy(LiveStrategy)
 cerebro.run()
 
-```bash
+```
 
 ### Live Data with Reconnection
 
@@ -568,7 +566,7 @@ class RobustLiveStrategy(bt.Strategy):
 # Your strategy logic here
             pass
 
-```bash
+```
 
 ### Multi-Symbol Live Data
 
@@ -597,7 +595,7 @@ for symbol in symbols:
 
 cerebro.run()
 
-```bash
+```
 
 ## Historical Data Backfill
 
@@ -640,7 +638,7 @@ end = datetime(2023, 12, 31)
 
 data = fetch_historical_data('BTC/USDT', start, end)
 
-```bash
+```
 
 ### Backfill with Storage
 
@@ -683,7 +681,7 @@ backfill_and_store(
     'data/btc_usdt_15m.parquet'
 )
 
-```bash
+```
 
 ## Data Quality Validation
 
@@ -754,7 +752,7 @@ if issues:
 else:
     print("Data validation passed!")
 
-```bash
+```
 
 ### Statistical Summary
 
@@ -796,7 +794,7 @@ report = data_quality_report(df)
 import json
 print(json.dumps(report, indent=2, default=str))
 
-```bash
+```
 
 ## Complete Examples
 
@@ -855,7 +853,7 @@ system.setup_broker(initial_cash=10000)
 system.add_strategy(MyStrategy)
 results = system.run()
 
-```bash
+```
 
 ### Example 2: Data Pipeline
 
@@ -947,7 +945,7 @@ pipeline.store(df_clean, 'BTC/USDT', '15m')
 df_loaded = pipeline.load('BTC/USDT', '15m')
 feed = pipeline.create_feed(df_loaded)
 
-```bash
+```
 
 ### Example 3: Multi-Source Data Aggregator
 
@@ -1015,7 +1013,7 @@ aggregator.add_exchange_source('binance', 'ETH/USDT', datetime(2023, 1, 1), date
 normalized = aggregator.normalize()
 merged = aggregator.merge(normalized)
 
-```bash
+```
 
 ## Best Practices
 

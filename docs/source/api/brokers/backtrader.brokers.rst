@@ -14,8 +14,3 @@ Submodules
 
    backtrader.brokers.bbroker
    backtrader.brokers.ccxtbroker
-   backtrader.brokers.cryptobroker
-   backtrader.brokers.ctpbroker
-   backtrader.brokers.ibbroker
-   backtrader.brokers.oandabroker
-   backtrader.brokers.vcbroker

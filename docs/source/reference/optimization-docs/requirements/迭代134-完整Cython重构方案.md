@@ -45,7 +45,7 @@
 │         共享 C 类型定义、内存视图、numpy 数组                     │
 └─────────────────────────────────────────────────────────────┘
 
-```bash
+```
 
 ### 2.2 核心设计原则
 
@@ -536,7 +536,7 @@ backtrader/
 │
 └── *.py                             # Python 接口层（导入 Cython 模块）
 
-```bash
+```
 
 ## 四、核心模块设计
 
@@ -564,7 +564,7 @@ _types.pxd (基础类型)
     ├── _feed.pyx (数据源)
     └── _mathops.pyx (数学运算)
 
-```bash
+```
 
 ## 五、实施计划 (完整 152 模块重构)
 
@@ -586,8 +586,7 @@ _types.pxd (基础类型)
 
 | 阶段 6 | 第 19-20 周 | - | 集成测试/性能优化/发布 |
 
-- --
-
+---
 ### 阶段 1: 基础设施 + Line 系统 (第 1-3 周, 15 个模块)
 
 #### 第 1 周: 类型定义与核心缓冲区
@@ -634,8 +633,7 @@ _types.pxd (基础类型)
 
 - *阶段 1 验收**: Line 系统基础测试全部通过
 
-- --
-
+---
 ### 阶段 2: 交易系统 + 数据系统 (第 4-6 周, 17 个模块)
 
 #### 第 4 周: 订单与持仓
@@ -682,8 +680,7 @@ _types.pxd (基础类型)
 
 - *阶段 2 验收**: 基础回测流程可运行
 
-- --
-
+---
 ### 阶段 3: 指标系统 (第 7-10 周, 49 个模块)
 
 #### 第 7 周: 指标基类与核心 MA (10 个)
@@ -788,8 +785,7 @@ _types.pxd (基础类型)
 
 - *阶段 3 验收**: 所有 49 个指标测试通过
 
-- --
-
+---
 ### 阶段 4: 分析器/观察者/策略 (第 11-14 周, 42 个模块)
 
 #### 第 11 周: 策略与引擎
@@ -862,8 +858,7 @@ _types.pxd (基础类型)
 
 - *阶段 4 验收**: 完整策略回测测试通过
 
-- --
-
+---
 ### 阶段 5: 数据源/经纪商/存储/过滤器 (第 15-18 周, 29 个模块)
 
 #### 第 15 周: 数据源 (10 个)
@@ -932,8 +927,7 @@ _types.pxd (基础类型)
 
 - *阶段 5 验收**: 所有 152 个模块编译通过
 
-- --
-
+---
 ### 阶段 6: 集成测试与发布 (第 19-20 周)
 
 #### 第 19 周: 集成测试
@@ -964,8 +958,7 @@ _types.pxd (基础类型)
 
 | 版本发布 | 1 天 | v2.0.0 |
 
-- --
-
+---
 ### 里程碑检查点
 
 | 里程碑 | 时间 | 交付物 | 验收标准 |
@@ -1022,7 +1015,7 @@ cdef enum OrderSide:
     BUY = 0
     SELL = 1
 
-```bash
+```
 
 ### 6.2 LineBuffer 核心 (_linebuffer.pyx)
 
@@ -1103,7 +1096,7 @@ cdef class CLineBuffer:
     cpdef double[:] get_view(self):
         return self._view[:self._size]
 
-```bash
+```
 
 ### 6.3 数学运算 (_mathops.pyx)
 
@@ -1177,7 +1170,7 @@ cpdef void crossover(double[:] dst, double[:] s1, double[:] s2,
     for i in range(start + 1, end):
         dst[i] = 1.0 if s1[i] > s2[i] and s1[i-1] <= s2[i-1] else 0.0
 
-```bash
+```
 
 ### 6.4 Python 接口层 (无回退)
 
@@ -1201,7 +1194,7 @@ class LineBuffer(CLineBuffer):
     def __repr__(self):
         return f"<LineBuffer len={len(self)} idx={self._idx}>"
 
-```bash
+```
 
 ```python
 
@@ -1240,7 +1233,7 @@ def _verify_cython():
 
 _verify_cython()
 
-```bash
+```
 
 ## 七、构建系统
 
@@ -1271,7 +1264,7 @@ setup(
     include_dirs=[np.get_include()],
 )
 
-```bash
+```
 
 ### 7.2 Makefile
 
@@ -1288,7 +1281,7 @@ test-pure:  # 纯 Python 测试
 clean:
     rm -rf build/*.so **/*.so
 
-```bash
+```
 
 ## 八、测试策略
 
@@ -1308,7 +1301,7 @@ pytest tests/ -v
 
 pytest tests/ --compare-results
 
-```bash
+```
 
 ### 8.2 性能基准
 
@@ -1330,7 +1323,7 @@ def test_getitem_benchmark(benchmark):
 
     benchmark(run)
 
-```bash
+```
 
 ## 九、风险与缓解
 
@@ -1378,8 +1371,7 @@ def test_getitem_benchmark(benchmark):
 
 | M6: 发布 | 第 12 周 | v2.0.0 发布 |
 
-- --
-
+---
 ## 附录: 详细代码模板
 
 详细的.pxd/.pyx 文件模板请参考 `docs/cython_templates/` 目录。

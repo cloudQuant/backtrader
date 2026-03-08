@@ -29,8 +29,7 @@ PersonalQuantSystem 是一个个人量化交易系统，具有以下核心特点
 5. **资金管理**: 资金管理模块
 6. **风控设计**: 个人风控设计
 
-- --
-
+---
 ## 研究分析
 
 ### PersonalQuantSystem 架构特点总结
@@ -50,7 +49,7 @@ PersonalQuantSystem 是一个个人量化交易系统，具有以下核心特点
     ├── 账户配置
     └── 风险控制配置
 
-```bash
+```
 
 - *核心特性**:
 - 单一配置文件(YAML)管理所有参数
@@ -69,7 +68,7 @@ TradingError (基类)
     ├── NetworkError (网络错误)
     └── OrderError (订单错误)
 
-```bash
+```
 
 - *核心特性**:
 - 自定义异常类体系
@@ -99,7 +98,7 @@ TradingError (基类)
 - 风险参数
 - 涨跌停限制
 
-```bash
+```
 
 #### 4. 模块化系统架构
 
@@ -119,7 +118,7 @@ PersonalQuantSystem/
 
 └── config.yaml       # 配置文件
 
-```bash
+```
 
 #### 5. 依赖注入模式
 
@@ -136,7 +135,7 @@ container.register('error_manager', error_manager)
 
 error_manager = container.get('error_manager')
 
-```bash
+```
 
 ### Backtrader 当前架构特点
 
@@ -156,8 +155,7 @@ error_manager = container.get('error_manager')
 4. **实盘对接复杂**: 需要额外适配实盘接口
 5. **缺乏个人化**: 缺少面向个人投资者的友好设计
 
-- --
-
+---
 ## 需求规格文档
 
 ### 1. 增强配置管理模块
@@ -226,7 +224,7 @@ class ConfigManager:
         """验证配置，返回错误列表"""
         pass
 
-```bash
+```
 
 ### 2. 业务异常体系模块
 
@@ -294,7 +292,7 @@ class StrategyError(TradingError):
     """策略错误"""
     pass
 
-```bash
+```
 
 ### 3. 常量管理模块
 
@@ -360,7 +358,7 @@ class RiskConsts:
     MAX_TOTAL_POSITION = 0.8   # 最大总仓位
     STOP_LOSS_RATIO = 0.05     # 默认止损比例
 
-```bash
+```
 
 ### 4. 输出管理模块
 
@@ -414,7 +412,7 @@ class OutputManager:
         """成功消息输出"""
         pass
 
-```bash
+```
 
 ### 5. 个人化策略模块
 
@@ -510,7 +508,7 @@ class SimpleStrategy(bt.Strategy):
                 return True
         return False
 
-```bash
+```
 
 ### 6. 资金管理模块
 
@@ -579,7 +577,7 @@ class RiskPercent(PositionSizer):
         loss_per_share = price* self.p.stop_loss
         return int(risk_amount / loss_per_share)
 
-```bash
+```
 
 ### 7. 快速回测模块
 
@@ -660,10 +658,9 @@ def quick_test(strategy_class, data, **params):
 
     return result.get_metrics()
 
-```bash
+```
 
-- --
-
+---
 ## 设计文档
 
 ### 整体架构设计
@@ -737,7 +734,7 @@ backtrader/
     ├── __init__.py
     └── container.py         # 依赖注入容器
 
-```bash
+```
 
 ### 详细设计
 
@@ -931,7 +928,7 @@ class ConfigManager:
 
         config[keys[-1]] = value
 
-```bash
+```
 
 #### 2. 异常体系设计
 
@@ -1063,7 +1060,7 @@ class StrategyError(TradingError):
     def __init__(self, detail: str = None):
         super().__init__('STRATEGY_ERROR', detail)
 
-```bash
+```
 
 #### 3. 输出管理器设计
 
@@ -1215,7 +1212,7 @@ class OutputManager:
         if current >= total:
             print()  # 完成后换行
 
-```bash
+```
 
 #### 4. 简化策略基类设计
 
@@ -1441,7 +1438,7 @@ class RSIStrategy(SimpleStrategy):
         """RSI 超买卖出"""
         return self.rsi[0] > self.p.rsi_overbought
 
-```bash
+```
 
 #### 5. 快速回测工具设计
 
@@ -1672,7 +1669,7 @@ def quick_backtest(
             .run()
             .get_metrics())
 
-```bash
+```
 
 ### 与现有 Backtrader 集成方案
 
@@ -1725,7 +1722,7 @@ result = (QuickBacktest(
 
 result.print_metrics()
 
-```bash
+```
 
 ### 实施计划
 
@@ -1753,8 +1750,7 @@ result.print_metrics()
 4. 实现高级资金管理模型
 5. 实现策略比较工具
 
-- --
-
+---
 ## 总结
 
 通过借鉴 PersonalQuantSystem 项目的设计理念，Backtrader 可以扩展以下能力：

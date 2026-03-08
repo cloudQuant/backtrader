@@ -29,8 +29,7 @@ multi-factor-stock-selection 是一个多因子选股框架，具有以下核心
 5. **选股逻辑**: 选股逻辑实现
 6. **组合优化**: 组合优化方法
 
-- --
-
+---
 ## 项目对比分析
 
 ### Backtrader vs Multi-Factor-Stock-Selection
@@ -68,8 +67,7 @@ multi-factor-stock-selection 是一个多因子选股框架，具有以下核心
 3. **因子合成引擎**：标准化、加权、机器学习合成
 4. **批量处理优化**：向量化计算、性能优化
 
-- --
-
+---
 ## 功能需求文档
 
 ### FR-01 因子基础框架 [高优先级]
@@ -198,8 +196,7 @@ multi-factor-stock-selection 是一个多因子选股框架，具有以下核心
 - 支持按日期/行业分组截面分析
 - 支持行业中性化处理
 
-- --
-
+---
 ## 设计文档
 
 ### 1. 因子系统架构设计
@@ -307,7 +304,7 @@ def list_factors(category: str = None) -> List[str]:
     return [name for name, cls in _factor_registry.items()
             if cls.category == category]
 
-```bash
+```
 
 #### 1.2 技术因子实现
 
@@ -394,7 +391,7 @@ class RSIFactor(FactorBase):
         rs = gain / (loss + 1e-8)
         return 100 - (100 / (1 + rs))
 
-```bash
+```
 
 #### 1.3 财务因子实现
 
@@ -468,7 +465,7 @@ class GPFactor(FactorBase):
         """毛利率"""
         return data['grossprofit_margin'].replace([None], np.nan).fillna(method='ffill') / 100
 
-```bash
+```
 
 #### 1.4 情绪因子实现
 
@@ -535,7 +532,7 @@ class ConsecutiveLimitUpFactor(FactorBase):
 
         return consecutive
 
-```bash
+```
 
 ### 2. 因子评价系统设计
 
@@ -725,7 +722,7 @@ class FactorEvaluator:
         stats = self.ic_statistics(factor_name)
         return abs(stats['ic_mean']) >= min_ic and abs(stats['icir']) >= min_icir
 
-```bash
+```
 
 ### 3. 因子合成引擎设计
 
@@ -937,7 +934,7 @@ class FactorCompositor:
             'importance': self.ml_model.feature_importances_
         }).sort_values('importance', ascending=False)
 
-```bash
+```
 
 ### 4. 选股策略引擎设计
 
@@ -1154,7 +1151,7 @@ class StockSelector:
 
         return results
 
-```bash
+```
 
 ### 5. 组合构建器设计
 
@@ -1350,7 +1347,7 @@ class PortfolioConstructor:
 
         raise ValueError(f"Unknown method: {self.method}")
 
-```bash
+```
 
 ### 6. 因子生命周期管理设计
 
@@ -1495,7 +1492,7 @@ class FactorGraveyard:
         return [name for name, status in self.status.items()
                 if not status.is_active]
 
-```bash
+```
 
 ### 7. 整合到 Backtrader
 
@@ -1655,10 +1652,9 @@ def run_multi_factor_backtest():
 # 运行回测
     result = cerebro.run()
 
-```bash
+```
 
-- --
-
+---
 ## 实施计划
 
 ### 第一阶段：基础框架搭建（2 周）
@@ -1702,8 +1698,7 @@ def run_multi_factor_backtest():
 3. 错误处理
 4. 用户文档
 
-- --
-
+---
 ## API 兼容性保证
 
 1. **新增功能不影响现有 API**：所有新增功能作为独立模块
@@ -1711,8 +1706,7 @@ def run_multi_factor_backtest():
 3. **向后兼容**：现有策略继续正常工作
 4. **渐进式迁移**：用户可以逐步将策略迁移到新框架
 
-- --
-
+---
 ## 使用示例
 
 ### 示例 1：计算因子并评价
@@ -1733,7 +1727,7 @@ stats = evaluator.ic_statistics('momentum_20')
 print(f"IC 均值: {stats['ic_mean']:.4f}")
 print(f"ICIR: {stats['icir']:.4f}")
 
-```bash
+```
 
 ### 示例 2：因子合成
 
@@ -1758,7 +1752,7 @@ composite = compositor.compose(
     evaluator=evaluator
 )
 
-```bash
+```
 
 ### 示例 3：选股策略
 
@@ -1781,7 +1775,7 @@ result = selector.select_by_top_n(
 
 print(f"选中股票: {len(result.selected_stocks)}只")
 
-```bash
+```
 
 ### 示例 4：Backtrader 回测
 
@@ -1808,4 +1802,4 @@ for stock in stock_list:
 
 result = cerebro.run()
 
-```bash
+```

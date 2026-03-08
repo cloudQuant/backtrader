@@ -1,10 +1,8 @@
-- --
-
+---
 title: 数据源 API
 description: Backtrader 完整数据源 API 参考
 
-- --
-
+---
 # 数据源 API
 
 数据源是 Backtrader 中回测和实盘交易的行情数据来源。它们提供带有时间索引的 OHLCV（开盘、最高、最低、收盘、成交量、持仓量）数据。
@@ -22,7 +20,7 @@ AbstractDataBase (所有数据源的基类)
         CCXTFeed (加密货币交易所)
         ... 以及更多
 
-```bash
+```
 
 ## 核心类
 
@@ -34,7 +32,7 @@ AbstractDataBase (所有数据源的基类)
 class backtrader.AbstractDataBase:
     """所有数据源实现的基础类。"""
 
-```bash
+```
 
 #### 参数
 
@@ -94,7 +92,7 @@ class backtrader.AbstractDataBase:
 class backtrader.DataBase(backtrader.AbstractDataBase):
     """功能完整的数据源类。"""
 
-```bash
+```
 
 ## Line 系统
 
@@ -137,7 +135,7 @@ class MyStrategy(bt.Strategy):
 # 数据长度
         current_len = len(self.data)
 
-```bash
+```
 
 ### 数据索引
 
@@ -199,7 +197,7 @@ tf = bt.TimeFrame.TFrame('Days')  # 返回 TimeFrame.Days
 
 name = bt.TimeFrame.TName(bt.TimeFrame.Days)  # 返回 'Days'
 
-```bash
+```
 
 ## 内置数据源
 
@@ -228,7 +226,7 @@ data = bt.feeds.GenericCSVData(
 
 )
 
-```bash
+```
 
 - *CSV 参数：**
 
@@ -293,7 +291,7 @@ data = bt.feeds.YahooFinanceCSVData(
 
 )
 
-```bash
+```
 
 - *Yahoo CSV 参数：**
 
@@ -320,7 +318,7 @@ data = bt.feeds.YahooFinanceCSVData(
 ```python
 data = bt.feeds.BacktraderCSVData(dataname='test.csv')
 
-```bash
+```
 格式：`YYYY-MM-DD [HH:MM:SS] open high low close volume openinterest`
 
 ### Pandas 数据源
@@ -362,7 +360,7 @@ data = bt.feeds.PandasData(
 
 )
 
-```bash
+```
 
 - *PandasData 参数：**
 
@@ -418,7 +416,7 @@ data = bt.feeds.PandasDirectData(
     openinterest=6,
 )
 
-```bash
+```
 
 ### 实时/在线数据源
 
@@ -454,7 +452,7 @@ data = bt.feeds.CCXTFeed(
 
 )
 
-```bash
+```
 
 - *CCXTFeed 参数：**
 
@@ -497,7 +495,7 @@ data = bt.feeds.YahooFinanceData(
 
 )
 
-```bash
+```
 
 ### 其他数据源
 
@@ -510,7 +508,7 @@ data = bt.feeds.Quandl(
     fromdate=datetime(2020, 1, 1),
 )
 
-```bash
+```
 
 #### Interactive Brokers
 
@@ -522,7 +520,7 @@ data = bt.feeds.IBData(
     clientId=1,
 )
 
-```bash
+```
 
 #### OANDA
 
@@ -533,7 +531,7 @@ data = bt.feeds.OandaData(
     access_token='YOUR_TOKEN',
 )
 
-```bash
+```
 
 ## 数据源方法
 
@@ -553,7 +551,7 @@ class MyFeed(bt.CSVDataBase):
 
 # 自定义初始化
 
-```bash
+```
 
 #### `stop(self)`
 
@@ -565,7 +563,7 @@ def stop(self):
 # 自定义清理
     super().stop()
 
-```bash
+```
 
 #### `preload(self)`
 
@@ -578,7 +576,7 @@ def stop(self):
 data = bt.feeds.PandasData(dataname=df)
 data.preload()  # 手动预加载
 
-```bash
+```
 
 ### 数据访问方法
 
@@ -589,7 +587,7 @@ data.preload()  # 手动预加载
 ```python
 dt_num = data.date2num(datetime(2023, 1, 1))
 
-```bash
+```
 
 #### `num2date(self, dt=None, tz=None, naive=True)`
 
@@ -600,7 +598,7 @@ dt = data.num2date()  # 当前 K 线的 datetime
 
 dt = data.num2date(data.lines.datetime[-1])  # 前一根 K 线
 
-```bash
+```
 
 ### 克隆方法
 
@@ -613,7 +611,7 @@ data_clone = data.clone()  # 完全复制
 
 data_clone = data.clone(timeframe=bt.TimeFrame.Weeks)  # 不同时间周期
 
-```bash
+```
 
 #### `copyas(self, _dataname, **kwargs)`
 
@@ -622,7 +620,7 @@ data_clone = data.clone(timeframe=bt.TimeFrame.Weeks)  # 不同时间周期
 ```python
 data_copy = data.copyas('AAPL_Copy')
 
-```bash
+```
 
 ### 状态方法
 
@@ -634,7 +632,7 @@ data_copy = data.copyas('AAPL_Copy')
 if data.islive():
     print("这是实时数据源")
 
-```bash
+```
 
 #### `haslivedata(self)`
 
@@ -649,7 +647,7 @@ notifs = data.get_notifications()
 for status, args, kwargs in notifs:
     print(f"状态: {status}")
 
-```bash
+```
 
 ## 数据过滤器
 
@@ -667,7 +665,7 @@ data.addfilter(lambda x: x.close[0] > x.open[0])  # 仅保留阳线
 
 data.addfilter(bt.filters.SessionData, session_end=time(15, 0))
 
-```bash
+```
 
 ### 内置过滤器
 
@@ -678,7 +676,7 @@ data.addfilter(bt.filters.SessionData, session_end=time(15, 0))
 ```python
 data.addfilter(bt.filters.SessionFilter)
 
-```bash
+```
 
 #### SessionData
 
@@ -687,7 +685,7 @@ data.addfilter(bt.filters.SessionFilter)
 ```python
 data.addfilter(bt.filters.SessionData)
 
-```bash
+```
 
 #### CalendarFilter
 
@@ -696,7 +694,7 @@ data.addfilter(bt.filters.SessionData)
 ```python
 data.addfilter(bt.filters.CalendarFilter)
 
-```bash
+```
 
 ## 重采样和回放
 
@@ -719,7 +717,7 @@ data.resample(
 
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Weeks, compression=1)
 
-```bash
+```
 
 ### 回放
 
@@ -739,7 +737,7 @@ data.replay(
 
 cerebro.replaydata(data, timeframe=bt.TimeFrame.Days)
 
-```bash
+```
 
 ## 自定义数据源
 
@@ -776,7 +774,7 @@ class MyCSVData(bt.CSVDataBase):
 
         return True
 
-```bash
+```
 
 ### 创建自定义实时数据源
 
@@ -828,7 +826,7 @@ class MyLiveData(bt.DataBase):
     def islive(self):
         return True
 
-```bash
+```
 
 ### 创建带自定义 Line 的数据源
 
@@ -845,7 +843,7 @@ class ExtendedData(bt.feeds.PandasData):
         ('dividend', -1),
     )
 
-```bash
+```
 
 ## 使用多个数据源
 
@@ -871,7 +869,7 @@ class MyStrategy(bt.Strategy):
         if self.aapl.close[0] > self.msft.close[0]:
             self.buy(data=self.aapl)
 
-```bash
+```
 
 ### 数据源同步
 
@@ -887,7 +885,7 @@ data_hourly = bt.feeds.PandasData(dataname=hourly_df, name='hourly')
 cerebro.adddata(data_daily)
 cerebro.adddata(data_hourly)
 
-```bash
+```
 
 ## 性能优化
 
@@ -899,7 +897,7 @@ cerebro.adddata(data_hourly)
 
 cerebro.run(preload=True)
 
-```bash
+```
 
 ### 内存管理
 
@@ -911,7 +909,7 @@ data = bt.feeds.PandasData(dataname=large_df)
 cerebro.adddata(data)
 data.qbuffer(savemem=1000)  # 仅在内存中保留 1000 根 K 线
 
-```bash
+```
 
 ### 禁用缓存
 
@@ -921,7 +919,7 @@ data.qbuffer(savemem=1000)  # 仅在内存中保留 1000 根 K 线
 
 cerebro.run preload=True, runonce=True, exactbars=False
 
-```bash
+```
 
 ## 完整示例
 
@@ -972,7 +970,7 @@ cerebro.addstrategy(SmaCross)
 
 results = cerebro.run()
 
-```bash
+```
 
 ### 示例 2：Pandas DataFrame
 
@@ -1002,7 +1000,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.run()
 
-```bash
+```
 
 ### 示例 3：重采样
 
@@ -1035,7 +1033,7 @@ cerebro.adddata(data, name='minutes')
 
 cerebro.run()
 
-```bash
+```
 
 ### 示例 4：多数据源
 
@@ -1070,7 +1068,7 @@ cerebro.adddata(bt.feeds.PandasData(dataname=df2), name='Asset2')
 cerebro.addstrategy(MultiAssetStrategy)
 cerebro.run()
 
-```bash
+```
 
 ## 相关文档
 

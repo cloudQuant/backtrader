@@ -13,7 +13,7 @@ Backtrader CCXT 模块现在支持从 `.env` 文件中自动加载 API 密钥和
 ```bash
 cp .env.example .env
 
-```bash
+```
 
 ### 2. 编辑 .env 文件
 
@@ -32,7 +32,7 @@ OKX_PASSWORD=your_password_here
 BINANCE_API_KEY=your_binance_api_key_here
 BINANCE_SECRET=your_binance_secret_here
 
-```bash
+```
 
 ### 3. 在代码中使用
 
@@ -62,7 +62,7 @@ cerebro.setbroker(store.getbroker())
 cerebro.adddata(store.getdata(dataname='BTC/USDT'))
 cerebro.run()
 
-```bash
+```
 
 #### 方法 2: 手动加载（传统方式）
 
@@ -91,7 +91,7 @@ store = bt.stores.CCXTStore(
     retries=5
 )
 
-```bash
+```
 
 ## 支持的交易所
 
@@ -139,7 +139,7 @@ store = bt.stores.CCXTStore(
 ```python
 config = load_ccxt_config_from_env('binance', enable_rate_limit=True, sandbox=True)
 
-```bash
+```
 
 ### `get_exchange_credentials(exchange)`
 
@@ -157,7 +157,7 @@ config = load_ccxt_config_from_env('binance', enable_rate_limit=True, sandbox=Tr
 creds = get_exchange_credentials('okx')
 print(creds['apiKey'])
 
-```bash
+```
 
 ### `list_supported_exchanges()`
 
@@ -172,7 +172,7 @@ print(creds['apiKey'])
 exchanges = list_supported_exchanges()
 print(exchanges)  # ['okx', 'binance', 'bybit', ...]
 
-```bash
+```
 
 ### `load_dotenv_file(env_path=None)`
 
@@ -224,7 +224,7 @@ print(exchanges)  # ['okx', 'binance', 'bybit', ...]
 ```bash
 pip install python-dotenv
 
-```bash
+```
 
 ### 问题: 凭证加载不正确
 
@@ -243,7 +243,7 @@ load_dotenv_file('.env')
 print(os.getenv('OKX_API_KEY'))
 print(os.getenv('OKX_SECRET'))
 
-```bash
+```
 
 ## 完整示例
 
@@ -256,7 +256,7 @@ print(os.getenv('OKX_SECRET'))
 ```bash
 python test_ccxt_config_helper.py
 
-```bash
+```
 
 ## 迭代 94 相关
 

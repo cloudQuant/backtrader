@@ -1,10 +1,8 @@
-- --
-
+---
 title: Analyzers
 description: Strategy performance analysis
 
-- --
-
+---
 # Analyzers
 
 Analyzers calculate performance metrics for your strategies. Use them to evaluate strategy effectiveness.
@@ -28,7 +26,7 @@ strat = strats[0]
 sharpe = strat.analyzers.sharpe.get_analysis()
 print(f'Sharpe Ratio: {sharpe["sharperatio"]:.3f}')
 
-```bash
+```
 
 ## Available Analyzers
 
@@ -48,7 +46,7 @@ cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual_return')
 
 cerebro.addanalyzer(bt.analyzers.LogReturnsRolling, _name='log_returns')
 
-```bash
+```
 
 ### Risk Metrics
 
@@ -66,7 +64,7 @@ cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar')
 
 cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 
-```bash
+```
 
 ### Drawdown Analysis
 
@@ -83,7 +81,7 @@ print(f'Max Drawdown: {drawdown["max"]["drawdown"]:.2%}')
 print(f'Max Drawdown Money: {drawdown["max"]["moneydown"]:.2f}')
 print(f'Max Drawdown Duration: {drawdown["max"]["len"]} days')
 
-```bash
+```
 
 ### Trade Analysis
 
@@ -101,7 +99,7 @@ print(f'Win rate: {trades["won"]["total"] / trades["total"]["total"]:.2%}')
 print(f'Avg win: {trades["won"]["pnl"]["average"]:.2f}')
 print(f'Avg loss: {trades["lost"]["pnl"]["average"]:.2f}')
 
-```bash
+```
 
 ### Position Analysis
 
@@ -116,7 +114,7 @@ cerebro.addanalyzer(bt.analyzers.Positions, _name='positions')
 positions = strat.analyzers.positions.get_analysis()
 print(f'Total positions: {len(positions)}')
 
-```bash
+```
 
 ### Transactions Analysis
 
@@ -131,7 +129,7 @@ cerebro.addanalyzer(bt.analyzers.Transactions, _name='transactions')
 transactions = strat.analyzers.transactions.get_analysis()
 print(f'Total transactions: {len(transactions)}')
 
-```bash
+```
 
 ### Period Statistics
 
@@ -145,7 +143,7 @@ cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='period_stats')
 
 stats = strat.analyzers.period_stats.get_analysis()
 
-```bash
+```
 
 ### Time Return Analysis
 
@@ -159,7 +157,7 @@ cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='time_return')
 
 time_return = strat.analyzers.time_return.get_analysis()
 
-```bash
+```
 
 ### VWR (Volume Weighted Return)
 
@@ -173,7 +171,7 @@ cerebro.addanalyzer(bt.analyzers.VWR, _name='vwr')
 
 vwr = strat.analyzers.vwr.get_analysis()
 
-```bash
+```
 
 ### PyFolio Integration
 
@@ -191,7 +189,7 @@ pyfolio = strat.analyzers.pyfolio.get_analysis()
 
 returns, positions, transactions, gross_lev = pyfolio
 
-```bash
+```
 
 ## Complete Example
 
@@ -275,7 +273,7 @@ print(f'Annual Return: {annual_return.get("rnorm", 0):.2%}')
 print('-'* 50)
 print(f'Final Portfolio Value: {cerebro.broker.getvalue():.2f}')
 
-```bash
+```
 
 ## Analyzer Output Format
 
@@ -289,7 +287,7 @@ analyzer = strat.analyzers.name.get_analysis()
 for key, value in analyzer.items():
     print(f'{key}: {value}')
 
-```bash
+```
 
 ## Custom Analyzer
 
@@ -325,7 +323,7 @@ class CustomAnalyzer(bt.Analyzer):
             'total_commission': sum(t['commission'] for t in self.trades),
         }
 
-```bash
+```
 
 ## Next Steps
 

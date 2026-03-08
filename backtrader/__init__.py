@@ -29,8 +29,8 @@ Core Components:
 
 Subpackages:
     - analyzers: Performance analysis tools (Sharpe, Drawdown, etc.)
-    - brokers: Broker implementations (IB, OANDA, etc.)
-    - feeds: Data feed implementations (CSV, Pandas, Yahoo, etc.)
+    - brokers: Broker implementations (backtesting + unified bt_api_py live broker)
+    - feeds: Data feed implementations (CSV, Pandas, Yahoo, bt_api_py live feed)
     - indicators: Technical indicators (SMA, RSI, MACD, etc.)
     - observers: Chart observers for visualization
     - sizers: Position sizing algorithms
