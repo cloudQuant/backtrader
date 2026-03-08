@@ -7,6 +7,7 @@ import datetime as dt
 from copy import deepcopy
 from typing import Any, Dict, Iterable, Optional
 
+from backtrader.events import TickEvent
 from backtrader.stores.btapistore import BtApiStore
 
 DEFAULT_SYMBOL = "BTC/USDT"
@@ -33,6 +34,35 @@ def make_bar(
     }
 
 
+def make_tick(
+    offset_seconds: int,
+    price: float,
+    volume: float = 1.0,
+    symbol: str = DEFAULT_SYMBOL,
+    direction: str = "buy",
+) -> TickEvent:
+    """Create a deterministic live tick event payload for tests."""
+    base = dt.datetime(2024, 1, 1, 9, 0, 0, tzinfo=dt.timezone.utc)
+    event = TickEvent(
+        timestamp=(base + dt.timedelta(seconds=offset_seconds)).timestamp(),
+        symbol=symbol,
+        exchange="fake",
+        asset_type="futures",
+        local_time=(base + dt.timedelta(seconds=offset_seconds)).timestamp(),
+        price=price,
+        volume=volume,
+        direction=direction,
+        trade_id=f"tick-{offset_seconds}",
+        bid_price=price - 0.5,
+        ask_price=price + 0.5,
+        bid_volume=volume,
+        ask_volume=volume,
+    )
+    event.datetime = (base + dt.timedelta(seconds=offset_seconds)).replace(tzinfo=None)
+    event.openinterest = 0.0
+    return event
+
+
 class FakeBtApiClient:
     """Minimal bt_api_py-compatible client for store/broker/feed tests."""
 
@@ -42,12 +72,16 @@ class FakeBtApiClient:
         positions: Optional[Iterable[Dict[str, Any]]] = None,
         history: Optional[Dict[str, Iterable[Dict[str, Any]]]] = None,
         live: Optional[Dict[str, Iterable[Dict[str, Any]]]] = None,
+        live_ticks: Optional[Dict[str, Iterable[TickEvent]]] = None,
     ):
         self.balance = dict(balance or {"cash": 10000.0, "value": 10000.0})
         self.positions = list(positions or [])
         self.history = {key: list(value) for key, value in (history or {}).items()}
         self.live = {
             key: collections.deque(value) for key, value in (live or {}).items()
+        }
+        self.live_ticks = {
+            key: collections.deque(deepcopy(list(value))) for key, value in (live_ticks or {}).items()
         }
         self.connected = False
         self.subscriptions = []
@@ -84,6 +118,22 @@ class FakeBtApiClient:
         if not queue:
             return None
         return deepcopy(queue.popleft())
+
+    def poll_tick(self, dataname: str):
+        """Return the next live tick for a symbol."""
+        queue = self.live_ticks.get(dataname)
+        if not queue:
+            return None
+        return deepcopy(queue.popleft())
+
+    def has_pending_tick(self, dataname: str):
+        """Return whether a symbol has queued live ticks."""
+        queue = self.live_ticks.get(dataname)
+        return bool(queue)
+
+    def supports_live_ticks(self, dataname: str):
+        """Return whether a symbol is configured for live tick streaming."""
+        return dataname in self.live_ticks
 
     def submit_order(self, payload: Dict[str, Any]):
         """Record a submitted order and return an external id."""

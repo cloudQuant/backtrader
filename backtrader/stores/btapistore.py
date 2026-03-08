@@ -11,12 +11,16 @@ from __future__ import annotations
 import collections
 import datetime as _dt
 import importlib
+import time
 from typing import Any, Deque, Dict, Iterable, List, Optional
 
+from ..events import TickEvent
 from .livestore import LiveStoreBase
 
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
+_CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
+_CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
 
 
 class BtApiStoreError(Exception):
@@ -35,6 +39,77 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
     """Convert a value to float with a stable fallback."""
     if value is None:
         return default
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_int(value: Any, default: int = 0) -> int:
+    """Convert a value to int with a stable fallback."""
+    if value is None:
+        return default
+
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
+    """Split a CTP dataname into instrument and exchange components."""
+    text = str(symbol or "").strip()
+    if not text:
+        return "", ""
+
+    if "." in text:
+        instrument, exchange = text.split(".", 1)
+        return instrument.strip(), exchange.strip().upper()
+
+    if "_" in text:
+        exchange, instrument = text.split("_", 1)
+        exchange = exchange.strip().upper()
+        if exchange in _CTP_EXCHANGES:
+            return instrument.strip(), exchange
+
+    return text, ""
+
+
+def _infer_tick_direction(
+    last_price: float,
+    bid_price: Optional[float],
+    ask_price: Optional[float],
+    previous_price: Optional[float],
+) -> str:
+    """Infer an approximate aggressive side for a market data tick."""
+    if ask_price and last_price >= ask_price:
+        return "buy"
+    if bid_price and last_price <= bid_price:
+        return "sell"
+    if previous_price is not None:
+        return "buy" if last_price >= previous_price else "sell"
+    return "buy"
+
+
+def _build_ctp_tick_datetime(payload: Any) -> _dt.datetime:
+    """Build a timezone-aware datetime from a CTP depth market data tick."""
+    update_time = str(getattr(payload, "UpdateTime", "") or "").strip() or "00:00:00"
+    millisec = max(0, min(_coerce_int(getattr(payload, "UpdateMillisec", 0), 0), 999))
+
+    for day_value in (
+        str(getattr(payload, "ActionDay", "") or "").strip(),
+        str(getattr(payload, "TradingDay", "") or "").strip(),
+    ):
+        if len(day_value) != 8 or not day_value.isdigit():
+            continue
+        try:
+            dt_value = _dt.datetime.strptime(f"{day_value} {update_time}", "%Y%m%d %H:%M:%S")
+            return dt_value.replace(microsecond=millisec * 1000, tzinfo=_CTP_TZ)
+        except ValueError:
+            continue
+
+    return _dt.datetime.now(_CTP_TZ)
 
     try:
         return float(value)
@@ -138,7 +213,12 @@ def _create_ctp_wrapper_class():
             self.trader_client = None
             self._connected = False
             self._balance_cache = {"cash": 0.0, "value": 0.0}
-            self._positions_cache = {}
+            self._positions_cache = []
+            self._tick_queues = collections.defaultdict(collections.deque)
+            self._instrument_aliases = collections.defaultdict(set)
+            self._subscribed_aliases = set()
+            self._last_total_volume = {}
+            self._last_tick_price = {}
 
         def connect(self):
             """Connect to CTP servers."""
@@ -155,6 +235,7 @@ def _create_ctp_wrapper_class():
                 user_id=self.user_id,
                 password=self.password,
             )
+            self.md_client.on_tick = self._handle_md_tick
 
             # Create trader client
             self.trader_client = TraderClient(
@@ -170,10 +251,10 @@ def _create_ctp_wrapper_class():
             self.md_client.start(block=False)
             self.trader_client.start(block=False)
 
-            # Wait for market client to be ready
-            import time
-
-            time.sleep(2)  # Give some time for connection to establish
+            if not self.md_client.wait_ready(timeout=20):
+                raise BtApiStoreError("CTP market data login did not become ready within 20s")
+            if not self.trader_client.wait_ready(timeout=20):
+                raise BtApiStoreError("CTP trader login did not become ready within 20s")
 
             self._connected = True
 
@@ -198,12 +279,51 @@ def _create_ctp_wrapper_class():
             if self.md_client:
                 if isinstance(symbols, str):
                     symbols = [symbols]
-                self.md_client.subscribe(symbols)
+                instruments = []
+                for symbol in symbols:
+                    alias = str(symbol or "").strip()
+                    instrument, _exchange = _split_ctp_symbol(alias)
+                    if not instrument:
+                        continue
+                    self._subscribed_aliases.add(alias)
+                    self._instrument_aliases[instrument].add(alias)
+                    instruments.append(instrument)
+
+                if instruments:
+                    self.md_client.subscribe(sorted(set(instruments)))
+
+        def poll_tick(self, symbol):
+            """Poll the next live tick for a subscribed symbol."""
+            queue = self._tick_queues.get(str(symbol), None)
+            if not queue:
+                return None
+            return queue.popleft()
+
+        def get_next_tick(self, symbol):
+            """Alias for poll_tick."""
+            return self.poll_tick(symbol)
+
+        def has_pending_tick(self, symbol):
+            """Return whether a subscribed symbol has queued live ticks."""
+            queue = self._tick_queues.get(str(symbol), None)
+            return bool(queue)
+
+        def supports_live_ticks(self, symbol):
+            """Return whether a symbol has an active live tick subscription."""
+            return str(symbol) in self._subscribed_aliases
 
         def get_balance(self):
             """Get account balance."""
-            # TODO: Implement actual balance query from trader_client
-            return self._balance_cache
+            if self.trader_client and self.trader_client.is_ready:
+                account = self.trader_client.query_account(timeout=5)
+                if account is not None:
+                    available = _coerce_float(getattr(account, "Available", None))
+                    balance = _coerce_float(getattr(account, "Balance", None), available)
+                    self._balance_cache = {
+                        "cash": available,
+                        "value": balance,
+                    }
+            return dict(self._balance_cache)
 
         def get_account(self):
             """Get account info (alias for get_balance)."""
@@ -211,8 +331,55 @@ def _create_ctp_wrapper_class():
 
         def get_positions(self):
             """Get positions."""
-            # TODO: Implement actual position query from trader_client
-            return self._positions_cache
+            if not self.trader_client or not self.trader_client.is_ready:
+                return list(self._positions_cache)
+
+            rows = self.trader_client.query_positions(timeout=5)
+            aggregated = {}
+            for row in rows or []:
+                instrument = str(getattr(row, "InstrumentID", "") or "").strip()
+                if not instrument:
+                    continue
+
+                direction_code = str(getattr(row, "PosiDirection", "") or "")
+                direction = "short" if direction_code in {"3", "Short"} else "long"
+                key = (instrument, direction)
+
+                volume = _coerce_float(getattr(row, "Position", None))
+                if volume <= 0:
+                    continue
+
+                cost = _coerce_float(
+                    getattr(row, "PositionCost", None),
+                    _coerce_float(getattr(row, "OpenCost", None)),
+                )
+
+                item = aggregated.setdefault(
+                    key,
+                    {
+                        "instrument": instrument,
+                        "direction": direction,
+                        "volume": 0.0,
+                        "cost": 0.0,
+                    },
+                )
+                item["volume"] += volume
+                item["cost"] += cost
+
+            self._positions_cache = []
+            for item in aggregated.values():
+                volume = item["volume"] or 0.0
+                avg_price = (item["cost"] / volume) if volume else 0.0
+                self._positions_cache.append(
+                    {
+                        "instrument": item["instrument"],
+                        "direction": item["direction"],
+                        "volume": volume,
+                        "price": avg_price,
+                    }
+                )
+
+            return list(self._positions_cache)
 
         def fetch_bars(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
             """Fetch historical bars (not implemented for CTP live)."""
@@ -246,6 +413,66 @@ def _create_ctp_wrapper_class():
             """Cancel an order."""
             # TODO: Implement order cancellation via trader_client
             return None
+
+        def _handle_md_tick(self, payload):
+            """Convert a raw CTP depth market data callback into queued TickEvents."""
+            instrument = str(
+                getattr(payload, "InstrumentID", "") or getattr(payload, "ExchangeInstID", "") or ""
+            ).strip()
+            if not instrument:
+                return
+
+            tick_dt = _build_ctp_tick_datetime(payload)
+            last_price = _coerce_float(getattr(payload, "LastPrice", None))
+            if last_price <= 0:
+                return
+
+            exchange_id = str(getattr(payload, "ExchangeID", "") or "").strip().upper()
+            total_volume = _coerce_float(getattr(payload, "Volume", None))
+            previous_total = self._last_total_volume.get(instrument)
+            tick_volume = max(total_volume - previous_total, 0.0) if previous_total is not None else 0.0
+            self._last_total_volume[instrument] = total_volume
+
+            bid_price = _coerce_float(getattr(payload, "BidPrice1", None), 0.0) or None
+            ask_price = _coerce_float(getattr(payload, "AskPrice1", None), 0.0) or None
+            direction = _infer_tick_direction(
+                last_price,
+                bid_price,
+                ask_price,
+                self._last_tick_price.get(instrument),
+            )
+            self._last_tick_price[instrument] = last_price
+
+            aliases = tuple(self._instrument_aliases.get(instrument) or (instrument,))
+            for alias in aliases:
+                event = TickEvent(
+                    timestamp=tick_dt.timestamp(),
+                    symbol=alias,
+                    exchange=exchange_id,
+                    asset_type="futures",
+                    local_time=time.time(),
+                    price=last_price,
+                    volume=tick_volume,
+                    direction=direction,
+                    trade_id=(
+                        f"{instrument}-{getattr(payload, 'UpdateTime', '')}-"
+                        f"{getattr(payload, 'UpdateMillisec', 0)}-{int(total_volume)}"
+                    ),
+                    bid_price=bid_price,
+                    ask_price=ask_price,
+                    bid_volume=_coerce_float(getattr(payload, "BidVolume1", None), 0.0) or None,
+                    ask_volume=_coerce_float(getattr(payload, "AskVolume1", None), 0.0) or None,
+                )
+                event.datetime = tick_dt.replace(tzinfo=None)
+                event.instrument_id = instrument
+                event.exchange_id = exchange_id
+                event.openinterest = _coerce_float(getattr(payload, "OpenInterest", None))
+                event.turnover = _coerce_float(getattr(payload, "Turnover", None))
+                event.trading_day = str(getattr(payload, "TradingDay", "") or "")
+                event.action_day = str(getattr(payload, "ActionDay", "") or "")
+                event.update_time = str(getattr(payload, "UpdateTime", "") or "")
+                event.update_millisec = _coerce_int(getattr(payload, "UpdateMillisec", 0), 0)
+                self._tick_queues[alias].append(event)
 
     return CtpClientWrapper
 
@@ -473,6 +700,38 @@ class BtApiStore(LiveStoreBase):
             return None
 
         return _normalize_bar(bar)
+
+    def poll_tick(self, dataname: str):
+        """Poll a single live tick from the API."""
+        if not self._connected:
+            return None
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "poll_tick"):
+            return api.poll_tick(dataname)
+        if hasattr(api, "get_next_tick"):
+            return api.get_next_tick(dataname)
+        return None
+
+    def has_pending_tick(self, dataname: str) -> bool:
+        """Return whether the API has queued live ticks for a symbol."""
+        if not self._connected:
+            return False
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "has_pending_tick"):
+            return bool(api.has_pending_tick(dataname))
+        return False
+
+    def supports_live_ticks(self, dataname: str) -> bool:
+        """Return whether a symbol is configured for live tick streaming."""
+        if not self._connected:
+            return False
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "supports_live_ticks"):
+            return bool(api.supports_live_ticks(dataname))
+        return False
 
     def submit_order(self, order):
         """Submit a backtrader order through the unified API."""

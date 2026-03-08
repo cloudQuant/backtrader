@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import collections
+import time
 
 from .livebroker import LiveBrokerBase
 from ..broker import BrokerBase
@@ -19,6 +20,8 @@ class BtApiBroker(BrokerBase, LiveBrokerBase):
         ("provider", "btapi"),
         ("cash", 0.0),
         ("value", None),
+        ("account_refresh_interval", 1.0),
+        ("positions_refresh_interval", 1.0),
     )
 
     def __init__(self, **kwargs):
@@ -30,6 +33,11 @@ class BtApiBroker(BrokerBase, LiveBrokerBase):
         self.positions = collections.defaultdict(Position)
         self._cash = float(self.p.cash or 0.0)
         self._value = float(self.p.value if self.p.value is not None else self._cash)
+        self._live_started = False
+        self.startingcash = self._cash
+        self.startingvalue = self._value
+        self._last_account_refresh = 0.0
+        self._last_positions_refresh = 0.0
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
@@ -39,27 +47,31 @@ class BtApiBroker(BrokerBase, LiveBrokerBase):
             raise ValueError("BtApiBroker requires a BtApiStore instance")
 
         self.store.start(broker=self)
-        self._refresh_account()
-        self._sync_positions()
+        self._live_started = True
+        self._refresh_account(force=True, raise_errors=True)
+        self._sync_positions(force=True, raise_errors=True)
+        self.startingcash = self._cash
+        self.startingvalue = self._value
 
     def stop(self):
         """Stop the broker."""
+        self._live_started = False
         if self.store is not None and self.store.is_connected:
             self.store.stop()
 
     def getcash(self) -> float:
         """Return current available cash."""
-        self._refresh_account()
+        self._refresh_account(force=True, raise_errors=True)
         return self._cash
 
     def getvalue(self, datas=None) -> float:
         """Return current portfolio value."""
-        self._refresh_account()
+        self._refresh_account(force=True, raise_errors=True)
         return self._value
 
     def getposition(self, data, clone=True):
         """Return the cached position for a given data feed."""
-        self._sync_positions()
+        self._sync_positions(force=True, raise_errors=True)
         key = self._position_key(data)
         position = self.positions[key]
         return position.clone() if clone else position
@@ -212,39 +224,69 @@ class BtApiBroker(BrokerBase, LiveBrokerBase):
     def data_started(self, data):
         """Hook called when a feed starts."""
 
-    def _refresh_account(self):
+    def _refresh_account(self, force=False, raise_errors=False):
         """Refresh cached cash and value from the store."""
-        if self.store is None:
+        if self.store is None or not self._live_started or not self.store.is_connected:
             return
-        self._cash = float(self.store.get_cash())
-        self._value = float(self.store.get_value())
+        if not force and not self._should_refresh(
+            self._last_account_refresh,
+            float(self.p.account_refresh_interval or 0.0),
+        ):
+            return
 
-    def _sync_positions(self):
+        try:
+            balance = self.store.get_balance()
+            self._cash = float(balance.get("cash", self._cash))
+            self._value = float(balance.get("value", self._value))
+            self._last_account_refresh = time.monotonic()
+        except Exception:
+            if raise_errors:
+                raise
+
+    def _sync_positions(self, force=False, raise_errors=False):
         """Refresh cached positions from the store."""
-        if self.store is None:
+        if self.store is None or not self._live_started or not self.store.is_connected:
+            return
+        if not force and not self._should_refresh(
+            self._last_positions_refresh,
+            float(self.p.positions_refresh_interval or 0.0),
+        ):
             return
 
-        synced = collections.defaultdict(Position)
-        for item in self.store.get_positions():
-            key = (
-                item.get("instrument")
-                or item.get("symbol")
-                or item.get("dataname")
-                or item.get("name")
-            )
-            if not key:
-                continue
+        try:
+            synced = collections.defaultdict(Position)
+            for item in self.store.get_positions():
+                key = (
+                    item.get("instrument")
+                    or item.get("symbol")
+                    or item.get("dataname")
+                    or item.get("name")
+                )
+                if not key:
+                    continue
 
-            size = item.get("volume", item.get("size", item.get("position", 0)))
-            size = float(size or 0.0)
-            direction = str(item.get("direction", "")).lower()
-            if direction in {"short", "sell"} and size > 0:
-                size = -size
+                size = item.get("volume", item.get("size", item.get("position", 0)))
+                size = float(size or 0.0)
+                direction = str(item.get("direction", "")).lower()
+                if direction in {"short", "sell"} and size > 0:
+                    size = -size
 
-            price = item.get("price", item.get("avg_price", item.get("average_price", 0.0)))
-            synced[key] = Position(size=size, price=float(price or 0.0))
+                price = item.get("price", item.get("avg_price", item.get("average_price", 0.0)))
+                synced[key] = Position(size=size, price=float(price or 0.0))
 
-        self.positions = synced
+            self.positions = synced
+            self._last_positions_refresh = time.monotonic()
+        except Exception:
+            if raise_errors:
+                raise
+
+    @staticmethod
+    def _should_refresh(last_refresh, interval):
+        """Return whether a throttled live refresh should run now."""
+        if interval <= 0:
+            return True
+
+        return (time.monotonic() - last_refresh) >= interval
 
     @staticmethod
     def _position_key(data):
