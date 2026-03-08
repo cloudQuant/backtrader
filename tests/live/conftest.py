@@ -18,50 +18,67 @@ else:
     import fcntl
 
 
-_SIMNOW_CTP_MODULE = "test_simnow_ctp.py"
-_SIMNOW_CTP_ORDER = (
-    "test_simnow_connection",
-    "test_simnow_market_data",
-    "test_simnow_account_balance",
-    "test_simnow_order_placement",
-    "test_simnow_real_tick_subscription",
-    "test_simnow_positions",
-    "test_simnow_full_trading_cycle",
-    "test_all_simnow_environments",
+_SIMNOW_SERIAL_GROUP = "simnow_ctp_serial"
+_SIMNOW_SERIAL_ORDER = (
+    ("test_simnow_ctp.py", "test_simnow_connection"),
+    ("test_simnow_ctp.py", "test_simnow_market_data"),
+    ("test_simnow_ctp.py", "test_simnow_account_balance"),
+    ("test_simnow_ctp.py", "test_simnow_order_placement"),
+    ("test_simnow_ctp.py", "test_simnow_real_tick_subscription"),
+    ("test_simnow_ctp.py", "test_simnow_positions"),
+    ("test_simnow_ctp.py", "test_simnow_full_trading_cycle"),
+    ("test_simnow_ctp.py", "test_all_simnow_environments"),
+    ("test_simnow_trade_logger_certification.py", "test_simnow_trade_logger_runtime_audit"),
+    ("test_simnow_trade_logger_certification.py", "test_simnow_trade_logger_local_error_audit"),
 )
-_SIMNOW_ORDER_LOOKUP = {name: index for index, name in enumerate(_SIMNOW_CTP_ORDER)}
+_SIMNOW_SERIAL_MODULES = {module_name for module_name, _test_name in _SIMNOW_SERIAL_ORDER}
+_SIMNOW_ORDER_LOOKUP = {
+    (module_name, test_name): index
+    for index, (module_name, test_name) in enumerate(_SIMNOW_SERIAL_ORDER)
+}
 _SERIAL_WAIT_SECONDS = 0.2
 _SERIAL_TIMEOUT_SECONDS = 60 * 60
 
 
-def _is_simnow_ctp_item(item) -> bool:
-    """Return whether a collected item belongs to the SimNow live module."""
+def _item_module_name(item) -> str:
+    """Return the collected test module filename."""
     item_path = getattr(item, "path", None)
     if item_path is not None:
-        return Path(item_path).name == _SIMNOW_CTP_MODULE
+        return Path(item_path).name
 
-    return Path(str(item.fspath)).name == _SIMNOW_CTP_MODULE
+    return Path(str(item.fspath)).name
+
+
+def _is_simnow_serial_item(item) -> bool:
+    """Return whether a collected item belongs to the serialized SimNow suite."""
+    return _item_module_name(item) in _SIMNOW_SERIAL_MODULES
 
 
 def pytest_collection_modifyitems(config, items):
     """Assign a stable serial order to SimNow live cases across xdist workers."""
-    simnow_items = [item for item in items if _is_simnow_ctp_item(item)]
+    simnow_items = [item for item in items if _is_simnow_serial_item(item)]
     if not simnow_items:
         return
 
     ordered_simnow_items = sorted(
         simnow_items,
-        key=lambda item: (_SIMNOW_ORDER_LOOKUP.get(item.name, len(_SIMNOW_CTP_ORDER)), item.nodeid),
+        key=lambda item: (
+            _SIMNOW_ORDER_LOOKUP.get(
+                (_item_module_name(item), item.name),
+                len(_SIMNOW_SERIAL_ORDER),
+            ),
+            item.nodeid,
+        ),
     )
 
-    original_positions = [index for index, item in enumerate(items) if _is_simnow_ctp_item(item)]
+    original_positions = [index for index, item in enumerate(items) if _is_simnow_serial_item(item)]
     for position, item in zip(original_positions, ordered_simnow_items):
         items[position] = item
 
     total = len(ordered_simnow_items)
     for index, item in enumerate(ordered_simnow_items):
-        item.add_marker(pytest.mark.simnow_serial(index=index, total=total))
-        item.add_marker(pytest.mark.xdist_group(name="simnow_ctp_serial"))
+        item.add_marker(pytest.mark.simnow_serial(index=index, total=total, group=_SIMNOW_SERIAL_GROUP))
+        item.add_marker(pytest.mark.xdist_group(name=_SIMNOW_SERIAL_GROUP))
 
 
 def _lock_file(fileobj):
@@ -86,10 +103,10 @@ def _unlock_file(fileobj):
     fcntl.flock(fileobj.fileno(), fcntl.LOCK_UN)
 
 
-def _serial_state_paths(config, run_id: str) -> tuple[Path, Path]:
+def _serial_state_paths(config, run_id: str, group_name: str) -> tuple[Path, Path]:
     """Build unique lock/state file paths for the current pytest session."""
     root = str(config.rootpath)
-    digest = hashlib.sha1(f"{root}:{run_id}:{_SIMNOW_CTP_MODULE}".encode("utf-8")).hexdigest()[:16]
+    digest = hashlib.sha1(f"{root}:{run_id}:{group_name}".encode("utf-8")).hexdigest()[:16]
     base = Path(tempfile.gettempdir()) / f"backtrader-simnow-serial-{digest}"
     return base.with_suffix(".lock"), base.with_suffix(".json")
 
@@ -128,7 +145,8 @@ def _serialize_simnow_ctp_cases(request):
 
     order_index = int(marker.kwargs["index"])
     total = int(marker.kwargs["total"])
-    lock_path, state_path = _serial_state_paths(request.config, _get_testrun_uid(request))
+    group_name = str(marker.kwargs.get("group") or _SIMNOW_SERIAL_GROUP)
+    lock_path, state_path = _serial_state_paths(request.config, _get_testrun_uid(request), group_name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     deadline = time.monotonic() + max(_SERIAL_TIMEOUT_SECONDS, total * 600)

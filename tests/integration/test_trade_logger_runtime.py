@@ -126,3 +126,71 @@ def test_trade_logger_records_local_rejects_in_error_log(tmp_path):
     assert "order_reject_local" in error_events
     assert "order_rejected" in error_events
     assert any(entry["error_code"] == "invalid_price_tick" for entry in error_entries)
+
+
+@pytest.mark.integration
+def test_trade_logger_records_monitor_thresholds_and_duplicates(tmp_path):
+    """Threshold warnings and duplicate detection should be persisted to monitor.log."""
+    client = FakeBtApiClient(
+        history={
+            DEFAULT_SYMBOL: [
+                make_bar(0, 100.0, 101.0, 99.0, 100.5),
+                make_bar(1, 100.5, 102.0, 100.0, 101.0),
+                make_bar(2, 101.0, 102.5, 100.5, 101.5),
+                make_bar(3, 101.5, 103.0, 101.0, 102.0),
+            ]
+        }
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+    cerebro = bt.Cerebro()
+
+    class MonitoringStrategy(bt.Strategy):
+        def __init__(self):
+            self.bar_count = 0
+            self.orders = []
+
+        def next(self):
+            self.bar_count += 1
+            if self.bar_count == 1:
+                self.orders.append(
+                    self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
+                )
+                return
+
+            if self.bar_count == 2:
+                self.orders.append(
+                    self.buy(data=self.datas[0], size=1, price=101.0, exectype=bt.Order.Limit)
+                )
+                self.cancel(self.orders[0])
+                return
+
+            self.cerebro.runstop()
+
+    cerebro.setbroker(broker)
+    cerebro.adddata(data)
+    cerebro.addstrategy(MonitoringStrategy)
+    cerebro.addobserver(
+        bt.observers.TradeLogger,
+        log_dir=str(tmp_path),
+        log_format="json",
+        submit_count_warn_threshold=2,
+        cancel_count_warn_threshold=1,
+        submit_cancel_total_warn_threshold=3,
+        duplicate_order_warn_threshold=1,
+        duplicate_order_window_seconds=60.0,
+    )
+
+    results = cerebro.run()
+
+    assert len(results) == 1
+
+    monitor_entries = _read_json_lines(tmp_path / "monitor.log")
+    monitor_events = [entry["event_type"] for entry in monitor_entries]
+
+    assert "duplicate_order_detected" in monitor_events
+    assert "submit_count_threshold_reached" in monitor_events
+    assert "cancel_count_threshold_reached" in monitor_events
+    assert "submit_cancel_total_threshold_reached" in monitor_events
+    assert "duplicate_order_threshold_reached" in monitor_events
