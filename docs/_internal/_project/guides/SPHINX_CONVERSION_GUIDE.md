@@ -770,7 +770,7 @@ formats:
   - htmlzip
 
 ```bash
-`.readthedocs-zh.yaml` (Chinese project):
+Legacy `.readthedocs-zh.yaml` override example (no longer kept in repo):
 
 ```yaml
 version: 2

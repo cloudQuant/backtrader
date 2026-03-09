@@ -153,3 +153,17 @@ backtrader_master_tests_report.html
 backtrader_remove_metaprogramming_report_timing.json
 performance_comparison.json
 backtrader-master/*htmlcov/
+
+# Local workspace / editor artifacts
+.benchmarks/
+.claude/
+.cursor/
+.idea/
+.ruff_cache/
+.vscode/
+_bmad/
+assets/
+.readthedocs-zh.yaml
+bandit-report.json
+fix_readme.py
+optimize_code.sh

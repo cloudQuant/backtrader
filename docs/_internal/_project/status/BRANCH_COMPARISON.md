@@ -54,7 +54,7 @@
 
 - **Sphinx 文档**: 完整的 RST 格式文档
 - **双语支持**: 中英文文档同步
-- **Read the Docs**: 配置完成 (`.readthedocs.yaml`, `.readthedocs-zh.yaml`)
+- **Read the Docs**: 配置完成 (`.readthedocs.yaml`，单配置支持中英文)
 - **用户指南**: installation, concepts, data_feeds, strategies, indicators, optimization, brokers, analyzers
 
 ### 3.4 CI/CD 系统
