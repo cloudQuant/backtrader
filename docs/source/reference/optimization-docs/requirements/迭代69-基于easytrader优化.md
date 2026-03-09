@@ -29,7 +29,8 @@ easytrader 是一个 A 股自动化交易框架，通过客户端自动化实现
 5. **错误处理**: 交易错误处理机制
 6. **日志系统**: 交易日志记录
 
----
+- --
+
 ## 项目对比分析
 
 ### Backtrader vs easytrader 架构对比
@@ -101,7 +102,8 @@ easytrader 是一个 A 股自动化交易框架，通过客户端自动化实现
 - **窗口控件映射**: 通过 ID 定位 GUI 元素
 - **路径配置**: 默认可执行文件路径配置
 
----
+- --
+
 ## 需求文档
 
 ### 需求概述
@@ -287,7 +289,8 @@ easytrader 是一个 A 股自动化交易框架，通过客户端自动化实现
 - 支持主流券商客户端
 - 保持与现有 backtrader API 兼容
 
----
+- --
+
 ## 设计文档
 
 ### 整体架构设计
@@ -389,7 +392,7 @@ backtrader/
 
 │           └── mask.py     # 敏感信息脱敏
 
-```
+```bash
 
 ### 详细设计
 
@@ -498,7 +501,7 @@ class BrokerAdapter(ABC):
 # 子类实现具体保活逻辑
         return True
 
-```
+```bash
 
 - *1.2 工厂类**
 
@@ -575,7 +578,7 @@ def use(broker: str, **kwargs) -> BrokerAdapter:
     """便捷函数：创建券商适配器"""
     return BrokerFactory.create(broker, **kwargs)
 
-```
+```bash
 
 - *1.3 配置基类**
 
@@ -671,7 +674,7 @@ class YHConfig(BrokerConfig):
     DEFAULT_EXE_PATH = r"C:\双子星-中国银河证券\Binarystar.exe"
     WINDOW_TITLE = "中国银河证券"
 
-```
+```bash
 
 #### 2. 数据获取策略
 
@@ -718,7 +721,7 @@ class DataFetchStrategy(ABC):
         """失败回调"""
         pass
 
-```
+```bash
 
 - *2.2 具体策略实现**
 
@@ -846,7 +849,7 @@ class DirectApiStrategy(DataFetchStrategy):
         """解析数据"""
         return data
 
-```
+```bash
 
 - *2.3 策略管理器**
 
@@ -908,7 +911,7 @@ class StrategyManager:
         """获取所有策略"""
         return list(self._strategies)
 
-```
+```bash
 
 #### 3. 异常处理
 
@@ -969,7 +972,7 @@ class TimeoutError(NetworkError):
     """超时错误"""
     pass
 
-```
+```bash
 
 #### 4. 性能监控
 
@@ -1056,7 +1059,7 @@ class PerformanceMonitor:
 
 perf_monitor = PerformanceMonitor()
 
-```
+```bash
 
 - *4.2 性能预警**
 
@@ -1087,7 +1090,7 @@ class PerformanceAlert:
         logger.warning(f"Performance alert: {name} took {duration:.4f}s "
                       f"(threshold: {self.threshold:.4f}s)")
 
-```
+```bash
 
 #### 5. 跟单功能
 
@@ -1183,7 +1186,7 @@ class FollowerBase(ABC):
         elif action == 'sell':
             self.broker.sell(symbol, price, amount)
 
-```
+```bash
 
 - *5.2 信号过滤器**
 
@@ -1236,7 +1239,7 @@ def direction_filter(allowed_directions: List[str]):
         return signal.get('action') in allowed_directions
     return filter_func
 
-```
+```bash
 
 #### 6. UI 自动化
 
@@ -1323,7 +1326,7 @@ class DialogHandler:
         win32gui.EnumChildWindows(hwnd, callback, buttons)
         return buttons[0] if buttons else None
 
-```
+```bash
 
 - *6.2 窗口管理**
 
@@ -1376,7 +1379,7 @@ class WindowManager:
         """获取窗口位置"""
         return win32gui.GetWindowRect(hwnd)
 
-```
+```bash
 
 #### 7. 日志系统
 
@@ -1450,7 +1453,7 @@ class AuditLogger:
 
 audit_logger = AuditLogger()
 
-```
+```bash
 
 - *7.2 敏感信息脱敏**
 
@@ -1505,7 +1508,7 @@ def _mask_dict_value(key: str, value: Any, rules: list) -> Any:
 # 递归处理嵌套结构
     return mask_sensitive_info(value, rules)
 
-```
+```bash
 
 ### 实现计划
 
@@ -1586,7 +1589,7 @@ cerebro = bt.Cerebro()
 cerebro.set_broker(broker)
 result = cerebro.run()
 
-```
+```bash
 
 ### 使用示例
 
@@ -1620,7 +1623,7 @@ print(f"订单 ID: {result.order_id}")
 
 result = broker.sell('600000', 10.5, 100)
 
-```
+```bash
 
 - *跟单功能使用示例：**
 
@@ -1652,7 +1655,7 @@ follower.follow(
     signal_filter=signal_filter
 )
 
-```
+```bash
 
 - *性能监控使用示例：**
 
@@ -1672,7 +1675,7 @@ stats = perf_monitor.get_all_stats()
 for name, stat in stats.items():
     print(f"{name}: 平均 {stat['avg']:.4f}s")
 
-```
+```bash
 
 ### 测试策略
 

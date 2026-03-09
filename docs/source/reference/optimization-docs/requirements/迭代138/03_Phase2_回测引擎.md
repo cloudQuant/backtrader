@@ -2,7 +2,8 @@
 
 > 周期: 3 周 | 优先级: 🔴 最高 | 风险: 高
 
----
+- --
+
 ## 1. 目标
 
 实现 Tick 级回测引擎的核心逻辑，包括三种运行模式和两种新 Broker。
@@ -29,7 +30,8 @@
 
 | 回归测试 | 100%通过 | 1020/1020 |
 
----
+- --
+
 ## 2. 实施内容
 
 ### 2.1 TickBroker 实现（5 天）
@@ -244,7 +246,7 @@ class TickBroker(BackBroker):
         """时间戳结束时清理"""
         self._matched_orders.clear()
 
-```
+```bash
 
 - *测试**: `tests/phase2/test_tick_broker.py`
 
@@ -324,9 +326,10 @@ def test_tick_broker_partial_fill():
     assert order.status == Order.Completed
     assert order.executed.size == 10.0
 
-```
+```bash
 
----
+- --
+
 ### 2.2 MixBroker 实现（6 天）
 
 - *文件**: `backtrader/brokers/mixbroker.py`
@@ -446,7 +449,7 @@ class MixBroker(TickBroker):
         self._order_submit_time[order.ref] = self._current_timestamp
         return super().submit(order)
 
-```
+```bash
 
 - *测试**: `tests/phase2/test_mix_broker.py`
 
@@ -491,9 +494,10 @@ def test_mix_broker_bar_fallback():
     assert order.status == Order.Completed
     assert order.executed.price == 50050  # close 价格
 
-```
+```bash
 
----
+- --
+
 ### 2.3 三种运行模式实现（5 天）
 
 - *文件**: `backtrader/cerebro.py`
@@ -624,7 +628,7 @@ class Cerebro:
 
         return runstrats
 
-```
+```bash
 
 - *测试**: `tests/phase2/test_run_modes.py`
 
@@ -676,9 +680,10 @@ def test_mixed_mode():
     assert strat.bar_count > 0
     assert strat.tick_count > 0
 
-```
+```bash
 
----
+- --
+
 ### 2.4 批处理通知机制（3 天）
 
 已在 Phase 1 实现，此处进行集成测试。
@@ -711,9 +716,10 @@ def test_notifications_within_same_timestamp():
 
 # ...
 
-```
+```bash
 
----
+- --
+
 ## 3. 交付物
 
 ### 3.1 代码
@@ -737,7 +743,8 @@ def test_notifications_within_same_timestamp():
 - [ ] Broker 使用指南
 - [ ] 运行模式选择指南
 
----
+- --
+
 ## 4. 验收标准
 
 ### 4.1 功能验收
@@ -759,7 +766,8 @@ def test_notifications_within_same_timestamp():
 - [ ] 内存使用 < 200MB
 - [ ] 回归测试 100%通过
 
----
+- --
+
 ## 5. 时间表
 
 | 任务 | 工作量 | 开始 | 结束 |
@@ -776,7 +784,8 @@ def test_notifications_within_same_timestamp():
 
 | 准确性验证 | 2 天 | Day 20 | Day 21 |
 
----
+- --
+
 ## 6. 风险与应对
 
 | 风险 | 概率 | 影响 | 应对措施 |
@@ -789,7 +798,8 @@ def test_notifications_within_same_timestamp():
 
 | 回归问题 | 低 | 高 | 持续回归测试 |
 
----
+- --
+
 ## 7. 下一步
 
 Phase 2 完成后，进入 Phase 3：OrderBook 深度撮合。

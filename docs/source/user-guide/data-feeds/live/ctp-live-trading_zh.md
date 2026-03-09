@@ -1,8 +1,10 @@
----
+- --
+
 title: CTP 实盘交易指南
 description: 使用 CTP 接口进行中国期货实盘和模拟交易
 
----
+- --
+
 # CTP 实盘交易指南
 
 CTP (Comprehensive Transaction Platform) 是中国期货市场最广泛使用的交易接口。本指南介绍如何使用 backtrader 的 CTP 模块进行实盘和模拟交易。
@@ -32,7 +34,7 @@ pip install ctp-python akshare
 
 # akshare: 用于历史数据回填
 
-```
+```bash
 
 ## SimNow 模拟环境
 
@@ -64,7 +66,7 @@ DEFAULT_AUTH_CODE = "0000000000000000"
 
 # <https://www.simnow.com.cn/>
 
-```
+```bash
 
 ## 配置说明
 
@@ -105,7 +107,7 @@ CTP 合约代码格式：`合约代码.交易所代码`
 
 "pb2501.GFEX"    # 工业硅，广期所
 
-```
+```bash
 
 ### 交易所代码
 
@@ -152,7 +154,7 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
 ### 数据源参数
 
@@ -183,7 +185,7 @@ for symbol in ['rb2501.SHFE', 'IF2506.CFFEX', 'm2505.DCE']:
     data = store.getdata(dataname=symbol, timeframe=bt.TimeFrame.Minutes)
     cerebro.adddata(data)
 
-```
+```bash
 
 ## 经纪人设置
 
@@ -208,7 +210,7 @@ cerebro.setbroker(bt.brokers.CTPBroker(
     auth_code='0000000000000000',
 ))
 
-```
+```bash
 
 ### 经纪人参数
 
@@ -236,7 +238,7 @@ class MyStrategy(bt.Strategy):
 # 市价卖出 1 手
         self.sell(size=1)
 
-```
+```bash
 
 ### 限价单
 
@@ -252,7 +254,7 @@ class MyStrategy(bt.Strategy):
         price = self.data.close[0] + 10
         self.sell(price=price, size=1)
 
-```
+```bash
 
 ### 止损单
 
@@ -279,7 +281,7 @@ class MyStrategy(bt.Strategy):
 
 # exectype=bt.Order.StopLimit, size=1)
 
-```
+```bash
 
 ### 撤单
 
@@ -298,7 +300,7 @@ class MyStrategy(bt.Strategy):
 # 下新单
         self.order = self.buy(size=1)
 
-```
+```bash
 
 ### 订单状态监控
 
@@ -325,7 +327,7 @@ class MyStrategy(bt.Strategy):
         elif order.status in [order.Rejected]:
             print(f'订单被拒绝: {order.ref}')
 
-```
+```bash
 
 ## 持仓管理
 
@@ -347,7 +349,7 @@ class MyStrategy(bt.Strategy):
         value = self.getvalue()
         print(f'总资产: {value:.2f}')
 
-```
+```bash
 
 ### 自动平仓逻辑
 
@@ -379,7 +381,7 @@ class MyStrategy(bt.Strategy):
             if self.hold_bars >= self.p.max_hold_bars:
                 self.sell(size=1)
 
-```
+```bash
 
 ## 完整代码示例
 
@@ -499,7 +501,7 @@ def main():
 if __name__ == '__main__':
     main()
 
-```
+```bash
 
 ### 多品种策略
 
@@ -574,7 +576,7 @@ def main():
 if __name__ == '__main__':
     main()
 
-```
+```bash
 
 ## 风险控制
 
@@ -597,7 +599,7 @@ class RiskControlStrategy(bt.Strategy):
         if not self.position:
             self.buy(size=1)
 
-```
+```bash
 
 ### 总持仓限制
 
@@ -623,7 +625,7 @@ class TotalPositionLimitStrategy(bt.Strategy):
 # 正常交易逻辑
         ...
 
-```
+```bash
 
 ### 每日亏损限制
 
@@ -662,7 +664,7 @@ class DailyLossLimitStrategy(bt.Strategy):
         if trade.isclosed:
             self.daily_pnl += trade.pnl
 
-```
+```bash
 
 ## 断线重连
 
@@ -694,7 +696,7 @@ class ConnectionMonitorStrategy(bt.Strategy):
 # 正常交易逻辑
         ...
 
-```
+```bash
 
 ## 故障排除
 
@@ -776,7 +778,7 @@ for pos in positions:
     print(f'{pos["instrument"]} {pos["direction"]} '
           f'持仓:{pos["volume"]} 均价:{pos["avg_price"]:.2f}')
 
-```
+```bash
 
 ### 查询频率限制
 
@@ -800,7 +802,7 @@ def next(self):
     if self._cash_counter % 10 == 0:  # 每 10 个 K 线查询一次
         self._last_cash = self.getcash()
 
-```
+```bash
 
 ## 实盘注意事项
 

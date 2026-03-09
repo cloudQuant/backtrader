@@ -80,7 +80,7 @@ stock-backtrader-web-app/
 └── config/
     └── strategy.yaml        # 策略配置文件
 
-```
+```bash
 
 ### 核心代码亮点分析
 
@@ -106,7 +106,7 @@ def run_backtrader(stock_df: pd.DataFrame, strategy: StrategyBase, bt_params: Ba
 
     return cerebro.run()
 
-```
+```bash
 
 - *2. 专业 K 线图** (`internal/pkg/charts/stock.py`):
 - K 线+MA 均线叠加
@@ -125,7 +125,7 @@ class MaCrossStrategy(BaseStrategy):
         ma_slow = bt.ind.SMA(period=self.params.slow_length)
         self.crossover = bt.ind.CrossOver(ma_fast, ma_slow)
 
-```
+```bash
 
 ### 重点借鉴方向
 
@@ -137,7 +137,8 @@ class MaCrossStrategy(BaseStrategy):
 4. **服务层封装**: 将 Cerebro 操作封装为可复用服务
 5. **动态策略导入**: `getattr(__import__())`模式
 
----
+- --
+
 ## 技术栈规划 (行业最佳实践)
 
 ### 前端技术栈
@@ -230,7 +231,8 @@ class MaCrossStrategy(BaseStrategy):
 
 |**Grafana** | 可视化 | 监控面板 |
 
----
+- --
+
 ## 架构对比分析
 
 ### Backtrader 核心特点
@@ -270,7 +272,8 @@ class MaCrossStrategy(BaseStrategy):
 4. **文档不足**: 缺少详细的开发文档
 5. **无异步支持**: 回测任务同步执行，可能阻塞 UI
 
----
+- --
+
 ## 核心借鉴价值总结
 
 | 借鉴点 | 源码位置 | backtrader 集成方案 | 优先级 |
@@ -293,7 +296,8 @@ class MaCrossStrategy(BaseStrategy):
 
 | Redis 缓存 | - | 新增`bt.cache`模块 | P2 |
 
----
+- --
+
 ## 需求规格文档
 
 ### 1. Web 服务架构 (优先级: 高)
@@ -327,7 +331,7 @@ class MaCrossStrategy(BaseStrategy):
               │ 缓存    │      │Worker   │      │ 抽象层  │
               └─────────┘      └─────────┘      └─────────┘
 
-```
+```bash
 
 - *非功能需求:**
 1. API 响应时间 P99 < 200ms
@@ -367,7 +371,7 @@ class MaCrossStrategy(BaseStrategy):
   :benchmark="benchmarkData"
 />
 
-```
+```bash
 
 - *非功能需求:**
 1. 100 万根 K 线流畅渲染
@@ -429,7 +433,7 @@ DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/backtrader
 
 # CELERY_BROKER_URL=redis://localhost:6379/1
 
-```
+```bash
 
 ```bash
 
@@ -454,7 +458,7 @@ TIMESERIES_DB_PORT=8848
 REDIS_URL=redis://localhost:6379/0
 CELERY_BROKER_URL=redis://localhost:6379/1
 
-```
+```bash
 
 - *支持的数据库:**
 
@@ -527,7 +531,8 @@ CELERY_BROKER_URL=redis://localhost:6379/1
 5. **批量导出**: 批量导出多个报告
 6. **报告发送**: 邮件发送报告
 
----
+- --
+
 ## 设计文档
 
 ### 1. Web 服务架构设计
@@ -595,7 +600,7 @@ CELERY_BROKER_URL=redis://localhost:6379/1
                                               │ └─────────────┘ │
                                               └─────────────────┘
 
-```
+```bash
 
 #### 1.2 FastAPI 服务设计
 
@@ -773,7 +778,7 @@ def start_server(host="0.0.0.0", port=8080):
         log_level="info"
     )
 
-```
+```bash
 
 #### 1.3 数据模型设计
 
@@ -871,7 +876,7 @@ class StrategyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-```
+```bash
 
 ### 2. 回测服务设计
 
@@ -1061,7 +1066,7 @@ class BacktestService:
         """列出回测结果"""
         return self.repository.list_results(user_id, limit, offset)
 
-```
+```bash
 
 ### 3. 可视化系统设计
 
@@ -1244,7 +1249,7 @@ class KlineChart:
         """保存 HTML 文件"""
         chart.render(filename)
 
-```
+```bash
 
 #### 3.2 回测结果图表
 
@@ -1374,7 +1379,7 @@ class ResultChart:
 
         return tab
 
-```
+```bash
 
 ### 4. Streamlit Web 界面
 
@@ -1567,7 +1572,7 @@ elif page == "策略管理":
 if __name__ == "__main__":
     pass  # 由 streamlit run 命令启动
 
-```
+```bash
 
 ### 5. 数据持久化设计
 
@@ -1693,7 +1698,7 @@ class BacktestRepository:
         session.close()
         return results
 
-```
+```bash
 
 ### 6. 使用示例
 
@@ -1708,7 +1713,7 @@ from backtrader.web.api.app import start_server
 if __name__ == "__main__":
     start_server(host="0.0.0.0", port=8080)
 
-```
+```bash
 
 ```bash
 
@@ -1716,7 +1721,7 @@ if __name__ == "__main__":
 
 streamlit run backtrader/web/streamlit_app.py --server.port 8502
 
-```
+```bash
 
 #### 6.2 API 调用
 
@@ -1746,9 +1751,10 @@ task_id = response.json()["task_id"]
 result = requests.get(f"<http://localhost:8080/api/v1/backtest/result/{task_id}")>
 print(result.json())
 
-```
+```bash
 
----
+- --
+
 ## 新增设计: Vue3 前端架构
 
 ### 项目结构
@@ -1808,7 +1814,7 @@ bt-web-ui/
 ├── tsconfig.json
 └── tailwind.config.js
 
-```
+```bash
 
 ### Echarts K 线图组件
 
@@ -1993,9 +1999,10 @@ watch(() => props.data, () => {
 }, { deep: true })
 </script>
 
-```
+```bash
 
----
+- --
+
 ## 新增设计: 统一数据库抽象层
 
 - *设计目标**: 统一接口 + 环境变量配置 + 单库可启动
@@ -2193,7 +2200,7 @@ def get_cache():
         from .cache import MemoryCache
         return MemoryCache()
 
-```
+```bash
 
 - *使用示例:**
 
@@ -2213,9 +2220,10 @@ await user_repo.create(user)
 cache = get_cache()
 await cache.set("backtest:123", result)
 
-```
+```bash
 
----
+- --
+
 ## 新增设计: 策略配置加载器
 
 借鉴 stock-backtrader-web-app 的 YAML 策略配置模式：
@@ -2301,9 +2309,10 @@ strategies:
         default: 30
 """
 
-```
+```bash
 
----
+- --
+
 ## 实施路线图 (Vue3 + FastAPI + 多数据库)
 
 ### 阶段 1: 基础设施搭建 (2 周)
@@ -2389,9 +2398,10 @@ Week 16-17: 测试部署 ████████
 ─────────────────────────────────
 总计: 约 17 周 (4 个月)
 
-```
+```bash
 
----
+- --
+
 ## 附录 A: 关键文件路径
 
 ### Backtrader 关键文件
@@ -2417,7 +2427,8 @@ Week 16-17: 测试部署 ████████
 
 | `core/factors/algorithm.py` | 381 | 技术指标算法 | ⭐ |
 
----
+- --
+
 ## 附录 B: 技术栈对比 (更新版)
 
 | 层级 | 原参考项目 | 本迭代采用方案 | 说明 |
@@ -2458,7 +2469,8 @@ Week 16-17: 测试部署 ████████
 
 |**认证**| 无 | JWT + OAuth2 | 企业级认证 |
 
----
+- --
+
 ## 附录 C: 项目架构选择建议
 
 ### 方案对比
@@ -2510,7 +2522,7 @@ backtrader-web/               # 独立仓库
 ├── pyproject.toml
 └── README.md
 
-```
+```bash
 
 - *使用方式:**
 
@@ -2522,7 +2534,7 @@ pip install backtrader-web
 
 backtrader-web serve --port 8000
 
-```
+```bash
 
 ### 方案 B: 集成到 backtrader
 
@@ -2553,7 +2565,7 @@ backtrader/
 
 └── README.md
 
-```
+```bash
 
 ### 推荐结论
 
@@ -2582,7 +2594,7 @@ cerebro = bt.Cerebro()
 server = WebServer(cerebro)
 server.run(port=8000)
 
-```
+```bash
 
 ### 环境变量配置 (.env)
 
@@ -2606,7 +2618,7 @@ HOST=0.0.0.0
 PORT=8000
 DEBUG=true
 
-```
+```bash
 
 ### 快速启动
 
@@ -2625,4 +2637,4 @@ cd frontend
 npm install
 npm run dev
 
-```
+```bash

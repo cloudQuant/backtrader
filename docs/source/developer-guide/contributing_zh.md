@@ -1,8 +1,10 @@
----
+- --
+
 title: 贡献指南
 description: Backtrader 贡献指南
 
----
+- --
+
 # 贡献指南
 
 感谢您对 Backtrader 的贡献兴趣！本文档提供了参与项目开发的指南和工作流程。
@@ -55,7 +57,7 @@ pip install -e .
 
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
 
-```
+```bash
 
 ### 分支命名约定
 
@@ -93,7 +95,7 @@ git merge upstream/dev
 
 git checkout -b feat/your-feature-name
 
-```
+```bash
 
 ### 步骤 2: 进行更改
 
@@ -111,7 +113,7 @@ git checkout -b feat/your-feature-name
 
 [可选的正文]
 
-```
+```bash
 
 - *有效类型：**
 - `feat`: 新功能
@@ -130,7 +132,7 @@ git commit -m "fix: 处理 CCXTBroker.cancel() 中的 order-not-found"
 git commit -m "perf: 在 total_value.next() 中缓存 broker 引用"
 git commit -m "docs: 更新 CCXT 实盘交易指南"
 
-```
+```bash
 
 ### 步骤 4: 运行测试
 
@@ -152,7 +154,7 @@ make format-check
 
 make lint
 
-```
+```bash
 
 ### 步骤 5: 推送并创建 Pull Request
 
@@ -166,7 +168,7 @@ git push origin feat/your-feature-name
 
 # 目标分支: dev
 
-```
+```bash
 
 ### Pull Request 描述模板
 
@@ -194,7 +196,7 @@ git push origin feat/your-feature-name
 - 描述测试方法
 - 包含测试命令
 
-```
+```bash
 pytest tests/path/to/test.py -v
 
 ```bash
@@ -213,7 +215,7 @@ pytest tests/path/to/test.py -v
 Fixes #123
 Related to #456
 
-```
+```bash
 
 ## 代码审查标准
 
@@ -291,7 +293,7 @@ Related to #456
 
 ## 代码示例
 
-```
+```bash
 import backtrader as bt
 
 # 最小可复现代码
@@ -302,7 +304,7 @@ import backtrader as bt
 
 日志、截图或其他相关信息。
 
-```
+```bash
 
 ### 功能请求
 
@@ -326,7 +328,7 @@ import backtrader as bt
 
 示例、参考或实现想法。
 
-```
+```bash
 
 ## 社区准则
 
@@ -381,7 +383,7 @@ git commit -m "feat: 添加新指标
 
 Signed-off-by: 你的名字 <your.email@example.com>"
 
-```
+```bash
 
 ### 自动签署
 
@@ -390,13 +392,13 @@ Signed-off-by: 你的名字 <your.email@example.com>"
 ```bash
 git config --global commit.signoff true
 
-```
+```bash
 然后使用 `-s` 标志：
 
 ```bash
 git commit -s -m "feat: 添加新指标"
 
-```
+```bash
 
 ### DCO 认证
 

@@ -49,7 +49,7 @@
 
 pyproject.toml            # 项目配置（更新）
 
-```
+```bash
 
 ## 使用方法
 
@@ -59,7 +59,7 @@ pyproject.toml            # 项目配置（更新）
 pip install pre-commit
 pre-commit install
 
-```
+```bash
 
 ### 手动运行检查
 
@@ -73,14 +73,14 @@ pre-commit run --all-files
 
 ./scripts/optimize_code.sh
 
-```
+```bash
 
 ### 跳过 pre-commit（紧急情况）
 
 ```bash
 git commit --no-verify -m "urgent fix"
 
-```
+```bash
 
 ## 状态
 

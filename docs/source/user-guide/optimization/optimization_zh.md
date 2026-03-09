@@ -15,7 +15,7 @@ class MyStrategy(bt.Strategy):
         ('risk_ratio', 0.02),   # 风险比率
     )
 
-```
+```bash
 
 ### 优化执行
 
@@ -32,7 +32,7 @@ cerebro.optstrategy(
     risk_ratio=[0.01, 0.02, 0.03]
 )
 
-```
+```bash
 
 ## 优化方法
 
@@ -63,7 +63,7 @@ for fast in params_grid['fast_period']:
             result = cerebro.run()
             results.append((fast, slow, rsi, result[0].analyzers.returns.get_analysis()))
 
-```
+```bash
 
 ### 2. 遗传算法优化
 
@@ -93,7 +93,7 @@ toolbox.register("attr_fast", random.randint, 5, 20)
 toolbox.register("attr_slow", random.randint, 20, 40)
 toolbox.register("attr_rsi", random.choice, [7, 14, 21])
 
-```
+```bash
 
 ### 3. 贝叶斯优化
 
@@ -123,7 +123,7 @@ res = gp_minimize(
     random_state=1
 )
 
-```
+```bash
 
 ## 评估指标
 
@@ -139,7 +139,7 @@ class OptimizationAnalyzer(bt.Analyzer):
             'trades': len(self.strategy.analyzers.trades.get_analysis())
         }
 
-```
+```bash
 
 ### 2. 稳定性评估
 
@@ -152,7 +152,7 @@ def stability_score(results):
     mean = np.mean(returns)
     return mean / std if std != 0 else float('inf')
 
-```
+```bash
 
 ### 3. 过拟合检测
 
@@ -168,7 +168,7 @@ def detect_overfitting(results, train_data, test_data):
 # 计算性能差异
     return abs(train_performance - test_performance)
 
-```
+```bash
 
 ## 优化策略
 
@@ -185,7 +185,7 @@ def time_window_optimization(strategy_class, data, window_size):
         results.append(window_results)
     return analyze_window_results(results)
 
-```
+```bash
 
 ### 2. 分步优化
 
@@ -218,7 +218,7 @@ def staged_optimization(strategy_class, data):
     )
     return fine_results
 
-```
+```bash
 
 ### 3. 交叉验证
 
@@ -250,7 +250,7 @@ def cross_validation(strategy_class, data, n_splits=5):
 
     return analyze_cv_results(results)
 
-```
+```bash
 
 ## 结果分析
 
@@ -285,7 +285,7 @@ def analyze_optimization_results(results):
 
     return performance
 
-```
+```bash
 
 ### 2. 参数敏感度分析
 
@@ -304,7 +304,7 @@ def parameter_sensitivity(results):
 
     return sensitivity
 
-```
+```bash
 
 ### 3. 稳定性分析
 
@@ -323,7 +323,7 @@ def stability_analysis(results, window_size=20):
     plt.title('策略稳定性趋势')
     plt.show()
 
-```
+```bash
 
 ## 最佳实践
 
@@ -351,7 +351,7 @@ def prevent_overfitting(strategy_class, data):
     if detect_overfitting(train_results, test_results) > 0.3:
         print("警告：可能存在过拟合")
 
-```
+```bash
 
 ### 2. 参数约束
 
@@ -367,7 +367,7 @@ def validate_parameters(params):
 
     return True
 
-```
+```bash
 
 ### 3. 计算效率
 
@@ -382,7 +382,7 @@ def parallel_optimization(strategy_class, param_grid):
         )
     return results
 
-```
+```bash
 
 ## 常见问题
 

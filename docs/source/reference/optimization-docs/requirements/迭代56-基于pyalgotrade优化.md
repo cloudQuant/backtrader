@@ -29,7 +29,8 @@ pyalgotrade 是一个简洁的 Python 算法交易库，具有以下核心特点
 5. **技术指标**: Technical 指标实现方式
 6. **Dispatcher**: 事件分发器设计
 
----
+- --
+
 ## 一、项目对比分析
 
 ### 1.1 架构设计对比
@@ -75,7 +76,7 @@ class BasicBar(Bar):
     __slots__ = ('__dateTime', '__open', '__close', '__high', '__low',
                  '__volume', '__adjClose', '__frequency', '__useAdjustedValue')
 
-```
+```bash
 
 #### 1.3.2 EventWindow 模式
 
@@ -98,7 +99,8 @@ class BasicBar(Bar):
 - 支持实时和回测 Subject 混合
 - 统一的事件循环管理
 
----
+- --
+
 ## 二、需求文档
 
 ### 2.1 优化目标
@@ -180,7 +182,8 @@ class BasicBar(Bar):
 - 可选使用新的 Dispatcher
 - 与现有 Cerebro 兼容
 
----
+- --
+
 ## 三、设计文档
 
 ### 3.1 EventWindow 设计
@@ -212,7 +215,7 @@ class EventWindow:
         """获取计算结果，由子类实现"""
         raise NotImplementedError
 
-```
+```bash
 
 #### 3.1.2 SMA EventWindow 实现
 
@@ -244,7 +247,7 @@ class SMAEventWindow(EventWindow):
     def get_value(self):
         return self._value
 
-```
+```bash
 
 #### 3.1.3 集成到现有 Indicator
 
@@ -267,7 +270,7 @@ class SMAIndicator(bt.Indicator):
 # 使用原有计算方式
             pass
 
-```
+```bash
 
 ### 3.2 DataSeries 事件机制设计
 
@@ -301,7 +304,7 @@ class Event:
         finally:
             self._emitting -= 1
 
-```
+```bash
 
 #### 3.2.2 扩展 DataSeries
 
@@ -322,7 +325,7 @@ class EventDataSeries(bt.LineSeries):
         if value is not None:
             self._new_value_event.emit(self, self.datetime, value)
 
-```
+```bash
 
 ### 3.3 并行优化改进设计
 
@@ -380,7 +383,7 @@ class OptimizerServer:
             batch_results.append(result)
         return batch_results
 
-```
+```bash
 
 #### 3.3.2 进度回调接口
 
@@ -401,7 +404,7 @@ class OptimizerWithProgress:
                 progress = self.completed_tasks / self.total_tasks
                 self.progress_callback(progress, result)
 
-```
+```bash
 
 ### 3.4 内存优化设计
 
@@ -424,7 +427,7 @@ class OptimizedBar:
         self.volume = volume
         self.openinterest = openinterest
 
-```
+```bash
 
 #### 3.4.2 内存优化级别
 
@@ -458,7 +461,7 @@ class Cerebro:
             self.runonce = False
             self.preload = False
 
-```
+```bash
 
 ### 3.5 Dispatcher 设计
 
@@ -500,7 +503,7 @@ class Dispatcher:
     def get_current_datetime(self):
         return self._current_datetime
 
-```
+```bash
 
 #### 3.5.2 Subject 接口
 
@@ -531,7 +534,7 @@ class Subject(metaclass=abc.ABCMeta):
     def set_dispatch_priority(self, priority):
         self._dispatch_priority = priority
 
-```
+```bash
 
 ### 3.6 实现优先级
 
@@ -559,7 +562,8 @@ class Subject(metaclass=abc.ABCMeta):
 2. 默认行为不变
 3. 向后兼容旧代码
 
----
+- --
+
 ## 四、实施计划
 
 ### 阶段一：EventWindow 基础（1-2 周）
@@ -587,7 +591,8 @@ class Subject(metaclass=abc.ABCMeta):
 2. 添加示例代码
 3. 更新 API 文档
 
----
+- --
+
 ## 五、总结
 
 通过借鉴 PyAlgoTrade 的优秀设计，Backtrader 可以在保持现有优势的基础上，获得：

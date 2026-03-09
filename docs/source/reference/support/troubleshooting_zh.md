@@ -11,7 +11,8 @@
 5. [问题报告模板](#问题报告模板)
 6. [获取帮助资源](#获取帮助资源)
 
----
+- --
+
 ## 错误诊断技术
 
 ### 1. 错误类型识别
@@ -47,7 +48,7 @@ class MyStrategy(bt.Strategy):
 # 现在可以安全访问参数
         print(f"参数值: {self.p.period}")
 
-```
+```bash
 
 #### 1.2 数据加载错误
 
@@ -83,7 +84,7 @@ cerebro.adddata(data)
 
 cerebro.run(precheck=True)  # 仅验证数据完整性
 
-```
+```bash
 
 #### 1.3 执行时错误
 
@@ -112,9 +113,10 @@ class MyStrategy(bt.Strategy):
         if not self.position:
             self.buy(size=self.p.size)
 
-```
+```bash
 
----
+- --
+
 ## 调试技巧和工具
 
 ### 1. 策略调试 (使用 pdb)
@@ -143,7 +145,7 @@ class DebugStrategy(bt.Strategy):
         if self.sma[0] > self.data.close[0]:
             self.sell()
 
-```
+```bash
 
 #### 1.2 调试命令
 
@@ -206,7 +208,7 @@ class AdvancedDebugStrategy(bt.Strategy):
         print(f"现金: {self.broker.get_cash():.2f}")
         print(f"资产: {self.broker.get_value():.2f}")
 
-```
+```bash
 
 ### 2. 日志记录
 
@@ -249,7 +251,7 @@ class LoggingStrategy(bt.Strategy):
     def notify_order(self, order):
         self.log(f'订单状态: {order.getstatusname()}')
 
-```
+```bash
 
 #### 2.2 结构化日志记录
 
@@ -295,7 +297,7 @@ class StrategyWithStructuredLogging(bt.Strategy):
             position=self.position.size
         )
 
-```
+```bash
 
 #### 2.3 性能日志记录
 
@@ -327,7 +329,7 @@ class PerformanceLoggedStrategy(bt.Strategy):
 # 订单处理逻辑
         pass
 
-```
+```bash
 
 ### 3. 数据源问题 (缺失柱、时区问题)
 
@@ -369,7 +371,7 @@ class DataIntegrityCheck(bt.Strategy):
         if missing:
             print(f"缺失日期: {sorted(missing)}")
 
-```
+```bash
 
 #### 3.2 时区问题处理
 
@@ -417,7 +419,7 @@ data = TimeZoneAwareData(
 )
 cerebro.adddata(data)
 
-```
+```bash
 
 #### 3.3 数据填充处理
 
@@ -443,7 +445,7 @@ data.addfilter(DataFiller)  # 添加填充过滤器
 
 cerebro.adddata(data)
 
-```
+```bash
 
 ### 4. 订单执行问题 (拒绝订单、部分成交)
 
@@ -493,7 +495,7 @@ class OrderDiagnosticStrategy(bt.Strategy):
         if len(self.data) == 0:
             print(f"原因: 无有效数据")
 
-```
+```bash
 
 #### 4.2 部分成交处理
 
@@ -534,7 +536,7 @@ class PartialFillHandling(bt.Strategy):
         """订单完全成交"""
         print(f"订单完全成交: {order.executed.size} @ {order.executed.price:.2f}")
 
-```
+```bash
 
 #### 4.3 订单执行验证
 
@@ -591,7 +593,7 @@ class OrderValidationStrategy(bt.Strategy):
 
         return self.sell(size=size, price=price)
 
-```
+```bash
 
 ### 5. 性能瓶颈 (分析、优化)
 
@@ -634,7 +636,7 @@ cerebro = bt.Cerebro()
 
 profile_backtest(cerebro)
 
-```
+```bash
 
 #### 5.2 内存使用分析
 
@@ -662,7 +664,7 @@ def profile_memory(cerebro):
 
     return result
 
-```
+```bash
 
 #### 5.3 性能优化技巧
 
@@ -730,7 +732,7 @@ cerebro.adddata(data, qbuffer=100)
 
 results = cerebro.run(maxcpu=1)  # 单进程运行
 
-```
+```bash
 
 #### 5.4 多进程优化
 
@@ -753,7 +755,7 @@ cerebro.optstrategy(
 
 cerebro.run(maxcpu=cpu_count())
 
-```
+```bash
 
 ### 6. 平台特定问题 (Windows, macOS, Linux)
 
@@ -790,7 +792,7 @@ data = bt.feeds.CSVFeed(
 
 )
 
-```
+```bash
 
 #### 6.2 macOS 特定问题
 
@@ -813,7 +815,7 @@ if __name__ == '__main__':
 # ... 添加策略和数据 ...
     cerebro.run()
 
-```
+```bash
 
 #### 6.3 Linux 特定问题
 
@@ -836,7 +838,7 @@ data = bt.feeds.CSVFeed(
     dataname=ensure_file_accessible('/path/to/data.csv')
 )
 
-```
+```bash
 
 ### 7. 内存泄漏和资源管理
 
@@ -878,7 +880,7 @@ class MemoryLeakDetector(bt.Strategy):
                 for obj_type, count in sorted_types:
                     print(f"  {obj_type}: {count}")
 
-```
+```bash
 
 #### 7.2 资源清理
 
@@ -917,7 +919,7 @@ class ResourceManagedStrategy(bt.Strategy):
 
         print("资源已清理")
 
-```
+```bash
 
 #### 7.3 循环引用处理
 
@@ -943,9 +945,10 @@ class CircularReferenceSafe(bt.Strategy):
         """清理引用"""
         self._data_ref = None
 
-```
+```bash
 
----
+- --
+
 ## 日志分析
 
 ### 1. 日志级别
@@ -983,7 +986,7 @@ logger = logging.getLogger('backtrader')
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-```
+```bash
 
 ### 3. 日志分析工具
 
@@ -1025,9 +1028,10 @@ def analyze_log_file(logfile='backtrader.log'):
 
 analyze_log_file()
 
-```
+```bash
 
----
+- --
+
 ## 常见错误模式
 
 ### 1. IndexError: array index out of range
@@ -1047,7 +1051,7 @@ def next(self):
     if len(self) > 100:
         value = self.data.close[-100]
 
-```
+```bash
 
 ### 2. AttributeError: 'NoneType' object has no attribute
 
@@ -1067,7 +1071,7 @@ def __init__(self):
     self.sma = bt.indicators.SMA(self.data.close, period=20)
     self.crossover = bt.indicators.CrossOver(self.sma, self.data.close)
 
-```
+```bash
 
 ### 3. ZeroDivisionError
 
@@ -1088,7 +1092,7 @@ def next(self):
     else:
         returns = 0
 
-```
+```bash
 
 ### 4. TypeError: 'LineSeries' object is not subscriptable
 
@@ -1106,9 +1110,10 @@ def next(self):
 def next(self):
     value = self.data.close[0]  # 方括号
 
-```
+```bash
 
----
+- --
+
 ## 问题报告模板
 
 在报告问题时，请使用以下模板：
@@ -1142,7 +1147,7 @@ def next(self):
 
 ## 最小复现代码
 
-```
+```bash
 
 # 提供可以复现问题的最小代码示例
 
@@ -1160,7 +1165,7 @@ cerebro.addstrategy(TestStrategy)
 
 ## 错误信息
 
-```
+```bash
 粘贴完整的错误堆栈跟踪
 
 ```bash
@@ -1177,9 +1182,10 @@ cerebro.addstrategy(TestStrategy)
 
 任何其他有助于解决问题的信息
 
-```
+```bash
 
----
+- --
+
 ## 获取帮助资源
 
 ### 1. 官方资源
@@ -1212,7 +1218,8 @@ cerebro.addstrategy(TestStrategy)
 - **邮件列表**: (待添加)
 - **Discord/Slack**: (待添加)
 
----
+- --
+
 ## 调试检查清单
 
 在寻求帮助前，请检查以下项目：
@@ -1226,7 +1233,8 @@ cerebro.addstrategy(TestStrategy)
 - [ ] 提供详细的日志信息
 - [ ] 说明尝试过的解决方法
 
----
+- --
+
 ## 附录: 常用调试代码片段
 
 ### 1. 打印策略状态
@@ -1246,7 +1254,7 @@ def print_status(self):
 
     """)
 
-```
+```bash
 
 ### 2. 数据验证
 
@@ -1258,7 +1266,7 @@ def validate_data(data):
     print(f"时间范围: {data.datetime.date(0)} 到 {data.datetime.date(-1)}")
     print(f"价格范围: {data.close.lowest(0)} 到 {data.close.highest(0)}")
 
-```
+```bash
 
 ### 3. 订单跟踪
 
@@ -1278,8 +1286,8 @@ class OrderTracker(bt.Strategy):
 
         print(f"订单 {order_id}: {self.orders[order_id]}")
 
-```
+```bash
 
----
+- --
 - 最后更新: 2025 年*
 - 版本: 1.0*

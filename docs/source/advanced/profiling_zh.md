@@ -1,8 +1,10 @@
----
+- --
+
 title: 性能分析与剖析
 description: Backtrader 策略性能剖析与分析指南
 
----
+- --
+
 # 性能分析与剖析
 
 有效的性能分析对于优化量化交易策略至关重要。本指南提供了全面的 Backtrader 策略剖析技术，帮助识别性能瓶颈并测量性能改进。
@@ -57,7 +59,7 @@ stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)  # 按累计时间排序的前 20 个函数
 
-```
+```bash
 
 ### 保存剖析结果
 
@@ -75,7 +77,7 @@ stats = pstats.Stats('my_strategy.prof')
 stats.sort_stats('cumulative')
 stats.print_stats(30)
 
-```
+```bash
 
 ### SnakeViz 可视化
 
@@ -88,7 +90,7 @@ pip install snakeviz
 
 snakeviz my_strategy.prof
 
-```
+```bash
 这将打开一个交互式可视化界面，显示：
 
 - 调用栈的冰柱图
@@ -134,7 +136,7 @@ def profile(output_file=None, print_stats=20):
 with profile('strategy.prof', print_stats=30):
     cerebro.run()
 
-```
+```bash
 
 ## 热路径识别
 
@@ -165,7 +167,7 @@ stats.print_stats(10)
 stats.sort_stats('cumulative')
 stats.print_stats(10)
 
-```
+```bash
 
 ### 识别指标瓶颈
 
@@ -195,7 +197,7 @@ class ProfiledStrategy(bt.Strategy):
         stats.strip_dirs()
         stats.print_stats(15)
 
-```
+```bash
 
 ### 逐行剖析
 
@@ -204,7 +206,7 @@ class ProfiledStrategy(bt.Strategy):
 ```bash
 pip install line_profiler
 
-```
+```bash
 
 ```python
 
@@ -221,7 +223,7 @@ class MyStrategy(bt.Strategy):
 
 # 使用: kernprof -l -v my_script.py 运行
 
-```
+```bash
 
 ## 内存剖析
 
@@ -244,7 +246,7 @@ class MemoryTrackedStrategy(bt.Strategy):
 
 # 使用: python -m memory_profiler my_script.py 运行
 
-```
+```bash
 
 ### 内存峰值分析
 
@@ -279,7 +281,7 @@ for stat in top_stats[:10]:
 
 tracemalloc.stop()
 
-```
+```bash
 
 ### 使用 mprof 进行内存剖析
 
@@ -299,7 +301,7 @@ mprof plot
 mprof clean
 mprof run --include-children python my_backtest.py
 
-```
+```bash
 
 ### 减少内存使用
 
@@ -327,7 +329,7 @@ cerebro.run(stdstats=False)
 results = cerebro.run()
 gc.collect()
 
-```
+```bash
 
 ## 策略专用剖析
 
@@ -382,7 +384,7 @@ class TimedStrategy(bt.Strategy):
             pct = (duration / total) * 100 if total > 0 else 0
             print(f"{phase}: {duration:.4f}s ({pct:.1f}%)")
 
-```
+```bash
 
 ### 每根 K 线计时
 
@@ -432,7 +434,7 @@ class PerBarTimedStrategy(bt.Strategy):
             print(f"最大: {max(self.bar_timings)*1000:.3f}ms")
             print(f"最小: {min(self.bar_timings)*1000:.3f}ms")
 
-```
+```bash
 
 ### 指标缓存分析
 
@@ -466,7 +468,7 @@ for func in [test_without_cache, test_with_cache]:
     stats.print_stats(10)
     print("-" * 50)
 
-```
+```bash
 
 ## 基准测试方法
 
@@ -511,7 +513,7 @@ results = {
 for name, stats in results.items():
     print(f"{name}: {stats['mean']:.4f}s ± {stats['stdev']:.4f}s")
 
-```
+```bash
 
 ### 规模测试
 
@@ -549,7 +551,7 @@ def benchmark_data_size(sizes):
 sizes = [1000, 5000, 10000, 50000, 100000]
 benchmark_data_size(sizes)
 
-```
+```bash
 
 ### 进度监控
 
@@ -591,7 +593,7 @@ class ProgressStrategy(bt.Strategy):
         print(f"\n 完成: {total_bars} 根 K 线，用时 {elapsed:.2f}秒")
         print(f"平均: {total_bars/elapsed:.0f} K 线/秒")
 
-```
+```bash
 
 ## 性能优化技巧
 
@@ -627,7 +629,7 @@ data.qbuffer(1000)
 
 cerebro.run(runonce=True)
 
-```
+```bash
 
 ### 热路径优化
 
@@ -661,7 +663,7 @@ class OptimizedStrategy(bt.Strategy):
             if self.data._len > 20:  # 不是 len(self.data)
                 self.buy()
 
-```
+```bash
 
 ### 指标优化
 
@@ -683,7 +685,7 @@ def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
 
-```
+```bash
 
 ### 批处理
 
@@ -702,7 +704,7 @@ cerebro.optstrategy(
 
 results = cerebro.run(maxcpu=4)
 
-```
+```bash
 
 ## 完整剖析示例
 
@@ -810,7 +812,7 @@ def run_profiled_backtest(data_file='data.csv'):
 if __name__ == '__main__':
     run_profiled_backtest()
 
-```
+```bash
 
 ## 性能分析清单
 

@@ -29,7 +29,8 @@ backtrader_hydra_bayesian_op 是结合 Hydra 配置和贝叶斯优化的 backtra
 5. **超参搜索**: 超参搜索方法
 6. **MLOps**: MLOps 实践
 
----
+- --
+
 ## 研究分析
 
 ### backtrader_hydra_bayesian_op 架构特点总结
@@ -50,7 +51,7 @@ config.yaml (主配置)
         ├── sma.yaml
         └── ichimoku.yaml
 
-```
+```bash
 
 #### 2. 模块化设计
 
@@ -61,7 +62,7 @@ main.py (程序入口)
     ├── report.py (结果记录)
     └── sma.py (策略实现)
 
-```
+```bash
 
 #### 3. 贝叶斯优化流程
 
@@ -84,7 +85,7 @@ optimizer.maximize(
 
 )
 
-```
+```bash
 
 #### 4. 实验管理机制
 
@@ -119,7 +120,8 @@ optimizer.maximize(
 5. **结果分析不足**：缺乏优化的可视化和比较工具
 6. **可重复性差**：难以保证实验的完全复现
 
----
+- --
+
 ## 需求规格文档
 
 ### 1. 配置管理模块
@@ -184,7 +186,7 @@ class ConfigManager:
         """合并多个配置"""
         pass
 
-```
+```bash
 
 ### 2. 贝叶斯优化模块
 
@@ -263,7 +265,7 @@ class OptimizationResult:
         """优化历史"""
         pass
 
-```
+```bash
 
 ### 3. 实验管理模块
 
@@ -344,7 +346,7 @@ class ExperimentComparator:
         """绘制比较图表"""
         pass
 
-```
+```bash
 
 ### 4. 参数空间定义模块
 
@@ -395,7 +397,7 @@ class Categorical(ParamSpace):
     def __init__(self, choices: List[Any]):
         self.choices = choices
 
-```
+```bash
 
 ### 5. 优化目标模块
 
@@ -452,7 +454,7 @@ class MinMaxDrawdown(OptimizationObjective):
         drawdown = analyzers['drawdown'].get_analysis()
         return -drawdown['max']['drawdown']  # 负号表示最小化
 
-```
+```bash
 
 ### 6. 结果可视化模块
 
@@ -476,7 +478,8 @@ class MinMaxDrawdown(OptimizationObjective):
 
 | VIS-005 | 支持交互式可视化 | P2 |
 
----
+- --
+
 ## 设计文档
 
 ### 整体架构设计
@@ -536,7 +539,7 @@ backtrader/
     ├── __init__.py
     └── optimization_helpers.py  # 优化辅助函数
 
-```
+```bash
 
 ### 详细设计
 
@@ -685,7 +688,7 @@ class ConfigManager:
         """获取优化配置"""
         return config.get('optimization', {})
 
-```
+```bash
 
 #### 2. 贝叶斯优化器设计
 
@@ -917,7 +920,7 @@ class BayesianOptimizationResult(OptimizationResult):
 
         return importance
 
-```
+```bash
 
 #### 3. 参数空间定义
 
@@ -1089,7 +1092,7 @@ class ParameterSpace:
     def values(self):
         return self._param_dict.values()
 
-```
+```bash
 
 #### 4. 实验追踪器设计
 
@@ -1304,7 +1307,7 @@ class ExperimentTracker:
 
         return best_run
 
-```
+```bash
 
 #### 5. 优化结果可视化
 
@@ -1474,7 +1477,7 @@ class OptimizationVisualizer:
 
         return ax
 
-```
+```bash
 
 ### 与现有 Backtrader 集成方案
 
@@ -1561,7 +1564,7 @@ if 'optimization' in config:
     print(f"Best params: {opt_result.best_params}")
     print(f"Best value: {opt_result.best_value}")
 
-```
+```bash
 
 #### 方案 B: 命令行接口
 
@@ -1591,7 +1594,7 @@ def main(cfg):
 if __name__ == '__main__':
     main()
 
-```
+```bash
 
 ### 使用示例
 
@@ -1635,7 +1638,7 @@ data:
     from_date: '2020-01-01'
     to_date: '2023-12-31'
 
-```
+```bash
 
 ### 实施计划
 
@@ -1663,7 +1666,8 @@ data:
 4. 支持并行优化
 5. 集成更多优化器（遗传算法等）
 
----
+- --
+
 ## 总结
 
 通过借鉴 backtrader_hydra_bayesian_op 项目的设计理念，Backtrader 可以扩展以下能力：

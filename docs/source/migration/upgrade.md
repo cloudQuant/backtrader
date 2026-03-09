@@ -1,8 +1,10 @@
----
+- --
+
 title: Backtrader Upgrade Guide
 description: Guide for upgrading between versions of Backtrader
 
----
+- --
+
 # Backtrader Upgrade Guide
 
 This guide helps you upgrade between different versions of Backtrader. It covers version-specific changes, deprecated features, breaking changes, and migration paths.
@@ -19,7 +21,8 @@ This guide helps you upgrade between different versions of Backtrader. It covers
 - [Testing After Upgrade](#testing-after-upgrade)
 - [Troubleshooting](#troubleshooting)
 
----
+- --
+
 ## Version Overview
 
 | Version | Release Date | Status | Key Changes |
@@ -36,7 +39,8 @@ This guide helps you upgrade between different versions of Backtrader. It covers
 
 The dev branch (version 1.1.0) represents the actively developed version with significant improvements over the original backtrader.
 
----
+- --
+
 ## Python Version Compatibility
 
 | Python Version | 1.1.0 Status | 1.0.0 Status | Notes |
@@ -62,7 +66,8 @@ The dev branch (version 1.1.0) represents the actively developed version with si
 - **New Projects**: Use Python 3.11 or 3.13 for best performance
 - **Existing Projects**: Upgrade from 3.8 to 3.11+ when possible
 
----
+- --
+
 ## Upgrade Paths
 
 ### Path 1: From Original Backtrader (mementum/backtrader) to 1.1.0
@@ -92,7 +97,7 @@ python -c "import backtrader as bt; print(bt.__version__)"
 
 # Expected output: 1.1.0
 
-```
+```bash
 
 ### Path 2: From Version 1.0.0 to 1.1.0
 
@@ -118,7 +123,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```
+```bash
 
 ### Path 3: Direct Installation from Source
 
@@ -128,9 +133,10 @@ pip install -U .
 
 pip install -e ".[ccxt,ctp,plotly,bokeh]"
 
-```
+```bash
 
----
+- --
+
 ## Breaking Changes by Version
 
 ### Version 1.1.0 (Current)
@@ -167,7 +173,7 @@ class MyStrategy(bt.Strategy):
         if self.data.close[0] > self.sma[0]:
             self.buy()
 
-```
+```bash
 
 - *After (1.1.0 - same code works)**:
 
@@ -188,7 +194,7 @@ class MyStrategy(bt.Strategy):
         if self.data.close[0] > self.sma[0]:
             self.buy()
 
-```
+```bash
 
 ### Version 1.0.0
 
@@ -198,7 +204,8 @@ class MyStrategy(bt.Strategy):
 - 45% performance improvement over original
 - Cython acceleration support added
 
----
+- --
+
 ## New Features Migration
 
 ### 1. CCXT Live Trading (New in 1.1.0)
@@ -218,7 +225,7 @@ data = bt.feeds.GenericCSVData(
 cerebro.adddata(data)
 cerebro.run()
 
-```
+```bash
 
 #### After: Live Trading with CCXT
 
@@ -257,7 +264,7 @@ cerebro.adddata(data)
 cerebro.setbroker(broker)
 cerebro.run()
 
-```
+```bash
 
 #### Key Migration Points
 
@@ -298,7 +305,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.setbroker(broker)
 
-```
+```bash
 
 ### 3. Performance Modes (New in 1.1.0)
 
@@ -314,7 +321,7 @@ cerebro = bt.Cerebro()
 
 cerebro.run(ts_mode=True)  # 10-50x faster for suitable strategies
 
-```
+```bash
 
 #### CS Mode (Cross-Sectional)
 
@@ -328,7 +335,7 @@ cerebro = bt.Cerebro()
 
 cerebro.run(cs_mode=True)  # Efficient cross-sectional signals
 
-```
+```bash
 
 ### 4. Interactive Plotting (New in 1.1.0)
 
@@ -337,7 +344,7 @@ cerebro.run(cs_mode=True)  # Efficient cross-sectional signals
 ```python
 cerebro.plot()  # Opens static matplotlib window
 
-```
+```bash
 
 #### After: Interactive Plotly
 
@@ -354,9 +361,10 @@ plotter = PlotlyPlot(style='candle')
 figs = plotter.plot(strategy)
 figs[0].write_html('backtest.html')
 
-```
+```bash
 
----
+- --
+
 ## Data Format Migrations
 
 ### CSV Data Format
@@ -370,7 +378,7 @@ data = bt.feeds.GenericCSVData(
     dtformat='%Y-%m-%d',
 )
 
-```
+```bash
 
 ### Pandas Data Format
 
@@ -384,7 +392,7 @@ import pandas as pd
 df = pd.read_csv('data.csv', parse_dates=['date'], index_col='date'])
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### New Data Feed Parameters (1.1.0)
 
@@ -403,9 +411,10 @@ data = bt.feeds.CCXTData(
 
 )
 
-```
+```bash
 
----
+- --
+
 ## Configuration Changes
 
 ### Cerebro Configuration
@@ -421,7 +430,7 @@ cerebro = bt.Cerebro(
 
 )
 
-```
+```bash
 
 ### Store Configuration
 
@@ -450,7 +459,7 @@ store = bt.stores.CCXTStore(
     max_reconnect_delay=60.0,
 )
 
-```
+```bash
 
 ### Broker Configuration
 
@@ -465,9 +474,10 @@ broker = store.getbroker(
 
 )
 
-```
+```bash
 
----
+- --
+
 ## Testing After Upgrade
 
 ### 1. Run Existing Tests
@@ -490,7 +500,7 @@ pytest tests/new_functions/ -v     # New feature tests
 
 pytest tests/ --cov=backtrader --cov-report=term-missing
 
-```
+```bash
 
 ### 2. Verify Strategy Output
 
@@ -531,7 +541,7 @@ assert len(strats) == 1
 assert strats[0].analyzers is not None
 print("✅ Strategy test passed")
 
-```
+```bash
 
 ### 3. Performance Benchmark
 
@@ -546,7 +556,7 @@ print(f"Backtest completed in {elapsed:.2f} seconds")
 
 # Compare with previous version times
 
-```
+```bash
 
 ### 4. Numerical Precision Check
 
@@ -575,9 +585,10 @@ class IndicatorTest(bt.Strategy):
             assert_close(self.sma[0], 123.45, tol=1e-8)
             cerebro.runstop()
 
-```
+```bash
 
----
+- --
+
 ## Troubleshooting
 
 ### Issue 1: Import Errors After Upgrade
@@ -587,7 +598,7 @@ class IndicatorTest(bt.Strategy):
 ```python
 ImportError: cannot import name 'CCXTStore' from 'backtrader.stores'
 
-```
+```bash
 
 - *Solution**:
 
@@ -602,7 +613,7 @@ python -c "import backtrader; print(backtrader.__version__)"
 pip uninstall backtrader
 pip install -e /path/to/backtrader
 
-```
+```bash
 
 ### Issue 2: Cython Extensions Not Compiled
 
@@ -611,7 +622,7 @@ pip install -e /path/to/backtrader
 ```python
 AttributeError: module 'backtrader.utils' has no attribute 'ts_cal_value'
 
-```
+```bash
 
 - *Solution**:
 
@@ -628,7 +639,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```
+```bash
 
 ### Issue 3: Different Test Results
 
@@ -658,7 +669,7 @@ class DebugStrategy(bt.Strategy):
         if len(self.data) % 100 == 0:
             print(f"Bar {len(self.data)}: close={self.data.close[0]:.4f}")
 
-```
+```bash
 
 ### Issue 4: WebSocket Connection Failures
 
@@ -686,7 +697,7 @@ import ccxtpro as ccxt
 exchange = ccxt.binance()
 print(f"WebSocket support: {exchange.has['watchOHLCV']}")
 
-```
+```bash
 
 ### Issue 5: Memory Issues on Large Backtests
 
@@ -712,7 +723,7 @@ data = bt.feeds.GenericCSVData(
 
 )
 
-```
+```bash
 
 ### Issue 6: Parameter Access Errors
 
@@ -721,7 +732,7 @@ data = bt.feeds.GenericCSVData(
 ```python
 AttributeError: 'MyStrategy' object has no attribute 'p'
 
-```
+```bash
 
 - *Solution**:
 
@@ -737,9 +748,10 @@ class MyStrategy(bt.Strategy):
 # NOW parameters are available
         self.sma = bt.indicators.SMA(period=self.p.period)
 
-```
+```bash
 
----
+- --
+
 ## Automated Upgrade Script
 
 ```python
@@ -820,9 +832,10 @@ if __name__ == '__main__':
 
     print("\nYour code appears compatible with Backtrader 1.1.0!")
 
-```
+```bash
 
----
+- --
+
 ## Quick Reference: Before/After Summary
 
 | Feature | Before (Original) | After (1.1.0) |
@@ -847,7 +860,8 @@ if __name__ == '__main__':
 
 |**Documentation** | Basic | Comprehensive bilingual |
 
----
+- --
+
 ## Additional Resources
 
 - [Migration from Original Backtrader](from-original.md)
@@ -856,7 +870,8 @@ if __name__ == '__main__':
 - [Project Status](../PROJECT_STATUS.md)
 - [Contributing Guidelines](../../CONTRIBUTING.md)
 
----
+- --
+
 ## Checklist for Successful Upgrade
 
 - [ ] Verify Python version (3.9+ recommended)
@@ -871,7 +886,7 @@ if __name__ == '__main__':
 - [ ] (Optional) Try Plotly interactive plotting
 - [ ] Update any custom indicators/strategies if needed
 
----
+- --
 - *Last Updated**: 2026-03-01
 
 - *Version**: 1.1.0

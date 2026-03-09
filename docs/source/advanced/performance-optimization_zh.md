@@ -1,8 +1,10 @@
----
+- --
+
 title: 性能优化
 description: 优化 Backtrader 性能的技巧
 
----
+- --
+
 # 性能优化
 
 Backtrader 的 dev 分支通过移除元类和各种优化实现了 **45% 的性能提升**。本指南介绍最大化回测性能的技巧。
@@ -23,7 +25,7 @@ cerebro.run(stdstats=False)
 
 cerebro.addobserver(bt.observers.DrawDown)
 
-```
+```bash
 
 ### 2. 禁用绘图
 
@@ -39,7 +41,7 @@ cerebro.plot = False  # 或直接不调用 cerebro.plot()
 
 self.sma.plotinfo.plot = False
 
-```
+```bash
 
 ### 3. 使用 qbuffer
 
@@ -49,7 +51,7 @@ self.sma.plotinfo.plot = False
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 data.qbuffer(1000)  # 内存中仅保留最后 1000 根 K 线
 
-```
+```bash
 
 ## 执行模式
 
@@ -75,7 +77,7 @@ def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
 
-```
+```bash
 
 - *once() 模式** (需要实现):
 
@@ -87,7 +89,7 @@ def once(self):
 # 必须处理数组操作
     pass
 
-```
+```bash
 大多数内置指标实现了优化的 `once()` 方法。
 
 ## 指标优化
@@ -109,7 +111,7 @@ class FastSMA(bt.Indicator):
             period=self.p.period
         )
 
-```
+```bash
 
 ### 避免重复计算
 
@@ -127,7 +129,7 @@ def next(self):
     if self.data.close[0] > self.upper[0]:
         pass
 
-```
+```bash
 
 ## 数据加载优化
 
@@ -150,7 +152,7 @@ df.to_parquet('data.parquet')
 df = pd.read_parquet('data.parquet')
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### 预加载数据
 
@@ -164,7 +166,7 @@ data = bt.feeds.CSVGeneric(
 
 )
 
-```
+```bash
 
 ### 提前重采样
 
@@ -178,7 +180,7 @@ cerebro.resampledata(data, timeframe=bt.TimeFrame.Days)
 
 # 不如预先重采样数据文件
 
-```
+```bash
 
 ## Cython 加速
 
@@ -193,7 +195,7 @@ Backtrader 使用 Cython 进行性能关键的计算：
 cerebro = bt.Cerebro()
 cerebro.run(ts_mode=True)  # 启用 TS 模式
 
-```
+```bash
 
 ### CS (横截面) 模式
 
@@ -204,7 +206,7 @@ cerebro.run(ts_mode=True)  # 启用 TS 模式
 cerebro = bt.Cerebro()
 cerebro.run(cs_mode=True)  # 启用 CS 模式
 
-```
+```bash
 
 ### 编译 Cython 扩展
 
@@ -214,7 +216,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```
+```bash
 
 ## 最小化热路径操作
 
@@ -231,7 +233,7 @@ def next(self):
     if self.data._len > 100:
         pass
 
-```
+```bash
 
 ### 缓存属性
 
@@ -248,7 +250,7 @@ def next(self):
     if self._data_close[0] > self._sma[0]:
         self.buy()
 
-```
+```bash
 
 ## 并行优化
 
@@ -266,7 +268,7 @@ cerebro.optstrategy(
 )
 results = cerebro.run(maxcpu=4)  # 使用 4 个 CPU 核心
 
-```
+```bash
 
 ## 内存优化
 
@@ -284,7 +286,7 @@ cerebro.run(
 
 )
 
-```
+```bash
 
 ### 使用高效的数据类型
 
@@ -298,7 +300,7 @@ data = bt.feeds.PandasData(
     dataname=df.astype(np.float32)
 )
 
-```
+```bash
 
 ## 经纪人优化
 
@@ -310,7 +312,7 @@ data = bt.feeds.PandasData(
 
 cerebro.broker.setcommission(commission=0.0)
 
-```
+```bash
 
 ### 使用简单的现金设置
 
@@ -324,7 +326,7 @@ cerebro.broker.setcash(100000)
 
 cerebro.broker.set_coc(True)  # 收盘时现金 (更快)
 
-```
+```bash
 
 ## 特定优化
 
@@ -340,7 +342,7 @@ def __init__(self):
     self.sma = ma_group
     self.sma_lag = ma_group(-1)  # 使用缓存的计算
 
-```
+```bash
 
 ### 避免循环中的数据访问
 
@@ -357,7 +359,7 @@ def next(self):
 def __init__(self):
     self.data_close = self.data.close.get()  # 获取一次
 
-```
+```bash
 
 ## 性能分析
 
@@ -379,7 +381,7 @@ stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)  # 前 20 个函数
 
-```
+```bash
 
 ### 计时执行
 
@@ -394,7 +396,7 @@ print(f'执行时间: {elapsed:.2f} 秒')
 print(f'处理的 K 线数: {len(data)}')
 print(f'每秒 K 线数: {len(data)/elapsed:.0f}')
 
-```
+```bash
 
 ## 性能基准
 

@@ -1,8 +1,10 @@
----
+- --
+
 title: TS (时间序列) 模式指南
 description: 时间序列向量化加速回测
 
----
+- --
+
 # TS (时间序列) 模式指南
 
 TS (Time Series) 模式是一项性能优化功能,使用 pandas 和 NumPy 的向量化操作来加速回测。本指南将介绍如何有效使用 TS 模式。
@@ -27,7 +29,7 @@ for i in range(len(data)):
     indicator.calculate(i)
     strategy.next(i)
 
-```
+```bash
 在 TS 模式下,数据分批向量化处理:
 
 ```python
@@ -36,7 +38,7 @@ for i in range(len(data)):
 
 indicator.once(0, len(data))  # 一次性计算所有值
 
-```
+```bash
 
 ## 性能优势
 
@@ -72,7 +74,7 @@ cerebro.addstrategy(MyStrategy)
 
 cerebro.run(ts_mode=True)
 
-```
+```bash
 
 ### 方法 2: 环境变量
 
@@ -84,7 +86,7 @@ export BACKTRADER_TS_MODE=1
 
 python my_backtest.py
 
-```
+```bash
 
 ### 方法 3: 配置文件
 
@@ -97,7 +99,7 @@ ts_mode = {
     'use_cython': True,
 }
 
-```
+```bash
 
 ## 何时使用 TS 模式
 
@@ -157,7 +159,7 @@ cerebro.addstrategy(SMACross)
 
 result = cerebro.run(ts_mode=True)
 
-```
+```bash
 
 ### 示例 2: 多指标策略
 
@@ -201,7 +203,7 @@ cerebro.addstrategy(MultiIndicator)
 
 result = cerebro.run(ts_mode=True)
 
-```
+```bash
 
 ### 示例 3: 自定义向量化指标
 
@@ -260,7 +262,7 @@ cerebro = bt.Cerebro()
 cerebro.addstrategy(MomentumStrategy)
 result = cerebro.run(ts_mode=True)  # 使用向量化 once()
 
-```
+```bash
 
 ## Cython 加速
 
@@ -287,7 +289,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```
+```bash
 
 ### 验证 Cython 可用
 
@@ -306,7 +308,7 @@ cerebro = bt.Cerebro()
 
 result = cerebro.run(ts_mode=True, use_cython=True)
 
-```
+```bash
 
 ## 性能基准测试
 
@@ -358,7 +360,7 @@ print(f"标准模式: {standard_time:.2f}秒")
 print(f"TS 模式: {ts_time:.2f}秒")
 print(f"加速比: {standard_time/ts_time:.2f}x")
 
-```
+```bash
 
 ## 限制与注意事项
 
@@ -393,7 +395,7 @@ class ProblematicStrategy(bt.Strategy):
 
 # 基于 counter 的某些操作
 
-```
+```bash
 
 ### 2. 数据源要求
 
@@ -421,7 +423,7 @@ data = bt.feeds.CSVGeneric(
 
 )
 
-```
+```bash
 
 ### 3. 指标要求
 
@@ -442,7 +444,7 @@ class MyIndicator(bt.Indicator):
         for i in range(start, end):
             self.lines.output.array[i] = self.data.close.array[i]* 2
 
-```
+```bash
 
 ### 4. 内存使用
 
@@ -461,7 +463,7 @@ data.qbuffer(10000)  # 内存中只保留 1 万根 K 线
 
 cerebro.adddata(data)
 
-```
+```bash
 
 ## 高级配置
 
@@ -476,7 +478,7 @@ cerebro.run(
 
 )
 
-```
+```bash
 
 ### 禁用特定优化
 
@@ -491,7 +493,7 @@ cerebro.run(
 
 )
 
-```
+```bash
 
 ## 故障排查
 

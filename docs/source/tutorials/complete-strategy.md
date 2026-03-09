@@ -4,7 +4,8 @@
 >
 > Updated: 2026-03-01
 
----
+- --
+
 ## Table of Contents
 
 - [Part 1: Strategy Concepts & Design](#part-1-strategy-concepts--design)
@@ -16,7 +17,8 @@
 - [Part 7: Live Deployment](#part-7-live-deployment)
 - [Part 8: Continuous Monitoring & Maintenance](#part-8-continuous-monitoring--maintenance)
 
----
+- --
+
 ## Part 1: Strategy Concepts & Design
 
 ### 1.1 Strategy Development Lifecycle
@@ -33,7 +35,7 @@ Idea Generation
                                 Monitoring & Maintenance
                                     Iterative Improvement
 
-```
+```bash
 
 ### 1.2 Strategy Design Framework
 
@@ -65,7 +67,7 @@ Not Suitable For:
 
 """
 
-```
+```bash
 
 #### Entry Conditions
 
@@ -88,7 +90,7 @@ class EntryConditions:
         """Volatility filter"""
         return (atr / price) < threshold
 
-```
+```bash
 
 #### Exit Conditions
 
@@ -116,7 +118,7 @@ class ExitConditions:
         """Time-based exit"""
         return bars_held >= max_bars
 
-```
+```bash
 
 #### Position Sizing
 
@@ -153,7 +155,7 @@ class PositionSizer:
         shares = int(risk_amount / stop_distance)
         return max(1, shares)
 
-```
+```bash
 
 ### 1.3 Complete Strategy Template
 
@@ -399,9 +401,10 @@ class CompleteStrategy(bt.Strategy):
         dt = self.datas[0].datetime.date(0)
         print(f'{dt.isoformat()} {txt}')
 
-```
+```bash
 
----
+- --
+
 ## Part 2: Data Acquisition & Preparation
 
 ### 2.1 Data Source Types
@@ -472,7 +475,7 @@ data = load_csv_data(
     todate=datetime(2014, 12, 31),
 )
 
-```
+```bash
 
 ### 2.3 Pandas Data Loading
 
@@ -517,7 +520,7 @@ def fetch_yahoo_data(symbol: str, start: str, end: str) -> pd.DataFrame:
     df.columns = [c.lower() for c in df.columns]
     return df
 
-```
+```bash
 
 ### 2.4 CCXT Cryptocurrency Data
 
@@ -585,7 +588,7 @@ def load_ccxt_live_data(
         backfill_start=True,
     )
 
-```
+```bash
 
 ### 2.5 Data Preprocessing
 
@@ -631,7 +634,7 @@ class DataPreprocessor:
 
         return resampled.reset_index()
 
-```
+```bash
 
 ### 2.6 Multiple Data Sources
 
@@ -670,9 +673,10 @@ class MultiDataStrategy(bt.Strategy):
         if len(signals) >= len(self.datas)* 0.6:
             print(f'Combined signals: {signals}')
 
-```
+```bash
 
----
+- --
+
 ## Part 3: Backtesting Framework
 
 ### 3.1 Basic Backtest Setup
@@ -772,7 +776,7 @@ class BacktestEngine:
         print(f'Win Rate: {analysis["win_rate"]:.2%}')
         print('='*60)
 
-```
+```bash
 
 ### 3.2 Visualization
 
@@ -821,7 +825,7 @@ class BacktestVisualizer:
         plt.title('Monthly Returns Heatmap')
         plt.show()
 
-```
+```bash
 
 ### 3.3 Performance Report Generation
 
@@ -891,9 +895,10 @@ class PerformanceReport:
         score += min(20, max(0, self.analysis['win_rate']* 20))
         return round(score, 2)
 
-```
+```bash
 
----
+- --
+
 ## Part 4: Parameter Optimization
 
 ### 4.1 Parameter Space Definition
@@ -942,7 +947,7 @@ def create_parameter_space() -> ParameterSpace:
     space.add_param('take_profit_pct', [0.02, 0.03, 0.05])
     return space
 
-```
+```bash
 
 ### 4.2 Grid Search Optimization
 
@@ -1008,7 +1013,7 @@ class GridSearchOptimizer:
         df = df.sort_values(by=self.metric, ascending=False)
         return df.head(n).to_dict('records')
 
-```
+```bash
 
 ### 4.3 Genetic Algorithm Optimization
 
@@ -1068,7 +1073,7 @@ class GeneticOptimizer:
         best_params = dict(zip(self.param_ranges.keys(), best_ind))
         return {'params': best_params, 'fitness': best_ind.fitness.values[0], 'log': log}
 
-```
+```bash
 
 ### 4.4 Avoiding Overfitting
 
@@ -1098,9 +1103,10 @@ class OverfittingDetector:
                  min(dd_diff, 0.2) / 0.2*0.3)
         return score
 
-```
+```bash
 
----
+- --
+
 ## Part 5: Risk Control Implementation
 
 ### 5.1 Stop Loss / Take Profit System
@@ -1193,7 +1199,7 @@ class RiskManagedStrategy(bt.Strategy):
         if order.status == order.Completed and order.isbuy():
             self.risk_manager.update_entry_info(order.executed.price, len(self))
 
-```
+```bash
 
 ### 5.2 Position Sizing
 
@@ -1221,7 +1227,7 @@ class PositionSizer(bt.Sizer):
         else:
             return int(self.broker.get_cash()*self.p.pct / self.data.close[0])
 
-```
+```bash
 
 ### 5.3 Multi-Level Risk Control
 
@@ -1247,9 +1253,10 @@ class MultiLevelRiskControl:
         exposure = (total_value - cash) / total_value
         return exposure <= 1.0
 
-```
+```bash
 
----
+- --
+
 ## Part 6: Paper Trading
 
 ### 6.1 Paper Trading Environment
@@ -1286,7 +1293,7 @@ class PaperTradingEngine:
             'total_return': (final_value - self.initial_cash) / self.initial_cash,
         }
 
-```
+```bash
 
 ### 6.2 Paper-to-Live Evaluation
 
@@ -1315,9 +1322,10 @@ class PaperToLiveEvaluator:
             evaluation['ready_for_live'] = True
         return evaluation
 
-```
+```bash
 
----
+- --
+
 ## Part 7: Live Deployment
 
 ### 7.1 Live Trading System Architecture
@@ -1354,7 +1362,7 @@ class PaperToLiveEvaluator:
 
 - -------------------------------------------------------------+
 
-```
+```bash
 
 ### 7.2 Live Deployment Configuration
 
@@ -1401,7 +1409,7 @@ def load_secure_config():
         raise ValueError('Please set EXCHANGE_API_KEY and EXCHANGE_SECRET environment variables')
     return config
 
-```
+```bash
 
 ### 7.3 Live Trading Engine
 
@@ -1448,7 +1456,7 @@ class LiveTradingEngine:
             print(f'Runtime: {datetime.now() - self.start_time}')
         print(f'Final value: {self.broker.getvalue():,.2f}')
 
-```
+```bash
 
 ### 7.4 Error Handling and Recovery
 
@@ -1474,9 +1482,10 @@ class LiveTradingErrorHandler:
         else:
             raise error
 
-```
+```bash
 
----
+- --
+
 ## Part 8: Continuous Monitoring & Maintenance
 
 ### 8.1 Real-Time Monitoring System
@@ -1519,7 +1528,7 @@ class LiveTradingMonitor:
         if self.alert_callback:
             self.alert_callback(message)
 
-```
+```bash
 
 ### 8.2 Performance Analysis
 
@@ -1550,7 +1559,7 @@ class PerformanceAnalyzer:
             'profit_factor': sum(winning) / abs(sum(losing)) if losing else float('inf'),
         }
 
-```
+```bash
 
 ### 8.3 Strategy Iteration & Improvement
 
@@ -1586,9 +1595,10 @@ class StrategyIteration:
         self.current_version += 1
         return self.current_version
 
-```
+```bash
 
----
+- --
+
 ## Appendix: Complete Example Strategy
 
 ```python
@@ -1707,9 +1717,10 @@ def run_backtest():
 if __name__ == '__main__':
     run_backtest()
 
-```
+```bash
 
----
+- --
+
 ## Common Issues & Solutions
 
 ### Issue 1: Strategy not trading
@@ -1731,7 +1742,7 @@ def next(self):
     self.log(f'Slow MA: {self.slow_ma[0]:.2f}')
     self.log(f'Cash: {self.broker.get_cash():.2f}')
 
-```
+```bash
 
 ### Issue 2: Large gap between backtest and live results
 
@@ -1755,7 +1766,7 @@ cerebro.broker.set_slippage_perc(0.0005)       # 0.05% slippage
 
 train_data, test_data = OverfittingDetector.train_test_split(data)
 
-```
+```bash
 
 ### Issue 3: Parameter optimization overfitting
 
@@ -1773,9 +1784,10 @@ cv_results = OverfittingDetector.walk_forward_analysis(
 score = OverfittingDetector.calculate_overfitting_score(
     train_metrics, test_metrics)
 
-```
+```bash
 
----
+- --
+
 ## Summary
 
 This tutorial covers the complete workflow from strategy development to live trading:
@@ -1797,5 +1809,5 @@ Remember: There is no holy grail strategy. The key is continuous learning and im
 - [CCXT Documentation](<https://docs.ccxt.com/)>
 - [Quantitative Trading Best Practices](<https://github.com/quantopian/zipline)>
 
----
+- --
 - Last updated: 2026-03-01*

@@ -9,7 +9,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
----
+- --
+
 ## 一、项目对比分析
 
 ### 1.1 BackTraderUI 项目核心特性
@@ -68,7 +69,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 |**结果展示**| 图表 + 表格组合 | 主要是图表 | 可增加表格展示 |
 
----
+- --
+
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -139,7 +141,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 | US4 | 作为分析师，我想查看交易明细表格，了解每笔交易的详情 | P1 |
 
----
+- --
+
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -195,7 +198,7 @@ backtrader/
 
 │       └── export.py            # 数据导出
 
-```
+```bash
 
 ### 3.2 核心类设计
 
@@ -254,7 +257,7 @@ class PlotlyPlot(ParameterizedBase):
         """
         self.signal_markers = signals
 
-```
+```bash
 
 #### 3.2.2 策略配置器
 
@@ -295,7 +298,7 @@ class StrategyConfigBuilder:
     def get_preset_schema(self):
         """获取参数预设模式"""
 
-```
+```bash
 
 #### 3.2.3 交易明细表
 
@@ -338,7 +341,7 @@ def generate_trade_table(strategy, output_format='dataframe'):
         根据格式返回 DataFrame 或 HTML 字符串
     """
 
-```
+```bash
 
 #### 3.2.4 数据选择器
 
@@ -378,7 +381,7 @@ class StockPicker(DataSelector):
         支持代码和名称模糊匹配
         """
 
-```
+```bash
 
 ### 3.3 Plotly 集成设计
 
@@ -410,7 +413,7 @@ def _plot_signal_markers(self, fig, data, xdata, highs, lows, row):
                     row=row, col=1
                 )
 
-```
+```bash
 
 ### 3.4 API 设计
 
@@ -465,7 +468,7 @@ results = picker.search('600000')  # 搜索浦发银行
 data = picker.select('600000.SH', '2020-01-01', '2024-12-31')
 cerebro.adddata(data)
 
-```
+```bash
 
 ### 3.5 组件化架构
 
@@ -495,9 +498,10 @@ cerebro.adddata(data)
 │  └────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────┘
 
-```
+```bash
 
----
+- --
+
 ## 四、实施计划
 
 ### 4.1 实施阶段
@@ -529,7 +533,8 @@ cerebro.adddata(data)
 5. **P2**: 数据选择器
 6. **P2**: 数据缓存
 
----
+- --
+
 ## 五、参考资料
 
 ### 5.1 关键参考代码

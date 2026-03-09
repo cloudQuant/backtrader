@@ -1,8 +1,10 @@
----
+- --
+
 title: Architecture Overview
 description: System architecture and design
 
----
+- --
+
 # Architecture Overview
 
 Backtrader uses an event-driven architecture for efficient backtesting and live trading.
@@ -50,7 +52,7 @@ flowchart TB
     LF --> Cerebro
     PS --> Strat
 
-```
+```bash
 
 ## Core Components
 
@@ -108,7 +110,7 @@ classDiagram
 
     LineSeries <|-- LineIterator
 
-```
+```bash
 
 ### Phase System
 
@@ -124,7 +126,7 @@ stateDiagram-v2
     next --> next: Normal operation
     next --> [*]: Backtest ends
 
-```
+```bash
 
 | Phase | Description | Usage |
 
@@ -152,7 +154,7 @@ flowchart LR
 
     LI -->|4. Call next| Observer
 
-```
+```bash
 
 ## Data Flow
 
@@ -176,7 +178,7 @@ sequenceDiagram
     B->>B: Execute order
     C->>C: Continue to next bar
 
-```
+```bash
 
 ### Live Trading Flow
 
@@ -198,7 +200,7 @@ sequenceDiagram
     E->>S: Order fill
     S->>C: Update position
 
-```
+```bash
 
 ## Component Hierarchy
 
@@ -237,7 +239,7 @@ backtrader/
 └── Application Layer
     └── cerebro.py            # Main engine
 
-```
+```bash
 
 ## Design Principles
 
@@ -284,7 +286,7 @@ class MetaStrategy(type):
 # Metaclass magic
         pass
 
-```
+```bash
 
 ### New Pattern (Current)
 
@@ -299,7 +301,7 @@ def __new__(cls, *args, **kwargs):
 def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
 
-```
+```bash
 
 - *Benefits:**
 - 45% performance improvement

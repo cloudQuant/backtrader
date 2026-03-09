@@ -1,8 +1,10 @@
----
+- --
+
 title: Testing Guide
 description: Testing practices and guidelines for Backtrader developers
 
----
+- --
+
 # Testing Guide
 
 This guide covers testing practices and guidelines for contributing to the Backtrader framework.
@@ -31,7 +33,7 @@ Backtrader uses **pytest**as its testing framework. Key features:
 ```bash
 pip install pytest pytest-cov pytest-xdist
 
-```
+```bash
 
 ### Configuration
 
@@ -57,7 +59,7 @@ filterwarnings =
     ignore::RuntimeWarning
     ignore::DeprecationWarning
 
-```
+```bash
 
 ## Test Organization
 
@@ -79,7 +81,7 @@ tests/
 
 └── integration/             # Integration tests
 
-```
+```bash
 
 ### Test File Naming
 
@@ -114,7 +116,7 @@ def test_sma_calculation():
 # Assert
     assert result == expected
 
-```
+```bash
 
 ### Integration Tests
 
@@ -139,7 +141,7 @@ def test_ib_connection():
     result = cerebro.run()
     assert len(result) > 0
 
-```
+```bash
 
 ### Priority Levels
 
@@ -180,7 +182,7 @@ async def test_websocket_feed():
     """WebSocket-specific test."""
     pass
 
-```
+```bash
 
 ### Running with Markers
 
@@ -202,7 +204,7 @@ pytest tests/ -m "priority_p0 or priority_p1"
 
 pytest tests/ -m "not websocket"
 
-```
+```bash
 
 ## Writing Tests
 
@@ -227,7 +229,7 @@ def test_indicator_calculation():
     assert len(result) == 1
     assert result[0].analyzers.sharpe.get_analysis()['sharperatio'] > 0
 
-```
+```bash
 
 ### Complete Test Example
 
@@ -338,7 +340,7 @@ def test_sma_with_multiple_data_feeds():
     results = cerebro.run()
     assert len(results) == 1
 
-```
+```bash
 
 ### Testing Strategies
 
@@ -380,7 +382,7 @@ def test_strategy_buy_signal():
 # Verify at least one buy order was executed
     assert strat.buy_executed
 
-```
+```bash
 
 ### Testing with Mock Data
 
@@ -427,7 +429,7 @@ def test_with_mock_data():
     result = cerebro.run()
     assert len(result) > 0
 
-```
+```bash
 
 ## Fixtures and Helpers
 
@@ -462,7 +464,7 @@ def cerebro_with_cash(cerebro_engine):
     cerebro_engine.broker.setcash(10000.0)
     return cerebro_engine
 
-```
+```bash
 
 ### Using Fixtures
 
@@ -475,7 +477,7 @@ def test_with_fixture(sample_data, cerebro_engine):
     result = cerebro_engine.run()
     assert len(result) > 0
 
-```
+```bash
 
 ### Creating Custom Fixtures
 
@@ -494,7 +496,7 @@ def macd_indicator():
 
     return MACDStrategy
 
-```
+```bash
 
 ## Coverage Requirements
 
@@ -521,7 +523,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 
-```
+```bash
 
 ### Running Coverage
 
@@ -539,7 +541,7 @@ pytest tests/ --cov=backtrader --cov-report=html
 
 pytest tests/ -m "not integration" --cov=backtrader
 
-```
+```bash
 
 ### Coverage Goals
 
@@ -581,7 +583,7 @@ pytest tests/ -l
 
 pytest tests/ -s
 
-```
+```bash
 
 ### Running by Category
 
@@ -603,7 +605,7 @@ pytest tests/add_tests/test_analyzer*.py tests/original_tests/test_analyzer*.py 
 
 pytest tests/add_tests/test_broker.py -v
 
-```
+```bash
 
 ### Run with Make
 
@@ -621,7 +623,7 @@ make test-coverage
 
 make test-file TEST=tests/add_tests/test_sma.py
 
-```
+```bash
 
 ### Continuous Testing
 
@@ -631,7 +633,7 @@ For development, use pytest-watch for automatic test execution:
 pip install pytest-watch
 ptw tests/ -- -v
 
-```
+```bash
 
 ## Best Practices
 
@@ -671,7 +673,7 @@ def test_failing_case():
 
 # ... rest of test
 
-```
+```bash
 
 ### Using pytest's pdb
 
@@ -685,7 +687,7 @@ pytest tests/ --pdb
 
 pytest tests/ --pdb --trace
 
-```
+```bash
 
 ### Printing Test Output
 
@@ -699,7 +701,7 @@ pytest tests/ -s -v
 
 pytest tests/ --capture=no
 
-```
+```bash
 
 ## See Also
 

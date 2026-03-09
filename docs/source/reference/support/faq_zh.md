@@ -1,8 +1,10 @@
----
+- --
+
 title: 常见问题解答 (FAQ)
 description: Backtrader 使用过程中的常见问题及解决方案
 
----
+- --
+
 # 常见问题解答 (FAQ)
 
 本文档收集了 Backtrader 使用过程中的常见问题及其解决方案，帮助您快速解决遇到的问题。
@@ -17,7 +19,8 @@ description: Backtrader 使用过程中的常见问题及解决方案
 6. [常见陷阱](#常见陷阱)
 7. [最佳实践](#最佳实践)
 
----
+- --
+
 ## 安装问题
 
 ### Q: pip install 失败，提示编译错误？
@@ -47,7 +50,7 @@ sudo yum install python3-devel
 
 # 或使用预编译包: pip install backtrader --only-binary=all
 
-```
+```bash
 
 ### Q: ImportError: No module named 'backtrader'
 
@@ -78,7 +81,7 @@ source venv/bin/activate  # Linux/macOS
 
 venv\Scripts\activate  # Windows
 
-```
+```bash
 
 ### Q: CTP 相关模块无法导入？
 
@@ -100,9 +103,10 @@ sudo ldconfig /usr/local/lib
 
 python -c "from backtrader.stores.ctpstore import CTPStore; print('OK')"
 
-```
+```bash
 
----
+- --
+
 ## 数据源问题
 
 ### Q: 为什么我的回测这么慢？
@@ -121,7 +125,7 @@ data = bt.feeds.CSVData(dataname='data.csv', preload=False)
 
 data = bt.feeds.CSVData(dataname='data.csv', preload=True)
 
-```
+```bash
 
 #### 2. 使用 exactbars 优化内存
 
@@ -139,7 +143,7 @@ cerebro = bt.Cerebro(exactbars=True)
 
 cerebro = bt.Cerebro(exactbars=-1)
 
-```
+```bash
 
 #### 3. 使用 once() 模式
 
@@ -153,7 +157,7 @@ cerebro.run()
 
 cerebro.run_once()
 
-```
+```bash
 
 #### 4. 编译 Cython 扩展
 
@@ -163,7 +167,7 @@ python compile_cython_numba_files.py
 cd ..
 pip install -e .
 
-```
+```bash
 
 - *性能对比：**
 
@@ -192,7 +196,7 @@ data = bt.feeds.PandasData(
 
 )
 
-```
+```bash
 
 #### 方法 2: 使用 interpolate（插值）
 
@@ -203,7 +207,7 @@ data = bt.feeds.PandasData(
 
 )
 
-```
+```bash
 
 #### 方法 3: 预处理数据
 
@@ -230,7 +234,7 @@ df = df.dropna()
 
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### Q: 为什么我的指标没有更新？
 
@@ -250,7 +254,7 @@ class MyStrategy(bt.Strategy):
 
 # 错误: 指标创建时机不对
 
-```
+```bash
 
 #### 原因 2: minperiod 未满足
 
@@ -269,7 +273,7 @@ class MyStrategy(bt.Strategy):
 # 现在可以安全使用指标
         print(f"SMA 值: {self.sma[0]}")
 
-```
+```bash
 
 #### 原因 3: 在 prenext 阶段访问指标
 
@@ -288,7 +292,7 @@ class MyStrategy(bt.Strategy):
         if len(self.data) >= self.sma._minperiod:
             print(f"SMA (prenext): {self.sma[0]}")  # 需要检查
 
-```
+```bash
 
 ### Q: CTP 登录失败怎么办？
 
@@ -314,7 +318,7 @@ store = bt.stores.CTPStore(
     ...
 )
 
-```
+```bash
 
 #### 问题 2: 认证信息错误
 
@@ -331,7 +335,7 @@ store = bt.stores.CTPStore(
     ...
 )
 
-```
+```bash
 
 #### 问题 3: 错误代码 75 (频繁登录)
 
@@ -344,7 +348,7 @@ store = bt.stores.CTPStore(
 import time
 time.sleep(60)  # 等待 1 分钟
 
-```
+```bash
 
 #### 问题 4: 连接超时
 
@@ -357,9 +361,10 @@ socket.setdefaulttimeout(30)  # 30 秒
 
 store = bt.stores.CTPStore(...)
 
-```
+```bash
 
----
+- --
+
 ## 性能问题
 
 ### Q: 大数据集的内存使用过高怎么办？
@@ -382,7 +387,7 @@ cerebro = bt.Cerebro(exactbars=True)
 
 cerebro = bt.Cerebro()
 
-```
+```bash
 
 #### 2. 分批处理数据
 
@@ -407,7 +412,7 @@ def run_backtest_in_chunks(data_file, chunk_size=10000):
 
     return results
 
-```
+```bash
 
 #### 3. 使用 qbuffer 限制数据长度
 
@@ -418,7 +423,7 @@ data = bt.feeds.PandasData(
 
 )
 
-```
+```bash
 
 #### 4. 禁用不需要的观察器
 
@@ -433,7 +438,7 @@ cerebro = bt.Cerebro(stdstats=False)
 cerebro.addobserver(bt.observers.Broker)
 cerebro.addobserver(bt.observers.Trades)
 
-```
+```bash
 
 - *内存使用对比：**
 
@@ -484,9 +489,10 @@ cerebro.optstrategy(
 
 results = cerebro.run(maxcpu=4)  # 使用 4 个 CPU
 
-```
+```bash
 
----
+- --
+
 ## 实盘交易问题
 
 ### Q: 实盘交易和回测结果不一致？
@@ -507,7 +513,7 @@ class CommInfoFractional(bt.CommissionInfo):
 
 cerebro.broker.set_slippage_perc(perc=0.001)  # 0.1% 滑点
 
-```
+```bash
 
 #### 2. 手续费设置不准确
 
@@ -522,7 +528,7 @@ cerebro.broker.setcommission(
 
 )
 
-```
+```bash
 
 #### 3. 流动性不足
 
@@ -537,7 +543,7 @@ class MyStrategy(bt.Strategy):
         available_volume = self.data.volume[0]*0.1  # 不超过 10% 成交量
         size = min(self.p.max_order_size, available_volume)
 
-```
+```bash
 
 ### Q: 订单一直处于 Submitted 状态？
 
@@ -564,7 +570,7 @@ class MyStrategy(bt.Strategy):
         elif order.status == order.Accepted:
             print(f"订单 {order.ref} 已接受...")
 
-```
+```bash
 
 ### Q: WebSocket 自动重连不工作？
 
@@ -580,9 +586,10 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
----
+- --
+
 ## 错误信息和解决方案
 
 ### Q: IndexError: array index out of range
@@ -598,7 +605,7 @@ class MyStrategy(bt.Strategy):
 # 错误: 数据可能不足
         sma_diff = self.data.close[0] - self.data.close[-50]
 
-```
+```bash
 
 - *正确代码：**
 
@@ -614,7 +621,7 @@ class MyStrategy(bt.Strategy):
 
         sma_diff = self.data.close[0] - self.data.close[-self.p.lookback]
 
-```
+```bash
 
 ### Q: KeyError: 'datetime'
 
@@ -632,7 +639,7 @@ df.set_index('datetime', inplace=True)
 
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 或使用 GenericCSVData 指定列：
 
 ```python
@@ -647,7 +654,7 @@ data = bt.feeds.GenericCSVData(
     dtformat='%Y-%m-%d %H:%M:%S',
 )
 
-```
+```bash
 
 ### Q: TypeError: only integer scalar arrays can be converted to a scalar index
 
@@ -659,7 +666,7 @@ data = bt.feeds.GenericCSVData(
 pip install --upgrade pandas
 pip install --upgrade numpy
 
-```
+```bash
 或使用整数索引：
 
 ```python
@@ -673,7 +680,7 @@ self.buy(size=self.data.volume[0] *0.1)
 size = int(self.data.volume[0]*0.1)
 self.buy(size=size)
 
-```
+```bash
 
 ### Q: AttributeError: 'NoneType' object has no attribute 'close'
 
@@ -693,9 +700,10 @@ class MyStrategy(bt.Strategy):
         print(self.data._name)  # 应该输出 'my_data'
         print(self.data.close[0])
 
-```
+```bash
 
----
+- --
+
 ## 常见陷阱
 
 ### 陷阱 1: 在 __init__ 中使用 [0] 索引
@@ -712,7 +720,7 @@ class MyStrategy(bt.Strategy):
 # 正确: next() 中数据已就绪
         current_price = self.data.close[0]
 
-```
+```bash
 
 ### 陷阱 2: 混淆 len() 和数据索引
 
@@ -728,7 +736,7 @@ class MyStrategy(bt.Strategy):
             prev_close = self.data.close[-1]  # 前 1 个 bar
             curr_close = self.data.close[0]   # 当前 bar
 
-```
+```bash
 
 ### 陷阱 3: 忘记调用 super().__init__()
 
@@ -742,7 +750,7 @@ class MyStrategy(bt.Strategy):
 # 现在可以访问 self.p 等属性
         self.sma = bt.indicators.SMA(period=self.p.period)
 
-```
+```bash
 
 ### 陷阱 4: 在 next() 中创建指标
 
@@ -758,7 +766,7 @@ class MyStrategy(bt.Strategy):
 # 正确: 在 __init__ 中创建指标
         self.sma = bt.indicators.SMA(self.data.close, period=20)
 
-```
+```bash
 
 ### 陷阱 5: 忽略时区问题
 
@@ -773,9 +781,10 @@ data = bt.feeds.PandasData(
     fromdate=datetime(2024, 1, 1, tzinfo=timezone.utc),
 )
 
-```
+```bash
 
----
+- --
+
 ## 最佳实践
 
 ### 1. 策略开发
@@ -837,7 +846,7 @@ class GoodStrategy(bt.Strategy):
         dt = dt or self.data.datetime[0]
         print(f'{dt} {txt}')
 
-```
+```bash
 
 ### 2. 数据准备
 
@@ -869,7 +878,7 @@ def prepare_data(df):
 
     return df
 
-```
+```bash
 
 ### 3. 回测流程
 
@@ -916,7 +925,7 @@ def run_backtest(data_df, strategy_class, strategy_params=None):
 
     return cerebro, strat
 
-```
+```bash
 
 ### 4. 实盘交易
 
@@ -966,9 +975,10 @@ def run_live_trading(store, symbol, strategy_class):
     finally:
         print(f'最终资金: {cerebro.broker.getvalue():.2f}')
 
-```
+```bash
 
----
+- --
+
 ## 相关文档
 
 - [CTP 实盘交易指南](../user_guide/ctp-live-trading_zh.md)
@@ -976,7 +986,8 @@ def run_live_trading(store, symbol, strategy_class):
 - [架构文档](../ARCHITECTURE.md)
 - [绘图指南](../user_guide/plotting_zh.md)
 
----
+- --
+
 ## 仍然有问题？
 
 如果以上内容未能解决您的问题，可以：

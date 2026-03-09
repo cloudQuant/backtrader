@@ -18,7 +18,7 @@ self.dif = self.ema_1 - self.ema_2
 self.dea = bt.indicators.ExponentialMovingAverage(self.dif, period=self.p.period_dif)
 self.macd = (self.dif - self.dea) *2
 
-```
+```bash
 测试用例 2：参考 backtrader/tests/strategies/test_08_kelter_strategy.py 初始化指标的计算方式
 
 ```bash
@@ -28,14 +28,14 @@ self.atr = bt.indicators.AverageTrueRange(self.datas[0], period=self.p.avg_perio
 self.upper_line = self.middle_line + self.atr*self.p.atr_multi
 self.lower_line = self.middle_line - self.atr* self.p.atr_multi
 
-```
+```bash
 测试用例 3：参考 backtrader/tests/strategies/test_15_fenshi_ma_strategy.py 初始化指标的计算方式
 
 ```bash
 self.day_avg_price = TimeLine(self.datas[0])
 self.ma_value = bt.indicators.SMA(self.datas[0].close, period=self.p.ma_period)
 
-```
+```bash
 测试用例 4：参考 backtrader/tests/strategies/test_16_cb_strategy.py 初始化指标的计算方式
 
 highest_price = bt.indicators.Lowest(data.low, period=20)

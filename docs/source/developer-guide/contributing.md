@@ -1,8 +1,10 @@
----
+- --
+
 title: Contributing to Backtrader
 description: Guidelines for contributing to Backtrader
 
----
+- --
+
 # Contributing to Backtrader
 
 Thank you for your interest in contributing to Backtrader! This document provides guidelines and workflows for contributing to the project.
@@ -55,7 +57,7 @@ pip install -e .
 
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd ..
 
-```
+```bash
 
 ### Branch Naming Conventions
 
@@ -93,7 +95,7 @@ git merge upstream/dev
 
 git checkout -b feat/your-feature-name
 
-```
+```bash
 
 ### Step 2: Make Your Changes
 
@@ -111,7 +113,7 @@ Follow [Conventional Commits](<https://www.conventionalcommits.org/)> format:
 
 [optional body]
 
-```
+```bash
 
 - *Valid types:**
 - `feat`: New feature
@@ -130,7 +132,7 @@ git commit -m "fix: handle order-not-found in CCXTBroker.cancel()"
 git commit -m "perf: cache broker reference in total_value.next()"
 git commit -m "docs: update CCXT live trading guide"
 
-```
+```bash
 
 ### Step 4: Run Tests
 
@@ -152,7 +154,7 @@ make format-check
 
 make lint
 
-```
+```bash
 
 ### Step 5: Push and Create Pull Request
 
@@ -166,7 +168,7 @@ git push origin feat/your-feature-name
 
 # Target: dev branch
 
-```
+```bash
 
 ### Pull Request Description Template
 
@@ -194,7 +196,7 @@ Brief description of what this PR does and why.
 - Describe testing approach
 - Include test commands
 
-```
+```bash
 pytest tests/path/to/test.py -v
 
 ```bash
@@ -213,7 +215,7 @@ pytest tests/path/to/test.py -v
 Fixes #123
 Related to #456
 
-```
+```bash
 
 ## Code Review Standards
 
@@ -291,7 +293,7 @@ What actually happens (include error messages).
 
 ## Code Sample
 
-```
+```bash
 import backtrader as bt
 
 # Minimal reproducible example
@@ -302,7 +304,7 @@ import backtrader as bt
 
 Logs, screenshots, or other relevant information.
 
-```
+```bash
 
 ### Feature Requests
 
@@ -326,7 +328,7 @@ What other approaches did you consider?
 
 Examples, references, or implementation ideas.
 
-```
+```bash
 
 ## Community Guidelines
 
@@ -381,7 +383,7 @@ git commit -m "feat: add new indicator
 
 Signed-off-by: Your Name <your.email@example.com>"
 
-```
+```bash
 
 ### Automatic Sign-off
 
@@ -390,13 +392,13 @@ Configure Git to automatically add sign-off:
 ```bash
 git config --global commit.signoff true
 
-```
+```bash
 Then use `-s` flag:
 
 ```bash
 git commit -s -m "feat: add new indicator"
 
-```
+```bash
 
 ### DCO Certification
 

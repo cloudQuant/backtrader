@@ -1,8 +1,10 @@
----
+- --
+
 title: 架构概览
 description: 系统架构和设计
 
----
+- --
+
 # 架构概览
 
 Backtrader 使用事件驱动架构来实现高效的回测和实盘交易。
@@ -50,7 +52,7 @@ flowchart TB
     LF --> Cerebro
     PS --> Strat
 
-```
+```bash
 
 ## 核心组件
 
@@ -108,7 +110,7 @@ classDiagram
 
     LineSeries <|-- LineIterator
 
-```
+```bash
 
 ### 阶段系统
 
@@ -124,7 +126,7 @@ stateDiagram-v2
     next --> next: 正常运行
     next --> [*]: 回测结束
 
-```
+```bash
 
 | 阶段 | 描述 | 用途 |
 
@@ -152,7 +154,7 @@ flowchart LR
 
     LI -->|4. 调用 next| Observer
 
-```
+```bash
 
 ## 数据流
 
@@ -176,7 +178,7 @@ sequenceDiagram
     B->>B: 执行订单
     C->>C: 继续下一根 K 线
 
-```
+```bash
 
 ### 实盘交易流程
 
@@ -198,7 +200,7 @@ sequenceDiagram
     E->>S: 订单成交
     S->>C: 更新持仓
 
-```
+```bash
 
 ## 组件层次
 
@@ -237,7 +239,7 @@ backtrader/
 └── 应用层
     └── cerebro.py            # 主引擎
 
-```
+```bash
 
 ## 设计原则
 
@@ -284,7 +286,7 @@ class MetaStrategy(type):
 # 元类魔法
         pass
 
-```
+```bash
 
 ### 新模式 (当前)
 
@@ -299,7 +301,7 @@ def __new__(cls, *args, **kwargs):
 def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
 
-```
+```bash
 
 - *优势：**
 - 性能提升 45%

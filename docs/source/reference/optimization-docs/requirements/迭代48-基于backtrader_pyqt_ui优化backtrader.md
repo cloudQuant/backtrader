@@ -9,7 +9,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
----
+- --
+
 ## 一、项目对比分析
 
 ### 1.1 backtrader_pyqt_ui 项目核心特性
@@ -66,7 +67,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 |**数据管理**| 自动识别 | 手动 | backtrader 缺少智能加载 |
 
----
+- --
+
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -128,7 +130,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 | US4 | 作为分析师，我想清理并重新加载策略，方便快速测试 | P1 |
 
----
+- --
+
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -149,7 +152,7 @@ backtrader/
 
 └── cerebro.py                  # 增强：清理功能
 
-```
+```bash
 
 ### 3.2 核心类设计
 
@@ -208,7 +211,7 @@ class ProgressObserver(bt.Observer):
         remaining = (self._total_bars - self._current_bar) / rate
         return remaining
 
-```
+```bash
 
 #### 3.2.2 ConfigManager
 
@@ -268,7 +271,7 @@ class ConfigManager:
         """获取策略参数"""
         return self.config['strategies'].get(strategy_name, {})
 
-```
+```bash
 
 #### 3.2.3 DataManager
 
@@ -391,7 +394,7 @@ class DataManager:
             compression=compression
         )
 
-```
+```bash
 
 #### 3.2.4 Cerebro 增强
 
@@ -430,7 +433,7 @@ class CerebroEnhanced(bt.Cerebro):
                     return observer.lines.remaining[0]
         return None
 
-```
+```bash
 
 ### 3.3 API 设计
 
@@ -481,7 +484,7 @@ cerebro.clear_strategies()
 cerebro.addstrategy(AnotherStrategy)
 cerebro.run()
 
-```
+```bash
 
 ### 3.4 使用示例
 
@@ -544,7 +547,7 @@ print(f"\n 回测完成! 最终资产: {cerebro.broker.getvalue():.2f}")
 config.set_strategy_params('MyStrategy', {'period': 20})
 config.save_config()
 
-```
+```bash
 
 ### 3.5 组件化架构
 
@@ -589,9 +592,10 @@ config.save_config()
 │  └──────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────┘
 
-```
+```bash
 
----
+- --
+
 ## 四、实施计划
 
 ### 4.1 实施阶段
@@ -620,7 +624,8 @@ config.save_config()
 4. **P1**: CerebroEnhanced - 增强功能
 5. **P2**: GUI 集成（可选）
 
----
+- --
+
 ## 五、参考资料
 
 ### 5.1 关键参考代码

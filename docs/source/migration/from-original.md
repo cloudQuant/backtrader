@@ -1,8 +1,10 @@
----
+- --
+
 title: Migration Guide from Original Backtrader
 description: How to migrate from the original backtrader to this enhanced fork
 
----
+- --
+
 # Migration Guide from Original Backtrader
 
 This guide helps you migrate your code from the original [backtrader](<https://github.com/mementum/backtrader)> to this enhanced fork. The good news: **your existing code should work without changes**due to 100% API compatibility.
@@ -76,7 +78,7 @@ data = store.getdata(
 
 broker = store.getbroker(use_threaded_order_manager=True)
 
-```
+```bash
 See [CCXT Live Trading Guide](../CCXT_LIVE_TRADING_GUIDE.md) for details.
 
 ### 2. CTP Futures Support (China Market)
@@ -93,7 +95,7 @@ store = bt.stores.CTPStore(
     md_address='tcp://180.168.146.187:10131',
 )
 
-```
+```bash
 
 ### 3. Enhanced Performance Modes
 
@@ -105,7 +107,7 @@ Optimized for single-asset strategies with pandas vectorization:
 cerebro = bt.Cerebro()
 cerebro.run(ts_mode=True)  # 10-50x faster for suitable strategies
 
-```
+```bash
 
 #### CS Mode (Cross-Sectional)
 
@@ -115,7 +117,7 @@ Optimized for multi-asset portfolio strategies:
 cerebro = bt.Cerebro()
 cerebro.run(cs_mode=True)  # Efficient cross-sectional signals
 
-```
+```bash
 
 ### 4. Plotly Interactive Plotting
 
@@ -125,7 +127,7 @@ cerebro.run(cs_mode=True)  # Efficient cross-sectional signals
 
 cerebro.plot(style='plotly')
 
-```
+```bash
 Supports:
 
 - Zoom and pan on 100k+ data points
@@ -152,7 +154,7 @@ pip install -e .
 
 # pip install backtrader-enhanced
 
-```
+```bash
 
 ### Step 2: Test Your Existing Code
 
@@ -168,7 +170,7 @@ python my_strategy.py
 
 pytest tests/ -v
 
-```
+```bash
 
 - *Expected Result**: Everything works exactly as before.
 
@@ -188,7 +190,7 @@ cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip 
 
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
 
-```
+```bash
 
 #### Use Performance Modes
 
@@ -202,7 +204,7 @@ cerebro.run(ts_mode=True)
 
 cerebro.run(cs_mode=True)
 
-```
+```bash
 
 ### Step 4: Migrate to Live Trading (Optional)
 
@@ -225,7 +227,7 @@ cerebro.adddata(data)
 broker = store.getbroker()
 cerebro.setbroker(broker)
 
-```
+```bash
 
 ## Before/After Code Examples
 
@@ -250,7 +252,7 @@ cerebro = bt.Cerebro()
 cerebro.addstrategy(MyStrategy)
 cerebro.run()
 
-```
+```bash
 
 - *After (This Fork)**: Identical - no changes needed!
 
@@ -264,7 +266,7 @@ data = bt.feeds.YahooFinanceData(dataname='AAPL', fromdate=datetime(...))
 cerebro.adddata(data)
 cerebro.run()
 
-```
+```bash
 
 - *After (This Fork - live trading)**:
 
@@ -285,7 +287,7 @@ cerebro.adddata(data)
 cerebro.setbroker(broker)
 cerebro.run()  # Now trading live!
 
-```
+```bash
 
 ### Example 3: Performance Optimization
 
@@ -298,7 +300,7 @@ cerebro = bt.Cerebro()
 
 cerebro.run()  # Standard execution
 
-```
+```bash
 
 - *After (This Fork - optimized)**:
 
@@ -319,7 +321,7 @@ cerebro.run(cs_mode=True)
 
 cerebro.run()  # Automatically uses compiled optimizations
 
-```
+```bash
 
 ## Common Migration Issues
 
@@ -333,7 +335,7 @@ cerebro.run()  # Automatically uses compiled optimizations
 pip uninstall backtrader
 pip install -e /path/to/this/fork
 
-```
+```bash
 
 ### Issue 2: Cython Compilation Fails
 
@@ -354,7 +356,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```
+```bash
 
 ### Issue 3: WebSocket Connection Issues
 
@@ -376,7 +378,7 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
 ### Issue 4: Different Test Results
 
@@ -461,7 +463,7 @@ pytest tests/new_functions/ -v
 
 pytest tests/ --cov=backtrader --cov-report=term-missing
 
-```
+```bash
 
 ## Checklist for Successful Migration
 
@@ -500,7 +502,7 @@ make docs
 
 make format
 
-```
+```bash
 
 ### Performance Tips
 
@@ -519,5 +521,5 @@ make format
 4.**Monitor connection health**with ConnectionManager callbacks
 5.**Handle errors** in `notify_order()` for robust trading
 
----
+- --
 - *Congratulations!** You're ready to use this enhanced backtrader fork. Your existing code works, and you now have access to powerful new features for live trading and improved performance.

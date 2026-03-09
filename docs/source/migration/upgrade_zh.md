@@ -13,7 +13,8 @@
 7. [数据格式迁移](#数据格式迁移)
 8. [配置变更](#配置变更)
 
----
+- --
+
 ## 简介
 
 本升级指南适用于从原版 Backtrader 或早期版本迁移到当前增强版分支（v1.0.0+）的用户。
@@ -27,7 +28,7 @@
 次版本号 (Minor): 新增功能，向后兼容
 修订号 (Patch): Bug 修复，向后兼容
 
-```
+```bash
 
 ### 分支说明
 
@@ -43,7 +44,8 @@
 
 | `remove-metaprogramming` | 归档 | 元编程移除的实验分支（已合并到 dev） |
 
----
+- --
+
 ## 版本升级路径
 
 ### 推荐升级路径
@@ -60,7 +62,7 @@ graph TD
 
     B -->|可选| E[迁移到实盘交易]
 
-```
+```bash
 
 ### 路径选择建议
 
@@ -83,7 +85,7 @@ git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 pip install -e .
 
-```
+```bash
 
 #### 路径 2: 渐进式升级
 
@@ -110,9 +112,10 @@ git checkout dev
 
 pytest tests/ -v
 
-```
+```bash
 
----
+- --
+
 ## 各版本升级说明
 
 ### 从原版 Backtrader 升级到 v1.0.0
@@ -161,7 +164,7 @@ python my_strategy.py
 
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U .
 
-```
+```bash
 
 #### 代码兼容性
 
@@ -187,7 +190,7 @@ cerebro = bt.Cerebro()
 cerebro.addstrategy(MyStrategy)
 cerebro.run()  # 运行更快，但结果相同
 
-```
+```bash
 
 ### 从 v0.x 升级到 v1.0.0
 
@@ -206,7 +209,7 @@ data = bt.feeds.CSVGeneric(dataname='data.csv')
 cerebro.adddata(data)
 cerebro.run()
 
-```
+```bash
 
 ### 从早期 dev 分支升级
 
@@ -226,9 +229,10 @@ git checkout -b my-feature
 git checkout development
 git cherry-pick <commit-hash>
 
-```
+```bash
 
----
+- --
+
 ## 破坏性变更详解
 
 ### 无破坏性变更声明
@@ -256,7 +260,7 @@ class MetaLineRoot(type):
 class LineRoot(metaclass=MetaLineRoot):
     ...
 
-```
+```bash
 
 - *新版（当前）：**
 
@@ -279,7 +283,7 @@ class BaseMixin:
 class LineRoot(BaseMixin):
     ...
 
-```
+```bash
 
 #### 2. 参数系统变更
 
@@ -294,7 +298,7 @@ class MyStrategy(bt.Strategy):
 
 # 元类在实例化时设置 self.p
 
-```
+```bash
 
 - *新版：**
 
@@ -313,7 +317,7 @@ class MyStrategy(bt.Strategy):
 # 现在可以安全访问 self.p
         self.sma = bt.indicators.SMA(period=self.p.period)
 
-```
+```bash
 
 #### 3. 指标注册机制
 
@@ -328,7 +332,7 @@ class MyStrategy(bt.Strategy):
 
 # 在 prenext/next/nextstart 期间自动更新
 
-```
+```bash
 
 ### 已知行为差异
 
@@ -346,10 +350,11 @@ RSI[100] = 65.4321001234
 
 RSI[100] = 65.4321001235
 
-```
+```bash
 这是正常的浮点精度行为，不影响策略逻辑。
 
----
+- --
+
 ## 常见升级场景
 
 ### 场景 1: 回测策略升级
@@ -384,7 +389,7 @@ diff old_results.txt new_results.txt
 
 # 预期: 结果相同或仅有浮点精度差异
 
-```
+```bash
 
 ### 场景 2: 启用性能优化
 
@@ -419,7 +424,7 @@ cerebro.run(cs_mode=True)
 
 cerebro = bt.Cerebro(exactbars=True)
 
-```
+```bash
 
 ### 场景 4: 可视化升级
 
@@ -454,9 +459,10 @@ plotter = PlotlyPlot(style='candle')
 figs = plotter.plot(strat)
 figs[0].write_html('my_backtest.html')
 
-```
+```bash
 
----
+- --
+
 ## 升级故障排除
 
 ### 问题 1: 导入错误
@@ -466,7 +472,7 @@ figs[0].write_html('my_backtest.html')
 ```bash
 ImportError: cannot import name 'CCXTStore' from 'backtrader.stores'
 
-```
+```bash
 
 - *原因：** CCXT 模块未安装或未正确导入。
 
@@ -486,7 +492,7 @@ python -c "import ccxt; print(ccxt.__version__)"
 
 python -c "import backtrader as bt; print(bt.__version__)"
 
-```
+```bash
 
 ### 问题 2: Cython 编译失败
 
@@ -495,7 +501,7 @@ python -c "import backtrader as bt; print(bt.__version__)"
 ```bash
 error: command 'gcc' failed with exit status 1
 
-```
+```bash
 
 - *原因：** 缺少编译工具或 Cython。
 
@@ -523,7 +529,7 @@ pip install cython
 
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U .
 
-```
+```bash
 
 ### 问题 3: 测试结果不一致
 
@@ -559,7 +565,7 @@ def next(self):
     if len(self) == 100:
         print(f"Bar {len(self)}: SMA={self.sma[0]:.10f}")
 
-```
+```bash
 
 ### 问题 4: 性能未提升
 
@@ -600,9 +606,10 @@ stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)
 
-```
+```bash
 
----
+- --
+
 ## 数据格式迁移
 
 ### CSV 数据格式
@@ -614,7 +621,7 @@ datetime,open,high,low,close,volume,openinterest
 2023-01-01 09:30:00,100.0,105.0,99.0,103.0,1000000,0
 2023-01-02 09:30:00,103.0,108.0,102.0,107.0,1200000,0
 
-```
+```bash
 
 #### 加载代码（无需更改）
 
@@ -631,7 +638,7 @@ data = bt.feeds.GenericCSVData(
     dtformat='%Y-%m-%d %H:%M:%S',
 )
 
-```
+```bash
 
 ### Pandas DataFrame 迁移
 
@@ -644,7 +651,7 @@ import backtrader as bt
 df = pd.read_csv('data.csv', parse_dates=['datetime'], index_col='datetime')
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 #### 新版（增加选项）
 
@@ -664,11 +671,12 @@ data = bt.feeds.PandasData(
 
 )
 
-```
+```bash
 
 ### 数据源特定迁移
 
----
+- --
+
 ## 配置变更
 
 ### Cerebro 配置
@@ -691,11 +699,12 @@ cerebro = bt.Cerebro(
 
 )
 
-```
+```bash
 
 ### 数据源配置
 
----
+- --
+
 ## 废弃功能移除时间表
 
 ### 当前无废弃功能
@@ -714,7 +723,8 @@ cerebro = bt.Cerebro(
 
 | 部分 feeds | 维护中 | 可能重构 | 使用 CCXT 统一接口 |
 
----
+- --
+
 ## 升级后测试建议
 
 ### 基础验证测试
@@ -746,7 +756,7 @@ class TestStrategy(bt.Strategy):
 cerebro.addstrategy(TestStrategy)
 result = cerebro.run()
 
-```
+```bash
 
 ### 性能对比测试
 
@@ -767,7 +777,7 @@ new_time = time.time() - start
 
 assert new_time < old_time * 0.6  # 应该快 40%+
 
-```
+```bash
 
 ### 回测结果一致性测试
 
@@ -780,9 +790,10 @@ result2 = cerebro.run()
 
 assert result1[0].analyzers.trade.get_analysis() == result2[0].analyzers.trade.get_analysis()
 
-```
+```bash
 
----
+- --
+
 ## 快速参考
 
 ### 升级命令速查
@@ -809,7 +820,7 @@ pytest tests/ -v
 
 python my_strategy.py
 
-```
+```bash
 
 ### 关键文件位置
 
@@ -831,7 +842,8 @@ python my_strategy.py
 - **问题反馈**: [GitHub Issues](<https://github.com/cloudQuant/backtrader/issues)>
 - **架构说明**: [ARCHITECTURE.md](../ARCHITECTURE.md)
 
----
+- --
+
 ## 附录: 版本特性对照表
 
 ### v1.0.0 vs 原版 Backtrader
@@ -882,5 +894,5 @@ python my_strategy.py
 
 | 推荐用途 | 生产 | 开发 | 主分支 |
 
----
+- --
 - *祝您升级顺利！** 如遇到问题，请参考故障排除章节或寻求社区帮助。

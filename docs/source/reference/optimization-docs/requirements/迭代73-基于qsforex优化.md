@@ -29,7 +29,8 @@ qsforex 是一个专注于外汇市场的事件驱动回测和交易框架，具
 5. **执行模块**: ExecutionHandler 执行处理抽象
 6. **风险控制**: 基于风险比例的头寸计算
 
----
+- --
+
 ## 一、项目对比分析
 
 ### 1.1 qsforex 核心特性
@@ -86,7 +87,8 @@ qsforex 是一个专注于外汇市场的事件驱动回测和交易框架，具
 
 |**事件类型**| 明确的三种事件 | 内部事件系统 | backtrader 更复杂 |
 
----
+- --
+
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -147,7 +149,8 @@ qsforex 是一个专注于外汇市场的事件驱动回测和交易框架，具
 
 | US4 | 作为策略开发者，我想使用清晰的事件系统，便于理解交易流程 | P1 |
 
----
+- --
+
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -175,7 +178,7 @@ backtrader/
 └── position/
     └── forex.py             # 外汇头寸管理
 
-```
+```bash
 
 ### 3.2 核心类设计
 
@@ -434,7 +437,7 @@ class ForexPosition:
         return (f"ForexPosition({self._name}, size={self.size}, "
                 f"avg_price={self.avg_price}, profit={self.profit_base})")
 
-```
+```bash
 
 #### 3.2.2 外汇事件系统
 
@@ -574,7 +577,7 @@ class ForexEventManager:
             )
         return None
 
-```
+```bash
 
 #### 3.2.3 Pips 计算工具
 
@@ -684,7 +687,7 @@ if __name__ == '__main__':
     pips = PipsCalculator.calculate_pips(110.00, 110.50, 'USDJPY')
     print(f"USDJPY 盈利: {pips} pips")  # 输出: 50 pips
 
-```
+```bash
 
 #### 3.2.4 保证金计算器
 
@@ -818,7 +821,7 @@ class MarginCalculator:
 
         return int(units.quantize(Decimal('1'), ROUND_HALF_UP))
 
-```
+```bash
 
 ### 3.3 在 backtrader 中使用
 
@@ -935,9 +938,10 @@ class ForexStrategy(bt.Strategy):
             if pos.size != 0:
                 print(f"{name}: {pos.size} 手, 盈亏: {pos.profit_base:.2f} ({pos.profit_pips} pips)")
 
-```
+```bash
 
----
+- --
+
 ## 四、API 设计
 
 ### 4.1 外汇头寸 API
@@ -970,7 +974,7 @@ print(f"所需保证金: {position.get_margin_required()}")
 pnl = position.close_position(size=500, price=1.1050)
 print(f"平仓盈亏: {pnl}")
 
-```
+```bash
 
 ### 4.2 Pips 计算器 API
 
@@ -992,7 +996,7 @@ print(f"价格变化: {pips} pips")
 price_change = PipsCalculator.pips_to_price(50, 'EURUSD')
 print(f"点值对应价格: {price_change}")
 
-```
+```bash
 
 ### 4.3 保证金计算 API
 
@@ -1030,9 +1034,10 @@ units = MarginCalculator.calculate_units_from_risk(
 )
 print(f"建议手数: {units}")
 
-```
+```bash
 
----
+- --
+
 ## 五、实施计划
 
 ### 5.1 实施阶段
@@ -1062,7 +1067,8 @@ print(f"建议手数: {units}")
 5. **P2**: 外汇事件系统
 6. **P2**: Decimal 精度工具
 
----
+- --
+
 ## 六、参考资料
 
 ### 6.1 关键参考代码
@@ -1115,7 +1121,7 @@ TickEvent -> strategy.calculate_signals() -> SignalEvent
 SignalEvent -> portfolio.execute_signal() -> OrderEvent
 OrderEvent -> execution.execute_order()
 
-```
+```bash
 
 ### 6.3 关键设计模式
 

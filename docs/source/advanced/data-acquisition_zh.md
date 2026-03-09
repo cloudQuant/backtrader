@@ -1,8 +1,10 @@
----
+- --
+
 title: 数据获取指南
 description: Backtrader 数据获取、清洗、存储和验证的综合指南
 
----
+- --
+
 # 数据获取指南
 
 可靠的数据是成功回测的基础。本指南全面介绍为 Backtrader 获取、清洗、存储和验证市场数据所需的所有知识。
@@ -32,7 +34,7 @@ cerebro = bt.Cerebro()
 cerebro.adddata(data)
 cerebro.run()
 
-```
+```bash
 
 ### Pandas DataFrame 加载
 
@@ -50,7 +52,7 @@ data = bt.feeds.PandasData(dataname=df)
 
 cerebro.adddata(data)
 
-```
+```bash
 
 ## 交易所数据接口
 
@@ -73,7 +75,7 @@ data = bt.feeds.YahooFinanceData(
 
 cerebro.adddata(data)
 
-```
+```bash
 
 #### Interactive Brokers
 
@@ -88,7 +90,7 @@ data = bt.feeds.IBData(
     historical=True
 )
 
-```
+```bash
 
 #### OANDA 外汇
 
@@ -109,7 +111,7 @@ data = store.getdata(
     compression=15
 )
 
-```
+```bash
 
 #### Quandl
 
@@ -123,7 +125,7 @@ data = bt.feeds.QuandlData(
     todate=datetime(2023, 12, 31)
 )
 
-```
+```bash
 
 ### 数据库数据源
 
@@ -144,7 +146,7 @@ data = bt.feeds.InfluxDB(
     timeframe=bt.TimeFrame.Minutes
 )
 
-```
+```bash
 
 ## 数据清洗和预处理
 
@@ -183,7 +185,7 @@ def clean_ohlcv_data(df):
 df = pd.read_csv('raw_data.csv', parse_dates=['datetime'])
 df_clean = clean_ohlcv_data(df)
 
-```
+```bash
 
 ### 时区处理
 
@@ -206,7 +208,7 @@ def standardize_timezone(df, timezone='UTC'):
 df = pd.read_csv('data.csv', parse_dates=['datetime'], index_col='datetime')
 df = standardize_timezone(df, 'UTC')
 
-```
+```bash
 
 ### 数据重采样
 
@@ -238,7 +240,7 @@ def resample_data(df, timeframe='15T'):
 
 df_15m = resample_data(df_tick, '15T')
 
-```
+```bash
 
 ### 异常值检测
 
@@ -276,7 +278,7 @@ df_capped['close'] = np.where(
     df['close']
 )
 
-```
+```bash
 
 ## 数据存储方案
 
@@ -296,7 +298,7 @@ df.to_csv('market_data.csv', index=True)
 
 df = pd.read_csv('market_data.csv', parse_dates=['datetime'], index_col='datetime')
 
-```
+```bash
 
 ### Parquet 格式
 
@@ -318,7 +320,7 @@ df = pd.read_parquet('market_data.parquet')
 
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### HDF5 格式
 
@@ -340,7 +342,7 @@ df = pd.read_hdf('market_data.h5', key='data')
 
 df_new.to_hdf('market_data.h5', key='data', mode='a', append=True, format='table')
 
-```
+```bash
 
 ### 数据库存储
 
@@ -360,7 +362,7 @@ df.to_sql('ohlcv', conn, if_exists='replace', index=True)
 df = pd.read_sql('SELECT *FROM ohlcv', conn, parse_dates=['datetime'], index_col='datetime')
 conn.close()
 
-```
+```bash
 
 #### PostgreSQL (生产环境)
 
@@ -382,7 +384,7 @@ df = pd.read_sql(
     index_col='datetime'
 )
 
-```
+```bash
 
 #### TimescaleDB (时间序列优化)
 
@@ -403,7 +405,7 @@ with engine.connect() as conn:
 
 df.to_sql('ohlcv', engine, if_exists='append', index=True)
 
-```
+```bash
 
 ## 历史数据回补
 
@@ -446,7 +448,7 @@ end = datetime(2023, 12, 31)
 
 data = fetch_historical_data('BTC/USDT', start, end)
 
-```
+```bash
 
 ### 带存储的回补
 
@@ -489,7 +491,7 @@ backfill_and_store(
     'data/btc_usdt_15m.parquet'
 )
 
-```
+```bash
 
 ### 定时数据更新
 
@@ -517,7 +519,7 @@ while True:
     schedule.run_pending()
     time.sleep(60)
 
-```
+```bash
 
 ## 数据质量验证
 
@@ -588,7 +590,7 @@ if issues:
 else:
     print("数据验证通过！")
 
-```
+```bash
 
 ### 统计摘要
 
@@ -630,7 +632,7 @@ report = data_quality_report(df)
 import json
 print(json.dumps(report, indent=2, default=str, ensure_ascii=False))
 
-```
+```bash
 
 ## 完整示例
 
@@ -724,7 +726,7 @@ pipeline.store(df_clean, 'BTC/USDT', '15m')
 df_loaded = pipeline.load('BTC/USDT', '15m')
 feed = pipeline.create_feed(df_loaded)
 
-```
+```bash
 
 ### 示例 3: 多源数据聚合器
 
@@ -792,7 +794,7 @@ aggregator.add_exchange_source('binance', 'ETH/USDT', datetime(2023, 1, 1), date
 normalized = aggregator.normalize()
 merged = aggregator.merge(normalized)
 
-```
+```bash
 
 ### 示例 4: 多交易所数据对比
 
@@ -823,7 +825,7 @@ def compare_exchange_data(symbols, exchanges):
 
 cerebro = compare_exchange_data(['BTC/USDT'], ['binance', 'okx'])
 
-```
+```bash
 
 ## 最佳实践
 

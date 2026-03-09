@@ -1,8 +1,10 @@
----
+- --
+
 title: Development Setup
 description: Setting up development environment
 
----
+- --
+
 # Development Setup
 
 This guide covers setting up a Backtrader development environment.
@@ -19,7 +21,7 @@ This guide covers setting up a Backtrader development environment.
 git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader
 
-```
+```bash
 
 ## Install Development Dependencies
 
@@ -33,7 +35,7 @@ pip install -r requirements.txt
 
 pip install -e .
 
-```
+```bash
 
 ## Development Commands
 
@@ -57,7 +59,7 @@ pytest tests/ -n 4 -v
 
 pytest tests/ -m "not integration" --cov=backtrader
 
-```
+```bash
 
 ### Code Quality
 
@@ -74,7 +76,7 @@ isort backtrader/
 black --line-length 124 backtrader/
 ruff check --fix backtrader/
 
-```
+```bash
 
 ### Type Checking
 
@@ -88,7 +90,7 @@ mypy backtrader/
 
 make type-check
 
-```
+```bash
 
 ### Documentation
 
@@ -102,7 +104,7 @@ make docs
 
 make docs-view
 
-```
+```bash
 
 ## Project Structure
 
@@ -137,7 +139,7 @@ backtrader/
 
 └── tools/                # Development tools
 
-```
+```bash
 
 ## Git Workflow
 
@@ -156,7 +158,7 @@ Follow conventional commits:
 
 [optional body]
 
-```
+```bash
 Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`
 
 ### Creating Pull Requests
@@ -184,7 +186,7 @@ def test_my_feature():
     result = cerebro.run()
     assert result is not None
 
-```
+```bash
 
 ### Integration Tests
 
@@ -195,7 +197,7 @@ def test_live_connection():
 # Requires testnet credentials
     pass
 
-```
+```bash
 
 ### Running Specific Tests
 
@@ -215,7 +217,7 @@ pytest tests/ -m "priority_p0"  # Critical tests only
 
 pytest tests/ -m "not integration"  # Skip integration tests
 
-```
+```bash
 
 ## Code Style Guidelines
 
@@ -240,7 +242,7 @@ def calculate_sma(period: int, data: list) -> float:
     """
     pass
 
-```
+```bash
 
 ### Comments
 
@@ -260,7 +262,7 @@ def next(self):
 
 # Your code here
 
-```
+```bash
 
 ### Logging
 
@@ -270,7 +272,7 @@ from backtrader.utils import SpdLogManager
 logger = SpdLogManager().get_logger(__name__)
 logger.info('Strategy initialized')
 
-```
+```bash
 
 ### Quick Testing
 
@@ -285,7 +287,7 @@ if __name__ == '__main__':
     cerebro.run()
     cerebro.plot()
 
-```
+```bash
 
 ## See Also
 

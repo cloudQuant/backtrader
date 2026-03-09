@@ -6,7 +6,8 @@
 - *总耗时**: 按计划完成
 - *测试通过率**: 100% (885/885 tests)
 
----
+- --
+
 ## 📊 交付成果总览
 
 ### 核心模块 (17 个新文件)
@@ -43,7 +44,8 @@
 
 - ✅ `tools/generate_test_data.py` - 测试数据生成工具
 
----
+- --
+
 ## 🧪 测试覆盖
 
 ### 新增测试 (224 个)
@@ -100,7 +102,8 @@
 
 - *总计**: 885 个测试全部通过 ✅
 
----
+- --
+
 ## 📝 示例代码 (4 个)
 
 ### 1. 纯 Tick 回测
@@ -108,7 +111,7 @@
 ```bash
 python examples/tick_backtest.py
 
-```
+```bash
 
 - 使用 TickChannel + TickBroker
 - 简单均值回归策略
@@ -119,7 +122,7 @@ python examples/tick_backtest.py
 ```bash
 python examples/mixed_mode_backtest.py
 
-```
+```bash
 
 - 使用 MixBroker (tick 优先, bar 回退)
 - Tick 精确入场 + Bar 趋势确认
@@ -129,7 +132,7 @@ python examples/mixed_mode_backtest.py
 ```bash
 python examples/orderbook_backtest.py
 
-```
+```bash
 
 - 使用 OrderBookChannel + OrderBookBroker
 - 基于买卖盘深度的价差策略
@@ -140,13 +143,14 @@ python examples/orderbook_backtest.py
 ```bash
 python examples/live_tick_demo.py
 
-```
+```bash
 
 - 使用 LiveEventQueue + LiveDataValidator
 - 模拟 WebSocket 实时数据流
 - 数据质量验证
 
----
+- --
+
 ## 🔧 测试数据生成
 
 ```bash
@@ -159,11 +163,12 @@ python tools/generate_test_data.py --output-dir tests/datas/tick_data --rows 100
 
 python tools/generate_test_data.py --type tick --rows 100000 --symbol ETH/USDT --base-price 3000
 
-```
+```bash
 支持格式: CSV, JSONL
 支持数据类型: tick, orderbook, funding, bar
 
----
+- --
+
 ## 📦 包导出更新
 
 ### backtrader/__init__.py
@@ -177,7 +182,7 @@ from .events import TickEvent, OrderBookSnapshot, FundingEvent, BarEvent
 from .channel import Event, EventPriority, StreamingEventQueue
 from . import channels
 
-```
+```bash
 
 ### backtrader/channels/__init__.py
 
@@ -189,9 +194,10 @@ __all__ = [
     'ChannelBridge', 'LiveEventQueue', 'LiveDataValidator',
 ]
 
-```
+```bash
 
----
+- --
+
 ## 🎯 核心特性
 
 ### 1. 事件驱动架构
@@ -218,7 +224,8 @@ __all__ = [
 - **可选启用**: 默认不影响现有代码
 - **渐进式迁移**: 可逐步从 bar 模式迁移到 tick 模式
 
----
+- --
+
 ## 📈 性能指标
 
 | 指标 | 目标 | 实际 | 状态 |
@@ -235,7 +242,8 @@ __all__ = [
 
 | 新功能测试覆盖 | ≥80% | ~95% (224 tests) | ✅ |
 
----
+- --
+
 ## 🚀 使用示例
 
 ### 基础 Tick 策略
@@ -271,9 +279,10 @@ for event in queue:
     broker.process_tick(event.data)
     strategy.dispatch_event(event)
 
-```
+```bash
 
----
+- --
+
 ## 📚 文档更新
 
 已创建文档:
@@ -292,7 +301,8 @@ for event in queue:
 - ✅ `docs/opts/优化需求/迭代 138/风险评估.md` - 风险评估
 - ✅ `docs/opts/优化需求/迭代 138/验收标准.md` - 验收标准
 
----
+- --
+
 ## ✅ 验收检查清单
 
 ### 功能验收
@@ -320,7 +330,8 @@ for event in queue:
 - [x] 事件处理吞吐 >10K/s (实时模拟 163/s, 回测待 benchmark)
 - [ ] 1 日 tick 回测 <10s (待实际 benchmark)
 
----
+- --
+
 ## 🔄 后续工作建议
 
 ### 短期 (1-2 周)
@@ -341,7 +352,8 @@ for event in queue:
 2. **分布式回测**: 支持多进程/多机回测
 3. **实时监控**: 实盘交易监控面板
 
----
+- --
+
 ## 🎉 总结
 
 Iteration 138 成功实现了 Backtrader 的 tick 级回测和实盘交易能力, 在保持 100%向后兼容的前提下, 为框架增加了:

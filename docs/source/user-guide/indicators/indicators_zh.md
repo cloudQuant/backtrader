@@ -1,8 +1,10 @@
----
+- --
+
 title: 指标
 description: 内置技术指标
 
----
+- --
+
 # 指标
 
 Backtrader 包含 60+ 内置技术指标。本指南介绍如何有效使用它们。
@@ -21,7 +23,7 @@ class MyStrategy(bt.Strategy):
 # 访问当前值
         current_value = self.sma[0]
 
-```
+```bash
 
 ## 指标分类
 
@@ -53,7 +55,7 @@ tema = bt.indicators.TEMA(self.data.close, period=20)
 
 hma = bt.indicators.HMA(self.data.close, period=20)
 
-```
+```bash
 
 ### 动量指标
 
@@ -83,7 +85,7 @@ momentum = bt.indicators.Momentum(self.data.close, period=10)
 
 ao = bt.indicators.AwesomeOscillator(self.data)
 
-```
+```bash
 
 ### 波动率指标
 
@@ -101,7 +103,7 @@ bollinger = bt.indicators.BollingerBands(self.data.close, period=20)
 
 stdev = bt.indicators.StdDev(self.data.close, period=20)
 
-```
+```bash
 
 ### 成交量指标
 
@@ -115,7 +117,7 @@ obv = bt.indicators.OBV(self.data)
 
 mfi = bt.indicators.MFI(self.data, period=14)
 
-```
+```bash
 
 ### 振荡器
 
@@ -138,7 +140,7 @@ adx = bt.indicators.ADX(self.data, period=14)
 
 aroon = bt.indicators.Aroon(self.data, period=14)
 
-```
+```bash
 
 ## 交叉指标
 
@@ -159,7 +161,7 @@ class MyStrategy(bt.Strategy):
         elif self.crossover < 0:  # 快线下穿慢线
             self.sell()
 
-```
+```bash
 
 ## 指标参数
 
@@ -177,7 +179,7 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
 
-```
+```bash
 
 ## 指标的指标
 
@@ -197,7 +199,7 @@ class MyStrategy(bt.Strategy):
 # RSI 的 SMA (RSI 平滑)
         self.rsi_sma = bt.indicators.SMA(self.rsi, period=5)
 
-```
+```bash
 
 ## 访问指标线
 
@@ -227,7 +229,7 @@ top = bollinger.top[0]          # 上轨
 
 bot = bollinger.bot[0]          # 下轨
 
-```
+```bash
 
 ## 绘制指标
 
@@ -242,7 +244,7 @@ class MyStrategy(bt.Strategy):
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
         self.rsi.plotinfo.plot = False  # 不绘制 RSI
 
-```
+```bash
 
 ## 可用指标参考
 

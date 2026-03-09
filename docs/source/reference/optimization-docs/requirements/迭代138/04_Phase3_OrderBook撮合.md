@@ -2,7 +2,8 @@
 
 > 周期: 2 周 | 优先级: 🟡 中 | 风险: 中
 
----
+- --
+
 ## 1. 目标
 
 实现基于 OrderBook 深度的精确撮合逻辑，提升大单撮合的真实性。
@@ -14,7 +15,8 @@
 - ✅ 市场冲击模型（可选）
 - ✅ 滑点估算优化
 
----
+- --
+
 ## 2. 实施内容
 
 ### 2.1 OrderBook 深度撮合（5 天）
@@ -94,11 +96,12 @@ class OrderBookBroker(TickBroker):
         else:
             return price - impact
 
-```
+```bash
 
 - *测试**: `tests/phase3/test_orderbook_matching.py`
 
----
+- --
+
 ### 2.2 市场冲击模型（3 天）
 
 - *文件**: `backtrader/brokers/impact_models.py`
@@ -130,9 +133,10 @@ class SquareRootImpactModel(MarketImpactModel):
         ratio = order_size / level_size
         return price*self.factor* (ratio ** 0.5)
 
-```
+```bash
 
----
+- --
+
 ## 3. 交付物
 
 - [ ] `backtrader/brokers/obbroker.py`
@@ -140,7 +144,8 @@ class SquareRootImpactModel(MarketImpactModel):
 - [ ] `tests/phase3/` - 完整测试套件
 - [ ] Phase 3 完成报告
 
----
+- --
+
 ## 4. 验收标准
 
 - [ ] OrderBook 深度撮合准确
@@ -148,7 +153,8 @@ class SquareRootImpactModel(MarketImpactModel):
 - [ ] 与真实交易所对比验证
 - [ ] 回归测试 100%通过
 
----
+- --
+
 ## 5. 时间表
 
 | 任务 | 工作量 |

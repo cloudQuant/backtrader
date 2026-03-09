@@ -1,8 +1,10 @@
----
+- --
+
 title: Filter API
 description: Complete Filter class API reference
 
----
+- --
+
 # Filter API
 
 Filters in Backtrader transform or filter data bars before they are processed by strategies. Filters can be applied to data feeds to perform operations like filling missing bars, calculating derived data types (Heikin Ashi, Renko), and filtering by session times.
@@ -13,7 +15,7 @@ Filters in Backtrader transform or filter data bars before they are processed by
 class backtrader.Filter(ParameterizedBase):
     """Base class for data filters."""
 
-```
+```bash
 
 ## Core Methods and Lifecycle
 
@@ -25,7 +27,7 @@ Initialize the filter with the data feed to be filtered.
 def __init__(self, data, **kwargs):
     super().__init__(**kwargs)
 
-```
+```bash
 
 ### `__call__(self, data)`
 
@@ -38,7 +40,7 @@ def __call__(self, data):
         self._firsttime = False
     self.next(data)
 
-```
+```bash
 
 - *Return Values**:
 - `False`: Stream was not modified (bar accepted)
@@ -53,7 +55,7 @@ def nextstart(self, data):
     """Override for initialization logic."""
     pass
 
-```
+```bash
 
 ### `next(self, data)`
 
@@ -64,7 +66,7 @@ def next(self, data):
     """Override to implement filter logic."""
     pass
 
-```
+```bash
 
 ### `last(self, data)`
 
@@ -75,7 +77,7 @@ def last(self, data):
     """Override to deliver final bars."""
     return False  # True if something delivered
 
-```
+```bash
 
 ## Filter Lifecycle
 
@@ -90,7 +92,7 @@ stateDiagram-v2
     __call__ --> last: No More Data
     last --> [*]: Cleanup
 
-```
+```bash
 
 ## Integration with Data Feeds
 
@@ -111,7 +113,7 @@ data.addfilter(bt.filters.HeikinAshi())
 
 cerebro.adddata(data)
 
-```
+```bash
 
 ## Built-in Filters
 
@@ -123,7 +125,7 @@ Fills missing calendar days in trading day data.
 class backtrader.filters.CalendarDays(ParameterizedBase):
     """Bar Filler to add missing calendar days to trading days."""
 
-```
+```bash
 
 - *Parameters**:
 
@@ -151,7 +153,7 @@ data.addfilter(bt.filters.CalendarDays(
 ))
 cerebro.adddata(data)
 
-```
+```bash
 
 ### SessionFilter
 
@@ -161,7 +163,7 @@ Filters out intraday bars that fall outside regular session times (pre/post mark
 class backtrader.filters.SessionFilter(ParameterizedBase):
     """Filter out bars outside regular session times."""
 
-```
+```bash
 
 - *Example**:
 
@@ -177,7 +179,7 @@ data = bt.feeds.GenericCSVData(
 data.addfilter(bt.filters.SessionFilter())
 cerebro.adddata(data)
 
-```
+```bash
 
 ### SessionFiller
 
@@ -187,7 +189,7 @@ Fills missing bars over gaps within a trading session.
 class backtrader.filters.SessionFiller(ParameterizedBase):
     """Bar Filler to add missing bars over gaps in a session."""
 
-```
+```bash
 
 - *Parameters**:
 
@@ -222,7 +224,7 @@ data.addfilter(bt.filters.SessionFiller(
 ))
 cerebro.adddata(data)
 
-```
+```bash
 
 ### DataFilter
 
@@ -232,7 +234,7 @@ Generic filter that uses a callable function to filter bars.
 class backtrader.filters.DataFilter(AbstractDataBase):
     """Filter bars based on a callable function."""
 
-```
+```bash
 
 - *Parameters**:
 
@@ -259,7 +261,7 @@ wrapped_data = bt.filters.DataFilter(dataname=data)
 wrapped_data.p.funcfilter = my_filter
 cerebro.adddata(wrapped_data)
 
-```
+```bash
 
 ### HeikinAshi
 
@@ -269,7 +271,7 @@ Remodels OHLC data into Heikin Ashi candlesticks.
 class backtrader.filters.HeikinAshi:
     """Remodels OHLC to Heikin Ashi candlesticks."""
 
-```
+```bash
 
 - *Heikin Ashi Formula**:
 - Close = (Open + High + Low + Close) / 4
@@ -284,7 +286,7 @@ data = bt.feeds.GenericCSVData(dataname='data.csv')
 data.addfilter(bt.filters.HeikinAshi())
 cerebro.adddata(data)
 
-```
+```bash
 
 ### Renko
 
@@ -294,7 +296,7 @@ Converts price data into Renko bricks.
 class backtrader.filters.Renko(Filter):
     """Modify data stream to draw Renko bars (or bricks)."""
 
-```
+```bash
 
 - *Parameters**:
 
@@ -328,7 +330,7 @@ data.addfilter(bt.filters.Renko(
 ))
 cerebro.adddata(data)
 
-```
+```bash
 
 ### DataFiller
 
@@ -338,7 +340,7 @@ Fills gaps in data feeds based on timeframe and session settings.
 class backtrader.filters.DataFiller(AbstractDataBase):
     """Fill gaps in source data."""
 
-```
+```bash
 
 - *Parameters**:
 
@@ -362,7 +364,7 @@ data = bt.feeds.GenericCSVData(dataname='data.csv')
 filled_data = bt.filters.DataFiller(dataname=data)
 cerebro.adddata(filled_data)
 
-```
+```bash
 
 ### DaySplitterClose
 
@@ -372,7 +374,7 @@ Splits daily bars into two parts for replay simulation.
 class backtrader.filters.DaySplitterClose(ParameterizedBase):
     """Splits daily bar into OHLX and CCCC ticks."""
 
-```
+```bash
 
 - *Parameters**:
 
@@ -392,7 +394,7 @@ data = bt.feeds.GenericCSVData(dataname='daily.csv')
 data.addfilter(bt.filters.DaySplitterClose(closevol=0.5))
 cerebro.replaydata(data)  # Use with replaydata
 
-```
+```bash
 
 ### BarReplayerOpen (DayStepsFilter)
 
@@ -402,7 +404,7 @@ Splits bars into open and OHLC parts to simulate replay.
 class backtrader.filters.BarReplayerOpen:
     """Split bar into Open and OHLC parts."""
 
-```
+```bash
 
 - *Example**:
 
@@ -411,7 +413,7 @@ data = bt.feeds.GenericCSVData(dataname='data.csv')
 data.addfilter(bt.filters.BarReplayerOpen())
 cerebro.adddata(data)
 
-```
+```bash
 
 ## Custom Filter Development
 
@@ -431,7 +433,7 @@ class VolumeFilter(bt.Filter):
             return True  # Signal stream was modified
         return False  # Bar accepted
 
-```
+```bash
 
 ### Complex Filter (Stack Management)
 
@@ -453,7 +455,7 @@ class PriceModifier(bt.Filter):
             data.high[0] = data.close[0]
         return False  # Stream length unchanged
 
-```
+```bash
 
 ### Filter with State
 
@@ -490,7 +492,7 @@ class RangeFilter(bt.Filter):
 
         return False
 
-```
+```bash
 
 ## Filter Return Values
 
@@ -522,7 +524,7 @@ class AfterHoursFilter(bt.Filter):
             return True
         return False
 
-```
+```bash
 
 ### Data Transformation
 
@@ -538,7 +540,7 @@ class LogTransform(bt.Filter):
         data.close[0] = math.log(data.close[0])
         return False
 
-```
+```bash
 
 ### Conditional Bar Addition
 
@@ -563,7 +565,7 @@ class AddSignalBar(bt.Filter):
 
         return False
 
-```
+```bash
 
 ## Full Example: Custom Filter
 
@@ -642,7 +644,7 @@ cerebro.addstrategy(MyStrategy)
 
 result = cerebro.run()
 
-```
+```bash
 
 ## Best Practices
 

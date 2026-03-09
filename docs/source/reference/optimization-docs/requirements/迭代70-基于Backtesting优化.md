@@ -29,7 +29,8 @@ Backtesting.py 是一个轻量级的 Python 回测框架，具有以下核心特
 5. **Statistics**: 统计指标计算
 6. **HTML 报告**: HTML 格式回测报告
 
----
+- --
+
 ## 框架对比分析
 
 ### 架构设计对比
@@ -72,7 +73,8 @@ Backtesting.py 是一个轻量级的 Python 回测框架，具有以下核心特
 5. **蒙特卡洛**: 内置蒙特卡洛分析功能
 6. **多频率支持**: 支持从 1 分钟到 8 小时的多时间周期
 
----
+- --
+
 ## 需求规格文档
 
 ### 需求 1: 信号驱动策略框架
@@ -174,7 +176,8 @@ Backtesting.py 是一个轻量级的 Python 回测框架，具有以下核心特
 - 文件大小: 报告文件大小合理
 - 浏览器兼容: 主流浏览器兼容
 
----
+- --
+
 ## 设计文档
 
 ### 1. 信号驱动策略框架设计
@@ -330,7 +333,7 @@ class SignalStrategy(Strategy):
         """获取调试信息 DataFrame"""
         return pd.DataFrame(self.debug_info)
 
-```
+```bash
 
 #### 1.2 信号生成函数模板
 
@@ -436,7 +439,7 @@ def generate_rsi_signals(
 
     return results, full_info
 
-```
+```bash
 
 ### 2. Bokeh 交互式可视化设计
 
@@ -758,7 +761,7 @@ class BokehPlotter:
 
         return Div(text=metrics_html, width=self.width, height=200)
 
-```
+```bash
 
 ### 3. 参数优化设计
 
@@ -979,7 +982,7 @@ class GridSearchOptimizer:
             plt.tight_layout()
             plt.show()
 
-```
+```bash
 
 ### 4. 统计分析增强设计
 
@@ -1257,7 +1260,7 @@ class PerformanceAnalyzer:
         plt.tight_layout()
         plt.show()
 
-```
+```bash
 
 ### 5. HTML 报告生成设计
 
@@ -1468,7 +1471,7 @@ class HTMLReporter:
 
         return html
 
-```
+```bash
 
 ### 6. 实施计划
 
@@ -1533,7 +1536,7 @@ from backtrader.optimize.grid_search import GridSearchOptimizer
 optimizer = GridSearchOptimizer(MyStrategy, signal_func, assets, paths)
 results = optimizer.optimize({'window_short': [10,20,30], 'window_long': [30,40,50]})
 
-```
+```bash
 
 #### 6.3 目录结构
 
@@ -1570,9 +1573,10 @@ backtrader/
 
 └── run_backtest.py         # 新增: 回测运行函数
 
-```
+```bash
 
----
+- --
+
 ## 总结
 
 通过借鉴 Time_Series_Backtesting 项目的设计思想，backtrader 可以在保持通用性的同时，获得以下改进：

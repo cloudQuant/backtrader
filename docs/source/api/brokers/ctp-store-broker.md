@@ -1,8 +1,10 @@
----
+- --
+
 title: CTP Store and Broker API Reference
 description: Complete API reference for CTP futures trading with backtrader
 
----
+- --
+
 # CTP Store and Broker API Reference
 
 This document provides a comprehensive API reference for the CTP (Comprehensive Transaction Platform) integration in backtrader. The CTP API enables live trading of Chinese futures through the native `ctp-python` package.
@@ -78,7 +80,7 @@ graph TB
     style CTPBroker fill:#fff3e0
     style CTPData fill:#f3e5f5
 
-```
+```bash
 
 ### Message Flow
 
@@ -115,7 +117,7 @@ sequenceDiagram
     Trader->>Store: trade_queue.put(fill)
     Store->>App: Order notification
 
-```
+```bash
 
 ## CTPStore Class
 
@@ -126,14 +128,14 @@ The `CTPStore` class manages connections to both the trader and market data fron
 ```python
 class backtrader.stores.CTPStore(ParameterizedSingletonMixin)
 
-```
+```bash
 
 ### Constructor
 
 ```python
 CTPStore(ctp_setting=None, **kwargs)
 
-```
+```bash
 
 - *Parameters:**
 
@@ -166,7 +168,7 @@ DEFAULT_BROKER_ID = "9999"
 DEFAULT_APP_ID = "simnow_client_test"
 DEFAULT_AUTH_CODE = "0000000000000000"
 
-```
+```bash
 
 ### Properties
 
@@ -184,7 +186,7 @@ DEFAULT_AUTH_CODE = "0000000000000000"
 @classmethod
 getbroker(**kwargs) -> CTPBroker
 
-```
+```bash
 Returns a `CTPBroker` instance connected to this store.
 
 #### Data Feed Creation
@@ -193,7 +195,7 @@ Returns a `CTPBroker` instance connected to this store.
 @classmethod
 getdata(**kwargs) -> CTPData
 
-```
+```bash
 Returns a `CTPData` feed instance.
 
 #### Store Operations
@@ -217,14 +219,14 @@ stop()
 on_disconnect(callback: Callable)
 on_reconnect(callback: Callable)
 
-```
+```bash
 
 #### Order Operations
 
 ```python
 send_order(symbol, direction, offset, price, volume, order_price_type) -> str
 
-```
+```bash
 Submit an order to CTP.
 
 - *Parameters:**
@@ -250,7 +252,7 @@ Submit an order to CTP.
 ```python
 cancel_order(symbol, order_ref, front_id=None, session_id=None) -> bool
 
-```
+```bash
 Cancel an active order.
 
 #### Account Queries
@@ -258,25 +260,25 @@ Cancel an active order.
 ```python
 get_balance() -> None
 
-```
+```bash
 Query and update account balance with rate limiting (2 second interval).
 
 ```python
 get_cash() -> float
 
-```
+```bash
 Get current available cash.
 
 ```python
 get_value() -> float
 
-```
+```bash
 Get total account value (balance).
 
 ```python
 get_positions() -> list
 
-```
+```bash
 Query and return current positions.
 
 - *Returns:** List of position dictionaries:
@@ -292,7 +294,7 @@ Query and return current positions.
     'position_profit': 500.0
 }, ...]
 
-```
+```bash
 
 ## CTPBroker Class
 
@@ -303,7 +305,7 @@ The `CTPBroker` class implements order management, position tracking, and accoun
 ```python
 class backtrader.brokers.CTPBroker(BrokerBase)
 
-```
+```bash
 
 ### Parameters
 
@@ -325,7 +327,7 @@ class backtrader.brokers.CTPBroker(BrokerBase)
 buy(owner, data, size, price=None, plimit=None, exectype=None, ...) -> Order
 sell(owner, data, size, price=None, plimit=None, exectype=None, ...) -> Order
 
-```
+```bash
 
 - *Parameters:**
 
@@ -350,7 +352,7 @@ sell(owner, data, size, price=None, plimit=None, exectype=None, ...) -> Order
 ```python
 cancel(order) -> Order
 
-```
+```bash
 Cancel an active order.
 
 #### Account Status
@@ -361,7 +363,7 @@ getvalue(datas=None) -> float
 getposition(data, clone=True) -> Position
 orderstatus(order) -> int
 
-```
+```bash
 
 #### Notifications
 
@@ -369,7 +371,7 @@ orderstatus(order) -> int
 notify(order) -> None
 get_notification() -> Order or None
 
-```
+```bash
 
 ### Position Management
 
@@ -388,7 +390,7 @@ _pos_detail = {
     }
 }
 
-```
+```bash
 
 ## CTPData Feed
 
@@ -399,7 +401,7 @@ The `CTPData` feed provides live tick data from CTP and historical backfill from
 ```python
 class backtrader.feeds.ctpdata.CTPData(DataBase)
 
-```
+```bash
 
 ### Parameters
 
@@ -436,7 +438,7 @@ _TRADING_SESSIONS = [
 
 ]
 
-```
+```bash
 
 ## Order Types and Execution
 
@@ -474,7 +476,7 @@ stateDiagram-v2
         then submitted to CTP
     end note
 
-```
+```bash
 
 ### Order Execution Examples
 
@@ -491,7 +493,7 @@ order = cerebro.broker.buy(
     exectype=bt.Order.Market
 )
 
-```
+```bash
 
 #### Limit Order
 
@@ -507,7 +509,7 @@ order = cerebro.broker.buy(
     exectype=bt.Order.Limit
 )
 
-```
+```bash
 
 #### Stop Order
 
@@ -523,7 +525,7 @@ order = cerebro.broker.sell(
     exectype=bt.Order.Stop
 )
 
-```
+```bash
 
 #### Stop-Limit Order
 
@@ -542,7 +544,7 @@ order = cerebro.broker.sell(
     exectype=bt.Order.StopLimit
 )
 
-```
+```bash
 
 ### SHFE/INE Close Offset Handling
 
@@ -554,7 +556,7 @@ For SHFE and INE exchanges, the broker automatically handles the distinction bet
 
 _determine_close_offsets(symbol, direction, volume)
 
-```
+```bash
 
 - *Logic:**
 
@@ -594,7 +596,7 @@ tick = {
     'action_day': '20250105'
 }
 
-```
+```bash
 
 ### Tick Queue Management
 
@@ -618,7 +620,7 @@ tick = {
    c. If new bar period: emit completed bar, start new bar
    d. Otherwise: update current bar (OHLC, volume, OI)
 
-```
+```bash
 
 ## Account and Position Management
 
@@ -636,7 +638,7 @@ account = {
 
 }
 
-```
+```bash
 
 ### Position Information
 
@@ -652,7 +654,7 @@ position = {
 
 }
 
-```
+```bash
 
 ### Position Tracking
 
@@ -678,7 +680,7 @@ THOST_FTDC_D_Buy = '0'     # Buy
 
 THOST_FTDC_D_Sell = '1'    # Sell
 
-```
+```bash
 
 ### Offset Flag (CombOffsetFlag)
 
@@ -691,7 +693,7 @@ THOST_FTDC_OF_CloseToday = '3'        # Close today's position
 
 THOST_FTDC_OF_CloseYesterday = '4'    # Close yesterday's position
 
-```
+```bash
 
 ### Order Price Type (OrderPriceType)
 
@@ -700,7 +702,7 @@ THOST_FTDC_OPT_LimitPrice = '2'   # Limit price
 
 THOST_FTDC_OPT_AnyPrice = '1'     # Market price (any price)
 
-```
+```bash
 
 ### Hedge Flag (CombHedgeFlag)
 
@@ -711,7 +713,7 @@ THOST_FTDC_HF_Arbitrage = '2'     # Arbitrage
 
 THOST_FTDC_HF_Hedge = '3'         # Hedge
 
-```
+```bash
 
 ### Time Condition (TimeCondition)
 
@@ -720,7 +722,7 @@ THOST_FTDC_TC_IOC = '1'   # Immediate or Cancel
 
 THOST_FTDC_TC_GFD = '3'   # Good for Day
 
-```
+```bash
 
 ### Volume Condition (VolumeCondition)
 
@@ -729,7 +731,7 @@ THOST_FTDC_VC_AV = '1'    # Any Volume
 
 THOST_FTDC_VC_CV = '3'    # Complete Volume
 
-```
+```bash
 
 ### Order Status (OrderStatus)
 
@@ -748,7 +750,7 @@ THOST_FTDC_OST_Canceled = '5'                   # Canceled
 
 THOST_FTDC_OST_Unknown = 'a'                    # Unknown
 
-```
+```bash
 
 ## Error Codes and Handling
 
@@ -804,7 +806,7 @@ if not store.is_connected:
         err_id, err_msg = store.trader_spi.login_error
         print(f"Login failed: {err_id} - {err_msg}")
 
-```
+```bash
 
 #### Order Rejection Handling
 
@@ -823,7 +825,7 @@ def notify_order(self, order):
 
 # - Market closed
 
-```
+```bash
 
 #### Disconnect/Reconnect Handling
 
@@ -841,7 +843,7 @@ def on_reconnect():
 store.on_disconnect(on_disconnect)
 store.on_reconnect(on_reconnect)
 
-```
+```bash
 
 ## SimNow Simulation Environment
 
@@ -885,7 +887,7 @@ store = bt.stores.CTPStore(
     auth_code='0000000000000000',
 )
 
-```
+```bash
 
 ### SimNow Trading Hours
 
@@ -941,7 +943,7 @@ cerebro.setbroker(store.getbroker(
 cerebro.adddata(data)
 cerebro.addstrategy(YourStrategy)
 
-```
+```bash
 
 ### Complete Example
 
@@ -1063,7 +1065,7 @@ def main():
 if __name__ == '__main__':
     main()
 
-```
+```bash
 
 ### Supported Exchanges
 
@@ -1093,7 +1095,7 @@ SR505.CZCE   - White Sugar May 2025 on CZCE
 sc2505.INE   - Crude Oil May 2025 on INE
 IF2505.CFFEX - CSI 300 Index May 2025 on CFFEX
 
-```
+```bash
 
 ## See Also
 

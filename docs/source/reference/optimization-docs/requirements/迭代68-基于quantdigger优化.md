@@ -29,7 +29,8 @@ quantdigger 是一个 A 股量化回测框架，具有以下核心特点：
 5. **数据系列**: DataSeries 数据系列
 6. **交易逻辑**: 交易逻辑抽象
 
----
+- --
+
 # 项目分析报告
 
 ## 一、Backtrader 项目回顾
@@ -69,7 +70,8 @@ Backtrader 采用**事件驱动架构**，核心组件：
 3. **策略语法复杂**：新手学习曲线较陡
 4. **多周期支持**：多周期数据同步处理不够直观
 
----
+- --
+
 ## 二、QuantDigger 项目深度分析
 
 ### 2.1 核心架构设计
@@ -96,7 +98,7 @@ QuantDigger 采用**上下文模式 + 代理模式**的架构：
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
-```
+```bash
 
 ### 2.2 数据系列系统（Series System）
 
@@ -126,7 +128,7 @@ class NumberSeries(SeriesBase):
             return self._default
         return float(self.data[i])
 
-```
+```bash
 
 - *使用示例**：
 
@@ -137,7 +139,7 @@ class NumberSeries(SeriesBase):
 if ctx.ma10[1] < ctx.ma20[1] and ctx.ma10[0] > ctx.ma20[0]:
     ctx.buy(ctx.close[0], 1)  # 金叉买入
 
-```
+```bash
 
 ### 2.3 技术指标系统
 
@@ -173,7 +175,7 @@ class MA(TechnicalBase):
         self.widget = widget
         self.plot_line(self.values, self.style, lw=self.lw)
 
-```
+```bash
 
 - *多值指标支持**（布林带）：
 
@@ -196,7 +198,7 @@ class BOLL(TechnicalBase):
         self.plot_line(self.values['middler'], self.styles[1], lw=self.lw)
         self.plot_line(self.values['lower'], self.styles[2], lw=self.lw)
 
-```
+```bash
 
 ### 2.4 绘图系统
 
@@ -231,7 +233,7 @@ class Plotter(object):
         ymin = np.min(self._lower[w_left: w_right])
         return ymax, ymin
 
-```
+```bash
 
 - *参数自动装饰器**：
 
@@ -264,7 +266,7 @@ def plot_init(method):
         return rst
     return wrapper
 
-```
+```bash
 
 ### 2.5 上下文系统
 
@@ -311,7 +313,7 @@ class Context(PlotterDelegator, TradingDelegator):
         else:
             return self.data_ref.original.curbar
 
-```
+```bash
 
 ### 2.6 期货合约管理
 
@@ -339,7 +341,7 @@ class Contract(object):
     def volume_multiple(cls, strcontract):
         """合约乘数"""
 
-```
+```bash
 
 - *PContract（周期合约）**：
 
@@ -356,7 +358,7 @@ class PContract(object):
         t = strpcon.split('-')
         return cls(Contract(t[0]), Period(t[1]))
 
-```
+```bash
 
 - *交易类型支持**：
 
@@ -369,7 +371,7 @@ class TradeSide(object):
     COVER_TODAY = 5  # 空头平今
     SELL_TODAY = 6   # 多头平今
 
-```
+```bash
 
 ### 2.7 策略基类
 
@@ -401,7 +403,7 @@ class Strategy(object):
         """策略结束前运行"""
         return
 
-```
+```bash
 
 - *策略示例**：
 
@@ -423,7 +425,7 @@ class DoubleMA(Strategy):
         elif ctx.pos() > 0 and ctx.ma10[1] > ctx.ma20[1] and ctx.ma10[0] < ctx.ma20[0]:
             ctx.sell(ctx.close[0], ctx.pos())  # 死叉卖出
 
-```
+```bash
 
 ### 2.8 多周期数据同步
 
@@ -444,7 +446,7 @@ class DataRef(object):
             context_dt_update_func(self.original.next_datetime)
             return True
 
-```
+```bash
 
 ### 2.9 组合策略支持
 
@@ -457,9 +459,10 @@ profiles = add_strategies(['BB.SHFE-1.Day'], [
     {'strategy': DemoStrategy2('A2'), 'capital': 50000.0* 0.5},
 ])
 
-```
+```bash
 
----
+- --
+
 ## 三、架构对比分析
 
 | 维度 | Backtrader | QuantDigger |
@@ -482,7 +485,8 @@ profiles = add_strategies(['BB.SHFE-1.Day'], [
 
 |**多周期**| 数据重采样 | PContract 设计 |
 
----
+- --
+
 # 需求文档
 
 ## 一、优化目标
@@ -528,7 +532,7 @@ if self.crossover > 0:
 if self.ma_fast[0] > self.ma_slow[0] and self.ma_fast[-1] <= self.ma_slow[-1]:
     self.buy()
 
-```
+```bash
 
 ### FR2: 简化策略接口
 
@@ -556,7 +560,7 @@ class SimpleStrategy(bt.Strategy):
         if self.ma10[1] < self.ma20[1] and self.ma10[0] > self.ma20[0]:
             self.buy(self.close[0], 1)
 
-```
+```bash
 
 ### FR3: 增强绘图系统
 
@@ -597,7 +601,7 @@ cerebro.setautoplot(
 cerebro.run()
 cerebro.plot()
 
-```
+```bash
 
 ### FR4: 期货完善支持
 
@@ -632,7 +636,7 @@ class FutureCommission(bt.CommissionInfo):
 
 cerebro.broker.set_coc(True)  # Close Today First
 
-```
+```bash
 
 ### FR5: 指标装饰器
 
@@ -661,9 +665,10 @@ class CustomMA(bt.Indicator):
         """内置绘图方法"""
         widget.plot_line(self.lines.ma, style='y', lw=1)
 
-```
+```bash
 
----
+- --
+
 ## 三、非功能需求
 
 ### NFR1: 兼容性
@@ -681,7 +686,8 @@ class CustomMA(bt.Indicator):
 - 提供清晰的错误提示
 - 丰富的文档和示例
 
----
+- --
+
 # 设计文档
 
 ## 一、总体架构设计
@@ -717,7 +723,7 @@ backtrader/
     ├── commission.py        # 期货手续费
     └── position.py          # 期货持仓
 
-```
+```bash
 
 ## 二、详细设计
 
@@ -799,7 +805,7 @@ class LineOps:
 
 # 在 LineSingle 或 LineBuffer 中混入此类
 
-```
+```bash
 
 ### 2.2 简化策略基类
 
@@ -870,7 +876,7 @@ class SimpleStrategy(Strategy):
         """当前持仓"""
         return self.getposition().size
 
-```
+```bash
 
 ### 2.3 增强绘图系统
 
@@ -974,7 +980,7 @@ class Plotter:
                 else:
                     ax.scatter(trade.dt, trade.price, marker='v', color='g', s=100)
 
-```
+```bash
 
 ### 2.4 期货完善支持
 
@@ -1070,7 +1076,7 @@ class FutureCommission(CommissionInfo):
 # 实现盈亏计算
         pass
 
-```
+```bash
 
 ### 2.5 指标装饰器
 
@@ -1155,7 +1161,7 @@ def plot_init(method):
         return result
     return wrapper
 
-```
+```bash
 
 ## 三、使用示例
 
@@ -1180,7 +1186,7 @@ class Strategy(bt.Strategy):
         if golden_cross:
             self.buy(size=100)
 
-```
+```bash
 
 ### 3.2 简化策略示例
 
@@ -1212,7 +1218,7 @@ class MyStrategy(bt.SimpleStrategy):
 # 平仓
                 self.sell(self.close[0], self.pos)
 
-```
+```bash
 
 ### 3.3 指标装饰器示例
 
@@ -1250,7 +1256,7 @@ class CustomBOLL(bt.Indicator):
         widget.plot_line(self.mid, self.style_mid, lw=self.lw)
         widget.plot_line(self.lower, self.style_lower, lw=self.lw)
 
-```
+```bash
 
 ### 3.4 自动绘图示例
 
@@ -1285,7 +1291,7 @@ results = cerebro.run()
 
 cerebro.plot()
 
-```
+```bash
 
 ### 3.5 期货策略示例
 
@@ -1342,7 +1348,7 @@ cerebro.broker.set_coc(True)  # 平今优先
 
 results = cerebro.run()
 
-```
+```bash
 
 ## 四、实施计划
 
@@ -1377,7 +1383,8 @@ results = cerebro.run()
 2. 更新指标注册系统
 3. 示例和文档
 
----
+- --
+
 ## 附录
 
 ### A. 参考资料
@@ -1401,7 +1408,7 @@ class MyStrategy(bt.Strategy):
         if self.crossover[0] > 0:
             self.buy()
 
-```
+```bash
 
 - *优化后的写法**：
 
@@ -1416,9 +1423,9 @@ class MyStrategy(bt.SimpleStrategy):
             if self.pos == 0:
                 self.buy(self.close[0], 100)
 
-```
+```bash
 
----
+- --
 - 文档版本：v1.0*
 - 创建日期：2026-01-08*
 - 作者：Claude*

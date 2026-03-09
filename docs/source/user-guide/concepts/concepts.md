@@ -1,8 +1,10 @@
----
+- --
+
 title: Basic Concepts
 description: Understanding Backtrader's core concepts
 
----
+- --
+
 # Basic Concepts
 
 Backtrader uses an event-driven architecture for backtesting trading strategies. Understanding these core concepts is essential for effective strategy development.
@@ -21,7 +23,7 @@ flowchart TD
     Cerebro --> Analyzer[Analyzer]
     Cerebro --> Observer[Observer]
 
-```
+```bash
 
 ## Cerebro
 
@@ -48,7 +50,7 @@ cerebro.broker.setcommission(0.001)  # Set commission
 
 results = cerebro.run()
 
-```
+```bash
 
 ## Data Feeds
 
@@ -85,7 +87,7 @@ data = bt.feeds.YahooFinanceData(
     todate=datetime(2023, 12, 31)
 )
 
-```
+```bash
 
 ### Accessing Data in Strategy
 
@@ -104,7 +106,7 @@ class MyStrategy(bt.Strategy):
 # Data length
         print(f"Current bar: {len(self.data)}")
 
-```
+```bash
 
 ## Lines
 
@@ -146,7 +148,7 @@ prev_close2 = self.data.close[-2]  # 2 bars ago
 
 data_length = len(self.data.close)
 
-```
+```bash
 
 ## Strategies
 
@@ -175,7 +177,7 @@ class MyStrategy(bt.Strategy):
         if self.sma[0] > self.data.close[0]:
             self.buy()
 
-```
+```bash
 
 ### Strategy Lifecycle
 
@@ -189,7 +191,7 @@ stateDiagram-v2
     next --> next: Normal operation
     next --> [*]: Backtest ends
 
-```
+```bash
 
 | Phase | Description |
 
@@ -226,7 +228,7 @@ macd = bt.indicators.MACD(self.data.close)
 atr = bt.indicators.ATR(self.data, period=14)
 bollinger = bt.indicators.BollingerBands(self.data.close)
 
-```
+```bash
 
 ### Accessing Indicator Values
 
@@ -243,7 +245,7 @@ class MyStrategy(bt.Strategy):
 # Previous SMA value
         previous_sma = self.sma[-1]
 
-```
+```bash
 
 ## Broker
 
@@ -259,7 +261,7 @@ cerebro.broker.setcommission(0.001)     # Set commission (0.1%)
 
 cerebro.broker.set_slippage_perc(0.5)   # Set slippage (0.5%)
 
-```
+```bash
 
 ### Orders
 
@@ -285,7 +287,7 @@ self.sell(limit=105.0)                  # Sell at limit price
 
 self.sell(stop=95.0)                    # Stop-loss sell
 
-```
+```bash
 
 ## Position
 
@@ -304,7 +306,7 @@ class MyStrategy(bt.Strategy):
             print(f"Entry price: {self.position.price}")
             print(f"Current profit: {self.position.price * self.position.size}")
 
-```
+```bash
 
 ## Next Steps
 

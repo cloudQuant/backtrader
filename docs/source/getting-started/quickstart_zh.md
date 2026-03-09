@@ -1,8 +1,10 @@
----
+- --
+
 title: 快速开始教程
 description: 在 5 分钟内创建您的第一个回测策略
 
----
+- --
+
 # 快速开始教程
 
 学习如何创建一个简单的交易策略并使用历史数据进行回测。
@@ -50,7 +52,7 @@ class SimpleStrategy(bt.Strategy):
             if self.crossover < 0:
                 self.sell()
 
-```
+```bash
 
 ## 运行回测
 
@@ -85,7 +87,7 @@ results = cerebro.run()
 
 print(f'最终组合价值: {cerebro.broker.getvalue():.2f}')
 
-```
+```bash
 
 ## 绘制结果
 
@@ -99,7 +101,7 @@ cerebro.plot(style='plotly')  # 交互式图表
 
 # cerebro.plot(style='matplotlib')  # 静态图表
 
-```
+```bash
 
 ## 完整示例
 
@@ -161,7 +163,7 @@ print(f'最终组合价值: {cerebro.broker.getvalue():.2f}')
 
 cerebro.plot(style='plotly')
 
-```
+```bash
 
 ## 策略说明
 
@@ -190,7 +192,7 @@ cerebro.plot(style='plotly')
 
 cerebro.addstrategy(SimpleStrategy, short_period=5, long_period=20)
 
-```
+```bash
 
 ## 下一步学习
 

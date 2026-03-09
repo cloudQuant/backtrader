@@ -29,7 +29,8 @@ flow 是一个数据流处理框架，可用于量化交易数据处理，具有
 5. **异步处理**: 异步数据处理
 6. **流式计算**: 流式计算技术
 
----
+- --
+
 ## 项目对比分析
 
 ### Backtrader vs Flow 架构对比
@@ -108,7 +109,8 @@ flow 是一个数据流处理框架，可用于量化交易数据处理，具有
 - **Indicators**: 技术指标
 - **Learning**: 学习算法
 
----
+- --
+
 ## 需求文档
 
 ### 需求概述
@@ -320,7 +322,8 @@ flow 是一个数据流处理框架，可用于量化交易数据处理，具有
 - 数据完整性 100%
 - 故障恢复时间 < 1s
 
----
+- --
+
 ## 设计文档
 
 ### 整体架构设计
@@ -401,7 +404,7 @@ backtrader/
 
 │       └── graph.py        # 管道图
 
-```
+```bash
 
 ### 详细设计
 
@@ -476,7 +479,7 @@ class DataSource(DataFlow):
             else:
                 callback(data)
 
-```
+```bash
 
 - *1.2 数据流管道**
 
@@ -550,7 +553,7 @@ class BufferStage(PipelineStage):
         """获取缓冲区数据"""
         return self._buffer.copy()
 
-```
+```bash
 
 - *1.3 数据缓冲区**
 
@@ -626,7 +629,7 @@ class WindowBuffer:
     def __len__(self):
         return len(self._data)
 
-```
+```bash
 
 - *1.4 数据流**
 
@@ -708,7 +711,7 @@ class LiveStream(QuoteStream):
         """从队列获取数据"""
         return await self._queue.get()
 
-```
+```bash
 
 #### 2. 多时间粒度
 
@@ -765,7 +768,7 @@ class Scope:
             int(self.scope / 10)  # 假设每 10 秒一个数据点
         )
 
-```
+```bash
 
 - *2.2 采样器**
 
@@ -865,7 +868,7 @@ class OHLCSampler(Sampler):
         self._current_close = None
         self._current_volume = 0
 
-```
+```bash
 
 - *2.3 触发器**
 
@@ -923,7 +926,7 @@ class ConditionTrigger(ScopeTrigger):
                        timestamp: datetime) -> bool:
         return self.condition(scope, hop, timestamp)
 
-```
+```bash
 
 - *2.4 Scope 管理器**
 
@@ -988,7 +991,7 @@ class ScopeManager:
         """当前跳数"""
         return self._hop
 
-```
+```bash
 
 #### 3. 强化学习集成
 
@@ -1067,7 +1070,7 @@ class QLearningAgent(Agent):
         self.epsilon*= decay_rate
         self.policy.epsilon = self.epsilon
 
-```
+```bash
 
 - *3.2 智能体基类**
 
@@ -1098,7 +1101,7 @@ class Agent(ABC):
         """更新智能体"""
         pass
 
-```
+```bash
 
 - *3.3 Q 表实现**
 
@@ -1147,7 +1150,7 @@ class QTable:
     def __setitem__(self, key: Tuple[int, int], value: float):
         self._table[key] = value
 
-```
+```bash
 
 - *3.4 策略**
 
@@ -1209,7 +1212,7 @@ class BoltzmannPolicy(Policy):
         probs = exp_q / np.sum(exp_q)
         return np.random.choice(len(probs), p=probs)
 
-```
+```bash
 
 - *3.5 经验回放**
 
@@ -1253,7 +1256,7 @@ class ReplayBuffer:
         """检查是否有足够经验"""
         return len(self.buffer) >= batch_size
 
-```
+```bash
 
 #### 4. 流式计算
 
@@ -1314,7 +1317,7 @@ class SlidingWindow:
         """支持负索引"""
         return list(self._window)[index]
 
-```
+```bash
 
 - *4.2 流式指标**
 
@@ -1431,7 +1434,7 @@ class StreamingMACD(StreamingIndicator):
         hist = macd - signal
         return (macd, signal, hist)
 
-```
+```bash
 
 - *4.3 状态编码器**
 
@@ -1487,7 +1490,7 @@ class StateEncoder:
 
             self.add_scaler(feature, StandardScaler(mean, std))
 
-```
+```bash
 
 #### 5. 智能体管理
 
@@ -1580,7 +1583,7 @@ class AgentManager:
     def __len__(self):
         return sum(1 for slot in self._slots if slot is not None)
 
-```
+```bash
 
 - *5.2 性能评估器**
 
@@ -1629,7 +1632,7 @@ class PerformanceEvaluator:
 
         return score
 
-```
+```bash
 
 #### 6. 异步引擎
 
@@ -1707,7 +1710,7 @@ class AsyncCerebro(Cerebro):
         """判断是否应该停止"""
         return False
 
-```
+```bash
 
 - *6.2 异步策略**
 
@@ -1751,7 +1754,7 @@ class AsyncStrategy(Strategy):
             None, lambda: self.sell(data, size, price)
         )
 
-```
+```bash
 
 ### 实现计划
 
@@ -1847,7 +1850,7 @@ agent = QLearningAgent(
     epsilon=0.1
 )
 
-```
+```bash
 
 ### 使用示例
 
@@ -1886,7 +1889,7 @@ async for signal in stream.run():
     if signal['sma20'] > signal['sma50']:
         print("买入信号")
 
-```
+```bash
 
 - *多时间粒度使用示例：**
 
@@ -1919,7 +1922,7 @@ tick_scope.add_agent(HFTAgent())
 for quote in quotes:
     manager.process(quote)
 
-```
+```bash
 
 - *强化学习使用示例：**
 
@@ -1955,7 +1958,7 @@ for episode in range(1000):
     if episode % 100 == 0:
         manager.evolve()
 
-```
+```bash
 
 - *异步处理使用示例：**
 
@@ -1978,7 +1981,7 @@ cerebro.addstrategy(async_strat)
 
 await cerebro.run_async()
 
-```
+```bash
 
 ### 测试策略
 

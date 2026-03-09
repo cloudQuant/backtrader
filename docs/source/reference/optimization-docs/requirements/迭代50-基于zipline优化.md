@@ -9,7 +9,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 3. 借鉴这个新项目的优点和功能，给 backtrader 优化改进提供新的建议
 4. 写需规文档和设计文档放到这个文档的最下面，方便后续借鉴
 
----
+- --
+
 ## 一、项目对比分析
 
 ### 1.1 Zipline 项目核心特性
@@ -68,7 +69,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 |**扩展性**| 插件式架构 | 继承式扩展 | zipline 更模块化 |
 
----
+- --
+
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -132,7 +134,8 @@ backtrader 已经比较完善了，我想要借鉴量化投资框架中其他项
 
 | US4 | 作为分析师，我想限制日内订单数量，模拟真实交易环境 | P1 |
 
----
+- --
+
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -156,7 +159,7 @@ backtrader/
 └── utils/
     └── api.py                  # 简化的 API 接口
 
-```
+```bash
 
 ### 3.2 核心类设计
 
@@ -334,7 +337,7 @@ class RestrictedListOrder(TradingControl):
             )
         return True
 
-```
+```bash
 
 #### 3.2.2 Cerebro 集成
 
@@ -375,7 +378,7 @@ class Cerebro:
 
 # ... 继续原有逻辑
 
-```
+```bash
 
 #### 3.2.3 DataPortal 数据门户
 
@@ -503,7 +506,7 @@ class DataPortal:
 # 检查最新数据是否为 NaN
         return math.isnan(data.close[0])
 
-```
+```bash
 
 #### 3.2.4 简化的 API 接口
 
@@ -551,7 +554,7 @@ class Strategy:
 # ... 现有代码 ...
         self.data = DataAPI(self)  # 新增简化 API
 
-```
+```bash
 
 ### 3.3 API 设计
 
@@ -602,7 +605,7 @@ cerebro.addtradingcontrol(RestrictedListOrder(['STOCK1', 'STOCK2']))
 cerebro.addstrategy(MyStrategy)
 results = cerebro.run()
 
-```
+```bash
 
 ### 3.4 组件化架构
 
@@ -641,9 +644,10 @@ results = cerebro.run()
 │  └──────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────┘
 
-```
+```bash
 
----
+- --
+
 ## 四、实施计划
 
 ### 4.1 实施阶段
@@ -671,7 +675,8 @@ results = cerebro.run()
 5. **P2**: RestrictedListOrder
 6. **P2**: AccountControl（账户级别控制）
 
----
+- --
+
 ## 五、参考资料
 
 ### 5.1 关键参考代码

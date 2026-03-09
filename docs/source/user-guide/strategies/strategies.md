@@ -1,8 +1,10 @@
----
+- --
+
 title: Trading Strategies
 description: Building effective trading strategies
 
----
+- --
+
 # Trading Strategies
 
 Strategies contain your trading logic and decision-making rules. This guide covers strategy development patterns and best practices.
@@ -42,7 +44,7 @@ class MyStrategy(bt.Strategy):
 # Your trading logic here
         pass
 
-```
+```bash
 
 ## Order Management
 
@@ -67,7 +69,7 @@ class MyStrategy(bt.Strategy):
 # Buy with percent of available cash
         self.buy(size=0.5)  # 50% of cash
 
-```
+```bash
 
 ### Limit Orders
 
@@ -87,7 +89,7 @@ class MyStrategy(bt.Strategy):
 # Stop limit order
         order = self.sell(stop=95.0, limit=94.5)
 
-```
+```bash
 
 ### Order Tracking
 
@@ -118,7 +120,7 @@ class MyStrategy(bt.Strategy):
 
         self.order = None  # Reset order reference
 
-```
+```bash
 
 ## Trade Notification
 
@@ -132,7 +134,7 @@ class MyStrategy(bt.Strategy):
         self.log(f'Trade P&L: {trade.pnl:.2f}, '
                 f'Commission: {trade.commission:.2f}')
 
-```
+```bash
 
 ## Position Management
 
@@ -148,7 +150,7 @@ class MyStrategy(bt.Strategy):
         else:
             self.log('No position')
 
-```
+```bash
 
 ### Position Sizing
 
@@ -162,7 +164,7 @@ class MyStrategy(bt.Strategy):
 # Buy 10% of portfolio value
         self.buy(size=self.broker.getcash() *0.1 / self.data.close[0])
 
-```
+```bash
 
 ## Stop Loss and Take Profit
 
@@ -191,7 +193,7 @@ class MyStrategy(bt.Strategy):
             elif current_price >= take_profit:
                 self.sell()  # Take profit
 
-```
+```bash
 
 ## Multi-Strategy
 
@@ -207,7 +209,7 @@ cerebro.addstrategy(Strategy3, period=30)
 
 # Each strategy runs independently
 
-```
+```bash
 
 ## Time-Based Trading
 
@@ -234,7 +236,7 @@ class MyStrategy(bt.Strategy):
 # Trading logic here
         self.buy()
 
-```
+```bash
 
 ## Strategy Logging
 
@@ -253,7 +255,7 @@ class MyStrategy(bt.Strategy):
     def notify_order(self, order):
         self.log(f'Order status: {order.getstatusname()}')
 
-```
+```bash
 
 ## Strategy Parameters Optimization
 
@@ -277,7 +279,7 @@ results = cerebro.run(maxcpu=1)  # Use 1 CPU core
 best_result = results[0]
 print(f'Best parameters: {best_result.params._getitems()}')
 
-```
+```bash
 
 ## Common Strategy Patterns
 
@@ -301,7 +303,7 @@ class TrendFollowing(bt.Strategy):
         elif self.crossover < 0:
             self.sell()  # Downtrend start
 
-```
+```bash
 
 ### Mean Reversion
 
@@ -324,7 +326,7 @@ class MeanReversion(bt.Strategy):
         elif self.data.close[0] > self.upper_band[0]:
             self.sell()  # Price too high, sell
 
-```
+```bash
 
 ### Breakout
 
@@ -345,7 +347,7 @@ class Breakout(bt.Strategy):
         elif self.data.close[0] < self.low_band[-1]:
             self.sell()  # Breakout below
 
-```
+```bash
 
 ## Next Steps
 

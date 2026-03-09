@@ -29,7 +29,8 @@ BackTest-Cpp 是一个 C++实现的高性能回测框架，具有以下核心特
 5. **预分配策略**: 内存预分配和对象复用
 6. **noexcept 优化**: 关键路径异常声明优化
 
----
+- --
+
 ## 一、项目对比分析
 
 ### 1.1 BackTest-Cpp 核心特性
@@ -82,7 +83,8 @@ BackTest-Cpp 是一个 C++实现的高性能回测框架，具有以下核心特
 
 |**异常保证**| noexcept 关键路径 | 无特殊声明 | backtrader 可添加优化 |
 
----
+- --
+
 ## 二、需求规格文档
 
 ### 2.1 功能需求
@@ -144,7 +146,8 @@ C++ 性能优化技术移植：
 
 | US4 | 作为性能专家，我希望使用 noexcept 优化关键路径 | P2 |
 
----
+- --
+
 ## 三、设计文档
 
 ### 3.1 模块结构设计
@@ -166,7 +169,7 @@ backtrader/
 └── indicators/
     └── incremental.py        # 增量指标计算
 
-```
+```bash
 
 ### 3.2 核心类设计
 
@@ -428,7 +431,7 @@ class BatchDataFeed:
         """重置数据源"""
         self._batch_index = 0
 
-```
+```bash
 
 #### 3.2.2 增量指标计算
 
@@ -624,7 +627,7 @@ class VectorizedSMA(Indicator):
         if len(sma) > 0:
             self.lines.sma[0] = sma[-1]
 
-```
+```bash
 
 #### 3.2.3 批量策略基类
 
@@ -766,7 +769,7 @@ class MAStrategy(BatchStrategy):
         kernel = np.ones(period) / period
         return np.convolve(data, kernel, mode='valid')
 
-```
+```bash
 
 #### 3.2.4 内存优化工具
 
@@ -880,9 +883,10 @@ def preallocate_arrays(size, columns=None):
 
     return {col: np.empty(size, dtype=np.float64) for col in columns}
 
-```
+```bash
 
----
+- --
+
 ## 四、API 设计
 
 ### 4.1 批量数据 API
@@ -903,7 +907,7 @@ while batch_feed.next_batch():
 # batch.open, batch.high 等都是 numpy 数组
     sma = np.convolve(batch.close, np.ones(20)/20, mode='valid')
 
-```
+```bash
 
 ### 4.2 增量指标 API
 
@@ -918,7 +922,7 @@ class MyStrategy(bt.Strategy):
         self.ema = IncrementalEMA(self.data.close, period=20)
         self.rsi = IncrementalRSI(self.data.close, period=14)
 
-```
+```bash
 
 ### 4.3 批量策略 API
 
@@ -942,9 +946,10 @@ class MyStrategy(BatchStrategy):
 # 批量处理信号
         signals = np.where(sma_fast > sma_slow, 1, -1)
 
-```
+```bash
 
----
+- --
+
 ## 五、实施计划
 
 ### 5.1 实施阶段
@@ -974,7 +979,8 @@ class MyStrategy(BatchStrategy):
 5. **P2**: MemoryPool - 内存池
 6. **P2**: ArrayCache - 数组缓存
 
----
+- --
+
 ## 六、参考资料
 
 ### 6.1 关键参考代码
@@ -1022,7 +1028,7 @@ inline std::vector<double> SMA(const std::vector<double>& data, std::size_t peri
     }
 }
 
-```
+```bash
 
 ### 6.3 性能优化技术总结
 

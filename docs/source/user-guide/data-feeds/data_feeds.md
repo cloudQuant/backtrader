@@ -40,7 +40,7 @@ data = bt.feeds.GenericCSVData(
 
 )
 
-```
+```bash
 
 ### 自定义 CSV 格式
 
@@ -62,7 +62,7 @@ class MyCSVData(bt.feeds.GenericCSVData):
         ('headerlines', 1),          # 标题行数
     )
 
-```
+```bash
 
 ## Pandas 数据源
 
@@ -90,7 +90,7 @@ data = bt.feeds.PandasData(
 
 )
 
-```
+```bash
 
 ### 自定义 Pandas 数据源
 
@@ -109,7 +109,7 @@ class MyPandasData(bt.feeds.PandasData):
     def __init__(self):
         super(MyPandasData, self).__init__()
 
-```
+```bash
 
 ## 在线数据源
 
@@ -123,7 +123,7 @@ data = bt.feeds.YahooFinanceData(
     reverse=False
 )
 
-```
+```bash
 
 ### Interactive Brokers
 
@@ -138,7 +138,7 @@ data = IBData(
 
 )
 
-```
+```bash
 
 ## 实时数据源
 
@@ -162,7 +162,7 @@ class WebSocketData(bt.feeds.DataBase):
 # 处理接收到的数据
         pass
 
-```
+```bash
 
 ### REST API 数据源
 
@@ -188,7 +188,7 @@ class RestApiData(bt.feeds.DataBase):
 
 # 处理响应数据
 
-```
+```bash
 
 ## 数据预处理
 
@@ -204,7 +204,7 @@ cerebro.resampledata(
     compression=1
 )
 
-```
+```bash
 
 ### 数据过滤
 
@@ -221,7 +221,7 @@ class VolumeFilter(bt.filters.DataFilter):
             return True
         return False
 
-```
+```bash
 
 ## 多数据源
 
@@ -241,7 +241,7 @@ cerebro.adddata(index_data)
 
 cerebro.adddata(futures_data)
 
-```
+```bash
 
 ### 数据源同步
 
@@ -253,7 +253,7 @@ cerebro.adddata(data1, name='AAPL')
 cerebro.adddata(data2, name='GOOGL')
 cerebro.synchronize()
 
-```
+```bash
 
 ## 最佳实践
 
@@ -271,7 +271,7 @@ def validate_data(data):
     if not dates.is_monotonic_increasing:
         print("警告：时间序列不连续")
 
-```
+```bash
 
 ### 2. 数据缓存
 
@@ -288,7 +288,7 @@ class CachedData(bt.feeds.GenericCSVData):
         self._cache[self._filename] = data
         return data
 
-```
+```bash
 
 ### 3. 错误处理
 
@@ -301,7 +301,7 @@ def safe_data_load(filename):
         print(f"加载数据失败: {e}")
         return None
 
-```
+```bash
 
 ## 常见问题
 

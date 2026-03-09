@@ -1,8 +1,10 @@
----
+- --
+
 title: Common Patterns Cookbook
 description: Practical trading patterns and implementations
 
----
+- --
+
 # Common Patterns Cookbook
 
 This cookbook provides practical implementations of common trading patterns in Backtrader. Each pattern includes a complete, working example with explanations.
@@ -18,7 +20,8 @@ This cookbook provides practical implementations of common trading patterns in B
 7. [Trailing Stop Implementation](#trailing-stop-implementation)
 8. [Bracket Orders](#bracket-orders)
 
----
+- --
+
 ## Stop Loss and Take Profit
 
 ### Fixed Percentage Stop Loss
@@ -70,7 +73,7 @@ class FixedStopLoss(bt.Strategy):
             if not self.position:
                 self.entry_price = None
 
-```
+```bash
 
 ### ATR-Based Stop Loss
 
@@ -120,7 +123,7 @@ class ATRStopLoss(bt.Strategy):
                 if new_stop > self.stop_price:
                     self.stop_price = new_stop
 
-```
+```bash
 
 ### Take Profit with Risk-Reward Ratio
 
@@ -171,9 +174,10 @@ class RiskRewardStrategy(bt.Strategy):
             elif current_price >= self.target_price:
                 self.order = self.close()
 
-```
+```bash
 
----
+- --
+
 ## Dynamic Position Sizing
 
 ### Percent of Equity Sizing
@@ -206,7 +210,7 @@ class PercentEquityStrategy(bt.Strategy):
     def __init__(self):
         self.setsizer(PercentEquitySizer(percents=self.p.trade_size))
 
-```
+```bash
 
 ### Volatility-Adjusted Sizing
 
@@ -246,7 +250,7 @@ class VolatilitySizer(bt.Sizer):
 
         return 0
 
-```
+```bash
 
 ### Kelly Criterion Sizing
 
@@ -288,9 +292,10 @@ class KellySizer(bt.Sizer):
 
         return int(size)
 
-```
+```bash
 
----
+- --
+
 ## Multi-Indicator Combination
 
 ### Trend + Momentum + Volatility
@@ -346,7 +351,7 @@ class TripleConfirmationStrategy(bt.Strategy):
             if self.rsi[0] > 70:
                 self.sell()
 
-```
+```bash
 
 ### MACD + Stochastic Confirmation
 
@@ -407,7 +412,7 @@ class MACDStochasticStrategy(bt.Strategy):
                 self.stoch.percK[-1] > 80):
                 self.sell()
 
-```
+```bash
 
 ### Bollinger Band + RSI Reversal
 
@@ -454,9 +459,10 @@ class BBRSIReversalStrategy(bt.Strategy):
                 self.rsi[0] > 70):
                 self.sell()
 
-```
+```bash
 
----
+- --
+
 ## Time-Based Trading Filters
 
 ### Trading Session Filter
@@ -504,7 +510,7 @@ class SessionFilterStrategy(bt.Strategy):
         if not self.position:
             self.buy()
 
-```
+```bash
 
 ### Day of Week Filter
 
@@ -534,7 +540,7 @@ class DayOfWeekStrategy(bt.Strategy):
             if self.data.close[0] > sma[0]:
                 self.buy()
 
-```
+```bash
 
 ### Month/Season-Based Filter
 
@@ -566,7 +572,7 @@ class SeasonalStrategy(bt.Strategy):
             if self.data.close[0] > self.data.close[-1]:
                 self.buy()
 
-```
+```bash
 
 ### End-of-Day Exit
 
@@ -604,9 +610,10 @@ class EndOfDayExit(bt.Strategy):
                 if self.data.close[0] > self.data.close[-1]:
                     self.buy()
 
-```
+```bash
 
----
+- --
+
 ## Event-Driven Patterns
 
 ### Order Status Notification
@@ -670,7 +677,7 @@ class OrderNotificationStrategy(bt.Strategy):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
 
-```
+```bash
 
 ### Trade Notification
 
@@ -715,7 +722,7 @@ class TradeNotificationStrategy(bt.Strategy):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
 
-```
+```bash
 
 ### Data Notification (Live Trading)
 
@@ -760,7 +767,7 @@ class DataNotificationStrategy(bt.Strategy):
     def log(self, txt):
         print(f'{self.data.datetime.datetime(0)}: {txt}')
 
-```
+```bash
 
 ### Cash Value Notification
 
@@ -814,9 +821,10 @@ class CashNotificationStrategy(bt.Strategy):
         dt = self.data.datetime.date(0)
         print(f'{dt.isoformat()}: {txt}')
 
-```
+```bash
 
----
+- --
+
 ## Pyramiding Positions
 
 ### Fixed Pyramid Levels
@@ -875,7 +883,7 @@ class PyramidStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```
+```bash
 
 ### ATR-Based Pyramiding
 
@@ -928,7 +936,7 @@ class ATRPyramidStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```
+```bash
 
 ### Fibonacci Pyramiding
 
@@ -986,9 +994,10 @@ class FibonacciPyramidStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```
+```bash
 
----
+- --
+
 ## Trailing Stop Implementation
 
 ### Percentage Trailing Stop
@@ -1048,7 +1057,7 @@ class TrailingStopStrategy(bt.Strategy):
                 self.stop_price = None
                 self.highest_price = None
 
-```
+```bash
 
 ### ATR Trailing Stop
 
@@ -1101,7 +1110,7 @@ class ATRTrailingStopStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```
+```bash
 
 ### High-Water Mark Trailing Stop
 
@@ -1164,7 +1173,7 @@ class HighWaterMarkTrailingStop(bt.Strategy):
                 self.highest_close = None
                 self.stop_price = None
 
-```
+```bash
 
 ### PSAR Trailing Stop
 
@@ -1205,9 +1214,10 @@ class PSARTrailingStopStrategy(bt.Strategy):
         if order.status == order.Completed:
             self.order = None
 
-```
+```bash
 
----
+- --
+
 ## Bracket Orders
 
 ### OCO (One-Cancels-Other) Bracket
@@ -1293,7 +1303,7 @@ class BracketOrderStrategy(bt.Strategy):
         if self.limit_order:
             self.cancel(self.limit_order)
 
-```
+```bash
 
 ### Multi-Level Bracket (Scale Out)
 
@@ -1403,7 +1413,7 @@ class ScaleOutBracketStrategy(bt.Strategy):
             self.cancel(order)
         self.target_orders = []
 
-```
+```bash
 
 ### Dynamic Bracket with Trailing
 
@@ -1515,9 +1525,10 @@ class DynamicBracketStrategy(bt.Strategy):
                     self.cancel(self.stop_order)
                     self.stop_order = None
 
-```
+```bash
 
----
+- --
+
 ## Usage Examples
 
 ### Running the Strategies
@@ -1581,9 +1592,10 @@ print(f'Returns: {strat.analyzers.returns.get_analysis()}')
 
 cerebro.plot()
 
-```
+```bash
 
----
+- --
+
 ## Next Steps
 
 - [Indicators Reference](../user_guide/indicators.md) - Available indicators

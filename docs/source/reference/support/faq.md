@@ -12,7 +12,8 @@ This document addresses common questions, issues, and best practices when using 
 6. [Common Gotchas](#6-common-gotchas)
 7. [Best Practices](#7-best-practices)
 
----
+- --
+
 ## 1. Installation & Setup
 
 ### Q: Why does Cython compilation fail on Windows?
@@ -25,7 +26,7 @@ This document addresses common questions, issues, and best practices when using 
 
 cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U .
 
-```
+```bash
 If compilation completely fails, ensure you have:
 
 - Microsoft Visual C++ Build Tools installed
@@ -66,9 +67,10 @@ pip install -U /path/to/backtrader
 cd /path/to/backtrader
 pip install -U .
 
-```
+```bash
 
----
+- --
+
 ## 2. Data Feed Issues
 
 ### Q: How do I handle missing data in my CSV file?
@@ -95,7 +97,7 @@ class MyCSVData(bt.feeds.GenericCSVData):
         ('fillvalue', 0.0),
     )
 
-```
+```bash
 
 ### Q: Why is my data feed not loading?
 
@@ -151,7 +153,7 @@ class MyStrategy(bt.Strategy):
         if self.data1.close[0] > self.data2.close[0]:
             self.buy()
 
-```
+```bash
 
 ### Q: How do I resample data to a different timeframe?
 
@@ -177,7 +179,7 @@ cerebro.resampledata(
 cerebro.adddata(data, name='minute')
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Minutes, compression=60, name='hour')
 
-```
+```bash
 
 ### Q: Why are my indicators showing NaN values?
 
@@ -198,11 +200,12 @@ class MyStrategy(bt.Strategy):
         else:
             print(f'Warming up... {len(self.data)}/{self.sma.period}')
 
-```
+```bash
 
 - *Reference:** [Data Feeds Guide](../opts/user_guide/data_feeds.md)
 
----
+- --
+
 ## 3. Performance Problems
 
 ### Q: Why is my backtest so slow?
@@ -217,7 +220,7 @@ class MyStrategy(bt.Strategy):
 
 cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U .
 
-```
+```bash
 
 - *2. Using inefficient data access:**
 
@@ -234,7 +237,7 @@ close_line = data.close
 for i in range(len(data)):
     close = close_line[0]
 
-```
+```bash
 
 - *3. Too many indicators:**
 
@@ -246,7 +249,7 @@ for i in range(len(data)):
 
 cerebro.run(runonce=True)  # Much faster for large datasets
 
-```
+```bash
 
 - *4. Large datasets without limits:**
 
@@ -260,7 +263,7 @@ data = bt.feeds.PandasData(
     todate=datetime(2023, 12, 31),
 )
 
-```
+```bash
 
 - *5. Debug mode enabled:**
 
@@ -270,7 +273,7 @@ data = bt.feeds.PandasData(
 
 cerebro = bt.Cerebro()  # Default is fastest
 
-```
+```bash
 
 ### Q: How can I speed up optimization?
 
@@ -287,7 +290,7 @@ cerebro.optstrategy(
 )
 maxcpu = cerebro.run(maxcpu=4)  # Use 4 CPU cores
 
-```
+```bash
 
 ### Q: Memory usage is too high with large datasets
 
@@ -322,7 +325,7 @@ import pandas as pd
 df.to_hdf('data.h5', 'data', mode='w', complevel=9, complib='blosc')
 data = bt.feeds.PandasData(dataname=pd.read_hdf('data.h5'))
 
-```
+```bash
 
 - *Reference:** [Performance Optimization Summary](../opts/performance_optimization_summary.md)
 
@@ -336,7 +339,8 @@ data = bt.feeds.PandasData(dataname=pd.read_hdf('data.h5'))
 
 For production use, prefer the `dev` branch for better performance.
 
----
+- --
+
 ## 4. Live Trading Questions
 
 ### Q: CCXT connection errors - how to fix?
@@ -359,7 +363,7 @@ store = bt.stores.CCXTStore(
     }
 )
 
-```
+```bash
 
 - *2. Network timeout:**
 
@@ -372,7 +376,7 @@ broker = store.getbroker(
     retry_delay=1.0,
 )
 
-```
+```bash
 
 - *3. Invalid API keys:**
 
@@ -382,7 +386,7 @@ broker = store.getbroker(
 
 # Required: Read + Trade (no withdrawal needed)
 
-```
+```bash
 
 - *4. WebSocket fallback:**
 
@@ -398,7 +402,7 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
 - *Reference:** [CCXT Live Trading Guide](../CCXT_LIVE_TRADING_GUIDE.md)
 
@@ -433,7 +437,7 @@ store = bt.stores.CTPStore(
 
 # 4. Broker ID validity
 
-```
+```bash
 
 - *Reference:** [CTP Data Feed Documentation](../backtrader/feeds/ctpdata.py)
 
@@ -459,7 +463,7 @@ class RobustStrategy(bt.Strategy):
             if age > timedelta(minutes=5):
                 self.log('WARNING: Stale data detected')
 
-```
+```bash
 
 ### Q: WebSocket vs REST for live trading?
 
@@ -484,7 +488,7 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
 - *Comparison:**
 
@@ -502,7 +506,8 @@ data = store.getdata(
 
 - *Reference:** [WebSocket Guide](../WEBSOCKET_GUIDE.md)
 
----
+- --
+
 ## 5. Error Messages & Solutions
 
 ### Q: "KeyError: datetime" when loading CSV data
@@ -525,7 +530,7 @@ df = pd.read_csv('data.csv')
 df['datetime'] = pd.to_datetime(df['datetime'])
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### Q: "IndexError: array index out of range"
 
@@ -546,7 +551,7 @@ class MyStrategy(bt.Strategy):
         if len(self.data) >= 50:
             ma = self.sma[-50]
 
-```
+```bash
 
 ### Q: "AttributeError: 'Strategy' object has no attribute 'position'"
 
@@ -569,7 +574,7 @@ class MyStrategy(bt.Strategy):
         super().__init__()  # CRITICAL - sets up position, orders, etc.
         self.sma = bt.indicators.SMA(period=20)
 
-```
+```bash
 
 ### Q: "RuntimeError: live feed must use preloading=False and runonce=False"
 
@@ -591,7 +596,7 @@ cerebro = bt.Cerebro()
 
 # It's automatic for live feeds
 
-```
+```bash
 
 ### Q: "ZeroDivisionError" in custom indicators
 
@@ -613,9 +618,10 @@ class MyIndicator(bt.Indicator):
         else:
             self.lines.value[0] = 0.0
 
-```
+```bash
 
----
+- --
+
 ## 6. Common Gotchas
 
 ### Q: Why are my indicators not updating?
@@ -632,7 +638,7 @@ class MyStrategy(bt.Strategy):
 # Indicators auto-register after super().__init__()
         self.sma = bt.indicators.SMA(self.data, period=20)
 
-```
+```bash
 
 - *2. Missing data owner:**
 
@@ -649,7 +655,7 @@ class MyStrategy(bt.Strategy):
         super().__init__()
         self.sma = bt.indicators.SMA(period=20)  # Strategy is owner
 
-```
+```bash
 
 - *3. Parameter access before initialization:**
 
@@ -668,7 +674,7 @@ class MyStrategy(bt.Strategy):
         super().__init__()  # Sets up self.p
         self.period = self.p.period  # Now it works
 
-```
+```bash
 
 ### Q: Why does my strategy miss the first bar?
 
@@ -690,7 +696,7 @@ class MyStrategy(bt.Strategy):
 # (Not recommended - indicators will be invalid)
         pass
 
-```
+```bash
 
 - *Solution:** Use `prenext()` to handle warmup:
 
@@ -706,7 +712,7 @@ class MyStrategy(bt.Strategy):
 # Called after warmup complete
         pass
 
-```
+```bash
 
 ### Q: Why are my order sizes incorrect?
 
@@ -725,7 +731,7 @@ class MyStrategy(bt.Strategy):
         size = int(cash *0.95 / price)  # Use 95% of cash
         self.buy(size=size)
 
-```
+```bash
 
 ### Q: Plotting issues on different platforms
 
@@ -745,7 +751,7 @@ import backtrader as bt
 
 cerebro.plot()[0][0].savefig('output.png')
 
-```
+```bash
 
 - *macOS (Python 3.11+):**
 
@@ -755,7 +761,7 @@ cerebro.plot()[0][0].savefig('output.png')
 
 export MPLBACKEND=Qt5Agg
 
-```
+```bash
 
 - *Large datasets:**
 
@@ -765,11 +771,12 @@ export MPLBACKEND=Qt5Agg
 
 cerebro.plot(style='plotly', volume=False)  # Disable volume for speed
 
-```
+```bash
 
 - *Reference:** [Plotting Documentation](../plot/README.md)
 
----
+- --
+
 ## 7. Best Practices
 
 ### Q: How should I structure my backtesting project?
@@ -798,7 +805,7 @@ project/
 
 └── main.py            # Entry point
 
-```
+```bash
 
 ### Q: How do I properly size positions?
 
@@ -818,7 +825,7 @@ class RiskManagedStrategy(bt.Strategy):
         position_size = risk_amount / stop_distance
         return int(position_size)
 
-```
+```bash
 
 ### Q: How do I validate my strategy?
 
@@ -848,7 +855,7 @@ results_test = cerebro_test.run()
 
 # (Randomize order of trades)
 
-```
+```bash
 
 ### Q: How do I log effectively?
 
@@ -874,7 +881,7 @@ class LoggingStrategy(bt.Strategy):
         if self.sma[0] > self.data.close[0]:
             self.log(f'SMA > Close: {self.sma[0]:.2f} > {self.data.close[0]:.2f}')
 
-```
+```bash
 
 ### Q: How do I handle commissions and slippage?
 
@@ -901,7 +908,7 @@ cerebro.broker.set_slippage_perc(perc=0.0005)  # 0.05% slippage
 
 cerebro.broker.setcommission(commission=0.001, commtype=bt.CommInfoBase.COMM_FIXED)
 
-```
+```bash
 
 ### Q: How do I export backtest results?
 
@@ -936,9 +943,10 @@ class CSVWriter(bt.Analyzer):
 fig = cerebro.plot()[0][0]
 fig.savefig('backtest.png')
 
-```
+```bash
 
----
+- --
+
 ## Additional Resources
 
 | Topic | Documentation |
@@ -1000,7 +1008,7 @@ mypy backtrader/
 
 black backtrader/
 
-```
+```bash
 
----
+- --
 - Last updated: 2026-03-01*

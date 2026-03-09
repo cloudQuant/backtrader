@@ -41,7 +41,7 @@ def runtest(
                 ...
                 cerebro.run()
 
-```
+```bash
 
 - runonce=False 路径成本高（逐 bar 调用路径）
   - `Cerebro._runnext` 是每个 bar 的事件驱动主循环，含多处通知、timer 检查、broker 驱动与策略 `_next()` 调用，调用链长且在大数据量下成本显著。
@@ -62,7 +62,7 @@ def _runnext(self, runstrats):
             ...
             self._next_writers(runstrats)
 
-```
+```bash
 
 - runonce=True 仍存在一次性计算与后处理开销
   - 指标和从属对象在 `once` 模式下批量计算，但仍涉及大量 `_once`/`once` 的层级调度与 `advance/advance_peek`、post 阶段的 writer 与 timer 处理。
@@ -81,7 +81,7 @@ def _runonce(self, runstrats):
         strat._oncepost(dt0)
         self._next_writers(runstrats)
 
-```
+```bash
 
 - 高频函数与通用逻辑的额外分支
   - 指标与策略的 `_clk_update`、`__len__`、`_once`、`_next`、minperiod 判定等在大量 bar 上被频繁调用；当前实现为兼容性加入了多重保护与分支，增加了每次调用的常数开销。
@@ -99,7 +99,7 @@ def _clk_update(self):
     else:
         self.lines.datetime[0] = 1.0
 
-```
+```bash
 
 ```1146:1294:backtrader/lineiterator.py
 def __len__(self):
@@ -107,7 +107,7 @@ def __len__(self):
 # 递归保护、多层回退、不同对象类型的分支处理
     ...
 
-```
+```bash
 
 - 指标 once/next 双路径维护成本
   - 指标基类在 `_once` 失败时回退到 `_next` 循环计算以保证健壮性，虽然提高了兼容性，但在测试场景中会增加额外分支判断与潜在重复工作。
@@ -125,7 +125,7 @@ def _once(self, start, end):
         for i in range(start, end):
             self._next()
 
-```
+```bash
 二、具体热点与影响面
 
 - Cerebro 事件循环（runnext）

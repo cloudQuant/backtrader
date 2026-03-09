@@ -1,8 +1,10 @@
----
+- --
+
 title: 开发者指南
 description: 贡献者指南
 
----
+- --
+
 # 开发者指南
 
 欢迎使用 Backtrader 开发指南。本节涵盖参与项目所需的所有内容。
@@ -49,7 +51,7 @@ flowchart LR
 
     H -->|批准| I[合并]
 
-```
+```bash
 
 ## 核心原则
 
@@ -71,7 +73,7 @@ def __new__(cls, *args, **kwargs):
     _obj, args, kwargs = cls.donew(*args, **kwargs)
     return _obj
 
-```
+```bash
 
 ### 2. 初始化顺序
 
@@ -90,7 +92,7 @@ class GoodStrategy(bt.Strategy):
         super().__init__()
         period = self.p.period
 
-```
+```bash
 
 ### 3. 特定异常处理
 
@@ -111,7 +113,7 @@ except (NetworkError, ExchangeError) as e:
     logger.error(f"订单失败: {e}")
     raise
 
-```
+```bash
 
 ## 添加功能
 
@@ -154,7 +156,7 @@ tests/
 
 └── strategies/         # 策略特定测试
 
-```
+```bash
 
 ### 测试标记
 

@@ -1,8 +1,10 @@
----
+- --
+
 title: Sizer API
 description: Complete Sizer class API reference for position sizing
 
----
+- --
+
 # Sizer API
 
 Position Sizers determine the size of orders placed during trading. They calculate position sizes based on available cash, risk parameters, and other factors. Backtrader provides several built-in sizers and allows custom sizer development.
@@ -13,7 +15,7 @@ Position Sizers determine the size of orders placed during trading. They calcula
 class backtrader.Sizer:
     """Base class for position sizers."""
 
-```
+```bash
 
 ## Parameters
 
@@ -28,7 +30,7 @@ class MySizer(bt.Sizer):
         ('percents', 10),
     )
 
-```
+```bash
 
 ### Modern Parameter Descriptors
 
@@ -45,7 +47,7 @@ class MySizer(bt.Sizer):
         doc="Fixed stake size for operations"
     )
 
-```
+```bash
 
 ## Core Methods
 
@@ -57,7 +59,7 @@ Initialize the Sizer with parameters.
 def __init__(self, **kwargs):
     super().__init__(**kwargs)
 
-```
+```bash
 
 ### `getsizing(self, data, isbuy)`
 
@@ -75,7 +77,7 @@ def getsizing(self, data, isbuy):
         int: The position size to use for the order.
     """
 
-```
+```bash
 
 ### `_getsizing(self, comminfo, cash, data, isbuy)`
 
@@ -96,7 +98,7 @@ def _getsizing(self, comminfo, cash, data, isbuy):
     """
     raise NotImplementedError
 
-```
+```bash
 
 ### `set(self, strategy, broker)`
 
@@ -111,7 +113,7 @@ def set(self, strategy, broker):
         broker: The broker instance for portfolio information.
     """
 
-```
+```bash
 
 ## Built-in Sizers
 
@@ -124,7 +126,7 @@ import backtrader as bt
 
 cerebro.addsizer(bt.sizers.FixedSize, stake=100)
 
-```
+```bash
 
 | Parameter | Type | Default | Description |
 
@@ -146,7 +148,7 @@ sizer = bt.sizers.FixedSize(stake=300, tranches=3)
 
 # Each order will be 100 shares (300/3)
 
-```
+```bash
 
 ### FixedReverser
 
@@ -155,7 +157,7 @@ Returns the fixed size needed to reverse an open position or open a new one.
 ```python
 cerebro.addsizer(bt.sizers.FixedReverser, stake=50)
 
-```
+```bash
 
 | Parameter | Type | Default | Description |
 
@@ -176,7 +178,7 @@ Behavior:
 
 sizer = bt.sizers.FixedReverser(stake=50)
 
-```
+```bash
 
 ### FixedSizeTarget
 
@@ -185,7 +187,7 @@ Returns a fixed target position size, useful with Target Orders.
 ```python
 cerebro.addsizer(bt.sizers.FixedSizeTarget, stake=100)
 
-```
+```bash
 
 | Parameter | Type | Default | Description |
 
@@ -202,7 +204,7 @@ Uses a percentage of available cash for position sizing.
 ```python
 cerebro.addsizer(bt.sizers.PercentSizer, percents=20)
 
-```
+```bash
 
 | Parameter | Type | Default | Description |
 
@@ -222,7 +224,7 @@ sizer = bt.sizers.PercentSizer(percents=30)
 
 sizer = bt.sizers.PercentSizer(percents=10, retint=True)
 
-```
+```bash
 
 ### AllInSizer
 
@@ -231,7 +233,7 @@ Uses 100% of available cash for each order.
 ```python
 cerebro.addsizer(bt.sizers.AllInSizer)
 
-```
+```bash
 This is a `PercentSizer` with `percents=100`.
 
 ### PercentSizerInt
@@ -241,7 +243,7 @@ Percentage-based sizer that returns integer values.
 ```python
 cerebro.addsizer(bt.sizers.PercentSizerInt, percents=15)
 
-```
+```bash
 This is a `PercentSizer` with `retint=True` by default.
 
 ### AllInSizerInt
@@ -251,7 +253,7 @@ Uses 100% of available cash and returns integer values.
 ```python
 cerebro.addsizer(bt.sizers.AllInSizerInt)
 
-```
+```bash
 Combines `percents=100` with `retint=True`.
 
 ## Integration with Cerebro
@@ -264,7 +266,7 @@ Use `addsizer()` to set the default sizer for all strategies:
 cerebro = bt.Cerebro()
 cerebro.addsizer(bt.sizers.FixedSize, stake=100)
 
-```
+```bash
 
 ### Adding a Strategy-Specific Sizer
 
@@ -282,7 +284,7 @@ idx2 = cerebro.addstrategy(MyStrategy2)
 cerebro.addsizer_byidx(idx1, bt.sizers.PercentSizer, percents=10)
 cerebro.addsizer_byidx(idx2, bt.sizers.FixedSize, stake=50)
 
-```
+```bash
 
 ## Integration with Strategy
 
@@ -302,7 +304,7 @@ class MyStrategy(bt.Strategy):
         if self.data.close[0] > self.sma[0]:
             self.buy()  # Uses sizer to determine size
 
-```
+```bash
 
 ### Getting Sizer from Strategy
 
@@ -316,7 +318,7 @@ sizer = self.getsizer()
 
 sizer = self.sizer
 
-```
+```bash
 
 ### Manual Sizing
 
@@ -327,7 +329,7 @@ def next(self):
     size = self.getsizing(self.data, isbuy=True)
     self.buy(size=size)
 
-```
+```bash
 
 ## Custom Sizer Development
 
@@ -361,7 +363,7 @@ class VolatilitySizer(bt.Sizer):
 
         return int(size)
 
-```
+```bash
 
 ### Using Custom Sizer
 
@@ -369,7 +371,7 @@ class VolatilitySizer(bt.Sizer):
 cerebro = bt.Cerebro()
 cerebro.addsizer(VolatilitySizer, risk_pct=0.03, atr_period=20)
 
-```
+```bash
 
 ### Kelly Criterion Sizer
 
@@ -399,7 +401,7 @@ class KellySizer(bt.Sizer):
 
         return int(size)
 
-```
+```bash
 
 ### Risk Parity Sizer
 
@@ -427,7 +429,7 @@ class RiskParitySizer(bt.Sizer):
 
         return int(size)
 
-```
+```bash
 
 ## Sizer Reference by Strategy
 
@@ -450,7 +452,7 @@ class MyStrategy(bt.Strategy):
 # Override with explicit size
         self.buy(size=100)   # Ignores sizer
 
-```
+```bash
 
 ## CommissionInfo Object
 
@@ -470,7 +472,7 @@ def _getsizing(self, comminfo, cash, data, isbuy):
 
     return size
 
-```
+```bash
 
 ## Full Example
 
@@ -521,7 +523,7 @@ cerebro.broker.setcash(10000)
 
 results = cerebro.run()
 
-```
+```bash
 
 ## Available Aliases
 

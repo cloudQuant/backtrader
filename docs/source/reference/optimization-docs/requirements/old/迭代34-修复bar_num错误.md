@@ -25,7 +25,8 @@ Results (155.69s (0:02:35)):
 1. 不允许修改测试用例，尤其是测试用例的期望值。
 2. 修改过源代码重新测试的时候，最好 pip install -U . 重新安装一下。
 
----
+- --
+
 ## 分析结果 (2026-01-01)
 
 ### 发现
@@ -44,7 +45,7 @@ git show 8d1a9c1:tests/strategies/test_03_two_ma.py | grep "bar_num =="
 
 # 输出: assert strat.bar_num == 1425
 
-```
+```bash
 
 ### 根本原因
 

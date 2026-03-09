@@ -29,7 +29,8 @@ thOth 是一个 C++量化金融库，类似于 QuantLib 的设计，具有以下
 5. **数值方法**: 数值计算方法
 6. **C++设计**: C++设计模式借鉴
 
----
+- --
+
 ## 架构对比分析
 
 ### Backtrader 核心特点
@@ -69,7 +70,8 @@ thOth 是一个 C++量化金融库，类似于 QuantLib 的设计，具有以下
 3. **文档较少**: 英文文档为主
 4. **GUI 绑定**: 与 MFC 绑定，跨平台受限
 
----
+- --
+
 ## 需求规格文档
 
 ### 1. 观察者模式增强 (优先级: 高)
@@ -163,7 +165,8 @@ thOth 是一个 C++量化金融库，类似于 QuantLib 的设计，具有以下
 3. **插入通知**: 新数据插入自动通知
 4. **类型安全**: 模板化的类型安全
 
----
+- --
+
 ## 设计文档
 
 ### 1. 观察者模式设计
@@ -300,7 +303,7 @@ class Observable:
         """获取观察者数量"""
         return len(self._observers)
 
-```
+```bash
 
 #### 1.2 在现有类中集成观察者模式
 
@@ -341,7 +344,7 @@ class LineSeries(Observable):
             })
             self._last_notified_len = len(self)
 
-```
+```bash
 
 ### 2. 惰性计算系统设计
 
@@ -453,7 +456,7 @@ class LazyIndicator(LazyObject):
             self.unfreeze()  # 清除缓存
         return self.calculate()
 
-```
+```bash
 
 ### 3. 增强日历系统设计
 
@@ -668,7 +671,7 @@ class ChinaCalendar(TradingCalendar):
 # 需要每年更新
         pass
 
-```
+```bash
 
 ### 4. 可重链接句柄设计
 
@@ -780,7 +783,7 @@ class StrategyHandle(Handle):
         """获取当前策略"""
         return self._target
 
-```
+```bash
 
 ### 5. Excel 集成设计
 
@@ -1014,7 +1017,7 @@ class ExcelExporter:
 
         wb.save(filename)
 
-```
+```bash
 
 ### 6. 使用示例
 
@@ -1103,7 +1106,7 @@ from backtrader.excel.utils import ExcelExporter
 exporter = ExcelExporter(cerebro)
 exporter.export_to_excel("strategy_results.xlsx")
 
-```
+```bash
 
 ### 7. 实施路线图
 
@@ -1147,7 +1150,8 @@ exporter.export_to_excel("strategy_results.xlsx")
 - [ ] 性能对比
 - [ ] 文档完善
 
----
+- --
+
 ## 附录: 关键文件路径
 
 ### Backtrader 关键文件

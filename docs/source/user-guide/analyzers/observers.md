@@ -1,8 +1,10 @@
----
+- --
+
 title: Observers
 description: Monitor and log strategy behavior
 
----
+- --
+
 # Observers
 
 Observers monitor and record strategy behavior during backtesting. Unlike analyzers, observers focus on data collection rather than calculation.
@@ -19,7 +21,7 @@ cerebro.addobserver(bt.observers.DrawDown)
 
 cerebro.run(stdstats=False)  # Disable default observers
 
-```
+```bash
 
 ## Built-in Observers
 
@@ -38,7 +40,7 @@ class MyStrategy(bt.Strategy):
             drawdown = self.observers.drawdown
             print(f'Drawdown: {drawdown.drawdown[0]:.2%}')
 
-```
+```bash
 
 ### Broker
 
@@ -53,7 +55,7 @@ cerebro.addobserver(bt.observers.Broker)
 
 # - Positions
 
-```
+```bash
 
 ### Trades
 
@@ -66,7 +68,7 @@ cerebro.addobserver(bt.observers.Trades)
 
 # Trade profit/loss
 
-```
+```bash
 
 ### BuySell
 
@@ -75,7 +77,7 @@ cerebro.addobserver(bt.observers.BuySell)
 
 # Marks buy and sell points on plots
 
-```
+```bash
 
 ### DataTrades
 
@@ -84,7 +86,7 @@ cerebro.addobserver(bt.observers.DataTrades)
 
 # Records trades per data feed
 
-```
+```bash
 
 ### DrawDown
 
@@ -100,7 +102,7 @@ cerebro.addobserver(bt.observers.DataTrades)
 
 # - Drawdown duration
 
-```
+```bash
 
 ### Benchmark
 
@@ -118,7 +120,7 @@ cerebro.adddata(bench)
 
 cerebro.addobserver(bt.observers.Benchmark, data=bench)
 
-```
+```bash
 
 ### LogReturns
 
@@ -129,7 +131,7 @@ cerebro.addobserver(bt.observers.LogReturns)
 
 # Useful for analyzing return patterns
 
-```
+```bash
 
 ### TimeReturn
 
@@ -142,7 +144,7 @@ cerebro.addobserver(bt.observers.TimeReturn)
 
 cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
 
-```
+```bash
 
 ## Default Observers
 
@@ -191,7 +193,7 @@ class TradeLogger(bt.Observer):
 
 cerebro.addobserver(TradeLogger)
 
-```
+```bash
 
 ## Observer vs Analyzer
 
@@ -220,7 +222,7 @@ strat = strats[0]
 print(strat.observers.broker.getvalue())
 print(strat.observers.drawdown.drawdown)
 
-```
+```bash
 
 ### In Strategy
 
@@ -235,7 +237,7 @@ class MyStrategy(bt.Strategy):
                 if dd > 0.10:  # 10% drawdown
                     self.log(f'High drawdown: {dd:.2%}')
 
-```
+```bash
 
 ## Disabling Observers
 
@@ -250,7 +252,7 @@ cerebro.run(stdstats=False)
 cerebro.addobserver(bt.observers.DrawDown)
 cerebro.addobserver(bt.observers.Trades)
 
-```
+```bash
 
 ## Plotting with Observers
 
@@ -270,7 +272,7 @@ plt.show()
 
 # - Buy/Sell markers
 
-```
+```bash
 
 ## Next Steps
 

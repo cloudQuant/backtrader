@@ -4,7 +4,8 @@
 
 本教程将带你从零开始，完成一个量化交易策略的完整开发生命周期，包括策略设计、数据获取、回测验证、参数优化、风险管理和实盘部署。
 
----
+- --
+
 ## 目录
 
 1. [第 1 部分: 策略概念和设计](#第 1 部分-策略概念和设计)
@@ -16,7 +17,8 @@
 7. [第 7 部分: 实盘部署](#第 7 部分-实盘部署)
 8. [第 8 部分: 持续监控](#第 8 部分-持续监控)
 
----
+- --
+
 ## 第 1 部分: 策略概念和设计
 
 ### 1.1 策略开发的科学流程
@@ -60,7 +62,7 @@
         ├── 逐步扩大规模
         └── 持续监控优化
 
-```
+```bash
 
 ### 1.2 交易策略类型
 
@@ -98,7 +100,7 @@ class TrendFollowingStrategy(bt.Strategy):
             if self.crossover < 0:  # 死叉
                 self.order = self.close()
 
-```
+```bash
 
 #### 均值回归策略
 
@@ -143,7 +145,7 @@ class MeanReversionStrategy(bt.Strategy):
                 self.rsi[0] > 70):
                 self.order = self.close()
 
-```
+```bash
 
 #### 动量策略
 
@@ -190,7 +192,7 @@ class MomentumStrategy(bt.Strategy):
                 self.rsi[0] > 70):
                 self.order = self.close()
 
-```
+```bash
 
 ### 1.3 策略设计原则
 
@@ -236,9 +238,10 @@ class StrategyTester(bt.Strategy):
         print(f'出场信号: {self.exit_signals}')
         print(f'信号比例: {self.exit_signals / self.entry_signals if self.entry_signals else 0:.2f}')
 
-```
+```bash
 
----
+- --
+
 ## 第 2 部分: 数据获取
 
 ### 2.1 数据源选择
@@ -275,7 +278,7 @@ data = bt.feeds.YahooFinanceData(
     todate=datetime(2024, 12, 31),
 )
 
-```
+```bash
 
 #### 加密货币数据 (CCXT)
 
@@ -325,7 +328,7 @@ data_ws = store.getdata(
     backfill_start=True,
 )
 
-```
+```bash
 
 ### 2.2 数据质量检查
 
@@ -373,7 +376,7 @@ if issues:
     for issue in issues[:10]:  # 只显示前 10 个
         print(f"  - {issue}")
 
-```
+```bash
 
 #### 数据可视化检查
 
@@ -404,7 +407,7 @@ def visualize_data(data):
     plt.tight_layout()
     plt.show()
 
-```
+```bash
 
 ### 2.3 数据预处理
 
@@ -438,7 +441,7 @@ class CleanDataFeed(bt.feeds.PandasData):
 
         super().next()
 
-```
+```bash
 
 #### 数据对齐
 
@@ -473,9 +476,10 @@ def align_multiple_data(data_list):
 
     return aligned_data
 
-```
+```bash
 
----
+- --
+
 ## 第 3 部分: 回测框架
 
 ### 3.1 基础回测设置
@@ -525,7 +529,7 @@ print(f'收益率: {strat.analyzers.returns.get_analysis()["rtot"]*100:.2f}%')
 print(f'夏普比率: {strat.analyzers.sharpe.get_analysis().get("sharperatio", "N/A")}')
 print(f'最大回撤: {strat.analyzers.drawdown.get_analysis()["max"]["drawdown"]:.2f}%')
 
-```
+```bash
 
 ### 3.2 自定义分析器
 
@@ -614,7 +618,7 @@ class PerformanceAnalyzer(bt.Analyzer):
 
         return max_dd
 
-```
+```bash
 
 #### 统计检验分析器
 
@@ -661,7 +665,7 @@ class StatisticalAnalyzer(bt.Analyzer):
 
         return analysis
 
-```
+```bash
 
 ### 3.3 完整回测示例
 
@@ -731,9 +735,10 @@ def run_backtest(strategy_class, data, params=None, initial_cash=100000):
         'cerebro': cerebro,
     }
 
-```
+```bash
 
----
+- --
+
 ## 第 4 部分: 优化技术
 
 ### 4.1 参数优化
@@ -802,7 +807,7 @@ param_ranges = {
 
 results = grid_search_optimization(MyStrategy, data, param_ranges)
 
-```
+```bash
 
 #### Walk-Forward 优化
 
@@ -856,7 +861,7 @@ def walk_forward_analysis(strategy_class, data, param_ranges,
 
     return wf_results
 
-```
+```bash
 
 ### 4.2 避免过拟合
 
@@ -959,7 +964,7 @@ class OverfittingDetector:
 
         return {'returns': returns}
 
-```
+```bash
 
 ### 4.3 稳健性测试
 
@@ -1019,9 +1024,10 @@ def monte_carlo_simulation(strategy_class, data, params, n_simulations=1000):
 
     return simulation_results
 
-```
+```bash
 
----
+- --
+
 ## 第 5 部分: 风险控制
 
 ### 5.1 仓位管理
@@ -1049,7 +1055,7 @@ class FixedPositionSizer(bt.Sizer):
             size = (cash *self.p.percent) / data.close[0]
             return int(size)
 
-```
+```bash
 
 #### 波动率调整仓位
 
@@ -1080,7 +1086,7 @@ class VolatilityScaledSizer(bt.Sizer):
         else:
             return 0
 
-```
+```bash
 
 #### 凯利公式仓位
 
@@ -1134,7 +1140,7 @@ class KellySizer(bt.Sizer):
         if trade.isclosed:
             self.trade_history.append(trade.pnl)
 
-```
+```bash
 
 ### 5.2 止损管理
 
@@ -1194,7 +1200,7 @@ class FixedStopLoss(bt.Strategy):
                     self.cancel(self.target_order)
                 self.order = self.close()
 
-```
+```bash
 
 #### 追踪止损
 
@@ -1234,7 +1240,7 @@ class TrailingStopLoss(bt.Strategy):
             if self.data.close[0] > trailing_stop:
                 self.close()
 
-```
+```bash
 
 #### ATR 动态止损
 
@@ -1280,7 +1286,7 @@ class ATRStopLoss(bt.Strategy):
             if self.data.close[0] > self.stop_price:
                 self.close()
 
-```
+```bash
 
 ### 5.3 组合风险管理
 
@@ -1320,7 +1326,7 @@ class MaxDrawDownControl(bt.Strategy):
         dt = self.datas[0].datetime.date(0)
         print(f'{dt.isoformat()} {txt}')
 
-```
+```bash
 
 #### 最大持仓限制
 
@@ -1355,9 +1361,10 @@ class PositionLimitControl(bt.Strategy):
 # 按最大仓位开仓
             self.buy(size=int(max_size))
 
-```
+```bash
 
----
+- --
+
 ## 第 6 部分: 模拟交易
 
 ### 6.1 模拟交易设置
@@ -1429,7 +1436,7 @@ def run_paper_trading(strategy_class, config):
 
     return results[0]
 
-```
+```bash
 
 ### 6.2 模拟交易监控
 
@@ -1497,7 +1504,7 @@ class PaperTradingMonitor:
         print(f'最大回撤: {max_drawdown*100:.2f}%')
         print(f'交易次数: {len(self.metrics["trades"])}')
 
-```
+```bash
 
 ### 6.3 模拟交易与实盘差异分析
 
@@ -1546,9 +1553,10 @@ class SlippageAnalyzer(bt.Analyzer):
             'slippage_pct': total_slippage / (sum(t['filled']* t['size'] for t in self.filled_trades)),
         }
 
-```
+```bash
 
----
+- --
+
 ## 第 7 部分: 实盘部署
 
 ### 7.1 实盘前检查清单
@@ -1635,7 +1643,7 @@ def pre_trade_checklist(strategy_class, data, params, config):
         print('\n✓ 实盘检查通过')
         return True
 
-```
+```bash
 
 ### 7.2 实盘交易系统
 
@@ -1745,7 +1753,7 @@ class LiveTradingSystem:
             'position': self.data.position.size if self.data else 0,
         }
 
-```
+```bash
 
 #### 实盘安全控制
 
@@ -1789,9 +1797,10 @@ class SafetyController:
         """重置紧急停止"""
         self.emergency_stop = False
 
-```
+```bash
 
----
+- --
+
 ## 第 8 部分: 持续监控
 
 ### 8.1 实时监控仪表盘
@@ -1872,7 +1881,7 @@ class StrategyMonitor:
         if snapshot['unrealized_pnl'] < -snapshot['value']* 0.05:
             print('⚠️ 警告: 未实现亏损超过 5%')
 
-```
+```bash
 
 ### 8.2 性能报告
 
@@ -1915,7 +1924,7 @@ def generate_daily_report(strategy, start_date, end_date):
     print(f'  最大亏损: {min(t["pnl"] for t in trades):,.2f}')
     print(f'  盈亏比: {sum(t["pnl"] for t in winning_trades)/abs(sum(t["pnl"] for t in losing_trades)):.2f}')
 
-```
+```bash
 
 #### 周度/月度报告
 
@@ -1951,7 +1960,7 @@ def generate_period_report(strategy, period='week'):
 
         print(f'{start.date()} - {end.date()}: {period_return*100:.2f}%')
 
-```
+```bash
 
 ### 8.3 异常检测
 
@@ -2017,9 +2026,10 @@ class AnomalyDetector:
 
         return report
 
-```
+```bash
 
----
+- --
+
 ## 9. 完整策略示例
 
 ### 9.1 多因子策略
@@ -2209,7 +2219,7 @@ class MultiFactorStrategy(bt.Strategy):
         dt = self.datas[0].datetime.date(0)
         print(f'{dt.isoformat()} {txt}')
 
-```
+```bash
 
 ### 9.2 运行完整示例
 
@@ -2269,9 +2279,10 @@ def run_complete_example():
 if __name__ == '__main__':
     run_complete_example()
 
-```
+```bash
 
----
+- --
+
 ## 10. 常见陷阱和解决方案
 
 ### 陷阱 1: 过拟合
@@ -2331,7 +2342,8 @@ if __name__ == '__main__':
 - 控制仓位大小
 - 限制最大回撤
 
----
+- --
+
 ## 11. 总结
 
 本教程涵盖了从策略设计到实盘部署的完整流程：

@@ -5,7 +5,8 @@
 1. **打包发布**：如何在 GitHub 和 Gitee 上实现自动打包发布（PyPI、GitHub Releases）
 2. **文档自动更新**：每次发布时自动更新项目文档
 
----
+- --
+
 ## 一、打包发布方案
 
 ### 方案 A：GitHub Actions + PyPI 自动发布（推荐）
@@ -66,7 +67,7 @@ jobs:
           files: dist/*
           generate_release_notes: true
 
-```
+```bash
 
 - *发布流程**：
 
@@ -85,13 +86,14 @@ git push origin development --tags
 
 # 3. 自动触发 GitHub Actions，发布到 PyPI
 
-```
+```bash
 
 - *配置要求**：
 - 在 GitHub 仓库 Settings → Secrets 中添加 `PYPI_API_TOKEN`
 - PyPI token 在 <https://pypi.org/manage/account/token/> 创建
 
----
+- --
+
 ### 方案 B：手动打包 + 脚本辅助
 
 - *优点**：
@@ -142,16 +144,17 @@ git push origin development --tags
 
 echo "✅ Released v$VERSION successfully!"
 
-```
+```bash
 
 - *发布流程**：
 
 ```bash
 ./scripts/release.sh 1.0.1
 
-```
+```bash
 
----
+- --
+
 ### 方案 C：Gitee 发布 + 同步到 GitHub
 
 - *优点**：
@@ -196,11 +199,12 @@ stages:
                 python -m build
                 twine upload dist/*--username __token__ --password $PYPI_TOKEN
 
-```
+```bash
 
 - *注意**：Gitee Go 是付费功能，免费用户可使用方案 A 或 B。
 
----
+- --
+
 ### 方案对比
 
 | 方案 | 自动化程度 | 复杂度 | 成本 | 推荐度 |
@@ -215,7 +219,8 @@ stages:
 
 - *推荐**：方案 A（GitHub Actions），免费、全自动、业界标准。
 
----
+- --
+
 ## 二、文档自动更新方案
 
 ### 方案 1：GitHub Pages 自动部署（推荐）
@@ -282,13 +287,14 @@ jobs:
           publish_dir: ./docs/build/html
           publish_branch: gh-pages
 
-```
+```bash
 
 - *配置要求**：
 1. GitHub 仓库 Settings → Pages → Source 选择 `gh-pages` 分支
 2. 文档将托管在 `<https://cloudquant.github.io/backtrader/`>
 
----
+- --
+
 ### 方案 2：Read the Docs 集成
 
 - *优点**：
@@ -320,11 +326,12 @@ python:
 
       path: .
 
-```
+```bash
 
 - *文档地址**：`<https://backtrader.readthedocs.io/`>
 
----
+- --
+
 ### 方案 3：发布时触发文档更新
 
 - *优点**：
@@ -365,9 +372,10 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./docs/build/html
 
-```
+```bash
 
----
+- --
+
 ### 方案 4：Gitee Pages 部署
 
 - *优点**：
@@ -382,7 +390,8 @@ jobs:
 
 - *注意**：Gitee Pages 免费版需要手动更新，Pro 版支持自动更新。
 
----
+- --
+
 ### 方案对比
 
 | 方案 | 自动化 | 访问速度 | 版本管理 | 成本 | 推荐度 |
@@ -397,7 +406,8 @@ jobs:
 
 |**4: Gitee Pages** | ⭐⭐ (需 Pro) | 国内快 | 单版本 | Pro 付费 | ⭐⭐⭐ |
 
----
+- --
+
 ## 三、综合推荐方案
 
 ### 最佳实践：GitHub Actions 全自动化
@@ -407,7 +417,7 @@ jobs:
     ├── 普通推送 → 运行测试 + 更新文档
     └── 创建 tag → 运行测试 + 打包发布 + 更新文档
 
-```
+```bash
 
 - *完整的 CI/CD 配置**：
 
@@ -506,9 +516,10 @@ jobs:
           files: dist/*
           generate_release_notes: true
 
-```
+```bash
 
----
+- --
+
 ## 四、实施步骤
 
 ### 第一阶段：基础配置
@@ -530,7 +541,8 @@ jobs:
 2. [ ] 添加版本徽章（PyPI 版本、文档状态）
 3. [ ] 配置自定义域名（可选）
 
----
+- --
+
 ## 五、待决策事项
 
 请选择以下方案：
@@ -554,7 +566,8 @@ jobs:
 - [ ] 是否需要支持多版本文档？
 - [ ] 是否需要配置自定义域名？
 
----
+- --
+
 ## 六、参考资源
 
 - [GitHub Actions 文档](<https://docs.github.com/en/actions)>
@@ -563,6 +576,6 @@ jobs:
 - [Read the Docs 文档](<https://docs.readthedocs.io/)>
 - [Sphinx 文档](<https://www.sphinx-doc.org/)>
 
----
+- --
 - *创建日期**：2026-01-14
 - *状态**：待决策

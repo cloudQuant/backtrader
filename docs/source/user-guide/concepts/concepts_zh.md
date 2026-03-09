@@ -1,8 +1,10 @@
----
+- --
+
 title: 基本概念
 description: 理解 Backtrader 的核心概念
 
----
+- --
+
 # 基本概念
 
 Backtrader 使用事件驱动架构来回测交易策略。理解这些核心概念对于有效开发策略至关重要。
@@ -21,7 +23,7 @@ flowchart TD
     Cerebro --> Analyzer[分析器]
     Cerebro --> Observer[观察器]
 
-```
+```bash
 
 ## Cerebro
 
@@ -48,7 +50,7 @@ cerebro.broker.setcommission(0.001)  # 设置佣金
 
 results = cerebro.run()
 
-```
+```bash
 
 ## 数据源
 
@@ -85,7 +87,7 @@ data = bt.feeds.YahooFinanceData(
     todate=datetime(2023, 12, 31)
 )
 
-```
+```bash
 
 ### 在策略中访问数据
 
@@ -104,7 +106,7 @@ class MyStrategy(bt.Strategy):
 # 数据长度
         print(f"当前 K 线: {len(self.data)}")
 
-```
+```bash
 
 ## Lines (时间序列)
 
@@ -146,7 +148,7 @@ prev_close2 = self.data.close[-2]  # 2 根 K 线前
 
 data_length = len(self.data.close)
 
-```
+```bash
 
 ## 策略
 
@@ -176,7 +178,7 @@ class MyStrategy(bt.Strategy):
         if self.sma[0] > self.data.close[0]:
             self.buy()
 
-```
+```bash
 
 ### 策略生命周期
 
@@ -190,7 +192,7 @@ stateDiagram-v2
     next --> next: 正常运行
     next --> [*]: 回测结束
 
-```
+```bash
 
 | 阶段 | 描述 |
 
@@ -227,7 +229,7 @@ macd = bt.indicators.MACD(self.data.close)
 atr = bt.indicators.ATR(self.data, period=14)
 bollinger = bt.indicators.BollingerBands(self.data.close)
 
-```
+```bash
 
 ### 访问指标值
 
@@ -245,7 +247,7 @@ class MyStrategy(bt.Strategy):
 # 前一 SMA 值
         previous_sma = self.sma[-1]
 
-```
+```bash
 
 ## 经纪人
 
@@ -261,7 +263,7 @@ cerebro.broker.setcommission(0.001)     # 设置佣金 (0.1%)
 
 cerebro.broker.set_slippage_perc(0.5)   # 设置滑点 (0.5%)
 
-```
+```bash
 
 ### 订单
 
@@ -287,7 +289,7 @@ self.sell(limit=105.0)                  # 以限价卖出
 
 self.sell(stop=95.0)                    # 止损卖出
 
-```
+```bash
 
 ## 持仓
 
@@ -306,7 +308,7 @@ class MyStrategy(bt.Strategy):
             print(f"入场价格: {self.position.price}")
             print(f"当前盈亏: {self.position.price * self.position.size}")
 
-```
+```bash
 
 ## 下一步学习
 

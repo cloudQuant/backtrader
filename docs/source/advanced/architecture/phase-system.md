@@ -1,8 +1,10 @@
----
+- --
+
 title: Phase System
 description: Understanding Backtrader's execution phases
 
----
+- --
+
 # Phase System
 
 Backtrader executes strategies through distinct phases to handle the minimum period requirements of indicators and data feeds.
@@ -18,7 +20,7 @@ stateDiagram-v2
     Next --> Next: Normal execution
     Next --> [*]: End of data
 
-```
+```bash
 
 ## 1. Prenext Phase
 
@@ -36,7 +38,7 @@ class MyStrategy(bt.Strategy):
 # Called when len(self.data) < self.sma.minperiod
         print(f"Bar {len(self)}: Accumulating data...")
 
-```
+```bash
 
 - *Characteristics:**
 - Runs from bar 0 until `minperiod - 1`
@@ -55,7 +57,7 @@ def nextstart(self):
 
 # Default implementation calls next() automatically
 
-```
+```bash
 
 - *Characteristics:**
 - Runs exactly once at bar `minperiod`
@@ -73,7 +75,7 @@ def next(self):
     if self.sma[0] > self.data.close[0]:
         self.sell()
 
-```
+```bash
 
 - *Characteristics:**
 - Runs from bar `minperiod` to end of data
@@ -103,7 +105,7 @@ class MyStrategy(bt.Strategy):
 
 # Strategy.minperiod = 50 (maximum)
 
-```
+```bash
 
 ## Practical Example
 
@@ -143,7 +145,7 @@ cerebro.adddata(data)
 cerebro.addstrategy(PhaseExample)
 cerebro.run()
 
-```
+```bash
 
 ## Execution Order
 
@@ -169,7 +171,7 @@ sequenceDiagram
     Strategy->>Cerebro: Orders (optional)
     Cerebro->>Cerebro: Process orders
 
-```
+```bash
 
 ## Key Points
 
@@ -201,4 +203,4 @@ class BadStrategy(bt.Strategy):
     def prenext(self):
         value = self.sma[0]  # May be NaN or invalid!
 
-```
+```bash

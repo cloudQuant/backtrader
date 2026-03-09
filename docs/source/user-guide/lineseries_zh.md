@@ -1,8 +1,10 @@
----
+- --
+
 title: LineSeries 时间序列 API
 description: Backtrader LineSeries 完整 API 参考文档
 
----
+- --
+
 # LineSeries 时间序列 API
 
 `LineSeries` 是 Backtrader 中管理多线时间序列数据的核心类。它为数据源、指标、观察器等提供统一的时间序列数据访问接口，支持历史数据访问、切片操作、pandas 转换等功能。
@@ -19,7 +21,7 @@ LineRoot (所有线对象的基类)
             DataSeries (数据源基类)
             Strategy (策略基类)
 
-```
+```bash
 
 ## 核心概念
 
@@ -42,7 +44,7 @@ Line 是 Backtrader 中存储时间序列数据的基本单元。它使用环形
   ...  [-3]  [-2]  [-1]   [0]   [1]   [2]  ...
                   前一根 K 线   当前 K 线
 
-```
+```bash
 
 ## LineSeries 类
 
@@ -52,7 +54,7 @@ Line 是 Backtrader 中存储时间序列数据的基本单元。它使用环形
 class backtrader.LineSeries(LineMultiple, LineSeriesMixin, ParamsMixin):
     """管理多条线的时间序列对象基类。"""
 
-```
+```bash
 
 ### 核心属性
 
@@ -101,7 +103,7 @@ class MyStrategy(bt.Strategy):
 
 # next_close = self.data.close[1]
 
-```
+```bash
 
 ### 数据长度
 
@@ -118,7 +120,7 @@ def next(self):
 # 可以计算 20 周期指标
         pass
 
-```
+```bash
 
 ### 时间操作
 
@@ -134,7 +136,7 @@ def next(self):
 # 前一根 K 线时间
     prev_dt = self.data.datetime.datetime(-1)
 
-```
+```bash
 
 ## 数据访问模式表
 
@@ -174,7 +176,7 @@ def next(self):
 # 使用方式
     avg_price = sum(recent_3) / len(recent_3)
 
-```
+```bash
 
 ### 切片操作
 
@@ -189,7 +191,7 @@ def next(self):
 # 常用模式：获取最近 N 个值
     recent_values = array_data[-self.p.period:]
 
-```
+```bash
 
 ## 对齐和同步
 
@@ -218,7 +220,7 @@ class MyStrategy(bt.Strategy):
         if self.data0.close[0] > self.data1.close[0]:
             self.buy(data=self.data0)
 
-```
+```bash
 
 ### 数据源访问方式
 
@@ -234,7 +236,7 @@ class MyStrategy(bt.Strategy):
         self.daily = self.getdatabyname('daily')
         self.weekly = self.getdatabyname('weekly')
 
-```
+```bash
 
 ## 周期和时间框架处理
 
@@ -262,7 +264,7 @@ TimeFrame.Years        # 8 - 年
 
 TimeFrame.NoTimeFrame  # 9 - 无时间周期
 
-```
+```bash
 
 ### 获取数据源时间框架
 
@@ -281,7 +283,7 @@ class MyStrategy(bt.Strategy):
             elif comp == 7:
                 print("周线数据（7 天压缩）")
 
-```
+```bash
 
 ### TimeFrame 方法
 
@@ -309,7 +311,7 @@ tf = bt.TimeFrame.TFrame('Days')
 
 # 返回: TimeFrame.Days (5)
 
-```
+```bash
 
 ## 与 pandas 的关系
 
@@ -338,7 +340,7 @@ class MyStrategy(bt.Strategy):
         }, index=dates)
         df.index.name = 'date'
 
-```
+```bash
 
 ### 从 pandas 创建数据源
 
@@ -365,7 +367,7 @@ df.set_index('datetime', inplace=True)
 
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### PandasData 参数映射
 
@@ -386,7 +388,7 @@ class CustomPandasData(bt.feeds.PandasData):
         ('openinterest', None),  # None = 列不存在
     )
 
-```
+```bash
 
 ## 常见使用模式
 
@@ -410,7 +412,7 @@ class CustomIndicator(bt.Indicator):
 
         self.lines.value[0] = total / self.p.period
 
-```
+```bash
 
 ### 模式 2：比较当前和之前值
 
@@ -425,7 +427,7 @@ def next(self):
 # 连续 3 根 K 线上涨
         self.buy()
 
-```
+```bash
 
 ### 模式 3：条件访问避免越界
 
@@ -445,7 +447,7 @@ def next(self):
 # 此处数据足够
         pass
 
-```
+```bash
 
 ### 模式 4：获取完整历史数据
 
@@ -463,7 +465,7 @@ def next(self):
 # 方式 3：使用 getzero
     all_data = self.data.close.getzero(0, len(self.data))
 
-```
+```bash
 
 ### 模式 5：多线指标访问
 
@@ -484,7 +486,7 @@ class BollingerBands(bt.Indicator):
         top = self.top[0]
         bot = self.bot[0]
 
-```
+```bash
 
 ## LineSeries 方法
 
@@ -497,7 +499,7 @@ class BollingerBands(bt.Indicator):
 ```python
 current_length = len(self.indicator)
 
-```
+```bash
 
 #### `size(self)`
 
@@ -506,7 +508,7 @@ current_length = len(self.indicator)
 ```python
 num_lines = self.indicator.size()
 
-```
+```bash
 
 ### 索引操作
 
@@ -519,7 +521,7 @@ value = self.indicator[0]      # 当前值
 
 value = self.indicator[-1]     # 前一个值
 
-```
+```bash
 
 #### `__call__(self, ago=None, line=-1)`
 
@@ -539,7 +541,7 @@ delayed = self.indicator(ago=3)
 
 value = self.indicator(line='close')
 
-```
+```bash
 
 ### 缓冲区操作
 
@@ -557,7 +559,7 @@ self.data.qbuffer(savemem=1000)
 
 self.sma.qbuffer()
 
-```
+```bash
 
 #### `minbuffer(self, size)`
 
@@ -569,7 +571,7 @@ self.sma.qbuffer()
 
 self.indicator.minbuffer(100)
 
-```
+```bash
 
 ### 导航操作
 
@@ -580,7 +582,7 @@ self.indicator.minbuffer(100)
 ```python
 self.indicator.home()
 
-```
+```bash
 
 #### `rewind(self, size=1)`
 
@@ -589,7 +591,7 @@ self.indicator.home()
 ```python
 self.indicator.rewind(5)  # 回退 5 个位置
 
-```
+```bash
 
 #### `advance(self, size=1)`
 
@@ -598,7 +600,7 @@ self.indicator.rewind(5)  # 回退 5 个位置
 ```python
 self.indicator.advance(1)  # 前进 1 个位置
 
-```
+```bash
 
 #### `forward(self, value=0.0, size=1)`
 
@@ -607,7 +609,7 @@ self.indicator.advance(1)  # 前进 1 个位置
 ```python
 self.indicator.forward(size=1)
 
-```
+```bash
 
 #### `backwards(self, size=1, force=False)`
 
@@ -616,7 +618,7 @@ self.indicator.forward(size=1)
 ```python
 self.indicator.backwards(size=1)
 
-```
+```bash
 
 #### `reset(self)`
 
@@ -625,7 +627,7 @@ self.indicator.backwards(size=1)
 ```python
 self.indicator.reset()
 
-```
+```bash
 
 #### `extend(self, value=0.0, size=0)`
 
@@ -634,7 +636,7 @@ self.indicator.reset()
 ```python
 self.indicator.extend(size=10)
 
-```
+```bash
 
 ### 线条操作
 
@@ -656,7 +658,7 @@ line = self.indicator._getline('close')
 
 line = self.indicator._getline(-1, minusall=True)  # 最后一条线
 
-```
+```bash
 
 ## 性能优化
 
@@ -674,7 +676,7 @@ def next(self):
     import numpy as np
     mean = np.mean(data_array[-20:])
 
-```
+```bash
 
 ### 启用缓存模式
 
@@ -692,7 +694,7 @@ data = bt.feeds.PandasData(dataname=df)
 cerebro.adddata(data)
 data.qbuffer(savemem=1000)  # 仅保留最近 1000 根 K 线
 
-```
+```bash
 
 ### 使用 runonce 模式
 
@@ -702,7 +704,7 @@ data.qbuffer(savemem=1000)  # 仅保留最近 1000 根 K 线
 
 cerebro.run(runonce=True)
 
-```
+```bash
 
 ## 完整示例
 
@@ -768,7 +770,7 @@ class MyStrategy(bt.Strategy):
 # 价格跌破下轨
             self.sell()
 
-```
+```bash
 
 ### 示例 2：历史数据分析
 
@@ -799,7 +801,7 @@ class AnalysisStrategy(bt.Strategy):
 # 交易时段
             pass
 
-```
+```bash
 
 ### 示例 3：多时间框架分析
 
@@ -827,7 +829,7 @@ class MultiTimeFrameStrategy(bt.Strategy):
 # 双时间框架趋势一致
                     self.buy(data=self.daily)
 
-```
+```bash
 
 ## 常见陷阱
 

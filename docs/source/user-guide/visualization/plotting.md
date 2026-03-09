@@ -1,8 +1,10 @@
----
+- --
+
 title: Plotting
 description: Visualize backtest results
 
----
+- --
+
 # Plotting
 
 Backtrader provides multiple plotting options to visualize your backtest results.
@@ -24,7 +26,7 @@ results = cerebro.run()
 
 cerebro.plot()
 
-```
+```bash
 
 ## Plot Options
 
@@ -40,7 +42,7 @@ plt.rcParams['figure.figsize'] = [15, 10]
 cerebro.plot()
 plt.show()
 
-```
+```bash
 
 ### Style
 
@@ -52,7 +54,7 @@ plt.style.use('dark_background')
 cerebro.plot()
 plt.show()
 
-```
+```bash
 
 ## Plotly Interactive Plotting
 
@@ -73,7 +75,7 @@ fig = plotter.plot(cerebro, style='plotly')
 
 fig.show()
 
-```
+```bash
 
 ## Plot Schemes
 
@@ -97,7 +99,7 @@ scheme = Scheme(
 
 cerebro.plot(scheme=scheme)
 
-```
+```bash
 
 ## Multiple Data Feeds
 
@@ -110,7 +112,7 @@ cerebro.adddata(data2, name='MSFT')
 
 cerebro.plot()
 
-```
+```bash
 
 ## Saving Plots
 
@@ -122,7 +124,7 @@ import matplotlib.pyplot as plt
 fig = cerebro.plot()
 fig.savefig('backtest_results.png', dpi=300, bbox_inches='tight')
 
-```
+```bash
 
 ### Plotly
 
@@ -131,7 +133,7 @@ plotter = bt.plot.Plotly()
 fig = plotter.plot(cerebro)
 fig.write_html('backtest_results.html')
 
-```
+```bash
 
 ## Custom Plots
 
@@ -147,7 +149,7 @@ class MyStrategy(bt.Strategy):
 # SMA is automatically plotted
         pass
 
-```
+```bash
 
 ### Disabling Indicator Plots
 
@@ -157,7 +159,7 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
         self.sma.plotinfo.plot = False  # Don't plot
 
-```
+```bash
 
 ## Bokeh Live Plotting
 
@@ -180,7 +182,7 @@ cerebro.setbroker(plotter.getbroker())
 strats = cerebro.run(plotter=plotter)
 plotter.show()
 
-```
+```bash
 
 ## Plot Examples
 
@@ -198,7 +200,7 @@ cerebro.adddata(data)
 
 cerebro.plot()
 
-```
+```bash
 
 ### Multiple Indicators
 
@@ -209,7 +211,7 @@ class MyStrategy(bt.Strategy):
         self.sma50 = bt.indicators.SMA(self.data.close, period=50)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
 
-```
+```bash
 
 ### Drawdown Subplot
 

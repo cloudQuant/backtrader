@@ -1,8 +1,10 @@
----
+- --
+
 title: Performance Optimization
 description: Techniques for optimizing backtrader performance
 
----
+- --
+
 # Performance Optimization
 
 Backtrader's dev branch achieves **45% faster execution** through removing metaclasses and various optimizations. This guide covers techniques to maximize your backtesting performance.
@@ -23,7 +25,7 @@ cerebro.run(stdstats=False)
 
 cerebro.addobserver(bt.observers.DrawDown)
 
-```
+```bash
 
 ### 2. Disable Plotting
 
@@ -39,7 +41,7 @@ cerebro.plot = False  # or simply don't call cerebro.plot()
 
 self.sma.plotinfo.plot = False
 
-```
+```bash
 
 ### 3. Use qbuffer
 
@@ -49,7 +51,7 @@ Limit memory usage with circular buffers:
 data = bt.feeds.CSVGeneric(dataname='data.csv')
 data.qbuffer(1000)  # Keep only last 1000 bars in memory
 
-```
+```bash
 
 ## Execution Modes
 
@@ -75,7 +77,7 @@ def next(self):
     if self.data.close[0] > self.sma[0]:
         self.buy()
 
-```
+```bash
 
 - *once() mode** (requires implementation):
 
@@ -87,7 +89,7 @@ def once(self):
 # Must handle array operations
     pass
 
-```
+```bash
 Most built-in indicators implement optimized `once()` methods.
 
 ## Indicator Optimization
@@ -109,7 +111,7 @@ class FastSMA(bt.Indicator):
             period=self.p.period
         )
 
-```
+```bash
 
 ### Avoid Repeated Calculations
 
@@ -127,7 +129,7 @@ def next(self):
     if self.data.close[0] > self.upper[0]:
         pass
 
-```
+```bash
 
 ## Data Loading Optimization
 
@@ -150,7 +152,7 @@ df.to_parquet('data.parquet')
 df = pd.read_parquet('data.parquet')
 data = bt.feeds.PandasData(dataname=df)
 
-```
+```bash
 
 ### Preload Data
 
@@ -164,7 +166,7 @@ data = bt.feeds.CSVGeneric(
 
 )
 
-```
+```bash
 
 ### Resample Early
 
@@ -178,7 +180,7 @@ cerebro.resampledata(data, timeframe=bt.TimeFrame.Days)
 
 # Pre-resample your data files
 
-```
+```bash
 
 ## Cython Acceleration
 
@@ -193,7 +195,7 @@ Backtrader uses Cython for performance-critical calculations:
 cerebro = bt.Cerebro()
 cerebro.run(ts_mode=True)  # Enable TS mode
 
-```
+```bash
 
 ### CS (Cross-Section) Mode
 
@@ -204,7 +206,7 @@ cerebro.run(ts_mode=True)  # Enable TS mode
 cerebro = bt.Cerebro()
 cerebro.run(cs_mode=True)  # Enable CS mode
 
-```
+```bash
 
 ### Compile Cython Extensions
 
@@ -214,7 +216,7 @@ python -W ignore compile_cython_numba_files.py
 cd ..
 pip install -U .
 
-```
+```bash
 
 ## Minimize Hot Path Operations
 
@@ -231,7 +233,7 @@ def next(self):
     if self.data._len > 100:
         pass
 
-```
+```bash
 
 ### Cache Attributes
 
@@ -248,7 +250,7 @@ def next(self):
     if self._data_close[0] > self._sma[0]:
         self.buy()
 
-```
+```bash
 
 ## Parallel Optimization
 
@@ -266,7 +268,7 @@ cerebro.optstrategy(
 )
 results = cerebro.run(maxcpu=4)  # Use 4 CPU cores
 
-```
+```bash
 
 ## Memory Optimization
 
@@ -284,7 +286,7 @@ cerebro.run(
 
 )
 
-```
+```bash
 
 ### Use Efficient Data Types
 
@@ -298,7 +300,7 @@ data = bt.feeds.PandasData(
     dataname=df.astype(np.float32)
 )
 
-```
+```bash
 
 ## Broker Optimization
 
@@ -310,7 +312,7 @@ data = bt.feeds.PandasData(
 
 cerebro.broker.setcommission(commission=0.0)
 
-```
+```bash
 
 ### Use Simple Cash Settings
 
@@ -324,7 +326,7 @@ cerebro.broker.setcash(100000)
 
 cerebro.broker.set_coc(True)  # Cash-on-close (faster)
 
-```
+```bash
 
 ## Specific Optimizations
 
@@ -340,7 +342,7 @@ def __init__(self):
     self.sma = ma_group
     self.sma_lag = ma_group(-1)  # Uses cached calculation
 
-```
+```bash
 
 ### Avoid Data Access in Loops
 
@@ -357,7 +359,7 @@ def next(self):
 def __init__(self):
     self.data_close = self.data.close.get()  # Get once
 
-```
+```bash
 
 ## Profiling
 
@@ -379,7 +381,7 @@ stats = pstats.Stats(profiler)
 stats.sort_stats('cumulative')
 stats.print_stats(20)  # Top 20 functions
 
-```
+```bash
 
 ### Time Execution
 
@@ -394,7 +396,7 @@ print(f'Execution time: {elapsed:.2f} seconds')
 print(f'Bars processed: {len(data)}')
 print(f'Bars per second: {len(data)/elapsed:.0f}')
 
-```
+```bash
 
 ## Performance Benchmarks
 

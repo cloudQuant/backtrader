@@ -48,7 +48,7 @@ def nextstart(self):
     down_cross = 1.0 if (prev_nzd > 0.0 and self.data0[0] < self.data1[0]) else 0.0
     self.lines.crossover[0] = up_cross - down_cross  # ← 这里会产生错误信号
 
-```
+```bash
 
 ### 为什么会出错？
 
@@ -85,7 +85,7 @@ def nextstart(self):
     prev_nzd = self._last_nzd if self._last_nzd is not None else diff
     self._last_nzd = diff if diff != 0.0 else prev_nzd
 
-```
+```bash
 
 ### 同时修复 once() 方法
 
@@ -129,7 +129,7 @@ def once(self, start, end):
 # Update prev_nzd for next iteration (memorize non-zero)
         prev_nzd = diff if diff != 0.0 else prev_nzd
 
-```
+```bash
 
 ## 修复原理
 
@@ -156,7 +156,7 @@ def once(self, start, end):
 ```bash
 python -m pytest tests/strategies/test_120_data_replay_macd.py -v
 
-```
+```bash
 结果：
 
 - `bar_num`: 344 ✓

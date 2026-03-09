@@ -1,8 +1,10 @@
----
+- --
+
 title: LineBuffer API
 description: Complete LineBuffer class API reference for time-series data storage and circular buffer operations
 
----
+- --
+
 # LineBuffer API
 
 The `LineBuffer` class is the core data structure for storing time-series data in Backtrader. It implements a circular buffer with an innovative indexing scheme where index 0 always points to the current active value, enabling intuitive data access without explicit index tracking. This ~1950-line implementation provides the foundation for all data feeds, indicators, and strategy calculations.
@@ -13,7 +15,7 @@ The `LineBuffer` class is the core data structure for storing time-series data i
 class backtrader.LineBuffer(LineSingle, LineRootMixin):
     """Circular buffer for time-series data with index-0-current semantics."""
 
-```
+```bash
 
 ## Core Architecture
 
@@ -48,7 +50,7 @@ graph TD
     style C fill:#f0e1ff
     style D fill:#f0e1ff
 
-```
+```bash
 
 ### Memory Layout
 
@@ -70,7 +72,7 @@ graph TD
 
 # data[1]  = 14.0  (next bar, _idx+1=4) - if extended
 
-```
+```bash
 
 ## Buffer Modes
 
@@ -85,7 +87,7 @@ buf = LineBuffer()
 
 # All historical data is kept
 
-```
+```bash
 
 - *Use Case**: Standard backtesting, when memory is not constrained.
 
@@ -99,7 +101,7 @@ buf.qbuffer(savemem=1, extrasize=0)  # Keep maxlen most recent values
 
 # buf.mode == LineBuffer.QBuffer (1)
 
-```
+```bash
 
 - *Parameters**:
 - `savemem`: Enable cache mode (>0 enables)
@@ -114,7 +116,7 @@ Ensures minimum buffer size for data access requirements.
 ```python
 buf.minbuffer(size=100)  # Ensure at least 100 slots available
 
-```
+```bash
 
 ## Core Attributes
 
@@ -151,7 +153,7 @@ current_idx = buf.idx  # Get current position
 
 buf.idx = new_idx      # Set new position
 
-```
+```bash
 In QBuffer mode at `lenmark`, the index stays at 0 unless `force=True`.
 
 ### `get_idx() / set_idx(idx, force=False)`
@@ -163,7 +165,7 @@ buf.set_idx(10)           # Normal set
 
 buf.set_idx(10, force=True)  # Force set even in QBuffer at lenmark
 
-```
+```bash
 
 ## Data Access
 
@@ -187,7 +189,7 @@ prev_5 = buf[-5]   # 5 bars ago
 
 next_val = buf[1]  # Next bar
 
-```
+```bash
 
 - *Performance**: Hot path optimized with pre-calculated indices and fast NaN detection.
 
@@ -205,7 +207,7 @@ last_5 = buf.get(ago=0, size=5)  # [t-4, t-3, t-2, t-1, t]
 
 slice_vals = buf.get(ago=-2, size=3)  # [t-4, t-3, t-2]
 
-```
+```bash
 
 ### `getzero(idx=0, size=1)`
 
@@ -221,7 +223,7 @@ first_10 = buf.getzero(idx=0, size=10)
 
 middle_vals = buf.getzero(idx=50, size=10)
 
-```
+```bash
 
 ### `getzeroval(idx=0)`
 
@@ -230,7 +232,7 @@ Get single value from physical array index.
 ```python
 val = buf.getzeroval(100)  # Get value at physical index 100
 
-```
+```bash
 
 ### `plot(idx=0, size=None)`
 
@@ -246,7 +248,7 @@ all_data = buf.plot()
 
 range_data = buf.plot(idx=10, size=100)
 
-```
+```bash
 
 ### `plotrange(start, end)`
 
@@ -255,7 +257,7 @@ Get a specific slice of the buffer.
 ```python
 subset = buf.plotrange(100, 200)  # Indices 100-199
 
-```
+```bash
 
 ## Data Modification
 
@@ -268,7 +270,7 @@ buf[0] = 100.0       # Set current value
 
 buf[-1] = 99.0       # Modify previous value
 
-```
+```bash
 
 - *Features**:
 - Automatic array expansion for out-of-bounds write
@@ -283,7 +285,7 @@ Explicit set method with same behavior as `__setitem__`.
 ```python
 buf.set(100.0, ago=0)  # Equivalent to buf[0] = 100.0
 
-```
+```bash
 
 ## Buffer Navigation
 
@@ -298,7 +300,7 @@ buf.home()
 
 # Buffer content preserved, use buflen() for actual size
 
-```
+```bash
 
 ### `forward(value=NAN, size=1)`
 
@@ -318,7 +320,7 @@ buf.forward(size=10)
 
 buf.forward(value=0.0, size=5)
 
-```
+```bash
 
 - *Behavior**:
 - Increases `_idx` and `lencount`
@@ -343,7 +345,7 @@ buf.backwards(size=10)
 
 buf.backwards(size=5, force=True)
 
-```
+```bash
 
 ### `rewind(size=1)`
 
@@ -352,7 +354,7 @@ Decrease idx and lencount without modifying array.
 ```python
 buf.rewind(5)  # Logical rewind only
 
-```
+```bash
 
 ### `advance(size=1)`
 
@@ -361,7 +363,7 @@ Increase idx and lencount without modifying array.
 ```python
 buf.advance(5)  # Logical advance only
 
-```
+```bash
 
 ### `extend(value=float('nan'), size=0)`
 
@@ -377,7 +379,7 @@ buf.extend(size=5)
 
 buf.extend(value=0.0, size=10)
 
-```
+```bash
 
 ## Buffer Information
 
@@ -388,7 +390,7 @@ Return logical length (lencount).
 ```python
 length = len(buf)  # Returns buf.lencount
 
-```
+```bash
 
 - *Performance**: Direct attribute access, optimized hot path.
 
@@ -401,7 +403,7 @@ physical_size = buf.buflen()
 
 # Returns: len(buf.array) - buf.extension
 
-```
+```bash
 Difference from `len()`:
 
 - `len()`: Logical bars processed
@@ -424,7 +426,7 @@ buf1[0] = 100.0
 
 # buf2[0] is now also 100.0
 
-```
+```bash
 
 ### `bind2lines(binding)`
 
@@ -440,7 +442,7 @@ buf.bind2lines('close')
 
 buf.bind2lines(0)
 
-```
+```bash
 
 ### `oncebinding()`
 
@@ -452,7 +454,7 @@ Execute all bindings in runonce mode.
 
 buf.oncebinding()
 
-```
+```bash
 
 ## Line Delay Operations
 
@@ -476,7 +478,7 @@ delayed = buf(-5)  # Returns _LineDelay object
 
 forwarded = buf(5)  # Returns _LineForward object
 
-```
+```bash
 
 ## Datetime Operations
 
@@ -499,7 +501,7 @@ dt = buf.datetime(ago=-5, tz=UTC, naive=False)
 
 dt = buf.datetime()
 
-```
+```bash
 
 - *Features**:
 - Caching for common case (ago=0, tz=None)
@@ -515,7 +517,7 @@ date_obj = buf.date()
 
 # Returns datetime.date object
 
-```
+```bash
 
 ### `time(ago=0, tz=None, naive=True)`
 
@@ -526,7 +528,7 @@ time_obj = buf.time()
 
 # Returns datetime.time object
 
-```
+```bash
 
 ### `dt(ago=0)`
 
@@ -535,7 +537,7 @@ Shorthand for `datetime()`.
 ```python
 dt = buf.dt()  # Same as buf.datetime()
 
-```
+```bash
 
 ### `tm(ago=0)`, `tm_raw(ago=0)`
 
@@ -546,7 +548,7 @@ tm = buf.tm()       # Naive timezone
 
 tm = buf.tm_raw()   # With timezone info
 
-```
+```bash
 
 ## Time Comparison Methods
 
@@ -565,7 +567,7 @@ if buf.tm_lt(other_line, ago=-1):
 # This buffer's previous time is earlier
     pass
 
-```
+```bash
 
 ## Performance Optimizations
 
@@ -581,7 +583,7 @@ self._is_datetime_line = ...  # Cached datetime line check
 
 self._default_value = ...     # Cached default value
 
-```
+```bash
 
 - *Benefit**: Eliminates repeated `hasattr` and `isinstance` calls in hot paths.
 
@@ -591,7 +593,7 @@ self._default_value = ...     # Cached default value
 def _is_nan_or_none(value):
     return value is None or value != value  # NaN != NaN
 
-```
+```bash
 
 - *Benefit**: 10x faster than `math.isnan(value)`.
 
@@ -608,7 +610,7 @@ if hasattr(self, '_idx'):
 
 idx = self._idx
 
-```
+```bash
 
 - *Benefit**: Eliminates dictionary lookup overhead.
 
@@ -624,7 +626,7 @@ del arr[max(0, arr_len - size):]  # Single operation
 
 for _ in range(size): arr.pop()   # Multiple operations
 
-```
+```bash
 
 - *Benefit**: O(n) vs O(n*size) for backward operations.
 
@@ -664,7 +666,7 @@ The `exactbars` parameter in Cerebro controls memory usage:
 
 cerebro = bt.Cerebro(exactbars=-1)
 
-```
+```bash
 
 - *Effects on LineBuffer**:
 - Controls `qbuffer()` activation
@@ -681,7 +683,7 @@ Base class for multi-line objects (indicators, observers).
 class LineActions(LineBuffer, LineActionsMixin, ParamsMixin):
     """Multi-line container with parameter support."""
 
-```
+```bash
 
 - *Key Features**:
 - Multiple output lines
@@ -698,7 +700,7 @@ result = LinesOperation(line1, line2, operator.sub)
 
 # result[0] = line1[0] - line2[0]
 
-```
+```bash
 
 - *Features**:
 - Element-wise binary operations
@@ -714,7 +716,7 @@ result = LineOwnOperation(line, operator.neg)
 
 # result[0] = -line[0]
 
-```
+```bash
 
 - *Features**:
 - Element-wise unary operations
@@ -729,7 +731,7 @@ delayed = buf(-5)  # _LineDelay for lookback
 
 forwarded = buf(5)  # _LineForward for lookahead
 
-```
+```bash
 
 ## Usage Examples
 
@@ -761,7 +763,7 @@ print(buf[-5])   # 5 bars ago: 50.0
 
 last_5 = buf.get(ago=0, size=5)  # [50.0, 60.0, 70.0, 80.0, 90.0]
 
-```
+```bash
 
 ### QBuffer Mode for Memory Efficiency
 
@@ -783,7 +785,7 @@ class MyIndicator(bt.Indicator):
 # Only last 'period' values kept in memory
         self.lines.value[0] = sum(self.data.get(ago=0, size=self.p.period)) / self.p.period
 
-```
+```bash
 
 ### Creating Delayed Lines
 
@@ -803,7 +805,7 @@ class MyStrategy(bt.Strategy):
 # Price increased more than 2% in 5 bars
             self.buy()
 
-```
+```bash
 
 ### Line Operations
 
@@ -827,7 +829,7 @@ class MyStrategy(bt.Strategy):
 # High volatility day
             pass
 
-```
+```bash
 
 ## Memory Management Best Practices
 
@@ -841,7 +843,7 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=20)
         self.sma.line.qbuffer(savemem=20)  # Keep only 20 values
 
-```
+```bash
 
 ### 2. Leverage exactbars Parameter
 
@@ -851,7 +853,7 @@ class MyStrategy(bt.Strategy):
 
 cerebro = bt.Cerebro(exactbars=-1)  # Keep data/indicators, discard sub-indicator internals
 
-```
+```bash
 
 ### 3. Use get() for Slices
 
@@ -865,7 +867,7 @@ last_10 = data.close.get(ago=0, size=10)
 
 last_10 = [data.close[i] for i in range(-9, 1)]
 
-```
+```bash
 
 ## Advanced Topics
 
@@ -884,7 +886,7 @@ class CustomBuffer(bt.LineBuffer):
 
 # Additional processing
 
-```
+```bash
 
 ### Binding Multiple Lines
 
@@ -907,7 +909,7 @@ primary[0] = 100.0
 
 # secondary2[0] == 100.0
 
-```
+```bash
 
 ### Runonce Mode Compatibility
 
@@ -923,7 +925,7 @@ def once(self, start, end):
     for i in range(start, end):
         dst[i] = self._calculate(src, i)
 
-```
+```bash
 
 ## See Also
 

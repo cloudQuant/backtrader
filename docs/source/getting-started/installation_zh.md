@@ -1,8 +1,10 @@
----
+- --
+
 title: 安装指南
 description: 如何安装和设置 Backtrader
 
----
+- --
+
 # 安装指南
 
 ## 系统要求
@@ -22,7 +24,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-```
+```bash
 
 ### 从 Gitee 镜像安装（国内用户推荐）
 
@@ -32,7 +34,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -U .
 
-```
+```bash
 
 ### 开发模式安装
 
@@ -44,7 +46,7 @@ cd backtrader
 pip install -r requirements.txt
 pip install -e .
 
-```
+```bash
 
 ## 依赖项
 
@@ -59,7 +61,7 @@ matplotlib>=3.3.0
 python-dateutil>=2.8.0
 pytz>=2021.1
 
-```
+```bash
 
 ### 可选依赖
 
@@ -75,7 +77,7 @@ pip install plotly>=5.0.0
 
 pip install pyecharts>=1.9.0
 
-```
+```bash
 
 #### 实盘交易
 
@@ -89,7 +91,7 @@ pip install ccxt
 
 pip install ctp-python
 
-```
+```bash
 
 #### 开发
 
@@ -99,7 +101,7 @@ pip install ctp-python
 
 pip install -r requirements.txt
 
-```
+```bash
 
 ## 验证安装
 
@@ -109,7 +111,7 @@ import backtrader as bt
 print(f"Backtrader 版本: {bt.__version__}")
 print("安装成功！")
 
-```
+```bash
 
 ## 开发环境设置
 
@@ -124,7 +126,7 @@ print("安装成功！")
 ```bash
 python --version  # 应该是 3.8+
 
-```
+```bash
 
 ### 绘图问题
 
@@ -133,14 +135,14 @@ macOS 上的 matplotlib 问题：
 ```bash
 pip install python.app
 
-```
+```bash
 对于无头环境，使用 Agg 后端：
 
 ```python
 import matplotlib
 matplotlib.use('Agg')
 
-```
+```bash
 
 ### 网络问题 (中国用户)
 
@@ -149,7 +151,7 @@ matplotlib.use('Agg')
 ```bash
 pip install -i <https://pypi.tuna.tsinghua.edu.cn/simple> -r requirements.txt
 
-```
+```bash
 
 ## 下一步
 

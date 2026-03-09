@@ -44,7 +44,8 @@
 
 | [开发指南](development-guide.md) | 开发环境和工作流 | 开发者 |
 
----
+- --
+
 ## 📖 用户指南 (user_guide/)
 
 | 文档 | 说明 | 语言 |
@@ -91,7 +92,8 @@
 
 | [CTP 实盘交易 中文版](user_guide/ctp-live-trading_zh.md) | CTP 实盘交易 | 中文 ✨ |
 
----
+- --
+
 ## 📐 API 参考 (api_reference/)
 
 | 文档 | 说明 | 语言 |
@@ -166,7 +168,8 @@
 
 | [CTP Store/Broker](api_reference/ctp-store-broker.md) | 中国期货交易 | EN ✨ |
 
----
+- --
+
 ## 🏗️ 架构文档 (architecture/)
 
 | 文档 | 说明 | 语言 |
@@ -189,7 +192,8 @@
 
 | [Post-Metaclass 中文版](architecture/post-metaclass_zh.md) | 显式初始化设计 | 中文 |
 
----
+- --
+
 ## 🚀 高级主题 (advanced/)
 
 | 文档 | 说明 | 语言 |
@@ -220,7 +224,8 @@
 
 | [数据获取 中文版](advanced/data-acquisition_zh.md) | 交易所数据接口 | 中文 ✨ |
 
----
+- --
+
 ## 📘 示例与教程 (examples/, tutorials/)
 
 ### 策略示例 (examples/)
@@ -251,7 +256,8 @@
 
 | [Jupyter 指南](tutorials/notebook-guide_zh.md) | 交互式回测 | 中文 ✨ |
 
----
+- --
+
 ## 👨‍💻 开发者指南 (developer_guide/)
 
 | 文档 | 说明 | 语言 |
@@ -282,7 +288,8 @@
 
 | [发布流程 中文版](developer_guide/release_zh.md) | 版本发布 | 中文 ✨ |
 
----
+- --
+
 ## 🔄 迁移指南 (migration/)
 
 | 文档 | 说明 | 语言 |
@@ -297,7 +304,8 @@
 
 | [升级指南](migration/upgrade_zh.md) | 版本升级 | 中文 ✨ |
 
----
+- --
+
 ## 🆘 支持文档 (support/)
 
 | 文档 | 说明 | 语言 |
@@ -312,7 +320,8 @@
 
 | [故障排除 中文版](support/troubleshooting_zh.md) | 问题诊断和调试 | 中文 ✨ |
 
----
+- --
+
 ## 🛠️ 文档系统 (docs/)
 
 | 文档 | 说明 | 语言 |
@@ -323,7 +332,8 @@
 
 | [API 自动生成指南](API_AUTO_GENERATION_GUIDE.md) | 自动化 API 文档 | EN ✨ |
 
----
+- --
+
 ## 快速开始
 
 ### 对于新用户
@@ -353,7 +363,8 @@
 
 5.**使用 SpdLogManager 进行日志记录**
 
----
+- --
+
 ## 文档贡献
 
 当修改代码时，请更新相应的文档：
@@ -363,7 +374,7 @@
 - 架构变更 → 更新 ARCHITECTURE.md
 - 新增功能 → 更新相关指南
 
----
+- --
 - *文档生成**: BMAD 项目文档化工作流
 - *扫描模式**: 彻底扫描 (Exhaustive)
 - *生成日期**: 2025-02-28

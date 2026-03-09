@@ -7,7 +7,7 @@
 ```bash
 pip install pyupgrade ruff black pre-commit
 
-```
+```bash
 
 ### 运行优化
 
@@ -23,7 +23,7 @@ python -m pyupgrade --py311-plus backtrader/**/*.py
 python -m ruff format backtrader/ --line-length 100
 python -m ruff check backtrader/ --fix
 
-```
+```bash
 
 ### 设置 Pre-commit 钩子
 
@@ -31,7 +31,7 @@ python -m ruff check backtrader/ --fix
 pre-commit install
 pre-commit run --all-files
 
-```
+```bash
 
 ## 代码风格规范
 
@@ -51,7 +51,7 @@ result = some_function(arg1, arg2, arg3,
 
 result = some_function(arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10)
 
-```
+```bash
 
 ### 2. 导入语句
 
@@ -75,7 +75,7 @@ from backtrader import *
 import backtrader as bt
 from . import *
 
-```
+```bash
 
 ### 3. 变量命名
 
@@ -98,7 +98,7 @@ c = 0  # 不清楚含义
 
 res = []  # 缩写不清楚
 
-```
+```bash
 
 ### 4. 异常处理
 
@@ -120,7 +120,7 @@ try:
 except:  # 捕获所有异常，不推荐
     pass
 
-```
+```bash
 
 ### 5. 字符串
 
@@ -136,7 +136,7 @@ formatted = f"Value: {value}"
 message = 'Hello, world!'
 formatted = 'Value: {}'.format(value)
 
-```
+```bash
 
 ### 6. 注释
 
@@ -158,7 +158,7 @@ ma = calculate_moving_average(data, period=20)
 
 x = 1  # 设置 x 为 1
 
-```
+```bash
 
 ## 常见问题修复
 
@@ -176,7 +176,7 @@ result = some_function(
     argument1, argument2, argument3, argument4, argument5
 )
 
-```
+```bash
 
 ### 问题 2: 不一致的缩进
 
@@ -194,7 +194,7 @@ def function():
     x = 1  # 4 个空格
     y = 2  # 4 个空格
 
-```
+```bash
 
 ### 问题 3: 未使用的导入
 
@@ -212,7 +212,7 @@ x = 1  # 没有使用 os, sys, Dict
 
 x = 1
 
-```
+```bash
 
 ### 问题 4: 过时的语法
 
@@ -228,7 +228,7 @@ class MyClass(object):  # Python 3 不需要显式继承 object
 class MyClass:
     pass
 
-```
+```bash
 
 ## 工具使用指南
 
@@ -246,7 +246,7 @@ python -m pyupgrade --py311-plus backtrader/**/*.py
 
 python -m pyupgrade --py311-plus --diff backtrader/**/*.py
 
-```
+```bash
 
 ### ruff
 
@@ -270,7 +270,7 @@ python -m ruff format backtrader/ --line-length 100
 
 python -m ruff format backtrader/ --diff
 
-```
+```bash
 
 ### black
 
@@ -286,7 +286,7 @@ python -m black backtrader/ --line-length 100
 
 python -m black backtrader/ --check
 
-```
+```bash
 
 ## 测试和验证
 
@@ -306,7 +306,7 @@ pytest tests/add_tests/test_ind_basicops.py
 
 pytest tests/add_tests/ --cov=backtrader
 
-```
+```bash
 
 ### 检查代码质量
 
@@ -322,7 +322,7 @@ python -m pyupgrade --py311-plus backtrader/**/*.py
 python -m ruff format backtrader/ --line-length 100
 python -m ruff check backtrader/ --fix
 
-```
+```bash
 
 ## 最佳实践
 
@@ -331,7 +331,7 @@ python -m ruff check backtrader/ --fix
 ```bash
 pip install --upgrade pyupgrade ruff black
 
-```
+```bash
 
 ### 2. 使用 Pre-commit 钩子
 
@@ -345,7 +345,7 @@ pre-commit install
 
 pre-commit run --all-files
 
-```
+```bash
 
 ### 3. 在 CI/CD 中集成
 
@@ -387,7 +387,7 @@ pre-commit run --all-files
 ```bash
 python -m ruff check backtrader/ --select I --fix
 
-```
+```bash
 
 ### 问题: 格式化后仍有错误
 
@@ -396,7 +396,7 @@ python -m ruff check backtrader/ --select I --fix
 ```bash
 bash optimize_code.sh
 
-```
+```bash
 
 ### 问题: Pre-commit 钩子失败
 
@@ -406,7 +406,7 @@ bash optimize_code.sh
 pre-commit validate-config
 pre-commit validate-manifest
 
-```
+```bash
 
 ## 参考资源
 
@@ -423,6 +423,6 @@ pre-commit validate-manifest
 2. 运行 `tool --help` 查看帮助信息
 3. 提交 Issue 或 Pull Request
 
----
+- --
 - *最后更新**: 2024-12-10
 - *维护者**: Backtrader 开发团队

@@ -1,8 +1,10 @@
----
+- --
+
 title: Data Feeds
 description: Loading data from various sources
 
----
+- --
+
 # Data Feeds
 
 Data feeds provide market data to your strategies. Backtrader supports multiple data sources and formats.
@@ -29,7 +31,7 @@ data = bt.feeds.CSVGeneric(
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 
-```
+```bash
 
 ## Data Sources
 
@@ -53,7 +55,7 @@ data = bt.feeds.CSVGeneric(
     timeframe=bt.TimeFrame.Days
 )
 
-```
+```bash
 
 #### BTC CSV (Bitcoin specific)
 
@@ -64,7 +66,7 @@ data = bt.feeds.BTCCSV(
     timeframe=bt.TimeFrame.Minutes
 )
 
-```
+```bash
 
 ### Pandas DataFrame
 
@@ -95,7 +97,7 @@ data = bt.feeds.PandasData(
     openinterest=None
 )
 
-```
+```bash
 
 ### Yahoo Finance
 
@@ -110,7 +112,7 @@ data = bt.feeds.YahooFinanceData(
 
 )
 
-```
+```bash
 
 ### Live Trading Data
 
@@ -139,7 +141,7 @@ data = store.getdata(
 cerebro.adddata(data)
 cerebro.setbroker(store.getbroker())
 
-```
+```bash
 
 #### CTP (Futures)
 
@@ -168,7 +170,7 @@ data = CTPData(
 cerebro.adddata(data)
 cerebro.setbroker(store.getbroker())
 
-```
+```bash
 
 ## Multiple Data Feeds
 
@@ -193,7 +195,7 @@ class MyStrategy(bt.Strategy):
         msft_price = self.datas[1].close[0]  # or self.msft.close[0]
         googl_price = self.datas[2].close[0]  # or self.googl.close[0]
 
-```
+```bash
 
 ## Data Resampling
 
@@ -211,7 +213,7 @@ cerebro = bt.Cerebro()
 cerebro.resampledata(data, timeframe=bt.TimeFrame.Days)
 cerebro.adddata(data, name='daily')
 
-```
+```bash
 
 ## Data Filtering
 
@@ -224,7 +226,7 @@ cerebro.adddata(data, name='daily')
 data = bt.feeds.CSVGeneric(dataname='data.csv', ...)
 data.addfilter(bt.filters.CalendarDays())
 
-```
+```bash
 
 ### Session Filter
 
@@ -238,7 +240,7 @@ data.addfilter(bt.filters.SessionFilter(
     endtime=datetime.time(16, 0)
 ))
 
-```
+```bash
 
 ## Data Requirements
 
@@ -272,7 +274,7 @@ datetime,open,high,low,close,volume
 2023-01-02,101.0,103.0,100.5,102.5,1200000
 2023-01-03,102.5,104.0,102.0,103.0,900000
 
-```
+```bash
 
 ## Next Steps
 

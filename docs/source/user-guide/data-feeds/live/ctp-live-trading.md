@@ -1,8 +1,10 @@
----
+- --
+
 title: CTP Live Trading
 description: Trading Chinese futures live via CTP API
 
----
+- --
+
 # CTP Live Trading
 
 CTP (Comprehensive Transaction Platform) is the standard API for trading Chinese futures. This guide covers connecting backtrader to CTP for live futures trading through the `ctp-python` package.
@@ -31,13 +33,13 @@ Install the required package:
 ```bash
 pip install ctp-python
 
-```
+```bash
 For historical data backfill (optional but recommended):
 
 ```bash
 pip install akshare
 
-```
+```bash
 
 ## Configuration
 
@@ -83,7 +85,7 @@ BROKER_ID = "9999"
 APP_ID = "simnow_client_test"
 AUTH_CODE = "0000000000000000"
 
-```
+```bash
 To get SimNow credentials:
 
 1. Visit [SimNow official website](<http://www.simnow.com.cn/)>
@@ -120,7 +122,7 @@ data = store.getdata(
 cerebro = bt.Cerebro()
 cerebro.adddata(data)
 
-```
+```bash
 
 ### Data Feed Parameters
 
@@ -136,7 +138,7 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
 ### Multiple Instruments
 
@@ -155,7 +157,7 @@ for symbol in instruments:
     data = store.getdata(dataname=symbol, timeframe=bt.TimeFrame.Minutes)
     cerebro.adddata(data)
 
-```
+```bash
 
 ## Broker Setup
 
@@ -184,7 +186,7 @@ cerebro.setbroker(store.getbroker(
 
 ))
 
-```
+```bash
 
 ### Broker Parameters
 
@@ -221,7 +223,7 @@ class MyStrategy(bt.Strategy):
                  plimit=3748.0,   # Limit price after trigger
                  exectype=bt.Order.StopLimit)
 
-```
+```bash
 
 ### Order Tracking
 
@@ -259,7 +261,7 @@ class MyStrategy(bt.Strategy):
 
         self.order = None
 
-```
+```bash
 
 ### Order Cancellation
 
@@ -280,7 +282,7 @@ class MyStrategy(bt.Strategy):
         self.order = self.buy(size=1)
         self.cancel_after = 10
 
-```
+```bash
 
 ## SHFE/INE Close Offset Handling
 
@@ -304,7 +306,7 @@ self.buy(size=5)   # Opens 5 long positions
 
 self.sell(size=3)  # Closes 3 (automatically uses CloseToday/CloseYesterday)
 
-```
+```bash
 
 ## Complete Live Trading Example
 
@@ -464,7 +466,7 @@ def run_live():
 if __name__ == '__main__':
     run_live()
 
-```
+```bash
 
 ## Risk Control
 
@@ -498,7 +500,7 @@ class RiskControlStrategy(bt.Strategy):
         if size > 0:
             self.buy(size=size)
 
-```
+```bash
 
 ### Stop Loss
 
@@ -529,7 +531,7 @@ class StopLossStrategy(bt.Strategy):
                     self.log(f'Stop loss triggered at {self.data.close[0]:.2f}')
                     self.close()
 
-```
+```bash
 
 ## Troubleshooting
 
@@ -553,7 +555,7 @@ check_host("182.254.243.31", 30001)  # TD front
 
 check_host("182.254.243.31", 30011)  # MD front
 
-```
+```bash
 
 - *Problem**: Login timeout
 
@@ -578,7 +580,7 @@ if store.is_connected:
 else:
     print("CTP connection failed - check credentials")
 
-```
+```bash
 
 ### Order Rejection
 
@@ -615,7 +617,7 @@ def is_market_open():
     return (morning_start <= now <= morning_end or
             afternoon_start <= now <= afternoon_end)
 
-```
+```bash
 
 ### No Data Received
 
@@ -644,7 +646,7 @@ data = store.getdata(
 
 )
 
-```
+```bash
 
 ### Memory Issues
 
@@ -666,7 +668,7 @@ import os
 process = psutil.Process(os.getpid())
 print(f"Memory usage: {process.memory_info().rss / 1024 / 1024:.2f} MB")
 
-```
+```bash
 
 ## Trading Hours Reference
 

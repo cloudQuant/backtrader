@@ -1,8 +1,10 @@
----
+- --
+
 title: Indicators
 description: Built-in technical indicators
 
----
+- --
+
 # Indicators
 
 Backtrader includes 60+ built-in technical indicators. This guide shows how to use them effectively.
@@ -21,7 +23,7 @@ class MyStrategy(bt.Strategy):
 # Access current value
         current_value = self.sma[0]
 
-```
+```bash
 
 ## Indicator Categories
 
@@ -53,7 +55,7 @@ tema = bt.indicators.TEMA(self.data.close, period=20)
 
 hma = bt.indicators.HMA(self.data.close, period=20)
 
-```
+```bash
 
 ### Momentum Indicators
 
@@ -83,7 +85,7 @@ momentum = bt.indicators.Momentum(self.data.close, period=10)
 
 ao = bt.indicators.AwesomeOscillator(self.data)
 
-```
+```bash
 
 ### Volatility Indicators
 
@@ -101,7 +103,7 @@ bollinger = bt.indicators.BollingerBands(self.data.close, period=20)
 
 stdev = bt.indicators.StdDev(self.data.close, period=20)
 
-```
+```bash
 
 ### Volume Indicators
 
@@ -115,7 +117,7 @@ obv = bt.indicators.OBV(self.data)
 
 mfi = bt.indicators.MFI(self.data, period=14)
 
-```
+```bash
 
 ### Oscillators
 
@@ -138,7 +140,7 @@ adx = bt.indicators.ADX(self.data, period=14)
 
 aroon = bt.indicators.Aroon(self.data, period=14)
 
-```
+```bash
 
 ## CrossOver Indicator
 
@@ -159,7 +161,7 @@ class MyStrategy(bt.Strategy):
         elif self.crossover < 0:  # Fast crossed below slow
             self.sell()
 
-```
+```bash
 
 ## Indicator Parameters
 
@@ -177,7 +179,7 @@ class MyStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
 
-```
+```bash
 
 ## Indicator on Indicator
 
@@ -197,7 +199,7 @@ class MyStrategy(bt.Strategy):
 # SMA of RSI (RSI smoothing)
         self.rsi_sma = bt.indicators.SMA(self.rsi, period=5)
 
-```
+```bash
 
 ## Accessing Indicator Lines
 
@@ -227,7 +229,7 @@ top = bollinger.top[0]          # Upper band
 
 bot = bollinger.bot[0]          # Lower band
 
-```
+```bash
 
 ## Plotting Indicators
 
@@ -242,7 +244,7 @@ class MyStrategy(bt.Strategy):
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
         self.rsi.plotinfo.plot = False  # Don't plot RSI
 
-```
+```bash
 
 ## Available Indicators Reference
 

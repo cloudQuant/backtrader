@@ -29,7 +29,8 @@ NumCpp 是 NumPy 的 C++实现版本，提供类似 NumPy 的 API，具有以下
 5. **模板设计**: C++模板设计
 6. **内存管理**: 高效内存管理
 
----
+- --
+
 ## 项目对比分析
 
 ### Backtrader vs NumCpp 架构对比
@@ -78,7 +79,7 @@ class NdArray {
     allocator_type allocator_;  // 自定义分配器
 };
 
-```
+```bash
 
 #### 3. 广播机制
 
@@ -118,9 +119,10 @@ struct is_ndarray_int<NdArray<dtype, Allocator>> {
     static constexpr bool value = std::is_integral_v<dtype>;
 };
 
-```
+```bash
 
----
+- --
+
 ## 需求文档
 
 ### 需求概述
@@ -269,7 +271,8 @@ struct is_ndarray_int<NdArray<dtype, Allocator>> {
 - 完整的文档字符串
 - 丰富的使用示例
 
----
+- --
+
 ## 设计文档
 
 ### 整体架构设计
@@ -319,7 +322,7 @@ backtrader/
 
 │       └── logical.py       # 逻辑函数
 
-```
+```bash
 
 ### 详细设计
 
@@ -385,7 +388,7 @@ class Shape:
     def __repr__(self) -> str:
         return f"Shape({self.rows}, {self.cols})"
 
-```
+```bash
 
 - *1.2 Slice 类**
 
@@ -488,7 +491,7 @@ def slice(obj) -> Slice:
             return Slice(obj[0], obj[1], obj[2])
     return Slice(obj)
 
-```
+```bash
 
 - *1.3 Array 类**
 
@@ -790,7 +793,7 @@ class Array:
         """创建标准正态分布随机数组"""
         return cls(np.random.randn(*shape), copy=False)
 
-```
+```bash
 
 #### 2. 广播机制
 
@@ -906,7 +909,7 @@ class Broadcaster:
         """应用一元运算函数"""
         return Array(func(arr.to_numpy()), copy=False)
 
-```
+```bash
 
 #### 3. 线性代数增强
 
@@ -1042,7 +1045,7 @@ class MatrixOps:
         result = np.kron(a_arr, b_arr)
         return Array(result, copy=False)
 
-```
+```bash
 
 - *3.2 矩阵分解**
 
@@ -1128,7 +1131,7 @@ class Decomposition:
         p, l, u = lu(arr_arr)
         return Array(p, copy=False), Array(l, copy=False), Array(u, copy=False)
 
-```
+```bash
 
 - *3.3 求解器**
 
@@ -1195,7 +1198,7 @@ class Solver:
         balanced, perm = matrix_balance(arr_arr)
         return Array(balanced, copy=False), Array(perm, copy=False)
 
-```
+```bash
 
 #### 4. 性能优化
 
@@ -1317,7 +1320,7 @@ def vectorized_sum(arr: np.ndarray, axis: int = None) -> np.ndarray:
     """向量化的求和运算"""
     return arr.sum(axis=axis)
 
-```
+```bash
 
 - *4.2 内存优化**
 
@@ -1433,7 +1436,7 @@ class InPlaceOps:
         np.divide(a, b, out=a)
         return a
 
-```
+```bash
 
 - *4.3 并行计算**
 
@@ -1510,7 +1513,7 @@ class BatchOps:
         """批量计算标准差"""
         return np.mean([np.std(a) for a in arrays])
 
-```
+```bash
 
 #### 5. 数学函数
 
@@ -1599,7 +1602,7 @@ class Statistical:
         result = np.quantile(arr_arr, q, axis=axis)
         return Array(result, copy=False) if isinstance(result, np.ndarray) else result
 
-```
+```bash
 
 - *5.2 数学函数**
 
@@ -1728,7 +1731,7 @@ class Mathematical:
         arr_arr = arr.to_numpy() if isinstance(arr, Array) else arr
         return Array(np.clip(arr_arr, min_val, max_val))
 
-```
+```bash
 
 ### 实现计划
 
@@ -1801,7 +1804,7 @@ d = Array([[1, 2, 3], [4, 5, 6]])
 scalar = Array(2)
 result = d *scalar  # 标量广播
 
-```
+```bash
 
 ### 使用示例
 
@@ -1836,7 +1839,7 @@ transposed = arr.T
 
 float_arr = arr.astype(float)
 
-```
+```bash
 
 - *矩阵运算：**
 
@@ -1862,7 +1865,7 @@ det_a = MatrixOps.det(a)
 
 at = MatrixOps.transpose(a)
 
-```
+```bash
 
 - *线性代数求解：**
 
@@ -1887,7 +1890,7 @@ Q, R = Decomposition.qr(A)
 L = Decomposition.cholesky(A.T @ A)
 U, s, Vt = Decomposition.svd(A)
 
-```
+```bash
 
 - *统计函数：**
 
@@ -1912,7 +1915,7 @@ q75 = Statistical.quantile(data, 0.75)
 
 corr = Statistical.corrcoef(data)
 
-```
+```bash
 
 ### 测试策略
 

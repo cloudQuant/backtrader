@@ -1,8 +1,10 @@
----
+- --
+
 title: Release Workflow Guide
 description: Guidelines for creating Backtrader releases
 
----
+- --
+
 # Release Workflow Guide
 
 This document describes the complete release process for the Backtrader project, including version management, pre-release requirements, and post-release tasks.
@@ -23,7 +25,7 @@ Examples:
   - 1.1.1  → Bug fixes only
   - 2.0.0  → Breaking API changes
 
-```
+```bash
 
 ### Version Number Rules
 
@@ -78,7 +80,7 @@ release/*(preparation branches)
   ├── Created from dev for final testing
   └── Merge to both dev and master after release
 
-```
+```bash
 
 ### Release Branch Lifecycle
 
@@ -109,7 +111,7 @@ git merge --no-ff release/1.1.0
 
 git push origin master dev --tags
 
-```
+```bash
 
 ## Pre-Release Checklist
 
@@ -135,7 +137,7 @@ make type-check
 
 make security
 
-```
+```bash
 
 ### 2. Testing
 
@@ -157,7 +159,7 @@ pytest tests/integration/ -m integration -v
 
 pytest tests/ -v -m "priority_p0 or priority_p1"
 
-```
+```bash
 
 - *Minimum Requirements:**
 - All P0 tests must pass
@@ -177,7 +179,7 @@ make docs
 make docs-en
 make docs-zh
 
-```
+```bash
 
 - *Verify:**
 - [ ] All new features have documentation
@@ -199,7 +201,7 @@ __version__ = "1.0.0"
 
 __version__ = "1.1.0"
 
-```
+```bash
 Verify version is accessible:
 
 ```bash
@@ -207,7 +209,7 @@ python -c "import backtrader; print(backtrader.__version__)"
 
 # Should output: 1.1.0
 
-```
+```bash
 
 ### 5. CHANGELOG.md
 
@@ -248,7 +250,7 @@ Update `CHANGELOG.md` following [Keep a Changelog](<https://keepachangelog.com/)
 
 - Rate limit awareness for CCXT API calls
 
-```
+```bash
 
 ## Release Procedure
 
@@ -271,7 +273,7 @@ make test-coverage
 make docs
 make quality-check
 
-```
+```bash
 
 ### Step 2: Update Files
 
@@ -290,7 +292,7 @@ vim CHANGELOG.md
 git add backtrader/version.py CHANGELOG.md
 git commit -m "chore: prepare release v1.1.0"
 
-```
+```bash
 
 ### Step 3: Build Distribution Packages
 
@@ -314,7 +316,7 @@ ls -lh dist/
 
 # backtrader-1.1.0-py3-none-any.whl
 
-```
+```bash
 
 ### Step 4: Test Distribution
 
@@ -346,7 +348,7 @@ print('Backtrader installed successfully')
 deactivate
 rm -rf /tmp/test-env
 
-```
+```bash
 
 ### Step 5: Merge to Master
 
@@ -373,7 +375,7 @@ Features:
 
 See CHANGELOG.md for full details."
 
-```
+```bash
 
 ### Step 6: Push and Publish
 
@@ -394,7 +396,7 @@ git push origin dev
 
 twine upload dist/*
 
-```
+```bash
 
 - *Note:** PyPI publishing requires:
 - Registered PyPI account
@@ -419,7 +421,7 @@ pip install build twine
 username = __token__
 password = pypi-...your-token-here...
 
-```
+```bash
 
 ### Publishing Command
 
@@ -441,7 +443,7 @@ twine upload --repository testpypi dist/*
 
 twine upload dist/*
 
-```
+```bash
 
 ### Verify PyPI Release
 
@@ -456,7 +458,7 @@ cd backtrader && pip install -U .
 
 python -c "import backtrader; print(backtrader.__version__)"
 
-```
+```bash
 
 ## GitHub Release
 
@@ -514,7 +516,7 @@ If you're upgrading from v1.0.0:
 
 ### Installation
 
-```
+```bash
 git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader && pip install -U .
 
@@ -536,7 +538,7 @@ See [CHANGELOG.md](<https://github.com/cloudQuant/backtrader/blob/dev/CHANGELOG.
 
 Thank you to all contributors!
 
-```
+```bash
 
 ## Post-Release Tasks
 
@@ -560,7 +562,7 @@ vim CHANGELOG.md
 
 - (placeholder for next changes)
 
-```
+```bash
 
 ### 2. Announcements
 
@@ -587,7 +589,7 @@ Full details: <https://github.com/cloudQuant/backtrader/releases/tag/v1.1.0>
 
 # python #trading #backtesting
 
-```
+```bash
 
 ### 3. Documentation Updates
 
@@ -609,7 +611,7 @@ git push origin --delete release/1.1.0
 
 make clean
 
-```
+```bash
 
 ### 5. Monitor Issues
 
@@ -653,7 +655,7 @@ git push origin v2.0.0rc2
 git tag -a v2.0.0 -m "Release v2.0.0"
 git push origin v2.0.0
 
-```
+```bash
 
 ## Emergency Releases
 
@@ -687,7 +689,7 @@ git merge hotfix/critical-security-fix
 
 git push origin master dev --tags
 
-```
+```bash
 
 ## Quick Reference Card
 
@@ -711,7 +713,7 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z"  # Create release tag
 
 git push origin --tags                  # Push tags
 
-```
+```bash
 
 ## Troubleshooting
 
@@ -734,7 +736,7 @@ pip uninstall backtrader
 git clone <https://github.com/cloudQuant/backtrader.git>
 cd backtrader && pip install -U .
 
-```
+```bash
 
 ### Build Failures
 
@@ -756,7 +758,7 @@ git diff
 rm -rf dist/ build/*.egg-info/
 python -m build
 
-```
+```bash
 
 ### PyPI Upload Errors
 

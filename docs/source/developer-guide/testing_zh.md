@@ -1,8 +1,10 @@
----
+- --
+
 title: 测试指南
 description: Backtrader 开发者测试实践和指南
 
----
+- --
+
 # 测试指南
 
 本指南介绍为 Backtrader 框架贡献代码时的测试实践和指南。
@@ -31,7 +33,7 @@ Backtrader 使用 **pytest**作为测试框架。主要特性：
 ```bash
 pip install pytest pytest-cov pytest-xdist
 
-```
+```bash
 
 ### 配置
 
@@ -57,7 +59,7 @@ filterwarnings =
     ignore::RuntimeWarning
     ignore::DeprecationWarning
 
-```
+```bash
 
 ## 测试组织
 
@@ -79,7 +81,7 @@ tests/
 
 └── integration/             # 集成测试
 
-```
+```bash
 
 ### 测试文件命名
 
@@ -114,7 +116,7 @@ def test_sma_calculation():
 # 断言
     assert result == expected
 
-```
+```bash
 
 ### 集成测试
 
@@ -139,7 +141,7 @@ def test_ib_connection():
     result = cerebro.run()
     assert len(result) > 0
 
-```
+```bash
 
 ### 优先级
 
@@ -180,7 +182,7 @@ async def test_websocket_feed():
     """WebSocket 专用测试。"""
     pass
 
-```
+```bash
 
 ### 使用标记运行
 
@@ -202,7 +204,7 @@ pytest tests/ -m "priority_p0 or priority_p1"
 
 pytest tests/ -m "not websocket"
 
-```
+```bash
 
 ## 编写测试
 
@@ -227,7 +229,7 @@ def test_indicator_calculation():
     assert len(result) == 1
     assert result[0].analyzers.sharpe.get_analysis()['sharperatio'] > 0
 
-```
+```bash
 
 ### 完整测试示例
 
@@ -338,7 +340,7 @@ def test_sma_with_multiple_data_feeds():
     results = cerebro.run()
     assert len(results) == 1
 
-```
+```bash
 
 ### 测试策略
 
@@ -380,7 +382,7 @@ def test_strategy_buy_signal():
 # 验证至少执行了一个买入订单
     assert strat.buy_executed
 
-```
+```bash
 
 ### 使用模拟数据测试
 
@@ -427,7 +429,7 @@ def test_with_mock_data():
     result = cerebro.run()
     assert len(result) > 0
 
-```
+```bash
 
 ## 夹具和辅助工具
 
@@ -462,7 +464,7 @@ def cerebro_with_cash(cerebro_engine):
     cerebro_engine.broker.setcash(10000.0)
     return cerebro_engine
 
-```
+```bash
 
 ### 使用夹具
 
@@ -475,7 +477,7 @@ def test_with_fixture(sample_data, cerebro_engine):
     result = cerebro_engine.run()
     assert len(result) > 0
 
-```
+```bash
 
 ### 创建自定义夹具
 
@@ -494,7 +496,7 @@ def macd_indicator():
 
     return MACDStrategy
 
-```
+```bash
 
 ## 覆盖率要求
 
@@ -521,7 +523,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
 ]
 
-```
+```bash
 
 ### 运行覆盖率
 
@@ -539,7 +541,7 @@ pytest tests/ --cov=backtrader --cov-report=html
 
 pytest tests/ -m "not integration" --cov=backtrader
 
-```
+```bash
 
 ### 覆盖率目标
 
@@ -581,7 +583,7 @@ pytest tests/ -l
 
 pytest tests/ -s
 
-```
+```bash
 
 ### 按类别运行
 
@@ -603,7 +605,7 @@ pytest tests/add_tests/test_analyzer*.py tests/original_tests/test_analyzer*.py 
 
 pytest tests/add_tests/test_broker.py -v
 
-```
+```bash
 
 ### 使用 Make 运行
 
@@ -621,7 +623,7 @@ make test-coverage
 
 make test-file TEST=tests/add_tests/test_sma.py
 
-```
+```bash
 
 ### 持续测试
 
@@ -631,7 +633,7 @@ make test-file TEST=tests/add_tests/test_sma.py
 pip install pytest-watch
 ptw tests/ -- -v
 
-```
+```bash
 
 ## 最佳实践
 
@@ -674,7 +676,7 @@ def test_failing_case():
 
 # ... 其余测试代码
 
-```
+```bash
 
 ### 使用 pytest 的 pdb
 
@@ -688,7 +690,7 @@ pytest tests/ --pdb
 
 pytest tests/ --pdb --trace
 
-```
+```bash
 
 ### 打印测试输出
 
@@ -702,7 +704,7 @@ pytest tests/ -s -v
 
 pytest tests/ --capture=no
 
-```
+```bash
 
 ## 测试数据
 
@@ -720,7 +722,7 @@ tests/datas/
 
 └── ...
 
-```
+```bash
 
 ### 创建测试数据
 
@@ -748,7 +750,7 @@ def create_test_csv(filename, num_bars=100):
             ])
             dt += timedelta(days=1)
 
-```
+```bash
 
 ## 常见测试场景
 
@@ -774,7 +776,7 @@ def test_indicator_registration():
 # 验证策略已运行
     assert len(cerebro.runstrats[0]) > 0
 
-```
+```bash
 
 ### 测试分析器
 
@@ -800,7 +802,7 @@ def test_sharpe_analyzer():
     analysis = strat.analyzers.sharpe.get_analysis()
     assert 'sharperatio' in analysis
 
-```
+```bash
 
 ### 测试观察器
 
@@ -822,7 +824,7 @@ def test_drawdown_observer():
 # 验证观察器已附加
     assert len(strat.observers) > 0
 
-```
+```bash
 
 ## 另请参阅
 

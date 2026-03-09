@@ -1,8 +1,10 @@
----
+- --
+
 title: Order API
 description: Complete Order class API reference
 
----
+- --
+
 # Order API
 
 The Order system in Backtrader manages order creation, execution tracking, and status management. It supports multiple order types including Market, Limit, Stop, StopLimit, StopTrail, and Close orders.
@@ -19,7 +21,7 @@ OrderBase
             StopSellOrder
             StopLimitSellOrder
 
-```
+```bash
 
 ## Order Base Class
 
@@ -31,7 +33,7 @@ The base class for all order types. Provides common attributes and methods for o
 class backtrader.OrderBase:
     """Base class for order objects."""
 
-```
+```bash
 
 ## Order Types
 
@@ -43,7 +45,7 @@ Main order class for buy/sell orders. Extends `OrderBase` with order direction a
 class backtrader.Order(backtrader.OrderBase):
     """Order class for buy/sell orders."""
 
-```
+```bash
 
 ### `BuyOrder`
 
@@ -54,7 +56,7 @@ class backtrader.BuyOrder(backtrader.Order):
     """Buy order class."""
     ordtype = Order.Buy
 
-```
+```bash
 
 ### `SellOrder`
 
@@ -65,7 +67,7 @@ class backtrader.SellOrder(backtrader.Order):
     """Sell order class."""
     ordtype = Order.Sell
 
-```
+```bash
 
 ## Execution Types
 
@@ -97,7 +99,7 @@ Orders can have different execution types specified via the `exectype` parameter
 
 exectype = Order.ExecType('Market')  # Returns Order.Market
 
-```
+```bash
 
 ## Order Status
 
@@ -136,7 +138,7 @@ if order.status == Order.Completed:
 
 status_name = order.getstatusname()  # e.g., 'Completed'
 
-```
+```bash
 
 ## Order Direction
 
@@ -157,7 +159,7 @@ if order.isbuy():
 elif order.issell():
     print('Sell order')
 
-```
+```bash
 
 ## Order Parameters
 
@@ -267,7 +269,7 @@ Check if order can still be executed.
 if order.alive():
     print('Order is still active')
 
-```
+```bash
 Returns `True` if status is Created, Submitted, Partial, or Accepted.
 
 #### `active(self)`
@@ -278,7 +280,7 @@ Check if order is active.
 if order.active():
     print('Order is active')
 
-```
+```bash
 
 #### `brokerstatus(self)`
 
@@ -287,7 +289,7 @@ Get current status from broker.
 ```python
 status = order.brokerstatus()
 
-```
+```bash
 
 ### Type Methods
 
@@ -299,7 +301,7 @@ Returns `True` if order is a buy order.
 if order.isbuy():
     print('Buy order')
 
-```
+```bash
 
 #### `issell(self)`
 
@@ -309,7 +311,7 @@ Returns `True` if order is a sell order.
 if order.issell():
     print('Sell order')
 
-```
+```bash
 
 #### `getstatusname(self, status=None)`
 
@@ -320,7 +322,7 @@ name = order.getstatusname()  # e.g., 'Completed'
 
 name = order.getstatusname(Order.Submitted)  # 'Submitted'
 
-```
+```bash
 
 #### `getordername(self, exectype=None)`
 
@@ -331,7 +333,7 @@ name = order.getordername()  # e.g., 'Market'
 
 name = order.getordername(Order.Limit)  # 'Limit'
 
-```
+```bash
 
 #### `ordtypename(self, ordtype=None)`
 
@@ -342,7 +344,7 @@ name = order.ordtypename()  # e.g., 'Buy'
 
 name = order.ordtypename(Order.Sell)  # 'Sell'
 
-```
+```bash
 
 ### Lifecycle Methods
 
@@ -353,7 +355,7 @@ Mark order as submitted to broker.
 ```python
 order.submit(broker=self.broker)
 
-```
+```bash
 
 #### `accept(self, broker=None)`
 
@@ -362,7 +364,7 @@ Mark order as accepted by broker.
 ```python
 order.accept(broker=self.broker)
 
-```
+```bash
 
 #### `reject(self, broker=None)`
 
@@ -371,7 +373,7 @@ Mark order as rejected.
 ```python
 order.reject(broker=self.broker)
 
-```
+```bash
 
 #### `cancel(self)`
 
@@ -380,7 +382,7 @@ Cancel the order.
 ```python
 order.cancel()
 
-```
+```bash
 
 #### `expire(self)`
 
@@ -390,7 +392,7 @@ Mark order as expired. Returns `True` if order should expire.
 if order.expire():
     print('Order expired')
 
-```
+```bash
 
 #### `completed(self)`
 
@@ -399,7 +401,7 @@ Mark order as completed.
 ```python
 order.completed()
 
-```
+```bash
 
 #### `partial(self)`
 
@@ -408,7 +410,7 @@ Mark order as partially filled.
 ```python
 order.partial()
 
-```
+```bash
 
 #### `margin(self)`
 
@@ -417,7 +419,7 @@ Mark order as margin call.
 ```python
 order.margin()
 
-```
+```bash
 
 ### Configuration Methods
 
@@ -428,7 +430,7 @@ Associate commission scheme with order.
 ```python
 order.addcomminfo(comminfo)
 
-```
+```bash
 
 #### `addinfo(self, **kwargs)`
 
@@ -437,7 +439,7 @@ Add custom information to order.
 ```python
 order.addinfo(reason='Entry', signal='MA Cross')
 
-```
+```bash
 
 #### `setposition(self, position)`
 
@@ -446,7 +448,7 @@ Set current position for the asset.
 ```python
 order.setposition(position)
 
-```
+```bash
 
 #### `clone(self)`
 
@@ -455,7 +457,7 @@ Clone the order object.
 ```python
 order_clone = order.clone()
 
-```
+```bash
 
 ## OrderData Class
 
@@ -467,7 +469,7 @@ Holds actual order data for creation and execution.
 class backtrader.OrderData:
     """Holds actual order data for Creation and Execution."""
 
-```
+```bash
 
 ### OrderData Attributes
 
@@ -539,7 +541,7 @@ Holds information about a single order execution.
 class backtrader.OrderExecutionBit:
     """Holds information about order execution."""
 
-```
+```bash
 
 ### OrderExecutionBit Attributes
 
@@ -596,7 +598,7 @@ stateDiagram-v2
     Rejected --> [*]
     Margin --> [*]
 
-```
+```bash
 
 ## Code Examples
 
@@ -617,7 +619,7 @@ class MyStrategy(bt.Strategy):
 # Market sell
         order = self.sell()
 
-```
+```bash
 
 ### Limit Order
 
@@ -635,7 +637,7 @@ class MyStrategy(bt.Strategy):
         if self.data.close[0] > 100:
             order = self.sell(price=100.5, exectype=Order.Limit)
 
-```
+```bash
 
 ### Stop Order
 
@@ -659,7 +661,7 @@ class MyStrategy(bt.Strategy):
             stop_price = self.entry_price * 0.98
             self.sell(price=stop_price, exectype=Order.Stop)
 
-```
+```bash
 
 ### Stop-Limit Order
 
@@ -676,7 +678,7 @@ class MyStrategy(bt.Strategy):
             exectype=Order.StopLimit
         )
 
-```
+```bash
 
 ### Trailing Stop Order
 
@@ -699,7 +701,7 @@ class MyStrategy(bt.Strategy):
                 trailpercent=0.05  # 5%
             )
 
-```
+```bash
 
 ### Close Order
 
@@ -718,7 +720,7 @@ class MyStrategy(bt.Strategy):
 # Close short position
             order = self.close()
 
-```
+```bash
 
 ### Order with Validity
 
@@ -739,7 +741,7 @@ class MyStrategy(bt.Strategy):
 # Good until specific date
         order = self.buy(valid=datetime(2024, 12, 31))
 
-```
+```bash
 
 ### Bracket Orders
 
@@ -771,7 +773,7 @@ class MyStrategy(bt.Strategy):
                 transmit=True  # This transmits all bracket orders
             )
 
-```
+```bash
 
 ### OCO (One-Cancels-Other)
 
@@ -796,7 +798,7 @@ class MyStrategy(bt.Strategy):
                 oco=tp1  # Cancel tp1 when tp2 executes
             )
 
-```
+```bash
 
 ### Order Notification
 
@@ -835,7 +837,7 @@ class MyStrategy(bt.Strategy):
         elif order.status == order.Rejected:
             self.log('Order Rejected')
 
-```
+```bash
 
 ### CommissionInfo Integration
 
@@ -858,7 +860,7 @@ class MyStrategy(bt.Strategy):
                 f'PnL: {pnl:.2f}'
             )
 
-```
+```bash
 
 ## CommissionInfo
 
@@ -881,7 +883,7 @@ Internal parameter container for order configuration. Not typically used directl
 class backtrader.OrderParams:
     """Simple parameter container for Order classes."""
 
-```
+```bash
 
 ## Best Practices
 

@@ -1,8 +1,10 @@
----
+- --
+
 title: Order API
 description: Order 类完整 API 参考
 
----
+- --
+
 # Order API
 
 `Order` 类是 Backtrader 中订单管理的核心，支持多种订单类型（市价、限价、止损、止损限价、追踪止损等）和完整的订单生命周期管理。
@@ -19,7 +21,7 @@ OrderBase          # 订单基类，包含核心功能
             StopSellOrder          # 止损卖出
             StopLimitSellOrder     # 止损限价卖出
 
-```
+```bash
 
 ## 核心类
 
@@ -31,7 +33,7 @@ OrderBase          # 订单基类，包含核心功能
 class backtrader.OrderBase:
     """订单基类。"""
 
-```
+```bash
 
 ### Order
 
@@ -41,7 +43,7 @@ class backtrader.OrderBase:
 class backtrader.Order(OrderBase):
     """订单类，用于买入/卖出订单。"""
 
-```
+```bash
 
 ### OrderData
 
@@ -51,7 +53,7 @@ class backtrader.Order(OrderBase):
 class backtrader.OrderData:
     """存储订单创建和执行数据。"""
 
-```
+```bash
 
 ### OrderExecutionBit
 
@@ -61,7 +63,7 @@ class backtrader.OrderData:
 class backtrader.OrderExecutionBit:
     """存储单次订单执行信息。"""
 
-```
+```bash
 
 ## 订单类型
 
@@ -233,7 +235,7 @@ class backtrader.OrderExecutionBit:
 if order.alive():
     print("订单仍活跃")
 
-```
+```bash
 
 #### `active(self)`
 
@@ -243,7 +245,7 @@ if order.alive():
 if order.active():
     print("订单已激活")
 
-```
+```bash
 
 #### `isbuy(self)`
 
@@ -253,7 +255,7 @@ if order.active():
 if order.isbuy():
     print("这是买入订单")
 
-```
+```bash
 
 #### `issell(self)`
 
@@ -263,7 +265,7 @@ if order.isbuy():
 if order.issell():
     print("这是卖出订单")
 
-```
+```bash
 
 ### 状态管理
 
@@ -274,7 +276,7 @@ if order.issell():
 ```python
 order.submit(broker=self.broker)
 
-```
+```bash
 
 #### `accept(self, broker=None)`
 
@@ -283,7 +285,7 @@ order.submit(broker=self.broker)
 ```python
 order.accept(broker=self.broker)
 
-```
+```bash
 
 #### `reject(self, broker=None)`
 
@@ -292,7 +294,7 @@ order.accept(broker=self.broker)
 ```python
 order.reject()
 
-```
+```bash
 
 #### `cancel(self)`
 
@@ -301,7 +303,7 @@ order.reject()
 ```python
 order.cancel()
 
-```
+```bash
 
 #### `expire(self)`
 
@@ -311,7 +313,7 @@ order.cancel()
 if order.expire():
     print("订单已过期")
 
-```
+```bash
 
 ### 执行方法
 
@@ -336,7 +338,7 @@ order.execute(
     pprice=100.5
 )
 
-```
+```bash
 
 #### `partial(self)`
 
@@ -345,7 +347,7 @@ order.execute(
 ```python
 order.partial()
 
-```
+```bash
 
 #### `completed(self)`
 
@@ -354,7 +356,7 @@ order.partial()
 ```python
 order.completed()
 
-```
+```bash
 
 ### 信息获取
 
@@ -367,7 +369,7 @@ status_name = order.getstatusname()  # 例如: "Completed"
 
 status_name = order.getstatusname(Order.Submitted)  # "Submitted"
 
-```
+```bash
 
 #### `getordername(self, exectype=None)`
 
@@ -378,7 +380,7 @@ order_type = order.getordername()  # 例如: "Market"
 
 order_type = order.getordername(Order.Limit)  # "Limit"
 
-```
+```bash
 
 #### `ordtypename(self, ordtype=None)`
 
@@ -387,7 +389,7 @@ order_type = order.getordername(Order.Limit)  # "Limit"
 ```python
 direction = order.ordtypename()  # "Buy" 或 "Sell"
 
-```
+```bash
 
 ### 其他方法
 
@@ -398,7 +400,7 @@ direction = order.ordtypename()  # "Buy" 或 "Sell"
 ```python
 order_copy = order.clone()
 
-```
+```bash
 
 #### `addcomminfo(self, comminfo)`
 
@@ -407,7 +409,7 @@ order_copy = order.clone()
 ```python
 order.addcomminfo(comminfo)
 
-```
+```bash
 
 #### `addinfo(self, **kwargs)`
 
@@ -416,7 +418,7 @@ order.addcomminfo(comminfo)
 ```python
 order.addinfo(strategy_id=1, reason="Breakout")
 
-```
+```bash
 
 #### `setposition(self, position)`
 
@@ -425,7 +427,7 @@ order.addinfo(strategy_id=1, reason="Breakout")
 ```python
 order.setposition(current_position)
 
-```
+```bash
 
 ## 订单有效期
 
@@ -463,7 +465,7 @@ order = self.buy(valid=timedelta(days=7))
 
 order = self.buy(valid=3600)  # 1 小时后过期
 
-```
+```bash
 
 ## 订单生命周期
 
@@ -487,7 +489,7 @@ stateDiagram-v2
     Rejected --> [*]
     Margin --> [*]
 
-```
+```bash
 
 ## 订单创建示例
 
@@ -508,7 +510,7 @@ class MyStrategy(bt.Strategy):
 # 指定数据源
         order = self.buy(data=self.datas[1])
 
-```
+```bash
 
 ### 限价单
 
@@ -525,7 +527,7 @@ class MyStrategy(bt.Strategy):
 # 限价单带数量
         order = self.buy(size=100, price=100.0)
 
-```
+```bash
 
 ### 止损单
 
@@ -539,7 +541,7 @@ class MyStrategy(bt.Strategy):
 # 止损卖出
         order = self.sell(price=95.0, exectype=Order.Stop)
 
-```
+```bash
 
 ### 止损限价单
 
@@ -556,7 +558,7 @@ class MyStrategy(bt.Strategy):
             exectype=Order.StopLimit
         )
 
-```
+```bash
 
 ### 追踪止损单
 
@@ -576,7 +578,7 @@ class MyStrategy(bt.Strategy):
             trailpercent=0.05  # 追踪距离 5%
         )
 
-```
+```bash
 
 ### 收盘价单
 
@@ -587,7 +589,7 @@ class MyStrategy(bt.Strategy):
 # 以收盘价成交
         order = self.buy(exectype=Order.Close)
 
-```
+```bash
 
 ### 平仓订单
 
@@ -604,7 +606,7 @@ class MyStrategy(bt.Strategy):
 # 平掉指定数据源的持仓
         order = self.close(data=self.datas[1])
 
-```
+```bash
 
 ## 复杂订单组合
 
@@ -640,7 +642,7 @@ class MyStrategy(bt.Strategy):
 # 传输订单
         main_order.transmit = True
 
-```
+```bash
 
 ## 订单通知处理
 
@@ -677,7 +679,7 @@ class MyStrategy(bt.Strategy):
         elif order.status == order.Partial:
             self.log(f'订单部分成交: {order.executed.remsize} 待执行')
 
-```
+```bash
 
 ## CommissionInfo 集成
 
@@ -704,7 +706,7 @@ class MyStrategy(bt.Strategy):
 # 盈亏信息
             self.log(f'盈亏: {executed.pnl:.2f}')
 
-```
+```bash
 
 ## 订单执行记录
 
@@ -724,7 +726,7 @@ class MyStrategy(bt.Strategy):
                 first = order.executed[0]
                 self.log(f'首次执行: {first.dt}, {first.price}')
 
-```
+```bash
 
 ## 完整策略示例
 
@@ -816,7 +818,7 @@ class OrderStrategy(bt.Strategy):
             print(f'交易完成: 毛盈亏={trade.pnl:.2f}, '
                   f'净盈亏={trade.pnlcomm:.2f}')
 
-```
+```bash
 
 ## 常见问题
 
@@ -836,7 +838,7 @@ A: 使用 `order.status == Order.Partial` 和 `order.executed.remsize`:
 if order.status == Order.Partial:
     print(f'已成交: {order.executed.size}, 剩余: {order.executed.remsize}')
 
-```
+```bash
 
 ### Q: 追踪止损如何工作?
 
@@ -852,7 +854,7 @@ A: 使用策略的 `cancel()` 方法:
 ```python
 self.cancel(order)
 
-```
+```bash
 
 ## 下一步学习
 
