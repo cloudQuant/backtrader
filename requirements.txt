@@ -15,6 +15,10 @@ tqdm>=4.50.0
 # numba>=0.50.0  # Optional, may have platform-specific issues
 # spdlog  # Optional C++ binding, may fail on some platforms
 # python-rapidjson  # Optional, may fail on some platforms
+# Type stubs for mypy (dev)
+types-pytz>=2021.1
+types-python-dateutil>=2.8.0
+types-PyMySQL>=1.0.0
 pytest>=6.0.0
 pytest-benchmark>=3.4.0
 pytest-sugar>=0.9.0

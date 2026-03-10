@@ -4,6 +4,7 @@ Helper utility functions.
 """
 
 import re
+from typing import List
 
 
 def get_datanames(strategy):
@@ -15,7 +16,7 @@ def get_datanames(strategy):
     Returns:
         list: List of data source names
     """
-    datanames = []
+    datanames: List[str] = []
 
     if strategy is None or not hasattr(strategy, "datas"):
         return datanames
