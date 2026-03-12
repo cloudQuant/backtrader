@@ -450,6 +450,20 @@ class Strategy(StrategyBase):
                 if hasattr(observer, "notify_data_event"):
                     observer.notify_data_event(data, status, *args, **kwargs)
 
+    def _notify_tick_to_observers(self, tick):
+        """Forward tick events to observers that support tick logging."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_tick_event"):
+                    observer.notify_tick_event(tick)
+
+    def _notify_bar_to_observers(self, bar):
+        """Forward bar events to observers that support bar logging."""
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_bar_event"):
+                    observer.notify_bar_event(bar)
+
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
 

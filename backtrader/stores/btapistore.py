@@ -11,6 +11,7 @@ from __future__ import annotations
 import collections
 import datetime as _dt
 import importlib
+import os
 import time
 import uuid
 from typing import Any, Deque, Dict, Iterable, List, Optional
@@ -20,6 +21,7 @@ from .livestore import LiveStoreBase
 
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
+_GATEWAY_PROVIDERS = frozenset({"gateway", "ctp_gateway"})
 _CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
 _CTP_OFFSET_FLAG = {
@@ -223,6 +225,8 @@ def _resolve_bt_api_client(provider: str = "btapi"):
     # For CTP provider, return a wrapper class
     if provider.lower() == "ctp":
         return _create_ctp_wrapper_class()
+    if _is_gateway_provider(provider):
+        return _create_ctp_gateway_wrapper_class()
 
     # For other providers, try to find standard client classes
     for candidate in ("BtApi", "BTApi", "BtAPI", "ApiClient", "Client"):
@@ -241,6 +245,7 @@ def _create_ctp_wrapper_class():
             CThostFtdcInputOrderActionField,
             CThostFtdcInputOrderField,
         )
+        from bt_api_py.ctp.ctp_structs_query import CThostFtdcQryInstrumentField
     except ImportError as exc:
         raise BtApiMissingDependencyError("bt_api_py CTP support is not available") from exc
 
@@ -266,6 +271,7 @@ def _create_ctp_wrapper_class():
             self._subscribed_aliases = set()
             self._last_total_volume = {}
             self._last_tick_price = {}
+            self._price_tick_cache = {}
             self._order_updates = collections.deque()
             self._pending_orders = {}
             self._pending_orders_by_sys_id = {}
@@ -457,6 +463,71 @@ def _create_ctp_wrapper_class():
             """Get next bar (not implemented)."""
             return None
 
+        def _get_price_tick(self, instrument):
+            """Return the minimum price tick for *instrument*.
+
+            Queries CTP via ReqQryInstrument on the first call for each
+            instrument and caches the result.  Falls back to a conservative
+            estimate derived from the last tick price when the query fails.
+            """
+            cached = self._price_tick_cache.get(instrument)
+            if cached is not None:
+                return cached
+
+            # Try querying CTP for the instrument's PriceTick
+            if self.trader_client and self.trader_client.is_ready:
+                try:
+                    import threading
+                    result_event = threading.Event()
+                    result_holder = {}
+
+                    original_cb = getattr(self.trader_client, '_on_rsp_qry_instrument', None)
+
+                    def _on_instrument(inst_field, rsp_info, request_id, is_last):
+                        try:
+                            if inst_field is not None:
+                                iid = getattr(inst_field, 'InstrumentID', '')
+                                pt = getattr(inst_field, 'PriceTick', 0.0)
+                                if pt > 0:
+                                    self._price_tick_cache[iid] = pt
+                                    if iid == instrument:
+                                        result_holder['price_tick'] = pt
+                        except Exception:
+                            pass
+                        if is_last:
+                            result_event.set()
+
+                    self.trader_client._spi.OnRspQryInstrument = _on_instrument
+                    qry = CThostFtdcQryInstrumentField()
+                    qry.InstrumentID = instrument
+                    self.trader_client._req_id += 1
+                    self.trader_client._api.ReqQryInstrument(
+                        qry, self.trader_client._req_id
+                    )
+                    result_event.wait(timeout=3)
+
+                    if instrument in self._price_tick_cache:
+                        return self._price_tick_cache[instrument]
+                except Exception:
+                    pass
+
+            # Fallback: estimate from last tick price
+            last_price = self._last_tick_price.get(instrument, 0)
+            if last_price > 0:
+                # Conservative estimate: smallest meaningful tick relative to price
+                if last_price >= 1000:
+                    tick = 1.0
+                elif last_price >= 100:
+                    tick = 0.5
+                elif last_price >= 10:
+                    tick = 0.2
+                else:
+                    tick = 0.01
+            else:
+                tick = 1.0
+            self._price_tick_cache[instrument] = tick
+            return tick
+
         def submit_order(self, payload):
             """Submit an order."""
             if not self.trader_client or not self.trader_client.is_ready:
@@ -507,11 +578,28 @@ def _create_ctp_wrapper_class():
             if exchange_id:
                 field.ExchangeID = exchange_id
 
-            if order_type == "market":
-                field.OrderPriceType = "1"
-                field.TimeCondition = "1"
-                field.VolumeCondition = "1"
-                field.LimitPrice = 0.0
+            if order_type == "market" or (order_type == "limit" and price <= 0):
+                # Chinese futures exchanges do not support true market orders
+                # (OrderPriceType="1" / AnyPrice).  Convert to a limit order
+                # using the last tick price ± 5 ticks so the order is accepted
+                # by the exchange.
+                last_price = self._last_tick_price.get(instrument)
+                if last_price is None or last_price <= 0:
+                    raise BtApiStoreError(
+                        f"CTP market order for {instrument} rejected: "
+                        f"no recent tick price available to convert to limit order"
+                    )
+                price_tick = self._get_price_tick(instrument)
+                slippage = price_tick * 5
+                if side == "buy":
+                    limit_price = last_price + slippage
+                else:
+                    limit_price = max(last_price - slippage, price_tick)
+                field.OrderPriceType = "2"   # LimitPrice
+                field.TimeCondition = "3"    # GFD (good for day)
+                field.VolumeCondition = "1"  # AnyVolume
+                field.LimitPrice = round(limit_price, 4)
+                price = field.LimitPrice
             else:
                 if price <= 0:
                     raise BtApiStoreError("CTP limit order requires a positive price")
@@ -707,6 +795,20 @@ def _create_ctp_wrapper_class():
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
             pending = self._pending_orders.get(order_ref, {})
+
+            # Filter out cross-strategy order notifications: CTP sends
+            # OnRtnOrder for ALL orders on the account.  Only process
+            # orders that were submitted by this session (exist in
+            # _pending_orders) or whose FrontID+SessionID match ours.
+            if not pending:
+                my_front = int(getattr(self.trader_client, "_front_id", 0) or 0)
+                my_session = int(getattr(self.trader_client, "_session_id", 0) or 0)
+                order_front = _coerce_int(details.get("FrontID"), 0)
+                order_session = _coerce_int(details.get("SessionID"), 0)
+                if my_front and my_session:
+                    if order_front != my_front or order_session != my_session:
+                        return
+
             if order_sys_id:
                 self._pending_orders_by_sys_id[order_sys_id] = pending or {
                     "order_ref": order_ref,
@@ -753,6 +855,11 @@ def _create_ctp_wrapper_class():
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
             pending = self._pending_orders.get(order_ref) or self._pending_orders_by_sys_id.get(order_sys_id, {})
+
+            # Filter out cross-strategy trade notifications (same logic as _handle_order).
+            if not pending:
+                return
+
             event = {
                 "kind": "trade",
                 "trade_id": str(details.get("TradeID") or "").strip(),
@@ -787,6 +894,92 @@ def _create_ctp_wrapper_class():
     return CtpClientWrapper
 
 
+def _create_ctp_gateway_wrapper_class():
+    try:
+        from bt_api_py.gateway.client import GatewayClient
+    except ImportError as exc:
+        raise BtApiMissingDependencyError("bt_api_py gateway support is not available") from exc
+
+    class CtpGatewayClientWrapper:
+        def __init__(self, **kwargs):
+            self._kwargs = dict(kwargs)
+            self._kwargs.setdefault("exchange_type", "CTP")
+            self._kwargs.setdefault("asset_type", self._kwargs.get("asset_type", "FUTURE"))
+            self._client = GatewayClient(**self._kwargs)
+
+        def connect(self):
+            self._client.connect()
+
+        def start(self):
+            self.connect()
+
+        def disconnect(self):
+            self._client.disconnect()
+
+        def stop(self):
+            self.disconnect()
+
+        def subscribe(self, symbols):
+            return self._client.subscribe(symbols)
+
+        def poll_tick(self, symbol):
+            return self._client.poll_tick(symbol)
+
+        def get_next_tick(self, symbol):
+            return self._client.get_next_tick(symbol)
+
+        def has_pending_tick(self, symbol):
+            return self._client.has_pending_tick(symbol)
+
+        def supports_live_ticks(self, symbol):
+            return self._client.supports_live_ticks(symbol)
+
+        def get_balance(self):
+            return self._client.get_balance()
+
+        def get_account(self):
+            return self._client.get_account()
+
+        def get_positions(self):
+            return self._client.get_positions()
+
+        def fetch_bars(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
+            return []
+
+        def fetch_ohlcv(
+            self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
+        ):
+            return []
+
+        def poll_bar(self, symbol):
+            return None
+
+        def get_next_bar(self, symbol):
+            return None
+
+        def submit_order(self, payload):
+            response = self._client.submit_order(payload)
+            if "data_name" in payload and "data_name" not in response:
+                response["data_name"] = payload["data_name"]
+            return response
+
+        def create_order(self, **kwargs):
+            return self.submit_order(kwargs)
+
+        def cancel_order(self, order_ref, dataname=None):
+            return self._client.cancel_order(order_ref, dataname=dataname)
+
+        def poll_broker_update(self):
+            return self._client.poll_broker_update()
+
+    return CtpGatewayClientWrapper
+
+
+def _is_gateway_provider(provider: Any) -> bool:
+    text = str(provider or "").strip().lower()
+    return text in _GATEWAY_PROVIDERS or text.endswith("_gateway")
+
+
 class BtApiStore(LiveStoreBase):
     """Unified live store backed by bt_api_py or a supplied API object."""
 
@@ -809,7 +1002,7 @@ class BtApiStore(LiveStoreBase):
         autostart: bool = False,
         **kwargs: Any,
     ):
-        self.provider = provider
+        self.provider = self._resolve_provider(provider)
         self._api = api
         self._api_cls = api_cls
         self._config = dict(config or {})
@@ -817,6 +1010,7 @@ class BtApiStore(LiveStoreBase):
         # Merge extra kwargs into _api_kwargs for CTP and other providers
         if kwargs:
             self._api_kwargs.update(kwargs)
+        self._apply_env_gateway_overrides()
         self._cash = _coerce_float(cash)
         self._value = _coerce_float(value, self._cash)
         self._positions_cache = list(positions or [])
@@ -842,6 +1036,32 @@ class BtApiStore(LiveStoreBase):
 
         if autostart:
             self.start()
+
+    def _resolve_provider(self, provider: str) -> str:
+        env_provider = str(os.environ.get("BT_STORE_PROVIDER") or "").strip().lower()
+        if str(provider).strip().lower() == "ctp" and _is_gateway_provider(env_provider):
+            return env_provider
+        return provider
+
+    def _apply_env_gateway_overrides(self) -> None:
+        if not _is_gateway_provider(self.provider):
+            return
+        env_map = {
+            "gateway_command_endpoint": "BT_GATEWAY_COMMAND_ENDPOINT",
+            "gateway_event_endpoint": "BT_GATEWAY_EVENT_ENDPOINT",
+            "gateway_market_endpoint": "BT_GATEWAY_MARKET_ENDPOINT",
+            "account_id": "BT_GATEWAY_ACCOUNT_ID",
+            "exchange_type": "BT_GATEWAY_EXCHANGE_TYPE",
+            "asset_type": "BT_GATEWAY_ASSET_TYPE",
+        }
+        for key, env_name in env_map.items():
+            value = os.environ.get(env_name)
+            if value and key not in self._api_kwargs:
+                self._api_kwargs[key] = value
+        if "gateway_start_local_runtime" not in self._api_kwargs:
+            raw = os.environ.get("BT_GATEWAY_START_LOCAL_RUNTIME")
+            if raw is not None:
+                self._api_kwargs["gateway_start_local_runtime"] = raw not in {"0", "false", "False"}
 
     @property
     def is_connected(self) -> bool:
@@ -1262,7 +1482,7 @@ class BtApiStore(LiveStoreBase):
         self._successful_connect_count += 1
         self.emit_runtime_event("store_connected", status="connected")
         self.emit_runtime_event("store_ready", status="ready")
-        if str(self.provider).lower() == "ctp":
+        if str(self.provider).lower() == "ctp" or _is_gateway_provider(self.provider):
             self.emit_runtime_event("store_auth_success", status="ready")
             self.emit_runtime_event("store_login_success", status="ready")
         self.get_balance()

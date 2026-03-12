@@ -11,6 +11,8 @@ Features:
     - Position logging (position.log) - every bar
     - Indicator logging (indicator.log) - every bar
     - Signal logging (signal.log) - on buy/sell
+    - Tick logging (tick.log) - every tick received
+    - Bar logging (bar.log) - every synthesized bar
     - Position snapshot (current_position.yaml)
     - Optional MySQL support
 
@@ -32,9 +34,12 @@ import logging
 import os
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 from ..observer import Observer
+
+# Shanghai timezone (UTC+8) used for all log timestamps
+_SHANGHAI_TZ = timezone(timedelta(hours=8))
 
 # Optional MySQL support
 try:
@@ -70,6 +75,8 @@ class TradeLogger(Observer):
         log_positions (bool): Enable position logging. Default: True
         log_indicators (bool): Enable indicator logging. Default: True
         log_signals (bool): Enable signal logging. Default: True
+        log_ticks (bool): Enable tick logging. Default: True
+        log_bars (bool): Enable bar logging. Default: True
         log_position_snapshot (bool): Enable YAML position snapshot. Default: True
         snapshot_file (str): Snapshot filename. Default: 'current_position.yaml'
         log_format (str): Log format ('json' or 'text'). Default: 'json'
@@ -101,6 +108,8 @@ class TradeLogger(Observer):
         log_positions=True,
         log_indicators=True,
         log_signals=True,
+        log_ticks=True,
+        log_bars=True,
         log_system=True,
         log_monitoring=True,
         log_errors=True,
@@ -140,6 +149,8 @@ class TradeLogger(Observer):
         self._signal_logger = None
         self._system_logger = None
         self._monitor_logger = None
+        self._tick_logger = None
+        self._bar_logger = None
         self._error_logger = None
         self._mysql_conn = None
         self._last_position_state = {}
@@ -204,6 +215,16 @@ class TradeLogger(Observer):
                 "bt_signal", os.path.join(self.p.log_dir, "signal.log")
             )
 
+        if self.p.log_ticks:
+            self._tick_logger = self._create_file_logger(
+                "bt_tick", os.path.join(self.p.log_dir, "tick.log")
+            )
+
+        if self.p.log_bars:
+            self._bar_logger = self._create_file_logger(
+                "bt_bar", os.path.join(self.p.log_dir, "bar.log")
+            )
+
         if self.p.log_system:
             self._system_logger = self._create_file_logger(
                 "bt_system", os.path.join(self.p.log_dir, "system.log")
@@ -257,13 +278,13 @@ class TradeLogger(Observer):
     @staticmethod
     def _generate_run_id():
         """Generate a stable per-run identifier for correlation."""
-        timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
+        timestamp = datetime.now(_SHANGHAI_TZ).strftime("%Y%m%d%H%M%S")
         return f"trade-log-{timestamp}-{uuid.uuid4().hex[:8]}"
 
     @staticmethod
     def _log_time_str():
-        """Return the current UTC timestamp as an ISO string."""
-        return datetime.utcnow().isoformat(timespec="milliseconds")
+        """Return the current Shanghai (UTC+8) timestamp as an ISO string."""
+        return datetime.now(_SHANGHAI_TZ).isoformat(timespec="milliseconds")
 
     def _store_provider(self):
         """Return the active live provider when available."""
@@ -579,7 +600,7 @@ class TradeLogger(Observer):
             dt = self._owner.datetime.datetime()
             return str(dt)
         except Exception:
-            return str(datetime.now())
+            return str(datetime.now(_SHANGHAI_TZ))
 
     def _get_strategy_name(self):
         """Get the strategy class name."""
@@ -690,6 +711,110 @@ class TradeLogger(Observer):
         # MySQL logging
         if self.p.mysql_enabled and self._mysql_conn:
             self._insert_signal_mysql(log_data)
+
+    def notify_tick_event(self, tick):
+        """Log a tick event.
+
+        Called by the strategy's _notify_tick_to_observers when a new tick arrives.
+
+        Args:
+            tick: Tick data object with attributes like symbol, price, volume, etc.
+        """
+        self._ensure_loggers_initialized()
+
+        if not self.p.log_ticks or not self._tick_logger:
+            return
+
+        try:
+            # Extract tick fields — support both dict-like and attribute-based objects
+            if hasattr(tick, "to_dict") and callable(tick.to_dict):
+                tick_dict = tick.to_dict()
+            elif isinstance(tick, dict):
+                tick_dict = dict(tick)
+            else:
+                tick_dict = {}
+                for attr in (
+                    "symbol", "price", "volume", "timestamp", "datetime",
+                    "bid_price", "ask_price", "bid_volume", "ask_volume",
+                    "openinterest", "turnover", "trade_id",
+                    "exchange", "exchange_id", "instrument_id",
+                    "trading_day", "update_time", "update_millisec",
+                    "asset_type", "local_time",
+                ):
+                    val = getattr(tick, attr, None)
+                    if val is not None:
+                        tick_dict[attr] = val
+
+            log_data = {
+                "log_time": self._log_time_str(),
+                "event_type": "tick",
+                "strategy_name": self._get_strategy_name(),
+                **tick_dict,
+            }
+            self._emit_payload(
+                self._tick_logger,
+                log_data,
+                text_line=(
+                    f"{log_data['log_time']} | TICK | "
+                    f"symbol={tick_dict.get('symbol', '')} | "
+                    f"price={tick_dict.get('price', '')} | "
+                    f"volume={tick_dict.get('volume', '')} | "
+                    f"bid={tick_dict.get('bid_price', '')} | "
+                    f"ask={tick_dict.get('ask_price', '')}"
+                ),
+            )
+        except Exception:
+            pass
+
+    def notify_bar_event(self, bar):
+        """Log a bar event.
+
+        Called by the strategy's _notify_bar_to_observers when a new bar is synthesized.
+
+        Args:
+            bar: Bar data object with attributes like symbol, open, high, low, close, volume.
+        """
+        self._ensure_loggers_initialized()
+
+        if not self.p.log_bars or not self._bar_logger:
+            return
+
+        try:
+            if hasattr(bar, "to_dict") and callable(bar.to_dict):
+                bar_dict = bar.to_dict()
+            elif isinstance(bar, dict):
+                bar_dict = dict(bar)
+            else:
+                bar_dict = {}
+                for attr in (
+                    "symbol", "open", "high", "low", "close", "volume",
+                    "timestamp", "datetime", "interval", "period",
+                    "exchange", "asset_type", "turnover", "openinterest",
+                    "trading_day",
+                ):
+                    val = getattr(bar, attr, None)
+                    if val is not None:
+                        bar_dict[attr] = val
+
+            log_data = {
+                "log_time": self._log_time_str(),
+                "event_type": "bar",
+                "strategy_name": self._get_strategy_name(),
+                **bar_dict,
+            }
+            self._emit_payload(
+                self._bar_logger,
+                log_data,
+                text_line=(
+                    f"{log_data['log_time']} | BAR | "
+                    f"symbol={bar_dict.get('symbol', '')} | "
+                    f"O={bar_dict.get('open', '')} H={bar_dict.get('high', '')} "
+                    f"L={bar_dict.get('low', '')} C={bar_dict.get('close', '')} | "
+                    f"vol={bar_dict.get('volume', '')}"
+                ),
+            )
+        except Exception:
+            pass
 
     def notify_store_event(self, msg, *args, **kwargs):
         """Log a structured runtime event forwarded from a store."""

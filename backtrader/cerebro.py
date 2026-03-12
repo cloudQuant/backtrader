@@ -941,6 +941,7 @@ class Cerebro(ParameterizedBase):
                 strat._tick_count += 1
                 strat._last_tick[getattr(data, "symbol", "")] = data
                 strat.notify_tick(data)
+                strat._notify_tick_to_observers(data)
             elif channel_type == "orderbook":
                 strat._last_ob[getattr(data, "symbol", "")] = data
                 strat.notify_orderbook(data)
@@ -949,6 +950,7 @@ class Cerebro(ParameterizedBase):
                 strat.notify_funding(data)
             elif channel_type == "bar":
                 strat.notify_bar(data)
+                strat._notify_bar_to_observers(data)
 
     # ------------------------------------------------------------------
     # Channel mode implementation (called from run(channel=...))

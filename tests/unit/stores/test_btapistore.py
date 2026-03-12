@@ -60,6 +60,71 @@ def test_store_factories_return_btapi_types(fake_client):
     assert isinstance(store.getdata(dataname=DEFAULT_SYMBOL), BtApiFeed)
 
 
+def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
+    monkeypatch.setenv("BT_STORE_PROVIDER", "ctp_gateway")
+    monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
+    monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
+    monkeypatch.setenv("BT_GATEWAY_MARKET_ENDPOINT", "ipc://market")
+    monkeypatch.setenv("BT_GATEWAY_ACCOUNT_ID", "acc-1")
+    monkeypatch.setenv("BT_GATEWAY_EXCHANGE_TYPE", "CTP")
+    monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "FUTURE")
+    monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
+
+    store = BtApiStore(provider="ctp")
+
+    assert store.provider == "ctp_gateway"
+    assert store._api_kwargs["gateway_command_endpoint"] == "ipc://command"
+    assert store._api_kwargs["gateway_event_endpoint"] == "ipc://event"
+    assert store._api_kwargs["gateway_market_endpoint"] == "ipc://market"
+    assert store._api_kwargs["account_id"] == "acc-1"
+    assert store._api_kwargs["exchange_type"] == "CTP"
+    assert store._api_kwargs["asset_type"] == "FUTURE"
+    assert store._api_kwargs["gateway_start_local_runtime"] is False
+
+
+def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):
+    monkeypatch.setenv("BT_STORE_PROVIDER", "gateway")
+    monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
+    monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
+    monkeypatch.setenv("BT_GATEWAY_MARKET_ENDPOINT", "ipc://market")
+    monkeypatch.setenv("BT_GATEWAY_ACCOUNT_ID", "du123456")
+    monkeypatch.setenv("BT_GATEWAY_EXCHANGE_TYPE", "IB_WEB")
+    monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "STK")
+    monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
+
+    store = BtApiStore(provider="ctp")
+
+    assert store.provider == "gateway"
+    assert store._api_kwargs["gateway_command_endpoint"] == "ipc://command"
+    assert store._api_kwargs["gateway_event_endpoint"] == "ipc://event"
+    assert store._api_kwargs["gateway_market_endpoint"] == "ipc://market"
+    assert store._api_kwargs["account_id"] == "du123456"
+    assert store._api_kwargs["exchange_type"] == "IB_WEB"
+    assert store._api_kwargs["asset_type"] == "STK"
+    assert store._api_kwargs["gateway_start_local_runtime"] is False
+
+
+def test_explicit_ib_web_gateway_provider_reads_gateway_env(monkeypatch):
+    monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "ipc://command")
+    monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "ipc://event")
+    monkeypatch.setenv("BT_GATEWAY_MARKET_ENDPOINT", "ipc://market")
+    monkeypatch.setenv("BT_GATEWAY_ACCOUNT_ID", "du654321")
+    monkeypatch.setenv("BT_GATEWAY_EXCHANGE_TYPE", "IB_WEB")
+    monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "FUT")
+    monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "1")
+
+    store = BtApiStore(provider="ib_web_gateway")
+
+    assert store.provider == "ib_web_gateway"
+    assert store._api_kwargs["gateway_command_endpoint"] == "ipc://command"
+    assert store._api_kwargs["gateway_event_endpoint"] == "ipc://event"
+    assert store._api_kwargs["gateway_market_endpoint"] == "ipc://market"
+    assert store._api_kwargs["account_id"] == "du654321"
+    assert store._api_kwargs["exchange_type"] == "IB_WEB"
+    assert store._api_kwargs["asset_type"] == "FUT"
+    assert store._api_kwargs["gateway_start_local_runtime"] is True
+
+
 @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
 def test_placeholder_provider_raises(provider):
     """Providers not yet implemented in bt_api_py should fail explicitly."""
