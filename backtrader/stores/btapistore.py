@@ -21,7 +21,7 @@ from .livestore import LiveStoreBase
 
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
-_GATEWAY_PROVIDERS = frozenset({"gateway", "ctp_gateway"})
+_GATEWAY_PROVIDERS = frozenset({"gateway", "ctp_gateway", "mt5_gateway"})
 _CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
 _CTP_OFFSET_FLAG = {
@@ -944,11 +944,25 @@ def _create_ctp_gateway_wrapper_class():
             return self._client.get_positions()
 
         def fetch_bars(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
+            tf = self._resolve_timeframe(timeframe, compression)
+            count = int(limit or 200)
+            if hasattr(self._client, "fetch_bars"):
+                return self._client.fetch_bars(symbol, tf, count)
             return []
 
         def fetch_ohlcv(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
+            return self.fetch_bars(symbol, timeframe=timeframe, compression=compression, since=since, limit=limit, **kwargs)
+
+        def fetch_symbol_info(self, symbol):
+            if hasattr(self._client, "fetch_symbol_info"):
+                return self._client.fetch_symbol_info(symbol)
+            return {}
+
+        def fetch_open_orders(self):
+            if hasattr(self._client, "fetch_open_orders"):
+                return self._client.fetch_open_orders()
             return []
 
         def poll_bar(self, symbol):
@@ -971,6 +985,29 @@ def _create_ctp_gateway_wrapper_class():
 
         def poll_broker_update(self):
             return self._client.poll_broker_update()
+
+        @staticmethod
+        def _resolve_timeframe(timeframe=None, compression=None):
+            """Map backtrader timeframe+compression to gateway timeframe string."""
+            if isinstance(timeframe, str) and timeframe.upper() in (
+                "M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN1",
+            ):
+                return timeframe.upper()
+            comp = int(compression or 1)
+            try:
+                import backtrader as bt
+                tf_val = timeframe
+                if tf_val == bt.TimeFrame.Minutes:
+                    return {1: "M1", 5: "M5", 15: "M15", 30: "M30", 60: "H1", 240: "H4"}.get(comp, "M1")
+                if tf_val == bt.TimeFrame.Days:
+                    return "D1"
+                if tf_val == bt.TimeFrame.Weeks:
+                    return "W1"
+                if tf_val == bt.TimeFrame.Months:
+                    return "MN1"
+            except Exception:
+                pass
+            return "M1"
 
     return CtpGatewayClientWrapper
 

@@ -125,6 +125,41 @@ def test_explicit_ib_web_gateway_provider_reads_gateway_env(monkeypatch):
     assert store._api_kwargs["gateway_start_local_runtime"] is True
 
 
+def test_mt5_gateway_provider_is_recognized(monkeypatch):
+    """mt5_gateway should be treated as a gateway provider."""
+    monkeypatch.setenv("BT_STORE_PROVIDER", "mt5_gateway")
+    monkeypatch.setenv("BT_GATEWAY_COMMAND_ENDPOINT", "tcp://127.0.0.1:33000")
+    monkeypatch.setenv("BT_GATEWAY_EVENT_ENDPOINT", "tcp://127.0.0.1:33001")
+    monkeypatch.setenv("BT_GATEWAY_MARKET_ENDPOINT", "tcp://127.0.0.1:33002")
+    monkeypatch.setenv("BT_GATEWAY_ACCOUNT_ID", "mt5-12345678")
+    monkeypatch.setenv("BT_GATEWAY_EXCHANGE_TYPE", "MT5")
+    monkeypatch.setenv("BT_GATEWAY_ASSET_TYPE", "OTC")
+    monkeypatch.setenv("BT_GATEWAY_START_LOCAL_RUNTIME", "0")
+
+    store = BtApiStore(provider="ctp")
+
+    assert store.provider == "mt5_gateway"
+    assert store._api_kwargs["exchange_type"] == "MT5"
+    assert store._api_kwargs["asset_type"] == "OTC"
+    assert store._api_kwargs["account_id"] == "mt5-12345678"
+
+
+def test_gateway_wrapper_fetch_bars_proxies(fake_client):
+    """Gateway wrapper fetch_bars should normalize and return bars from the injected API."""
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [
+            make_bar(0, 1.1000, 1.1010, 1.0990, 1.1005),
+            make_bar(1, 1.1005, 1.1020, 1.1000, 1.1015),
+        ]},
+    )
+    store = make_store(api=client)
+    store.start()
+    bars = store.fetch_history(DEFAULT_SYMBOL, timeframe="M1", limit=200)
+    assert len(bars) == 2
+    assert bars[0]["close"] == pytest.approx(1.1005)
+    store.stop()
+
+
 @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
 def test_placeholder_provider_raises(provider):
     """Providers not yet implemented in bt_api_py should fail explicitly."""
