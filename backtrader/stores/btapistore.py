@@ -578,7 +578,7 @@ def _create_ctp_wrapper_class():
             if exchange_id:
                 field.ExchangeID = exchange_id
 
-            if order_type == "market" or (order_type == "limit" and price <= 0):
+            if order_type == "market" or price <= 0:
                 # Chinese futures exchanges do not support true market orders
                 # (OrderPriceType="1" / AnyPrice).  Convert to a limit order
                 # using the last tick price ± 5 ticks so the order is accepted
@@ -944,12 +944,17 @@ def _create_ctp_gateway_wrapper_class():
             return self._client.get_positions()
 
         def fetch_bars(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
-            return []
+            tf_str = _gateway_timeframe_str(timeframe, compression)
+            count = int(limit or 200)
+            try:
+                return self._client.fetch_bars(symbol, timeframe=tf_str, count=count)
+            except Exception:
+                return []
 
         def fetch_ohlcv(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
-            return []
+            return self.fetch_bars(symbol, timeframe=timeframe, compression=compression, since=since, limit=limit, **kwargs)
 
         def poll_bar(self, symbol):
             return None
@@ -973,6 +978,35 @@ def _create_ctp_gateway_wrapper_class():
             return self._client.poll_broker_update()
 
     return CtpGatewayClientWrapper
+
+
+def _gateway_timeframe_str(timeframe, compression) -> str:
+    """Convert backtrader timeframe + compression to a gateway string like M1, M15, H1, D1."""
+    from ..dataseries import TimeFrame
+
+    compression = int(compression or 1)
+    if timeframe is None:
+        return f"M{compression}"
+    if timeframe == TimeFrame.Ticks:
+        return "TICK"
+    if timeframe == TimeFrame.Seconds:
+        total_sec = compression
+        if total_sec >= 86400:
+            return f"D{total_sec // 86400}"
+        if total_sec >= 3600:
+            return f"H{total_sec // 3600}"
+        return f"M{max(total_sec // 60, 1)}"
+    if timeframe == TimeFrame.Minutes:
+        if compression >= 60:
+            return f"H{compression // 60}"
+        return f"M{compression}"
+    if timeframe == TimeFrame.Days:
+        return f"D{compression}"
+    if timeframe == TimeFrame.Weeks:
+        return f"W{compression}"
+    if timeframe == TimeFrame.Months:
+        return f"MN{compression}"
+    return f"M{compression}"
 
 
 def _is_gateway_provider(provider: Any) -> bool:
@@ -1053,6 +1087,8 @@ class BtApiStore(LiveStoreBase):
             "account_id": "BT_GATEWAY_ACCOUNT_ID",
             "exchange_type": "BT_GATEWAY_EXCHANGE_TYPE",
             "asset_type": "BT_GATEWAY_ASSET_TYPE",
+            "gateway_startup_timeout_sec": "BT_GATEWAY_STARTUP_TIMEOUT_SEC",
+            "gateway_command_timeout_sec": "BT_GATEWAY_COMMAND_TIMEOUT_SEC",
         }
         for key, env_name in env_map.items():
             value = os.environ.get(env_name)
@@ -1490,7 +1526,15 @@ class BtApiStore(LiveStoreBase):
 
     def _order_to_payload(self, order) -> Dict[str, Any]:
         """Convert a backtrader order into a generic bt_api_py payload."""
-        price = order.price or order.created.price
+        from ..order import OrderBase
+
+        order_type_str = order.getordername().lower()
+        if getattr(order, "exectype", None) == OrderBase.Market or order_type_str == "market":
+            price = None
+        else:
+            price = order.price or order.created.price
+            if price is not None and float(price) <= 0:
+                price = order.created.price or None
         data_name = self._extract_dataname(order.data)
         payload = {
             "symbol": data_name,
@@ -1499,7 +1543,7 @@ class BtApiStore(LiveStoreBase):
             "side": "buy" if order.isbuy() else "sell",
             "size": abs(order.size),
             "price": price,
-            "order_type": order.getordername().lower(),
+            "order_type": order_type_str,
             "valid": order.valid,
             "tradeid": getattr(order, "tradeid", 0),
         }
