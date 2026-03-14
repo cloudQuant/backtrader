@@ -2102,10 +2102,11 @@ class Cerebro(ParameterizedBase):
                             strat._next_open()
                             if self._event_stop:  # stop if requested
                                 return
-                # Notify broker
-                self._brokernotify()
-                if self._event_stop:  # stop if requested
-                    return
+                # Notify broker (only when data is available to avoid IndexError)
+                if d0ret or lastret:
+                    self._brokernotify()
+                    if self._event_stop:  # stop if requested
+                        return
 
                 # Notify timer and iterate strategies to run
                 if d0ret or lastret:  # bars produced by data or filters
@@ -2131,7 +2132,10 @@ class Cerebro(ParameterizedBase):
                 return
         except Exception as e:
             _error_info = traceback.format_exception(type(e), e, e.__traceback__)
-            # print(_error_info)  # Removed for performance - can be re-enabled for debugging
+            import os as _os
+            with open(_os.path.expanduser("~/cerebro_runnext_error.log"), "a") as _ef:
+                _ef.write("".join(_error_info) + "\n")
+            print("".join(_error_info))
 
     # runonce
     def _runonce(self, runstrats):

@@ -12,6 +12,7 @@ import collections
 import datetime as _dt
 import importlib
 import os
+import re
 import time
 import uuid
 from typing import Any, Deque, Dict, Iterable, List, Optional
@@ -23,6 +24,34 @@ from .livestore import LiveStoreBase
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
 _GATEWAY_PROVIDERS = frozenset({"gateway", "ctp_gateway", "mt5_gateway"})
 _CTP_EXCHANGES = frozenset({"SHFE", "DCE", "CZCE", "CFFEX", "INE", "GFEX"})
+_CZCE_PRODUCT_PREFIXES = frozenset(
+    {
+        "AP",
+        "CF",
+        "CJ",
+        "CY",
+        "FG",
+        "JR",
+        "LR",
+        "MA",
+        "OI",
+        "PF",
+        "PK",
+        "PM",
+        "PX",
+        "RI",
+        "RM",
+        "RS",
+        "SA",
+        "SF",
+        "SM",
+        "SR",
+        "TA",
+        "UR",
+        "WH",
+        "ZC",
+    }
+)
 _CTP_TZ = _dt.timezone(_dt.timedelta(hours=8))
 _CTP_OFFSET_FLAG = {
     "open": "0",
@@ -91,15 +120,32 @@ def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
 
     if "." in text:
         instrument, exchange = text.split(".", 1)
-        return instrument.strip(), exchange.strip().upper()
+        exchange = exchange.strip().upper()
+        return _normalize_ctp_instrument(instrument.strip(), exchange), exchange
 
     if "_" in text:
         exchange, instrument = text.split("_", 1)
         exchange = exchange.strip().upper()
         if exchange in _CTP_EXCHANGES:
-            return instrument.strip(), exchange
+            return _normalize_ctp_instrument(instrument.strip(), exchange), exchange
 
-    return text, ""
+    return _normalize_ctp_instrument(text, ""), ""
+
+
+def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
+    text = str(instrument or "").strip()
+    if not text:
+        return ""
+
+    match = re.fullmatch(r"([A-Za-z]+)(\d{4})", text)
+    if not match:
+        return text
+
+    prefix, digits = match.groups()
+    exchange = str(exchange_id or "").strip().upper()
+    if exchange == "CZCE" or (not exchange and prefix.upper() in _CZCE_PRODUCT_PREFIXES):
+        return f"{prefix}{digits[-3:]}"
+    return text
 
 
 def _infer_tick_direction(
@@ -1095,10 +1141,9 @@ class BtApiStore(LiveStoreBase):
             value = os.environ.get(env_name)
             if value and key not in self._api_kwargs:
                 self._api_kwargs[key] = value
-        if "gateway_start_local_runtime" not in self._api_kwargs:
-            raw = os.environ.get("BT_GATEWAY_START_LOCAL_RUNTIME")
-            if raw is not None:
-                self._api_kwargs["gateway_start_local_runtime"] = raw not in {"0", "false", "False"}
+        raw = os.environ.get("BT_GATEWAY_START_LOCAL_RUNTIME")
+        if raw is not None:
+            self._api_kwargs["gateway_start_local_runtime"] = raw not in {"0", "false", "False"}
 
     @property
     def is_connected(self) -> bool:

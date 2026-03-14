@@ -33,6 +33,7 @@ Example:
 """
 
 from . import ATR, And, If, Indicator, MovAv
+from ..functions import DivByZero
 
 
 class UpMove(Indicator):
@@ -168,14 +169,14 @@ class _DirectionalIndicator(Indicator):
             plusDM = If(plus, upmove, 0.0)
             plusDMav = self.p.movav(plusDM, period=self.p.period)
 
-            self.DIplus = 100.0 * plusDMav / atr
+            self.DIplus = DivByZero(100.0 * plusDMav, atr, zero=0.0)
 
         if _minus:
             minus = And(downmove > upmove, downmove > 0.0)
             minusDM = If(minus, downmove, 0.0)
             minusDMav = self.p.movav(minusDM, period=self.p.period)
 
-            self.DIminus = 100.0 * minusDMav / atr
+            self.DIminus = DivByZero(100.0 * minusDMav, atr, zero=0.0)
 
         super().__init__()
 

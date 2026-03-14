@@ -51,12 +51,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self.store.register(self)
 
         if self.p.backfill_start and not self._history:
-            bars = self.store.fetch_history(
-                self._dataname,
-                timeframe=self._timeframe,
-                compression=self._compression,
-            )
-            self._history.extend(bars)
+            try:
+                bars = self.store.fetch_history(
+                    self._dataname,
+                    timeframe=self._timeframe,
+                    compression=self._compression,
+                )
+                self._history.extend(bars)
+            except Exception:
+                pass
 
         self.store.subscribe(self._dataname)
 
@@ -104,13 +107,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             bar = None
 
         if bar is None:
-            if (
-                self.store is not None
-                and hasattr(self.store, "supports_live_ticks")
-                and self.store.supports_live_ticks(self._dataname)
-            ):
-                return None
-            return False
+            return None
 
         if not self._live_notified:
             self.put_notification(self.LIVE)
