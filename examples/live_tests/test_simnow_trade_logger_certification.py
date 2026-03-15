@@ -23,7 +23,7 @@ if str(_REPO_ROOT) not in sys.path:
 import backtrader as bt
 from backtrader.brokers.btapibroker import BtApiBroker
 from backtrader.feeds.btapifeed import BtApiFeed
-from tests.live.test_simnow_ctp import _started_store
+from test_simnow_ctp import _started_store
 
 _DEFAULT_CASE_TIMEOUT = 180
 _CASE_TIMEOUTS = {

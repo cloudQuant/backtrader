@@ -1,13 +1,25 @@
-"""Serial execution controls for live CTP pytest modules."""
+"""Serial execution controls for live CTP pytest modules.
+
+These tests require real network access (SimNow CTP credentials) and are
+excluded from the normal ``pytest tests`` run.  Execute manually via::
+
+    pytest examples/live_tests -v
+"""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
+
+# Ensure the project root is on sys.path so ``tests.fixtures`` resolves.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 import pytest
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
