@@ -8,6 +8,7 @@ from backtrader.stores.btapistore import (
     BtApiMissingDependencyError,
     BtApiProviderNotImplementedError,
     BtApiStore,
+    _split_ctp_symbol,
 )
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store
 
@@ -158,6 +159,18 @@ def test_gateway_wrapper_fetch_bars_proxies(fake_client):
     assert len(bars) == 2
     assert bars[0]["close"] == pytest.approx(1.1005)
     store.stop()
+
+
+def test_split_ctp_symbol_normalizes_czce_with_exchange():
+    assert _split_ctp_symbol("CF2609.CZCE") == ("CF609", "CZCE")
+
+
+def test_split_ctp_symbol_normalizes_known_czce_prefix_without_exchange():
+    assert _split_ctp_symbol("MA2609") == ("MA609", "")
+
+
+def test_split_ctp_symbol_does_not_change_cffex_style_symbol_without_exchange():
+    assert _split_ctp_symbol("IF2609") == ("IF2609", "")
 
 
 @pytest.mark.parametrize("provider", ["futu", "oanda", "vc"])
