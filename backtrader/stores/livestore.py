@@ -38,8 +38,13 @@ class LiveStoreBase(ABC):
     # ------------------------------------------------------------------
 
     @abstractmethod
-    def start(self):
-        """Establish the connection to the trading venue."""
+    def start(self, data=None, broker=None):
+        """Establish the connection to the trading venue.
+
+        Args:
+            data: Optional data-feed instance to register on start.
+            broker: Optional broker instance to attach on start.
+        """
 
     @abstractmethod
     def stop(self):
