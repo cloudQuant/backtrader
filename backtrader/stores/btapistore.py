@@ -228,11 +228,6 @@ def _build_ctp_tick_datetime(payload: Any) -> _dt.datetime:
 
     return _dt.datetime.now(_CTP_TZ)
 
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
-
 
 def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
     """Convert a SWIG-generated CTP struct instance into a plain dict."""

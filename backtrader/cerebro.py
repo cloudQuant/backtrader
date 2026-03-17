@@ -34,9 +34,12 @@ Classes:
 import collections
 import datetime
 import itertools
+import logging
 import multiprocessing
 import traceback
 from datetime import timezone
+
+logger = logging.getLogger(__name__)
 
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
@@ -987,8 +990,8 @@ class Cerebro(ParameterizedBase):
                             strat = stratcls._create_strategy_safely(*sargs, **skwargs)
                         else:
                             strat = stratcls(*sargs, **skwargs)
-                except Exception:
-                    continue
+                except errors.StrategySkipError:
+                    continue  # user requested skip, same as standard run() path
                 runstrats.append(strat)
 
         # Call user's start() hook on each strategy
@@ -1958,11 +1961,6 @@ class Cerebro(ParameterizedBase):
             # Main data
             data0 = datas[0]
             d0ret = True
-            # TODO: rs and rp are not used, commented out
-            # resample index
-            _rs = [i for i, x in enumerate(datas) if x.resampling]
-            # replaying index
-            _rp = [i for i, x in enumerate(datas) if x.replaying]
             # index for resample only, not replay
             rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
             # Check if only doing resample
@@ -1975,16 +1973,10 @@ class Cerebro(ParameterizedBase):
             ldatas = len(datas)
             # Number of non-cloned data
             ldatas_noclones = ldatas - clonecount
-            # TODO: lastqcheck not used, commented out
-            # lastqcheck = False
             # Default dt0 at max time
             dt0 = date2num(datetime.datetime.max) - 2  # default at max
-            # while loop
-            my_num = 0
-            # TODO: Modify while loop condition to avoid premature exit
-            # while d0ret or d0ret is None:
+            # TODO: Evaluate restoring original 'while d0ret or d0ret is None' condition
             while True:
-                my_num += 1
                 # if any has live data in the buffer, no data will wait anything
                 # If any live data exists, newqcheck is False
                 newqcheck = not any(d.haslivedata() for d in datas)
@@ -2019,9 +2011,6 @@ class Cerebro(ParameterizedBase):
                     d.do_qcheck(newqcheck, qlapse.total_seconds())
                     d_next = d.next(ticks=False)
                     drets.append(d_next)
-                    # TODO: Debug code, try printing
-                    # if d_next:
-                    #     print(drets)
                 # Iterate drets, if d0ret is False and any dret is None, d0ret is None
                 d0ret = any(dret for dret in drets)
                 if not d0ret and any(dret is None for dret in drets):
@@ -2074,13 +2063,8 @@ class Cerebro(ParameterizedBase):
                         if dti is not None:
                             # Get data
                             di = datas[i]
-                            # TODO: Code is redundant, rpi always returns False, can be removed
-                            # rpi = False and di.replaying   # to check behavior
                             if dti > dt0:
-                                # TODO: rpi is False here, not rpi is True, consider removing and run directly
-                                # if not rpi:  # must see all ticks ...
                                 di.rewind()  # cannot deliver yet
-                                # self._plotfillers[i].append(slen)
                             # If not replay
                             elif not di.replaying:
                                 # Replay forces tick fill, else force here
@@ -2132,9 +2116,6 @@ class Cerebro(ParameterizedBase):
                             return
 
                         self._next_writers(runstrats)
-            #     if my_num % 1000000 == 0:
-            #         print("end_runnext")
-            # print("exit_runnext")
             # Last notification chance before stopping
             # Notify data info
             self._datanotify()
@@ -2144,12 +2125,8 @@ class Cerebro(ParameterizedBase):
             self._storenotify()
             if self._event_stop:  # stop if requested
                 return
-        except Exception as e:
-            _error_info = traceback.format_exception(type(e), e, e.__traceback__)
-            import os as _os
-            with open(_os.path.expanduser("~/cerebro_runnext_error.log"), "a") as _ef:
-                _ef.write("".join(_error_info) + "\n")
-            print("".join(_error_info))
+        except Exception:
+            logger.exception("Unhandled exception in _runnext")
 
     # runonce
     def _runonce(self, runstrats):
@@ -2188,9 +2165,6 @@ class Cerebro(ParameterizedBase):
 
             # Timemaster if needed be
             # dmaster = datas[dts.index(dt0)]  # and timemaster
-            # First strategy current length slen
-            # TODO: Variable slen not used, commented out
-            # slen = len(runstrats[0])
             # For each data time, if time <= minimum time, advance data, otherwise ignore
             for i, dti in enumerate(dts):
                 if dti <= dt0:
