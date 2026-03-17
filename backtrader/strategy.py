@@ -118,17 +118,18 @@ class Strategy(StrategyBase):
 
     @classmethod
     def _create_strategy_safely(cls, *args, **kwargs):
-        """Safely create a strategy instance with proper parameter filtering"""
-        # Call the full __new__ chain with all kwargs to ensure parameter processing
+        """Safely create a strategy instance with proper parameter filtering.
+
+        Separates __new__ (parameter setup) from __init__ (data/indicator setup)
+        to ensure parameters are fully processed before __init__ runs.
+        """
+        # __new__ processes all kwargs into _params_instance
         instance = cls.__new__(cls, *args, **kwargs)
 
-        # Now manually call the Strategy.__init__ method with filtered kwargs (no params)
-        # We need to filter out the strategy parameter kwargs for __init__
-        filtered_kwargs = {}  # TestStrategy.__init__ takes no kwargs
-
-        # Call Strategy.__init__ with filtered kwargs (which should be empty for TestStrategy)
+        # __init__ handles data setup, clock, and user subclass init.
+        # Pass original kwargs so __init__ can filter out param kwargs itself.
         if instance is not None:
-            Strategy.__init__(instance, *args, **filtered_kwargs)
+            Strategy.__init__(instance, *args, **kwargs)
 
         return instance
 
@@ -275,45 +276,11 @@ class Strategy(StrategyBase):
             # It causes problems with indicator clock detection in _periodset()
             # If no datas, leave _clock as None and let it be set later
 
-        # CRITICAL FIX: For TestStrategy, we need to call its __init__ method directly
-        # without filtering parameters since TestStrategy.__init__ doesn't take kwargs
-        # Use OwnerContext to ensure indicators created in __init__ find this strategy as owner
-        if self.__class__.__name__ == "TestStrategy":
-            # For TestStrategy, call its __init__ directly - it takes no kwargs
-            # Look for TestStrategy's __init__ method
-            for cls in self.__class__.__mro__:
-                if (
-                    cls.__name__ == "TestStrategy"
-                    and hasattr(cls, "__init__")
-                    and "__init__" in cls.__dict__
-                ):
-                    user_init = cls.__dict__["__init__"]
-                    # Use OwnerContext so indicators find this strategy as owner
-                    with OwnerContext.set_owner(self):
-                        user_init(self)  # TestStrategy.__init__ takes only self
-                    break
-        elif self.__class__ != Strategy:
-            # For other strategy subclasses, filter kwargs before calling
-            filtered_kwargs = kwargs.copy()
-            if hasattr(self.__class__, "_params") and self.__class__._params is not None:
-                params_cls = self.__class__._params
-                param_names = set()
-
-                # Get all parameter names from the class
-                if hasattr(params_cls, "_getpairs"):
-                    param_names.update(params_cls._getpairs().keys())
-                elif hasattr(params_cls, "_gettuple"):
-                    param_names.update(key for key, value in params_cls._gettuple())
-
-                # Remove strategy parameter kwargs
-                filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-
-            # Call the user's __init__ method directly
-            # CRITICAL FIX: Exclude StrategyBase to prevent infinite recursion
+        # Call user subclass __init__ if this is a Strategy subclass
+        if self.__class__ != Strategy:
             from backtrader.lineiterator import StrategyBase
 
-            # CRITICAL FIX: Add guard to prevent recursive user_init calls
-            # When user's __init__ calls super().__init__(), we must not call user_init again
+            # Guard against recursive calls when user's __init__ calls super().__init__()
             if not getattr(self, "_user_init_called", False):
                 self._user_init_called = True
 
@@ -323,23 +290,16 @@ class Strategy(StrategyBase):
                         and hasattr(cls, "__init__")
                         and "__init__" in cls.__dict__
                     ):
-                        # CRITICAL FIX: Use _original_init if available to avoid calling patched_init
-                        # This prevents infinite recursion when ParamsMixin patches __init__
+                        # Use _original_init if available to avoid calling patched_init
+                        # (prevents infinite recursion when ParamsMixin patches __init__)
                         if hasattr(cls, "_original_init"):
                             user_init = cls._original_init
                         else:
                             user_init = cls.__dict__["__init__"]
-                        try:
-                            # Use OwnerContext so indicators find this strategy as owner
-                            with OwnerContext.set_owner(self):
-                                user_init(self)
-                            break
-                        except Exception:
-                            # If user init fails, try with filtered_kwargs
-                            if filtered_kwargs:
-                                with OwnerContext.set_owner(self):
-                                    user_init(self, **filtered_kwargs)
-                            break
+                        # Use OwnerContext so indicators find this strategy as owner
+                        with OwnerContext.set_owner(self):
+                            user_init(self)
+                        break
 
         # Initialize tick/channel callback state (auto, no manual init needed)
         if not hasattr(self, "_tick_count"):
