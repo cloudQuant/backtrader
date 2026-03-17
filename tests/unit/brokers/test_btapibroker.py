@@ -79,7 +79,12 @@ def test_cerebro_run_uses_broker_startingcash_for_writer_output():
     cerebro = bt.Cerebro()
 
     class NoOpStrategy(bt.Strategy):
-        pass
+        def __init__(self):
+            self.bar_count = 0
+
+        def next(self):
+            self.bar_count += 1
+            self.cerebro.runstop()
 
     cerebro.setbroker(broker)
     cerebro.adddata(data)
@@ -88,6 +93,7 @@ def test_cerebro_run_uses_broker_startingcash_for_writer_output():
     results = cerebro.run()
 
     assert len(results) == 1
+    assert results[0].bar_count == 1
     assert broker.startingcash == pytest.approx(1250.0)
     assert broker.startingvalue == pytest.approx(1450.0)
     assert client.connected is False

@@ -68,8 +68,44 @@ class BtApiFeed(DataBase, LiveFeedBase):
         super().stop()
 
     def islive(self) -> bool:
-        """Mark this feed as live."""
-        return True
+        """Return whether this feed has a configured live data source."""
+        dataname = getattr(self, "_dataname", None)
+
+        if self._live:
+            return True
+
+        store = self.store or getattr(self, "_store", None)
+        if store is None:
+            return bool(self.p.live_bars)
+
+        live_cache = getattr(store, "_live_bars", {})
+        if dataname is not None and live_cache.get(dataname):
+            return True
+
+        api = getattr(store, "_api", None)
+        if api is not None and dataname is not None:
+            if hasattr(api, "supports_live_ticks"):
+                try:
+                    if bool(api.supports_live_ticks(dataname)):
+                        return True
+                except Exception:
+                    pass
+
+            live_ticks = getattr(api, "live_ticks", None)
+            if live_ticks is not None:
+                return dataname in live_ticks
+
+            live_bars = getattr(api, "live", None)
+            if live_bars is not None:
+                return dataname in live_bars
+
+        if getattr(store, "_api_cls", None) is not None:
+            return True
+
+        if api is None:
+            return True
+
+        return False
 
     def haslivedata(self) -> bool:
         """Return whether live bars are immediately available."""

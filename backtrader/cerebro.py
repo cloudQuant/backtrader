@@ -1889,6 +1889,13 @@ class Cerebro(ParameterizedBase):
         data0 = self.datas[0]
         datas = self.datas[1:]
         for i in range(data0.buflen()):
+            self._storenotify()
+            if self._event_stop:  # stop if requested
+                return
+            self._datanotify()
+            if self._event_stop:  # stop if requested
+                return
+
             data0.advance()
             for data in datas:
                 data.advance(datamaster=data0)
@@ -1904,6 +1911,13 @@ class Cerebro(ParameterizedBase):
                     return
 
                 self._next_writers(runstrats)
+
+        self._datanotify()
+        if self._event_stop:  # stop if requested
+            return
+        self._storenotify()
+        if self._event_stop:  # stop if requested
+            return
 
     # Run writer's next
     def _next_writers(self, runstrats):
@@ -2158,6 +2172,13 @@ class Cerebro(ParameterizedBase):
         datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
 
         while True:
+            self._storenotify()
+            if self._event_stop:  # stop if requested
+                return
+            self._datanotify()
+            if self._event_stop:  # stop if requested
+                return
+
             # Check the next incoming date in the datas
             # For each data call advance_peek(), get minimum time as the first one
             dts = [d.advance_peek() for d in datas]
@@ -2249,6 +2270,15 @@ class Cerebro(ParameterizedBase):
         # _brokernotify() internally calls broker.next() to process pending orders and then delivers notifications
         # This ensures all orders submitted during the strategy execution are processed
         self._brokernotify()
+        if self._event_stop:  # stop if requested
+            return
+
+        self._datanotify()
+        if self._event_stop:  # stop if requested
+            return
+        self._storenotify()
+        if self._event_stop:  # stop if requested
+            return
 
         # print("end_runonce")  # Removed for performance - called frequently during tests
 
