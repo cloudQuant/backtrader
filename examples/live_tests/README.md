@@ -13,15 +13,21 @@ They are excluded from the normal `pytest tests` run.
 ## Run manually
 
 ```bash
+
 # From project root
+
 pytest examples/live_tests -v
 
 # Run only SimNow CTP tests
+
 pytest examples/live_tests/test_simnow_ctp.py -v
 
 # Run trade logger certification
+
 pytest examples/live_tests/test_simnow_trade_logger_certification.py -v
 
 # Run btapi placeholder tests
+
 pytest examples/live_tests/btapi/ -v
-```
+
+```bash

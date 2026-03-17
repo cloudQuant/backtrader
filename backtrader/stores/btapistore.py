@@ -15,6 +15,7 @@ import os
 import re
 import time
 import uuid
+import warnings
 from typing import Any, Deque, Dict, Iterable, List, Optional
 
 from ..events import TickEvent
@@ -112,9 +113,53 @@ def _coerce_int(value: Any, default: int = 0) -> int:
         return default
 
 
+def _coerce_text(value: Any, default: str = "") -> str:
+    """Convert vendor field values to text while suppressing noisy decode warnings."""
+    if value is None:
+        return default
+
+    if isinstance(value, bytes):
+        for encoding in ("utf-8", "gbk", "latin1"):
+            try:
+                return value.decode(encoding).strip()
+            except UnicodeDecodeError:
+                continue
+        return value.decode("utf-8", errors="ignore").strip()
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Failed to convert '.*' from GBK to UTF-8\.",
+            category=UnicodeWarning,
+        )
+        try:
+            return str(value).strip()
+        except Exception:
+            return default
+
+
+def _safe_text_attr(obj: Any, *attrs: str, default: str = "") -> str:
+    """Return the first non-empty text attribute from a vendor object safely."""
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message=r"Failed to convert '.*' from GBK to UTF-8\.",
+            category=UnicodeWarning,
+        )
+        for attr in attrs:
+            try:
+                value = getattr(obj, attr, None)
+            except Exception:
+                value = None
+            text = _coerce_text(value, "")
+            if text:
+                return text
+    return default
+
+
 def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
     """Split a CTP dataname into instrument and exchange components."""
-    text = str(symbol or "").strip()
+    text = _coerce_text(symbol)
     if not text:
         return "", ""
 
@@ -133,7 +178,7 @@ def _split_ctp_symbol(symbol: Any) -> tuple[str, str]:
 
 
 def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
-    text = str(instrument or "").strip()
+    text = _coerce_text(instrument)
     if not text:
         return ""
 
@@ -142,7 +187,7 @@ def _normalize_ctp_instrument(instrument: Any, exchange_id: Any = "") -> str:
         return text
 
     prefix, digits = match.groups()
-    exchange = str(exchange_id or "").strip().upper()
+    exchange = _coerce_text(exchange_id).upper()
     if exchange == "CZCE" or (not exchange and prefix.upper() in _CZCE_PRODUCT_PREFIXES):
         return f"{prefix}{digits[-3:]}"
     return text
@@ -447,7 +492,7 @@ def _create_ctp_wrapper_class():
             rows = self.trader_client.query_positions(timeout=5)
             aggregated = {}
             for row in rows or []:
-                instrument = str(getattr(row, "InstrumentID", "") or "").strip()
+                instrument = _safe_text_attr(row, "InstrumentID")
                 if not instrument:
                     continue
 
@@ -532,7 +577,7 @@ def _create_ctp_wrapper_class():
                     def _on_instrument(inst_field, rsp_info, request_id, is_last):
                         try:
                             if inst_field is not None:
-                                iid = getattr(inst_field, 'InstrumentID', '')
+                                iid = _safe_text_attr(inst_field, "InstrumentID")
                                 pt = getattr(inst_field, 'PriceTick', 0.0)
                                 if pt > 0:
                                     self._price_tick_cache[iid] = pt
@@ -740,9 +785,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_md_tick(self, payload):
             """Convert a raw CTP depth market data callback into queued TickEvents."""
-            instrument = str(
-                getattr(payload, "InstrumentID", "") or getattr(payload, "ExchangeInstID", "") or ""
-            ).strip()
+            instrument = _safe_text_attr(payload, "InstrumentID", "ExchangeInstID")
             if not instrument:
                 return
 
@@ -867,8 +910,8 @@ def _create_ctp_wrapper_class():
                 "order_ref": order_ref,
                 "external_order_id": order_sys_id or order_ref,
                 "data_name": pending.get("data_name")
-                or str(details.get("InstrumentID") or details.get("ExchangeInstID") or "").strip(),
-                "instrument": str(details.get("InstrumentID") or "").strip(),
+                or _coerce_text(details.get("InstrumentID") or details.get("ExchangeInstID") or ""),
+                "instrument": _coerce_text(details.get("InstrumentID") or ""),
                 "exchange_id": str(details.get("ExchangeID") or pending.get("exchange_id") or "").strip(),
                 "front_id": _coerce_int(details.get("FrontID"), _coerce_int(pending.get("front_id"), 0)),
                 "session_id": _coerce_int(
@@ -912,8 +955,8 @@ def _create_ctp_wrapper_class():
                 "order_ref": order_ref,
                 "external_order_id": order_sys_id or order_ref,
                 "data_name": pending.get("data_name")
-                or str(details.get("InstrumentID") or details.get("ExchangeInstID") or "").strip(),
-                "instrument": str(details.get("InstrumentID") or "").strip(),
+                or _coerce_text(details.get("InstrumentID") or details.get("ExchangeInstID") or ""),
+                "instrument": _coerce_text(details.get("InstrumentID") or ""),
                 "exchange_id": str(details.get("ExchangeID") or pending.get("exchange_id") or "").strip(),
                 "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
                 "offset": _CTP_OFFSET_MAP.get(
