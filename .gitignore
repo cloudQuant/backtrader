@@ -153,6 +153,10 @@ backtrader_master_tests_report.html
 backtrader_remove_metaprogramming_report_timing.json
 performance_comparison.json
 backtrader-master/*htmlcov/
+docs/_internal/opts/requirements/迭代3-宏源期货完成穿透式认证/
+examples/live_certification/hongyuan_penetration/reports/
+examples/live_certification/simnow_penetration/reports/
+examples/live_certification/hongyuan_penetration/*.docx
 
 # Local workspace / editor artifacts
 .benchmarks/
