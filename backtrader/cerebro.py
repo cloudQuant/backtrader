@@ -1949,9 +1949,18 @@ class Cerebro(ParameterizedBase):
 
     # runnext method, core of the framework, event-driven core for data execution
     def _runnext(self, runstrats):
-        """
-        Actual implementation of run in full next mode. All objects have its
-         `next` method invoked on each data arrival
+        """Actual implementation of run in full next mode.
+
+        All objects have their ``next`` method invoked on each data arrival.
+
+        The loop has four phases per iteration:
+
+        1. **Notification**: store and data notifications dispatched.
+        2. **Feed advance**: each data feed is advanced; ``d0ret`` computed.
+        3. **Time alignment**: feeds aligned to master datetime ``dt0``;
+           slower feeds rewound, faster feeds tick-filled.
+        4. **Strategy dispatch**: timers fired, broker notified, strategies
+           receive ``_next()`` / ``_next_open()``.
         """
         try:
             # Sort data by time period
@@ -1975,7 +1984,9 @@ class Cerebro(ParameterizedBase):
             ldatas_noclones = ldatas - clonecount
             # Default dt0 at max time
             dt0 = date2num(datetime.datetime.max) - 2  # default at max
-            # TODO: Evaluate restoring original 'while d0ret or d0ret is None' condition
+            # Note: 'while True' (not 'while d0ret or d0ret is None') is intentional:
+            # when d0ret becomes False, the else branch still runs _last() on feeds
+            # and only breaks if no feed produces additional data.
             while True:
                 # if any has live data in the buffer, no data will wait anything
                 # If any live data exists, newqcheck is False
@@ -1986,7 +1997,9 @@ class Cerebro(ParameterizedBase):
                     # the next incoming data
                     # livecount is the number of live data
                     livecount = sum(d._laststatus == d.LIVE for d in datas)
-                    # TODO: This check has no meaning
+                    # Override qcheck for mixed live/historical: wait only when
+                    # no feeds are LIVE or ALL non-clone feeds are LIVE.
+                    # When only some feeds are LIVE, skip wait for faster iteration.
                     newqcheck = not livecount or livecount == ldatas_noclones
 
                 lastret = False
@@ -2029,15 +2042,19 @@ class Cerebro(ParameterizedBase):
                         dt0 = min(
                             (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
                         )
-                    # TODO: dt0 < 1 is wrong, needs modification
+                    # Guard: dt0 < 1 means ordinal date before 0001-01-01
+                    # (invalid/sentinel value from uninitialized data)
                     if dt0 < 1:
+                        logger.warning(
+                            "Invalid datetime value dt0=%s detected in "
+                            "_runnext, aborting run loop", dt0
+                        )
                         return
                     # Get master data and time
                     dmaster = datas[dts.index(dt0)]  # and timemaster
                     self._dtmaster = dmaster.num2date(dt0)
                     self._udtmaster = num2date(dt0)
 
-                    # slen = len(runstrats[0])
                     # Try to get something for those that didn't return
                     # Loop through drets
                     for i, ret in enumerate(drets):
@@ -2051,10 +2068,6 @@ class Cerebro(ParameterizedBase):
                         d._check(forcedata=dmaster)  # check to force output
                         if d.next(datamaster=dmaster, ticks=False):  # retry
                             dts[i] = d.datetime[0]  # good -> store
-                            # self._plotfillers2[i].append(slen)  # mark as fill
-                        else:
-                            # self._plotfillers[i].append(slen)  # mark as empty
-                            pass
 
                     # make sure only those at dmaster level end up delivering
                     # Iterate dts
@@ -2069,8 +2082,6 @@ class Cerebro(ParameterizedBase):
                             elif not di.replaying:
                                 # Replay forces tick fill, else force here
                                 di._tick_fill(force=True)
-
-                            # self._plotfillers2[i].append(slen)  # mark as fill
                 # If d0ret is None, iterate each data and call _check()
                 elif d0ret is None:
                     # meant for things like live feeds which may not produce a bar
@@ -2108,7 +2119,6 @@ class Cerebro(ParameterizedBase):
 
                 # Notify timer and iterate strategies to run
                 if d0ret or lastret:  # bars produced by data or filters
-                    # print("begin go to the strategy next")
                     self._check_timers(runstrats, dt0, cheat=False)
                     for strat in runstrats:
                         strat._next()

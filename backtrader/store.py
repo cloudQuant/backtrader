@@ -5,10 +5,26 @@ This module provides base classes for Store implementations, which manage
 connections to external data sources and brokers. It includes singleton
 pattern support and parameter management for store classes.
 
+.. note:: **Two Store hierarchies coexist in backtrader**
+
+   1. **Legacy ``Store``** (this module) — singleton-based, ``getbroker()`` is
+      a ``@classmethod`` that binds ``broker._store = cls`` (class-level),
+      ``start(self, data=None, broker=None)``.  Used by legacy stores
+      (IB, Oanda, VChart, etc.).
+
+   2. **``LiveStoreBase``** (``backtrader/stores/livestore.py``) — ABC-based,
+      ``getbroker()`` is an instance method, ``start(self, data=None,
+      broker=None)``.  ``BtApiStore`` inherits from this class.
+
+   The two hierarchies are **independent** — ``BtApiStore`` does *not*
+   inherit from ``Store``.  New store implementations should prefer
+   ``LiveStoreBase``.  This legacy ``Store`` is preserved for backward
+   compatibility with existing community stores.
+
 Classes:
     SingletonMixin: Mixin class to implement singleton pattern.
     StoreParams: Parameter management for Store classes.
-    Store: Base class for all Store implementations.
+    Store: Base class for all Store implementations (legacy).
 
 Example:
     Using a store to get data and broker:

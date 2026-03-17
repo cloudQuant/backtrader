@@ -160,9 +160,10 @@ class Strategy(StrategyBase):
             # Create parameter instance
             try:
                 instance._params_instance = params_cls()
-            except Exception:
-                # If instantiation fails, create a simple object
-                instance._params_instance = type("ParamsInstance", (), {})()
+            except Exception as exc:
+                raise TypeError(
+                    f"Failed to create params instance for {cls.__name__}: {exc}"
+                ) from exc
 
             # Set all parameter values - first defaults, then custom values
             if hasattr(params_cls, "_getpairs"):
