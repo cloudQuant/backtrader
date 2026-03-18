@@ -121,7 +121,7 @@ class KnowSureThing(Indicator):
 
         for arr in [kst_array, signal_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         # Calculate KST
         for i in range(

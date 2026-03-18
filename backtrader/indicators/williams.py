@@ -90,7 +90,7 @@ class WilliamsR(Indicator):
         larray = self.lines.percR.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
             h = h_array[i] if i < len(h_array) else 0.0
@@ -172,7 +172,7 @@ class WilliamsAD(Indicator):
         larray = self.lines.ad.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         accum = 0.0
         for i in range(start, min(end, len(upday_array), len(downday_array), len(c_array))):

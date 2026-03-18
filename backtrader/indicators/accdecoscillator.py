@@ -86,7 +86,7 @@ class AccelerationDecelerationOscillator(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(ao_array))):
             ao_val = ao_array[i] if i < len(ao_array) else 0.0

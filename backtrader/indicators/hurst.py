@@ -110,7 +110,7 @@ class HurstExponent(PeriodN):
 
         # Ensure destination array is large enough
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float("nan"))
 
         # Calculate Hurst Exponent for each index
         for i in range(start, end):

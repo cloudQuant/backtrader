@@ -70,7 +70,7 @@ class PercentChange(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]

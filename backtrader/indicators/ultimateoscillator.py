@@ -116,7 +116,7 @@ class UltimateOscillator(Indicator):
         p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(min(p3 - 1, len(close_array))):
             if i < len(larray):

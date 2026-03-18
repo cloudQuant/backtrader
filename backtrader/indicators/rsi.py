@@ -357,7 +357,7 @@ class RelativeStrengthIndex(Indicator):
         safelow = self.p.safelow
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(maup_array), len(madown_array))):
             maup_val = maup_array[i] if i < len(maup_array) else 0.0

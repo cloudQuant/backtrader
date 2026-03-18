@@ -77,7 +77,7 @@ class UpMove(Indicator):
         larray = self.lines.upmove.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(1, min(end, len(darray))):
             larray[i] = darray[i] - darray[i - 1]
@@ -124,7 +124,7 @@ class DownMove(Indicator):
         larray = self.lines.downmove.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(1, min(end, len(darray))):
             larray[i] = darray[i - 1] - darray[i]
@@ -244,7 +244,7 @@ class DirectionalIndicator(_DirectionalIndicator):
 
         for arr in [plusDI_array, minusDI_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         for i in range(start, min(end, len(diplus_array), len(diminus_array))):
             plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
@@ -307,7 +307,7 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
         plusDI_array = self.lines.plusDI.array
 
         while len(plusDI_array) < end:
-            plusDI_array.append(0.0)
+            plusDI_array.append(float("nan"))
 
         for i in range(start, min(end, len(diplus_array))):
             plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
@@ -369,7 +369,7 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
         minusDI_array = self.lines.minusDI.array
 
         while len(minusDI_array) < end:
-            minusDI_array.append(0.0)
+            minusDI_array.append(float("nan"))
 
         for i in range(start, min(end, len(diminus_array))):
             minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
@@ -529,7 +529,7 @@ class AverageDirectionalMovementIndex(Indicator):
 
         # Ensure arrays are sized
         while len(adx_array) < end:
-            adx_array.append(0.0)
+            adx_array.append(float("nan"))
 
         # Initialize smoothed values
         plusDMav = 0.0
@@ -638,7 +638,7 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
         period = self.p.period
 
         while len(adxr_array) < end:
-            adxr_array.append(0.0)
+            adxr_array.append(float("nan"))
 
         for i in range(start, min(end, len(adx_array))):
             if i >= period:

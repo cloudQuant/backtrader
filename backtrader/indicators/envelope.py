@@ -244,7 +244,7 @@ class EnvelopeMixIn:
 
         for arr in [top_array, bot_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         for i in range(start, min(end, len(base_array))):
             base_val = base_array[i] if i < len(base_array) else 0.0
@@ -385,7 +385,7 @@ class _EnvelopeBase(Indicator):
         larray = self.lines.src.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(darray))):
             larray[i] = darray[i] if i < len(darray) else 0.0

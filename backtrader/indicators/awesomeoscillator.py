@@ -93,7 +93,7 @@ class AwesomeOscillator(Indicator):
         slow = self.p.slow
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(min(slow - 1, len(high_array))):
             if i < len(larray):

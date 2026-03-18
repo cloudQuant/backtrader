@@ -70,7 +70,7 @@ class Momentum(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(period, min(end, len(darray))):
             larray[i] = darray[i] - darray[i - period]
@@ -132,7 +132,7 @@ class MomentumOscillator(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]
@@ -191,7 +191,7 @@ class RateOfChange(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]
@@ -253,7 +253,7 @@ class RateOfChange100(Indicator):
         period = self.p.period
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]

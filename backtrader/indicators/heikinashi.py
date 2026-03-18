@@ -132,7 +132,7 @@ class HeikinAshi(Indicator):
         # Ensure arrays are properly sized
         for arr in [ha_open_array, ha_high_array, ha_low_array, ha_close_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         data_len = min(end, len(o_array), len(h_array), len(l_array), len(c_array))
         for i in range(start, data_len):

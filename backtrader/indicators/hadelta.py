@@ -157,7 +157,7 @@ class HaDelta(Indicator):
         # Ensure arrays are properly sized
         for arr in [hd_array, sm_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         data_end = min(end, len(o_array), len(h_array), len(l_array), len(c_array))
 

@@ -147,7 +147,7 @@ class PivotPoint(Indicator):
 
         for arr in [p_array, s1_array, s2_array, r1_array, r2_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         use_close = self.p.close
         use_open = self.p.open
@@ -297,7 +297,7 @@ class FibonacciPivotPoint(Indicator):
 
         for arr in [p_array, s1_array, s2_array, s3_array, r1_array, r2_array, r3_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         use_close = self.p.close
         use_open = self.p.open
@@ -449,7 +449,7 @@ class DemarkPivotPoint(Indicator):
 
         for arr in [p_array, s1_array, r1_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         for i in range(start, min(end, len(h_array), len(l_array), len(c_array), len(o_array))):
             o = o_array[i] if i < len(o_array) else 0.0

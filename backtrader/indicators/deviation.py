@@ -105,7 +105,7 @@ class StandardDeviation(Indicator):
         actual_end = min(end, len(darray))
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # PERFORMANCE: Cache constants and functions
         nan_val = float("nan")

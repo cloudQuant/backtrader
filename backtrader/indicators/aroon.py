@@ -127,7 +127,7 @@ class AroonUp(_AroonBase):
         aroonup_array = self.lines.aroonup.array
 
         while len(aroonup_array) < end:
-            aroonup_array.append(0.0)
+            aroonup_array.append(float("nan"))
 
         for i in range(start, min(end, len(up_array))):
             aroonup_array[i] = up_array[i] if i < len(up_array) else 0.0
@@ -182,7 +182,7 @@ class AroonDown(_AroonBase):
         aroondown_array = self.lines.aroondown.array
 
         while len(aroondown_array) < end:
-            aroondown_array.append(0.0)
+            aroondown_array.append(float("nan"))
 
         for i in range(start, min(end, len(down_array))):
             aroondown_array[i] = down_array[i] if i < len(down_array) else 0.0
@@ -269,7 +269,7 @@ class AroonOscillator(_AroonBase):
         aroonosc_array = self.lines.aroonosc.array
 
         while len(aroonosc_array) < end:
-            aroonosc_array.append(0.0)
+            aroonosc_array.append(float("nan"))
 
         for i in range(start, min(end, len(up_array), len(down_array))):
             up_val = up_array[i] if i < len(up_array) else 0.0

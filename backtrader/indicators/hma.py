@@ -112,7 +112,7 @@ class HullMovingAverage(MovingAverageBase):
         sqrtperiod = self.sqrtperiod
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         minperiod = period + sqrtperiod - 1
         for i in range(min(minperiod - 1, len(wma_full_array))):

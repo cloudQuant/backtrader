@@ -91,7 +91,7 @@ class MaBetweenHighAndLow(Indicator):
         larray = self.lines.target.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(ma_array), len(high_array), len(low_array))):
             ma_val = ma_array[i] if i < len(ma_array) else 0.0

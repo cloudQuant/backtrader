@@ -97,7 +97,7 @@ class Trix(Indicator):
         minperiod = 3 * self.p.period + rocperiod - 2
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(min(minperiod, len(ema3_array))):
             if i < len(larray):
@@ -175,7 +175,7 @@ class TrixSignal(Trix):
         signal_alpha1 = self.signal_alpha1
 
         while len(signal_array) < end:
-            signal_array.append(0.0)
+            signal_array.append(float("nan"))
 
         # Find first valid trix value for seed
         seed_idx = -1

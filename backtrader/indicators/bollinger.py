@@ -116,7 +116,7 @@ class BollingerBands(Indicator):
         # Ensure arrays are sized
         for arr in [mid_array, top_array, bot_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         # PERFORMANCE: Cache constants and functions
         nan_val = float("nan")
@@ -201,7 +201,7 @@ class BollingerBandsPct(BollingerBands):
         pctb_array = self.lines.pctb.array
 
         while len(pctb_array) < end:
-            pctb_array.append(0.0)
+            pctb_array.append(float("nan"))
 
         for i in range(start, min(end, len(darray), len(top_array), len(bot_array))):
             top = top_array[i] if i < len(top_array) else 0.0

@@ -61,7 +61,7 @@ class TrueHigh(Indicator):
         larray = self.lines.truehigh.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         if len(high_array) > 0 and len(larray) > 0:
             larray[0] = high_array[0] if len(high_array) > 0 else 0.0
@@ -109,7 +109,7 @@ class TrueLow(Indicator):
         larray = self.lines.truelow.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         if len(low_array) > 0 and len(larray) > 0:
             larray[0] = low_array[0] if len(low_array) > 0 else 0.0
@@ -166,7 +166,7 @@ class TrueRange(Indicator):
         larray = self.lines.tr.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         if len(high_array) > 0 and len(low_array) > 0 and len(larray) > 0:
             larray[0] = (
@@ -268,7 +268,7 @@ class AverageTrueRange(Indicator):
         alpha1 = self.alpha1
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # Pre-fill warmup with NaN (indices 0 to period-1)
         for i in range(min(period, len(high_array))):

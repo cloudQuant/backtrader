@@ -56,7 +56,7 @@ class _PriceOscBase(Indicator):
         larray = self.lines[0].array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):
             ma1_val = ma1_array[i] if i < len(ma1_array) else 0.0
@@ -195,7 +195,7 @@ class PercentagePriceOscillator(_PriceOscBase):
 
         for arr in [po_array, ppo_array, signal_array, histo_array]:
             while len(arr) < end:
-                arr.append(0.0)
+                arr.append(float("nan"))
 
         prev_signal = 0.0
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):

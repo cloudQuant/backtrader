@@ -152,9 +152,9 @@ class MACD(Indicator):
 
         # Ensure arrays are properly sized
         while len(macd_array) < end:
-            macd_array.append(0.0)
+            macd_array.append(float("nan"))
         while len(signal_array) < end:
-            signal_array.append(0.0)
+            signal_array.append(float("nan"))
 
         # Pre-fill warmup period with NaN
         for i in range(min(macd_minperiod - 1, len(me1_array))):
@@ -261,7 +261,7 @@ class MACDHisto(MACD):
 
         # Ensure histo array is sized
         while len(histo_array) < end:
-            histo_array.append(0.0)
+            histo_array.append(float("nan"))
 
         # Calculate histogram
         for i in range(start, min(end, len(macd_array), len(signal_array))):

@@ -93,7 +93,7 @@ class PrettyGoodOscillator(Indicator):
         larray = self.lines.pgo.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         for i in range(start, min(end, len(darray), len(ma_array), len(atr_array))):
             data_val = darray[i] if i < len(darray) else 0.0
