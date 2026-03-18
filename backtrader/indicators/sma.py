@@ -20,6 +20,7 @@ Example:
 """
 
 import logging
+import math
 from collections import deque
 
 import numpy as np
@@ -243,6 +244,7 @@ class MovingAverageSimple(MovingAverageBase):
                 self.lines.lines[0][0] = sma_value
 
         except Exception:
+            logger.debug("SMA nextstart() failed", exc_info=True)
             # Fallback to NaN to prevent premature trading
             if hasattr(self, "lines") and hasattr(self.lines, "sma"):
                 self.lines.sma[0] = float("nan")
@@ -260,8 +262,7 @@ class MovingAverageSimple(MovingAverageBase):
 
             # CRITICAL FIX: If value is NaN and we have sufficient data, try manual calculation
             if sma_value is None or (
-                isinstance(sma_value, float)
-                and (sma_value != sma_value or sma_value == float("nan"))
+                isinstance(sma_value, float) and sma_value != sma_value
             ):
                 # Try one more time with direct manual calculation
                 sma_value = self._calculate_sma_manual(period)
@@ -282,6 +283,7 @@ class MovingAverageSimple(MovingAverageBase):
                 self.lines.lines[0][0] = sma_value
 
         except Exception:
+            logger.debug("SMA next() failed", exc_info=True)
             # Fallback to NaN to prevent premature trading
             if hasattr(self, "lines") and hasattr(self.lines, "sma"):
                 self.lines.sma[0] = float("nan")
@@ -323,9 +325,6 @@ class MovingAverageSimple(MovingAverageBase):
             # Start from period-1 (first valid SMA) or start, whichever is later
             calc_start = max(period - 1, start)
 
-            # PERFORMANCE: Import math once outside loop
-            import math
-
             fsum = math.fsum  # Cache function reference
             nan_val = float("nan")
 
@@ -354,6 +353,7 @@ class MovingAverageSimple(MovingAverageBase):
                     # Not enough data yet
                     dst[i] = nan_val
         except Exception:
+            logger.debug("SMA once() failed, falling back to once_via_next", exc_info=True)
             # Fallback to once_via_next if once() fails
             super().once_via_next(start, end)
 

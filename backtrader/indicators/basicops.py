@@ -48,11 +48,14 @@ Example:
 """
 
 import functools
+import logging
 import math
 import operator
 
 from ..utils.py3 import map, range
 from . import Indicator
+
+logger = logging.getLogger(__name__)
 
 
 class PeriodN(Indicator):
@@ -146,6 +149,7 @@ class OperationN(PeriodN):
                     # Not enough data yet
                     dst[i] = float("nan")
         except Exception:
+            logger.debug("OperationN.once() failed, falling back to once_via_next", exc_info=True)
             # Fallback to once_via_next if once() fails
             super().once_via_next(start, end)
 
@@ -529,7 +533,7 @@ class Average(PeriodN):
 
         # Ensure destination array is large enough
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float("nan"))
 
         for i in range(start, end):
             if i >= period - 1:
@@ -633,7 +637,7 @@ class ExponentialSmoothing(Average):
                     prev = sum(seed_data) / len(seed_data)
 
         # Fallback: use first data point if seed calculation failed
-        if prev is None or prev <= 0.0 or (isinstance(prev, float) and math.isnan(prev)):
+        if prev is None or (isinstance(prev, float) and math.isnan(prev)):
             if len(darray) > 0:
                 prev = float(darray[0])
             else:
