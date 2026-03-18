@@ -213,41 +213,41 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
             <tr class="group-header"><td colspan="4">Profit & Loss</td></tr>
             <tr>
                 <td class="label">Start Capital</td>
-                <td class="value">{{ "${:,.2f}".format(start_cash) if start_cash else 'N/A' }}</td>
+                <td class="value">{{ "${:,.2f}".format(start_cash) if start_cash is not none else 'N/A' }}</td>
                 <td class="label">End Value</td>
-                <td class="value">{{ "${:,.2f}".format(end_value) if end_value else 'N/A' }}</td>
+                <td class="value">{{ "${:,.2f}".format(end_value) if end_value is not none else 'N/A' }}</td>
             </tr>
             <tr>
                 <td class="label">Net Profit</td>
-                <td class="value {{ 'positive' if rpl and rpl > 0 else 'negative' if rpl and rpl < 0 else '' }}">{{ "${:,.2f}".format(rpl) if rpl else 'N/A' }}</td>
+                <td class="value {{ 'positive' if rpl is not none and rpl > 0 else 'negative' if rpl is not none and rpl < 0 else '' }}">{{ "${:,.2f}".format(rpl) if rpl is not none else 'N/A' }}</td>
                 <td class="label">Total Return</td>
-                <td class="value {{ 'positive' if total_return and total_return > 0 else 'negative' if total_return and total_return < 0 else '' }}">{{ "{:.2f}%".format(total_return) if total_return else 'N/A' }}</td>
+                <td class="value {{ 'positive' if total_return is not none and total_return > 0 else 'negative' if total_return is not none and total_return < 0 else '' }}">{{ "{:.2f}%".format(total_return) if total_return is not none else 'N/A' }}</td>
             </tr>
             <tr>
                 <td class="label">Annual Return</td>
-                <td class="value {{ 'positive' if annual_return and annual_return > 0 else 'negative' if annual_return and annual_return < 0 else '' }}">{{ "{:.2f}%".format(annual_return) if annual_return else 'N/A' }}</td>
+                <td class="value {{ 'positive' if annual_return is not none and annual_return > 0 else 'negative' if annual_return is not none and annual_return < 0 else '' }}">{{ "{:.2f}%".format(annual_return) if annual_return is not none else 'N/A' }}</td>
                 <td class="label">Profit Factor</td>
-                <td class="value">{{ "{:.2f}".format(profit_factor) if profit_factor else 'N/A' }}</td>
+                <td class="value">{{ "{:.2f}".format(profit_factor) if profit_factor is not none else 'N/A' }}</td>
             </tr>
 
             <tr class="group-header"><td colspan="4">Risk Metrics</td></tr>
             <tr>
                 <td class="label">Max Drawdown ($)</td>
-                <td class="value negative">{{ "${:,.2f}".format(max_money_drawdown) if max_money_drawdown else 'N/A' }}</td>
+                <td class="value negative">{{ "${:,.2f}".format(max_money_drawdown) if max_money_drawdown is not none else 'N/A' }}</td>
                 <td class="label">Max Drawdown (%)</td>
-                <td class="value negative">{{ "{:.2f}%".format(max_pct_drawdown) if max_pct_drawdown else 'N/A' }}</td>
+                <td class="value negative">{{ "{:.2f}%".format(max_pct_drawdown) if max_pct_drawdown is not none else 'N/A' }}</td>
             </tr>
             <tr>
                 <td class="label">Sharpe Ratio</td>
-                <td class="value">{{ "{:.2f}".format(sharpe_ratio) if sharpe_ratio else 'N/A' }}</td>
+                <td class="value">{{ "{:.2f}".format(sharpe_ratio) if sharpe_ratio is not none else 'N/A' }}</td>
                 <td class="label">Calmar Ratio</td>
-                <td class="value">{{ "{:.2f}".format(calmar_ratio) if calmar_ratio else 'N/A' }}</td>
+                <td class="value">{{ "{:.2f}".format(calmar_ratio) if calmar_ratio is not none else 'N/A' }}</td>
             </tr>
             <tr>
                 <td class="label">SQN Score</td>
-                <td class="value">{{ "{:.2f}".format(sqn_score) if sqn_score else 'N/A' }}</td>
+                <td class="value">{{ "{:.2f}".format(sqn_score) if sqn_score is not none else 'N/A' }}</td>
                 <td class="label">SQN Rating</td>
-                <td class="value">{{ sqn_human if sqn_human else 'N/A' }}</td>
+                <td class="value">{{ sqn_human if sqn_human is not none else 'N/A' }}</td>
             </tr>
 
             <tr class="group-header"><td colspan="4">Trade Statistics</td></tr>
@@ -259,19 +259,19 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
             </tr>
             <tr>
                 <td class="label">Win Rate</td>
-                <td class="value">{{ "{:.2f}%".format(pct_winning) if pct_winning else 'N/A' }}</td>
+                <td class="value">{{ "{:.2f}%".format(pct_winning) if pct_winning is not none else 'N/A' }}</td>
                 <td class="label">Avg Win</td>
-                <td class="value positive">{{ "${:,.2f}".format(avg_money_winning) if avg_money_winning else 'N/A' }}</td>
+                <td class="value positive">{{ "${:,.2f}".format(avg_money_winning) if avg_money_winning is not none else 'N/A' }}</td>
             </tr>
             <tr>
                 <td class="label">Avg Loss</td>
-                <td class="value negative">{{ "${:,.2f}".format(avg_money_losing) if avg_money_losing else 'N/A' }}</td>
+                <td class="value negative">{{ "${:,.2f}".format(avg_money_losing) if avg_money_losing is not none else 'N/A' }}</td>
                 <td class="label">Best Trade</td>
-                <td class="value positive">{{ "${:,.2f}".format(best_winning_trade) if best_winning_trade else 'N/A' }}</td>
+                <td class="value positive">{{ "${:,.2f}".format(best_winning_trade) if best_winning_trade is not none else 'N/A' }}</td>
             </tr>
             <tr>
                 <td class="label">Worst Trade</td>
-                <td class="value negative">{{ "${:,.2f}".format(worst_losing_trade) if worst_losing_trade else 'N/A' }}</td>
+                <td class="value negative">{{ "${:,.2f}".format(worst_losing_trade) if worst_losing_trade is not none else 'N/A' }}</td>
                 <td class="label"></td>
                 <td class="value"></td>
             </tr>
@@ -282,9 +282,9 @@ DEFAULT_TEMPLATE = """<!DOCTYPE html>
 <div class="section charts-page">
     <h2>Performance Charts</h2>
     <div class="charts">
-        {% if equity_curve_img %}<img src="{{ equity_curve_img }}" alt="Equity Curve">{% endif %}
-        {% if return_bars_img %}<img src="{{ return_bars_img }}" alt="Return Bars">{% endif %}
-        {% if drawdown_img %}<img src="{{ drawdown_img }}" alt="Drawdown">{% endif %}
+        {% if equity_curve_img %}<img src="{{ equity_curve_img|safe }}" alt="Equity Curve">{% endif %}
+        {% if return_bars_img %}<img src="{{ return_bars_img|safe }}" alt="Return Bars">{% endif %}
+        {% if drawdown_img %}<img src="{{ drawdown_img|safe }}" alt="Drawdown">{% endif %}
     </div>
 </div>
 
@@ -343,10 +343,6 @@ class ReportGenerator:
         self.charts = ReportChart()
         self.template = template
 
-        # User information
-        self._user = None
-        self._memo = None
-
     def generate_html(self, output_path, user=None, memo=None, **kwargs):
         """Generate HTML report.
 
@@ -364,11 +360,8 @@ class ReportGenerator:
                 "jinja2 is required for HTML report generation. Install it with: pip install jinja2"
             )
 
-        self._user = user
-        self._memo = memo
-
         # Collect all data
-        context = self._build_context(**kwargs)
+        context = self._build_context(user=user, memo=memo, **kwargs)
 
         # Render template
         html_content = self._render_template(context)
@@ -399,11 +392,8 @@ class ReportGenerator:
                 "weasyprint is required for PDF report generation. Install it with: pip install weasyprint"
             )
 
-        self._user = user
-        self._memo = memo
-
         # Collect all data
-        context = self._build_context(**kwargs)
+        context = self._build_context(user=user, memo=memo, **kwargs)
 
         # Render template
         html_content = self._render_template(context)
@@ -485,8 +475,13 @@ class ReportGenerator:
 
         return output_path
 
-    def _build_context(self, **kwargs):
+    def _build_context(self, user=None, memo=None, **kwargs):
         """Build template context.
+
+        Args:
+            user: Username for report metadata
+            memo: Notes for report metadata
+            **kwargs: Additional template variables
 
         Returns:
             dict: Template variables dictionary
@@ -537,8 +532,8 @@ class ReportGenerator:
             ),
             "bars": data_info.get("bars", 0),
             # User information
-            "user": self._user,
-            "memo": self._memo,
+            "user": user,
+            "memo": memo,
             "report_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             # Charts
             "equity_curve_img": equity_curve_img,
@@ -562,18 +557,18 @@ class ReportGenerator:
         """
         if self.template == "default":
             # Use default template
-            env = Environment(loader=BaseLoader())
+            env = Environment(loader=BaseLoader(), autoescape=True)
             template = env.from_string(DEFAULT_TEMPLATE)
         else:
             # Try to load as file path
             if os.path.isfile(self.template):
                 template_dir = os.path.dirname(self.template)
                 template_name = os.path.basename(self.template)
-                env = Environment(loader=FileSystemLoader(template_dir))
+                env = Environment(loader=FileSystemLoader(template_dir), autoescape=True)
                 template = env.get_template(template_name)
             else:
                 # Handle as template string
-                env = Environment(loader=BaseLoader())
+                env = Environment(loader=BaseLoader(), autoescape=True)
                 template = env.from_string(self.template)
 
         return template.render(**context)
@@ -612,66 +607,50 @@ class ReportGenerator:
         """
         return self.calculator.get_all_metrics()
 
+    @staticmethod
+    def _fmt_metric(value, fmt=",.2f", suffix=""):
+        """Format a metric value for console display.
+
+        Args:
+            value: Metric value (may be None)
+            fmt: Format string for numeric values
+            suffix: Suffix to append (e.g. '%')
+
+        Returns:
+            str: Formatted value or 'N/A'
+        """
+        if value is None:
+            return "N/A"
+        try:
+            return f"{value:{fmt}}{suffix}"
+        except (ValueError, TypeError):
+            return str(value)
+
     def print_summary(self):
         """Print performance summary to console."""
         metrics = self.calculator.get_all_metrics()
         strategy_info = self.calculator.get_strategy_info()
+        fmt = self._fmt_metric
 
         print("\n" + "=" * 60)
         print(f"Strategy: {strategy_info.get('strategy_name', 'Strategy')}")
         print("=" * 60)
 
         print("\n*** PnL ***")
-        print(
-            f"Start Capital         : {metrics.get('start_cash', 'N/A'):,.2f}"
-            if metrics.get("start_cash")
-            else "Start Capital         : N/A"
-        )
-        print(
-            f"Net Profit            : {metrics.get('rpl', 'N/A'):,.2f}"
-            if metrics.get("rpl")
-            else "Net Profit            : N/A"
-        )
-        print(
-            f"Total Return          : {metrics.get('total_return', 'N/A'):.2f}%"
-            if metrics.get("total_return")
-            else "Total Return          : N/A"
-        )
-        print(
-            f"Annual Return         : {metrics.get('annual_return', 'N/A'):.2f}%"
-            if metrics.get("annual_return")
-            else "Annual Return         : N/A"
-        )
+        print(f"Start Capital         : {fmt(metrics.get('start_cash'))}")
+        print(f"Net Profit            : {fmt(metrics.get('rpl'))}")
+        print(f"Total Return          : {fmt(metrics.get('total_return'), '.2f', '%')}")
+        print(f"Annual Return         : {fmt(metrics.get('annual_return'), '.2f', '%')}")
 
         print("\n*** Risk ***")
-        print(
-            f"Max Drawdown ($)      : {metrics.get('max_money_drawdown', 'N/A'):,.2f}"
-            if metrics.get("max_money_drawdown")
-            else "Max Drawdown ($)      : N/A"
-        )
-        print(
-            f"Max Drawdown (%)      : {metrics.get('max_pct_drawdown', 'N/A'):.2f}%"
-            if metrics.get("max_pct_drawdown")
-            else "Max Drawdown (%)      : N/A"
-        )
-        print(
-            f"Sharpe Ratio          : {metrics.get('sharpe_ratio', 'N/A'):.2f}"
-            if metrics.get("sharpe_ratio")
-            else "Sharpe Ratio          : N/A"
-        )
+        print(f"Max Drawdown ($)      : {fmt(metrics.get('max_money_drawdown'))}")
+        print(f"Max Drawdown (%)      : {fmt(metrics.get('max_pct_drawdown'), '.2f', '%')}")
+        print(f"Sharpe Ratio          : {fmt(metrics.get('sharpe_ratio'), '.2f')}")
 
         print("\n*** Trades ***")
         print(f"Total Trades          : {metrics.get('total_number_trades', 0)}")
-        print(
-            f"Win Rate              : {metrics.get('pct_winning', 'N/A'):.2f}%"
-            if metrics.get("pct_winning")
-            else "Win Rate              : N/A"
-        )
-        print(
-            f"SQN Score             : {metrics.get('sqn_score', 'N/A'):.2f}"
-            if metrics.get("sqn_score")
-            else "SQN Score             : N/A"
-        )
+        print(f"Win Rate              : {fmt(metrics.get('pct_winning'), '.2f', '%')}")
+        print(f"SQN Score             : {fmt(metrics.get('sqn_score'), '.2f')}")
         print(f"SQN Rating            : {metrics.get('sqn_human', 'N/A')}")
 
         print("\n" + "=" * 60)
