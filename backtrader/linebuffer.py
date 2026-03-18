@@ -2319,7 +2319,7 @@ class LinesOperation(LineActions):
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
-        srcb = self.b
+        srcb = self.b[0] if hasattr(self.b, "__getitem__") else self.b
         op = self.operation
 
         # Ensure destination array is sized for direct index assignment
@@ -2336,11 +2336,17 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(srcb, float) and not math.isfinite(srcb):
+                    srcb = 0.0
 
                 result = op(a_val, srcb)
 
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:
@@ -2351,7 +2357,7 @@ class LinesOperation(LineActions):
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
-        srcb = self.b
+        srcb = self.b[0] if hasattr(self.b, "__getitem__") else self.b
         op = self.operation
 
         # Ensure destination array is sized for direct index assignment
@@ -2368,11 +2374,17 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(srcb, float) and not math.isfinite(srcb):
+                    srcb = 0.0
 
                 result = op(srcb, a_val)
 
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:

@@ -400,6 +400,22 @@ class TestLinesOperationOnce:
             actual = op.array[i]
             assert actual == expected or not math.isnan(actual)
 
+    def test_once_val_op_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_val_op should sanitize non-finite inputs/results."""
+        lb_a = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), 3.0):
+            lb_a.forward()
+            lb_a[0] = value
+
+        op = linebuffer.LinesOperation(lb_a, 5.0, operator.__add__)
+        op.array = []
+
+        op._once_val_op(0, 3)
+
+        assert op.array[0] == 6.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 8.0
+
     def test_once_reverse_operation(self):
         """Test once() with reverse operation (scalar op line)."""
         lb_a = linebuffer.LineBuffer()
@@ -416,6 +432,22 @@ class TestLinesOperationOnce:
         for i in range(5):
             actual = op.array[i]
             assert isinstance(actual, float)
+
+    def test_once_val_op_r_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_val_op_r should sanitize non-finite inputs/results."""
+        lb_a = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), 3.0):
+            lb_a.forward()
+            lb_a[0] = value
+
+        op = linebuffer.LinesOperation(lb_a, 5.0, operator.__sub__, r=True)
+        op.array = []
+
+        op._once_val_op_r(0, 3)
+
+        assert op.array[0] == 4.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 2.0
 
 
 # ============================================================================
