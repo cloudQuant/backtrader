@@ -348,6 +348,22 @@ class TestReportChart:
         assert plotted[3] == pytest.approx(100.0)
         assert plotted[4] == pytest.approx(110.0)
 
+    def test_plot_equity_curve_sanitizes_invalid_benchmark_values(self):
+        chart = ReportChart()
+        dates = [datetime(2024, 1, d) for d in range(1, 6)]
+        values = [100.0, 101.0, 102.0, 103.0, 104.0]
+        benchmark_values = [100.0, float("nan"), None, float("inf"), 105.0]
+
+        fig = chart.plot_equity_curve(dates, values, dates, benchmark_values)
+
+        assert fig is not None
+        benchmark_line = list(fig.axes[0].lines[1].get_ydata())
+        assert benchmark_line[0] == pytest.approx(100.0)
+        assert benchmark_line[1] == pytest.approx(100.0)
+        assert benchmark_line[2] == pytest.approx(100.0)
+        assert benchmark_line[3] == pytest.approx(100.0)
+        assert benchmark_line[4] == pytest.approx(105.0)
+
     def test_plot_drawdown_skips_invalid_values(self):
         chart = ReportChart()
         dates = [datetime(2024, 1, d) for d in range(1, 6)]

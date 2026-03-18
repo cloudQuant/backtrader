@@ -94,9 +94,17 @@ class ReportChart:
 
         # Plot buy-and-hold comparison line
         if benchmark_dates and benchmark_values:
+            sanitized_benchmark_values = []
+            for value in benchmark_values:
+                if isinstance(value, (int, float)) and math.isfinite(value):
+                    sanitized_benchmark_values.append(value)
+                else:
+                    sanitized_benchmark_values.append(
+                        sanitized_benchmark_values[-1] if sanitized_benchmark_values else 100
+                    )
             ax.plot(
                 benchmark_dates,
-                benchmark_values,
+                sanitized_benchmark_values,
                 label="Buy & Hold",
                 linewidth=1,
                 color="gray",
