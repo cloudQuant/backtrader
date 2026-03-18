@@ -6,6 +6,7 @@ Generates backtest reports in HTML, PDF, and JSON formats.
 """
 
 import json
+import math
 import os
 from datetime import datetime
 
@@ -620,6 +621,8 @@ class ReportGenerator:
             str: Formatted value or 'N/A'
         """
         if value is None:
+            return "N/A"
+        if isinstance(value, (int, float)) and not math.isfinite(value):
             return "N/A"
         try:
             return f"{value:{fmt}}{suffix}"

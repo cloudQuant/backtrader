@@ -307,6 +307,11 @@ class TestFmtMetric:
     def test_none_returns_na(self):
         assert ReportGenerator._fmt_metric(None) == "N/A"
 
+    def test_non_finite_returns_na(self):
+        assert ReportGenerator._fmt_metric(float("nan")) == "N/A"
+        assert ReportGenerator._fmt_metric(float("inf")) == "N/A"
+        assert ReportGenerator._fmt_metric(float("-inf")) == "N/A"
+
     def test_zero_is_formatted(self):
         result = ReportGenerator._fmt_metric(0.0)
         assert result == "0.00"
