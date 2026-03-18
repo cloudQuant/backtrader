@@ -694,6 +694,11 @@ class LineBuffer(LineSingle, LineRootMixin):
         The purpose is to allow for lookahead operations or to be able to
         set values in the buffer "future"
         """
+        if value is None or value != value:
+            value = self._default_value
+        elif isinstance(value, float) and not math.isfinite(value):
+            value = self._default_value
+
         self.extension += size
         for i in range(size):
             self.array.append(value)

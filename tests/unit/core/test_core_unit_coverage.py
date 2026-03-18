@@ -77,6 +77,13 @@ class TestLineBufferSetItem:
 
         assert lb[0] == 0.0
 
+    def test_extend_sanitizes_non_finite_value(self):
+        """extend() should sanitize non-finite fill values using default-value semantics."""
+        lb = linebuffer.LineBuffer()
+        lb.extend(value=float("-inf"), size=2)
+
+        assert list(lb.array) == [0.0, 0.0]
+
     def test_setitem_with_bindings(self):
         """Test __setitem__ propagates to bindings."""
         lb1 = linebuffer.LineBuffer()
