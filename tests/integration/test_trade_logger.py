@@ -361,6 +361,60 @@ def test_trade_logger_order_log_content():
         shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+def test_trade_logger_bar_log_content():
+    """Test bar.log contains per-bar data with broker metrics.
+
+    Verifies that regular backtests populate bar.log and include account-level
+    broker value and cash fields for each logged bar.
+
+    Raises:
+        AssertionError: If bar.log is empty or missing expected fields.
+    """
+    data_path = get_test_data_path()
+    if data_path is None:
+        print("⚠ Skipping test_trade_logger_bar_log_content: no test data available")
+        return
+
+    temp_dir = tempfile.mkdtemp()
+
+    try:
+        cerebro = bt.Cerebro()
+        cerebro.addstrategy(SimpleStrategy)
+
+        if data_path.endswith('.csv'):
+            data = bt.feeds.GenericCSVData(
+                dataname=data_path,
+                dtformat='%Y-%m-%d',
+                datetime=2, open=3, high=4, low=5, close=6, volume=7,
+                openinterest=-1, headers=True
+            )
+        else:
+            data = bt.feeds.YahooFinanceCSVData(dataname=data_path)
+
+        cerebro.adddata(data, name='test_data')
+        cerebro.addobserver(bt.observers.TradeLogger, log_dir=temp_dir, log_format='json')
+        cerebro.broker.setcash(100000)
+        cerebro.run()
+
+        bar_log_path = os.path.join(temp_dir, 'bar.log')
+        assert os.path.exists(bar_log_path), "bar.log not created"
+
+        with open(bar_log_path, 'r', encoding='utf-8') as f:
+            lines = f.readlines()
+
+        assert len(lines) > 0, "bar.log is empty"
+
+        first_bar = json.loads(lines[0])
+        expected_fields = ['event_type', 'data_name', 'datetime', 'open', 'high', 'low', 'close', 'broker_value', 'broker_cash']
+        for field in expected_fields:
+            assert field in first_bar, f"Missing field in bar log: {field}"
+
+        print("✓ TradeLogger bar.log content test passed")
+
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 def test_trade_logger_trade_log_content():
     """Test trade.log contains valid trade data.
 
@@ -475,7 +529,7 @@ def test_trade_logger_position_log_content():
         assert len(lines) > 0, "position.log is empty"
 
         first_position = json.loads(lines[0])
-        expected_fields = ['datetime', 'data_name', 'size', 'price', 'value', 'strategy_name']
+        expected_fields = ['datetime', 'data_name', 'size', 'price', 'value', 'broker_value', 'broker_cash', 'strategy_name']
         for field in expected_fields:
             assert field in first_position, f"Missing field in position log: {field}"
 
@@ -798,9 +852,10 @@ def run_all_tests():
         test_trade_logger_trade_log_content,
         test_trade_logger_position_log_content,
         test_trade_logger_indicator_log_content,
+        test_trade_logger_bar_log_content,
         test_trade_logger_signal_log_content,
         test_trade_logger_text_format,
-        test_trade_logger_selective_logging,
+        test_trade_logger_disable_some_logs,
         test_trade_logger_multiple_data_feeds,
     ]
 

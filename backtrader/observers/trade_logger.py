@@ -643,6 +643,75 @@ class TradeLogger(Observer):
             logger.debug("Failed to read strategy name: %s", e)
             return "Unknown"
 
+    def _get_broker_value(self):
+        """Get current broker portfolio value."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            if broker is None:
+                return 0.0
+            return float(broker.getvalue())
+        except Exception as e:
+            logger.debug("Failed to read broker value: %s", e)
+            return 0.0
+
+    def _get_broker_cash(self):
+        """Get current broker cash."""
+        try:
+            broker = getattr(self._owner, "broker", None)
+            if broker is None:
+                return 0.0
+            return float(broker.getcash())
+        except Exception as e:
+            logger.debug("Failed to read broker cash: %s", e)
+            return 0.0
+
+    def _log_bar_snapshots(self):
+        """Log per-bar OHLC snapshots during regular backtests."""
+        if not self._bar_logger:
+            return
+
+        if not hasattr(self, "_owner") or self._owner is None:
+            return
+
+        if not hasattr(self._owner, "datas") or not self._owner.datas:
+            return
+
+        broker_value = self._get_broker_value()
+        broker_cash = self._get_broker_cash()
+
+        for data in self._owner.datas:
+            try:
+                data_name = getattr(data, "_name", str(data))
+                log_data = {
+                    "log_time": self._log_time_str(),
+                    "event_type": "bar",
+                    "strategy_name": self._get_strategy_name(),
+                    "data_name": data_name,
+                    "datetime": self._get_datetime_str(),
+                    "open": float(data.open[0]),
+                    "high": float(data.high[0]),
+                    "low": float(data.low[0]),
+                    "close": float(data.close[0]),
+                    "volume": float(data.volume[0]) if hasattr(data, "volume") else 0.0,
+                    "openinterest": float(data.openinterest[0]) if hasattr(data, "openinterest") else 0.0,
+                    "broker_value": broker_value,
+                    "broker_cash": broker_cash,
+                }
+                self._emit_payload(
+                    self._bar_logger,
+                    log_data,
+                    text_line=(
+                        f"{log_data['log_time']} | BAR | data_name={data_name} | "
+                        f"O={log_data['open']:.4f} H={log_data['high']:.4f} "
+                        f"L={log_data['low']:.4f} C={log_data['close']:.4f} | "
+                        f"vol={log_data['volume']:.2f} | "
+                        f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
+                    ),
+                )
+            except Exception as e:
+                logger.debug("Failed to log bar snapshot for %s: %s", getattr(data, "_name", str(data)), e)
+                continue
+
     def next(self):
         """Called on every bar - log positions and indicators."""
         self._ensure_loggers_initialized()
@@ -651,6 +720,9 @@ class TradeLogger(Observer):
         self.lines.dummy[0] = 0
 
         try:
+            if self.p.log_bars:
+                self._log_bar_snapshots()
+
             if self.p.log_positions:
                 self._log_positions()
 
@@ -831,10 +903,14 @@ class TradeLogger(Observer):
                     if val is not None:
                         bar_dict[attr] = val
 
+            broker_value = self._get_broker_value()
+            broker_cash = self._get_broker_cash()
             log_data = {
                 "log_time": self._log_time_str(),
                 "event_type": "bar",
                 "strategy_name": self._get_strategy_name(),
+                "broker_value": broker_value,
+                "broker_cash": broker_cash,
                 **bar_dict,
             }
             self._emit_payload(
@@ -845,7 +921,8 @@ class TradeLogger(Observer):
                     f"symbol={bar_dict.get('symbol', '')} | "
                     f"O={bar_dict.get('open', '')} H={bar_dict.get('high', '')} "
                     f"L={bar_dict.get('low', '')} C={bar_dict.get('close', '')} | "
-                    f"vol={bar_dict.get('volume', '')}"
+                    f"vol={bar_dict.get('volume', '')} | "
+                    f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
                 ),
             )
         except Exception as e:
@@ -936,6 +1013,9 @@ class TradeLogger(Observer):
         if not hasattr(self._owner, "datas") or not self._owner.datas:
             return
 
+        broker_value = self._get_broker_value()
+        broker_cash = self._get_broker_cash()
+
         for data in self._owner.datas:
             position = self._owner.getposition(data)
             data_name = getattr(data, "_name", str(data))
@@ -947,6 +1027,8 @@ class TradeLogger(Observer):
                 "size": position.size,
                 "price": position.price,
                 "value": position.size * data.close[0] if position.size != 0 else 0,
+                "broker_value": broker_value,
+                "broker_cash": broker_cash,
                 "strategy_name": self._get_strategy_name(),
             }
 
@@ -958,7 +1040,8 @@ class TradeLogger(Observer):
                     text_line=(
                         f"{log_data['log_time']} | {data_name} | "
                         f"size={position.size} | price={position.price:.4f} | "
-                        f"value={log_data['value']:.2f}"
+                        f"value={log_data['value']:.2f} | "
+                        f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
                     ),
                 )
 
