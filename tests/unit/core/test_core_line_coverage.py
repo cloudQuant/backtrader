@@ -530,6 +530,29 @@ class TestLineRootOperators:
         assert strat.bool_results[3] is False
         assert strat.bool_results[6] is False
 
+    def test_lineseries_call_on_non_finite_data(self):
+        """LineSeries current-value access should sanitize non-finite values to 0.0."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[7]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.current_values = []
+
+            def next(self):
+                self.current_values.append(self.data(line="close"))
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.current_values) == len(data_list)
+        assert strat.current_values[2] == 0.0
+        assert strat.current_values[7] == 0.0
+
     def test_stage_switch(self):
         """Test _stage1 and _stage2 switching."""
 

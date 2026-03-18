@@ -1731,7 +1731,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 elif isinstance(value, float):
                     import math
 
-                    if math.isnan(value):
+                    if not math.isfinite(value):
                         return 0.0
                 return value
             except (IndexError, TypeError, AttributeError):
