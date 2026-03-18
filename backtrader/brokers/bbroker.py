@@ -1404,7 +1404,7 @@ class BackBroker(BrokerBase):
             if dt0 >= order.dteos:
                 # past the end of session or right at it and eosbar is True
                 # If order.pannotated is a price and dt0 is greater than end of day time, set ago to -1, execution price equals previous close price
-                if order.pannotated and dt0 > order.dteos:
+                if order.pannotated is not None and dt0 > order.dteos:
                     ago = -1
                     execprice = order.pannotated
                 # Otherwise, ago equals 0, execution price equals pclose

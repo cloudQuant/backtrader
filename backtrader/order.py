@@ -560,7 +560,7 @@ class OrderBase:
 
         # Set a reference price if price is not set using the close price
         pclose = self.data.close[0] if not self.p.simulated else self.price
-        price = pclose if not self.price and not self.pricelimit else self.price
+        price = pclose if self.price is None and self.pricelimit is None else self.price
         # If not simulated, order creation time equals current data time, otherwise it's 0
         dcreated = self.data.datetime[0] if not self.p.simulated else 0.0
         # Order creation
