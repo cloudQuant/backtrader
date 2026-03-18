@@ -1860,7 +1860,7 @@ class _LineForward(LineActions):
             # CRITICAL FIX: Ensure values are numeric and not None/NaN
             if a_val is None:
                 a_val = 0.0
-            elif isinstance(a_val, float) and math.isnan(a_val):
+            elif isinstance(a_val, float) and not math.isfinite(a_val):
                 a_val = 0.0
             elif not isinstance(a_val, (int, float)):
                 try:
@@ -1870,7 +1870,7 @@ class _LineForward(LineActions):
 
             if b_val is None:
                 b_val = 0.0
-            elif isinstance(b_val, float) and math.isnan(b_val):
+            elif isinstance(b_val, float) and not math.isfinite(b_val):
                 b_val = 0.0
             elif not isinstance(b_val, (int, float)):
                 try:
@@ -1890,7 +1890,7 @@ class _LineForward(LineActions):
                 # Ensure result is a valid number
                 if result is None:
                     result = 0.0
-                elif isinstance(result, float) and math.isnan(result):
+                elif isinstance(result, float) and not math.isfinite(result):
                     result = 0.0
                 elif not isinstance(result, (int, float)):
                     try:
@@ -2038,12 +2038,19 @@ class LinesOperation(LineActions):
                 return float("nan")
             if b_val is None or (isinstance(b_val, float) and b_val != b_val):
                 return float("nan")
+            if isinstance(a_val, float) and not math.isfinite(a_val):
+                a_val = 0.0
+            if isinstance(b_val, float) and not math.isfinite(b_val):
+                b_val = 0.0
 
             # Compute and return the operation result
             if self.r:
-                return self.operation(b_val, a_val)
+                result = self.operation(b_val, a_val)
             else:
-                return self.operation(a_val, b_val)
+                result = self.operation(a_val, b_val)
+            if isinstance(result, float) and not math.isfinite(result):
+                return 0.0
+            return result
         except (IndexError, TypeError):
             return float("nan")
 

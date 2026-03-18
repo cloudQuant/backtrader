@@ -214,6 +214,22 @@ class TestLinesOperationNext:
         op.next()
         assert op[0] == 7.0
 
+    def test_lines_operation_next_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation.next should sanitize non-finite operands/results to 0.0."""
+        lb_a = linebuffer.LineBuffer()
+        lb_b = linebuffer.LineBuffer()
+        lb_a.forward()
+        lb_a[0] = float("inf")
+        lb_b.forward()
+        lb_b[0] = float("-inf")
+
+        op = linebuffer.LinesOperation(lb_a, lb_b, operator.__add__)
+        op.forward()
+        op.idx = lb_a.idx
+        op.next()
+
+        assert op[0] == 0.0
+
     def test_lines_operation_with_scalar(self):
         """Test LinesOperation where b is a scalar."""
         lb_a = linebuffer.LineBuffer()
