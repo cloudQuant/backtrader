@@ -290,6 +290,23 @@ class TestLineOwnOperation:
         op.next()
         assert op[0] == 7.0
 
+    def test_own_operation_once_sanitizes_non_finite(self):
+        """LineOwnOperation.once should sanitize non-finite inputs/results to 0.0."""
+        lb = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), float("-inf")):
+            lb.forward()
+            lb[0] = value
+
+        op = linebuffer.LineOwnOperation(lb, operator.__neg__)
+        for _ in range(3):
+            op.forward()
+
+        op.once(0, 3)
+
+        assert op.array[0] == -1.0
+        assert op.array[1] == 0.0
+        assert op.array[2] == 0.0
+
 
 # ============================================================================
 # 7. LinesOperation.once() paths (lines 2276-2369)
