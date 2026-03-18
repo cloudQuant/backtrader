@@ -306,6 +306,16 @@ class TestLineOwnOperation:
         op.next()
         assert op[0] == 7.0
 
+    def test_own_operation_getitem_sanitizes_non_finite(self):
+        """LineOwnOperation.__getitem__ should sanitize non-finite values to 0.0."""
+        lb = linebuffer.LineBuffer()
+        lb.forward()
+        lb[0] = float("inf")
+
+        op = linebuffer.LineOwnOperation(lb, operator.__neg__)
+
+        assert op[0] == 0.0
+
     def test_own_operation_once_sanitizes_non_finite(self):
         """LineOwnOperation.once should sanitize non-finite inputs/results to 0.0."""
         lb = linebuffer.LineBuffer()

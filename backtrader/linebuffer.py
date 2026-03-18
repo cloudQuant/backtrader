@@ -2429,7 +2429,12 @@ class LineOwnOperation(LineActions):
             a_val = self.a[ago] if hasattr(self.a, "__getitem__") else self.a
             if a_val is None or (isinstance(a_val, float) and a_val != a_val):
                 return float("nan")
-            return self.operation(a_val)
+            if isinstance(a_val, float) and not math.isfinite(a_val):
+                a_val = 0.0
+            result = self.operation(a_val)
+            if isinstance(result, float) and not math.isfinite(result):
+                return 0.0
+            return result
         except (IndexError, TypeError):
             return float("nan")
 
