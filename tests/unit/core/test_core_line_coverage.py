@@ -430,6 +430,52 @@ class TestLineRootOperators:
         strat = run_cerebro(St)
         assert strat.bar_count > 0
 
+    def test_unary_operators_with_non_finite_values(self):
+        """Unary operators should sanitize non-finite inputs in next()."""
+        data_list = generate_ohlcv(12)
+        data_list[3]["close"] = float("inf")
+        data_list[8]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.abs_line = abs(self.data.close)
+                self.neg_line = -self.data.close
+                self.bar_count = 0
+
+            def next(self):
+                self.bar_count += 1
+                assert math.isfinite(self.abs_line[0])
+                assert math.isfinite(self.neg_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+        assert results[0].bar_count > 0
+
+    def test_unary_operators_with_non_finite_values_runonce(self):
+        """Unary operators should sanitize non-finite inputs in once()."""
+        data_list = generate_ohlcv(12)
+        data_list[2]["close"] = float("inf")
+        data_list[9]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.abs_line = abs(self.data.close)
+                self.neg_line = -self.data.close
+                self.bar_count = 0
+
+            def next(self):
+                self.bar_count += 1
+                assert math.isfinite(self.abs_line[0])
+                assert math.isfinite(self.neg_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
+
     def test_right_operators(self):
         """Test right-hand side operators (radd, rsub, rmul, etc)."""
 

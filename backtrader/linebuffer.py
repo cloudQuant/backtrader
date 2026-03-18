@@ -1936,13 +1936,13 @@ class _LineForward(LineActions):
                 a_val = srca[i] if i < len(srca) else 0.0
 
                 # Ensure value is numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
                     a_val = 0.0
 
                 result = op(a_val)
 
                 # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
                     result = 0.0
 
                 dst[i] = result
@@ -2432,7 +2432,15 @@ class LineOwnOperation(LineActions):
         Performs the unary operation on the current value of the operand
         and stores the result at position 0.
         """
-        self[0] = self.operation(self.a[0])
+        a_val = self.a[0]
+        if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+            a_val = 0.0
+
+        result = self.operation(a_val)
+        if result is None or (isinstance(result, float) and not math.isfinite(result)):
+            result = 0.0
+
+        self[0] = result
 
     def once(self, start, end):
         """Calculate unary operation results in batch mode (runonce).
