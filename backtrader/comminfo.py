@@ -303,8 +303,8 @@ class ComminfoDC(CommInfoBase):
         size, price = pos.size, pos.price
         dt0 = dt
         dt1 = pos.datetime
-        gap_seconds = (dt0 - dt1).seconds
-        days = gap_seconds / (24 * 60 * 60)
+        gap_seconds = (dt0 - dt1).total_seconds()
+        days = gap_seconds / (24.0 * 60.0 * 60.0)
 
         mult = self.get_param("mult")
         position_value = size * price * mult
@@ -414,7 +414,10 @@ class ComminfoFundingRate(CommInfoBase):
         try:
             current_price = data.mark_price_open[1]
         except (IndexError, AttributeError):
-            current_price = getattr(data, "mark_price_close", [price])[0]
+            try:
+                current_price = data.mark_price_close[0]
+            except (IndexError, AttributeError):
+                current_price = price
 
         mult = self.get_param("mult")
         position_value = size * current_price * mult
