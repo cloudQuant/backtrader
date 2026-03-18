@@ -465,6 +465,8 @@ class LineBuffer(LineSingle, LineRootMixin):
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         elif value != value:  # NaN detection without isinstance + isnan
             value = self._default_value
+        elif isinstance(value, float) and not math.isfinite(value):
+            value = self._default_value
         # datetime line value validation
         elif self._is_datetime_line and value < 1.0:
             value = 1.0
@@ -536,6 +538,8 @@ class LineBuffer(LineSingle, LineRootMixin):
             value = self._default_value
         elif value != value:  # NaN detection (faster than isinstance + math.isnan)
             value = self._default_value
+        elif isinstance(value, float) and not math.isfinite(value):
+            value = self._default_value
         elif is_dt and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
 
@@ -588,7 +592,9 @@ class LineBuffer(LineSingle, LineRootMixin):
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
         if value is None or value != value:
-            value = NAN if is_indicator else 0.0
+            value = self._default_value
+        elif isinstance(value, float) and not math.isfinite(value):
+            value = self._default_value
 
         # For non-indicators, follow clock synchronization
         if not is_indicator:
@@ -614,8 +620,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.idx += size
         self.lencount += size
 
-        # Append data: use module-level 0.0 for non-indicators
-        append_val = value if is_indicator else (0.0 if value != value or value is None else value)
+        append_val = value
         if size == 1:
             self.array.append(append_val)
         else:

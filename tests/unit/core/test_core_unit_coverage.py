@@ -54,6 +54,29 @@ class TestLineBufferSetItem:
         # NaN gets converted to 0.0 or stays NaN depending on line type
         assert isinstance(val, float)
 
+    def test_setitem_inf_value(self):
+        """Setting inf should convert to the default finite value for regular lines."""
+        lb = linebuffer.LineBuffer()
+        lb.forward()
+        lb[0] = float("inf")
+
+        assert lb[0] == 0.0
+
+    def test_set_method_sanitizes_non_finite_value(self):
+        """set() should sanitize non-finite values using default-value semantics."""
+        lb = linebuffer.LineBuffer()
+        lb.forward()
+        lb.set(float("-inf"))
+
+        assert lb[0] == 0.0
+
+    def test_forward_sanitizes_non_finite_value(self):
+        """forward() should sanitize non-finite fill values using default-value semantics."""
+        lb = linebuffer.LineBuffer()
+        lb.forward(value=float("inf"))
+
+        assert lb[0] == 0.0
+
     def test_setitem_with_bindings(self):
         """Test __setitem__ propagates to bindings."""
         lb1 = linebuffer.LineBuffer()
