@@ -519,6 +519,8 @@ class ReportGenerator:
                 drawdown_img = self.charts.to_base64(fig_drawdown)
 
         # Build context
+        serializable_metrics = self._make_json_serializable(metrics)
+        serializable_kwargs = self._make_json_serializable(kwargs)
         context = {
             # Strategy information
             "strategy_name": strategy_info.get("strategy_name", "Strategy"),
@@ -541,8 +543,8 @@ class ReportGenerator:
             "return_bars_img": return_bars_img,
             "drawdown_img": drawdown_img,
             # Metrics
-            **metrics,
-            **kwargs,
+            **serializable_metrics,
+            **serializable_kwargs,
         }
 
         return context

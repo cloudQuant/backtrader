@@ -397,4 +397,30 @@ class TestBuildContextNoInstanceState:
         assert ctx3["user"] is None
         # Verify no _user/_memo instance attribute leaking
         assert not hasattr(gen, "_user")
+
+    def test_non_finite_values_are_sanitized(self):
+        strategy = _make_strategy()
+        gen = ReportGenerator(strategy)
+        gen.calculator.get_all_metrics = MagicMock(return_value={
+            "total_return": float("nan"),
+            "annual_return": float("inf"),
+        })
+        gen.calculator.get_strategy_info = MagicMock(return_value={
+            "strategy_name": "MockStrategy",
+            "params": {},
+        })
+        gen.calculator.get_data_info = MagicMock(return_value={
+            "data_name": "Data",
+            "start_date": None,
+            "end_date": None,
+            "bars": 0,
+        })
+        gen.calculator.get_equity_curve = MagicMock(return_value=([], []))
+        gen.calculator.get_buynhold_curve = MagicMock(return_value=([], []))
+
+        ctx = gen._build_context(extra_metric=float("-inf"))
+
+        assert ctx["total_return"] is None
+        assert ctx["annual_return"] is None
+        assert ctx["extra_metric"] is None
         assert not hasattr(gen, "_memo")
