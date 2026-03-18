@@ -29,6 +29,16 @@ from .utils.py3 import cmp, range
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_cmp_value(value):
+    if value is None:
+        return 0.0
+
+    if isinstance(value, float) and math.isnan(value):
+        return 0.0
+
+    return value
+
+
 # Generate a List equivalent which uses "is" for contains
 # Create a new List class, overriding __contains__ method, if any element in list has hash value equal to other's hash value, return True
 class List(list):
@@ -205,7 +215,7 @@ class Cmp(Logic):
 
     def next(self):
         """Calculate the next comparison value."""
-        self[0] = cmp(self.a[0], self.b[0])
+        self[0] = cmp(_sanitize_cmp_value(self.a[0]), _sanitize_cmp_value(self.b[0]))
 
     def once(self, start, end):
         """Calculate all comparison values at once.
@@ -220,7 +230,7 @@ class Cmp(Logic):
         srcb = self.b.array
 
         for i in range(start, end):
-            dst[i] = cmp(srca[i], srcb[i])
+            dst[i] = cmp(_sanitize_cmp_value(srca[i]), _sanitize_cmp_value(srcb[i]))
 
 
 # Compare two lines, a and b, return corresponding r1 value when a<b, return r2 value when a=b, return r3 value when a>b
@@ -254,9 +264,12 @@ class CmpEx(Logic):
     def next(self):
         """Calculate the next extended comparison value."""
         # self[0] = cmp(self.a[0], self.b[0])
-        if self.a[0] < self.b[0]:
+        a0 = _sanitize_cmp_value(self.a[0])
+        b0 = _sanitize_cmp_value(self.b[0])
+
+        if a0 < b0:
             self[0] = self.r1[0]
-        elif self.a[0] > self.b[0]:
+        elif a0 > b0:
             self[0] = self.r3[0]
         else:
             self[0] = self.r2[0]
@@ -277,8 +290,8 @@ class CmpEx(Logic):
         r3 = self.r3.array
 
         for i in range(start, end):
-            ai = srca[i]
-            bi = srcb[i]
+            ai = _sanitize_cmp_value(srca[i])
+            bi = _sanitize_cmp_value(srcb[i])
 
             if ai < bi:
                 dst[i] = r1[i]

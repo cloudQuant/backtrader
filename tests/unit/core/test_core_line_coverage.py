@@ -215,6 +215,55 @@ class TestLineRootOperators:
         strat = run_cerebro(St)
         assert strat.ok
 
+    def test_cmp_with_none_constant(self):
+        """Cmp should sanitize None constants instead of crashing in next()."""
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.cmp_line = bt.Cmp(self.data.close, None)
+                self.cmpex_line = bt.CmpEx(self.data.close, None, -1.0, 0.0, 1.0)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify comparison lines are finite."""
+                self.bar_count += 1
+                assert self.cmp_line[0] in (-1, 0, 1)
+                assert self.cmpex_line[0] in (-1.0, 0.0, 1.0)
+
+        strat = run_cerebro(St)
+        assert strat.bar_count > 0
+
+    def test_cmp_with_nan_and_none_runonce(self):
+        """Cmp/CmpEx should sanitize NaN and None in once() path under runonce."""
+
+        data_list = generate_ohlcv(30)
+        data_list[5]["close"] = float("nan")
+        data_list[10]["close"] = None
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.cmp_line = bt.Cmp(self.data.close, None)
+                self.cmpex_line = bt.CmpEx(self.data.close, None, -1.0, 0.0, 1.0)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain valid."""
+                self.bar_count += 1
+                assert self.cmp_line[0] in (-1, 0, 1)
+                assert self.cmpex_line[0] in (-1.0, 0.0, 1.0)
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
+
     def test_unary_operators(self):
         """Test abs() and neg() operators."""
 
