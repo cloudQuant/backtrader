@@ -401,10 +401,15 @@ class LineBuffer(LineSingle, LineRootMixin):
         if self.useislice:
             start = self._idx + ago - size + 1
             end = self._idx + ago + 1
-            return list(islice(self.array, start, end))
+            values = list(islice(self.array, start, end))
+        else:
+            # If not using islice, directly slice the array
+            values = list(self.array[self._idx + ago - size + 1 : self._idx + ago + 1])
 
-        # If not using islice, directly slice the array
-        return self.array[self._idx + ago - size + 1 : self._idx + ago + 1]
+        return array.array(
+            "d",
+            (0.0 if isinstance(value, float) and not math.isfinite(value) and value == value else value for value in values),
+        )
 
     # Return the value at the actual index 0 of the array
     def getzeroval(self, idx=0):
@@ -418,7 +423,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             A slice of the underlying buffer
         """
-        return self.array[idx]
+        value = self.array[idx]
+        if isinstance(value, float) and not math.isfinite(value) and value == value:
+            return 0.0
+        return value
 
     # Return data of size starting from idx in the array
     def getzero(self, idx=0, size=1):
@@ -432,9 +440,17 @@ class LineBuffer(LineSingle, LineRootMixin):
             A slice of the underlying buffer
         """
         if self.useislice:
-            return list(islice(self.array, idx, idx + size))
+            values = list(islice(self.array, idx, idx + size))
+        else:
+            values = list(self.array[idx : idx + size])
 
-        return self.array[idx : idx + size]
+        return array.array(
+            "d",
+            (
+                0.0 if isinstance(value, float) and not math.isfinite(value) and value == value else value
+                for value in values
+            ),
+        )
 
     # Set values to the array
     def __setitem__(self, ago, value):

@@ -94,6 +94,40 @@ class TestLineBufferSetItem:
         lb1[0] = 42.0
         assert lb2[0] == 42.0
 
+    def test_getzeroval_sanitizes_non_finite_value(self):
+        """getzeroval() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("nan")])
+
+        assert lb.getzeroval(1) == 0.0
+        assert math.isnan(lb.getzeroval(2))
+
+    def test_getzero_sanitizes_non_finite_values(self):
+        """getzero() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+
+        values = list(lb.getzero(0, 4))
+
+        assert values[0] == 1.0
+        assert values[1] == 0.0
+        assert values[2] == 0.0
+        assert math.isnan(values[3])
+
+    def test_get_sanitizes_non_finite_values(self):
+        """get() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+        lb.idx = 3
+        lb.lencount = 4
+
+        values = list(lb.get(ago=0, size=4))
+
+        assert values[0] == 1.0
+        assert values[1] == 0.0
+        assert values[2] == 0.0
+        assert math.isnan(values[3])
+
     def test_setitem_extends_array(self):
         """Test __setitem__ auto-extends array when needed."""
         lb = linebuffer.LineBuffer()
