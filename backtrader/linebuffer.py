@@ -1900,6 +1900,7 @@ class _LineForward(LineActions):
                 self[0] = a_val
 
         except Exception:
+            logger.debug("LineOwnOperation.next fallback triggered", exc_info=True)
             # If anything fails, store 0.0 to prevent crashes
             self[0] = 0.0
 
@@ -1941,6 +1942,7 @@ class _LineForward(LineActions):
 
                 dst[i] = result
             except Exception:
+                logger.debug("LineOwnOperation.once fallback triggered at index %d", i, exc_info=True)
                 # If operation fails, store 0.0
                 dst[i] = 0.0
 
@@ -2255,6 +2257,7 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
+                logger.debug("LinesOperation._once_op fallback triggered at index %d", i, exc_info=True)
                 # If operation fails, store NaN for indicator semantics
                 dst[i] = float("nan")
 
@@ -2291,6 +2294,7 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
+                logger.debug("LinesOperation._once_time_op fallback triggered at index %d", i, exc_info=True)
                 dst[i] = float("nan")
 
     def _once_val_op(self, start, end):
@@ -2322,6 +2326,7 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
+                logger.debug("LinesOperation._once_val_op fallback triggered at index %d", i, exc_info=True)
                 dst[i] = float("nan")
 
     def _once_val_op_r(self, start, end):
@@ -2353,6 +2358,7 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
+                logger.debug("LinesOperation._once_val_op_r fallback triggered at index %d", i, exc_info=True)
                 dst[i] = float("nan")
 
 
