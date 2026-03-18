@@ -9,6 +9,7 @@ which handles large datasets much better than matplotlib.
 import bisect
 import collections
 import datetime
+import logging
 import math
 
 import numpy as np
@@ -18,6 +19,8 @@ from plotly.subplots import make_subplots
 from ..parameters import ParameterDescriptor, ParameterizedBase
 from ..utils.date import num2date
 from ..utils.py3 import range
+
+logger = logging.getLogger(__name__)
 from .scheme import PlotScheme
 
 # Tableau color schemes
@@ -1023,8 +1026,8 @@ class PlotlyPlot(ParameterizedBase):
                 row=bottom_row,
                 col=1,
             )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to add range selector: %s", e)
 
         # Crosshair spike lines
         fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1)

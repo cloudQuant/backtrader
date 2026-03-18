@@ -23,10 +23,13 @@ Example:
     >>> obj.updateminperiod(30)  # Update to max(current, 30)
 """
 
+import logging
 import operator
 
 from . import metabase
 from .utils.py3 import range
+
+logger = logging.getLogger(__name__)
 
 
 class LineRootMixin:
@@ -927,8 +930,8 @@ def _apply_strategy_patch():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to forward in _clk_update: %s", e)
 
             # Update _dlens
             self._dlens = newdlens
@@ -987,8 +990,8 @@ def _apply_strategy_patch():
             # Strategy not imported yet, try to patch later when it's imported
             pass
 
-    except Exception:
-        pass  # Fail silently to not break imports
+    except Exception as e:
+        logger.debug("Failed to apply strategy patch: %s", e)
 
 
 # Apply the patch when this module is imported

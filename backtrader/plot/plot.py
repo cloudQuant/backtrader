@@ -23,6 +23,7 @@ import bisect
 import collections
 import copy
 import datetime
+import logging
 import math
 import operator
 import os
@@ -42,6 +43,8 @@ import plotly.offline as py
 from dash import html
 from pyecharts import options as opts
 from pyecharts.charts import Bar, EffectScatter, Grid, Kline, Line
+
+logger = logging.getLogger(__name__)
 from pyecharts.commons.utils import JsCode
 from pyecharts.globals import SymbolType
 
@@ -507,8 +510,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                 )
             )
             overlap_kline_line = kline.overlap(long_line)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to create long line overlay: %s", e)
 
     sk_df = df[df.index.isin([str(i[0]) for i in sk_list])]
     sk_c = (
@@ -578,8 +581,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                 )
             )
             overlap_kline_line = kline.overlap(short_line)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to create short line overlay: %s", e)
 
     # Bar-1
     bar_1 = (

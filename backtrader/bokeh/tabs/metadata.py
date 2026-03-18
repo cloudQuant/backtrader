@@ -6,8 +6,11 @@ Displays metadata info for strategy and backtest.
 """
 
 import datetime
+import logging
 
 from ..tab import BokehTab
+
+logger = logging.getLogger(__name__)
 
 try:
     from bokeh.layouts import column
@@ -75,8 +78,8 @@ class MetadataTab(BokehTab):
                         metadata["Start Date"] = str(start_dt)
                         metadata["End Date"] = str(end_dt)
                         metadata["Total Bars"] = len(data)
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to get data range: %s", e)
 
             # Indicator info
             if hasattr(strategy, "_lineiterators"):
@@ -95,8 +98,8 @@ class MetadataTab(BokehTab):
                 try:
                     metadata["Final Value"] = f"{broker.getvalue():.2f}"
                     metadata["Final Cash"] = f"{broker.getcash():.2f}"
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to get broker info: %s", e)
 
         # Create table
         if metadata:

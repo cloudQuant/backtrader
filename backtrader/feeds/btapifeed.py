@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import collections
 import datetime as _dt
+import logging
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
@@ -13,6 +14,8 @@ from .livefeed import LiveFeedBase
 from ..feed import DataBase
 from ..utils import date2num
 from ..stores.btapistore import _normalize_bar
+
+logger = logging.getLogger(__name__)
 
 
 class BtApiFeed(DataBase, LiveFeedBase):
@@ -58,8 +61,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     compression=self._compression,
                 )
                 self._history.extend(bars)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to backfill history: %s", e)
 
         self.store.subscribe(self._dataname)
 
@@ -88,8 +91,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 try:
                     if bool(api.supports_live_ticks(dataname)):
                         return True
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("supports_live_ticks check failed: %s", e)
 
             live_ticks = getattr(api, "live_ticks", None)
             if live_ticks is not None:

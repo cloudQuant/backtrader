@@ -20,10 +20,13 @@ Example:
 """
 
 import functools
+import logging
 import math
 
 from .linebuffer import LineActions
 from .utils.py3 import cmp, range
+
+logger = logging.getLogger(__name__)
 
 
 # Generate a List equivalent which uses "is" for contains
@@ -338,8 +341,8 @@ class If(Logic):
                 try:
                     a_constant_val = self.a[0]
                     a_is_constant = True
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Cannot access a[0] as constant: %s", e)
         except (AttributeError, TypeError):
             srca = []
             a_has_array = False
@@ -347,8 +350,8 @@ class If(Logic):
             try:
                 a_constant_val = self.a[0]
                 a_is_constant = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Cannot access a[0] as constant (no array): %s", e)
 
         b_is_constant = False
         b_constant_val = None
@@ -360,8 +363,8 @@ class If(Logic):
                 try:
                     b_constant_val = self.b[0]
                     b_is_constant = True
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Cannot access b[0] as constant: %s", e)
         except (AttributeError, TypeError):
             srcb = []
             b_has_array = False
@@ -369,8 +372,8 @@ class If(Logic):
             try:
                 b_constant_val = self.b[0]
                 b_is_constant = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Cannot access b[0] as constant (no array): %s", e)
 
         try:
             cond = self.cond.array
@@ -394,7 +397,8 @@ class If(Logic):
                 # Fallback: try to get value directly from cond object
                 try:
                     cond_val = self.cond[i] if hasattr(self.cond, "__getitem__") else 0.0
-                except Exception:
+                except Exception as e:
+                    logger.debug("Cannot access cond[%d]: %s", i, e)
                     cond_val = 0.0
 
             # Convert to boolean: non-zero values are True, zero is False

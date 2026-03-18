@@ -33,6 +33,7 @@ Note:
     equivalent functionality using explicit initialization patterns.
 """
 
+import logging
 import math
 import sys
 import threading
@@ -40,6 +41,8 @@ from collections import OrderedDict
 from contextlib import contextmanager
 
 from .utils.py3 import string_types, zip
+
+logger = logging.getLogger(__name__)
 
 # PERFORMANCE OPTIMIZATION: Cache for MRO type checks
 # This avoids repeatedly traversing __mro__ for the same classes
@@ -266,8 +269,8 @@ def patch_strategy_clk_update():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to forward in _clk_update: %s", e)
 
             # Update _dlens
             self._dlens = newdlens
@@ -1058,8 +1061,8 @@ class ParamsMixin(BaseMixin):
         if is_class_type(cls, "Indicator"):
             try:
                 _initialize_indicator_aliases()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to initialize indicator aliases: %s", e)
 
         # Set up params, packages, frompackages if they exist
         params = getattr(cls, "params", ())
@@ -1158,8 +1161,8 @@ class ParamsMixin(BaseMixin):
                             valid_param_names = set(actual_cls._params._getkeys())
                         elif hasattr(actual_cls._params, "_getpairs"):
                             valid_param_names = set(actual_cls._params._getpairs().keys())
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to get valid param names: %s", e)
 
                 # Separate kwargs into param_kwargs and other_kwargs
                 # Filter out test-specific and non-constructor kwargs
@@ -1981,13 +1984,13 @@ def _initialize_indicator_aliases():
 
         pass
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Failed in _initialize_indicator_aliases: %s", e)
 
 
 # CRITICAL FIX: Call initialization functions when module loads
 try:
     _initialize_indicator_aliases()
     patch_strategy_clk_update()
-except Exception:
-    pass  # Silently fail during module loading
+except Exception as e:
+    logger.debug("Failed to initialize at module load: %s", e)

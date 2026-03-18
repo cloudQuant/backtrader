@@ -19,11 +19,14 @@ Example:
                 self.sell()
 """
 
+import logging
 from collections import deque
 
 import numpy as np
 
 from .mabase import MovingAverageBase
+
+logger = logging.getLogger(__name__)
 
 
 # Moving average indicator
@@ -293,8 +296,8 @@ class MovingAverageSimple(MovingAverageBase):
             if hasattr(self.data, "once") and hasattr(self.data, "operation"):
                 try:
                     self.data.once(start, end)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("data.once() failed in SMA: %s", e)
 
             # Get arrays for efficient calculation
             dst = self.lines[0].array

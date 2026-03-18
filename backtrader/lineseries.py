@@ -18,12 +18,15 @@ Example:
     >>> obj.lines[0]  # Access the first line
 """
 
+import logging
 import sys
 
 from . import metabase
 from .linebuffer import NAN, LineActions, LineBuffer, LineDelay
 from .lineroot import LineMultiple
 from .utils.py3 import range, string_types
+
+logger = logging.getLogger(__name__)
 
 # Performance optimization: use module-level set to track recursion, avoid massive setattr/delattr operations
 _recursion_guards = set()
@@ -1505,8 +1508,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # _owner doesn't exist, try to set it
                 try:
                     value._owner = self
-                except Exception:
-                    pass  # Can't set owner, skip
+                except Exception as e:
+                    logger.debug("Cannot set _owner on value: %s", e)
 
             # Add to lineiterators if applicable
             # CRITICAL FIX: Check for duplicates before appending
@@ -1518,10 +1521,10 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                         ltype = value._ltype
                         if value not in lineiterators[ltype]:
                             lineiterators[ltype].append(value)
-                    except Exception:
-                        pass  # No _ltype or append failed
-            except Exception:
-                pass
+                    except Exception as e:
+                        logger.debug("Failed to register lineiterator by ltype: %s", e)
+            except Exception as e:
+                logger.debug("Failed to access _lineiterators: %s", e)
 
             return
 
@@ -2058,8 +2061,8 @@ def _patch_strategy_clk_update():
                 try:
                     if hasattr(self, "forward"):
                         self.forward()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to forward in _clk_update: %s", e)
 
             self._dlens = newdlens
 

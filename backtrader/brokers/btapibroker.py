@@ -5,11 +5,14 @@ from __future__ import annotations
 
 import collections
 import datetime as _dt
+import logging
 import time
 
 from ..broker import BrokerBase
 from ..order import BuyOrder, SellOrder
 from ..position import Position
+
+logger = logging.getLogger(__name__)
 
 
 class BtApiBroker(BrokerBase):
@@ -696,6 +699,6 @@ class BtApiBroker(BrokerBase):
         try:
             if len(order.data):
                 return order.data.datetime[0]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to get order execution datetime: %s", e)
         return 0.0

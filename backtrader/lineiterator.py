@@ -14,6 +14,7 @@ The LineIterator manages:
 """
 
 import collections
+import logging
 import sys
 
 from . import metabase
@@ -23,6 +24,8 @@ from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
 from .utils.py3 import range, string_types, zip
+
+logger = logging.getLogger(__name__)
 
 
 class LineIteratorMixin:
@@ -449,8 +452,8 @@ class LineIteratorMixin:
                     if context_owner is not None and context_owner is not _obj:
                         owner = context_owner
                         _obj._owner = owner
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to find owner via OwnerContext: %s", e)
 
                 # NOTE: sys._getframe fallback removed - OwnerContext should handle all cases
                 # If owner is still None, indicator will work standalone without registration
@@ -1457,8 +1460,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                             end = clock.buflen()
                         except AttributeError:
                             end = len(clock)
-                    except Exception:
-                        pass  # Give up, use 0
+                    except Exception as e:
+                        logger.debug("Failed to get end from clock: %s", e)
 
         # OPTIMIZATION: Process lineiterators with minimal overhead
         # Direct access to _lineiterators (should always exist)
@@ -1476,8 +1479,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                                 for line in lines_obj:
                                     if hasattr(line, "oncebinding"):
                                         line.oncebinding()
-                    except Exception:
-                        pass  # Skip failed indicators
+                    except Exception as e:
+                        logger.debug("Indicator _once failed in _once: %s", e)
         except AttributeError:
             pass  # No _lineiterators
 
@@ -1485,22 +1488,22 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # preonce processes bars 0 to minperiod-2
         try:
             self.preonce(0, minperiod - 1)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("preonce failed: %s", e)
 
         # oncestart processes bar minperiod-1 (transition point)
         try:
             self.oncestart(minperiod - 1, minperiod)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("oncestart failed: %s", e)
 
         # CRITICAL FIX: once processes bars from minperiod-1 to end
         # Bar minperiod-1 is the first bar where indicators have valid data
         # For period=20, bar 19 (index 19) is the first valid bar
         try:
             self.once(minperiod - 1, end)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("once failed: %s", e)
 
         # OPTIMIZATION: Reset data sources - use EAFP
         try:
@@ -1508,8 +1511,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
             for data in datas:
                 try:
                     data.home()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("data.home() failed: %s", e)
         except AttributeError:
             pass  # No datas attribute
 
@@ -1521,8 +1524,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 for lineiterator in lineiter_list:
                     try:
                         lineiterator.home()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("lineiterator.home() failed: %s", e)
         except AttributeError:
             pass
 
@@ -1585,8 +1588,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.forward()
                 if hasattr(self, "next"):
                     self.next()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("once_via_next step failed: %s", e)
 
     def _next(self):
         """Internal next method called for each bar.
@@ -1796,8 +1799,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     except AttributeError:
                         try:
                             return len(first_line.array)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("Failed to get line length: %s", e)
         except (IndexError, TypeError):
             pass
 
@@ -2311,8 +2314,8 @@ class StrategyBase(DataAccessor):
                             ):
                                 try:
                                     return len(self._owner.data)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.debug("CrossOver __len__ failed: %s", e)
                             return 0
 
                         def __call__(self, ago=0):
@@ -2375,8 +2378,8 @@ class StrategyBase(DataAccessor):
                             ):
                                 try:
                                     return len(self._owner.data)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.debug("SMA __len__ failed: %s", e)
                             return 0
 
                         def __call__(self, ago=0):
@@ -2481,8 +2484,8 @@ class StrategyBase(DataAccessor):
 
                 self._clock = MinimalClock()
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("StrategyBase data setup failed: %s", e)
             # Set up minimal fallbacks
             if not hasattr(self, "datas"):
                 self.datas = []
@@ -2642,5 +2645,5 @@ try:
 
     if "backtrader.indicators" in sys.modules:
         IndicatorBase._register_indicator_aliases()
-except Exception:
-    pass
+except Exception as e:
+    logger.debug("Failed to register indicator aliases at module load: %s", e)

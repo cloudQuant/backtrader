@@ -3,8 +3,11 @@
 Helper utility functions.
 """
 
+import logging
 import re
 from typing import List
+
+logger = logging.getLogger(__name__)
 
 
 def get_datanames(strategy):
@@ -90,8 +93,8 @@ def get_indicator_label(indicator):
                     value = getattr(indicator.params, name)
                     if not callable(value):
                         params.append(f"{name}={value}")
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to get indicator param '%s': %s", name, e)
         if params:
             label += f" ({', '.join(params[:3])})"  # Show max 3 parameters
 

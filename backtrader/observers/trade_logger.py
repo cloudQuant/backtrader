@@ -38,6 +38,8 @@ from datetime import datetime, timezone, timedelta
 
 from ..observer import Observer
 
+logger = logging.getLogger(__name__)
+
 # Shanghai timezone (UTC+8) used for all log timestamps
 _SHANGHAI_TZ = timezone(timedelta(hours=8))
 
@@ -256,8 +258,8 @@ class TradeLogger(Observer):
         for handler in list(logger.handlers):
             try:
                 handler.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close log handler: %s", e)
         logger.handlers = []  # Clear existing handlers
 
         # File handler - write to file
@@ -1006,8 +1008,8 @@ class TradeLogger(Observer):
                 except Exception:
                     continue
 
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to collect indicator values: %s", e)
 
         return indicators
 
@@ -1043,8 +1045,8 @@ class TradeLogger(Observer):
                                 indicators_dict[full_name] = float(value)
                     except Exception:
                         continue
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to extract indicator values: %s", e)
 
     def _save_position_snapshot(self):
         """Save current position snapshot to YAML file."""
@@ -1310,5 +1312,5 @@ class TradeLogger(Observer):
         if self._mysql_conn:
             try:
                 self._mysql_conn.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to close MySQL connection: %s", e)

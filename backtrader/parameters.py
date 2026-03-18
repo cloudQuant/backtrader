@@ -13,9 +13,12 @@ Key Components:
 - Python 3.6+ __set_name__ support
 """
 
+import logging
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from .utils.py3 import string_types
+
+logger = logging.getLogger(__name__)
 
 
 class ParameterDescriptor:
@@ -864,16 +867,16 @@ class ParameterManager:
             for callback in self._change_callbacks[name]:
                 try:
                     callback(name, old_value, new_value)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Parameter change callback failed for '%s': %s", name, e)
 
         # Trigger global callbacks
         if self._global_callbacks is not None:
             for callback in self._global_callbacks:
                 try:
                     callback(name, old_value, new_value)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Global parameter callback failed for '%s': %s", name, e)
 
     # History methods
     def get_change_history(self, name: str, limit: Optional[int] = None) -> List[tuple]:
@@ -1480,9 +1483,8 @@ class ParameterizedBase:
             for name in list(self._param_manager.keys()):
                 try:
                     self._param_manager.reset(name)
-                except Exception:
-                    # Continue with other parameters even if one fails
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to reset parameter '%s': %s", name, e)
 
     def get_modified_params(self) -> Dict[str, Any]:
         """
@@ -1533,9 +1535,8 @@ class ParameterizedBase:
                 try:
                     value = other._param_manager.get(name)
                     self._param_manager.set(name, value)
-                except Exception:
-                    # Skip parameters that can't be copied
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to copy parameter '%s': %s", name, e)
 
     def __repr__(self) -> str:
         """Enhanced string representation with parameter information."""

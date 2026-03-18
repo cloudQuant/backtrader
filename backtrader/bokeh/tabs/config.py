@@ -5,7 +5,11 @@ Configuration tab.
 Displays configuration info for strategy and data.
 """
 
+import logging
+
 from ..tab import BokehTab
+
+logger = logging.getLogger(__name__)
 
 try:
     from bokeh.layouts import column
@@ -59,8 +63,8 @@ class ConfigTab(BokehTab):
                             value = getattr(strategy.params, name)
                             if not callable(value):
                                 params[name] = value
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("Failed to get param '%s': %s", name, e)
 
             if params:
                 source = ColumnDataSource(

@@ -11,6 +11,7 @@ from __future__ import annotations
 import collections
 import datetime as _dt
 import importlib
+import logging
 import os
 import re
 import time
@@ -20,6 +21,8 @@ from typing import Any, Deque, Dict, Iterable, List, Optional
 
 from ..events import TickEvent
 from .livestore import LiveStoreBase
+
+logger = logging.getLogger(__name__)
 
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})
@@ -578,8 +581,8 @@ def _create_ctp_wrapper_class():
                                     self._price_tick_cache[iid] = pt
                                     if iid == instrument:
                                         result_holder['price_tick'] = pt
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            logger.debug("Failed to process instrument response: %s", e)
                         if is_last:
                             result_event.set()
 
@@ -594,8 +597,8 @@ def _create_ctp_wrapper_class():
 
                     if instrument in self._price_tick_cache:
                         return self._price_tick_cache[instrument]
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to query instrument info: %s", e)
 
             # Fallback: estimate from last tick price
             last_price = self._last_tick_price.get(instrument, 0)
@@ -1092,8 +1095,8 @@ def _create_ctp_gateway_wrapper_class():
                     return "W1"
                 if tf_val == bt.TimeFrame.Months:
                     return "MN1"
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to resolve timeframe: %s", e)
             return "M1"
 
     return CtpGatewayClientWrapper

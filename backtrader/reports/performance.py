@@ -5,7 +5,10 @@ Performance metrics calculator.
 Extracts and calculates all performance metrics from strategies and analyzers.
 """
 
+import logging
 import math
+
+logger = logging.getLogger(__name__)
 
 
 class PerformanceCalculator:
@@ -267,8 +270,8 @@ class PerformanceCalculator:
                                     dt_num = data.datetime[idx]
                                     dates.append(num2date(dt_num))
                                     values.append(value_line[idx])
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    logger.debug("Failed to get equity data at idx %d: %s", idx, e)
                         break
 
         if not values:
@@ -329,10 +332,10 @@ class PerformanceCalculator:
 
                     # Normalize to 100
                     values.append(100 * price / first_price if first_price else 100)
-                except Exception:
-                    pass
-        except Exception:
-            pass
+                except Exception as e:
+                    logger.debug("Failed to get benchmark data at idx %d: %s", idx, e)
+        except Exception as e:
+            logger.debug("Failed to calculate benchmark curve: %s", e)
 
         return dates, values
 
@@ -423,16 +426,16 @@ class PerformanceCalculator:
             if analyzer_name == name_lower or name_lower in analyzer_name:
                 try:
                     return analyzer.get_analysis()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
             # Check _name attribute
             custom_name = getattr(analyzer, "_name", "").lower()
             if name_lower in custom_name:
                 try:
                     return analyzer.get_analysis()
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to get analysis from %s: %s", custom_name, e)
 
         return None
 
@@ -456,8 +459,8 @@ class PerformanceCalculator:
                         value = getattr(params, name)
                         if not callable(value):
                             info["params"][name] = value
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to get param '%s': %s", name, e)
 
         return info
 
@@ -492,7 +495,7 @@ class PerformanceCalculator:
                 # Correct indexing: 0 is current (last) bar, 1-length is first bar
                 info["start_date"] = num2date(data.datetime[1 - length])
                 info["end_date"] = num2date(data.datetime[0])
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to get data info: %s", e)
 
         return info

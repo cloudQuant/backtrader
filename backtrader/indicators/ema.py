@@ -17,9 +17,12 @@ Example:
                 self.buy()
 """
 
+import logging
 import math
 
 from . import MovingAverageBase
+
+logger = logging.getLogger(__name__)
 
 
 class ExponentialMovingAverage(MovingAverageBase):
@@ -87,8 +90,8 @@ class ExponentialMovingAverage(MovingAverageBase):
         if hasattr(self.data, "once") and hasattr(self.data, "operation"):
             try:
                 self.data.once(start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("data.once() failed in EMA: %s", e)
 
         darray = self.data.array
         data_len = len(darray)

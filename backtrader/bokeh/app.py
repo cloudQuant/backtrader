@@ -8,6 +8,8 @@ Provides integration between Backtrader and Bokeh
 import logging
 from collections import OrderedDict
 
+logger = logging.getLogger(__name__)
+
 try:
     import pandas as pd
 
@@ -350,8 +352,8 @@ class BacktraderBokeh:
                         else:
                             df.loc[idx, "sell_signal"] = True
                             df.loc[idx, "sell_price"] = exec_price
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to add trade signals: %s", e)
 
         # Add equity curve data
         df = self._add_equity_data(df, strategy)
@@ -383,8 +385,8 @@ class BacktraderBokeh:
                             idx = 1 - obs_len + i
                             try:
                                 equity_values[i] = value_line[idx]
-                            except Exception:
-                                pass
+                            except Exception as e:
+                                logger.debug("Failed to get equity value at idx %d: %s", idx, e)
                     break
 
         # If no Broker observer, try to calculate from TimeReturn analyzer
@@ -394,8 +396,8 @@ class BacktraderBokeh:
                 if analyzer.__class__.__name__ == "TimeReturn":
                     try:
                         time_return = analyzer.get_analysis()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to get TimeReturn analysis: %s", e)
                     break
 
             if time_return:
@@ -403,8 +405,8 @@ class BacktraderBokeh:
                 if hasattr(strategy, "broker"):
                     try:
                         start_cash = strategy.broker.startingcash
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("Failed to get starting cash: %s", e)
 
                 cumulative = start_cash
                 sorted_returns = sorted(time_return.items())

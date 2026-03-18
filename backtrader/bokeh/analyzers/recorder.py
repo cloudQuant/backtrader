@@ -5,9 +5,12 @@ Data recording analyzer.
 Records data during strategy execution for subsequent plotting or analysis.
 """
 
+import logging
 from collections import OrderedDict
 
 import backtrader as bt
+
+logger = logging.getLogger(__name__)
 
 
 class RecorderAnalyzer(bt.Analyzer):
@@ -85,8 +88,8 @@ class RecorderAnalyzer(bt.Analyzer):
                     self._data[name]["volume"].append(
                         data.volume[0] if hasattr(data, "volume") else 0
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to record data '%s': %s", name, e)
 
         # Record indicators
         if self.p.indicators and hasattr(self.strategy, "_lineiterators"):

@@ -26,6 +26,7 @@ Example:
 import collections
 import datetime
 import inspect
+import logging
 import os.path
 
 from . import dataseries, metabase
@@ -35,6 +36,8 @@ from .tradingcal import PandasMarketCalendar
 from .utils import date2num, num2date, time2num, tzparse
 from .utils.date import Localizer
 from .utils.py3 import range, string_types, zip
+
+logger = logging.getLogger(__name__)
 
 
 # Refactor: Remove metaclass, use normal class and initialization method
@@ -145,8 +148,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 for line in self.lines:
                     if hasattr(line, "__dict__"):
                         line._is_data_feed_line = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to mark data feed lines: %s", e)
 
         # CRITICAL FIX: Also explicitly mark the datetime line
         # The datetime line might be accessed separately (e.g., self.datas[0].datetime)
@@ -155,8 +158,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             try:
                 if hasattr(self.datetime, "__dict__"):
                     self.datetime._is_data_feed_line = True
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to mark datetime line: %s", e)
 
         # Original content from __init__
         self._env = None
@@ -629,7 +632,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     # If accessing datetime[1] fails, we're at the end
                     return _inf
             return _inf  # max date else
-        except Exception:
+        except Exception as e:
+            logger.debug("Exception in _gettz for %s: %s", getattr(self, '_name', ''), e)
             return _inf
 
     # Move data forward by size

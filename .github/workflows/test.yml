@@ -27,6 +27,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fail on tracked build artifacts
+        shell: bash
+        run: |
+          tracked_artifacts="$(git ls-files | grep -E '(^|/)(build|dist)(/|$)|(^|/)[^/]+\.egg-info(/|$)' || true)"
+          if [ -n "$tracked_artifacts" ]; then
+            echo "Tracked build artifacts are not allowed:"
+            echo "$tracked_artifacts"
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:

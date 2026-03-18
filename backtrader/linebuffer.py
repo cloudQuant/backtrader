@@ -36,6 +36,7 @@ import array
 import collections
 import datetime
 import itertools
+import logging
 import math
 from itertools import islice, repeat
 
@@ -43,6 +44,8 @@ from . import metabase
 from .lineroot import LineRoot, LineRootMixin, LineSingle
 from .utils import num2date
 from .utils.py3 import range, string_types
+
+logger = logging.getLogger(__name__)
 
 NAN = float("NaN")
 
@@ -236,8 +239,8 @@ class LineBuffer(LineSingle, LineRootMixin):
                         if array_len > 0:
                             preserve_array = True
                             saved_lencount = array_len
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to check runonce array preservation: %s", e)
 
         if preserve_array:
             # In runonce mode with populated array: only reset idx, preserve array and lencount
@@ -601,8 +604,8 @@ class LineBuffer(LineSingle, LineRootMixin):
                         size = max_advance
                     if size <= 0:
                         return
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug("Failed to check clock length in forward: %s", e)
 
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
@@ -1358,8 +1361,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             from .strategy import Strategy
 
             self._owner = metabase.findowner(self, Strategy)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("Failed to find Strategy owner: %s", e)
 
         # If no Strategy found, try LineIterator
         if self._owner is None:
@@ -1367,8 +1370,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 from .lineiterator import LineIterator
 
                 self._owner = metabase.findowner(self, LineIterator)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Failed to find LineIterator owner: %s", e)
 
         # If still no owner, try a broader search
         # findowner() uses OwnerContext for owner lookup
@@ -1517,26 +1520,25 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 try:
                     if hasattr(indicator, "_once"):
                         indicator._once(start, end)
-                except Exception:
-                    # Continue processing other indicators if one fails
-                    pass
+                except Exception as e:
+                    logger.debug("Indicator _once failed: %s", e)
 
         # CRITICAL FIX: Call preonce before main processing
         try:
             if hasattr(self, "preonce"):
                 self.preonce(start, end)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("preonce failed: %s", e)
 
         # CRITICAL FIX: Process the main once calculation
         # Try to call once method if it exists
         try:
             if hasattr(self, "once") and callable(self.once):
                 self.once(start, end)
-        except Exception:
+        except Exception as e:
             # If once fails or doesn't exist, skip it
             # The indicator will be calculated via next() calls during strategy execution
-            pass
+            logger.debug("once() failed: %s", e)
 
         # CRITICAL FIX: Update lencount after once processing to match the data length
         # In runonce mode, lencount should equal the number of data points processed
@@ -1547,22 +1549,25 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             if hasattr(self, "_clock") and self._clock:
                 try:
                     actual_data_len = self._clock.buflen()
-                except Exception:
+                except Exception as e:
+                    logger.debug("clock.buflen() failed: %s", e)
                     try:
                         actual_data_len = len(self._clock)
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.debug("len(clock) failed: %s", e2)
             elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
                 try:
                     actual_data_len = self.datas[0].buflen()
-                except Exception:
+                except Exception as e:
+                    logger.debug("datas[0].buflen() failed: %s", e)
                     try:
                         actual_data_len = len(self.datas[0])
-                    except Exception:
-                        pass
+                    except Exception as e2:
+                        logger.debug("len(datas[0]) failed: %s", e2)
             # Use the maximum of end and actual_data_len to ensure we don't truncate
             final_len = max(end, actual_data_len) if actual_data_len > 0 else end
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to determine actual data length: %s", e)
             final_len = end
 
         if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:
@@ -2148,28 +2153,28 @@ class LinesOperation(LineActions):
         if self._parent_a is not None and hasattr(self._parent_a, "once"):
             try:
                 self._parent_a.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("parent_a.once() failed: %s", e)
 
         if self._parent_b is not None and hasattr(self._parent_b, "once"):
             try:
                 self._parent_b.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("parent_b.once() failed: %s", e)
 
         # CRITICAL FIX: Call once() on ALL operands that have it (not just LinesOperations)
         # This ensures LineBuffer operands (like indicator outputs) are also computed
         if hasattr(self.a, "once"):
             try:
                 self.a.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("operand a.once() failed: %s", e)
 
         if hasattr(self.b, "once"):
             try:
                 self.b.once(nested_start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("operand b.once() failed: %s", e)
 
         # CRITICAL FIX: Always process from 0 to populate historical values
         if hasattr(self.b, "array"):
@@ -2193,8 +2198,8 @@ class LinesOperation(LineActions):
         if hasattr(self.b, "once") and len(self.b.array) < end:
             try:
                 self.b.once(start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("b.once() in _once_op failed: %s", e)
 
         # cache python dictionary lookups
         dst = self.array
@@ -2429,8 +2434,8 @@ class LineOwnOperation(LineActions):
         if self._parent_a is not None and hasattr(self._parent_a, "_once"):
             try:
                 self._parent_a._once(start, end)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("parent_a._once() in LineOwnOperation failed: %s", e)
 
         # cache python dictionary lookups
         dst = self.array
