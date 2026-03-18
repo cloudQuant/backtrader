@@ -1982,8 +1982,6 @@ def _initialize_indicator_aliases():
         pass
 
     except Exception:
-        # print(f"Warning: _initialize_indicator_aliases failed: {e}")  # Removed for performance
-        # Continue without failing completely
         pass
 
 

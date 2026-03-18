@@ -865,8 +865,6 @@ class ParameterManager:
                 try:
                     callback(name, old_value, new_value)
                 except Exception:
-                    # Log error but don't fail the parameter change
-                    # print(f"Warning: Change callback failed for parameter '{name}': {e}")  # Removed for performance
                     pass
 
         # Trigger global callbacks
@@ -875,7 +873,6 @@ class ParameterManager:
                 try:
                     callback(name, old_value, new_value)
                 except Exception:
-                    # print(f"Warning: Global change callback failed for parameter '{name}': {e}")  # Removed for performance
                     pass
 
     # History methods

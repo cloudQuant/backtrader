@@ -1896,7 +1896,6 @@ class _LineForward(LineActions):
 
         except Exception:
             # If anything fails, store 0.0 to prevent crashes
-            # print(f"LinesOperation.next() error: {e}")  # Removed for performance
             self[0] = 0.0
 
     def once(self, start, end):
@@ -2127,7 +2126,6 @@ class LinesOperation(LineActions):
 
         except Exception:
             # If anything fails, store 0.0 to prevent crashes
-            # print(f"LinesOperation.next() error: {e}")  # Removed for performance
             self[0] = 0.0
 
     def once(self, start, end):

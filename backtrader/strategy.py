@@ -39,7 +39,10 @@ import collections
 import copy
 import datetime
 import itertools
+import logging
 import operator
+
+logger = logging.getLogger(__name__)
 
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
@@ -191,7 +194,6 @@ class Strategy(StrategyBase):
 
         # Create p property for parameter access
         instance.p = instance._params_instance
-        # print(f"Strategy.__new__: Set parameters for {cls.__name__}: chkind={getattr(instance.p, 'chkind', 'NOT_SET')}")
 
         # Handle method renaming like the old MetaStrategy.__new__ did
         if hasattr(cls, "notify") and not hasattr(cls, "notify_order"):
@@ -263,16 +265,13 @@ class Strategy(StrategyBase):
             self.data = self.datas[0]
             for d, data in enumerate(self.datas):
                 setattr(self, f"data{d}", data)
-            # print(f"Strategy.__init__: Set primary data and aliases for {len(self.datas)} datas")
         else:
             self.data = None
-            # print(f"Strategy.__init__: WARNING - No data available")
 
         # Set up clock - this is critical for strategy execution
         if not hasattr(self, "_clock") or self._clock is None:
             if self.datas:
                 self._clock = self.datas[0]
-                # print(f"Strategy.__init__: Set clock to first data")
             # CRITICAL FIX: Don't create MinimalClock fallback
             # It causes problems with indicator clock detection in _periodset()
             # If no datas, leave _clock as None and let it be set later
@@ -324,7 +323,6 @@ class Strategy(StrategyBase):
         if hasattr(self, "_strategy_init_kwargs"):
             delattr(self, "_strategy_init_kwargs")
 
-        # print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
 
     # Line type is strategy type
     _ltype = LineIterator.StratType
@@ -556,11 +554,6 @@ class Strategy(StrategyBase):
                 clk = clk.lines[0]
             # Save minimum period
             _dminperiods[clk].append(lineiter._minperiod)
-
-        # DEBUG: Print _dminperiods content
-        # print(f"DEBUG _periodset: _dminperiods = {dict(_dminperiods)}")
-        # for key, val in _dminperiods.items():
-        #     print(f"  {type(key).__name__}: {val}")
 
         # Set minimum periods to empty list
         self._minperiods = list()
@@ -865,7 +858,7 @@ class Strategy(StrategyBase):
                                 # Use the maximum of current lencount and strategy_len to ensure we don't decrease it
                                 line.lencount = max(line.lencount, strategy_len)
         except Exception:
-            pass
+            logger.debug("Failed to update indicator lencount in _oncepost_nextday", exc_info=True)
 
         # Get current minimum period status and route to appropriate method
         # If all data satisfied, call next()
@@ -1200,7 +1193,7 @@ class Strategy(StrategyBase):
                                 # This ensures len(indicator) == len(strategy) for test assertions
                                 line.lencount = strategy_len
         except Exception:
-            pass
+            logger.debug("Failed to update indicator lencount in _stop", exc_info=True)
 
         # CRITICAL FIX: Restore last valid datetime before calling user's stop()
         # This ensures datetime[0] is valid for logging in stop() method
@@ -1213,9 +1206,12 @@ class Strategy(StrategyBase):
                     try:
                         data.datetime[0] = self._last_valid_datetime
                     except Exception:
-                        pass
+                        logger.debug(
+                            "Failed to restore datetime for data %s in _stop",
+                            getattr(data, '_name', data),
+                        )
             except Exception:
-                pass
+                logger.debug("Failed to restore strategy datetime in _stop", exc_info=True)
 
         # Call user's stop() method - can be overridden in strategy subclass
         self.stop()
@@ -1229,7 +1225,10 @@ class Strategy(StrategyBase):
                 if hasattr(observer, "stop"):
                     observer.stop()
             except Exception:
-                pass
+                logger.warning(
+                    "Observer %s.stop() raised an exception",
+                    type(observer).__name__, exc_info=True,
+                )
 
         # Change operators back to stage 1 - allows reuse of datas
         self._stage1()
@@ -2190,12 +2189,10 @@ class Strategy(StrategyBase):
             # If target value is greater than current value, buy
             if target > value:
                 size = comminfo.getsize(price, target - value)
-                # print(f"buy: name:{data.name},size:{size}")
                 return self.buy(data=data, size=size, price=price, **kwargs)
             # If target value is less than current value, sell
             elif target < value:
                 size = comminfo.getsize(price, value - target)
-                # print(f"sell: name:{data.name},size:{size}")
                 return self.sell(data=data, size=size, price=price, **kwargs)
 
         return None  # no execution size == possize

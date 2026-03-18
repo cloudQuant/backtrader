@@ -177,10 +177,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     def _init_postinit(self, *args, **kwargs):
         """Replace the original MetaAbstractDataBase.dopostinit"""
-        # Debug: check parameter state at the beginning
-        # print(f"_init_postinit start: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
-        # print(f"_init_postinit kwargs: {kwargs}")
-
         # Either set by subclass or the parameter or use the dataname (ticker)
         # Reset _name attribute, if _name is not empty, keep it; if empty, set it to name parameter value
         self._name = self._name or getattr(self.p, "name", "")
@@ -209,9 +205,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             # CRITICAL FIX: Always set default if None (kwargs check was unreliable)
             # remove 9 to avoid precision rounding errors
             self.p.sessionend = datetime.time(23, 59, 59, 999990)
-
-        # Debug: check parameter state after modification
-        # print(f"_init_postinit end: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
 
         # If start date is date format and has no hour attribute, add sessionstart time to convert start date to date+time format
         fromdate = getattr(self.p, "fromdate", None)
@@ -307,8 +300,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         else:
             self.todate = self.date2num(self.p.todate)
 
-        # FIXME: These two are never used and could be removed
-        # These two are not used and can be deleted
+        # Used by resamplerfilter and DataClone
         self.sessionstart = time2num(self.p.sessionstart)
         self.sessionend = time2num(self.p.sessionend)
 
@@ -687,15 +679,12 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # If data length is greater than cached data length, if it's ticks data, call _tick_nullify to generate tick_xxx attributes, then call load to try getting next bar; if ret is empty
         # return ret. If master data is None, if it's ticks data, need to call _tick_fill.
         # If own length is less than cached data length, move forward
-        # print("AbstractDataBase next function is being called")
         if len(self) >= self.buflen():
             if ticks:
                 self._tick_nullify()
 
             # not preloaded - request next bar
             ret = self.load()
-            # if ret is not None:
-            #     print(f"AbstractDataBase next ret = {ret}")
             if not ret:
                 # if the load cannot produce bars - forward the result
                 return ret
@@ -1334,7 +1323,6 @@ class DataClone(AbstractDataBase):
         if hasattr(self.data, "todate"):
             self.todate = self.data.todate
 
-        # FIXME: if removed from guest, remove here too
         if hasattr(self.data, "sessionstart"):
             self.sessionstart = self.data.sessionstart
         if hasattr(self.data, "sessionend"):

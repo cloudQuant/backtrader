@@ -1525,9 +1525,6 @@ class Cerebro(ParameterizedBase):
                     if self._exactbars < 1:  # datas can be a full length
                         data.extend(size=self.params.lookahead)
                     data._start()
-                    # TODO: Re-checking self._dopreload here seems unnecessary since we already guaranteed it's True
-                    # if self._dopreload:
-                    #     data.preload()
                     data.preload()
             # Start process pool
             pool = multiprocessing.Pool(self.p.maxcpus or None)
@@ -1702,23 +1699,29 @@ class Cerebro(ParameterizedBase):
                     self._timerscheat.append(timer)
                 else:
                     self._timers.append(timer)
-            # If _dopreload and _dorunonce are True
-            if self._dopreload and self._dorunonce:
-                # If old data alignment and sync method, use _runonce_old, otherwise use _runonce
-                if self.p.oldsync:
-                    self._runonce_old(runstrats)
+            # Run the main loop; use try/finally to guarantee cleanup
+            # (_runnext handles its own exceptions; _runnext_old/_runonce_old do not)
+            try:
+                # If _dopreload and _dorunonce are True
+                if self._dopreload and self._dorunonce:
+                    # If old data alignment and sync method, use _runonce_old, otherwise use _runonce
+                    if self.p.oldsync:
+                        self._runonce_old(runstrats)
+                    else:
+                        self._runonce(runstrats)
+                # If _dopreload and _dorunonce are not both True
                 else:
-                    self._runonce(runstrats)
-            # If _dopreload and _dorunonce are not both True
-            else:
-                # If old data alignment and sync method, use _runnext_old, otherwise use _runnext
-                if self.p.oldsync:
-                    self._runnext_old(runstrats)
-                else:
-                    self._runnext(runstrats)
-            # Iterate strategies and stop running
-            for strat in runstrats:
-                strat._stop()
+                    # If old data alignment and sync method, use _runnext_old, otherwise use _runnext
+                    if self.p.oldsync:
+                        self._runnext_old(runstrats)
+                    else:
+                        self._runnext(runstrats)
+            except Exception:
+                logger.exception("Unhandled exception in run loop, proceeding with cleanup")
+            finally:
+                # Iterate strategies and stop running (always runs)
+                for strat in runstrats:
+                    strat._stop()
         # Stop broker
         self._broker.stop()
         # If predata is False, iterate data and stop each data
@@ -2137,6 +2140,7 @@ class Cerebro(ParameterizedBase):
                 return
         except Exception:
             logger.exception("Unhandled exception in _runnext")
+            self._run_exception = getattr(self, '_run_exception', None) or True
 
     # runonce
     def _runonce(self, runstrats):
@@ -2246,9 +2250,15 @@ class Cerebro(ParameterizedBase):
                                                             line._idx = i
                                             break
                         except Exception:
-                            pass
+                            logger.debug(
+                                "Failed to adjust data index for %s during "
+                                "post-loop order processing", data._name if hasattr(data, '_name') else data
+                            )
         except Exception:
-            pass
+            logger.debug(
+                "Failed to restore data positions for post-loop order processing",
+                exc_info=True,
+            )
 
         # Now call _brokernotify() to process pending orders
         # _brokernotify() internally calls broker.next() to process pending orders and then delivers notifications
@@ -2264,7 +2274,6 @@ class Cerebro(ParameterizedBase):
         if self._event_stop:  # stop if requested
             return
 
-        # print("end_runonce")  # Removed for performance - called frequently during tests
 
     # Check timer
     def _check_timers(self, runstrats, dt0, cheat=False):

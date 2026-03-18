@@ -424,7 +424,6 @@ class Lines:
             # CRITICAL FIX: Limit size to prevent memory exhaustion and infinite loops
             MAX_ITER_SIZE = 10000  # Reasonable maximum for iteration
             if size_val > MAX_ITER_SIZE:
-                # print(f"WARNING: itersize() size {size_val} exceeds maximum {MAX_ITER_SIZE}, limiting")
                 size_val = MAX_ITER_SIZE
             elif size_val < 0:
                 size_val = 0
