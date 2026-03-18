@@ -83,7 +83,7 @@ class WeightedMovingAverage(MovingAverageBase):
         weights = self.weights
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # Pre-fill warmup with NaN
         for i in range(min(period - 1, len(darray))):

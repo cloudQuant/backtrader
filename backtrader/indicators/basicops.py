@@ -613,7 +613,7 @@ class ExponentialSmoothing(Average):
 
         # CRITICAL FIX: Ensure array is properly sized
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # CRITICAL FIX: Pre-fill warmup period with NaN to match expected behavior
         # This prevents invalid comparisons during prenext when strategy calls next()

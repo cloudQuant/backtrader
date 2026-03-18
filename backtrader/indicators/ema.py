@@ -84,7 +84,7 @@ class ExponentialMovingAverage(MovingAverageBase):
 
         # Ensure output array is properly sized
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # CRITICAL FIX: For LinesOperation data sources, call their once() to populate array
         if hasattr(self.data, "once") and hasattr(self.data, "operation"):

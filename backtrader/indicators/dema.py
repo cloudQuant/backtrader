@@ -74,7 +74,7 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
         larray = self.lines.dema.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         minperiod = 2 * self.p.period - 1
         for i in range(min(minperiod - 1, len(ema1_array))):
@@ -147,7 +147,7 @@ class TripleExponentialMovingAverage(MovingAverageBase):
         larray = self.lines.tema.array
 
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         minperiod = 3 * self.p.period - 2
         for i in range(min(minperiod - 1, len(ema1_array))):

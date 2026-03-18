@@ -92,7 +92,7 @@ class SmoothedMovingAverage(MovingAverageBase):
 
         # Ensure output array is properly sized
         while len(larray) < end:
-            larray.append(0.0)
+            larray.append(float("nan"))
 
         # Pre-fill warmup period with NaN
         for i in range(min(period - 1, len(darray))):
