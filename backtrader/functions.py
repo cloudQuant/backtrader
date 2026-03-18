@@ -39,6 +39,16 @@ def _sanitize_cmp_value(value):
     return value
 
 
+def _sanitize_div_value(value):
+    if value is None:
+        return 0.0
+
+    if isinstance(value, float) and math.isnan(value):
+        return 0.0
+
+    return value
+
+
 # Generate a List equivalent which uses "is" for contains
 # Create a new List class, overriding __contains__ method, if any element in list has hash value equal to other's hash value, return True
 class List(list):
@@ -112,8 +122,9 @@ class DivByZero(Logic):
 
     def next(self):
         """Calculate the next value with zero-division protection."""
-        b = self.b[0]
-        self[0] = self.a[0] / b if b else self.zero
+        a = _sanitize_div_value(self.a[0])
+        b = _sanitize_div_value(self.b[0])
+        self[0] = a / b if b else self.zero
 
     def once(self, start, end):
         """Calculate all values at once with zero-division protection.
@@ -129,8 +140,9 @@ class DivByZero(Logic):
         zero = self.zero
 
         for i in range(start, end):
-            b = srcb[i]
-            dst[i] = srca[i] / b if b else zero
+            a = _sanitize_div_value(srca[i])
+            b = _sanitize_div_value(srcb[i])
+            dst[i] = a / b if b else zero
 
 
 # Division operation for two lines considering both numerator and denominator may be 0
@@ -164,12 +176,12 @@ class DivZeroByZero(Logic):
 
     def next(self):
         """Calculate the next value with zero/zero indetermination protection."""
-        b = self.b[0]
-        a = self.a[0]
+        b = _sanitize_div_value(self.b[0])
+        a = _sanitize_div_value(self.a[0])
         if b == 0.0:
             self[0] = self.dual if a == 0.0 else self.single
         else:
-            self[0] = self.a[0] / b
+            self[0] = a / b
 
     def once(self, start, end):
         """Calculate all values at once with zero/zero indetermination protection.
@@ -186,8 +198,8 @@ class DivZeroByZero(Logic):
         dual = self.dual
 
         for i in range(start, end):
-            b = srcb[i]
-            a = srca[i]
+            b = _sanitize_div_value(srcb[i])
+            a = _sanitize_div_value(srca[i])
             if b == 0.0:
                 dst[i] = dual if a == 0.0 else single
             else:
