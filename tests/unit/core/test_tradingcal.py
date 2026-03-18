@@ -116,5 +116,23 @@ def test_tradingcal(main=False):
         pass
 
 
+def test_nextday_week_returns_int():
+    """Regression: TradingCalendar.nextday_week() must return the ISO week number,
+    not None.  Before the fix it was missing 'return'."""
+    from backtrader.tradingcal import TradingCalendar
+    cal = TradingCalendar()
+    # Wednesday 2024-01-03 → next trading day is Thursday 2024-01-04, ISO week 1
+    day = datetime.datetime(2024, 1, 3)
+    week = cal.nextday_week(day)
+    assert week is not None, "nextday_week() returned None (missing return)"
+    assert isinstance(week, int), f"Expected int, got {type(week)}"
+    assert week == 1, f"Expected ISO week 1, got {week}"
+
+    # Friday 2024-01-05 → next trading day is Monday 2024-01-08, ISO week 2
+    day2 = datetime.datetime(2024, 1, 5)
+    week2 = cal.nextday_week(day2)
+    assert week2 == 2, f"Expected ISO week 2, got {week2}"
+
+
 if __name__ == "__main__":
     test_tradingcal(main=True)

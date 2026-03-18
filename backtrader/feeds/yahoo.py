@@ -149,7 +149,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         if self.p.swapcloses:  # swap closing prices if requested
             c, adjustedclose = adjustedclose, c
         # Calculate adjustment factor, the calculation method seems different from conventional usage, but not necessarily wrong
-        adjfactor = c / adjustedclose
+        adjfactor = c / adjustedclose if adjustedclose != 0.0 else 1.0
 
         # in v7 "adjusted prices" seem to be given, scale back for non adj
         # If price adjustment is needed, divide by adjustment factor

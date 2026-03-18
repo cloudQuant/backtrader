@@ -97,7 +97,7 @@ class TradingCalendarBase(ParameterizedBase):
         Returns the iso week number of the next trading day, given a ``day``
         (datetime/date) instance
         """
-        self._nextday(day)[1][1]  # 2 elem is isocal / 0 - y, 1 - wk, 2 - day
+        return self._nextday(day)[1][1]  # 2 elem is isocal / 0 - y, 1 - wk, 2 - day
 
     # Calculate if the current day is the last day of this week
     def last_weekday(self, day):
