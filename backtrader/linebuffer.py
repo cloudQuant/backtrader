@@ -2257,6 +2257,10 @@ class LinesOperation(LineActions):
                 if a_val is None or a_val != a_val or b_val is None or b_val != b_val:
                     dst[i] = float("nan")
                     continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(b_val, float) and not math.isfinite(b_val):
+                    b_val = 0.0
 
                 if self.r:
                     result = op(b_val, a_val)
@@ -2266,6 +2270,8 @@ class LinesOperation(LineActions):
                 # Preserve NaN semantics
                 if result is None or result != result:
                     result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
 
                 dst[i] = result
             except Exception:

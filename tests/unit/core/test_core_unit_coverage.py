@@ -364,6 +364,25 @@ class TestLinesOperationOnce:
             expected = float(i + 1) + float(i + 10)
             assert op.array[i] == expected or math.isnan(op.array[i]) is False
 
+    def test_once_op_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_op should sanitize non-finite operands/results."""
+        lb_a = linebuffer.LineBuffer()
+        lb_b = linebuffer.LineBuffer()
+        for a_val, b_val in ((1.0, 2.0), (float("inf"), 5.0), (3.0, 4.0)):
+            lb_a.forward()
+            lb_a[0] = a_val
+            lb_b.forward()
+            lb_b[0] = b_val
+
+        op = linebuffer.LinesOperation(lb_a, lb_b, operator.__add__)
+        op.array = []
+
+        op._once_op(0, 3)
+
+        assert op.array[0] == 3.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 7.0
+
     def test_once_line_op_scalar(self):
         """Test once() with LineBuffer and scalar operand."""
         lb_a = linebuffer.LineBuffer()
