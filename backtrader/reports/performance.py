@@ -419,7 +419,9 @@ class PerformanceCalculator:
 
     @staticmethod
     def _resolve_start_cash(value, default=100000):
-        return default if value is None else value
+        if not isinstance(value, (int, float)) or not math.isfinite(value):
+            return default
+        return value
 
     @staticmethod
     def _normalize_analyzer_name(value):

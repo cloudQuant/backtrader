@@ -102,6 +102,17 @@ class TestStartCashZero:
         assert len(values) == 1
         assert values[0] == pytest.approx(110000.0)
 
+    def test_get_equity_curve_timereturn_with_non_finite_cash(self):
+        """Non-finite start cash should also fall back to the default 100000 base."""
+        time_return_data = {1: 0.1}
+        analyzer = _make_analyzer("TimeReturn", time_return_data)
+        strategy = _make_strategy(analyzers=[analyzer], starting_cash=float("nan"))
+        calc = PerformanceCalculator(strategy)
+        dates, values = calc.get_equity_curve()
+
+        assert dates == [1]
+        assert values == pytest.approx([110000.0])
+
     def test_get_equity_curve_skips_invalid_timereturn_values(self):
         """Invalid TimeReturn values should not poison the cumulative equity curve."""
         time_return_data = {
