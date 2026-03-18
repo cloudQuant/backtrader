@@ -225,6 +225,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 else:
                     return operation(0, other)  # Use 0 as default value
             except Exception:
+                logger.debug("Fallback operation failed in LineRoot._makeoperation", exc_info=True)
                 # If operation fails, return False for bool operations
                 if operation is bool:
                     return False
@@ -256,6 +257,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                     return bool(value)
                     return False
                 except Exception:
+                    logger.debug("Boolean operation failed in LineRoot._makeoperationown", exc_info=True)
                     return False
             elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
                 # For LineSingle objects, check the current value directly
@@ -274,6 +276,10 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                             return bool(value)
                     return False
                 except Exception:
+                    logger.debug(
+                        "Direct boolean operation failed in LineRoot._makeoperationown",
+                        exc_info=True,
+                    )
                     return False
             else:
                 return False
@@ -289,6 +295,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             try:
                 return operation(0)  # Use 0 as default value
             except Exception:
+                logger.debug("Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True)
                 # If operation fails, return 0 for most operations
                 return 0
 
@@ -364,6 +371,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 result = operation(self_value, other)
             return result
         except Exception:
+            logger.debug("Stage2 operation failed in LineRoot._operation_stage2", exc_info=True)
             # If operation fails, return appropriate default
             if operation in [
                 operator.__lt__,
@@ -624,6 +632,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 # Fallback: if no data available, return False
                 return False
         except Exception:
+            logger.debug("Boolean evaluation failed in LineRoot.__nonzero__", exc_info=True)
             # If any error occurs during boolean evaluation, return False
             # This prevents crashes in strategies when doing "if self.cross > 0:"
             return False
@@ -750,6 +759,7 @@ class LineMultiple(LineRoot):
                 else:
                     return operation(0, other)  # Use 0 as default value
             except Exception:
+                logger.debug("Fallback operation failed in LineMultiple._makeoperation", exc_info=True)
                 # If operation fails, return False for bool operations
                 if operation is bool:
                     return False
@@ -770,6 +780,7 @@ class LineMultiple(LineRoot):
                         return False
                     return bool(value)
                 except Exception:
+                    logger.debug("Boolean operation failed in LineMultiple._makeoperationown", exc_info=True)
                     return False
             else:
                 return False
@@ -785,6 +796,7 @@ class LineMultiple(LineRoot):
             try:
                 return operation(0)  # Use 0 as default value
             except Exception:
+                logger.debug("Fallback self-operation failed in LineMultiple._makeoperationown", exc_info=True)
                 # If operation fails, return 0 for most operations
                 return 0
 
