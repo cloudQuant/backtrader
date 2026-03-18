@@ -207,6 +207,23 @@ class TestTradeMetrics:
         assert metrics["pct_winning"] == pytest.approx(100.0)
         assert metrics["pct_losing"] == pytest.approx(0.0)
 
+    def test_invalid_trade_counts_skip_percentages(self):
+        """Non-finite or non-numeric trade counts should not crash percentage calculation."""
+        ta = _make_analyzer("TradeAnalyzer", {
+            "total": {"total": 5, "closed": float("nan")},
+            "won": {"total": None, "pnl": {}},
+            "lost": {"total": "bad", "pnl": {}},
+        })
+        strategy = _make_strategy(analyzers=[ta])
+        calc = PerformanceCalculator(strategy)
+        metrics = calc.get_trade_metrics()
+
+        assert math.isnan(metrics["trades_closed"])
+        assert metrics["trades_won"] is None
+        assert metrics["trades_lost"] == "bad"
+        assert metrics["pct_winning"] is None
+        assert metrics["pct_losing"] is None
+
     def test_no_trade_analyzer(self):
         """Default values when no TradeAnalyzer is available."""
         strategy = _make_strategy(analyzers=[])

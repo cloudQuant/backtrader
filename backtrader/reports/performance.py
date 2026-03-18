@@ -213,9 +213,23 @@ class PerformanceCalculator:
             metrics["trades_lost"] = lost.get("total", 0)
 
             # Win rate
-            if metrics["trades_closed"] > 0:
-                metrics["pct_winning"] = 100 * metrics["trades_won"] / metrics["trades_closed"]
-                metrics["pct_losing"] = 100 * metrics["trades_lost"] / metrics["trades_closed"]
+            trades_closed = metrics["trades_closed"]
+            trades_won = metrics["trades_won"]
+            trades_lost = metrics["trades_lost"]
+            if all(
+                isinstance(value, (int, float)) and math.isfinite(value)
+                for value in (trades_closed, trades_won, trades_lost)
+            ):
+                if trades_closed > 0:
+                    metrics["pct_winning"] = 100 * trades_won / trades_closed
+                    metrics["pct_losing"] = 100 * trades_lost / trades_closed
+            else:
+                logger.debug(
+                    "Skipping trade win/loss percentage calculation for invalid counts: closed=%s, won=%s, lost=%s",
+                    trades_closed,
+                    trades_won,
+                    trades_lost,
+                )
 
             # Average profit/loss
             won_pnl = won.get("pnl", {})
