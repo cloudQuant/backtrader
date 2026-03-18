@@ -76,9 +76,16 @@ class PerformanceCalculator:
         end_value = metrics["end_value"]
 
         if start_cash is not None and end_value is not None:
-            metrics["rpl"] = end_value - start_cash
-            if start_cash != 0:
-                metrics["total_return"] = 100 * (end_value / start_cash - 1)
+            if math.isfinite(start_cash) and math.isfinite(end_value):
+                metrics["rpl"] = end_value - start_cash
+                if start_cash != 0:
+                    metrics["total_return"] = 100 * (end_value / start_cash - 1)
+            else:
+                logger.debug(
+                    "Skipping basic PnL metric calculation for invalid broker values: start_cash=%s, end_value=%s",
+                    start_cash,
+                    end_value,
+                )
 
         # Get trade statistics from TradeAnalyzer
         trade_analysis = self._get_analyzer_result("tradeanalyzer")

@@ -447,6 +447,23 @@ class TestBrokerAccessFailures:
         assert metrics["rpl"] is None
         assert any("Failed to get end value" in record.message for record in caplog.records)
 
+    def test_get_pnl_metrics_skips_invalid_broker_values(self, caplog):
+        """NaN/inf broker values should not poison rpl or total_return."""
+        strategy = _make_strategy(starting_cash=float("nan"), broker_value=float("inf"))
+        calc = PerformanceCalculator(strategy)
+
+        with caplog.at_level("DEBUG"):
+            metrics = calc.get_pnl_metrics()
+
+        assert math.isnan(metrics["start_cash"])
+        assert math.isinf(metrics["end_value"])
+        assert metrics["rpl"] is None
+        assert metrics["total_return"] is None
+        assert any(
+            "Skipping basic PnL metric calculation for invalid broker values" in record.message
+            for record in caplog.records
+        )
+
     def test_get_equity_curve_handles_startingcash_access_failure(self, caplog):
         """Starting cash access failure should fall back to the default curve base."""
         analyzer = _make_analyzer("TimeReturn", {1: 0.1})
