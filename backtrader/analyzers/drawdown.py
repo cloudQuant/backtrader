@@ -245,7 +245,10 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
             self.ddlen = 0  # start of streak
 
         # calculate the current drawdown
-        self.dd = dd = 100.0 * (self.peak - value) / self.peak
+        if self.peak:
+            self.dd = dd = 100.0 * (self.peak - value) / self.peak
+        else:
+            self.dd = dd = 0.0
         self.ddlen += bool(dd)  # if peak == value -> dd = 0
 
         # update the maxdrawdown if needed

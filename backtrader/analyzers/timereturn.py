@@ -176,6 +176,9 @@ class TimeReturn(TimeFrameAnalyzerBase):
         # Calculate the return
         super().next()
         # self.dtkey is an attribute set in analyzer, usually the end date of a period
-        self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
+        if self._value_start:
+            self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
+        else:
+            self.rets[self.dtkey] = 0.0
         # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0
         self._lastvalue = self._value  # keep last value
