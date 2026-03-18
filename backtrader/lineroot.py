@@ -350,7 +350,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         elif isinstance(self_value, float):
             import math
 
-            if math.isnan(self_value):
+            if not math.isfinite(self_value):
                 self_value = 0.0
 
         # Also handle None in other value
@@ -359,7 +359,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         elif isinstance(other, float):
             import math
 
-            if math.isnan(other):
+            if not math.isfinite(other):
                 other = 0.0
 
         # CRITICAL FIX: Actually perform the operation and return the result
@@ -462,7 +462,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -470,7 +470,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -495,7 +495,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -503,7 +503,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -528,7 +528,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -536,7 +536,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use
@@ -561,7 +561,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(self_value, float):
                 import math
 
-                if math.isnan(self_value):
+                if not math.isfinite(self_value):
                     self_value = 0.0
 
             if other is None:
@@ -569,7 +569,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             elif isinstance(other, float):
                 import math
 
-                if math.isnan(other):
+                if not math.isfinite(other):
                     other = 0.0
 
             # Return actual boolean for direct strategy use

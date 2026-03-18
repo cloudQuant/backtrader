@@ -193,6 +193,35 @@ class TestLineRootOperators:
         strat = run_cerebro(St)
         assert len(strat.results) > 0
 
+    def test_stage2_comparison_with_non_finite_scalar_inputs(self):
+        """Non-finite line values should be sanitized to 0.0 in stage2 scalar comparisons."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[5]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                self.results = []
+
+            def next(self):
+                self.results.append({
+                    "lt": self.data.close < 1.0,
+                    "gt": self.data.close > -1.0,
+                    "le": self.data.close <= 0.0,
+                    "ge": self.data.close >= 0.0,
+                })
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert strat.results[2] == {"lt": True, "gt": True, "le": True, "ge": True}
+        assert strat.results[5] == {"lt": True, "gt": True, "le": True, "ge": True}
+
     def test_stage2_comparison_with_none(self):
         """Comparison operators handle None gracefully in stage2."""
 
