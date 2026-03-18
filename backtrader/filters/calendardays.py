@@ -85,12 +85,14 @@ class CalendarDays(ParameterizedBase):
         tm = data.datetime.time(0)  # get time part
 
         # Same price for all bars
-        if self.p.fill_price > 0:
-            price = self.p.fill_price
-        elif not self.p.fill_price:
-            price = data.close[-1]
-        elif self.p.fill_price == -1:
+        fp = self.p.fill_price
+        if fp is not None and fp > 0:
+            price = fp
+        elif fp == -1:
             price = (data.high[-1] + data.low[-1]) / 2.0
+        else:
+            # None, 0, or any other falsy value → use last close
+            price = data.close[-1]
 
         while lastdt < dt:
             lastdt += self.ONEDAY
