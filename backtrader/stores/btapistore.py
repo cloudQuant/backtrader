@@ -137,7 +137,8 @@ def _coerce_text(value: Any, default: str = "") -> str:
         )
         try:
             return str(value).strip()
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to coerce value to text: %s", e)
             return default
 
 
@@ -152,7 +153,8 @@ def _safe_text_attr(obj: Any, *attrs: str, default: str = "") -> str:
         for attr in attrs:
             try:
                 value = getattr(obj, attr, None)
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed to get attr %s from %s: %s", attr, type(obj).__name__, e)
                 value = None
             text = _coerce_text(value, "")
             if text:
@@ -203,9 +205,9 @@ def _infer_tick_direction(
     previous_price: Optional[float],
 ) -> str:
     """Infer an approximate aggressive side for a market data tick."""
-    if ask_price and last_price >= ask_price:
+    if ask_price is not None and last_price >= ask_price:
         return "buy"
-    if bid_price and last_price <= bid_price:
+    if bid_price is not None and last_price <= bid_price:
         return "sell"
     if previous_price is not None:
         return "buy" if last_price >= previous_price else "sell"
@@ -243,7 +245,8 @@ def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
             continue
         try:
             value = getattr(field, attr)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to read CTP field attr %s: %s", attr, e)
             continue
         if callable(value):
             continue
@@ -1653,9 +1656,9 @@ class BtApiStore(LiveStoreBase):
         if getattr(order, "exectype", None) == OrderBase.Market or order_type_str == "market":
             price = None
         else:
-            price = order.price or order.created.price
+            price = order.price if order.price is not None else order.created.price
             if price is not None and float(price) <= 0:
-                price = order.created.price or None
+                price = order.created.price if order.created.price is not None else None
         data_name = self._extract_dataname(order.data)
         payload = {
             "symbol": data_name,
