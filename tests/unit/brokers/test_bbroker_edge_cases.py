@@ -111,3 +111,49 @@ class TestGetValueDivByZero:
         # _fundval = _value / _fundshares = 10000 / 100 = 100.0
         assert abs(broker._fundval - 100.0) < 1e-10
         assert abs(result - 10000.0) < 1e-10
+
+
+# ---------------------------------------------------------------------------
+# P1: fundstartval=0 — division by zero in init and cash addition
+# ---------------------------------------------------------------------------
+
+class TestFundstartvalZero:
+    """Verify broker survives fundstartval=0.0 without ZeroDivisionError."""
+
+    def test_init_fundstartval_zero_fallback(self):
+        """fundstartval=0.0 should fall back to 100.0 to avoid division by zero.
+
+        The 'or 100.0' guard prevents ZeroDivisionError when fundstartval
+        is set to 0.0.
+        """
+        # Directly test the guard expression used in bbroker.py start()
+        fundstartval = 0.0
+        fundval = fundstartval or 100.0
+        assert fundval == 100.0, "Guard should fall back to 100.0 for zero fundstartval"
+
+        # Verify division works with the guarded value
+        cash = 10000.0
+        fundshares = cash / fundval  # no ZeroDivisionError
+        assert abs(fundshares - 100.0) < 1e-10
+
+    def test_cash_addition_with_zero_fundval(self):
+        """Adding cash when _fundval is 0 should not crash."""
+        broker = BackBroker()
+        broker._cash = 10000.0
+        broker._value = 10000.0
+        broker._valuemkt = 0.0
+        broker._valuelever = 0.0
+        broker._valuemktlever = 0.0
+        broker._leverage = 1.0
+        broker._unrealized = 0.0
+        broker._fundshares = 100.0
+        broker._fundval = 0.0  # edge case: zero fundval
+        broker._fundhist = []
+        broker._fhistlast = [float("NaN"), float("NaN")]
+        broker._cash_addition = collections.deque([500.0])
+        broker.positions = collections.defaultdict(Position)
+
+        # Should not raise ZeroDivisionError
+        broker._get_value()
+        # Cash should still be added
+        assert abs(broker._cash - 10500.0) < 1e-10

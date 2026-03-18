@@ -416,7 +416,7 @@ class BackBroker(BrokerBase):
         # ocol
         self._ocol = collections.defaultdict(list)
         # fund value
-        self._fundval = self.get_param("fundstartval")
+        self._fundval = self.get_param("fundstartval") or 100.0
         # fund shares
         self._fundshares = self.get_param("cash") / self._fundval
         # Cash addition
@@ -682,7 +682,7 @@ class BackBroker(BrokerBase):
         cash_addition = self._cash_addition
         while cash_addition:
             c = cash_addition.popleft()
-            self._fundshares += c / self._fundval
+            self._fundshares += c / self._fundval if self._fundval else 0.0
             self._cash += c
 
         # If datas is None, loop through self.positions; if datas is not None, loop through datas
