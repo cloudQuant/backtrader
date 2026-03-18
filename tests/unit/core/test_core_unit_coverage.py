@@ -21,6 +21,14 @@ import pytest
 import backtrader as bt
 from backtrader import linebuffer
 
+
+class _ScalarNoArray:
+    def __init__(self, value):
+        self.value = value
+
+    def __getitem__(self, idx):
+        return self.value
+
 # ============================================================================
 # 1. LineBuffer — __setitem__ NaN/None/datetime protection (lines 526-575)
 # ============================================================================
@@ -448,6 +456,22 @@ class TestLinesOperationOnce:
         assert op.array[0] == 4.0
         assert op.array[1] == 5.0
         assert op.array[2] == 2.0
+
+    def test_once_time_op_sanitizes_non_finite_operands_and_result(self):
+        """LinesOperation._once_time_op should sanitize non-finite inputs/results."""
+        lb_a = linebuffer.LineBuffer()
+        for value in (1.0, float("inf"), 3.0):
+            lb_a.forward()
+            lb_a[0] = value
+
+        op = linebuffer.LinesOperation(lb_a, _ScalarNoArray(5.0), operator.__add__)
+        op.array = []
+
+        op._once_time_op(0, 3)
+
+        assert op.array[0] == 6.0
+        assert op.array[1] == 5.0
+        assert op.array[2] == 8.0
 
 
 # ============================================================================
