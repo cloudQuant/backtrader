@@ -46,8 +46,9 @@ class PerformanceCalculator:
             dict: Dictionary containing all performance metrics
         """
         metrics = {}
-        metrics.update(self.get_pnl_metrics())
-        metrics.update(self.get_risk_metrics())
+        pnl_metrics = self.get_pnl_metrics()
+        metrics.update(pnl_metrics)
+        metrics.update(self.get_risk_metrics(pnl_metrics=pnl_metrics))
         metrics.update(self.get_trade_metrics())
         metrics.update(self.get_kpi_metrics())
         return metrics
@@ -74,9 +75,10 @@ class PerformanceCalculator:
         start_cash = metrics["start_cash"]
         end_value = metrics["end_value"]
 
-        if start_cash and end_value:
+        if start_cash is not None and end_value is not None:
             metrics["rpl"] = end_value - start_cash
-            metrics["total_return"] = 100 * (end_value / start_cash - 1)
+            if start_cash != 0:
+                metrics["total_return"] = 100 * (end_value / start_cash - 1)
 
         # Get trade statistics from TradeAnalyzer
         trade_analysis = self._get_analyzer_result("tradeanalyzer")
@@ -97,7 +99,7 @@ class PerformanceCalculator:
             metrics["result_lost_trades"] = lost_pnl.get("total")
 
             # Calculate profit factor
-            if metrics["result_won_trades"] and metrics["result_lost_trades"]:
+            if metrics["result_won_trades"] is not None and metrics["result_lost_trades"] is not None:
                 if metrics["result_lost_trades"] != 0:
                     metrics["profit_factor"] = abs(
                         metrics["result_won_trades"] / metrics["result_lost_trades"]
@@ -106,7 +108,7 @@ class PerformanceCalculator:
             # Average profit/loss per trade
             total = trade_analysis.get("total", {})
             closed = total.get("closed", 0)
-            if closed > 0 and metrics["rpl"]:
+            if closed > 0 and metrics["rpl"] is not None:
                 metrics["rpl_per_trade"] = metrics["rpl"] / closed
 
         # Calculate annual return
@@ -119,8 +121,11 @@ class PerformanceCalculator:
 
         return metrics
 
-    def get_risk_metrics(self):
+    def get_risk_metrics(self, pnl_metrics=None):
         """Get risk-related metrics.
+
+        Args:
+            pnl_metrics: Pre-computed PnL metrics dict (avoids recomputation)
 
         Returns:
             dict: Risk metrics dictionary
@@ -139,8 +144,9 @@ class PerformanceCalculator:
             metrics["max_pct_drawdown"] = max_dd.get("drawdown")
 
         # Calculate Calmar ratio
-        pnl_metrics = self.get_pnl_metrics()
-        if pnl_metrics.get("annual_return") and metrics.get("max_pct_drawdown"):
+        if pnl_metrics is None:
+            pnl_metrics = self.get_pnl_metrics()
+        if pnl_metrics.get("annual_return") is not None and metrics.get("max_pct_drawdown") is not None:
             if metrics["max_pct_drawdown"] != 0:
                 metrics["calmar_ratio"] = abs(
                     pnl_metrics["annual_return"] / metrics["max_pct_drawdown"]
@@ -400,7 +406,8 @@ class PerformanceCalculator:
 
             delta = end_dt - start_dt
             return delta.days
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to calculate backtest days: %s", e)
             return None
 
     def _get_analyzer_result(self, name):
@@ -418,24 +425,27 @@ class PerformanceCalculator:
         # Try to get directly by name
         name_lower = name.lower()
 
-        # Iterate through all analyzers
+        # First pass: exact match on class name or _name attribute
         for analyzer in self._analyzers:
             analyzer_name = analyzer.__class__.__name__.lower()
+            custom_name = getattr(analyzer, "_name", "").lower()
 
-            # Check name match
-            if analyzer_name == name_lower or name_lower in analyzer_name:
+            if analyzer_name == name_lower or custom_name == name_lower:
                 try:
                     return analyzer.get_analysis()
                 except Exception as e:
                     logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
-            # Check _name attribute
+        # Second pass: substring match (less precise, used as fallback)
+        for analyzer in self._analyzers:
+            analyzer_name = analyzer.__class__.__name__.lower()
             custom_name = getattr(analyzer, "_name", "").lower()
-            if name_lower in custom_name:
+
+            if name_lower in analyzer_name or name_lower in custom_name:
                 try:
                     return analyzer.get_analysis()
                 except Exception as e:
-                    logger.debug("Failed to get analysis from %s: %s", custom_name, e)
+                    logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
         return None
 

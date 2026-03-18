@@ -7,6 +7,9 @@ Generates static charts for reports, distinct from interactive plotting.
 
 import base64
 import io
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     import matplotlib
@@ -144,7 +147,8 @@ class ReportChart:
         try:
             resampled = series.resample(period_code).last()
             returns = 100 * resampled.pct_change().dropna()
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to resample returns with period %s: %s", period_code, e)
             return None
 
         if len(returns) == 0:
@@ -253,15 +257,12 @@ class ReportChart:
             start_date = dates[0]
             end_date = dates[-1]
 
-            if hasattr(start_date, "days"):
+            from datetime import datetime
+
+            if isinstance(start_date, datetime):
                 time_interval_days = (end_date - start_date).days
             else:
-                from datetime import datetime
-
-                if isinstance(start_date, datetime):
-                    time_interval_days = (end_date - start_date).days
-                else:
-                    time_interval_days = 30  # Default
+                time_interval_days = 30  # Default
 
             if time_interval_days > 5 * 365.25:
                 return ("Yearly", "YE")
@@ -275,7 +276,8 @@ class ReportChart:
                 return ("Hourly", "H")
             else:
                 return ("Per Minute", "T")
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to determine periodicity: %s", e)
             return ("Daily", "D")
 
     def save_to_file(self, fig, filename, format="png"):
@@ -315,6 +317,7 @@ class ReportChart:
 
     def close_all(self):
         """Close all charts and release memory."""
-        for fig in self._figures:
-            plt.close(fig)
+        if MATPLOTLIB_AVAILABLE:
+            for fig in self._figures:
+                plt.close(fig)
         self._figures = []
