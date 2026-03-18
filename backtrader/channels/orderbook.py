@@ -19,6 +19,7 @@ import csv
 import gzip
 import json
 import logging
+import math
 from typing import Iterator, List, Tuple
 
 from ..channel import DataChannel, DataValidationResult
@@ -158,7 +159,7 @@ class OrderBookChannel(DataChannel):
                     asks = _parse_levels(row["asks"])
 
                     ob = OrderBookSnapshot(
-                        timestamp=float(row["timestamp"]),
+                        timestamp=_parse_required_float(row["timestamp"]),
                         symbol=row.get("symbol", self.symbol),
                         exchange=row.get("exchange", ""),
                         asset_type=row.get("asset_type", "spot"),
@@ -190,11 +191,11 @@ class OrderBookChannel(DataChannel):
                     continue
                 try:
                     data = json.loads(line)
-                    bids = [tuple(level) for level in data.get("bids", [])]
-                    asks = [tuple(level) for level in data.get("asks", [])]
+                    bids = _parse_level_pairs(data.get("bids", []))
+                    asks = _parse_level_pairs(data.get("asks", []))
 
                     ob = OrderBookSnapshot(
-                        timestamp=float(data["timestamp"]),
+                        timestamp=_parse_required_float(data["timestamp"]),
                         symbol=data.get("symbol", self.symbol),
                         exchange=data.get("exchange", ""),
                         asset_type=data.get("asset_type", "spot"),
@@ -231,4 +232,15 @@ def _parse_levels(text: str) -> List[Tuple[float, float]]:
         List of (price, quantity) tuples.
     """
     levels = json.loads(text)
-    return [(float(p), float(q)) for p, q in levels]
+    return _parse_level_pairs(levels)
+
+
+def _parse_required_float(value) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"Non-finite float value: {value}")
+    return number
+
+
+def _parse_level_pairs(levels) -> List[Tuple[float, float]]:
+    return [(_parse_required_float(p), _parse_required_float(q)) for p, q in levels]
