@@ -306,7 +306,7 @@ class OrderData:
         oldvalue = self.size * self.price
         newvalue = exbit.size * exbit.price
         self.size += exbit.size
-        self.price = (oldvalue + newvalue) / self.size
+        self.price = (oldvalue + newvalue) / self.size if self.size else 0.0
         self.value += exbit.value
         self.comm += exbit.comm
         self.pnl += exbit.pnl
@@ -724,7 +724,7 @@ class OrderBase:
 
     # Check if two orders are not equal
     def __ne__(self, other):
-        return self.ref != other.ref
+        return other is None or self.ref != other.ref
 
     # Check if current order is a buy order
     def isbuy(self):
