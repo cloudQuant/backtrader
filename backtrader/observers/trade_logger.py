@@ -373,6 +373,21 @@ class TradeLogger(Observer):
         self._emit_payload(logger_map.get(category), payload, text_line=text_line)
         return payload
 
+    def _log_internal_error(self, source, exc):
+        try:
+            self._log_event(
+                "error",
+                "observer_internal_error",
+                level="ERROR",
+                error_code=str(source),
+                error_msg=str(exc),
+                details={"source": str(source)},
+            )
+        except Exception:
+            logging.getLogger(__name__).error(
+                "TradeLogger internal error in %s: %s", source, exc
+            )
+
     def _monitor_threshold(self, counter_name, threshold, event_type):
         """Emit a warning event when a monitoring threshold is crossed."""
         if threshold <= 0:
@@ -626,9 +641,10 @@ class TradeLogger(Observer):
             if self.p.log_position_snapshot:
                 self._save_position_snapshot()
         except Exception as e:
-            import traceback
-
+            self._log_internal_error("next", e)
             if self.p.log_to_console:
+                import traceback
+
                 print(f"[TradeLogger] Error in next(): {e}")
                 traceback.print_exc()
 
@@ -763,8 +779,8 @@ class TradeLogger(Observer):
                     f"ask={tick_dict.get('ask_price', '')}"
                 ),
             )
-        except Exception:
-            pass
+        except Exception as e:
+            self._log_internal_error("notify_tick_event", e)
 
     def notify_bar_event(self, bar):
         """Log a bar event.
@@ -813,8 +829,8 @@ class TradeLogger(Observer):
                     f"vol={bar_dict.get('volume', '')}"
                 ),
             )
-        except Exception:
-            pass
+        except Exception as e:
+            self._log_internal_error("notify_bar_event", e)
 
     def notify_store_event(self, msg, *args, **kwargs):
         """Log a structured runtime event forwarded from a store."""
