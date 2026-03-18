@@ -412,7 +412,7 @@ class TimeFrameAnalyzerBase(Analyzer):
         """Initialize with functionality previously in MetaTimeFrameAnalyzerBase"""
         super().__init__(*args, **kwargs)
 
-        # Hack to support original method name - add on_dt_over_orig if on_dt_over_orig exists
+        # Backward compatibility: alias on_dt_over_orig to on_dt_over if needed
         if hasattr(self, "on_dt_over_orig") and not hasattr(self, "on_dt_over"):
             self.on_dt_over = self.on_dt_over_orig
 

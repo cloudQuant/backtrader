@@ -134,7 +134,6 @@ def get_up_scatter(df):
             first_swing = "up"
         pre_index = index
         pre_low = low
-        # print(mark_line_data[:10])
     return mark_line_data
 
 
@@ -172,7 +171,6 @@ def get_dn_scatter(df):
             first_swing = "up"
         pre_index = index
         pre_high = high
-    # print(mark_line_data[:10])
     return mark_line_data
 
 
@@ -240,7 +238,6 @@ def get_valid_point(df):
         pre_index = index
         pre_low = low
         pre_high = high
-    # print(mark_line_data[:10])
     return valid_dn_point_list, valid_up_point_list
 
 
@@ -386,7 +383,6 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
 
     # Try to add some support lines to the support
     for d1, d2 in zip(valid_dn_point_list[:-1], valid_dn_point_list[1:]):
-        # print(d1,d2)
         dn_line = (
             Line()
             .add_xaxis(xaxis_data=[d1[0], d2[0]])
@@ -418,7 +414,6 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         overlap_kline_line = kline.overlap(dn_line)
 
     for d1, d2 in zip(valid_up_point_list[:-1], valid_up_point_list[1:]):
-        # print(d1,d2)
         dn_line = (
             Line()
             .add_xaxis(xaxis_data=[d1[0], d2[0]])
@@ -478,14 +473,11 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
     overlap_kline_line = kline.overlap(bp_c)
     # Long position line segment
     for bk, bp in zip([str(i[0]) for i in bk_list], [str(i[0]) for i in bp_list]):
-        # print(bk,bk)
         try:
             bk_df = df[df.index >= bk]
             bk_price = list(bk_df["open"])[1]
             bp_df = df[df.index >= bp]
             bp_price = list(bp_df["open"])[1]
-            # print("Long signal", [bk, new_bk, bp, new_bp], [bk_price, bp_price])  # Removed for performance
-            # Test
             long_line = (
                 Line()
                 .add_xaxis(xaxis_data=[bk, bp])
@@ -516,7 +508,6 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(long_line)
         except Exception:
-            # print("Some signals are not aligned")  # Removed for performance
             pass
 
     sk_df = df[df.index.isin([str(i[0]) for i in sk_list])]
@@ -558,8 +549,6 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             sp_df = df[df.index >= sp]
             sp = list(sp_df.index)[1]
             sp_price = list(sp_df["open"])[1]
-            # print("Short signal", [sk, sp], [sk_price, sp_price])  # Removed for performance
-            # Test
             short_line = (
                 Line()
                 .add_xaxis(xaxis_data=[sk, sp])
@@ -590,7 +579,6 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(short_line)
         except Exception:
-            # print("Short signal error")  # Removed for performance
             pass
 
     # Bar-1
@@ -1438,9 +1426,7 @@ class Plot_OldSync(ParameterizedBase):
                         prop=self.pinf.prop,
                     )
 
-                    # legend.set_title(indlabel, prop=self.pinf.prop)
-                    # hack: if title is set. legend has a Vbox for the labels
-                    # which has a default "center" set
+                    # Matplotlib legend box defaults to center alignment; override to left
                     legend._legend_box.align = "left"
 
         # plot subindicators on self with independent axis below
@@ -1727,8 +1713,7 @@ class Plot_OldSync(ParameterizedBase):
                 ncol=1,
             )
 
-            # hack: if title is set. legend has a Vbox for the labels
-            # which has a default "center" set
+            # Matplotlib legend box defaults to center alignment; override to left
             legend._legend_box.align = "left"
 
         for ind in indicators:
@@ -1925,7 +1910,6 @@ def get_rate_sharpe_drawdown(data):
     data["date"] = [str(i)[:10] for i in data.index]
     data1 = data.drop_duplicates("date", keep="last")
     data1.index = pd.to_datetime(data1["date"])
-    # print(data1)
     if len(data1) == 0:
         return np.nan, np.nan, np.nan
     try:
@@ -1941,7 +1925,6 @@ def get_rate_sharpe_drawdown(data):
         begin_date = data.index[0]
         end_date = data.index[-1]
         days = (end_date - begin_date).days
-        # print(begin_date,begin_value,end_date,end_value,1/(days/365))
         # If the calculated actual return is negative, default to maximum of 0, return cannot be negative
         total_rate = max((end_value - begin_value) / begin_value, -0.9999)
         average_rate = (1 + total_rate) ** (1 / (days / 365)) - 1
@@ -1951,10 +1934,7 @@ def get_rate_sharpe_drawdown(data):
         df = df.dropna()
         # index_j = np.argmax(np.maximum.accumulate(df) - df)  # End position
         index_j = np.argmax(np.array(np.maximum.accumulate(df) - df))
-        # print("Maximum drawdown end time",index_j)
-        # index_i = np.argmax(df[:index_j])  # Start position
         index_i = np.argmax(np.array(df[:index_j]))  # Start position
-        # print("Maximum drawdown start time",index_i)
         max_drawdown = (np.e ** df[index_j] - np.e ** df[index_i]) / np.e ** df[index_i]
         """
         begin_max_drawdown_value = data['total_value'][index_i]
@@ -2027,8 +2007,6 @@ def run_cerebro_and_plot(
         file_list = os.listdir(os.getcwd())
     if file_name in file_list:
         print(f"backtest {params_str} consume time  :0 because of it has run")
-    # print("file name is {}".format(file_name))
-    # print("file_list is {}".format(file_list))
     if file_name not in file_list:
         print(
             "begin to run this params:{},now_time is {}".format(
@@ -2154,10 +2132,6 @@ def run_cerebro_and_plot(
                 df00["Long/short trading indicator value"] = df03[
                     "Long/short trading indicator value"
                 ]
-                # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
-                # print(performance_dict)  # Removed for performance
-                # print(strategy.__name__ + params_str)  # Removed for performance
-                # print(sharpe_ratio, average_rate, max_drawdown_rate)  # Removed for performance
 
         if not optimize:
             # Save required trading indicators
@@ -2419,10 +2393,6 @@ def run_cerebro_and_plot(
                 df00["Long/short trading indicator value"] = df03[
                     "Long/short trading indicator value"
                 ]
-                # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
-                # print(performance_dict)  # Removed for performance
-                # print(strategy.__name__ + params_str)  # Removed for performance
-                # print(sharpe_ratio, average_rate, max_drawdown_rate)  # Removed for performance
 
             # Add table data
             table_data = [

@@ -76,14 +76,9 @@ class AnnualReturn(Analyzer):
         cur_year = -1
         # Start value
         value_start = 0.0
-        # todo This value is not used, commented out
-        # value_cur = 0.0   # Current value
         # End value
         value_end = 0.0
         # Save return data
-        # todo Directly setting in PyCharm will warn about setting attribute values outside __init__, use hasattr and setattr to set specific attribute values
-        # self.rets = list()  #
-        # self.ret = OrderedDict()
         setattr(self, "rets", list())
         setattr(self, "ret", OrderedDict())
 

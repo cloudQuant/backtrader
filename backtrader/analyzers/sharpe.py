@@ -167,8 +167,6 @@ class SharpeRatio(Analyzer):
             rate = self.p.riskfreerate
             retavg = average([r - rate for r in self.anret.rets])
             retdev = standarddev(self.anret.rets)
-            # TODO: change self.ratio to ratio
-            # self.ratio = retavg / retdev
             ratio = retavg / retdev
         # If not calculating returns and Sharpe ratio in annual units
         else:
@@ -180,7 +178,6 @@ class SharpeRatio(Analyzer):
             # Date defaults to None
             factor = None
 
-            # Hack to identify old code
             # Get specific factor date, if daily period and daysfactor is not None, set factor = daysfactor
             if self.p.timeframe == TimeFrame.Days and self.p.daysfactor is not None:
                 factor = self.p.daysfactor
@@ -228,8 +225,6 @@ class SharpeRatio(Analyzer):
             else:
                 # no returns or stddev_sample was active and 1 return
                 ratio = None
-            # TODO: self.ratio is not used here, just use ratio for assignment, can also improve speed
-            # self.ratio = ratio
         # Save Sharpe ratio
         self.rets["sharperatio"] = ratio
 

@@ -159,8 +159,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
             low /= adjfactor
             c = adjustedclose
             # If the price goes down, volume must go up and viceversa
-            # If adjusting volume, the logic here has some issues, but shouldn't affect usage as stock mergers may exist
-            # todo pay attention to logic
+            # If adjusting volume
             if self.p.adjvolume:
                 v *= adjfactor
         # If rounding is needed, round the prices
@@ -202,7 +201,6 @@ class YahooFinanceCSV(feed.CSVFeedBase):
     DataCls = YahooFinanceCSVData
 
 
-# todo Test this class when time permits to see if it still works, if so, try to add comments
 class YahooFinanceData(YahooFinanceCSVData):
     # This is a method to directly crawl data from Yahoo
     """

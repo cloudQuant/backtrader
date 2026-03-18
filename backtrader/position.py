@@ -123,7 +123,6 @@ class Position:
                 # reversal max(-10, -10 - 5) -> max(-10, -15) -> -10
                 self.upclosed = max(self.size, self.size - size)
         # If current position equals 0, both new opening and closing equal 0
-        # todo Using 0 directly instead of self.size may improve efficiency
         else:  # self.size == 0
             self.upopened = self.size
             self.upclosed = 0

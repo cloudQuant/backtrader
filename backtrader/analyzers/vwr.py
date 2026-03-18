@@ -178,7 +178,6 @@ class VWR(TimeFrameAnalyzerBase):
         dts = []
         for n, pipn in enumerate(zip(self._pis, self._pns), 1):
             pi, pn = pipn
-            # print(n,pi,pn,pipn,ravg,rs)
             dt = pn / (pi * math.exp(ravg * n)) - 1.0
             dts.append(dt)
         # Calculate standard deviation of annual returns

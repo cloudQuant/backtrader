@@ -90,7 +90,6 @@ class PandasDirectData(DataBase):
 
             # get the line to be set
             line = getattr(self.lines, datafield)
-            # print(colidx,datafield,row)
             # indexing for pandas: 1st is colum, then row
             line[0] = row[colidx]
 

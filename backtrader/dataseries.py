@@ -142,7 +142,6 @@ class DataSeries(LineSeries):
 
     # Set dataseries _name attribute, usually can use data._name directly in strategy to get specific data value
     _name = ""
-    # todo Try to add a name attribute, same as _name, to facilitate using data.name to access data, avoiding pycharm warning about accessing private variables
     name = _name
     # Set _compression attribute, default is 1, meaning trading period is singular, such as 1 second, 1 minute, 1 day, 1 week, etc.
     _compression = 1
@@ -320,7 +319,7 @@ class _Bar(AutoOrderedDict):
             maxdate: If True, set datetime to maximum date.
         """
         super().__init__()
-        # todo Uncommenting these lines will cause an error, need to check the reason
+        # Note: These cannot be set here as they conflict with line definitions
         # self.datetime = None
         # self.openinterest = None
         # self.volume = None

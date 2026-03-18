@@ -127,7 +127,6 @@ class RollOver(DataBase):
             d._start()
 
         # put the references in a separate list to have pops
-        # todo Using list again here seems not very useful, because self._rolls is already list format
         self._ds = list(self._rolls)
         # First data
         self._d = self._ds.pop(0) if self._ds else None

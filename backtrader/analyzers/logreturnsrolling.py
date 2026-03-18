@@ -165,12 +165,9 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         """
         # Calculate the return
         super().next()
-        # print(self._value,self._values[0])
         # When the strategy is running, if there are too many losses, self._value / self._values[0] might be 0, avoid this situation
         try:
             self.rets[self.dtkey] = math.log(self._value / self._values[0])
         except Exception:
-            # print(e)  # Removed for performance
             self.rets[self.dtkey] = 0
-            # print("When calculating log returns, the corresponding value is less than 0")
         self._lastvalue = self._value  # keep last value
