@@ -232,8 +232,7 @@ class PerformanceCalculator:
         if sqn:
             sqn_score = sqn.get("sqn")
             metrics["sqn_score"] = sqn_score
-            if sqn_score is not None:
-                metrics["sqn_human"] = self.sqn_to_rating(sqn_score)
+            metrics["sqn_human"] = self.sqn_to_rating(sqn_score)
 
         # Sortino ratio
         sortino = self._get_analyzer_result("sortinoratio")
@@ -284,7 +283,8 @@ class PerformanceCalculator:
             # Try to get from TimeReturn analyzer and calculate cumulative equity
             time_return = self._get_analyzer_result("timereturn")
             if time_return:
-                start_cash = self._get_start_cash() or 100000
+                raw_cash = self._get_start_cash()
+                start_cash = raw_cash if raw_cash is not None else 100000
                 cumulative_value = start_cash
                 for dt, ret in sorted(time_return.items()):
                     cumulative_value = cumulative_value * (1 + ret)
@@ -295,7 +295,8 @@ class PerformanceCalculator:
             # If still no data, calculate buy-and-hold equity curve from data source as fallback
             benchmark_dates, benchmark_values = self.get_buynhold_curve()
             if benchmark_dates and benchmark_values:
-                start_cash = self._get_start_cash() or 100000
+                raw_cash = self._get_start_cash()
+                start_cash = raw_cash if raw_cash is not None else 100000
                 dates = benchmark_dates
                 # Convert normalized values to actual equity values
                 values = [start_cash * v / 100 for v in benchmark_values]
