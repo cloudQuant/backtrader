@@ -143,16 +143,6 @@ class CommInfoBase(ParameterizedBase):
         # Calculate interest rate
         self._creditrate = self.get_param("interest") / 365.0
 
-    # def __getattribute__(self, name):
-    #     """Override attribute access to return processed values for stocklike"""
-    #     if name == "stocklike":
-    #         try:
-    #             return self._stocklike
-    #         except AttributeError:
-    #             # Fall back to parameter value if _stocklike not yet set
-    #             return super().__getattribute__(name)
-    #     return super().__getattribute__(name)
-
     __getattribute__ = object.__getattribute__
 
     def get_margin(self, price):
