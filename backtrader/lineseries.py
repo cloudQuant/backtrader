@@ -693,6 +693,7 @@ class Lines:
                             line_buffer._idx = line_buffer.lencount - 1
                             self.lines[line] = line_buffer
                         except Exception:
+                            logger.debug("Failed to materialize iterable assignment in LineSeries.__setitem__", exc_info=True)
                             # Fallback: assign directly
                             self.lines[line] = value
                     else:
@@ -707,6 +708,7 @@ class Lines:
                     setattr(self, str(line), value)
 
         except Exception:
+            logger.debug("Primary assignment failed in LineSeries.__setitem__", exc_info=True)
             # If assignment fails, try various fallback approaches
             try:
                 # Fallback 1: direct attribute assignment
@@ -723,6 +725,7 @@ class Lines:
                     # Fallback 3: convert to string and set attribute
                     setattr(self, str(line), value)
             except Exception:
+                logger.debug("Secondary fallback assignment failed in LineSeries.__setitem__", exc_info=True)
                 # Final fallback: store in a special dict
                 if not hasattr(self, "_line_assignments"):
                     self._line_assignments = {}
