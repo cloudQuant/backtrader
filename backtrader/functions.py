@@ -49,6 +49,22 @@ def _sanitize_div_value(value):
     return value
 
 
+def _sanitize_numeric_values(values):
+    return [_sanitize_div_value(value) for value in values]
+
+
+def _maxlogic(values):
+    return max(_sanitize_numeric_values(values))
+
+
+def _minlogic(values):
+    return min(_sanitize_numeric_values(values))
+
+
+def _sumlogic(values):
+    return math.fsum(_sanitize_numeric_values(values))
+
+
 # Generate a List equivalent which uses "is" for contains
 # Create a new List class, overriding __contains__ method, if any element in list has hash value equal to other's hash value, return True
 class List(list):
@@ -588,7 +604,7 @@ class Max(MultiLogic):
     Returns the maximum value from all input lines.
     """
 
-    flogic = max
+    flogic = staticmethod(_maxlogic)
 
 
 # Find minimum value
@@ -598,7 +614,7 @@ class Min(MultiLogic):
     Returns the minimum value from all input lines.
     """
 
-    flogic = min
+    flogic = staticmethod(_minlogic)
 
 
 # Calculate sum
@@ -609,7 +625,7 @@ class Sum(MultiLogic):
     for better floating point precision.
     """
 
-    flogic = math.fsum
+    flogic = staticmethod(_sumlogic)
 
 
 # Check if any exists

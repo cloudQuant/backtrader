@@ -320,6 +320,66 @@ class TestLineRootOperators:
         results = cerebro.run(runonce=True)
         assert results[0].bar_count > 0
 
+    def test_max_min_sum_with_none_and_nan(self):
+        """Max/Min/Sum should sanitize None/NaN inputs in next()."""
+
+        data_list = generate_ohlcv(20)
+        data_list[3]["close"] = None
+        data_list[8]["open"] = float("nan")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.max_line = bt.Max(self.data.close, self.data.open)
+                self.min_line = bt.Min(self.data.close, self.data.open)
+                self.sum_line = bt.Sum(self.data.close, self.data.open)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain finite."""
+                self.bar_count += 1
+                assert math.isfinite(self.max_line[0])
+                assert math.isfinite(self.min_line[0])
+                assert math.isfinite(self.sum_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+        assert results[0].bar_count > 0
+
+    def test_max_min_sum_with_none_and_nan_runonce(self):
+        """Max/Min/Sum should sanitize None/NaN inputs in once() path."""
+
+        data_list = generate_ohlcv(30)
+        data_list[4]["close"] = None
+        data_list[9]["open"] = float("nan")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                """Initialize the test strategy."""
+                self.max_line = bt.Max(self.data.close, self.data.open)
+                self.min_line = bt.Min(self.data.close, self.data.open)
+                self.sum_line = bt.Sum(self.data.close, self.data.open)
+                self.bar_count = 0
+
+            def next(self):
+                """Execute trading logic for each bar and verify outputs remain finite."""
+                self.bar_count += 1
+                assert math.isfinite(self.max_line[0])
+                assert math.isfinite(self.min_line[0])
+                assert math.isfinite(self.sum_line[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+        assert results[0].bar_count > 0
+
     def test_unary_operators(self):
         """Test abs() and neg() operators."""
 
