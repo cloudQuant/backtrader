@@ -361,7 +361,10 @@ class LineBuffer(LineSingle, LineRootMixin):
             lencount = self.lencount
             if lencount > 0 and current_idx >= lencount:
                 current_idx = lencount - 1
-            return self.array[current_idx + ago]
+            value = self.array[current_idx + ago]
+            if isinstance(value, float) and not math.isfinite(value) and value == value:
+                return 0.0
+            return value
         except IndexError:
             pass
 

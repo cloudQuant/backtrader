@@ -128,6 +128,17 @@ class TestLineBufferSetItem:
         assert values[2] == 0.0
         assert math.isnan(values[3])
 
+    def test_getitem_sanitizes_non_finite_values(self):
+        """__getitem__ should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+        lb.idx = 3
+        lb.lencount = 4
+
+        assert lb[-2] == 0.0
+        assert lb[-1] == 0.0
+        assert math.isnan(lb[0])
+
     def test_setitem_extends_array(self):
         """Test __setitem__ auto-extends array when needed."""
         lb = linebuffer.LineBuffer()
