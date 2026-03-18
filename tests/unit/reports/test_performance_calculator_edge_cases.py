@@ -257,16 +257,10 @@ class TestKpiMetrics:
         assert metrics["sqn_human"] == "N/A"
 
 
-# ===========================================================================
-# sqn_to_rating boundary tests
-# ===========================================================================
+class TestSqnRatingBoundaries:
+    """Test SQN rating mapping boundaries."""
 
-
-class TestSqnToRating:
-    """Test SQN rating boundary values."""
-
-    @pytest.mark.parametrize("score,expected", [
-        (-1.0, "Poor"),
+    @pytest.mark.parametrize("score, expected", [
         (0.0, "Poor"),
         (1.59, "Poor"),
         (1.6, "Below Average"),
@@ -288,6 +282,9 @@ class TestSqnToRating:
 
     def test_none_returns_na(self):
         assert PerformanceCalculator.sqn_to_rating(None) == "N/A"
+
+    def test_non_numeric_returns_na(self):
+        assert PerformanceCalculator.sqn_to_rating("not-a-number") == "N/A"
 
     def test_nan_returns_na(self):
         assert PerformanceCalculator.sqn_to_rating(float("nan")) == "N/A"

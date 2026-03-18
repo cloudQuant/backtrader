@@ -400,7 +400,10 @@ class PerformanceCalculator:
         Returns:
             str: Human-readable rating
         """
-        if sqn_score is None or math.isnan(sqn_score):
+        if sqn_score is None or not isinstance(sqn_score, (int, float)):
+            return "N/A"
+
+        if math.isnan(sqn_score):
             return "N/A"
 
         if sqn_score < 1.6:
