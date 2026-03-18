@@ -12,6 +12,7 @@ import collections
 import datetime as _dt
 import importlib
 import logging
+import math
 import os
 import re
 import time
@@ -100,9 +101,12 @@ def _coerce_float(value: Any, default: float = 0.0) -> float:
         return default
 
     try:
-        return float(value)
+        number = float(value)
     except (TypeError, ValueError):
         return default
+    if not math.isfinite(number):
+        return default
+    return number
 
 
 def _coerce_int(value: Any, default: int = 0) -> int:
@@ -112,7 +116,7 @@ def _coerce_int(value: Any, default: int = 0) -> int:
 
     try:
         return int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
 
 

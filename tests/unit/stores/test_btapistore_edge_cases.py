@@ -16,6 +16,8 @@ import pytest
 from unittest.mock import MagicMock
 
 from backtrader.stores.btapistore import (
+    _coerce_float,
+    _coerce_int,
     _coerce_text,
     _ctp_field_to_dict,
     _infer_tick_direction,
@@ -102,6 +104,22 @@ class TestCoerceText:
 
     def test_default_parameter(self):
         assert _coerce_text(None, "fallback") == "fallback"
+
+
+class TestCoerceNumeric:
+    def test_coerce_float_rejects_non_finite(self):
+        assert _coerce_float(float("inf"), 1.5) == 1.5
+        assert _coerce_float(float("-inf"), 1.5) == 1.5
+        assert _coerce_float(float("nan"), 1.5) == 1.5
+
+    def test_coerce_float_accepts_finite(self):
+        assert _coerce_float("12.5", 1.5) == 12.5
+
+    def test_coerce_int_handles_overflow(self):
+        assert _coerce_int(float("inf"), 7) == 7
+
+    def test_coerce_int_accepts_valid_values(self):
+        assert _coerce_int("42", 7) == 42
 
 
 # ===========================================================================
