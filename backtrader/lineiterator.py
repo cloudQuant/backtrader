@@ -113,15 +113,18 @@ class LineIteratorMixin:
                     try:
                         datas.append(LineSeriesMaker(LineNum(arg)))
                     except Exception:
+                        logger.debug("Failed to coerce argument into LineNum in LineIteratorMixin.donew", exc_info=True)
                         # Not a LineNum and is not a LineSeries - bail out
                         break
             except Exception:
+                logger.debug("Type-checking fallback triggered in LineIteratorMixin.donew", exc_info=True)
                 # If anything fails in type checking, try to treat as numeric
                 if not mindatas:
                     break
                 try:
                     datas.append(LineSeriesMaker(LineNum(arg)))
                 except Exception:
+                    logger.debug("Numeric fallback failed in LineIteratorMixin.donew", exc_info=True)
                     break
 
             mindatas = max(0, mindatas - 1)
@@ -347,6 +350,7 @@ class LineIteratorMixin:
                                 # Try to call addminperiod directly
                                 line.addminperiod(_obj._minperiod)
                             except (AttributeError, Exception):
+                                logger.debug("Failed to add minperiod to iterable line in dopreinit", exc_info=True)
                                 pass
                 else:
                     # Try accessing by index if lines_list is not iterable
@@ -359,6 +363,7 @@ class LineIteratorMixin:
                                     try:
                                         line.addminperiod(_obj._minperiod)
                                     except (AttributeError, Exception):
+                                        logger.debug("Failed to add minperiod to indexed line in dopreinit", exc_info=True)
                                         pass
                             except (IndexError, TypeError):
                                 break
@@ -366,6 +371,7 @@ class LineIteratorMixin:
                         pass
 
             except (AttributeError, Exception):
+                logger.debug("Minperiod propagation fallback triggered in dopreinit", exc_info=True)
                 # Continue without failing - minperiod setup is not critical for basic functionality
                 pass
         except AttributeError:
