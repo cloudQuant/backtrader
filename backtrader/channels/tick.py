@@ -17,6 +17,7 @@ Example:
 import csv
 import gzip
 import logging
+import math
 from typing import Iterator
 
 from ..channel import DataChannel, DataValidationResult
@@ -186,6 +187,9 @@ def _parse_optional_float(value) -> float:
     if value is None or value == "":
         return None
     try:
-        return float(value)
+        number = float(value)
     except (ValueError, TypeError):
         return None
+    if not math.isfinite(number):
+        return None
+    return number
