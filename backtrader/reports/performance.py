@@ -356,7 +356,12 @@ class PerformanceCalculator:
                     dates.append(num2date(dt_num))
 
                     price = data.open[idx]
-                    if first_price is None:
+                    if not isinstance(price, (int, float)) or not math.isfinite(price):
+                        logger.debug("Skipping invalid buy-and-hold price at idx %d: %s", idx, price)
+                        values.append(values[-1] if values else 100)
+                        continue
+
+                    if first_price is None and price > 0:
                         first_price = price
 
                     # Normalize to 100

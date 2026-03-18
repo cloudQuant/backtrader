@@ -469,3 +469,37 @@ class TestBrokerAccessFailures:
         assert dates == [1]
         assert values == pytest.approx([110000.0])
         assert any("Failed to get starting cash" in record.message for record in caplog.records)
+
+
+class TestBuyAndHoldCurveEdgeCases:
+    """Test get_buynhold_curve edge cases."""
+
+    def test_get_buynhold_curve_skips_invalid_open_prices(self):
+        """Invalid open prices should not poison the normalized buy-and-hold curve."""
+
+        class _Line:
+            def __init__(self, values):
+                self._values = list(values)
+
+            def __getitem__(self, idx):
+                return self._values[idx]
+
+        class _Data:
+            def __init__(self):
+                self.datetime = _Line([1.0, 2.0, 3.0, 4.0, 5.0])
+                self.open = _Line([100.0, float("nan"), None, float("inf"), 110.0])
+
+            def __len__(self):
+                return 5
+
+        strategy = _make_strategy()
+        strategy.data = _Data()
+        calc = PerformanceCalculator(strategy)
+        dates, values = calc.get_buynhold_curve()
+
+        assert len(dates) == 5
+        assert values[0] == pytest.approx(100.0)
+        assert values[1] == pytest.approx(100.0)
+        assert values[2] == pytest.approx(100.0)
+        assert values[3] == pytest.approx(100.0)
+        assert values[4] == pytest.approx(90.9090909090909)
