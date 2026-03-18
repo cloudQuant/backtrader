@@ -1680,7 +1680,12 @@ class _LineDelay(LineActions):
         try:
             # For delay operations, get value from source with delay applied
             # ago is negative for lookback, so idx + ago gives historical index
-            return self.a[idx + self.ago]
+            value = self.a[idx + self.ago]
+            if value is None:
+                return 0.0
+            if isinstance(value, float) and not math.isfinite(value):
+                return 0.0
+            return value
         except (IndexError, TypeError):
             return 0.0
 
@@ -1700,7 +1705,7 @@ class _LineDelay(LineActions):
             # Ensure value is never None or NaN
             if delayed_val is None:
                 delayed_val = 0.0
-            elif isinstance(delayed_val, float) and math.isnan(delayed_val):
+            elif isinstance(delayed_val, float) and not math.isfinite(delayed_val):
                 delayed_val = 0.0
 
             self[0] = delayed_val
@@ -1756,7 +1761,7 @@ class _LineDelay(LineActions):
                     # Ensure constant value is not None or NaN
                     if constant_value is None:
                         constant_value = 0.0
-                    elif isinstance(constant_value, float) and math.isnan(constant_value):
+                    elif isinstance(constant_value, float) and not math.isfinite(constant_value):
                         constant_value = 0.0
                 except (StopIteration, TypeError):
                     constant_value = 0.0
@@ -1779,7 +1784,7 @@ class _LineDelay(LineActions):
                     # Ensure value is never None or NaN
                     if val is None:
                         val = 0.0
-                    elif isinstance(val, float) and math.isnan(val):
+                    elif isinstance(val, float) and not math.isfinite(val):
                         val = 0.0
                     dst[i] = val
                 elif len(src) > 0:
@@ -1787,7 +1792,7 @@ class _LineDelay(LineActions):
                     val = src[-1]
                     if val is None:
                         val = 0.0
-                    elif isinstance(val, float) and math.isnan(val):
+                    elif isinstance(val, float) and not math.isfinite(val):
                         val = 0.0
                     dst[i] = val
                 else:

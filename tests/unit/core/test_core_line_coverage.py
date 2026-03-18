@@ -553,6 +553,54 @@ class TestLineRootOperators:
         assert strat.current_values[2] == 0.0
         assert strat.current_values[7] == 0.0
 
+    def test_linedelay_sanitizes_non_finite_data(self):
+        """Delayed line access should sanitize non-finite values to 0.0 in next()."""
+        data_list = generate_ohlcv(10)
+        data_list[2]["close"] = float("inf")
+        data_list[6]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.delayed = self.data.close(-1)
+                self.delayed_values = []
+
+            def next(self):
+                self.delayed_values.append(self.delayed[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.delayed_values) == len(data_list) - 1
+        assert strat.delayed_values[2] == 0.0
+        assert strat.delayed_values[6] == 0.0
+
+    def test_linedelay_sanitizes_non_finite_data_runonce(self):
+        """Delayed line access should sanitize non-finite values to 0.0 in once()."""
+        data_list = generate_ohlcv(12)
+        data_list[3]["close"] = float("inf")
+        data_list[8]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.delayed = self.data.close(-1)
+                self.delayed_values = []
+
+            def next(self):
+                self.delayed_values.append(self.delayed[0])
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=True)
+
+        strat = results[0]
+        assert len(strat.delayed_values) == len(data_list) - 1
+        assert strat.delayed_values[3] == 0.0
+        assert strat.delayed_values[8] == 0.0
+
     def test_stage_switch(self):
         """Test _stage1 and _stage2 switching."""
 
