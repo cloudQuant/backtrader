@@ -33,7 +33,7 @@ def _sanitize_cmp_value(value):
     if value is None:
         return 0.0
 
-    if isinstance(value, float) and math.isnan(value):
+    if isinstance(value, float) and not math.isfinite(value):
         return 0.0
 
     return value

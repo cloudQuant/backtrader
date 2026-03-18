@@ -1357,6 +1357,13 @@ class TestLineRootMakeOperation:
 class TestFunctionSanitizers:
     """Test low-level function sanitizers for numeric edge cases."""
 
+    def test_sanitize_cmp_value_handles_infinity(self):
+        assert btfunctions._sanitize_cmp_value(float("inf")) == 0.0
+        assert btfunctions._sanitize_cmp_value(float("-inf")) == 0.0
+        assert btfunctions._sanitize_cmp_value(float("nan")) == 0.0
+        assert btfunctions._sanitize_cmp_value(None) == 0.0
+        assert btfunctions._sanitize_cmp_value(5.0) == 5.0
+
     def test_sanitize_div_value_handles_infinity(self):
         assert btfunctions._sanitize_div_value(float("inf")) == 0.0
         assert btfunctions._sanitize_div_value(float("-inf")) == 0.0
