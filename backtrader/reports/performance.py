@@ -106,17 +106,40 @@ class PerformanceCalculator:
             metrics["result_lost_trades"] = lost_pnl.get("total")
 
             # Calculate profit factor
-            if metrics["result_won_trades"] is not None and metrics["result_lost_trades"] is not None:
-                if metrics["result_lost_trades"] != 0:
+            result_won_trades = metrics["result_won_trades"]
+            result_lost_trades = metrics["result_lost_trades"]
+            if all(
+                isinstance(value, (int, float)) and math.isfinite(value)
+                for value in (result_won_trades, result_lost_trades)
+            ):
+                if result_lost_trades != 0:
                     metrics["profit_factor"] = abs(
-                        metrics["result_won_trades"] / metrics["result_lost_trades"]
+                        result_won_trades / result_lost_trades
                     )
+            elif result_won_trades is not None or result_lost_trades is not None:
+                logger.debug(
+                    "Skipping profit_factor calculation for invalid trade PnL totals: won=%s, lost=%s",
+                    result_won_trades,
+                    result_lost_trades,
+                )
 
             # Average profit/loss per trade
             total = trade_analysis.get("total", {})
             closed = total.get("closed", 0)
-            if closed > 0 and metrics["rpl"] is not None:
+            if (
+                isinstance(closed, (int, float))
+                and math.isfinite(closed)
+                and closed > 0
+                and isinstance(metrics["rpl"], (int, float))
+                and math.isfinite(metrics["rpl"])
+            ):
                 metrics["rpl_per_trade"] = metrics["rpl"] / closed
+            elif closed not in (0, None) or metrics["rpl"] is not None:
+                logger.debug(
+                    "Skipping rpl_per_trade calculation for invalid inputs: closed=%s, rpl=%s",
+                    closed,
+                    metrics["rpl"],
+                )
 
         # Calculate annual return
         bt_period_days = self._get_backtest_days()

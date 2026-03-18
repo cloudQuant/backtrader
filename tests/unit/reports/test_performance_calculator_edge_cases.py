@@ -438,6 +438,24 @@ class TestProfitFactor:
 
         assert metrics["profit_factor"] == pytest.approx(2.0)
 
+    def test_invalid_trade_totals_skip_profit_factor_and_rpl_per_trade(self):
+        """Invalid trade totals/counts should not crash derived PnL metric calculations."""
+        ta = _make_analyzer("TradeAnalyzer", {
+            "total": {"total": 5, "closed": "bad"},
+            "won": {"total": 2, "pnl": {"total": float("nan")}},
+            "lost": {"total": 3, "pnl": {"total": None}},
+            "pnl": {"net": {"total": float("inf")}},
+        })
+        strategy = _make_strategy(analyzers=[ta])
+        calc = PerformanceCalculator(strategy)
+        metrics = calc.get_pnl_metrics()
+
+        assert math.isnan(metrics["result_won_trades"])
+        assert metrics["result_lost_trades"] is None
+        assert math.isinf(metrics["rpl"])
+        assert metrics["profit_factor"] is None
+        assert metrics["rpl_per_trade"] is None
+
 
 # ===========================================================================
 # broker access safety regressions
