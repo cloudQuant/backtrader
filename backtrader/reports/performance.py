@@ -153,10 +153,22 @@ class PerformanceCalculator:
         # Calculate Calmar ratio
         if pnl_metrics is None:
             pnl_metrics = self.get_pnl_metrics()
-        if pnl_metrics.get("annual_return") is not None and metrics.get("max_pct_drawdown") is not None:
-            if metrics["max_pct_drawdown"] != 0:
+        annual_return = pnl_metrics.get("annual_return")
+        max_pct_drawdown = metrics.get("max_pct_drawdown")
+        if annual_return is not None and max_pct_drawdown is not None:
+            if (
+                math.isfinite(annual_return)
+                and math.isfinite(max_pct_drawdown)
+                and max_pct_drawdown > 0
+            ):
                 metrics["calmar_ratio"] = abs(
-                    pnl_metrics["annual_return"] / metrics["max_pct_drawdown"]
+                    annual_return / max_pct_drawdown
+                )
+            else:
+                logger.debug(
+                    "Skipping calmar_ratio calculation for invalid inputs: annual_return=%s, max_pct_drawdown=%s",
+                    annual_return,
+                    max_pct_drawdown,
                 )
 
         return metrics

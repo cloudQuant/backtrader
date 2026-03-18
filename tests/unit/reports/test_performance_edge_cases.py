@@ -166,6 +166,22 @@ class TestRiskMetricsZeroValues:
         assert metrics["max_money_drawdown"] == 0.0
         assert metrics["calmar_ratio"] is None
 
+    def test_invalid_drawdown_or_annual_return_skips_calmar(self):
+        """Non-finite or non-positive Calmar inputs should keep calmar_ratio as None."""
+        dd_analyzer = FakeAnalyzer("DrawDown", {
+            "max": {"moneydown": 1000.0, "drawdown": float("nan")}
+        })
+        strategy = _make_strategy(
+            start_cash=100000,
+            end_value=110000,
+            analyzers=[dd_analyzer],
+        )
+        calc = PerformanceCalculator(strategy)
+        metrics = calc.get_risk_metrics(pnl_metrics={"annual_return": float("inf")})
+
+        assert math.isnan(metrics["max_pct_drawdown"])
+        assert metrics["calmar_ratio"] is None
+
     def test_pnl_metrics_forwarding(self):
         """get_risk_metrics(pnl_metrics=...) uses provided dict, not recomputes."""
         dd_analyzer = FakeAnalyzer("DrawDown", {
