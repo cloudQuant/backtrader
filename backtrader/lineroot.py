@@ -873,6 +873,7 @@ def _apply_strategy_patch():
                     else:
                         clk_len = 1
                 except Exception:
+                    logger.debug("Fallback _clk_update path triggered in safe_clk_update", exc_info=True)
                     clk_len = 1
 
                 # CRITICAL FIX: Only set datetime if we have valid data sources with length
@@ -925,6 +926,7 @@ def _apply_strategy_patch():
                     try:
                         newdlens.append(len(d) if hasattr(d, "__len__") else 0)
                     except Exception:
+                        logger.debug("Failed to read data length in safe_clk_update", exc_info=True)
                         newdlens.append(0)
             else:
                 newdlens = []
@@ -989,6 +991,7 @@ def _apply_strategy_patch():
             try:
                 return len(self)
             except Exception:
+                logger.debug("Failed to read strategy length in safe_clk_update", exc_info=True)
                 return 0
 
         # Import Strategy and patch it
