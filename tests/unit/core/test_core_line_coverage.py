@@ -17,6 +17,7 @@ import operator
 import random
 
 import backtrader as bt
+from backtrader import functions as btfunctions
 from backtrader import linebuffer, lineroot, lineseries
 
 
@@ -1351,6 +1352,17 @@ class TestLineRootMakeOperation:
 
         strat = run_cerebro(St, num_bars=30)
         assert strat.bar_count > 0
+
+
+class TestFunctionSanitizers:
+    """Test low-level function sanitizers for numeric edge cases."""
+
+    def test_sanitize_div_value_handles_infinity(self):
+        assert btfunctions._sanitize_div_value(float("inf")) == 0.0
+        assert btfunctions._sanitize_div_value(float("-inf")) == 0.0
+        assert btfunctions._sanitize_div_value(float("nan")) == 0.0
+        assert btfunctions._sanitize_div_value(None) == 0.0
+        assert btfunctions._sanitize_div_value(5.0) == 5.0
 
 
 # ============================================================================
