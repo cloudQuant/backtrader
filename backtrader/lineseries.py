@@ -1607,6 +1607,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             if isinstance(value, float):
                 import math
 
+                if math.isnan(value):
+                    return value
                 if not math.isfinite(value):
                     return 0.0
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0

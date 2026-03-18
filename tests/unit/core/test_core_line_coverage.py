@@ -667,6 +667,22 @@ class TestLineRootOperators:
         assert strat.current_values[2] == 0.0
         assert strat.current_values[7] == 0.0
 
+    def test_lineseries_getitem_preserves_nan(self):
+        """LineSeries index access should preserve NaN values."""
+        class _NaNLine:
+            def __getitem__(self, key):
+                return float("nan")
+
+        class _DummySeries:
+            pass
+
+        series = _DummySeries()
+        series.lines = [_NaNLine()]
+
+        value = lineseries.LineSeries.__getitem__(series, 0)
+
+        assert math.isnan(value)
+
     def test_linedelay_sanitizes_non_finite_data(self):
         """Delayed line access should sanitize non-finite values to 0.0 in next()."""
         data_list = generate_ohlcv(10)
