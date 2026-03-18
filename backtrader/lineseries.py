@@ -1604,6 +1604,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             # None check - convert None to NaN for consistent behavior
             if value is None:
                 return float("nan")
+            if isinstance(value, float):
+                import math
+
+                if not math.isfinite(value):
+                    return 0.0
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
             # NaN values are important for indicator calculations:
             # - Comparisons with NaN always return False (e.g., close > nan is False)
