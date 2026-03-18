@@ -166,9 +166,14 @@ class CommInfoBase(ParameterizedBase):
 
     def getsize(self, price, cash):
         """Returns the needed size to meet a cash operation at a given price"""
+        if not price:
+            return 0
         leverage = self.get_param("leverage")
         if not self._stocklike:
-            return leverage * (cash // self.get_margin(price))
+            margin = self.get_margin(price)
+            if not margin:
+                return 0
+            return leverage * (cash // margin)
         return leverage * (cash // price)
 
     def getoperationcost(self, size, price):
