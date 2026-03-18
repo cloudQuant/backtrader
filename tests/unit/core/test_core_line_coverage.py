@@ -772,8 +772,34 @@ class TestLineSeries:
         strat = run_cerebro(St)
         assert strat.bar_count > 0
 
+    def test_multiline_bool_operation_with_non_finite_first_line(self):
+        """LineMultiple boolean self-operation should treat non-finite first-line values as False."""
+
+        class MultiLineInd(bt.Indicator):
+            lines = ("upper", "lower")
+
+            def __init__(self):
+                self.addminperiod(1)
+
+            def next(self):
+                value = self.data.close[0]
+                self.lines.upper[0] = float("inf") if value > 0 else value
+                self.lines.lower[0] = value
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.ind = MultiLineInd(self.data)
+                self.bool_results = []
+
+            def next(self):
+                self.bool_results.append(self.ind._makeoperationown(bool))
+
+        strat = run_cerebro(St, num_bars=10)
+        assert len(strat.bool_results) > 0
+        assert all(result is False for result in strat.bool_results)
+
     def test_data_lines_size(self):
-        """Test that data feed has correct number of lines."""
+        """Test that data.lines.size() matches number of standard OHLCV lines."""
 
         class St(bt.Strategy):
             """Test strategy for line coverage."""

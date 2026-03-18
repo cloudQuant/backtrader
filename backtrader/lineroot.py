@@ -776,7 +776,7 @@ class LineMultiple(LineRoot):
                     # Return True if value is not NaN and not 0
                     import math
 
-                    if isinstance(value, float) and math.isnan(value):
+                    if isinstance(value, float) and not math.isfinite(value):
                         return False
                     return bool(value)
                 except Exception:
