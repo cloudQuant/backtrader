@@ -156,7 +156,7 @@ class Returns(TimeFrameAnalyzerBase):
         except ZeroDivisionError:
             rtot = float("-inf")
         else:
-            if nlrtot < 0.0:
+            if not math.isfinite(nlrtot) or nlrtot <= 0.0:
                 rtot = float("-inf")
             else:
                 rtot = math.log(nlrtot)

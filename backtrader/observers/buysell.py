@@ -58,12 +58,26 @@ class BuySell(Observer):
         """
         self.curbuylen = 0
         self.curselllen = 0
+        self._lastbar = None
 
     def next(self):
         """Update buy/sell markers based on executed orders.
 
         Calculates average prices for buy and sell orders during the bar.
         """
+        try:
+            barref = self.data.datetime[0]
+        except Exception:
+            barref = None
+
+        sentinel = object()
+        if getattr(self, "_lastbar", sentinel) != barref:
+            self.lines.buy[0] = float("nan")
+            self.lines.sell[0] = float("nan")
+            self.curbuylen = 0
+            self.curselllen = 0
+            self._lastbar = barref
+
         buy = list()
         sell = list()
         # If there are pending orders

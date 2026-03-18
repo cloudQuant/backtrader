@@ -18,6 +18,9 @@ Example:
 """
 
 import backtrader as bt
+import math
+import numpy as np
+import pandas as pd
 
 import testcommon
 
@@ -102,6 +105,92 @@ def test_run(main=False):
             assert isinstance(analysis, dict)
             # SharpeRatioA should return sharperatio statistics
             assert "sharperatio" in analysis or len(analysis) >= 0
+
+
+def test_estimated_sharpe_ratio_stdev_accepts_series_input():
+    from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
+
+    returns = pd.Series([0.01, 0.02, 0.015, 0.018])
+    result = estimated_sharpe_ratio_stdev(returns)
+
+    assert isinstance(result, (float, int))
+    assert math.isfinite(result)
+
+
+def test_num_independent_trials_handles_all_nan_correlations():
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    trials_returns = pd.DataFrame(
+        {
+            "a": [1.0, 1.0, 1.0, 1.0],
+            "b": [2.0, 2.0, 2.0, 2.0],
+            "c": [3.0, 3.0, 3.0, 3.0],
+        }
+    )
+
+    result = num_independent_trials(trials_returns)
+
+    assert isinstance(result, int)
+    assert result > 0
+
+
+def test_num_independent_trials_handles_nonfinite_explicit_p():
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    trials_returns = pd.DataFrame(
+        {
+            "a": [0.01, 0.02, 0.03],
+            "b": [0.03, 0.02, 0.01],
+        }
+    )
+
+    result = num_independent_trials(trials_returns, p=float("nan"))
+
+    assert isinstance(result, int)
+    assert result > 0
+
+
+def test_expected_maximum_sr_single_trial_returns_expected_mean():
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    result = expected_maximum_sr(independent_trials=1, expected_mean_sr=0.25, trials_sr_std=1.0)
+
+    assert result == 0.25
+
+
+def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    result = expected_maximum_sr(independent_trials=5, expected_mean_sr=0.25, trials_sr_std=float("nan"))
+
+    assert result == 0.25
+
+
+def test_probabilistic_sharpe_ratio_single_value_series_uses_position_not_label():
+    from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
+
+    result = probabilistic_sharpe_ratio(
+        returns=None,
+        sr=pd.Series([1.5], index=["only"]),
+        sr_std=pd.Series([0.5], index=["only"]),
+    )
+
+    assert isinstance(result, (float, int, np.floating))
+    assert math.isfinite(result)
+
+
+def test_min_track_record_length_single_value_series_uses_position_not_label():
+    from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
+
+    result = min_track_record_length(
+        returns=None,
+        n=10,
+        sr=pd.Series([1.5], index=["only"]),
+        sr_std=pd.Series([0.5], index=["only"]),
+    )
+
+    assert isinstance(result, (float, int, np.floating))
+    assert math.isfinite(result)
 
 
 if __name__ == "__main__":

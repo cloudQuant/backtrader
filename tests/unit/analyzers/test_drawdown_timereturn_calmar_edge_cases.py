@@ -99,6 +99,15 @@ class TestTimeReturnZeroStart:
             analyzer.next()
         assert analyzer.rets["2021-01-01"] == pytest.approx(-0.1)
 
+    def test_nan_return_degrades_to_zero(self):
+        """NaN returns should degrade to 0.0 rather than leaking non-finite values."""
+        analyzer = self._make_analyzer()
+        analyzer._value = float("nan")
+        analyzer._value_start = 100.0
+        with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+            analyzer.next()
+        assert analyzer.rets["2021-01-01"] == 0.0
+
 
 class TestCalmarZeroValue:
     """Test Calmar analyzer with zero/edge values."""
@@ -136,6 +145,24 @@ class TestCalmarZeroValue:
         # math.log of negative → caught, rann=0 → calmar=0
         assert analyzer.calmar == 0.0
 
+    def test_nan_ratio(self):
+        """NaN ratios should degrade to 0.0 rather than leaking non-finite values."""
+        analyzer = self._make_analyzer()
+        analyzer._values.append(100.0)
+        analyzer.strategy.broker.getvalue.return_value = float("nan")
+        analyzer.on_dt_over()
+        assert analyzer.calmar == 0.0
+
+    def test_nonfinite_drawdown_degrades_to_zero(self):
+        """Non-finite max drawdown should degrade calmar to 0.0."""
+        analyzer = self._make_analyzer()
+        analyzer._values.append(100.0)
+        analyzer._mdd = float("nan")
+        analyzer._maxdd.maxdd = float("nan")
+        analyzer.strategy.broker.getvalue.return_value = 110.0
+        analyzer.on_dt_over()
+        assert analyzer.calmar == 0.0
+
     def test_normal_calmar(self):
         """Normal Calmar calculation should work."""
         analyzer = self._make_analyzer()
@@ -148,3 +175,61 @@ class TestCalmarZeroValue:
         expected_rann = math.log(110.0 / 100.0) / 2
         expected_calmar = expected_rann / 10.0
         assert analyzer.calmar == pytest.approx(expected_calmar)
+
+
+class TestReturnsNonFiniteRatio:
+    """Test Returns analyzer handling of zero/non-finite compound ratios."""
+
+    def _make_analyzer(self, end_value):
+        from backtrader.analyzers.returns import Returns
+
+        analyzer = Returns.__new__(Returns)
+        analyzer._fundmode = False
+        analyzer._value_start = 100.0
+        analyzer._value_end = None
+        analyzer._tcount = 1
+        analyzer.rets = {}
+        analyzer.p = MagicMock(tann=1.0)
+        analyzer.strategy = MagicMock()
+        analyzer.strategy.broker.getvalue.return_value = end_value
+        return analyzer
+
+    def test_zero_end_value_produces_negative_infinity(self):
+        analyzer = self._make_analyzer(0.0)
+
+        with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+            analyzer.stop()
+
+        assert analyzer.rets["rtot"] == float("-inf")
+        assert analyzer.rets["ravg"] == float("-inf")
+        assert analyzer.rets["rnorm"] == float("-inf")
+
+    def test_nan_end_value_produces_negative_infinity(self):
+        analyzer = self._make_analyzer(float("nan"))
+
+        with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+            analyzer.stop()
+
+        assert analyzer.rets["rtot"] == float("-inf")
+        assert analyzer.rets["ravg"] == float("-inf")
+        assert analyzer.rets["rnorm"] == float("-inf")
+
+
+class TestVwrNonFiniteInputs:
+    """Test VWR analyzer handling of non-finite period inputs."""
+
+    def test_nan_period_value_degrades_to_zero(self):
+        from backtrader.analyzers.vwr import VWR
+
+        analyzer = VWR.__new__(VWR)
+        analyzer._pis = [100.0]
+        analyzer._pns = [float("nan")]
+        analyzer._returns = MagicMock()
+        analyzer._returns.get_analysis.return_value = {"ravg": 0.1, "rnorm100": 5.0}
+        analyzer.p = MagicMock(sdev_max=2.0, tau=0.2)
+        analyzer.rets = {}
+
+        with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+            analyzer.stop()
+
+        assert analyzer.rets["vwr"] == 0.0

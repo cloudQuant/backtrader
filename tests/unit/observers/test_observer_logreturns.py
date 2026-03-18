@@ -12,6 +12,8 @@ properly during backtesting.
 """
 
 import backtrader as bt
+import math
+from types import SimpleNamespace
 
 import testcommon
 
@@ -91,6 +93,28 @@ def test_run(main=False):
             pass
         # Verify the strategy ran successfully
         assert len(strat) > 0
+
+
+def test_logreturns_observer_missing_dtkey_writes_nan():
+    observer = object.__new__(bt.observers.LogReturns)
+    observer.logret1 = SimpleNamespace(rets={}, dtkey="missing")
+    observer.lines = SimpleNamespace(logret1=[1.0])
+
+    observer.next()
+
+    assert math.isnan(observer.lines.logret1[0])
+
+
+def test_logreturns2_observer_missing_dtkey_writes_nan_for_both_lines():
+    observer = object.__new__(bt.observers.LogReturns2)
+    observer.logret1 = SimpleNamespace(rets={}, dtkey="missing1")
+    observer.logret2 = SimpleNamespace(rets={}, dtkey="missing2")
+    observer.lines = SimpleNamespace(logret1=[1.0], logret2=[2.0])
+
+    observer.next()
+
+    assert math.isnan(observer.lines.logret1[0])
+    assert math.isnan(observer.lines.logret2[0])
 
 
 if __name__ == "__main__":

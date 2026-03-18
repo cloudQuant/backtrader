@@ -247,11 +247,6 @@ class PerformanceCalculator:
         Returns:
             tuple: (dates, values) Lists of dates and equity values
         """
-        import importlib.util
-
-        if importlib.util.find_spec("pandas") is None:
-            return None, None
-
         dates = []
         values = []
 
@@ -283,8 +278,7 @@ class PerformanceCalculator:
             # Try to get from TimeReturn analyzer and calculate cumulative equity
             time_return = self._get_analyzer_result("timereturn")
             if time_return:
-                raw_cash = self._get_start_cash()
-                start_cash = raw_cash if raw_cash is not None else 100000
+                start_cash = self._resolve_start_cash(self._get_start_cash())
                 cumulative_value = start_cash
                 for dt, ret in sorted(time_return.items()):
                     cumulative_value = cumulative_value * (1 + ret)
@@ -295,8 +289,7 @@ class PerformanceCalculator:
             # If still no data, calculate buy-and-hold equity curve from data source as fallback
             benchmark_dates, benchmark_values = self.get_buynhold_curve()
             if benchmark_dates and benchmark_values:
-                raw_cash = self._get_start_cash()
-                start_cash = raw_cash if raw_cash is not None else 100000
+                start_cash = self._resolve_start_cash(self._get_start_cash())
                 dates = benchmark_dates
                 # Convert normalized values to actual equity values
                 values = [start_cash * v / 100 for v in benchmark_values]
@@ -347,6 +340,14 @@ class PerformanceCalculator:
         return dates, values
 
     @staticmethod
+    def _resolve_start_cash(value, default=100000):
+        return default if value is None else value
+
+    @staticmethod
+    def _normalize_analyzer_name(value):
+        return value.lower() if isinstance(value, str) else ""
+
+    @staticmethod
     def sqn_to_rating(sqn_score):
         """Convert SQN score to human-readable rating.
 
@@ -378,14 +379,22 @@ class PerformanceCalculator:
 
     def _get_start_cash(self):
         """Get starting cash."""
-        if self._broker:
+        if self._broker is None:
+            return None
+        try:
             return getattr(self._broker, "startingcash", None)
+        except Exception as e:
+            logger.debug("Failed to get starting cash: %s", e)
         return None
 
     def _get_end_value(self):
         """Get final portfolio value."""
-        if self._broker:
+        if self._broker is None:
+            return None
+        try:
             return self._broker.getvalue()
+        except Exception as e:
+            logger.debug("Failed to get end value: %s", e)
         return None
 
     def _get_backtest_days(self):
@@ -429,7 +438,7 @@ class PerformanceCalculator:
         # First pass: exact match on class name or _name attribute
         for analyzer in self._analyzers:
             analyzer_name = analyzer.__class__.__name__.lower()
-            custom_name = getattr(analyzer, "_name", "").lower()
+            custom_name = self._normalize_analyzer_name(getattr(analyzer, "_name", ""))
 
             if analyzer_name == name_lower or custom_name == name_lower:
                 try:
@@ -440,7 +449,7 @@ class PerformanceCalculator:
         # Second pass: substring match (less precise, used as fallback)
         for analyzer in self._analyzers:
             analyzer_name = analyzer.__class__.__name__.lower()
-            custom_name = getattr(analyzer, "_name", "").lower()
+            custom_name = self._normalize_analyzer_name(getattr(analyzer, "_name", ""))
 
             if name_lower in analyzer_name or name_lower in custom_name:
                 try:

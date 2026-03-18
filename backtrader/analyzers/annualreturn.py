@@ -15,6 +15,7 @@ Example:
 """
 
 import logging
+import math
 from collections import OrderedDict
 
 from ..analyzer import Analyzer
@@ -101,7 +102,7 @@ class AnnualReturn(Analyzer):
             # When years are not equal, it indicates current i is a new year
             if dt.year > cur_year:
                 if cur_year >= 0:
-                    if value_start != 0:
+                    if value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end):
                         annual_ret = (value_end / value_start) - 1.0
                     else:
                         annual_ret = 0.0
@@ -119,9 +120,9 @@ class AnnualReturn(Analyzer):
             # No matter what, the last value is always the last loaded value
             value_end = value_cur
         # If current year hasn't ended and return hasn't been calculated, calculate at the end even if less than a full year
-        if cur_year not in self.ret:
+        if cur_year >= 0 and cur_year not in self.ret:
             # finish calculating pending data
-            if value_start != 0:
+            if value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end):
                 annual_ret = (value_end / value_start) - 1.0
             else:
                 annual_ret = 0.0
@@ -186,7 +187,14 @@ class MyAnnualReturn(Analyzer):
         for year, data in df.groupby("year"):
             begin_value = list(data["pre_value"])[0]
             end_value = list(data["value"])[-1]
-            annual_return = (end_value / begin_value) - 1
+            try:
+                valid_values = math.isfinite(begin_value) and math.isfinite(end_value)
+            except TypeError:
+                valid_values = False
+            if not valid_values or begin_value == 0:
+                annual_return = 0.0
+            else:
+                annual_return = (end_value / begin_value) - 1
             self.ret[year] = annual_return
 
     def get_analysis(self):

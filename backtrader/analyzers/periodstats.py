@@ -14,6 +14,8 @@ Example:
     >>> print(results[0].analyzers.stats.get_analysis())
 """
 
+import math
+
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev
@@ -104,7 +106,17 @@ class PeriodStats(Analyzer):
         trets = self._tr.get_analysis()  # dict key = date, value = ret
         # Count years with positive, negative, and zero returns
         pos = nul = neg = 0
-        trets = list(itervalues(trets))
+        trets = [tret if math.isfinite(tret) else 0.0 for tret in itervalues(trets)]
+        if not trets:
+            self.rets["average"] = 0.0
+            self.rets["stddev"] = 0.0
+            self.rets["positive"] = 0
+            self.rets["negative"] = 0
+            self.rets["nochange"] = 0
+            self.rets["best"] = 0.0
+            self.rets["worst"] = 0.0
+            return
+
         for tret in trets:
             if tret > 0.0:
                 pos += 1

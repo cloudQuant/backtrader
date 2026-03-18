@@ -14,6 +14,8 @@ Example:
 """
 
 import backtrader as bt
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import testcommon
 
@@ -98,6 +100,51 @@ def test_run(main=False):
             assert analysis["sharperatio"] is None or isinstance(
                 analysis["sharperatio"], (int, float)
             )
+
+
+def test_legacyannual_zero_variance_returns_none():
+    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
+    analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=0.0)
+    analyzer.anret = SimpleNamespace(rets=[0.1, 0.1])
+    analyzer.rets = {}
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+def test_legacyannual_nan_returns_none():
+    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
+    analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=0.0)
+    analyzer.anret = SimpleNamespace(rets=[float("nan"), 0.1])
+    analyzer.rets = {}
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+def test_nonlegacy_nan_returns_none():
+    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
+    analyzer.p = SimpleNamespace(
+        legacyannual=False,
+        riskfreerate=0.0,
+        timeframe=bt.TimeFrame.Years,
+        daysfactor=None,
+        factor=None,
+        convertrate=True,
+        annualize=False,
+        stddev_sample=False,
+    )
+    analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": 0.1})
+    analyzer.rets = {}
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
 
 
 if __name__ == "__main__":

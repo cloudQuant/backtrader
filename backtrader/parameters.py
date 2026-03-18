@@ -447,9 +447,12 @@ class ParameterManager:
                 }
             )
 
-        # Trigger callbacks
-        if self._enable_callbacks:
+        # Trigger callbacks only if not in transaction
+        if self._enable_callbacks and not self._in_transaction:
             self._trigger_change_callbacks(name, old_value, new_value)
+
+        # Update dependent parameters
+        self._update_dependents(name, new_value)
 
     def update(
         self,
@@ -994,11 +997,11 @@ class ParameterManager:
         # Collect changes made during transaction for callbacks
         if self._enable_callbacks and self._transaction_snapshot:
             old_values = self._transaction_snapshot["values"]
-            for name in self._values:
-                if name not in old_values or self._values[name] != old_values.get(name):
-                    # Parameter was changed during transaction
-                    old_value = old_values.get(name, self._defaults.get(name))
-                    new_value = self._values[name]
+            affected_names = set(old_values) | set(self._values)
+            for name in affected_names:
+                old_value = old_values.get(name, self._defaults.get(name))
+                new_value = self.get(name)
+                if new_value != old_value:
                     self._trigger_change_callbacks(name, old_value, new_value)
 
         # Transaction is committed by keeping current state

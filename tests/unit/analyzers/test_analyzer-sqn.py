@@ -49,6 +49,7 @@ import testcommon
 
 import backtrader as bt
 import backtrader.indicators as btind
+from types import SimpleNamespace
 
 
 class RunStrategy(bt.Strategy):
@@ -293,6 +294,18 @@ def test_run(main=False):
                     # Handle different precision
                     assert str(analysis.sqn)[0:14] == "0.912550316439"
                     assert str(analysis.trades) == "11"
+
+
+def test_sqn_nan_pnl_returns_none():
+    analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
+    analyzer.count = 2
+    analyzer.pnl = [float("nan"), 1.0]
+    analyzer.rets = SimpleNamespace()
+
+    analyzer.stop()
+
+    assert analyzer.rets.sqn is None
+    assert analyzer.rets.trades == 2
 
 
 if __name__ == "__main__":

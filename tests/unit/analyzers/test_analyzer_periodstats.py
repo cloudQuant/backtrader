@@ -12,6 +12,7 @@ Typical usage example:
 """
 
 import backtrader as bt
+from types import SimpleNamespace
 
 import testcommon
 
@@ -97,6 +98,44 @@ def test_run(main=False):
             if len(analysis) > 0:
                 # Check for common keys: average, stddev, positive, negative, etc
                 assert "average" in analysis or "stddev" in analysis or len(analysis) > 0
+
+
+def test_periodstats_empty_returns_produce_zeroed_stats():
+    analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
+    analyzer._tr = SimpleNamespace(get_analysis=lambda: {})
+    analyzer.p = SimpleNamespace(zeroispos=False)
+    analyzer.rets = {}
+
+    analyzer.stop()
+
+    assert analyzer.rets == {
+        "average": 0.0,
+        "stddev": 0.0,
+        "positive": 0,
+        "negative": 0,
+        "nochange": 0,
+        "best": 0.0,
+        "worst": 0.0,
+    }
+
+
+def test_periodstats_nonfinite_returns_degrade_to_zero():
+    analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
+    analyzer._tr = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": float("inf")})
+    analyzer.p = SimpleNamespace(zeroispos=False)
+    analyzer.rets = {}
+
+    analyzer.stop()
+
+    assert analyzer.rets == {
+        "average": 0.0,
+        "stddev": 0.0,
+        "positive": 0,
+        "negative": 0,
+        "nochange": 2,
+        "best": 0.0,
+        "worst": 0.0,
+    }
 
 
 if __name__ == "__main__":

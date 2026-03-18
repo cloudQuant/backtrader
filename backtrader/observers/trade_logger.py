@@ -296,7 +296,8 @@ class TradeLogger(Observer):
             if store is not None:
                 return getattr(store, "provider", "")
             return getattr(broker, "provider", "")
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to read store provider: %s", e)
             return ""
 
     def _session_id(self):
@@ -305,7 +306,8 @@ class TradeLogger(Observer):
             broker = getattr(self._owner, "broker", None)
             store = getattr(broker, "store", None)
             return getattr(store, "session_id", "") if store is not None else ""
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to read session id: %s", e)
             return ""
 
     @staticmethod
@@ -314,13 +316,21 @@ class TradeLogger(Observer):
         info = getattr(order, "info", None)
         if info is None:
             return default
-        if hasattr(info, key):
-            return getattr(info, key, default)
-        if hasattr(info, "get"):
+
+        try:
+            return getattr(info, key)
+        except AttributeError:
+            pass
+        except Exception:
+            pass
+
+        get_method = getattr(info, "get", None)
+        if callable(get_method):
             try:
-                return info.get(key, default)
+                return get_method(key, default)
             except Exception:
                 return default
+
         return default
 
     def _base_event(self, event_type, level="INFO", event_time=None, **fields):
@@ -413,14 +423,17 @@ class TradeLogger(Observer):
 
     def _make_duplicate_key(self, action_type, details):
         """Build a duplicate-request key within the configured time window."""
+        def normalize(value):
+            return "" if value is None else str(value)
+
         return (
             action_type,
-            str(details.get("data_name") or ""),
-            str(details.get("side") or ""),
-            str(details.get("offset") or ""),
-            str(details.get("size") or ""),
-            str(details.get("price") or ""),
-            str(details.get("order_ref") or ""),
+            normalize(details.get("data_name")),
+            normalize(details.get("side")),
+            normalize(details.get("offset")),
+            normalize(details.get("size")),
+            normalize(details.get("price")),
+            normalize(details.get("order_ref")),
         )
 
     def _track_request_monitoring(self, action_type, details):
@@ -616,14 +629,18 @@ class TradeLogger(Observer):
         try:
             dt = self._owner.datetime.datetime()
             return str(dt)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to read strategy datetime: %s", e)
             return str(datetime.now(_SHANGHAI_TZ))
 
     def _get_strategy_name(self):
         """Get the strategy class name."""
+        if self._owner is None:
+            return "Unknown"
         try:
             return self._owner.__class__.__name__
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to read strategy name: %s", e)
             return "Unknown"
 
     def next(self):

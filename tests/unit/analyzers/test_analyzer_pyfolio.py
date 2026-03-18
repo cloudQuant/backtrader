@@ -11,6 +11,7 @@ returns, positions, and transaction data.
 """
 
 import backtrader as bt
+import pandas as pd
 
 import testcommon
 
@@ -97,6 +98,47 @@ def test_run(main=False):
             assert analysis is not None
             # PyFolio should return returns, positions, transactions
             assert "returns" in analysis or "positions" in analysis or analysis is not None
+
+
+def test_pyfolio_get_pf_items_keeps_first_position_row():
+    analyzer = bt.analyzers.PyFolio.__new__(bt.analyzers.PyFolio)
+    analyzer.rets = {
+        "returns": {pd.Timestamp("2021-01-01"): 0.01},
+        "positions": {
+            "Datetime": ["asset", "cash"],
+            pd.Timestamp("2021-01-01"): [100.0, 900.0],
+            pd.Timestamp("2021-01-02"): [110.0, 890.0],
+        },
+        "transactions": {
+            "date": [["amount", "price", "sid", "symbol", "value"]],
+            pd.Timestamp("2021-01-02"): [[1, 100.0, 0, "asset", -100.0]],
+        },
+        "gross_lev": {
+            pd.Timestamp("2021-01-01"): 0.1,
+            pd.Timestamp("2021-01-02"): 0.2,
+        },
+    }
+
+    _, positions, _, _ = analyzer.get_pf_items()
+
+    assert len(positions) == 2
+    assert positions.iloc[0]["asset"] == 100.0
+    assert positions.iloc[1]["asset"] == 110.0
+
+
+def test_pyfolio_get_pf_items_handles_empty_positions_and_transactions():
+    analyzer = bt.analyzers.PyFolio.__new__(bt.analyzers.PyFolio)
+    analyzer.rets = {
+        "returns": {pd.Timestamp("2021-01-01"): 0.01},
+        "positions": {},
+        "transactions": {},
+        "gross_lev": {pd.Timestamp("2021-01-01"): 0.1},
+    }
+
+    _, positions, transactions, _ = analyzer.get_pf_items()
+
+    assert positions.empty
+    assert transactions.empty
 
 
 if __name__ == "__main__":

@@ -14,6 +14,8 @@ Example:
     >>> print(results[0].analyzers.lev.get_analysis())
 """
 
+import math
+
 from ..analyzer import Analyzer
 
 
@@ -93,8 +95,15 @@ class GrossLeverage(Analyzer):
         """
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
-        if self._value:
-            lev = (self._value - self._cash) / self._value
-        else:
+        try:
+            if self._value and math.isfinite(self._value) and math.isfinite(self._cash):
+                lev = (self._value - self._cash) / self._value
+            else:
+                lev = 0.0
+        except TypeError:
             lev = 0.0
+
+        if not math.isfinite(lev):
+            lev = 0.0
+
         self.rets[self.data0.datetime.datetime()] = lev

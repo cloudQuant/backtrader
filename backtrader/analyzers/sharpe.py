@@ -167,7 +167,15 @@ class SharpeRatio(Analyzer):
             rate = self.p.riskfreerate
             retavg = average([r - rate for r in self.anret.rets])
             retdev = standarddev(self.anret.rets)
-            ratio = retavg / retdev
+            if not math.isfinite(retavg) or not math.isfinite(retdev):
+                ratio = None
+            else:
+                try:
+                    ratio = retavg / retdev
+                    if not math.isfinite(ratio):
+                        ratio = None
+                except (ValueError, TypeError, ZeroDivisionError):
+                    ratio = None
         # If not calculating returns and Sharpe ratio in annual units
         else:
             # Get the returns from the subanalyzer
@@ -213,15 +221,20 @@ class SharpeRatio(Analyzer):
                 # ret_avg = average(returns)
                 # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
 
-                try:
-                    # Calculate Sharpe ratio
-                    ratio = ret_free_avg / retdev
-                    # If factor is not None, annual risk-free rate was converted to daily, and need to calculate annualized Sharpe ratio
-                    if factor is not None and self.p.convertrate and self.p.annualize:
-                        # Convert Sharpe ratio from daily to annual
-                        ratio = math.sqrt(factor) * ratio
-                except (ValueError, TypeError, ZeroDivisionError):
+                if not math.isfinite(ret_free_avg) or not math.isfinite(retdev):
                     ratio = None
+                else:
+                    try:
+                        # Calculate Sharpe ratio
+                        ratio = ret_free_avg / retdev
+                        # If factor is not None, annual risk-free rate was converted to daily, and need to calculate annualized Sharpe ratio
+                        if factor is not None and self.p.convertrate and self.p.annualize:
+                            # Convert Sharpe ratio from daily to annual
+                            ratio = math.sqrt(factor) * ratio
+                        if not math.isfinite(ratio):
+                            ratio = None
+                    except (ValueError, TypeError, ZeroDivisionError):
+                        ratio = None
             else:
                 # no returns or stddev_sample was active and 1 return
                 ratio = None

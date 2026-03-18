@@ -111,7 +111,6 @@ class MovingAverageSimple(MovingAverageBase):
                     if has_nan:
                         dst[i] = nan_val
                     else:
-                        # Use math.fsum for accurate floating-point summation
                         dst[i] = fsum(window) / period
                 else:
                     dst[i] = nan_val

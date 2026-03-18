@@ -115,7 +115,7 @@ class Benchmark(TimeReturn):
         Gets the benchmark return from the analyzer.
         """
         super().next()
-        self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey, float("NaN"))
+        self.lines.benchmark[0] = self.tbench.rets.get(self.tbench.dtkey, float("NaN"))
 
     def prenext(self):
         """Process bars before minimum period is reached.

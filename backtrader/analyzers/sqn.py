@@ -92,10 +92,15 @@ class SQN(Analyzer):
         if self.count > 1:
             pnl_av = average(self.pnl)
             pnl_stddev = standarddev(self.pnl)
-            try:
-                sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
-            except ZeroDivisionError:
+            if not math.isfinite(pnl_av) or not math.isfinite(pnl_stddev):
                 sqn = None
+            else:
+                try:
+                    sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
+                    if not math.isfinite(sqn):
+                        sqn = None
+                except ZeroDivisionError:
+                    sqn = None
         else:
             sqn = 0
         # Set SQN value and trades value

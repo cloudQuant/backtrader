@@ -93,5 +93,13 @@ def test_run(main=False):
         assert len(strat) > 0
 
 
+def test_drawdownold_plotlines_use_boolean_plotskip():
+    assert bt.observers.DrawDownOld.plotlines.maxdrawdown["_plotskip"] is True
+
+
+def test_drawdownlength_plotlines_match_maxlen_line_name():
+    assert bt.observers.DrawDownLength.plotlines.maxlen["_plotskip"] is True
+
+
 if __name__ == "__main__":
     test_run(main=True)

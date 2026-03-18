@@ -318,6 +318,16 @@ class TestAnalyzerLookup:
         result = calc._get_analyzer_result("myanalyzer")
         assert result == {"value": 42}
 
+    def test_non_string_custom_name_is_ignored(self):
+        """Non-string analyzer _name should not break lookup."""
+        analyzer = _make_analyzer("SharpeRatio", {"sharperatio": 1.2})
+        analyzer._name = None
+        strategy = _make_strategy(analyzers=[analyzer])
+        calc = PerformanceCalculator(strategy)
+
+        result = calc._get_analyzer_result("sharperatio")
+        assert result == {"sharperatio": 1.2}
+
 
 # ===========================================================================
 # get_strategy_info / get_data_info edge cases
@@ -388,3 +398,49 @@ class TestProfitFactor:
         metrics = calc.get_pnl_metrics()
 
         assert metrics["profit_factor"] == pytest.approx(2.0)
+
+
+# ===========================================================================
+# broker access safety regressions
+# ===========================================================================
+
+
+class TestBrokerAccessFailures:
+    """Test broker access failures degrade gracefully."""
+
+    def test_get_pnl_metrics_handles_broker_getvalue_failure(self, caplog):
+        """Broker getvalue failure should not crash PnL metric calculation."""
+        strategy = _make_strategy()
+        strategy.broker.getvalue.side_effect = RuntimeError("broker offline")
+        calc = PerformanceCalculator(strategy)
+
+        with caplog.at_level("DEBUG"):
+            metrics = calc.get_pnl_metrics()
+
+        assert metrics["start_cash"] == 100000.0
+        assert metrics["end_value"] is None
+        assert metrics["rpl"] is None
+        assert any("Failed to get end value" in record.message for record in caplog.records)
+
+    def test_get_equity_curve_handles_startingcash_access_failure(self, caplog):
+        """Starting cash access failure should fall back to the default curve base."""
+        analyzer = _make_analyzer("TimeReturn", {1: 0.1})
+
+        class BrokenBroker:
+            @property
+            def startingcash(self):
+                raise RuntimeError("cash unavailable")
+
+            def getvalue(self):
+                return 110000.0
+
+        strategy = _make_strategy(analyzers=[analyzer])
+        strategy.broker = BrokenBroker()
+        calc = PerformanceCalculator(strategy)
+
+        with caplog.at_level("DEBUG"):
+            dates, values = calc.get_equity_curve()
+
+        assert dates == [1]
+        assert values == pytest.approx([110000.0])
+        assert any("Failed to get starting cash" in record.message for record in caplog.records)

@@ -12,6 +12,8 @@ Example:
     >>> cerebro.addobserver(bt.observers.Trades)
 """
 
+import math
+
 from ..observer import Observer
 
 
@@ -88,6 +90,9 @@ class Trades(Observer):
 
         Processes pending trades and updates PnL lines.
         """
+        self.lines.pnlplus[0] = float("nan")
+        self.lines.pnlminus[0] = float("nan")
+
         # For existing trades
         for trade in self._owner._tradespending:
             # If trade's data has no data, skip
@@ -150,6 +155,8 @@ class DataTrades(Observer):
         # Only set up plotlines if we have access to datas
         if not hasattr(self, "datas") or not self.datas:
             return
+
+        self.plotlines = dict(self.plotlines)
 
         # CRITICAL FIX: Access parameter properly through self.params or self.p
         try:
@@ -218,15 +225,18 @@ class DataTrades(Observer):
             if i < len(self.lines):  # Only configure lines that exist
                 plot_config = basedict.copy()
                 plot_config.update(marker=marker, color=color)
-                # Set plotline configuration as attribute
+                # Set plotline configuration by line alias
                 line_name = getattr(self.lines, "_getlinealias", lambda x: f"data{x}")(i)
-                setattr(self.plotlines, line_name, plot_config)
+                self.plotlines[line_name] = plot_config
 
     def next(self):
         """Update data-specific trade PnL values.
 
         Records closed trade PnL for each data feed.
         """
+        for i in range(len(self.lines)):
+            self.lines[i][0] = float("nan")
+
         for trade in self._owner._tradespending:
             if trade.data not in self.ddatas:
                 continue

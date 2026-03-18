@@ -8,6 +8,7 @@ benchmark data during strategy execution.
 """
 
 import backtrader as bt
+from types import SimpleNamespace
 
 import testcommon
 
@@ -80,6 +81,18 @@ def test_run(main=False):
             pass
         # Verify the strategy ran successfully
         assert len(strat) > 0
+
+
+def test_benchmark_observer_uses_benchmark_dtkey():
+    observer = object.__new__(bt.observers.Benchmark)
+    observer.treturn = SimpleNamespace(rets={"strategy-key": 0.1}, dtkey="strategy-key")
+    observer.tbench = SimpleNamespace(rets={"bench-key": 0.2}, dtkey="bench-key")
+    observer.lines = SimpleNamespace(timereturn=[float("nan")], benchmark=[float("nan")])
+
+    observer.next()
+
+    assert observer.lines.timereturn[0] == 0.1
+    assert observer.lines.benchmark[0] == 0.2
 
 
 if __name__ == "__main__":

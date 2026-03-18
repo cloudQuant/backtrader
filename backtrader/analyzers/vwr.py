@@ -176,17 +176,23 @@ class VWR(TimeFrameAnalyzerBase):
         # skip initial placeholders for synchronization
         # Calculate return for each period (usually yearly, then save to dts)
         dts = []
+        invalid_input = False
         for n, pipn in enumerate(zip(self._pis, self._pns), 1):
             pi, pn = pipn
             try:
                 dt = pn / (pi * math.exp(ravg * n)) - 1.0
             except (ZeroDivisionError, TypeError):
                 dt = 0.0
+            if not math.isfinite(dt):
+                invalid_input = True
+                dt = 0.0
             dts.append(dt)
         # Calculate standard deviation of annual returns
         sdev_p = standarddev(dts, bessel=True)
         # Calculate VWR value
-        if self.p.sdev_max:
+        if invalid_input or not math.isfinite(sdev_p) or not math.isfinite(rnorm100):
+            vwr = 0.0
+        elif self.p.sdev_max:
             vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
         else:
             vwr = 0.0

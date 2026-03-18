@@ -184,12 +184,73 @@ class TestDefensiveAccessors:
         assert len(result) > 0
 
     def test_get_strategy_name_no_owner(self):
-        """When _owner is None, __class__.__name__ still works (returns 'NoneType')."""
+        """When _owner is None, should return the stable fallback name."""
         tl = _make_bare_logger()
         tl._owner = None
         result = TradeLogger._get_strategy_name(tl)
-        # None.__class__.__name__ == 'NoneType' — no exception raised
+        assert result == "Unknown"
+
+    def test_store_provider_failure_logged(self, caplog):
+        """Store provider accessor failures should emit a debug log."""
+        tl = _make_bare_logger()
+
+        class BadOwner:
+            @property
+            def broker(self):
+                raise RuntimeError("broker boom")
+
+        tl._owner = BadOwner()
+
+        with caplog.at_level(logging.DEBUG):
+            result = TradeLogger._store_provider(tl)
+
+        assert result == ""
+        assert any("Failed to read store provider" in record.message for record in caplog.records)
+
+    def test_session_id_failure_logged(self, caplog):
+        """Session id accessor failures should emit a debug log."""
+        tl = _make_bare_logger()
+
+        class BadOwner:
+            @property
+            def broker(self):
+                raise RuntimeError("broker boom")
+
+        tl._owner = BadOwner()
+
+        with caplog.at_level(logging.DEBUG):
+            result = TradeLogger._session_id(tl)
+
+        assert result == ""
+        assert any("Failed to read session id" in record.message for record in caplog.records)
+
+    def test_get_datetime_failure_logged(self, caplog):
+        """Datetime accessor failures should emit a debug log and return a fallback string."""
+        tl = _make_bare_logger()
+        tl._owner = SimpleNamespace(datetime=SimpleNamespace(datetime=lambda: (_ for _ in ()).throw(RuntimeError("dt boom"))))
+
+        with caplog.at_level(logging.DEBUG):
+            result = TradeLogger._get_datetime_str(tl)
+
         assert isinstance(result, str)
+        assert any("Failed to read strategy datetime" in record.message for record in caplog.records)
+
+    def test_get_strategy_name_failure_logged(self, caplog):
+        """Strategy name accessor failures should emit a debug log and return Unknown."""
+        tl = _make_bare_logger()
+
+        class BrokenOwner:
+            @property
+            def __class__(self):
+                raise RuntimeError("class boom")
+
+        tl._owner = BrokenOwner()
+
+        with caplog.at_level(logging.DEBUG):
+            result = TradeLogger._get_strategy_name(tl)
+
+        assert result == "Unknown"
+        assert any("Failed to read strategy name" in record.message for record in caplog.records)
 
 
 # ===========================================================================
@@ -223,6 +284,21 @@ class TestSafeOrderInfo:
         order = SimpleNamespace(info=BrokenInfo())
         assert TradeLogger._safe_order_info(order, "key", "safe") == "safe"
 
+    def test_broken_attr_access_falls_back_to_get(self):
+        class BrokenAttrInfo:
+            def __getattr__(self, name):
+                if name == "error_code":
+                    raise RuntimeError("attr boom")
+                raise AttributeError(name)
+
+            def get(self, key, default=None):
+                if key == "error_code":
+                    return "from-get"
+                return default
+
+        order = SimpleNamespace(info=BrokenAttrInfo())
+        assert TradeLogger._safe_order_info(order, "error_code", "safe") == "from-get"
+
 
 # ===========================================================================
 # _make_duplicate_key edge cases
@@ -236,6 +312,7 @@ class TestMakeDuplicateKey:
         key = TradeLogger._make_duplicate_key(None, "submit", {})
         assert isinstance(key, tuple)
         assert len(key) == 7
+        assert key == ("submit", "", "", "", "", "", "")
 
     def test_zero_values_in_details(self):
         """Zero values should appear as '0' in the key, not empty string."""
@@ -248,8 +325,20 @@ class TestMakeDuplicateKey:
             "order_ref": 0,
         }
         key = TradeLogger._make_duplicate_key(None, "submit", details)
-        # size=0 → "0" (truthy-or converts to ""), but this is for dedup, not financial
-        assert isinstance(key, tuple)
+        assert key == ("submit", "BTC", "buy", "open", "0", "0.0", "0")
+
+    def test_false_value_is_preserved(self):
+        """False should be preserved as 'False' rather than collapsed to empty string."""
+        details = {
+            "data_name": "BTC",
+            "side": False,
+            "offset": None,
+            "size": 1,
+            "price": None,
+            "order_ref": None,
+        }
+        key = TradeLogger._make_duplicate_key(None, "submit", details)
+        assert key == ("submit", "BTC", "False", "", "1", "", "")
 
 
 # ===========================================================================

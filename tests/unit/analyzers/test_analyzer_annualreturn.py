@@ -8,6 +8,9 @@ calculates and returns annual returns.
 """
 
 import backtrader as bt
+from datetime import datetime
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import testcommon
 
@@ -99,6 +102,45 @@ def test_run(main=False):
             assert 2006 in analysis
             # Verify the actual return value for 2006 (from actual run)
             assert abs(analysis[2006] - 0.0284) < 0.01
+
+
+def test_myannualreturn_first_year_nan_pre_value_degrades_to_zero():
+    class DataStub:
+        def __len__(self):
+            return 2
+
+    analyzer = bt.analyzers.MyAnnualReturn.__new__(bt.analyzers.MyAnnualReturn)
+    analyzer.data = DataStub()
+    analyzer.data.datetime = SimpleNamespace(get=lambda *args, **kwargs: [1.0, 2.0])
+    analyzer.strategy = SimpleNamespace(
+        stats=SimpleNamespace(
+            broker=SimpleNamespace(value=SimpleNamespace(get=lambda *args, **kwargs: [100.0, 110.0]))
+        )
+    )
+    analyzer.ret = {}
+
+    with patch(
+        "backtrader.analyzers.annualreturn.num2date",
+        side_effect=[datetime(2020, 1, 1), datetime(2020, 12, 31)],
+    ):
+        analyzer.stop()
+
+    assert analyzer.ret[2020] == 0.0
+
+
+def test_annualreturn_nonfinite_year_value_degrades_to_zero():
+    analyzer = bt.analyzers.AnnualReturn.__new__(bt.analyzers.AnnualReturn)
+    analyzer._dt_cache = [1.0, 2.0]
+    analyzer._value_cache = [100.0, float("nan")]
+
+    with patch(
+        "backtrader.analyzers.annualreturn.num2date",
+        side_effect=[datetime(2020, 1, 1), datetime(2020, 12, 31)],
+    ):
+        analyzer.stop()
+
+    assert analyzer.ret[2020] == 0.0
+    assert analyzer.rets == [0.0]
 
 
 if __name__ == "__main__":

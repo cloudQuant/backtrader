@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from backtrader.analyzers.annualreturn import AnnualReturn
 from backtrader.analyzers.leverage import GrossLeverage
 
 
@@ -58,6 +59,12 @@ class TestGrossLeverageZeroValue:
         analyzer.next()
         assert analyzer.rets["2021-01-01"] == pytest.approx(1.5)
 
+    def test_nonfinite_value_downgrades_to_zero(self):
+        """NaN portfolio value should downgrade leverage to 0.0."""
+        analyzer = self._make_analyzer(value=float("nan"), cash=1000.0)
+        analyzer.next()
+        assert analyzer.rets["2021-01-01"] == 0.0
+
 
 class TestLogReturnsRollingLogging:
     """Test that LogReturnsRolling logs errors instead of silently swallowing."""
@@ -81,6 +88,41 @@ class TestLogReturnsRollingLogging:
 
         assert analyzer.rets["2021-01-01"] == 0
         mock_logger.debug.assert_called_once()
+
+    def test_log_return_nan_ratio_is_logged(self):
+        """NaN ratios should be treated as invalid and downgraded to 0."""
+        from backtrader.analyzers.logreturnsrolling import LogReturnsRolling
+
+        analyzer = LogReturnsRolling.__new__(LogReturnsRolling)
+        analyzer.rets = {}
+        analyzer.dtkey = "2021-01-01"
+        analyzer._value = float("nan")
+        analyzer._values = [100.0]
+        analyzer._lastvalue = None
+
+        with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+            with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
+                analyzer.next()
+
+        assert analyzer.rets["2021-01-01"] == 0
+        mock_logger.debug.assert_called_once()
+
+
+class TestAnnualReturnLogging:
+    """Test AnnualReturn defensive behavior on invalid cached dates."""
+
+    def test_all_invalid_dates_do_not_create_negative_year_entry(self):
+        analyzer = AnnualReturn.__new__(AnnualReturn)
+        analyzer._dt_cache = ["bad-date-1", "bad-date-2"]
+        analyzer._value_cache = [100.0, 110.0]
+
+        with patch("backtrader.analyzers.annualreturn.logger") as mock_logger:
+            analyzer.stop()
+
+        assert analyzer.rets == []
+        assert analyzer.ret == {}
+        assert -1 not in analyzer.ret
+        assert mock_logger.debug.call_count == 2
 
     def test_log_return_zero_denominator_is_logged(self):
         """Division by zero in log return should be logged."""

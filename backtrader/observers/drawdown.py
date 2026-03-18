@@ -86,7 +86,7 @@ class DrawDownLength(Observer):
     plotinfo = dict(plot=True, subplot=True)
 
     plotlines = dict(
-        maxlength=dict(
+        maxlen=dict(
             _plotskip=True,
         )
     )
@@ -126,7 +126,7 @@ class DrawDownOld(Observer):
 
     plotlines = dict(
         maxdrawdown=dict(
-            _plotskip="True",
+            _plotskip=True,
         )
     )
 

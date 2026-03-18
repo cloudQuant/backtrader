@@ -17,7 +17,23 @@ import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
 
-from .my_corr import my_corr
+
+
+def _average_upper_triangle_correlation(trials_returns):
+    """Compute the mean pairwise correlation across trial return columns."""
+    corr_matrix = trials_returns.corr()
+    if corr_matrix.empty:
+        return 0.0
+
+    upper = corr_matrix.values[np.triu_indices_from(corr_matrix.values, 1)]
+    if upper.size == 0:
+        return 0.0
+
+    avg_corr = np.nanmean(upper)
+    if not np.isfinite(avg_corr):
+        return 0.0
+
+    return float(avg_corr)
 
 
 def estimated_sharpe_ratio(returns):
@@ -105,9 +121,17 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     if n is None:
         n = len(_returns)
     if skew is None:
-        skew = pd.Series(scipy_stats.skew(_returns), index=_returns.columns)
+        skew_values = scipy_stats.skew(_returns)
+        if isinstance(_returns, pd.DataFrame):
+            skew = pd.Series(skew_values, index=_returns.columns)
+        else:
+            skew = skew_values
     if kurtosis is None:
-        kurtosis = pd.Series(scipy_stats.kurtosis(_returns, fisher=False), index=_returns.columns)
+        kurtosis_values = scipy_stats.kurtosis(_returns, fisher=False)
+        if isinstance(_returns, pd.DataFrame):
+            kurtosis = pd.Series(kurtosis_values, index=_returns.columns)
+        else:
+            kurtosis = kurtosis_values
     if sr is None:
         sr = estimated_sharpe_ratio(_returns)
 
@@ -163,7 +187,7 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
     if isinstance(returns, pd.DataFrame):
         psr = pd.Series(psr, index=returns.columns)
     elif type(psr) not in (float, np.float64):
-        psr = psr[0]
+        psr = psr.iloc[0] if isinstance(psr, pd.Series) else psr[0]
 
     return psr
 
@@ -222,7 +246,7 @@ def min_track_record_length(
     if isinstance(returns, pd.DataFrame):
         min_trl = pd.Series(min_trl, index=returns.columns)
     elif type(min_trl) not in (float, np.float64):
-        min_trl = min_trl[0]
+        min_trl = min_trl.iloc[0] if isinstance(min_trl, pd.Series) else min_trl[0]
 
     return min_trl
 
@@ -250,9 +274,9 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
         m = trials_returns.shape[1]
 
     if p is None:
-        # corr_matrix = trials_returns.corr()
-        # p = corr_matrix.values[np.triu_indices_from(corr_matrix.values,1)].mean()
-        p = my_corr.main(trials_returns)
+        p = _average_upper_triangle_correlation(trials_returns)
+    elif not np.isfinite(p):
+        p = 0.0
 
     n = p + (1 - p) * m
 
@@ -292,9 +316,15 @@ def expected_maximum_sr(
     if independent_trials is None:
         independent_trials = num_independent_trials(trials_returns)
 
+    if independent_trials <= 1:
+        return expected_mean_sr
+
     if trials_sr_std is None:
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
+
+    if not np.isfinite(trials_sr_std):
+        return expected_mean_sr
 
     max_z = (1 - emc) * scipy_stats.norm.ppf(
         1 - 1.0 / independent_trials

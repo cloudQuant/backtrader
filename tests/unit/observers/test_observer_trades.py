@@ -20,6 +20,8 @@ Example:
 """
 
 import backtrader as bt
+import math
+from types import SimpleNamespace
 
 import testcommon
 
@@ -109,6 +111,87 @@ def test_run(main=False):
             pass
         # Verify the strategy ran successfully
         assert len(strat) > 0
+
+
+def test_trades_observer_clears_negative_line_on_positive_trade():
+    observer = object.__new__(bt.observers.Trades)
+    data = object()
+    observer._owner = SimpleNamespace(
+        _tradespending=[SimpleNamespace(data=data, isclosed=True, pnlcomm=10.0, pnl=8.0)]
+    )
+    observer.ddatas = [data]
+    observer.p = SimpleNamespace(pnlcomm=True)
+    observer.lines = SimpleNamespace(pnlplus=[1.0], pnlminus=[-2.0])
+
+    observer.next()
+
+    assert observer.lines.pnlplus[0] == 10.0
+    assert math.isnan(observer.lines.pnlminus[0])
+
+
+def test_trades_observer_clears_positive_line_on_negative_trade():
+    observer = object.__new__(bt.observers.Trades)
+    data = object()
+    observer._owner = SimpleNamespace(
+        _tradespending=[SimpleNamespace(data=data, isclosed=True, pnlcomm=-5.0, pnl=-4.0)]
+    )
+    observer.ddatas = [data]
+    observer.p = SimpleNamespace(pnlcomm=True)
+    observer.lines = SimpleNamespace(pnlplus=[3.0], pnlminus=[-1.0])
+
+    observer.next()
+
+    assert math.isnan(observer.lines.pnlplus[0])
+    assert observer.lines.pnlminus[0] == -5.0
+
+
+def test_datatrades_plotlines_are_configured_as_dict_entries():
+    class FakeLines(list):
+        def _getlinealias(self, index):
+            return f"data{index}"
+
+    observer = object.__new__(bt.observers.DataTrades)
+    observer.datas = [SimpleNamespace(_name="alpha"), SimpleNamespace(_name="beta")]
+    observer.params = SimpleNamespace(usenames=True)
+    observer.lines = FakeLines([None, None])
+    observer.plotlines = {}
+
+    observer._setup_plotlines_simple()
+
+    assert observer.plotlines["data0"]["marker"] == "o"
+    assert observer.plotlines["data1"]["marker"] == "v"
+    assert observer.plotlines["data0"]["color"] == "b"
+    assert observer.plotlines["data1"]["color"] == "g"
+
+
+def test_datatrades_clears_stale_line_values_without_new_trades():
+    observer = object.__new__(bt.observers.DataTrades)
+    observer._owner = SimpleNamespace(_tradespending=[])
+    data0 = SimpleNamespace(_id=1)
+    data1 = SimpleNamespace(_id=2)
+    observer.ddatas = [data0, data1]
+    observer.lines = [[1.0], [-2.0]]
+
+    observer.next()
+
+    assert math.isnan(observer.lines[0][0])
+    assert math.isnan(observer.lines[1][0])
+
+
+def test_datatrades_writes_only_matching_data_line():
+    observer = object.__new__(bt.observers.DataTrades)
+    data0 = SimpleNamespace(_id=1)
+    data1 = SimpleNamespace(_id=2)
+    observer._owner = SimpleNamespace(
+        _tradespending=[SimpleNamespace(data=data1, isclosed=True, pnl=12.5)]
+    )
+    observer.ddatas = [data0, data1]
+    observer.lines = [[7.0], [-3.0]]
+
+    observer.next()
+
+    assert math.isnan(observer.lines[0][0])
+    assert observer.lines[1][0] == 12.5
 
 
 if __name__ == "__main__":

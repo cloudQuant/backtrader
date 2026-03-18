@@ -138,6 +138,7 @@ class Broker(Observer):
             self.lines.cash[0] = self._owner.broker.getcash()
         else:
             self.lines.value[0] = self._owner.broker.fundvalue
+            self.lines.cash[0] = self._owner.broker.getcash()
 
 
 # fundvalue

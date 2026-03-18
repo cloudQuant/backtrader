@@ -145,8 +145,11 @@ class PyFolio(Analyzer):
         pss = self.rets["positions"]
         # ps = [[k] + v[-2:] for k, v in iteritems(pss)]
         ps = [[k] + v for k, v in iteritems(pss)]
-        cols = ps.pop(0)  # headers are in the first entry
-        positions = pd.DataFrame.from_records(ps[1:], columns=cols)
+        if ps:
+            cols = ps.pop(0)  # headers are in the first entry
+            positions = pd.DataFrame.from_records(ps, columns=cols)
+        else:
+            positions = pd.DataFrame(columns=["Datetime"])
         positions.index = pd.to_datetime(positions["Datetime"])
         del positions["Datetime"]
         positions.index = positions.index.tz_localize("UTC")
@@ -164,8 +167,13 @@ class PyFolio(Analyzer):
             for v2 in v:
                 txs.append([k] + v2)
 
-        cols = txs.pop(0)  # headers are in the first entry
-        transactions = pd.DataFrame.from_records(txs, index=cols[0], columns=cols)
+        if txs:
+            cols = txs.pop(0)  # headers are in the first entry
+            transactions = pd.DataFrame.from_records(txs, index=cols[0], columns=cols)
+        else:
+            transactions = pd.DataFrame(
+                columns=["date", "amount", "price", "sid", "symbol", "value"]
+            ).set_index("date")
         transactions.index = pd.to_datetime(transactions.index)
         transactions.index = transactions.index.tz_localize("UTC")
 
