@@ -2099,7 +2099,7 @@ class LinesOperation(LineActions):
             # CRITICAL FIX: Ensure values are numeric and not None/NaN
             if a_val is None:
                 a_val = 0.0
-            elif isinstance(a_val, float) and math.isnan(a_val):
+            elif isinstance(a_val, float) and not math.isfinite(a_val):
                 a_val = 0.0
             elif not isinstance(a_val, (int, float)):
                 try:
@@ -2109,7 +2109,7 @@ class LinesOperation(LineActions):
 
             if b_val is None:
                 b_val = 0.0
-            elif isinstance(b_val, float) and math.isnan(b_val):
+            elif isinstance(b_val, float) and not math.isfinite(b_val):
                 b_val = 0.0
             elif not isinstance(b_val, (int, float)):
                 try:
@@ -2129,7 +2129,7 @@ class LinesOperation(LineActions):
                 # Ensure result is a valid number
                 if result is None:
                     result = 0.0
-                elif isinstance(result, float) and math.isnan(result):
+                elif isinstance(result, float) and not math.isfinite(result):
                     result = 0.0
                 elif not isinstance(result, (int, float)):
                     try:

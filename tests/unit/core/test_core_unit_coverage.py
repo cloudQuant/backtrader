@@ -221,14 +221,15 @@ class TestLinesOperationNext:
         lb_a.forward()
         lb_a[0] = float("inf")
         lb_b.forward()
-        lb_b[0] = float("-inf")
+        lb_b[0] = 5.0
 
         op = linebuffer.LinesOperation(lb_a, lb_b, operator.__add__)
         op.forward()
         op.idx = lb_a.idx
         op.next()
 
-        assert op[0] == 0.0
+        assert op.array[0] == 5.0
+        assert op[0] == 5.0
 
     def test_lines_operation_with_scalar(self):
         """Test LinesOperation where b is a scalar."""
