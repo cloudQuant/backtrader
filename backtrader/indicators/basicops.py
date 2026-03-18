@@ -667,6 +667,32 @@ class ExponentialSmoothing(Average):
                 break
 
 
+class _Alpha1Line(Indicator):
+    """Helper indicator to compute 1 - alpha dynamically.
+
+    Used by ExponentialSmoothingDynamic when alpha is a LineBuffer.
+    """
+
+    lines = ("alpha1",)
+    params = (("alpha_source", None),)
+
+    def __init__(self):
+        """Initialize with alpha source reference."""
+        self.alpha_source = self.p.alpha_source
+        super().__init__()
+
+    def next(self):
+        """Calculate 1 - alpha for current bar."""
+        self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
+
+    def once(self, start, end):
+        """Calculate 1 - alpha in runonce mode."""
+        alpha_array = self.alpha_source.array
+        alpha1_array = self.lines.alpha1.array
+        for i in range(start, end):
+            alpha1_array[i] = 1.0 - alpha_array[i]
+
+
 # Dynamic exponential moving average
 class ExponentialSmoothingDynamic(ExponentialSmoothing):
     """
@@ -703,32 +729,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
             minperioddiff = max(0, self.alpha._minperiod - self.p.period)
             self.lines[0].incminperiod(minperioddiff)
 
-            # Set up alpha1 as a line that computes 1 - alpha
-            from . import Indicator
-
-            class Alpha1Line(Indicator):
-                """Helper class to compute 1 - alpha dynamically."""
-
-                lines = ("alpha1",)
-                params = (("alpha_source", None),)
-
-                def __init__(self):
-                    """Initialize with alpha source reference."""
-                    self.alpha_source = self.p.alpha_source
-                    super().__init__()
-
-                def next(self):
-                    """Calculate 1 - alpha for current bar."""
-                    self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
-
-                def once(self, start, end):
-                    """Calculate 1 - alpha in runonce mode."""
-                    alpha_array = self.alpha_source.array
-                    alpha1_array = self.lines.alpha1.array
-                    for i in range(start, end):
-                        alpha1_array[i] = 1.0 - alpha_array[i]
-
-            self.alpha1 = Alpha1Line(alpha_source=self.alpha)
+            self.alpha1 = _Alpha1Line(alpha_source=self.alpha)
 
         else:
             # alpha is a float value - fall back to static smoothing
