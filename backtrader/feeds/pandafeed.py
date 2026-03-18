@@ -15,9 +15,13 @@ Example:
     >>> cerebro.adddata(data)
 """
 
+import logging
+
 from ..feed import DataBase
 from ..utils import date2num
 from ..utils.py3 import filter, integer_types, string_types
+
+logger = logging.getLogger(__name__)
 
 
 class PandasDirectData(DataBase):
@@ -292,7 +296,8 @@ class PandasData(DataBase):
         self._df_values = None
         try:
             self._df_values = df.to_numpy(copy=False)
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to convert DataFrame to numpy array: %s", e)
             self._df_values = None
 
         self._dt_dtnum = None
@@ -301,13 +306,16 @@ class PandasData(DataBase):
             ts = df.index if coldtime is None else df.iloc[:, coldtime]
             try:
                 py_dts = ts.to_pydatetime()
-            except Exception:
+            except Exception as e1:
+                logger.debug("ts.to_pydatetime() failed, trying .dt accessor: %s", e1)
                 try:
                     py_dts = ts.dt.to_pydatetime()
-                except Exception:
+                except Exception as e2:
+                    logger.debug("ts.dt.to_pydatetime() failed, falling back to element-wise: %s", e2)
                     py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]
             self._dt_dtnum = [date2num(d) for d in py_dts]
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to pre-compute datetime numbers: %s", e)
             self._dt_dtnum = None
 
     def _load(self):
