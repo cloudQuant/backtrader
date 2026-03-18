@@ -363,6 +363,20 @@ class TestReportChart:
         assert plotted[3] == pytest.approx(0.0)
         assert plotted[4] == pytest.approx(-10.0)
 
+    def test_plot_return_bars_replaces_non_finite_returns(self):
+        chart = ReportChart()
+        dates = [datetime(2024, 1, d) for d in range(1, 6)]
+        values = [100.0, 0.0, 100.0, float("inf"), 90.0]
+
+        fig = chart.plot_return_bars(dates, values, period="daily")
+
+        assert fig is not None
+        heights = [patch.get_height() for patch in fig.axes[0].patches]
+        assert heights[0] == pytest.approx(-100.0)
+        assert heights[1] == pytest.approx(0.0)
+        assert heights[2] == pytest.approx(0.0)
+        assert heights[3] == pytest.approx(0.0)
+
 
 class TestMakeJsonSerializable:
     """Test _make_json_serializable with edge cases."""

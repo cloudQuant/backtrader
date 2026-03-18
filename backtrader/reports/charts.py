@@ -162,6 +162,21 @@ class ReportChart:
             logger.debug("Failed to resample returns with period %s: %s", period_code, e)
             return None
 
+        prev_values = resampled.shift(1).reindex(returns.index)
+        curr_values = resampled.reindex(returns.index)
+        invalid_mask = (
+            ~curr_values.map(lambda value: isinstance(value, (int, float)) and math.isfinite(value))
+            | ~prev_values.map(lambda value: isinstance(value, (int, float)) and math.isfinite(value))
+            | prev_values.eq(0)
+            | ~returns.map(lambda value: math.isfinite(value))
+        )
+        if invalid_mask.any():
+            logger.debug(
+                "Replacing %d non-finite return bar values with 0.0",
+                int(invalid_mask.sum()),
+            )
+            returns = returns.mask(invalid_mask, 0.0)
+
         if len(returns) == 0:
             return None
 
