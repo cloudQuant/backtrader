@@ -14,11 +14,14 @@ Example:
     >>> print(results[0].analyzers.annret.get_analysis())
 """
 
+import logging
 from collections import OrderedDict
 
 from ..analyzer import Analyzer
 from ..utils.date import num2date
 from ..utils.py3 import range
+
+logger = logging.getLogger(__name__)
 
 
 # Calculate annual returns. The algorithm implementation is somewhat complex, so a pandas-based version MyAnnualReturn was written later with much simpler logic
@@ -90,7 +93,8 @@ class AnnualReturn(Analyzer):
             # Convert date
             try:
                 dt = num2date(dt_val)
-            except Exception:
+            except Exception as e:
+                logger.debug("Failed to convert date value %s: %s", dt_val, e)
                 continue
 
             # If the year at index i is greater than current year, if current year > 0, calculate return and save to self.ret, and start value equals end value

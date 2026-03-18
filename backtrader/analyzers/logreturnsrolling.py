@@ -13,9 +13,12 @@ Example:
 """
 
 import collections
+import logging
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["LogReturnsRolling"]
 
@@ -168,6 +171,7 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         # When the strategy is running, if there are too many losses, self._value / self._values[0] might be 0, avoid this situation
         try:
             self.rets[self.dtkey] = math.log(self._value / self._values[0])
-        except Exception:
+        except Exception as e:
+            logger.debug("Log return calculation failed: %s", e)
             self.rets[self.dtkey] = 0
         self._lastvalue = self._value  # keep last value

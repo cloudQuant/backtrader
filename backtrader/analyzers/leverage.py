@@ -93,5 +93,8 @@ class GrossLeverage(Analyzer):
         """
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
-        lev = (self._value - self._cash) / self._value
+        if self._value:
+            lev = (self._value - self._cash) / self._value
+        else:
+            lev = 0.0
         self.rets[self.data0.datetime.datetime()] = lev
