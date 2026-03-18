@@ -724,7 +724,9 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         # The parent class sets self.alpha to a float value, but ExponentialSmoothingDynamic
         # expects it to be a line-like object with _minperiod and array access
 
-        if hasattr(self.alpha, "_minperiod"):
+        self._alpha_is_line = hasattr(self.alpha, "array")
+
+        if self._alpha_is_line:
             # alpha is a LineBuffer or similar object
             minperioddiff = max(0, self.alpha._minperiod - self.p.period)
             self.lines[0].incminperiod(minperioddiff)
@@ -740,41 +742,26 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
 
         Handles both float and LineBuffer alpha sources.
         """
-        # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
-        if hasattr(self.alpha, "__getitem__"):
-            # alpha is a LineBuffer - use array access
-            self.lines[0][0] = self.lines[0][-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
-        else:
-            # alpha is a float - use regular arithmetic (fall back to parent behavior)
-            self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
+        alpha = self.alpha[0] if self._alpha_is_line else self.alpha
+        alpha1 = self.alpha1[0] if self._alpha_is_line else self.alpha1
+        self.lines[0][0] = self.lines[0][-1] * alpha1 + self.data[0] * alpha
 
     def once(self, start, end):
         """Calculate dynamic EMA in runonce mode.
 
         Handles both float and LineBuffer alpha sources.
         """
-        # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         darray = self.data.array
-        larray = self.line.array
+        larray = self.lines[0].array
 
-        if hasattr(self.alpha, "array"):
-            # alpha is a LineBuffer - use array access
-            alpha = self.alpha.array
-            alpha1 = self.alpha1.array
+        alpha = self.alpha.array if self._alpha_is_line else self.alpha
+        alpha1 = self.alpha1.array if self._alpha_is_line else self.alpha1
 
-            # Seed value from SMA calculated with the call to oncestart
-            prev = larray[start - 1]
-            for i in range(start, end):
-                larray[i] = prev = prev * alpha1[i] + darray[i] * alpha[i]
-        else:
-            # alpha is a float - use regular arithmetic (fall back to parent behavior)
-            alpha = self.alpha
-            alpha1 = self.alpha1
-
-            # Seed value from SMA calculated with the call to oncestart
-            prev = larray[start - 1]
-            for i in range(start, end):
-                larray[i] = prev = prev * alpha1 + darray[i] * alpha
+        prev = larray[start - 1]
+        for i in range(start, end):
+            alpha_i = alpha[i] if self._alpha_is_line else alpha
+            alpha1_i = alpha1[i] if self._alpha_is_line else alpha1
+            larray[i] = prev = prev * alpha1_i + darray[i] * alpha_i
 
 
 # Calculate weighted moving average
