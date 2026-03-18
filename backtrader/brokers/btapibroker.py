@@ -387,7 +387,8 @@ class BtApiBroker(BrokerBase):
             self._cash = float(balance.get("cash", self._cash))
             self._value = float(balance.get("value", self._value))
             self._last_account_refresh = time.monotonic()
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to refresh account: %s", e)
             if raise_errors:
                 raise
 
@@ -424,7 +425,8 @@ class BtApiBroker(BrokerBase):
 
             self.positions = synced
             self._last_positions_refresh = time.monotonic()
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to sync positions: %s", e)
             if raise_errors:
                 raise
 
@@ -468,7 +470,7 @@ class BtApiBroker(BrokerBase):
             )
 
         min_price_tick = rules.get("min_price_tick") or rules.get("price_tick")
-        price = order.price or getattr(order.created, "price", None)
+        price = order.price if order.price is not None else getattr(order.created, "price", None)
         if min_price_tick and price not in (None, 0):
             tick = float(min_price_tick)
             scaled = float(price) / tick
@@ -497,7 +499,7 @@ class BtApiBroker(BrokerBase):
                 "data_name": self._position_key(order.data),
                 "side": "buy" if order.isbuy() else "sell",
                 "size": abs(float(order.size or 0.0)),
-                "price": order.price or getattr(order.created, "price", None),
+                "price": order.price if order.price is not None else getattr(order.created, "price", None),
             },
         )
         return order
@@ -527,7 +529,7 @@ class BtApiBroker(BrokerBase):
             "data_name": self._position_key(order.data),
             "side": "buy" if order.isbuy() else "sell",
             "size": abs(float(order.size or 0.0)),
-            "price": order.price or getattr(order.created, "price", None),
+            "price": order.price if order.price is not None else getattr(order.created, "price", None),
             "status": order.getstatusname(),
         }
 
