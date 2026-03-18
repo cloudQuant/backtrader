@@ -142,12 +142,12 @@ class TickChannel(DataChannel):
             for row in reader:
                 try:
                     tick = TickEvent(
-                        timestamp=float(row["timestamp"]),
+                        timestamp=_parse_required_float(row["timestamp"]),
                         symbol=row.get("symbol", self.symbol),
                         exchange=row.get("exchange", ""),
                         asset_type=row.get("asset_type", "spot"),
-                        price=float(row["price"]),
-                        volume=float(row["volume"]),
+                        price=_parse_required_float(row["price"]),
+                        volume=_parse_required_float(row["volume"]),
                         direction=row["direction"].strip().lower(),
                         trade_id=row.get("trade_id", ""),
                         bid_price=_parse_optional_float(row.get("bid_price")),
@@ -192,4 +192,11 @@ def _parse_optional_float(value) -> float:
         return None
     if not math.isfinite(number):
         return None
+    return number
+
+
+def _parse_required_float(value) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"Non-finite float value: {value}")
     return number

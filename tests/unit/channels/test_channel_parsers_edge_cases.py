@@ -1,7 +1,9 @@
 import pytest
 
+from backtrader.channels.funding import _parse_required_float as parse_funding_required_float
 from backtrader.channels.funding import _parse_optional_float as parse_funding_optional_float
 from backtrader.channels.orderbook import _parse_levels, _parse_required_float
+from backtrader.channels.tick import _parse_required_float as parse_tick_required_float
 from backtrader.channels.tick import _parse_optional_float as parse_tick_optional_float
 
 
@@ -24,6 +26,16 @@ def test_tick_optional_float_parser_rejects_non_finite(value, expected):
         assert result == pytest.approx(expected)
 
 
+@pytest.mark.parametrize("value", ["inf", "-inf", "nan"])
+def test_tick_required_float_rejects_non_finite(value):
+    with pytest.raises(ValueError):
+        parse_tick_required_float(value)
+
+
+def test_tick_required_float_accepts_finite_value():
+    assert parse_tick_required_float("123.45") == pytest.approx(123.45)
+
+
 @pytest.mark.parametrize(
     "value, expected",
     [
@@ -41,6 +53,16 @@ def test_funding_optional_float_parser_rejects_non_finite(value, expected):
         assert result is None
     else:
         assert result == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("value", ["inf", "-inf", "nan"])
+def test_funding_required_float_rejects_non_finite(value):
+    with pytest.raises(ValueError):
+        parse_funding_required_float(value)
+
+
+def test_funding_required_float_accepts_finite_value():
+    assert parse_funding_required_float("0.0001") == pytest.approx(0.0001)
 
 
 @pytest.mark.parametrize("value", ["inf", "-inf", "nan"])

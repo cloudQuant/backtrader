@@ -147,12 +147,12 @@ class FundingRateChannel(DataChannel):
             for row in reader:
                 try:
                     fe = FundingEvent(
-                        timestamp=float(row["timestamp"]),
+                        timestamp=_parse_required_float(row["timestamp"]),
                         symbol=row.get("symbol", self.symbol),
                         exchange=row.get("exchange", ""),
                         asset_type=row.get("asset_type", "swap"),
-                        rate=float(row["rate"]),
-                        mark_price=float(row["mark_price"]),
+                        rate=_parse_required_float(row["rate"]),
+                        mark_price=_parse_required_float(row["mark_price"]),
                         next_funding_time=_parse_optional_float(row.get("next_funding_time"))
                         or 0.0,
                         predicted_rate=_parse_optional_float(row.get("predicted_rate")) or 0.0,
@@ -183,14 +183,14 @@ class FundingRateChannel(DataChannel):
                 try:
                     data = json.loads(line)
                     fe = FundingEvent(
-                        timestamp=float(data["timestamp"]),
+                        timestamp=_parse_required_float(data["timestamp"]),
                         symbol=data.get("symbol", self.symbol),
                         exchange=data.get("exchange", ""),
                         asset_type=data.get("asset_type", "swap"),
-                        rate=float(data["rate"]),
-                        mark_price=float(data["mark_price"]),
-                        next_funding_time=float(data.get("next_funding_time", 0.0)),
-                        predicted_rate=float(data.get("predicted_rate", 0.0)),
+                        rate=_parse_required_float(data["rate"]),
+                        mark_price=_parse_required_float(data["mark_price"]),
+                        next_funding_time=_parse_optional_float(data.get("next_funding_time")) or 0.0,
+                        predicted_rate=_parse_optional_float(data.get("predicted_rate")) or 0.0,
                     )
                     yield fe
                 except (ValueError, KeyError, json.JSONDecodeError) as e:
@@ -229,4 +229,11 @@ def _parse_optional_float(value) -> float:
         return None
     if not math.isfinite(number):
         return None
+    return number
+
+
+def _parse_required_float(value) -> float:
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"Non-finite float value: {value}")
     return number
