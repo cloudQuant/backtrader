@@ -300,6 +300,16 @@ class PerformanceCalculator:
                 start_cash = self._resolve_start_cash(self._get_start_cash())
                 cumulative_value = start_cash
                 for dt, ret in sorted(time_return.items()):
+                    if not isinstance(ret, (int, float)) or not math.isfinite(ret):
+                        logger.debug(
+                            "Skipping invalid timereturn value in equity curve: %s at %s",
+                            ret,
+                            dt,
+                        )
+                        dates.append(dt)
+                        values.append(cumulative_value)
+                        continue
+
                     cumulative_value = cumulative_value * (1 + ret)
                     dates.append(dt)
                     values.append(cumulative_value)

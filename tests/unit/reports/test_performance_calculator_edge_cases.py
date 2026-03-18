@@ -102,6 +102,31 @@ class TestStartCashZero:
         assert len(values) == 1
         assert values[0] == pytest.approx(110000.0)
 
+    def test_get_equity_curve_skips_invalid_timereturn_values(self):
+        """Invalid TimeReturn values should not poison the cumulative equity curve."""
+        time_return_data = {
+            1: 0.10,
+            2: float("nan"),
+            3: None,
+            4: float("inf"),
+            5: -0.05,
+        }
+        analyzer = _make_analyzer("TimeReturn", time_return_data)
+        strategy = _make_strategy(
+            analyzers=[analyzer],
+            starting_cash=100000.0,
+            broker_value=100000.0,
+        )
+        calc = PerformanceCalculator(strategy)
+        dates, values = calc.get_equity_curve()
+
+        assert dates == [1, 2, 3, 4, 5]
+        assert values[0] == pytest.approx(110000.0)
+        assert values[1] == pytest.approx(110000.0)
+        assert values[2] == pytest.approx(110000.0)
+        assert values[3] == pytest.approx(110000.0)
+        assert values[4] == pytest.approx(104500.0)
+
 
 # ===========================================================================
 # get_risk_metrics edge cases
