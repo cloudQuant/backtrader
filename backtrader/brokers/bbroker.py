@@ -727,7 +727,7 @@ class BackBroker(BrokerBase):
         # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
             self._value = self._cash + pos_value_unlever
-            self._fundval = self._value / self._fundshares  # update fundvalue
+            self._fundval = self._value / self._fundshares if self._fundshares else self.get_param("fundstartval")  # update fundvalue
         # If in fundhist mode
         else:
             # Try to fetch a value
@@ -740,7 +740,7 @@ class BackBroker(BrokerBase):
             # _fundval = fval
             self._fundval = fval
             # _fund shares
-            self._fundshares = fvalue / fval
+            self._fundshares = fvalue / fval if fval else 0.0
             # Leverage multiplier
             lev = pos_value / (pos_value_unlever or 1.0)
 
@@ -807,7 +807,7 @@ class BackBroker(BrokerBase):
             Order.Status: The current status of the order
         """
         try:
-            o = self.orders.index(order)
+            o = self.orders[self.orders.index(order)]
         except ValueError:
             o = order
 
