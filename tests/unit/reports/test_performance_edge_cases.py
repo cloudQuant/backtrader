@@ -11,6 +11,7 @@ Tests cover:
 - _make_json_serializable with NaN, Inf, datetime, complex objects
 - _fmt_metric helper
 - _build_context user/memo parameter passing (no instance state)
+- plot_equity_curve handles invalid initial values without producing non-finite normalized points
 """
 
 import math
@@ -18,6 +19,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import MagicMock, PropertyMock
 
+from backtrader.reports.charts import MATPLOTLIB_AVAILABLE, ReportChart
 from backtrader.reports.performance import PerformanceCalculator
 from backtrader.reports.reporter import ReportGenerator
 
@@ -327,6 +329,24 @@ class TestFmtMetric:
     def test_non_numeric_fallback(self):
         result = ReportGenerator._fmt_metric("not-a-number", ".2f")
         assert result == "not-a-number"
+
+
+@pytest.mark.skipif(not MATPLOTLIB_AVAILABLE, reason="matplotlib not available")
+class TestReportChart:
+    def test_plot_equity_curve_skips_invalid_initial_values(self):
+        chart = ReportChart()
+        dates = [datetime(2024, 1, d) for d in range(1, 6)]
+        values = [float("nan"), None, float("inf"), 100.0, 110.0]
+
+        fig = chart.plot_equity_curve(dates, values)
+
+        assert fig is not None
+        plotted = list(fig.axes[0].lines[0].get_ydata())
+        assert plotted[0] == pytest.approx(100.0)
+        assert plotted[1] == pytest.approx(100.0)
+        assert plotted[2] == pytest.approx(100.0)
+        assert plotted[3] == pytest.approx(100.0)
+        assert plotted[4] == pytest.approx(110.0)
 
 
 class TestMakeJsonSerializable:

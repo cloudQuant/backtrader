@@ -8,6 +8,7 @@ Generates static charts for reports, distinct from interactive plotting.
 import base64
 import io
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,18 @@ class ReportChart:
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
 
         # Normalize to 100
-        start_value = values[0] if values[0] != 0 else 1
-        normalized_values = [100 * v / start_value for v in values]
+        start_value = 1
+        for value in values:
+            if isinstance(value, (int, float)) and math.isfinite(value) and value != 0:
+                start_value = value
+                break
+
+        normalized_values = []
+        for value in values:
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                normalized_values.append(100 * value / start_value)
+            else:
+                normalized_values.append(normalized_values[-1] if normalized_values else 100)
 
         # Plot equity curve
         ax.plot(dates, normalized_values, label="Strategy", linewidth=1.5, color="#3498DB")
