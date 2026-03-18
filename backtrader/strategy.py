@@ -35,9 +35,13 @@ Classes:
     SignalStrategy: Strategy subclass that responds to signal indicators.
 """
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import collections
 import copy
+import math
 import datetime
+import inspect
 import itertools
 import logging
 import operator
@@ -901,7 +905,12 @@ class Strategy(StrategyBase):
             # Set datetime
             if self.datas:
                 valid_datetimes = [
-                    d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0
+                    d.datetime[0]
+                    for d in self.datas
+                    if len(d)
+                    and isinstance(d.datetime[0], (int, float))
+                    and math.isfinite(d.datetime[0])
+                    and d.datetime[0] > 0
                 ]
                 if valid_datetimes:
                     self.lines.datetime[0] = max(valid_datetimes)
@@ -919,7 +928,14 @@ class Strategy(StrategyBase):
             self.forward()
         # Set datetime to max of current datetimes - only update if we have valid datetimes
         if self.datas:
-            valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
+            valid_datetimes = [
+                d.datetime[0]
+                for d in self.datas
+                if len(d)
+                and isinstance(d.datetime[0], (int, float))
+                and math.isfinite(d.datetime[0])
+                and d.datetime[0] > 0
+            ]
             if valid_datetimes:
                 self.lines.datetime[0] = max(valid_datetimes)
         # Old data length equals new data length

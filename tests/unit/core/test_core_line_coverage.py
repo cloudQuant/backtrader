@@ -15,6 +15,7 @@ import datetime
 import math
 import operator
 import random
+import types
 
 import backtrader as bt
 from backtrader import functions as btfunctions
@@ -112,6 +113,41 @@ def run_cerebro(strategy_class, num_bars=50, **kwargs):
     cerebro.addstrategy(strategy_class, **kwargs)
     results = cerebro.run()
     return results[0]
+
+
+class _ClockTestDateTimeLine:
+    def __init__(self):
+        self.value = None
+
+    def __setitem__(self, index, value):
+        assert index == 0
+        self.value = value
+
+
+class _ClockTestData:
+    def __init__(self, dt_value, length=1):
+        self._length = length
+        self.datetime = [dt_value]
+
+    def __len__(self):
+        return self._length
+
+
+class _ClockTestStrategy:
+    def __init__(self, datetimes, oldsync=False):
+        self._data_assignment_pending = False
+        self._clock = object()
+        self._oldsync = oldsync
+        self.datas = [_ClockTestData(dt) for dt in datetimes]
+        self.lines = types.SimpleNamespace(datetime=_ClockTestDateTimeLine())
+        self._dlens = [0 for _ in self.datas]
+        self.forward_calls = 0
+
+    def forward(self):
+        self.forward_calls += 1
+
+    def __len__(self):
+        return 1
 
 
 # ============================================================================
@@ -550,6 +586,15 @@ class TestLineRootOperators:
 
         strat = run_cerebro(St)
         assert len(strat.bool_results) > 0
+
+    def test_strategy_clk_update_ignores_non_finite_datetimes(self):
+        """Strategy._clk_update should ignore non-finite datetime values."""
+        strategy = _ClockTestStrategy([float("inf"), 3.0, float("nan")], oldsync=False)
+
+        clk_len = bt.Strategy._clk_update(strategy)
+
+        assert clk_len == 1
+        assert strategy.lines.datetime.value == 3.0
 
     def test_bool_on_non_finite_data(self):
         """Non-finite line values should evaluate to False in bool conversion."""
