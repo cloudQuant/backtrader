@@ -178,12 +178,18 @@ class VWR(TimeFrameAnalyzerBase):
         dts = []
         for n, pipn in enumerate(zip(self._pis, self._pns), 1):
             pi, pn = pipn
-            dt = pn / (pi * math.exp(ravg * n)) - 1.0
+            try:
+                dt = pn / (pi * math.exp(ravg * n)) - 1.0
+            except (ZeroDivisionError, TypeError):
+                dt = 0.0
             dts.append(dt)
         # Calculate standard deviation of annual returns
         sdev_p = standarddev(dts, bessel=True)
         # Calculate VWR value
-        vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
+        if self.p.sdev_max:
+            vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
+        else:
+            vwr = 0.0
         self.rets["vwr"] = vwr
 
     # Fund notification
