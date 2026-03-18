@@ -20,6 +20,7 @@ import pytest
 
 import backtrader as bt
 from backtrader import linebuffer
+from backtrader import lineroot
 
 
 class _ScalarNoArray:
@@ -28,6 +29,24 @@ class _ScalarNoArray:
 
     def __getitem__(self, idx):
         return self.value
+
+
+class _Stage2DummyLine(lineroot.LineRoot):
+    def __init__(self, value):
+        self.value = value
+        self._opstage = 2
+
+    def __getitem__(self, ago):
+        return self.value
+
+    def __len__(self):
+        return 1
+
+    def qbuffer(self, savemem=0):
+        pass
+
+    def minbuffer(self, size):
+        pass
 
 # ============================================================================
 # 1. LineBuffer — __setitem__ NaN/None/datetime protection (lines 526-575)
@@ -658,6 +677,18 @@ class TestHelperFunctions:
         assert linebuffer._is_nan_or_none(0.0) is False
         assert linebuffer._is_nan_or_none(1.5) is False
         assert linebuffer._is_nan_or_none(42) is False
+
+
+class TestLineRootStage2:
+    """Test LineRoot._operation_stage2 edge paths."""
+
+    def test_operation_stage2_sanitizes_non_finite_result(self):
+        """_operation_stage2 should sanitize non-finite arithmetic results to 0.0."""
+        line = _Stage2DummyLine(1e308)
+
+        result = line._operation_stage2(1e308, operator.__mul__)
+
+        assert result == 0.0
 
 
 # ============================================================================

@@ -369,6 +369,11 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 result = operation(other, self_value)
             else:
                 result = operation(self_value, other)
+            if isinstance(result, float):
+                import math
+
+                if not math.isfinite(result):
+                    return 0.0
             return result
         except Exception:
             logger.debug("Stage2 operation failed in LineRoot._operation_stage2", exc_info=True)
