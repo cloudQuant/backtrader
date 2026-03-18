@@ -558,15 +558,7 @@ class OrderBase:
         if not self.isbuy():
             self.size = -self.size
 
-        # Set a reference price if price is not set using
-        # the close price
-        # # If not simulated, pclose equals closing price, otherwise equals price
-        # pclose = self.data.close[0] if not self.simulated else self.price
-        # # If self.price is None and self.pricelimit is None, price equals pclose, otherwise price equals self.price
-        # if not self.price and not self.pricelimit:
-        #     price = pclose
-        # else:
-        #     price = self.price
+        # Set a reference price if price is not set using the close price
         pclose = self.data.close[0] if not self.p.simulated else self.price
         price = pclose if not self.price and not self.pricelimit else self.price
         # If not simulated, order creation time equals current data time, otherwise it's 0
@@ -625,7 +617,7 @@ class OrderBase:
             else:  # assume float
                 valid = self.data.datetime[0] + self.valid
         # If not simulated, get dteos, if simulated, dteos is 0
-        # todo need to understand better where dteos is used
+        # dteos: provisional end-of-session datetime, used by broker for order expiry checks
         if not self.p.simulated:
             # provisional end-of-session
             # get next session end

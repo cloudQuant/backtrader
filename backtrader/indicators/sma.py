@@ -173,19 +173,11 @@ class MovingAverageSimple(MovingAverageBase):
                     start_idx = max(0, self._idx - period + 1)
                     end_idx = self._idx + 1
 
-                    # DEBUG
-                    # print(f"      SMA calc: _idx={self._idx}, period={period}, start_idx={start_idx}, end_idx={end_idx}")
-
                     if end_idx > start_idx:
                         prices = []
                         for i in range(start_idx, end_idx):
                             if i < len(data_array):
                                 prices.append(float(data_array[i]))
-
-                        # DEBUG
-                        # if len(prices) > 0:
-                        #     print(f"      Prices: {prices[:5]}... (total {len(prices)} prices)")
-                        #     print(f"      SMA result: {sum(prices) / len(prices)}")
 
                         if prices:
                             return sum(prices) / len(prices)

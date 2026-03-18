@@ -727,12 +727,8 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
             self.alpha1 = Alpha1Line(alpha_source=self.alpha)
 
         else:
-            # alpha is a float value - convert it to work with dynamic smoothing
-            # In this case, we can't do true dynamic smoothing, so we fall back to static
-            # print(f"WARNING: ExponentialSmoothingDynamic received float alpha={self.alpha}, falling back to static smoothing")  # Removed for performance
+            # alpha is a float value - fall back to static smoothing
             pass
-            # No additional minperiod adjustment needed for static alpha
-            # self.alpha1 is already set in parent class as a float
 
     def next(self):
         """Calculate dynamic EMA for the current bar.

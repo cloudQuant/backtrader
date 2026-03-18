@@ -683,10 +683,6 @@ class BackBroker(BrokerBase):
 
     getvalue = get_value
 
-    # TODO This function is only declared here and not used anywhere else, unused function, commented out
-    # def get_value_lever(self, datas=None, mkt=False):
-    #     return self.get_value(datas=datas, mkt=mkt)
-
     def _get_value(self, datas=None, lever=False):
         """Calculate portfolio value for given data feeds.
 
@@ -750,15 +746,12 @@ class BackBroker(BrokerBase):
             # If dvalue is greater than 0, calculate unleveraged position value
             if dvalue > 0:  # long position - unlever
                 dvalue -= dunrealized
-                # TODO Why is it necessary to reset pos_value_unlever every time
                 pos_value_unlever += dvalue / leverage
                 pos_value_unlever += dunrealized
             else:
                 pos_value_unlever += dvalue
         # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
-            # TODO Commented out unused v
-            # self._value = v = self._cash + pos_value_unlever
             self._value = self._cash + pos_value_unlever
             self._fundval = self._value / self._fundshares  # update fundvalue
         # If in fundhist mode
@@ -937,9 +930,6 @@ class BackBroker(BrokerBase):
             # If the result of calling _take_children(order) is None, this order will be rejected, continue to next order
             if self._take_children(order) is None:  # children not taken
                 continue
-            # Get commission info class
-            # comminfo = self.getcommissioninfo(order.data)
-            # TODO Commented out unused comminfo
             # Get position
             position = positions.setdefault(order.data, self.positions[order.data].clone())
             # pseudo-execute the order to get the remaining cash after exec
@@ -961,7 +951,6 @@ class BackBroker(BrokerBase):
         Args:
             order: Order to accept
         """
-        # TODO Set additional pannotated attribute for order, purpose unknown for now
         order.pannotated = None
         # Order submit
         order.submit()
@@ -1190,7 +1179,6 @@ class BackBroker(BrokerBase):
     # Execute order
     def _execute(self, order, ago=None, price=None, cash=None, position=None, dtcoc=None):
         # ago = None is used a flag for pseudo execution
-        # # print(f"Order size:{order.executed.remsize}")  # Removed for performance
         # If ago is not None and price is None, do nothing and return
         if ago is not None and price is None:
             return  # no psuedo exec no price - no execution
@@ -1293,7 +1281,6 @@ class BackBroker(BrokerBase):
         if opened:
             # Calculate opening value
             if self.get_param("shortcash"):
-                # # print(f"opened:{opened},price:{price}")  # Removed for performance
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
                 openedvalue = comminfo.getoperationcost(opened, price)
@@ -1302,7 +1289,6 @@ class BackBroker(BrokerBase):
             opencash = openedvalue
             if openedvalue > 0:  # long position being opened
                 opencash /= comminfo.get_leverage()  # dec cash with level
-            # # print(f"openedvalue:{openedvalue},opencash:{opencash},cash:{cash}")  # Removed for performance
             # Subtract cash obtained after opening
             cash -= opencash  # original behavior
             # Commission for opening
@@ -1349,8 +1335,7 @@ class BackBroker(BrokerBase):
         execsize = closed + opened
         # If order execution size is greater than 0
         if execsize:
-            # Confimrm the operation to the comminfo object
-            # TODO Confirm required commission, this doesn't accept return value with any variable, seems useless
+            # Confirm the operation to the comminfo object
             comminfo.confirmexec(execsize, price)
 
             # do a real position update if something was executed
@@ -1405,8 +1390,6 @@ class BackBroker(BrokerBase):
 
     # Try to execute market order
     def _try_exec_market(self, order, popen, phigh, plow):
-        # ago = 0
-        # TODO Commented out unused ago
         # If cheat_on_close is True or cheat_on_open in order is True
         if self.get_param("coc") and order.info.get("coc", True):
             # Order creation time
@@ -1484,9 +1467,6 @@ class BackBroker(BrokerBase):
             # plimit is less than or equal to popen
             if plimit <= popen:
                 # open greater/equal than requested - sell more expensive
-                # Calculate pmin
-                # # TODO Commented out unused pmin
-                # pmin = max(plow, plimit)
                 # Calculate price after adding slippage
                 p = self._slip_down(plimit, popen, doslip=self.get_param("slip_open"), lim=True)
                 # Execute order

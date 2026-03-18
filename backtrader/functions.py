@@ -221,7 +221,6 @@ class Cmp(Logic):
 
 
 # Compare two lines, a and b, return corresponding r1 value when a<b, return r2 value when a=b, return r3 value when a>b
-# todo A friend in the backtrader quantitative trading group pointed out this issue
 class CmpEx(Logic):
     """Extended comparison operation with three possible return values.
 
