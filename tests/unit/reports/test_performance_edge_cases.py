@@ -97,6 +97,28 @@ class TestPnlMetricsZeroValues:
         assert metrics["rpl"] == 0.0
         assert metrics["total_return"] is None  # Cannot compute return from 0
 
+    def test_annual_return_skips_non_positive_compound_ratio(self):
+        """When total_return <= -100%, annual_return should remain None."""
+        strategy = _make_strategy(start_cash=100000, end_value=0)
+
+        class _DateTimeLine:
+            def __getitem__(self, idx):
+                values = [1.0, 2.0]
+                return values[idx]
+
+        class _DataStub:
+            datetime = _DateTimeLine()
+
+            def __len__(self):
+                return 2
+
+        strategy.data = _DataStub()
+        calc = PerformanceCalculator(strategy)
+        metrics = calc.get_pnl_metrics()
+
+        assert metrics["total_return"] == -100.0
+        assert metrics["annual_return"] is None
+
     def test_zero_profit_factor(self):
         """Won_trades=0.0 and lost_trades!=0 should produce profit_factor=0.0."""
         trade_analysis = {

@@ -115,9 +115,16 @@ class PerformanceCalculator:
         bt_period_days = self._get_backtest_days()
         if bt_period_days and bt_period_days > 0 and metrics["total_return"] is not None:
             total_return_decimal = metrics["total_return"] / 100
-            metrics["annual_return"] = 100 * (
-                (1 + total_return_decimal) ** (365.25 / bt_period_days) - 1
-            )
+            compound_ratio = 1 + total_return_decimal
+            if math.isfinite(compound_ratio) and compound_ratio > 0:
+                metrics["annual_return"] = 100 * (
+                    compound_ratio ** (365.25 / bt_period_days) - 1
+                )
+            else:
+                logger.debug(
+                    "Skipping annual_return calculation for invalid compound ratio: %s",
+                    compound_ratio,
+                )
 
         return metrics
 
