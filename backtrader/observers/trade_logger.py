@@ -1005,7 +1005,8 @@ class TradeLogger(Observer):
                     attr = getattr(self._owner, attr_name)
                     if hasattr(attr, "lines") and hasattr(attr, "__len__"):
                         self._extract_indicator_values(attr, indicators, attr_name)
-                except Exception:
+                except Exception as e:
+                    logger.debug("Failed to read indicator attr %s: %s", attr_name, e)
                     continue
 
         except Exception as e:
@@ -1043,7 +1044,8 @@ class TradeLogger(Observer):
                                     else ind_name
                                 )
                                 indicators_dict[full_name] = float(value)
-                    except Exception:
+                    except Exception as e_line:
+                        logger.debug("Failed to read indicator line %s: %s", line_name, e_line)
                         continue
         except Exception as e:
             logger.debug("Failed to extract indicator values: %s", e)
@@ -1078,6 +1080,7 @@ class TradeLogger(Observer):
                     snapshot, f, allow_unicode=True, default_flow_style=False, sort_keys=False
                 )
         except Exception as e:
+            logger.debug("Failed to save position snapshot: %s", e)
             if self.p.log_to_console:
                 print(f"[TradeLogger] Failed to save position snapshot: {e}")
 
@@ -1171,6 +1174,7 @@ class TradeLogger(Observer):
             )
             cursor.close()
         except Exception as e:
+            logger.debug("MySQL insert order failed: %s", e)
             if self.p.log_to_console:
                 print(f"[TradeLogger] MySQL insert order failed: {e}")
 
@@ -1207,6 +1211,7 @@ class TradeLogger(Observer):
             )
             cursor.close()
         except Exception as e:
+            logger.debug("MySQL insert trade failed: %s", e)
             if self.p.log_to_console:
                 print(f"[TradeLogger] MySQL insert trade failed: {e}")
 
@@ -1233,6 +1238,7 @@ class TradeLogger(Observer):
             )
             cursor.close()
         except Exception as e:
+            logger.debug("MySQL insert position failed: %s", e)
             if self.p.log_to_console:
                 print(f"[TradeLogger] MySQL insert position failed: {e}")
 
@@ -1257,6 +1263,7 @@ class TradeLogger(Observer):
             )
             cursor.close()
         except Exception as e:
+            logger.debug("MySQL insert indicator failed: %s", e)
             if self.p.log_to_console:
                 print(f"[TradeLogger] MySQL insert indicator failed: {e}")
 
@@ -1284,6 +1291,7 @@ class TradeLogger(Observer):
             )
             cursor.close()
         except Exception as e:
+            logger.debug("MySQL insert signal failed: %s", e)
             if self.p.log_to_console:
                 print(f"[TradeLogger] MySQL insert signal failed: {e}")
 
