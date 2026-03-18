@@ -152,7 +152,10 @@ class DrawDownOld(Observer):
             self.peak = value
 
         # calculate the current drawdown
-        self.lines.drawdown[0] = dd = 100.0 * (self.peak - value) / self.peak
+        if self.peak:
+            self.lines.drawdown[0] = dd = 100.0 * (self.peak - value) / self.peak
+        else:
+            self.lines.drawdown[0] = dd = 0.0
 
         # update the maxdrawdown if needed
         self.lines.maxdrawdown[0] = self.maxdd = max(self.maxdd, dd)
