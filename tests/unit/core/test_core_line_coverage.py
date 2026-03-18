@@ -476,6 +476,31 @@ class TestLineRootOperators:
         strat = run_cerebro(St)
         assert len(strat.bool_results) > 0
 
+    def test_bool_on_non_finite_data(self):
+        """Non-finite line values should evaluate to False in bool conversion."""
+        data_list = generate_ohlcv(10)
+        data_list[3]["close"] = float("inf")
+        data_list[6]["close"] = float("-inf")
+
+        class St(bt.Strategy):
+            """Test strategy for line coverage."""
+
+            def __init__(self):
+                self.bool_results = []
+
+            def next(self):
+                self.bool_results.append(bool(self.data.close))
+
+        cerebro = bt.Cerebro()
+        cerebro.adddata(SimpleFeed(data_list=data_list))
+        cerebro.addstrategy(St)
+        results = cerebro.run(runonce=False)
+
+        strat = results[0]
+        assert len(strat.bool_results) == len(data_list)
+        assert strat.bool_results[3] is False
+        assert strat.bool_results[6] is False
+
     def test_stage_switch(self):
         """Test _stage1 and _stage2 switching."""
 

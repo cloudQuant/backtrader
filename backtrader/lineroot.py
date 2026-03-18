@@ -250,7 +250,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                 elif isinstance(value, float):
                                     import math
 
-                                    if math.isnan(value):
+                                    if not math.isfinite(value):
                                         return False
                                     return value != 0.0
                                 else:
@@ -269,7 +269,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                         elif isinstance(value, float):
                             import math
 
-                            if math.isnan(value):
+                            if not math.isfinite(value):
                                 return False
                             return value != 0.0
                         else:
@@ -607,7 +607,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                             elif isinstance(value, float):
                                 import math
 
-                                if math.isnan(value):
+                                if not math.isfinite(value):
                                     return False
                                 return value != 0.0
                             else:
@@ -622,7 +622,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                     elif isinstance(value, float):
                         import math
 
-                        if math.isnan(value):
+                        if not math.isfinite(value):
                             return False
                         return value != 0.0
                     else:
