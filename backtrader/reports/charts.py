@@ -211,13 +211,21 @@ class ReportChart:
             return None
 
         # Calculate drawdown
-        running_max = values[0]
+        running_max = 0
+        for value in values:
+            if isinstance(value, (int, float)) and math.isfinite(value):
+                running_max = value
+                break
+
         drawdowns = []
 
         for v in values:
-            if v > running_max:
-                running_max = v
-            dd = (v - running_max) / running_max * 100 if running_max != 0 else 0
+            if isinstance(v, (int, float)) and math.isfinite(v):
+                if v > running_max:
+                    running_max = v
+                dd = (v - running_max) / running_max * 100 if running_max != 0 else 0
+            else:
+                dd = drawdowns[-1] if drawdowns else 0
             drawdowns.append(dd)
 
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)

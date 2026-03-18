@@ -348,6 +348,21 @@ class TestReportChart:
         assert plotted[3] == pytest.approx(100.0)
         assert plotted[4] == pytest.approx(110.0)
 
+    def test_plot_drawdown_skips_invalid_values(self):
+        chart = ReportChart()
+        dates = [datetime(2024, 1, d) for d in range(1, 6)]
+        values = [float("nan"), 100.0, None, float("inf"), 90.0]
+
+        fig = chart.plot_drawdown(dates, values)
+
+        assert fig is not None
+        plotted = list(fig.axes[0].lines[0].get_ydata())
+        assert plotted[0] == pytest.approx(0.0)
+        assert plotted[1] == pytest.approx(0.0)
+        assert plotted[2] == pytest.approx(0.0)
+        assert plotted[3] == pytest.approx(0.0)
+        assert plotted[4] == pytest.approx(-10.0)
+
 
 class TestMakeJsonSerializable:
     """Test _make_json_serializable with edge cases."""
