@@ -18,6 +18,12 @@ import pandas as pd
 from scipy import stats as scipy_stats
 
 
+def _is_integer_like(value):
+    try:
+        return not isinstance(value, (bool, np.bool_)) and np.isscalar(value) and np.isfinite(value) and float(value).is_integer()
+    except (TypeError, ValueError):
+        return False
+
 
 def _average_upper_triangle_correlation(trials_returns):
     """Compute the mean pairwise correlation across trial return columns."""
@@ -75,6 +81,9 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
     """
     if returns is None and sr is None:
         raise ValueError("ann_estimated_sharpe_ratio requires returns or sr")
+    if not _is_integer_like(periods):
+        raise ValueError("ann_estimated_sharpe_ratio requires integer periods")
+    periods = int(periods)
     if periods <= 0:
         raise ValueError("ann_estimated_sharpe_ratio requires periods > 0")
 
@@ -132,6 +141,9 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
 
     if _returns is not None and n is None:
         n = len(_returns)
+    if not _is_integer_like(n):
+        raise ValueError("estimated_sharpe_ratio_stdev requires integer n")
+    n = int(n)
     if n <= 1:
         raise ValueError("estimated_sharpe_ratio_stdev requires n > 1")
     if _returns is not None and skew is None:
@@ -260,6 +272,9 @@ def min_track_record_length(
 
     if n is None:
         n = len(returns)
+    if not _is_integer_like(n):
+        raise ValueError("min_track_record_length requires integer n")
+    n = int(n)
     if n <= 1:
         raise ValueError("min_track_record_length requires n > 1")
     if sr is None:
@@ -300,6 +315,10 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     """
     if trials_returns is None and any(param is None for param in (m, p)):
         raise ValueError("num_independent_trials requires trials_returns when m or p is not provided")
+    if m is not None and not _is_integer_like(m):
+        raise ValueError("num_independent_trials requires integer m")
+    if m is not None:
+        m = int(m)
     if m is not None and m <= 0:
         raise ValueError("num_independent_trials requires m > 0")
 
@@ -351,6 +370,9 @@ def expected_maximum_sr(
             raise ValueError("expected_maximum_sr requires trials_returns or independent_trials")
         independent_trials = num_independent_trials(trials_returns)
 
+    if not _is_integer_like(independent_trials):
+        raise ValueError("expected_maximum_sr requires integer independent_trials")
+    independent_trials = int(independent_trials)
     if independent_trials < 1:
         raise ValueError("expected_maximum_sr requires independent_trials >= 1")
     if trials_returns is not None and independent_trials > trials_returns.shape[1]:
