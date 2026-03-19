@@ -108,6 +108,24 @@ class TestTimeReturnZeroStart:
             analyzer.next()
         assert analyzer.rets["2021-01-01"] == 0.0
 
+    @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0)])
+    def test_invalid_value_degrades_to_zero(self, value):
+        analyzer = self._make_analyzer()
+        analyzer._value = value
+        analyzer._value_start = 100.0
+        with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+            analyzer.next()
+        assert analyzer.rets["2021-01-01"] == 0.0
+
+    @pytest.mark.parametrize("value_start", ["bad", complex(1.0, 1.0)])
+    def test_invalid_start_value_degrades_to_zero(self, value_start):
+        analyzer = self._make_analyzer()
+        analyzer._value = 100.0
+        analyzer._value_start = value_start
+        with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+            analyzer.next()
+        assert analyzer.rets["2021-01-01"] == 0.0
+
 
 class TestCalmarZeroValue:
     """Test Calmar analyzer with zero/edge values."""
