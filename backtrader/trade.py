@@ -260,6 +260,12 @@ class Trade:
 
         self.status = self.Created
 
+    def __repr__(self):
+        return (
+            f"Trade(ref={self.ref}, size={self.size}, price={self.price}, "
+            f"pnl={self.pnl}, status={self.status_names[self.status]})"
+        )
+
     # Return absolute size of trade, seems slightly odd
     def __len__(self):
         """Absolute size of the trade"""

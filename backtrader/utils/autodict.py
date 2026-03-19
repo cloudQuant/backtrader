@@ -73,7 +73,8 @@ class DotDict(dict):
     # _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, '_name', '')])
     def __getattr__(self, key):
         if key.startswith("__"):
-            return super().__getattr__(key)
+            # return super().__getattr__(key)
+            raise AttributeError(key)
         return self[key]
 
 

@@ -122,9 +122,9 @@ class Position:
                 # same side max(-10, -10 - -5) -> max(-10, -5) -> -5
                 # reversal max(-10, -10 - 5) -> max(-10, -15) -> -10
                 self.upclosed = max(self.size, self.size - size)
-        # If current position equals 0, both new opening and closing equal 0
+        # If current position equals 0, opening equals the new size being set
         else:  # self.size == 0
-            self.upopened = self.size
+            self.upopened = size
             self.upclosed = 0
         # Actual position size
         self.size = size
@@ -137,6 +137,14 @@ class Position:
             self.price = 0.0
 
         return self.size, self.price, self.upopened, self.upclosed
+
+    def __repr__(self):
+        return f"Position(size={self.size}, price={self.price})"
+
+    def __eq__(self, other):
+        if not isinstance(other, Position):
+            return NotImplemented
+        return self.size == other.size and self.price == other.price
 
     # When calling len(position), return absolute value of position
     def __len__(self):

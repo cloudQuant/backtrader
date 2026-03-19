@@ -114,6 +114,12 @@ class OrderExecutionBit:
         self.psize = psize
         self.pprice = pprice
 
+    def __repr__(self):
+        return (
+            f"OrderExecutionBit(size={self.size}, price={self.price}, "
+            f"closed={self.closed}, opened={self.opened}, pnl={self.pnl})"
+        )
+
 
 # Store actual order information for creation and execution. When creating, it requests creation; when executing, it produces the final result
 class OrderData:

@@ -75,7 +75,7 @@ class List(list):
     """
 
     def __contains__(self, other):
-        return any(x.__hash__() == other.__hash__() for x in self)
+        return any(x is other for x in self)
 
 
 # Create a class to serialize elements within it

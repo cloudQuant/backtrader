@@ -143,7 +143,20 @@ class WriterFile(WriterBase):
         Closes the output file if close_out parameter is True.
         """
         if self.close_out and self.out is not None:
-            self.out.close()
+            try:
+                self.out.close()
+            except Exception:
+                pass
+
+    def __enter__(self):
+        """Support context manager protocol."""
+        self._start_output()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Ensure output stream is closed when exiting context."""
+        self.stop()
+        return False
 
     # If csv is True, save values to self.out each time, and set self.values to empty list
     def next(self):
