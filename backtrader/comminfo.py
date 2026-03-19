@@ -140,8 +140,9 @@ class CommInfoBase(ParameterizedBase):
             # Directly modify parameter value to avoid duplicate conversion
             self._param_manager.set("commission", current_commission / 100.0, skip_validation=True)
 
-        # Calculate interest rate
-        self._creditrate = self.get_param("interest") / 365.0
+        # Calculate interest rate (guard against None interest)
+        interest = self.get_param("interest")
+        self._creditrate = (interest or 0.0) / 365.0
 
     __getattribute__ = object.__getattribute__
 

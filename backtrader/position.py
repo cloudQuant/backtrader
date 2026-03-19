@@ -165,12 +165,15 @@ class Position:
 
         Returns:
             Position: A new Position instance with the same size and price,
-                including datetime and adjbase state.
+                including all internal state fields.
         """
         pos = Position(size=self.size, price=self.price)
         pos.adjbase = self.adjbase
         pos.datetime = self.datetime
         pos.updt = self.updt
+        pos.upopened = self.upopened
+        pos.upclosed = self.upclosed
+        pos.price_orig = self.price_orig
         return pos
 
     # Create a position instance, then update size and price

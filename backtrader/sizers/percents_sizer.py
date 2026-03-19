@@ -57,7 +57,7 @@ class PercentSizer(Sizer):
         position = self.broker.getposition(data)
         if not position:
             close_price = data.close[0]
-            if not close_price:
+            if not close_price or close_price != close_price:
                 return 0
             size = cash / close_price * (self.get_param("percents") / 100)
         else:

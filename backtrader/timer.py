@@ -73,13 +73,13 @@ class Timer(ParameterizedBase):
         default=timedelta(), type_=timedelta, doc="Repeat interval for the timer"
     )
     weekdays = ParameterDescriptor(
-        default=[], type_=list, doc="List of weekdays when timer is active"
+        default=None, type_=(list, type(None)), doc="List of weekdays when timer is active"
     )
     weekcarry = ParameterDescriptor(
         default=False, type_=bool, doc="Whether to carry over to next weekday if missed"
     )
     monthdays = ParameterDescriptor(
-        default=[], type_=list, doc="List of month days when timer is active"
+        default=None, type_=(list, type(None)), doc="List of month days when timer is active"
     )
     monthcarry = ParameterDescriptor(
         default=True, type_=bool, doc="Whether to carry over to next month day if missed"
@@ -188,7 +188,7 @@ class Timer(ParameterizedBase):
             # When parameter monthcarry is True and mask is True, carry over to next trading day. Otherwise, don't carry over
             daycarry = self.get_param("monthcarry") and bool(mask)
             # Month mask equals days activated each month
-            self._monthmask = mask = collections.deque(self.get_param("monthdays"))
+            self._monthmask = mask = collections.deque(self.get_param("monthdays") or [])
         # Day of month for date
         dday = ddate.day
         # Insert index in activation dates, elements left of index are less than dday, elements right of index are greater than or equal to dday
@@ -227,7 +227,7 @@ class Timer(ParameterizedBase):
             # When parameter weekcarry is True and mask is True, carry over to next trading day. Otherwise, don't carry over
             daycarry = self.get_param("weekcarry") and bool(mask)
             # Set _weekmask to weekly timer activation time
-            self._weekmask = mask = collections.deque(self.get_param("weekdays"))
+            self._weekmask = mask = collections.deque(self.get_param("weekdays") or [])
         # Get index of current weekday in activation date list, making numbers left of list less than current number, numbers right of list greater than or equal to current number
         dc = bisect.bisect_left(mask, dwkday)  # "left" for days before dday
         # Condition for daycarry to be True: daycarry is True, or both holiday carry over is True and dc > 0
