@@ -48,6 +48,9 @@ def estimated_sharpe_ratio(returns):
     -------
     float, pd.Series
     """
+    if returns is None:
+        raise ValueError("estimated_sharpe_ratio requires returns")
+
     return returns.mean() / returns.std(ddof=1)
 
 
@@ -72,6 +75,8 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
     """
     if returns is None and sr is None:
         raise ValueError("ann_estimated_sharpe_ratio requires returns or sr")
+    if periods <= 0:
+        raise ValueError("ann_estimated_sharpe_ratio requires periods > 0")
 
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
@@ -289,6 +294,8 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     """
     if trials_returns is None and any(param is None for param in (m, p)):
         raise ValueError("num_independent_trials requires trials_returns when m or p is not provided")
+    if m is not None and m <= 0:
+        raise ValueError("num_independent_trials requires m > 0")
 
     if m is None:
         m = trials_returns.shape[1]
@@ -334,6 +341,8 @@ def expected_maximum_sr(
     emc = 0.5772156649  # Euler-Mascheroni constant
 
     if independent_trials is None:
+        if trials_returns is None:
+            raise ValueError("expected_maximum_sr requires trials_returns or independent_trials")
         independent_trials = num_independent_trials(trials_returns)
 
     if independent_trials < 1:
@@ -345,6 +354,8 @@ def expected_maximum_sr(
         return expected_mean_sr
 
     if trials_sr_std is None:
+        if trials_returns is None:
+            raise ValueError("expected_maximum_sr requires trials_returns or trials_sr_std when independent_trials > 1")
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
 

@@ -118,11 +118,26 @@ def test_estimated_sharpe_ratio_stdev_accepts_series_input():
     assert math.isfinite(result)
 
 
+def test_estimated_sharpe_ratio_requires_returns():
+    from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires returns"):
+        estimated_sharpe_ratio(None)
+
+
 def test_ann_estimated_sharpe_ratio_requires_returns_or_sr():
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
     with pytest.raises(ValueError, match="requires returns or sr"):
         ann_estimated_sharpe_ratio()
+
+
+@pytest.mark.parametrize("periods", [0, -1])
+def test_ann_estimated_sharpe_ratio_requires_positive_periods(periods):
+    from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires periods > 0"):
+        ann_estimated_sharpe_ratio(sr=1.0, periods=periods)
 
 
 def test_estimated_sharpe_ratio_stdev_accepts_explicit_params_without_returns():
@@ -205,6 +220,14 @@ def test_num_independent_trials_requires_trials_returns_when_params_missing(kwar
         num_independent_trials(**kwargs)
 
 
+@pytest.mark.parametrize("m", [0, -2])
+def test_num_independent_trials_requires_positive_explicit_m(m):
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    with pytest.raises(ValueError, match="requires m > 0"):
+        num_independent_trials(trials_returns=None, m=m, p=0.25)
+
+
 def test_expected_maximum_sr_single_trial_returns_expected_mean():
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
@@ -219,6 +242,13 @@ def test_expected_maximum_sr_requires_at_least_one_trial(independent_trials):
 
     with pytest.raises(ValueError, match="requires independent_trials >= 1"):
         expected_maximum_sr(independent_trials=independent_trials, expected_mean_sr=0.25, trials_sr_std=1.0)
+
+
+def test_expected_maximum_sr_requires_trials_returns_or_independent_trials():
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    with pytest.raises(ValueError, match="requires trials_returns or independent_trials"):
+        expected_maximum_sr()
 
 
 def test_expected_maximum_sr_rejects_trials_above_column_count():
@@ -236,6 +266,13 @@ def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
     result = expected_maximum_sr(independent_trials=5, expected_mean_sr=0.25, trials_sr_std=float("nan"))
 
     assert result == 0.25
+
+
+def test_expected_maximum_sr_requires_trials_returns_or_std_for_multiple_trials():
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    with pytest.raises(ValueError, match="requires trials_returns or trials_sr_std when independent_trials > 1"):
+        expected_maximum_sr(independent_trials=2)
 
 
 def test_probabilistic_sharpe_ratio_single_value_series_uses_position_not_label():
