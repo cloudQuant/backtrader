@@ -261,9 +261,13 @@ class Trade:
         self.status = self.Created
 
     def __repr__(self):
+        try:
+            status_name = self.status_names[self.status]
+        except (IndexError, TypeError):
+            status_name = f"Unknown({self.status})"
         return (
             f"Trade(ref={self.ref}, size={self.size}, price={self.price}, "
-            f"pnl={self.pnl}, status={self.status_names[self.status]})"
+            f"pnl={self.pnl}, status={status_name})"
         )
 
     # Return absolute size of trade, seems slightly odd

@@ -146,6 +146,9 @@ class Position:
             return NotImplemented
         return self.size == other.size and self.price == other.price
 
+    # Explicit: Position is mutable, so it must not be hashable
+    __hash__ = None
+
     # When calling len(position), return absolute value of position
     def __len__(self):
         return abs(self.size)

@@ -122,8 +122,11 @@ class AutoDict(dict):
 
     def __getattr__(self, key):
         if key.startswith("_"):
-            raise AttributeError
-        return self[key]
+            raise AttributeError(key)
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
 
     def __setattr__(self, key, value):
         if key.startswith("_"):
@@ -174,9 +177,11 @@ class AutoOrderedDict(OrderedDict):
     # __getattr__ and __setattr__ functions are much more normal compared to AutoDict
     def __getattr__(self, key):
         if key.startswith("_"):
-            raise AttributeError
-
-        return self[key]
+            raise AttributeError(key)
+        try:
+            return self[key]
+        except KeyError:
+            raise AttributeError(key)
 
     def __setattr__(self, key, value):
         if key.startswith("_"):

@@ -296,6 +296,8 @@ class ComminfoDC(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
     def get_credit_interest(self, data, pos, dt):
@@ -346,6 +348,8 @@ class ComminfoFuturesPercent(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
 
@@ -374,6 +378,8 @@ class ComminfoFuturesFixed(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
 
@@ -404,6 +410,8 @@ class ComminfoFundingRate(CommInfoBase):
         """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
+        if margin is None:
+            margin = 1.0
         return price * mult * margin
 
     def get_credit_interest(self, data, pos, dt):
