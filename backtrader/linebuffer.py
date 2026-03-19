@@ -764,9 +764,11 @@ class LineBuffer(LineSingle, LineRootMixin):
             list or array: Slice of data from start to end.
         """
         if self.useislice:
-            return list(islice(self.array, start, end))
+            values = list(islice(self.array, start, end))
+        else:
+            values = list(self.array[start:end])
 
-        return self.array[start:end]
+        return [0.0 if isinstance(value, float) and not math.isfinite(value) and value == value else value for value in values]
 
     # Set array values for each binding when running in once mode
     def oncebinding(self):

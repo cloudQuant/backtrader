@@ -113,26 +113,30 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     # else:
     #     _returns = returns.copy()
 
-    if isinstance(returns, pd.DataFrame):
+    if returns is None:
+        if any(param is None for param in (n, skew, kurtosis, sr)):
+            raise ValueError("estimated_sharpe_ratio_stdev requires n, skew, kurtosis, and sr when returns is None")
+        _returns = None
+    elif isinstance(returns, pd.DataFrame):
         _returns = pd.DataFrame(returns)
     else:
         _returns = returns.copy()
 
-    if n is None:
+    if _returns is not None and n is None:
         n = len(_returns)
-    if skew is None:
+    if _returns is not None and skew is None:
         skew_values = scipy_stats.skew(_returns)
         if isinstance(_returns, pd.DataFrame):
             skew = pd.Series(skew_values, index=_returns.columns)
         else:
             skew = skew_values
-    if kurtosis is None:
+    if _returns is not None and kurtosis is None:
         kurtosis_values = scipy_stats.kurtosis(_returns, fisher=False)
         if isinstance(_returns, pd.DataFrame):
             kurtosis = pd.Series(kurtosis_values, index=_returns.columns)
         else:
             kurtosis = kurtosis_values
-    if sr is None:
+    if _returns is not None and sr is None:
         sr = estimated_sharpe_ratio(_returns)
 
     sr_std = np.sqrt((1 + (0.5 * sr**2) - (skew * sr) + (((kurtosis - 3) / 4) * sr**2)) / (n - 1))
@@ -177,6 +181,9 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
 
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1821643
     """
+    if returns is None and any(param is None for param in (sr, sr_std)):
+        raise ValueError("probabilistic_sharpe_ratio requires sr and sr_std when returns is None")
+
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
     if sr_std is None:
@@ -234,6 +241,9 @@ def min_track_record_length(
 
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1821643
     """
+    if returns is None and any(param is None for param in (n, sr, sr_std)):
+        raise ValueError("min_track_record_length requires n, sr, and sr_std when returns is None")
+
     if n is None:
         n = len(returns)
     if sr is None:

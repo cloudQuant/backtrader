@@ -21,6 +21,7 @@ import backtrader as bt
 import math
 import numpy as np
 import pandas as pd
+import pytest
 
 import testcommon
 
@@ -117,6 +118,22 @@ def test_estimated_sharpe_ratio_stdev_accepts_series_input():
     assert math.isfinite(result)
 
 
+def test_estimated_sharpe_ratio_stdev_accepts_explicit_params_without_returns():
+    from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
+
+    result = estimated_sharpe_ratio_stdev(returns=None, n=10, skew=0.0, kurtosis=3.0, sr=1.5)
+
+    assert isinstance(result, (float, int, np.floating))
+    assert math.isfinite(result)
+
+
+def test_estimated_sharpe_ratio_stdev_requires_explicit_params_without_returns():
+    from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
+
+    with pytest.raises(ValueError, match="requires n, skew, kurtosis, and sr"):
+        estimated_sharpe_ratio_stdev(returns=None, n=10, skew=0.0, kurtosis=3.0)
+
+
 def test_num_independent_trials_handles_all_nan_correlations():
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
@@ -179,6 +196,20 @@ def test_probabilistic_sharpe_ratio_single_value_series_uses_position_not_label(
     assert math.isfinite(result)
 
 
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"returns": None, "sr": 1.5},
+        {"returns": None, "sr_std": 0.5},
+    ],
+)
+def test_probabilistic_sharpe_ratio_requires_explicit_params_without_returns(kwargs):
+    from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires sr and sr_std"):
+        probabilistic_sharpe_ratio(**kwargs)
+
+
 def test_min_track_record_length_single_value_series_uses_position_not_label():
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
@@ -191,6 +222,21 @@ def test_min_track_record_length_single_value_series_uses_position_not_label():
 
     assert isinstance(result, (float, int, np.floating))
     assert math.isfinite(result)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"returns": None, "n": 10, "sr": 1.5},
+        {"returns": None, "n": 10, "sr_std": 0.5},
+        {"returns": None, "sr": 1.5, "sr_std": 0.5},
+    ],
+)
+def test_min_track_record_length_requires_explicit_params_without_returns(kwargs):
+    from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
+
+    with pytest.raises(ValueError, match="requires n, sr, and sr_std"):
+        min_track_record_length(**kwargs)
 
 
 if __name__ == "__main__":
