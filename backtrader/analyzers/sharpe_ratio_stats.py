@@ -287,6 +287,9 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     -------
     int
     """
+    if trials_returns is None and any(param is None for param in (m, p)):
+        raise ValueError("num_independent_trials requires trials_returns when m or p is not provided")
+
     if m is None:
         m = trials_returns.shape[1]
 

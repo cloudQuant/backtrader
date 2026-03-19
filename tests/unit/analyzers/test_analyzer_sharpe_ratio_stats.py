@@ -181,6 +181,30 @@ def test_num_independent_trials_handles_nonfinite_explicit_p():
     assert result > 0
 
 
+def test_num_independent_trials_accepts_explicit_m_and_p_without_trials_returns():
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    result = num_independent_trials(trials_returns=None, m=5, p=0.25)
+
+    assert isinstance(result, int)
+    assert result > 0
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"trials_returns": None, "m": 5},
+        {"trials_returns": None, "p": 0.25},
+        {"trials_returns": None},
+    ],
+)
+def test_num_independent_trials_requires_trials_returns_when_params_missing(kwargs):
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    with pytest.raises(ValueError, match="requires trials_returns when m or p is not provided"):
+        num_independent_trials(**kwargs)
+
+
 def test_expected_maximum_sr_single_trial_returns_expected_mean():
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
