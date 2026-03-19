@@ -146,9 +146,56 @@ def test_legacyannual_nan_returns_none():
     assert analyzer.rets["sharperatio"] is None
 
 
+@pytest.mark.parametrize("riskfreerate", ["bad", complex(0.01, 0.01)])
+def test_legacyannual_invalid_riskfreerate_returns_none(riskfreerate):
+    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
+    analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=riskfreerate)
+    analyzer.anret = SimpleNamespace(rets=[0.1, 0.2])
+    analyzer.rets = {}
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+@pytest.mark.parametrize("returns", [["bad", 0.1], [complex(0.1, 0.1), 0.1]])
+def test_legacyannual_invalid_returns_none(returns):
+    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
+    analyzer.p = SimpleNamespace(legacyannual=True, riskfreerate=0.0)
+    analyzer.anret = SimpleNamespace(rets=returns)
+    analyzer.rets = {}
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
 def test_nonlegacy_nan_returns_none():
     analyzer = _build_nonlegacy_sharpe_analyzer()
     analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": 0.1})
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+@pytest.mark.parametrize("riskfreerate", ["bad", complex(0.01, 0.01)])
+def test_nonlegacy_invalid_riskfreerate_returns_none(riskfreerate):
+    analyzer = _build_nonlegacy_sharpe_analyzer(riskfreerate=riskfreerate)
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+@pytest.mark.parametrize("returns", [["bad", 0.1], [complex(0.1, 0.1), 0.1]])
+def test_nonlegacy_invalid_returns_none(returns):
+    analyzer = _build_nonlegacy_sharpe_analyzer()
+    analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": returns[0], "b": returns[1]})
 
     with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
         analyzer.stop()

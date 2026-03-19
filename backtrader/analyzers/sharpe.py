@@ -26,6 +26,13 @@ from .annualreturn import AnnualReturn
 from .timereturn import TimeReturn
 
 
+def _is_finite_real(value):
+    try:
+        return not isinstance(value, complex) and math.isfinite(value)
+    except TypeError:
+        return False
+
+
 class SharpeRatio(Analyzer):
     # Relatively speaking, backtrader's Sharpe ratio calculation method is quite complex, considering many parameters
     """This analyzer calculates the SharpeRatio of a strategy using a risk-free
@@ -165,17 +172,21 @@ class SharpeRatio(Analyzer):
         # Calculate returns and Sharpe ratio in annual units
         if self.p.legacyannual:
             rate = self.p.riskfreerate
-            retavg = average([r - rate for r in self.anret.rets])
-            retdev = standarddev(self.anret.rets)
-            if not math.isfinite(retavg) or not math.isfinite(retdev):
+            try:
+                retavg = average([r - rate for r in self.anret.rets])
+                retdev = standarddev(self.anret.rets)
+            except (TypeError, ValueError, ZeroDivisionError):
                 ratio = None
             else:
-                try:
-                    ratio = retavg / retdev
-                    if not math.isfinite(ratio):
-                        ratio = None
-                except (ValueError, TypeError, ZeroDivisionError):
+                if not _is_finite_real(retavg) or not _is_finite_real(retdev):
                     ratio = None
+                else:
+                    try:
+                        ratio = retavg / retdev
+                        if not _is_finite_real(ratio):
+                            ratio = None
+                    except (ValueError, TypeError, ZeroDivisionError):
+                        ratio = None
         # If not calculating returns and Sharpe ratio in annual units
         else:
             # Get the returns from the subanalyzer
@@ -202,7 +213,7 @@ class SharpeRatio(Analyzer):
             if factor is not None:
                 # A factor was found
                 try:
-                    if not math.isfinite(factor) or factor <= 0 or not math.isfinite(rate):
+                    if not _is_finite_real(factor) or factor <= 0 or not _is_finite_real(rate):
                         raise ValueError()
                     if self.p.convertrate:
                         # Standard: downgrade annual returns to a timeframe factor
@@ -220,6 +231,10 @@ class SharpeRatio(Analyzer):
                     conversion_failed = True
                     ratio = None
             if not conversion_failed:
+                if not _is_finite_real(rate) or any(not _is_finite_real(ret) for ret in returns):
+                    ratio = None
+                    conversion_failed = True
+            if not conversion_failed:
                 # Number of trading days
                 lrets = len(returns) - self.p.stddev_sample
                 # Check if the ratio can be calculated
@@ -234,7 +249,7 @@ class SharpeRatio(Analyzer):
                     # ret_avg = average(returns)
                     # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
 
-                    if not math.isfinite(ret_free_avg) or not math.isfinite(retdev):
+                    if not _is_finite_real(ret_free_avg) or not _is_finite_real(retdev):
                         ratio = None
                     else:
                         try:
@@ -244,7 +259,7 @@ class SharpeRatio(Analyzer):
                             if factor is not None and self.p.convertrate and self.p.annualize:
                                 # Convert Sharpe ratio from daily to annual
                                 ratio = math.sqrt(factor) * ratio
-                            if not math.isfinite(ratio):
+                            if not _is_finite_real(ratio):
                                 ratio = None
                         except (ValueError, TypeError, ZeroDivisionError):
                             ratio = None
