@@ -125,6 +125,14 @@ def test_estimated_sharpe_ratio_requires_returns():
         estimated_sharpe_ratio(None)
 
 
+@pytest.mark.parametrize("returns", [pd.Series(dtype=float), pd.Series([0.01])])
+def test_estimated_sharpe_ratio_requires_at_least_two_samples(returns):
+    from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires at least 2 return samples"):
+        estimated_sharpe_ratio(returns)
+
+
 def test_ann_estimated_sharpe_ratio_requires_returns_or_sr():
     from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
 
@@ -146,6 +154,14 @@ def test_ann_estimated_sharpe_ratio_requires_integer_periods(periods):
 
     with pytest.raises(ValueError, match="requires integer periods"):
         ann_estimated_sharpe_ratio(sr=1.0, periods=periods)
+
+
+@pytest.mark.parametrize("returns", [pd.Series(dtype=float), pd.Series([0.01])])
+def test_ann_estimated_sharpe_ratio_requires_at_least_two_samples_without_explicit_sr(returns):
+    from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires at least 2 return samples when sr is None"):
+        ann_estimated_sharpe_ratio(returns=returns)
 
 
 def test_estimated_sharpe_ratio_stdev_accepts_explicit_params_without_returns():

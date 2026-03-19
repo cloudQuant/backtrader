@@ -56,6 +56,8 @@ def estimated_sharpe_ratio(returns):
     """
     if returns is None:
         raise ValueError("estimated_sharpe_ratio requires returns")
+    if len(returns) <= 1:
+        raise ValueError("estimated_sharpe_ratio requires at least 2 return samples")
 
     return returns.mean() / returns.std(ddof=1)
 
@@ -88,6 +90,8 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
         raise ValueError("ann_estimated_sharpe_ratio requires periods > 0")
 
     if sr is None:
+        if len(returns) <= 1:
+            raise ValueError("ann_estimated_sharpe_ratio requires at least 2 return samples when sr is None")
         sr = estimated_sharpe_ratio(returns)
     sr = sr * np.sqrt(periods)
     return sr
