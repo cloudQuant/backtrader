@@ -15,10 +15,19 @@ Example:
     >>> print(results[0].analyzers.dd.get_analysis())
 """
 
+import math
+
 from ..analyzer import Analyzer, TimeFrameAnalyzerBase
 from ..utils import AutoOrderedDict
 
 __all__ = ["DrawDown", "TimeDrawDown"]
+
+
+def _is_finite_real(value):
+    try:
+        return not isinstance(value, complex) and math.isfinite(value)
+    except TypeError:
+        return False
 
 
 # Analyze drawdown situation
@@ -106,12 +115,15 @@ class DrawDown(Analyzer):
             fundvalue: Current fund value.
             shares: Number of fund shares.
         """
-        if not self._fundmode:
-            self._value = value  # record current value
-            self._maxvalue = max(self._maxvalue, value)  # update peak value
-        else:
-            self._value = fundvalue  # record current value
-            self._maxvalue = max(self._maxvalue, fundvalue)  # update peak
+        current_value = value if not self._fundmode else fundvalue
+        self._value = current_value
+        if _is_finite_real(current_value):
+            if not _is_finite_real(self._maxvalue):
+                self._maxvalue = current_value
+            else:
+                self._maxvalue = max(self._maxvalue, current_value)
+        elif not _is_finite_real(self._maxvalue):
+            self._maxvalue = 0.0
 
     def next(self):
         """Calculate drawdown for the current period.
@@ -126,8 +138,16 @@ class DrawDown(Analyzer):
         r_max = r.max
 
         # calculate current drawdown values
-        moneydown = maxvalue - value
-        drawdown = 100.0 * moneydown / maxvalue if maxvalue else 0.0
+        if not (_is_finite_real(maxvalue) and _is_finite_real(value)):
+            moneydown = 0.0
+            drawdown = 0.0
+        else:
+            moneydown = maxvalue - value
+            drawdown = 100.0 * moneydown / maxvalue if maxvalue else 0.0
+            if isinstance(moneydown, complex) or not math.isfinite(moneydown):
+                moneydown = 0.0
+            if isinstance(drawdown, complex) or not math.isfinite(drawdown):
+                drawdown = 0.0
 
         r.moneydown = moneydown
         r.drawdown = drawdown
@@ -238,21 +258,29 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
             value = self.strategy.broker.getvalue()
         else:
             value = self.strategy.broker.fundvalue
+        value_valid = _is_finite_real(value)
+        if not _is_finite_real(self.peak):
+            self.peak = 0.0
 
         # update the maximum seen peak
-        if value > self.peak:
+        if value_valid and value > self.peak:
             self.peak = value
             self.ddlen = 0  # start of streak
 
         # calculate the current drawdown
-        if self.peak:
-            self.dd = dd = 100.0 * (self.peak - value) / self.peak
-        else:
+        try:
+            if value_valid and self.peak:
+                self.dd = dd = 100.0 * (self.peak - value) / self.peak
+                if isinstance(dd, complex) or not math.isfinite(dd):
+                    self.dd = dd = 0.0
+            else:
+                self.dd = dd = 0.0
+        except (TypeError, ValueError, ZeroDivisionError):
             self.dd = dd = 0.0
         self.ddlen += bool(dd)  # if peak == value -> dd = 0
 
         # update the maxdrawdown if needed
-        self.maxdd = max(self.maxdd, dd)
+        self.maxdd = max(self.maxdd if _is_finite_real(self.maxdd) else 0.0, dd)
         self.maxddlen = max(self.maxddlen, self.ddlen)
 
     # When stopping, add max drawdown and max drawdown length to dictionary

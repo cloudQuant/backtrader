@@ -60,6 +60,35 @@ class TestDrawdownZeroPeak:
         analyzer.on_dt_over()
         assert analyzer.dd == pytest.approx(0.0)
 
+    @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0), float("nan")])
+    def test_invalid_value_degrades_to_zero(self, value):
+        analyzer = self._make_analyzer()
+        analyzer.peak = 100.0
+        analyzer.strategy.broker.getvalue.return_value = value
+        analyzer.on_dt_over()
+        assert analyzer.dd == 0.0
+        assert analyzer.maxdd == 0.0
+
+
+class TestDrawDownInvalidValue:
+    def _make_analyzer(self):
+        from backtrader.analyzers.drawdown import DrawDown
+
+        analyzer = DrawDown.__new__(DrawDown)
+        analyzer.create_analysis()
+        analyzer._fundmode = False
+        return analyzer
+
+    @pytest.mark.parametrize("value", ["bad", complex(1.0, 1.0), float("nan")])
+    def test_invalid_notify_value_degrades_to_zero(self, value):
+        analyzer = self._make_analyzer()
+        analyzer.notify_fund(cash=0.0, value=value, fundvalue=0.0, shares=0.0)
+        analyzer.next()
+        assert analyzer.rets.moneydown == 0.0
+        assert analyzer.rets.drawdown == 0.0
+        assert analyzer.rets.max.moneydown == 0.0
+        assert analyzer.rets.max.drawdown == 0.0
+
 
 class TestTimeReturnZeroStart:
     """Test TimeReturn analyzer with zero start value."""
