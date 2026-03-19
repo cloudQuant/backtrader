@@ -332,6 +332,8 @@ def expected_maximum_sr(
 
     if independent_trials < 1:
         raise ValueError("expected_maximum_sr requires independent_trials >= 1")
+    if trials_returns is not None and independent_trials > trials_returns.shape[1]:
+        raise ValueError("expected_maximum_sr requires independent_trials <= number of trial return columns")
 
     if independent_trials <= 1:
         return expected_mean_sr

@@ -190,6 +190,15 @@ def test_expected_maximum_sr_requires_at_least_one_trial(independent_trials):
         expected_maximum_sr(independent_trials=independent_trials, expected_mean_sr=0.25, trials_sr_std=1.0)
 
 
+def test_expected_maximum_sr_rejects_trials_above_column_count():
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    trials_returns = pd.DataFrame({"a": [0.01, 0.02], "b": [0.02, 0.01]})
+
+    with pytest.raises(ValueError, match="requires independent_trials <= number of trial return columns"):
+        expected_maximum_sr(trials_returns=trials_returns, independent_trials=3)
+
+
 def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
