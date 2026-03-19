@@ -287,5 +287,19 @@ def test_deflated_sharpe_ratio_caps_default_independent_trials_to_available_colu
     assert math.isfinite(result)
 
 
+def test_deflated_sharpe_ratio_requires_returns_selected():
+    from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires returns_selected"):
+        deflated_sharpe_ratio(expected_max_sr=0.5)
+
+
+def test_deflated_sharpe_ratio_requires_trials_returns_when_expected_max_sr_missing():
+    from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires trials_returns when expected_max_sr is None"):
+        deflated_sharpe_ratio(returns_selected=pd.Series([0.01, 0.02, 0.03]))
+
+
 if __name__ == "__main__":
     test_run(main=True)

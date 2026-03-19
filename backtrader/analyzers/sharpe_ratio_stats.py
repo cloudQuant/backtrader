@@ -391,6 +391,11 @@ def deflated_sharpe_ratio(
 
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551
     """
+    if returns_selected is None:
+        raise ValueError("deflated_sharpe_ratio requires returns_selected")
+    if expected_max_sr is None and trials_returns is None:
+        raise ValueError("deflated_sharpe_ratio requires trials_returns when expected_max_sr is None")
+
     if expected_max_sr is None:
         effective_independent_trials = independent_trials
         if trials_returns is not None:
