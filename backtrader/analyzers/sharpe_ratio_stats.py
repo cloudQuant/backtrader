@@ -330,6 +330,9 @@ def expected_maximum_sr(
     if independent_trials is None:
         independent_trials = num_independent_trials(trials_returns)
 
+    if independent_trials < 1:
+        raise ValueError("expected_maximum_sr requires independent_trials >= 1")
+
     if independent_trials <= 1:
         return expected_mean_sr
 

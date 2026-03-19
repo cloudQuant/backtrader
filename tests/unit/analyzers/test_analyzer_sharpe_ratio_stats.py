@@ -182,6 +182,14 @@ def test_expected_maximum_sr_single_trial_returns_expected_mean():
     assert result == 0.25
 
 
+@pytest.mark.parametrize("independent_trials", [0, -1])
+def test_expected_maximum_sr_requires_at_least_one_trial(independent_trials):
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    with pytest.raises(ValueError, match="requires independent_trials >= 1"):
+        expected_maximum_sr(independent_trials=independent_trials, expected_mean_sr=0.25, trials_sr_std=1.0)
+
+
 def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
