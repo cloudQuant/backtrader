@@ -39,6 +39,7 @@ Example:
 """
 
 import time
+import pytest
 
 try:
     time_clock = time.process_time
@@ -300,6 +301,19 @@ def test_sqn_nan_pnl_returns_none():
     analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
     analyzer.count = 2
     analyzer.pnl = [float("nan"), 1.0]
+    analyzer.rets = SimpleNamespace()
+
+    analyzer.stop()
+
+    assert analyzer.rets.sqn is None
+    assert analyzer.rets.trades == 2
+
+
+@pytest.mark.parametrize("pnl", [[complex(1.0, 1.0), 1.0], ["bad", 1.0]])
+def test_sqn_invalid_pnl_values_return_none(pnl):
+    analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
+    analyzer.count = 2
+    analyzer.pnl = pnl
     analyzer.rets = SimpleNamespace()
 
     analyzer.stop()
