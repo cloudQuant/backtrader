@@ -51,8 +51,7 @@ class ModuleImportError(BacktraderError):
             message: Error message.
             *args: Additional arguments.
         """
-        super().__init__(message)
-        self.args = args
+        super().__init__(message, *args)
 
 
 # FromModuleImportError class

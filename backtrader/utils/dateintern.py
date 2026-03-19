@@ -66,11 +66,11 @@ def get_last_timeframe_timestamp(timestamp, time_diff):
     :params timestamp int, calculate from int(time.time())
     :params time_diff int, e.g. 1m timeframe using 60
     :returns timestamp int
+    :raises ValueError: if time_diff is <= 0 (would cause infinite loop)
     """
-    while True:
-        if timestamp % time_diff == 0:
-            return timestamp
-        timestamp -= 1
+    if time_diff <= 0:
+        raise ValueError(f"time_diff must be positive, got {time_diff}")
+    return timestamp - (timestamp % time_diff)
 
 
 def get_string_tz_time(tz="Asia/Singapore", string_format="%Y-%m-%d %H:%M:%S.%f"):
@@ -184,7 +184,7 @@ def tzparse(tz):
     try:
         tz = pytz.timezone(tzs)
     except pytz.UnknownTimeZoneError:
-        return Localizer(tz)  # nothing can be done
+        return None  # unknown timezone, nothing can be done
 
     return tz
 

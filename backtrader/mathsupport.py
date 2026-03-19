@@ -18,6 +18,21 @@ Note:
 
 import math
 
+
+def is_finite_real(value):
+    """Check if a value is a finite real number (not complex, not NaN, not inf).
+
+    Args:
+        value: The value to check.
+
+    Returns:
+        bool: True if value is a finite real number, False otherwise.
+    """
+    try:
+        return not isinstance(value, complex) and math.isfinite(value)
+    except TypeError:
+        return False
+
 # These functions are mainly used for calculating indicators, not used in main code. Commented for now, will review later whether Cython optimization is needed, no immediate need.
 # However, these functions could potentially be optimized using numpy, which provides specific functions for calculating mean and standard deviation
 

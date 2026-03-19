@@ -305,11 +305,16 @@ class PandasData(DataBase):
             coldtime = self._coldtime
             ts = df.index if coldtime is None else df.iloc[:, coldtime]
             try:
-                py_dts = ts.to_pydatetime()
+                import numpy as np
+                py_dts = np.array(ts.to_pydatetime())
             except Exception as e1:
                 logger.debug("ts.to_pydatetime() failed, trying .dt accessor: %s", e1)
                 try:
-                    py_dts = ts.dt.to_pydatetime()
+                    import warnings
+                    import numpy as np
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore", FutureWarning)
+                        py_dts = np.array(ts.dt.to_pydatetime())
                 except Exception as e2:
                     logger.debug("ts.dt.to_pydatetime() failed, falling back to element-wise: %s", e2)
                     py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]

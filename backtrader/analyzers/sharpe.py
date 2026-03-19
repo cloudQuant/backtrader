@@ -19,18 +19,11 @@ import math
 
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
-from ..mathsupport import average, standarddev
+from ..mathsupport import average, is_finite_real, standarddev
 from ..metabase import OwnerContext
 from ..utils.py3 import itervalues
 from .annualreturn import AnnualReturn
 from .timereturn import TimeReturn
-
-
-def _is_finite_real(value):
-    try:
-        return not isinstance(value, complex) and math.isfinite(value)
-    except TypeError:
-        return False
 
 
 class SharpeRatio(Analyzer):
@@ -178,12 +171,12 @@ class SharpeRatio(Analyzer):
             except (TypeError, ValueError, ZeroDivisionError):
                 ratio = None
             else:
-                if not _is_finite_real(retavg) or not _is_finite_real(retdev):
+                if not is_finite_real(retavg) or not is_finite_real(retdev):
                     ratio = None
                 else:
                     try:
                         ratio = retavg / retdev
-                        if not _is_finite_real(ratio):
+                        if not is_finite_real(ratio):
                             ratio = None
                     except (ValueError, TypeError, ZeroDivisionError):
                         ratio = None
@@ -213,7 +206,7 @@ class SharpeRatio(Analyzer):
             if factor is not None:
                 # A factor was found
                 try:
-                    if not _is_finite_real(factor) or factor <= 0 or not _is_finite_real(rate):
+                    if not is_finite_real(factor) or factor <= 0 or not is_finite_real(rate):
                         raise ValueError()
                     if self.p.convertrate:
                         # Standard: downgrade annual returns to a timeframe factor
@@ -231,7 +224,7 @@ class SharpeRatio(Analyzer):
                     conversion_failed = True
                     ratio = None
             if not conversion_failed:
-                if not _is_finite_real(rate) or any(not _is_finite_real(ret) for ret in returns):
+                if not is_finite_real(rate) or any(not is_finite_real(ret) for ret in returns):
                     ratio = None
                     conversion_failed = True
             if not conversion_failed:
@@ -249,7 +242,7 @@ class SharpeRatio(Analyzer):
                     # ret_avg = average(returns)
                     # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
 
-                    if not _is_finite_real(ret_free_avg) or not _is_finite_real(retdev):
+                    if not is_finite_real(ret_free_avg) or not is_finite_real(retdev):
                         ratio = None
                     else:
                         try:
@@ -259,7 +252,7 @@ class SharpeRatio(Analyzer):
                             if factor is not None and self.p.convertrate and self.p.annualize:
                                 # Convert Sharpe ratio from daily to annual
                                 ratio = math.sqrt(factor) * ratio
-                            if not _is_finite_real(ratio):
+                            if not is_finite_real(ratio):
                                 ratio = None
                         except (ValueError, TypeError, ZeroDivisionError):
                             ratio = None

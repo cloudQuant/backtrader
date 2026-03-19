@@ -65,7 +65,7 @@ class Position:
 
         self.adjbase = None
 
-        self.upopened = size
+        self.upopened = 0
         self.upclosed = 0
         self.set(size, price)
 

@@ -18,16 +18,10 @@ Example:
 import math
 
 from ..analyzer import Analyzer, TimeFrameAnalyzerBase
+from ..mathsupport import is_finite_real
 from ..utils import AutoOrderedDict
 
 __all__ = ["DrawDown", "TimeDrawDown"]
-
-
-def _is_finite_real(value):
-    try:
-        return not isinstance(value, complex) and math.isfinite(value)
-    except TypeError:
-        return False
 
 
 # Analyze drawdown situation
@@ -117,12 +111,12 @@ class DrawDown(Analyzer):
         """
         current_value = value if not self._fundmode else fundvalue
         self._value = current_value
-        if _is_finite_real(current_value):
-            if not _is_finite_real(self._maxvalue):
+        if is_finite_real(current_value):
+            if not is_finite_real(self._maxvalue):
                 self._maxvalue = current_value
             else:
                 self._maxvalue = max(self._maxvalue, current_value)
-        elif not _is_finite_real(self._maxvalue):
+        elif not is_finite_real(self._maxvalue):
             self._maxvalue = 0.0
 
     def next(self):
@@ -138,7 +132,7 @@ class DrawDown(Analyzer):
         r_max = r.max
 
         # calculate current drawdown values
-        if not (_is_finite_real(maxvalue) and _is_finite_real(value)):
+        if not (is_finite_real(maxvalue) and is_finite_real(value)):
             moneydown = 0.0
             drawdown = 0.0
         else:
@@ -258,8 +252,8 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
             value = self.strategy.broker.getvalue()
         else:
             value = self.strategy.broker.fundvalue
-        value_valid = _is_finite_real(value)
-        if not _is_finite_real(self.peak):
+        value_valid = is_finite_real(value)
+        if not is_finite_real(self.peak):
             self.peak = 0.0
 
         # update the maximum seen peak
@@ -280,7 +274,7 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
         self.ddlen += bool(dd)  # if peak == value -> dd = 0
 
         # update the maxdrawdown if needed
-        self.maxdd = max(self.maxdd if _is_finite_real(self.maxdd) else 0.0, dd)
+        self.maxdd = max(self.maxdd if is_finite_real(self.maxdd) else 0.0, dd)
         self.maxddlen = max(self.maxddlen, self.ddlen)
 
     # When stopping, add max drawdown and max drawdown length to dictionary

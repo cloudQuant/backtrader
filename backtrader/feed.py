@@ -1174,8 +1174,9 @@ class CSVDataBase(DataBase):
 
         # preloaded - no need to keep the object around - breaks multip in 3.x
         # Close data file and set to None
-        self.f.close()
-        self.f = None
+        if self.f is not None:
+            self.f.close()
+            self.f = None
 
     # Load a line of data
     def _load(self):

@@ -114,24 +114,20 @@ class AutoDict(dict):
     # __missing__ method handles case when key doesn't exist, if _closed, return KeyError, if not, create an AutoDict() instance for this key
     def __missing__(self, key):
         if self._closed:
-            raise KeyError
+            raise KeyError(key)
 
         value = self[key] = AutoDict()
         return value
 
-    # __getattr__ method is redundant, if will never be reached, can delete if statement, even this method can be deleted
     def __getattr__(self, key):
-        if False and key.startswith("_"):
+        if key.startswith("_"):
             raise AttributeError
-
         return self[key]
 
-    # __setattr__ method is also redundant, can consider deleting
     def __setattr__(self, key, value):
-        if False and key.startswith("_"):
+        if key.startswith("_"):
             self.__dict__[key] = value
             return
-
         self[key] = value
 
 
@@ -168,7 +164,7 @@ class AutoOrderedDict(OrderedDict):
 
     def __missing__(self, key):
         if self._closed:
-            raise KeyError
+            raise KeyError(key)
 
         # value = self[key] = type(self)()
         value = self[key] = AutoOrderedDict()
@@ -206,19 +202,19 @@ class AutoOrderedDict(OrderedDict):
         if not isinstance(other, type(self)):
             return type(other)() * other
 
-        return self + other
+        return self * other
 
     def __idiv__(self, other):
         if not isinstance(other, type(self)):
             return type(other)() // other
 
-        return self + other
+        return self // other
 
     def __itruediv__(self, other):
         if not isinstance(other, type(self)):
             return type(other)() / other
 
-        return self + other
+        return self / other
 
     def lvalues(self):
         """Return dictionary values as a list.

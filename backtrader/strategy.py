@@ -1370,13 +1370,17 @@ class Strategy(StrategyBase):
         if quicknotify:
             self._notify(qorders=qorders, qtrades=qtrades)
 
-    def _notify(self, qorders=[], qtrades=[]):
+    def _notify(self, qorders=None, qtrades=None):
         """Notify order and trade events to strategy and analyzers.
 
         Args:
             qorders: Quick notify orders (empty list if not in quick notify mode)
             qtrades: Quick notify trades (empty list if not in quick notify mode)
         """
+        if qorders is None:
+            qorders = []
+        if qtrades is None:
+            qtrades = []
         # If quick notify is enabled
         if self.cerebro.p.quicknotify:
             # Need to know if quicknotify is on, to not reprocess pendingorders
@@ -2561,13 +2565,17 @@ class SignalStrategy(Strategy):
         """
         self._signals[sigtype].append(signal)
 
-    def _notify(self, qorders=[], qtrades=[]):
+    def _notify(self, qorders=None, qtrades=None):
         """Process notifications and reset sentinel when order completes.
 
         Args:
             qorders: Quick notify orders
             qtrades: Quick notify trades
         """
+        if qorders is None:
+            qorders = []
+        if qtrades is None:
+            qtrades = []
         # Nullify the sentinel if done
         procorders = qorders or self._orderspending
         if self._sentinel is not None:
