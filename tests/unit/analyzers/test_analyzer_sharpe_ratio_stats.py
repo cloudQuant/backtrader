@@ -251,6 +251,22 @@ def test_num_independent_trials_handles_nonfinite_explicit_p():
     assert result > 0
 
 
+@pytest.mark.parametrize("p", [[0.1], pd.Series([0.1]), True])
+def test_num_independent_trials_requires_scalar_explicit_p(p):
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    with pytest.raises(ValueError, match="requires scalar p"):
+        num_independent_trials(trials_returns=None, m=5, p=p)
+
+
+@pytest.mark.parametrize("p", [-1.5, 1.5])
+def test_num_independent_trials_requires_correlation_domain_for_explicit_p(p):
+    from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
+
+    with pytest.raises(ValueError, match="requires -1 <= p <= 1"):
+        num_independent_trials(trials_returns=None, m=5, p=p)
+
+
 def test_num_independent_trials_accepts_explicit_m_and_p_without_trials_returns():
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 

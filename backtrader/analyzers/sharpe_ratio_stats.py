@@ -354,8 +354,17 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
 
     if p is None:
         p = _average_upper_triangle_correlation(trials_returns)
-    elif not np.isfinite(p):
-        p = 0.0
+    else:
+        if isinstance(p, (bool, np.bool_)) or not np.isscalar(p):
+            raise ValueError("num_independent_trials requires scalar p")
+        try:
+            p = float(p)
+        except (TypeError, ValueError):
+            raise ValueError("num_independent_trials requires scalar p")
+        if not np.isfinite(p):
+            p = 0.0
+        elif not -1 <= p <= 1:
+            raise ValueError("num_independent_trials requires -1 <= p <= 1")
 
     n = p + (1 - p) * m
 
