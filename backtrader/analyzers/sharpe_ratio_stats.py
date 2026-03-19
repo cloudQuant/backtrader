@@ -25,6 +25,13 @@ def _is_integer_like(value):
         return False
 
 
+def _is_finite_value(value):
+    try:
+        return bool(np.all(np.isfinite(np.asarray(value))))
+    except (TypeError, ValueError):
+        return False
+
+
 def _average_upper_triangle_correlation(trials_returns):
     """Compute the mean pairwise correlation across trial return columns."""
     corr_matrix = trials_returns.corr()
@@ -88,6 +95,8 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
     periods = int(periods)
     if periods <= 0:
         raise ValueError("ann_estimated_sharpe_ratio requires periods > 0")
+    if sr is not None and not _is_finite_value(sr):
+        raise ValueError("ann_estimated_sharpe_ratio requires finite sr")
 
     if sr is None:
         if len(returns) <= 1:
@@ -150,6 +159,12 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     n = int(n)
     if n <= 1:
         raise ValueError("estimated_sharpe_ratio_stdev requires n > 1")
+    if skew is not None and not _is_finite_value(skew):
+        raise ValueError("estimated_sharpe_ratio_stdev requires finite skew")
+    if kurtosis is not None and not _is_finite_value(kurtosis):
+        raise ValueError("estimated_sharpe_ratio_stdev requires finite kurtosis")
+    if sr is not None and not _is_finite_value(sr):
+        raise ValueError("estimated_sharpe_ratio_stdev requires finite sr")
     if _returns is not None and skew is None:
         skew_values = scipy_stats.skew(_returns)
         if isinstance(_returns, pd.DataFrame):
@@ -209,6 +224,8 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
     """
     if returns is None and any(param is None for param in (sr, sr_std)):
         raise ValueError("probabilistic_sharpe_ratio requires sr and sr_std when returns is None")
+    if sr is not None and not _is_finite_value(sr):
+        raise ValueError("probabilistic_sharpe_ratio requires finite sr")
 
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
@@ -281,6 +298,8 @@ def min_track_record_length(
     n = int(n)
     if n <= 1:
         raise ValueError("min_track_record_length requires n > 1")
+    if sr is not None and not _is_finite_value(sr):
+        raise ValueError("min_track_record_length requires finite sr")
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
     if sr_std is None:
@@ -368,6 +387,8 @@ def expected_maximum_sr(
     float
     """
     emc = 0.5772156649  # Euler-Mascheroni constant
+    if not _is_finite_value(expected_mean_sr):
+        raise ValueError("expected_maximum_sr requires finite expected_mean_sr")
 
     if independent_trials is None:
         if trials_returns is None:
