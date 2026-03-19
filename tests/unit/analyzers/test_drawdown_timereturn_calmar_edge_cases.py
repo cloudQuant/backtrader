@@ -227,12 +227,12 @@ class TestCalmarZeroValue:
 class TestReturnsNonFiniteRatio:
     """Test Returns analyzer handling of zero/non-finite compound ratios."""
 
-    def _make_analyzer(self, end_value):
+    def _make_analyzer(self, end_value, start_value=100.0):
         from backtrader.analyzers.returns import Returns
 
         analyzer = Returns.__new__(Returns)
         analyzer._fundmode = False
-        analyzer._value_start = 100.0
+        analyzer._value_start = start_value
         analyzer._value_end = None
         analyzer._tcount = 1
         analyzer.rets = {}
@@ -253,6 +253,25 @@ class TestReturnsNonFiniteRatio:
 
     def test_nan_end_value_produces_negative_infinity(self):
         analyzer = self._make_analyzer(float("nan"))
+
+        with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+            analyzer.stop()
+
+        assert analyzer.rets["rtot"] == float("-inf")
+        assert analyzer.rets["ravg"] == float("-inf")
+        assert analyzer.rets["rnorm"] == float("-inf")
+
+    @pytest.mark.parametrize(
+        "start_value,end_value",
+        [
+            (100.0, "bad"),
+            (100.0, complex(1.0, 1.0)),
+            ("bad", 110.0),
+            (complex(1.0, 1.0), 110.0),
+        ],
+    )
+    def test_invalid_account_values_produce_negative_infinity(self, start_value, end_value):
+        analyzer = self._make_analyzer(end_value=end_value, start_value=start_value)
 
         with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
             analyzer.stop()

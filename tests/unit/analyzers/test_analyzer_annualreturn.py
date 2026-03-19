@@ -128,6 +128,56 @@ def test_myannualreturn_first_year_nan_pre_value_degrades_to_zero():
     assert analyzer.ret[2020] == 0.0
 
 
+def test_myannualreturn_invalid_year_value_degrades_to_zero():
+    class DataStub:
+        def __len__(self):
+            return 2
+
+    analyzer = bt.analyzers.MyAnnualReturn.__new__(bt.analyzers.MyAnnualReturn)
+    analyzer.data = DataStub()
+    analyzer.data.datetime = SimpleNamespace(get=lambda *args, **kwargs: [1.0, 2.0])
+    analyzer.strategy = SimpleNamespace(
+        stats=SimpleNamespace(
+            broker=SimpleNamespace(value=SimpleNamespace(get=lambda *args, **kwargs: [100.0, "bad"]))
+        )
+    )
+    analyzer.ret = {}
+
+    with patch(
+        "backtrader.analyzers.annualreturn.num2date",
+        side_effect=[datetime(2020, 12, 31), datetime(2021, 12, 31)],
+    ):
+        analyzer.stop()
+
+    assert analyzer.ret[2021] == 0.0
+
+
+def test_myannualreturn_complex_year_value_degrades_to_zero():
+    class DataStub:
+        def __len__(self):
+            return 2
+
+    analyzer = bt.analyzers.MyAnnualReturn.__new__(bt.analyzers.MyAnnualReturn)
+    analyzer.data = DataStub()
+    analyzer.data.datetime = SimpleNamespace(get=lambda *args, **kwargs: [1.0, 2.0])
+    analyzer.strategy = SimpleNamespace(
+        stats=SimpleNamespace(
+            broker=SimpleNamespace(
+                value=SimpleNamespace(get=lambda *args, **kwargs: [100.0, complex(1.0, 1.0)])
+            )
+        )
+    )
+    analyzer.ret = {}
+
+    with patch(
+        "backtrader.analyzers.annualreturn.num2date",
+        side_effect=[datetime(2020, 12, 31), datetime(2021, 12, 31)],
+    ):
+        analyzer.stop()
+
+    assert analyzer.ret[2021] == 0.0
+
+
 def test_annualreturn_nonfinite_year_value_degrades_to_zero():
     analyzer = bt.analyzers.AnnualReturn.__new__(bt.analyzers.AnnualReturn)
     analyzer._dt_cache = [1.0, 2.0]

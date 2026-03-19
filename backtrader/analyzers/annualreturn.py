@@ -212,7 +212,12 @@ class MyAnnualReturn(Analyzer):
             if not valid_values or begin_value == 0:
                 annual_return = 0.0
             else:
-                annual_return = (end_value / begin_value) - 1
+                try:
+                    annual_return = (end_value / begin_value) - 1
+                    if isinstance(annual_return, complex) or not math.isfinite(annual_return):
+                        annual_return = 0.0
+                except (ZeroDivisionError, TypeError, ValueError):
+                    annual_return = 0.0
             self.ret[year] = annual_return
 
     def get_analysis(self):
