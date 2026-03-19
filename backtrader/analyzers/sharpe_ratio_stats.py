@@ -70,6 +70,9 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
     -------
     float, pd.Series
     """
+    if returns is None and sr is None:
+        raise ValueError("ann_estimated_sharpe_ratio requires returns or sr")
+
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
     sr = sr * np.sqrt(periods)

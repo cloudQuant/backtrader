@@ -118,6 +118,13 @@ def test_estimated_sharpe_ratio_stdev_accepts_series_input():
     assert math.isfinite(result)
 
 
+def test_ann_estimated_sharpe_ratio_requires_returns_or_sr():
+    from backtrader.analyzers.sharpe_ratio_stats import ann_estimated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires returns or sr"):
+        ann_estimated_sharpe_ratio()
+
+
 def test_estimated_sharpe_ratio_stdev_accepts_explicit_params_without_returns():
     from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
 
