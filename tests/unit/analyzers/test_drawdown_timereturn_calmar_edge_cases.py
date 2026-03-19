@@ -200,6 +200,22 @@ class TestCalmarZeroValue:
         analyzer.on_dt_over()
         assert analyzer.calmar == 0.0
 
+    @pytest.mark.parametrize(
+        "start_value,end_value",
+        [
+            ("bad", 110.0),
+            (complex(1.0, 1.0), 110.0),
+            (100.0, "bad"),
+            (100.0, complex(1.0, 1.0)),
+        ],
+    )
+    def test_invalid_ratio_inputs_degrade_to_zero(self, start_value, end_value):
+        analyzer = self._make_analyzer()
+        analyzer._values.append(start_value)
+        analyzer.strategy.broker.getvalue.return_value = end_value
+        analyzer.on_dt_over()
+        assert analyzer.calmar == 0.0
+
     def test_nonfinite_drawdown_degrades_to_zero(self):
         """Non-finite max drawdown should degrade calmar to 0.0."""
         analyzer = self._make_analyzer()
@@ -290,6 +306,31 @@ class TestVwrNonFiniteInputs:
         analyzer = VWR.__new__(VWR)
         analyzer._pis = [100.0]
         analyzer._pns = [float("nan")]
+        analyzer._returns = MagicMock()
+        analyzer._returns.get_analysis.return_value = {"ravg": 0.1, "rnorm100": 5.0}
+        analyzer.p = MagicMock(sdev_max=2.0, tau=0.2)
+        analyzer.rets = {}
+
+        with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+            analyzer.stop()
+
+        assert analyzer.rets["vwr"] == 0.0
+
+    @pytest.mark.parametrize(
+        "start_value,end_value",
+        [
+            (100.0, "bad"),
+            (100.0, complex(1.0, 1.0)),
+            ("bad", 110.0),
+            (complex(1.0, 1.0), 110.0),
+        ],
+    )
+    def test_invalid_period_values_degrade_to_zero(self, start_value, end_value):
+        from backtrader.analyzers.vwr import VWR
+
+        analyzer = VWR.__new__(VWR)
+        analyzer._pis = [start_value]
+        analyzer._pns = [end_value]
         analyzer._returns = MagicMock()
         analyzer._returns.get_analysis.return_value = {"ravg": 0.1, "rnorm100": 5.0}
         analyzer.p = MagicMock(sdev_max=2.0, tau=0.2)

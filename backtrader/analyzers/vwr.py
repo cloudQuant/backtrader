@@ -181,7 +181,11 @@ class VWR(TimeFrameAnalyzerBase):
             pi, pn = pipn
             try:
                 dt = pn / (pi * math.exp(ravg * n)) - 1.0
-            except (ZeroDivisionError, TypeError):
+                if isinstance(dt, complex) or not math.isfinite(dt):
+                    invalid_input = True
+                    dt = 0.0
+            except (ZeroDivisionError, TypeError, ValueError, OverflowError):
+                invalid_input = True
                 dt = 0.0
             if not math.isfinite(dt):
                 invalid_input = True
@@ -190,10 +194,25 @@ class VWR(TimeFrameAnalyzerBase):
         # Calculate standard deviation of annual returns
         sdev_p = standarddev(dts, bessel=True)
         # Calculate VWR value
-        if invalid_input or not math.isfinite(sdev_p) or not math.isfinite(rnorm100):
+        try:
+            invalid_output = (
+                invalid_input
+                or isinstance(sdev_p, complex)
+                or not math.isfinite(sdev_p)
+                or isinstance(rnorm100, complex)
+                or not math.isfinite(rnorm100)
+            )
+        except TypeError:
+            invalid_output = True
+        if invalid_output:
             vwr = 0.0
         elif self.p.sdev_max:
-            vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
+            try:
+                vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
+                if isinstance(vwr, complex) or not math.isfinite(vwr):
+                    vwr = 0.0
+            except (ZeroDivisionError, TypeError, ValueError, OverflowError):
+                vwr = 0.0
         else:
             vwr = 0.0
         self.rets["vwr"] = vwr
