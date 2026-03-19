@@ -337,6 +337,14 @@ class TestAutoDictRobustness:
         nested = ad["newkey"]
         assert isinstance(nested, AutoDict)
 
+    def test_autodict_open_reopens_nested_children(self):
+        ad = AutoDict()
+        ad["parent"]["child"] = 1
+        ad._close()
+        ad._open()
+        ad["parent"]["newchild"] = 2
+        assert ad["parent"]["newchild"] == 2
+
     def test_autoordered_close_prevents_auto_creation(self):
         """Closing an AutoOrderedDict should prevent auto-creation."""
         aod = AutoOrderedDict()
@@ -352,6 +360,14 @@ class TestAutoDictRobustness:
         aod._open()
         nested = aod["newkey"]
         assert isinstance(nested, AutoOrderedDict)
+
+    def test_autoordered_open_reopens_nested_children(self):
+        aod = AutoOrderedDict()
+        aod["parent"]["child"] = 1
+        aod._close()
+        aod._open()
+        aod["parent"]["newchild"] = 2
+        assert aod["parent"]["newchild"] == 2
 
     def test_autodict_nested_creation(self):
         """AutoDict should support multi-level nested auto-creation."""

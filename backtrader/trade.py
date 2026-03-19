@@ -94,7 +94,7 @@ class TradeHistory(AutoOrderedDict):
                 self.status.pnl,
                 self.status.pnlcomm,
                 self.status.tz,
-                self.event,
+                self.get("event", None),
             ),
         )
 

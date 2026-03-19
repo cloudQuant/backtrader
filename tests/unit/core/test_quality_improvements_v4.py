@@ -8,6 +8,7 @@ Covers:
 - CommInfo subclasses: get_margin guards against None margin
 """
 
+import pickle
 import math
 import os
 import sys
@@ -24,7 +25,7 @@ from backtrader.comminfo import (
 )
 from backtrader.mathsupport import average, standarddev, variance
 from backtrader.position import Position
-from backtrader.trade import Trade
+from backtrader.trade import Trade, TradeHistory
 from backtrader.utils.autodict import AutoDict, AutoOrderedDict
 
 
@@ -179,6 +180,26 @@ class TestTradeRepr:
         t.status = None
         result = repr(t)
         assert "Unknown(None)" in result
+
+
+# ===========================================================================
+# TradeHistory pickling
+# ===========================================================================
+
+
+class TestTradeHistoryReduce:
+    def test_reduce_without_event(self):
+        history = TradeHistory(1, 2.0, 3, 4, 5.0, 6.0, 7.0, 8.0, None)
+        restored = pickle.loads(pickle.dumps(history))
+        assert restored.status.status == 1
+        assert restored.status.dt == 2.0
+        assert "event" not in restored
+
+    def test_reduce_with_event(self):
+        event = {"size": 10, "price": 11.0}
+        history = TradeHistory(1, 2.0, 3, 4, 5.0, 6.0, 7.0, 8.0, None, event=event)
+        restored = pickle.loads(pickle.dumps(history))
+        assert restored.event == event
 
 
 # ===========================================================================

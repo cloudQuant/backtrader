@@ -111,6 +111,9 @@ class AutoDict(dict):
     # _open method, set _closed attribute to False
     def _open(self):
         self._closed = False
+        for key, val in self.items():
+            if isinstance(val, (AutoDict, AutoOrderedDict)):
+                val._open()
 
     # __missing__ method handles case when key doesn't exist, if _closed, return KeyError, if not, create an AutoDict() instance for this key
     def __missing__(self, key):
@@ -165,6 +168,9 @@ class AutoOrderedDict(OrderedDict):
 
     def _open(self):
         self._closed = False
+        for key, val in self.items():
+            if isinstance(val, (AutoDict, AutoOrderedDict)):
+                val._open()
 
     def __missing__(self, key):
         if self._closed:
