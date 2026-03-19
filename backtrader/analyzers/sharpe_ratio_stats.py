@@ -392,10 +392,14 @@ def deflated_sharpe_ratio(
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551
     """
     if expected_max_sr is None:
+        effective_independent_trials = independent_trials
+        if trials_returns is not None:
+            effective_independent_trials = min(effective_independent_trials, trials_returns.shape[1])
+
         expected_max_sr = expected_maximum_sr(
             trials_returns=trials_returns,
             expected_mean_sr=expected_mean_sr,
-            independent_trials=independent_trials,
+            independent_trials=effective_independent_trials,
         )
 
     dsr = probabilistic_sharpe_ratio(returns=returns_selected, sr_benchmark=expected_max_sr)

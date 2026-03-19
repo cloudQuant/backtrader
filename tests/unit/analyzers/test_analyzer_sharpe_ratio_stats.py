@@ -271,5 +271,21 @@ def test_min_track_record_length_requires_probability_between_zero_and_one(prob)
         min_track_record_length(returns=None, n=10, sr=1.5, sr_std=0.5, prob=prob)
 
 
+def test_deflated_sharpe_ratio_caps_default_independent_trials_to_available_columns():
+    from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
+
+    trials_returns = pd.DataFrame(
+        {
+            "a": [0.01, 0.02, 0.015, 0.018],
+            "b": [0.02, 0.01, 0.012, 0.011],
+        }
+    )
+
+    result = deflated_sharpe_ratio(trials_returns=trials_returns, returns_selected=trials_returns["a"])
+
+    assert isinstance(result, (float, int, np.floating))
+    assert math.isfinite(result)
+
+
 if __name__ == "__main__":
     test_run(main=True)
