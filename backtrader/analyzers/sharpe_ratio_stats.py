@@ -226,6 +226,8 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
         raise ValueError("probabilistic_sharpe_ratio requires sr and sr_std when returns is None")
     if sr is not None and not _is_finite_value(sr):
         raise ValueError("probabilistic_sharpe_ratio requires finite sr")
+    if not _is_finite_value(sr_benchmark):
+        raise ValueError("probabilistic_sharpe_ratio requires finite sr_benchmark")
 
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
@@ -290,6 +292,8 @@ def min_track_record_length(
         raise ValueError("min_track_record_length requires n, sr, and sr_std when returns is None")
     if not 0 < prob < 1:
         raise ValueError("min_track_record_length requires 0 < prob < 1")
+    if not _is_finite_value(sr_benchmark):
+        raise ValueError("min_track_record_length requires finite sr_benchmark")
 
     if n is None:
         n = len(returns)
@@ -467,6 +471,8 @@ def deflated_sharpe_ratio(
         raise ValueError("deflated_sharpe_ratio requires returns_selected")
     if expected_max_sr is None and trials_returns is None:
         raise ValueError("deflated_sharpe_ratio requires trials_returns when expected_max_sr is None")
+    if expected_max_sr is not None and not _is_finite_value(expected_max_sr):
+        raise ValueError("deflated_sharpe_ratio requires finite expected_max_sr")
 
     if expected_max_sr is None:
         effective_independent_trials = independent_trials

@@ -404,6 +404,14 @@ def test_probabilistic_sharpe_ratio_requires_finite_explicit_sr(sr):
         probabilistic_sharpe_ratio(returns=None, sr=sr, sr_std=0.5)
 
 
+@pytest.mark.parametrize("sr_benchmark", [float("nan"), float("inf")])
+def test_probabilistic_sharpe_ratio_requires_finite_benchmark(sr_benchmark):
+    from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires finite sr_benchmark"):
+        probabilistic_sharpe_ratio(returns=None, sr=1.5, sr_std=0.5, sr_benchmark=sr_benchmark)
+
+
 def test_min_track_record_length_single_value_series_uses_position_not_label():
     from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
 
@@ -473,6 +481,14 @@ def test_min_track_record_length_requires_finite_explicit_sr(sr):
         min_track_record_length(returns=None, n=10, sr=sr, sr_std=0.5)
 
 
+@pytest.mark.parametrize("sr_benchmark", [float("nan"), float("inf")])
+def test_min_track_record_length_requires_finite_benchmark(sr_benchmark):
+    from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
+
+    with pytest.raises(ValueError, match="requires finite sr_benchmark"):
+        min_track_record_length(returns=None, n=10, sr=1.5, sr_std=0.5, sr_benchmark=sr_benchmark)
+
+
 def test_deflated_sharpe_ratio_caps_default_independent_trials_to_available_columns():
     from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
 
@@ -501,6 +517,14 @@ def test_deflated_sharpe_ratio_requires_trials_returns_when_expected_max_sr_miss
 
     with pytest.raises(ValueError, match="requires trials_returns when expected_max_sr is None"):
         deflated_sharpe_ratio(returns_selected=pd.Series([0.01, 0.02, 0.03]))
+
+
+@pytest.mark.parametrize("expected_max_sr", [float("nan"), float("inf")])
+def test_deflated_sharpe_ratio_requires_finite_expected_max_sr(expected_max_sr):
+    from backtrader.analyzers.sharpe_ratio_stats import deflated_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires finite expected_max_sr"):
+        deflated_sharpe_ratio(returns_selected=pd.Series([0.01, 0.02, 0.03]), expected_max_sr=expected_max_sr)
 
 
 if __name__ == "__main__":
