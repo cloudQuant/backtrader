@@ -634,6 +634,18 @@ class TestLineBufferMisc:
             lb[0] = float(i)
         assert lb.buflen() >= 5
 
+    def test_plotrange_sanitizes_non_finite_values(self):
+        """plotrange() should sanitize inf/-inf while preserving NaN."""
+        lb = linebuffer.LineBuffer()
+        lb.array.extend([1.0, float("inf"), float("-inf"), float("nan")])
+
+        values = list(lb.plotrange(0, 4))
+
+        assert values[0] == 1.0
+        assert values[1] == 0.0
+        assert values[2] == 0.0
+        assert math.isnan(values[3])
+
     def test_getitem_positive_ago(self):
         """Test __getitem__ with positive ago (historical)."""
         lb = linebuffer.LineBuffer()

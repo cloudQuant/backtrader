@@ -159,7 +159,7 @@ class _DirectionalIndicator(Indicator):
             _plus: Whether to calculate plus DI.
             _minus: Whether to calculate minus DI.
         """
-        atr = ATR(self.data, period=self.p.period, movav=self.p.movav)
+        self._di_atr = ATR(self.data, period=self.p.period, movav=self.p.movav)
 
         upmove = self.data.high - self.data.high(-1)
         downmove = self.data.low(-1) - self.data.low
@@ -167,16 +167,16 @@ class _DirectionalIndicator(Indicator):
         if _plus:
             plus = And(upmove > downmove, upmove > 0.0)
             plusDM = If(plus, upmove, 0.0)
-            plusDMav = self.p.movav(plusDM, period=self.p.period)
+            self._plusDMav = self.p.movav(plusDM, period=self.p.period)
 
-            self.DIplus = DivByZero(100.0 * plusDMav, atr, zero=0.0)
+            self.DIplus = DivByZero(100.0 * self._plusDMav, self._di_atr, zero=0.0)
 
         if _minus:
             minus = And(downmove > upmove, downmove > 0.0)
             minusDM = If(minus, downmove, 0.0)
-            minusDMav = self.p.movav(minusDM, period=self.p.period)
+            self._minusDMav = self.p.movav(minusDM, period=self.p.period)
 
-            self.DIminus = DivByZero(100.0 * minusDMav, atr, zero=0.0)
+            self.DIminus = DivByZero(100.0 * self._minusDMav, self._di_atr, zero=0.0)
 
         super().__init__()
 
@@ -220,35 +220,119 @@ class DirectionalIndicator(_DirectionalIndicator):
     def __init__(self):
         """Initialize the Directional Indicator.
 
-        Calculates both +DI and -DI.
+        Calculates both +DI and -DI from raw OHLC using Wilder smoothing.
         """
         super().__init__()
+        # State for Wilder smoothing (used by next/prenext)
+        self._sm_tr = 0.0
+        self._sm_pdm = 0.0
+        self._sm_mdm = 0.0
+        self._bar_count = 0
+
+    def prenext(self):
+        """Accumulate during warmup period."""
+        self._di_accumulate()
+
+    def nextstart(self):
+        """Transition from warmup to live calculation."""
+        self._di_accumulate()
 
     def next(self):
-        """Calculate +DI and -DI for the current bar.
+        """Calculate +DI and -DI for the current bar."""
+        self._di_accumulate()
 
-        Copies DI values from parent calculation.
-        """
-        self.lines.plusDI[0] = self.DIplus[0]
-        self.lines.minusDI[0] = self.DIminus[0]
+    def _di_accumulate(self):
+        """Accumulate TR/DM and compute DI using Wilder smoothing."""
+        period = self.p.period
+        high = self.data.high[0]
+        low = self.data.low[0]
+        try:
+            prev_high = self.data.high[-1]
+            prev_low = self.data.low[-1]
+            prev_close = self.data.close[-1]
+        except IndexError:
+            return
+
+        true_high = max(high, prev_close)
+        true_low = min(low, prev_close)
+        tr = true_high - true_low
+
+        upmove = high - prev_high
+        downmove = prev_low - low
+        pdm = upmove if (upmove > downmove and upmove > 0) else 0.0
+        mdm = downmove if (downmove > upmove and downmove > 0) else 0.0
+
+        self._bar_count += 1
+
+        if self._bar_count <= period:
+            # Accumulate sums for seeding
+            self._sm_tr += tr
+            self._sm_pdm += pdm
+            self._sm_mdm += mdm
+        else:
+            # Wilder smoothing: val = val - val/period + new
+            self._sm_tr = self._sm_tr - self._sm_tr / period + tr
+            self._sm_pdm = self._sm_pdm - self._sm_pdm / period + pdm
+            self._sm_mdm = self._sm_mdm - self._sm_mdm / period + mdm
+
+        if self._sm_tr > 0:
+            self.lines.plusDI[0] = 100.0 * self._sm_pdm / self._sm_tr
+            self.lines.minusDI[0] = 100.0 * self._sm_mdm / self._sm_tr
+        else:
+            self.lines.plusDI[0] = 0.0
+            self.lines.minusDI[0] = 0.0
 
     def once(self, start, end):
-        """Calculate DI values in runonce mode.
+        """Calculate DI values in runonce mode from raw OHLC."""
+        period = self.p.period
+        high_arr = self.data.high.array
+        low_arr = self.data.low.array
+        close_arr = self.data.close.array
+        dst_plus = self.lines.plusDI.array
+        dst_minus = self.lines.minusDI.array
 
-        Copies +DI and -DI values across all bars.
-        """
-        diplus_array = self.DIplus.lines[0].array
-        diminus_array = self.DIminus.lines[0].array
-        plusDI_array = self.lines.plusDI.array
-        minusDI_array = self.lines.minusDI.array
+        while len(dst_plus) < end:
+            dst_plus.append(float('nan'))
+        while len(dst_minus) < end:
+            dst_minus.append(float('nan'))
 
-        for arr in [plusDI_array, minusDI_array]:
-            while len(arr) < end:
-                arr.append(float("nan"))
+        sm_tr = 0.0
+        sm_pdm = 0.0
+        sm_mdm = 0.0
+        bar_count = 0
 
-        for i in range(start, min(end, len(diplus_array), len(diminus_array))):
-            plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
-            minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
+        for i in range(max(1, start), end):
+            high = high_arr[i]
+            low = low_arr[i]
+            prev_high = high_arr[i - 1]
+            prev_low = low_arr[i - 1]
+            prev_close = close_arr[i - 1]
+
+            true_high = max(high, prev_close)
+            true_low = min(low, prev_close)
+            tr = true_high - true_low
+
+            upmove = high - prev_high
+            downmove = prev_low - low
+            pdm = upmove if (upmove > downmove and upmove > 0) else 0.0
+            mdm = downmove if (downmove > upmove and downmove > 0) else 0.0
+
+            bar_count += 1
+            if bar_count <= period:
+                sm_tr += tr
+                sm_pdm += pdm
+                sm_mdm += mdm
+            else:
+                sm_tr = sm_tr - sm_tr / period + tr
+                sm_pdm = sm_pdm - sm_pdm / period + pdm
+                sm_mdm = sm_mdm - sm_mdm / period + mdm
+
+            if sm_tr > 0:
+                dst_plus[i] = 100.0 * sm_pdm / sm_tr
+                dst_minus[i] = 100.0 * sm_mdm / sm_tr
+            else:
+                dst_plus[i] = 0.0
+                dst_minus[i] = 0.0
 
 
 class PlusDirectionalIndicator(_DirectionalIndicator):
@@ -285,32 +369,68 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
     plotinfo = dict(plotname="+DirectionalIndicator")
 
     def __init__(self):
-        """Initialize the +DI indicator.
-
-        Calculates only +DI, not -DI.
-        """
+        """Initialize the +DI indicator."""
         super().__init__(_minus=False)
+        self._sm_tr = 0.0
+        self._sm_pdm = 0.0
+        self._bar_count = 0
+
+    def _pdi_accumulate(self):
+        period = self.p.period
+        high = self.data.high[0]
+        low = self.data.low[0]
+        try:
+            prev_high = self.data.high[-1]
+            prev_low = self.data.low[-1]
+            prev_close = self.data.close[-1]
+        except IndexError:
+            return
+        tr = max(high, prev_close) - min(low, prev_close)
+        upmove = high - prev_high
+        downmove = prev_low - low
+        pdm = upmove if (upmove > downmove and upmove > 0) else 0.0
+        self._bar_count += 1
+        if self._bar_count <= period:
+            self._sm_tr += tr
+            self._sm_pdm += pdm
+        else:
+            self._sm_tr = self._sm_tr - self._sm_tr / period + tr
+            self._sm_pdm = self._sm_pdm - self._sm_pdm / period + pdm
+        self.lines.plusDI[0] = (100.0 * self._sm_pdm / self._sm_tr) if self._sm_tr > 0 else 0.0
+
+    def prenext(self):
+        self._pdi_accumulate()
+
+    def nextstart(self):
+        self._pdi_accumulate()
 
     def next(self):
-        """Calculate +DI for the current bar.
-
-        Copies +DI value from parent calculation.
-        """
-        self.lines.plusDI[0] = self.DIplus[0]
+        self._pdi_accumulate()
 
     def once(self, start, end):
-        """Calculate +DI in runonce mode.
-
-        Copies +DI values across all bars.
-        """
-        diplus_array = self.DIplus.lines[0].array
-        plusDI_array = self.lines.plusDI.array
-
-        while len(plusDI_array) < end:
-            plusDI_array.append(float("nan"))
-
-        for i in range(start, min(end, len(diplus_array))):
-            plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
+        period = self.p.period
+        high_arr = self.data.high.array
+        low_arr = self.data.low.array
+        close_arr = self.data.close.array
+        dst = self.lines.plusDI.array
+        while len(dst) < end:
+            dst.append(float('nan'))
+        sm_tr = 0.0
+        sm_pdm = 0.0
+        bc = 0
+        for i in range(max(1, start), end):
+            tr = max(high_arr[i], close_arr[i-1]) - min(low_arr[i], close_arr[i-1])
+            upmove = high_arr[i] - high_arr[i-1]
+            downmove = low_arr[i-1] - low_arr[i]
+            pdm = upmove if (upmove > downmove and upmove > 0) else 0.0
+            bc += 1
+            if bc <= period:
+                sm_tr += tr
+                sm_pdm += pdm
+            else:
+                sm_tr = sm_tr - sm_tr / period + tr
+                sm_pdm = sm_pdm - sm_pdm / period + pdm
+            dst[i] = (100.0 * sm_pdm / sm_tr) if sm_tr > 0 else 0.0
 
 
 class MinusDirectionalIndicator(_DirectionalIndicator):
@@ -347,32 +467,68 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
     plotinfo = dict(plotname="-DirectionalIndicator")
 
     def __init__(self):
-        """Initialize the -DI indicator.
-
-        Calculates only -DI, not +DI.
-        """
+        """Initialize the -DI indicator."""
         super().__init__(_plus=False)
+        self._sm_tr = 0.0
+        self._sm_mdm = 0.0
+        self._bar_count = 0
+
+    def _mdi_accumulate(self):
+        period = self.p.period
+        high = self.data.high[0]
+        low = self.data.low[0]
+        try:
+            prev_high = self.data.high[-1]
+            prev_low = self.data.low[-1]
+            prev_close = self.data.close[-1]
+        except IndexError:
+            return
+        tr = max(high, prev_close) - min(low, prev_close)
+        upmove = high - prev_high
+        downmove = prev_low - low
+        mdm = downmove if (downmove > upmove and downmove > 0) else 0.0
+        self._bar_count += 1
+        if self._bar_count <= period:
+            self._sm_tr += tr
+            self._sm_mdm += mdm
+        else:
+            self._sm_tr = self._sm_tr - self._sm_tr / period + tr
+            self._sm_mdm = self._sm_mdm - self._sm_mdm / period + mdm
+        self.lines.minusDI[0] = (100.0 * self._sm_mdm / self._sm_tr) if self._sm_tr > 0 else 0.0
+
+    def prenext(self):
+        self._mdi_accumulate()
+
+    def nextstart(self):
+        self._mdi_accumulate()
 
     def next(self):
-        """Calculate -DI for the current bar.
-
-        Copies -DI value from parent calculation.
-        """
-        self.lines.minusDI[0] = self.DIminus[0]
+        self._mdi_accumulate()
 
     def once(self, start, end):
-        """Calculate -DI in runonce mode.
-
-        Copies -DI values across all bars.
-        """
-        diminus_array = self.DIminus.lines[0].array
-        minusDI_array = self.lines.minusDI.array
-
-        while len(minusDI_array) < end:
-            minusDI_array.append(float("nan"))
-
-        for i in range(start, min(end, len(diminus_array))):
-            minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
+        period = self.p.period
+        high_arr = self.data.high.array
+        low_arr = self.data.low.array
+        close_arr = self.data.close.array
+        dst = self.lines.minusDI.array
+        while len(dst) < end:
+            dst.append(float('nan'))
+        sm_tr = 0.0
+        sm_mdm = 0.0
+        bc = 0
+        for i in range(max(1, start), end):
+            tr = max(high_arr[i], close_arr[i-1]) - min(low_arr[i], close_arr[i-1])
+            upmove = high_arr[i] - high_arr[i-1]
+            downmove = low_arr[i-1] - low_arr[i]
+            mdm = downmove if (downmove > upmove and downmove > 0) else 0.0
+            bc += 1
+            if bc <= period:
+                sm_tr += tr
+                sm_mdm += mdm
+            else:
+                sm_tr = sm_tr - sm_tr / period + tr
+                sm_mdm = sm_mdm - sm_mdm / period + mdm
+            dst[i] = (100.0 * sm_mdm / sm_tr) if sm_tr > 0 else 0.0
 
 
 class AverageDirectionalMovementIndex(Indicator):
@@ -515,7 +671,14 @@ class AverageDirectionalMovementIndex(Indicator):
         self.lines.adx[0] = self._adx_val
 
     def once(self, start, end):
-        """Calculate ADX in runonce mode"""
+        """Calculate ADX in runonce mode using proper Wilder seeding.
+
+        Implements the standard Wilder ADX algorithm:
+        Phase 1: Seed smoothed DM with SMA of first N DM values (bars 1..period)
+        Phase 2: Continue SMMA for DM, accumulate DX (bars period..2*period-1)
+        Phase 3: Seed ADX with SMA of first N DX values
+        Phase 4: Continue SMMA for all components (bars 2*period..end)
+        """
         import math
 
         # Get source arrays
@@ -524,6 +687,7 @@ class AverageDirectionalMovementIndex(Indicator):
         atr_array = self.atr.lines[0].array
         adx_array = self.lines.adx.array
 
+        period = self.p.period
         alpha = self.alpha
         alpha1 = self.alpha1
 
@@ -531,41 +695,89 @@ class AverageDirectionalMovementIndex(Indicator):
         while len(adx_array) < end:
             adx_array.append(float("nan"))
 
-        # Initialize smoothed values
-        plusDMav = 0.0
-        minusDMav = 0.0
-        adx_val = 0.0
+        data_len = min(end, len(high_array), len(low_array), len(atr_array))
 
-        for i in range(start, min(end, len(high_array), len(low_array))):
-            if i < 1:
-                adx_array[i] = 0.0
-                continue
+        # Pre-fill warmup with NaN
+        for i in range(min(2 * period, data_len)):
+            adx_array[i] = float("nan")
 
-            # Get ATR
-            atr_val = atr_array[i] if i < len(atr_array) else 0.0
-            if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
-                atr_val = 0.0001
+        # Need at least 2*period + 1 bars for proper seeding
+        if data_len <= 2 * period:
+            return
 
-            # Calculate directional moves
+        # Phase 1: Calculate raw DM values for bars 1..period
+        # Seed smoothed DM with SMA (average) of first period values
+        dm_plus_sum = 0.0
+        dm_minus_sum = 0.0
+
+        for i in range(1, period + 1):
             upmove = high_array[i] - high_array[i - 1]
             downmove = low_array[i - 1] - low_array[i]
+            plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
+            minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
+            dm_plus_sum += plusDM
+            dm_minus_sum += minusDM
 
+        plusDMav = dm_plus_sum / period
+        minusDMav = dm_minus_sum / period
+
+        # Phase 2: Calculate DI and DX for bars period..2*period-1
+        # Continue SMMA for DM, accumulate DX values for ADX seeding
+        dx_list = []
+
+        # First DX at bar period (using seeded DM averages)
+        atr_val = atr_array[period]
+        if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
+            atr_val = 0.0001
+        diplus = 100.0 * plusDMav / atr_val
+        diminus = 100.0 * minusDMav / atr_val
+        disum = diplus + diminus
+        dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
+        dx_list.append(dx)
+
+        # Continue for bars period+1 to 2*period-1
+        for i in range(period + 1, 2 * period):
+            upmove = high_array[i] - high_array[i - 1]
+            downmove = low_array[i - 1] - low_array[i]
             plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
             minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
 
-            # Smooth DM values
             plusDMav = plusDMav * alpha1 + plusDM * alpha
             minusDMav = minusDMav * alpha1 + minusDM * alpha
 
-            # Calculate DI
+            atr_val = atr_array[i]
+            if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
+                atr_val = 0.0001
+
             diplus = 100.0 * plusDMav / atr_val
             diminus = 100.0 * minusDMav / atr_val
+            disum = diplus + diminus
+            dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
+            dx_list.append(dx)
 
-            # Calculate DX
+        # Phase 3: Seed ADX with SMA of first period DX values
+        adx_val = sum(dx_list[:period]) / period
+        adx_array[2 * period - 1] = adx_val
+
+        # Phase 4: Continue SMMA for everything from 2*period onwards
+        for i in range(2 * period, data_len):
+            upmove = high_array[i] - high_array[i - 1]
+            downmove = low_array[i - 1] - low_array[i]
+            plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
+            minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
+
+            plusDMav = plusDMav * alpha1 + plusDM * alpha
+            minusDMav = minusDMav * alpha1 + minusDM * alpha
+
+            atr_val = atr_array[i]
+            if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
+                atr_val = 0.0001
+
+            diplus = 100.0 * plusDMav / atr_val
+            diminus = 100.0 * minusDMav / atr_val
             disum = diplus + diminus
             dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
 
-            # Smooth ADX
             adx_val = adx_val * alpha1 + dx * alpha
             adx_array[i] = adx_val
 

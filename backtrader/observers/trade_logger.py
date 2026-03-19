@@ -115,6 +115,7 @@ class TradeLogger(Observer):
         log_system=True,
         log_monitoring=True,
         log_errors=True,
+        log_value=True,
         log_position_snapshot=True,
         snapshot_file="current_position.yaml",
         log_format="json",
@@ -153,6 +154,7 @@ class TradeLogger(Observer):
         self._monitor_logger = None
         self._tick_logger = None
         self._bar_logger = None
+        self._value_logger = None
         self._error_logger = None
         self._mysql_conn = None
         self._last_position_state = {}
@@ -235,6 +237,11 @@ class TradeLogger(Observer):
         if self.p.log_monitoring:
             self._monitor_logger = self._create_file_logger(
                 "bt_monitor", os.path.join(self.p.log_dir, "monitor.log")
+            )
+
+        if self.p.log_value:
+            self._value_logger = self._create_file_logger(
+                "bt_value", os.path.join(self.p.log_dir, "value.log")
             )
 
         if self.p.log_errors:
@@ -723,6 +730,9 @@ class TradeLogger(Observer):
             if self.p.log_bars:
                 self._log_bar_snapshots()
 
+            if self.p.log_value:
+                self._log_value()
+
             if self.p.log_positions:
                 self._log_positions()
 
@@ -1002,6 +1012,35 @@ class TradeLogger(Observer):
             details={"args": args, "kwargs": kwargs},
         )
 
+    def _log_value(self):
+        """Log portfolio value and cash on every bar."""
+        if not self._value_logger:
+            return
+
+        if not hasattr(self, "_owner") or self._owner is None:
+            return
+
+        broker_value = self._get_broker_value()
+        broker_cash = self._get_broker_cash()
+
+        log_data = {
+            "log_time": self._log_time_str(),
+            "datetime": self._get_datetime_str(),
+            "strategy_name": self._get_strategy_name(),
+            "broker_value": broker_value,
+            "broker_cash": broker_cash,
+        }
+
+        self._emit_payload(
+            self._value_logger,
+            log_data,
+            text_line=(
+                f"{log_data['log_time']} | "
+                f"datetime={log_data['datetime']} | "
+                f"value={broker_value:.2f} | cash={broker_cash:.2f}"
+            ),
+        )
+
     def _log_positions(self):
         """Log position information for all data feeds."""
         if not self._position_logger and not (self.p.mysql_enabled and self._mysql_conn):
@@ -1111,6 +1150,17 @@ class TradeLogger(Observer):
 
         except Exception as e:
             logger.debug("Failed to collect indicator values: %s", e)
+
+        # Check for custom indicators method on the strategy
+        if hasattr(self._owner, "get_custom_indicators") and callable(
+            self._owner.get_custom_indicators
+        ):
+            try:
+                custom = self._owner.get_custom_indicators()
+                if isinstance(custom, dict):
+                    indicators.update(custom)
+            except Exception as e:
+                logger.debug("Failed to get custom indicators: %s", e)
 
         return indicators
 

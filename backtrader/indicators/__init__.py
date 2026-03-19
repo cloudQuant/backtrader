@@ -49,6 +49,7 @@ from .deviation import *
 
 # depend on basicops, moving averages and deviations
 from .atr import *
+from .mt5atr import *
 from .aroon import *
 from .bollinger import *
 from .cci import *
