@@ -198,46 +198,59 @@ class SharpeRatio(Analyzer):
                     # Get the conversion factor from the default table
                     factor = self.RATEFACTORS[self.p.timeframe]
             # If factor is not None, need to convert annual risk-free rate to daily risk-free rate by default, if using daily period
+            conversion_failed = False
             if factor is not None:
                 # A factor was found
-
-                if self.p.convertrate:
-                    # Standard: downgrade annual returns to a timeframe factor
-                    rate = pow(1.0 + rate, 1.0 / factor) - 1.0
-                else:
-                    # Else upgrade returns to yearly returns
-                    returns = [pow(1.0 + x, factor) - 1.0 for x in returns]
-            # Number of trading days
-            lrets = len(returns) - self.p.stddev_sample
-            # Check if the ratio can be calculated
-            if lrets:
-                # Get the excess returns - arithmetic mean - original sharpe
-                # Calculate daily excess returns
-                ret_free = [r - rate for r in returns]
-                # Calculate average of daily excess returns
-                ret_free_avg = average(ret_free)
-                # Calculate standard deviation of daily excess returns
-                retdev = standarddev(ret_free, avgx=ret_free_avg, bessel=self.p.stddev_sample)
-                # ret_avg = average(returns)
-                # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
-
-                if not math.isfinite(ret_free_avg) or not math.isfinite(retdev):
+                try:
+                    if not math.isfinite(factor) or factor <= 0 or not math.isfinite(rate):
+                        raise ValueError()
+                    if self.p.convertrate:
+                        # Standard: downgrade annual returns to a timeframe factor
+                        if 1.0 + rate < 0:
+                            raise ValueError()
+                        rate = pow(1.0 + rate, 1.0 / factor) - 1.0
+                        if isinstance(rate, complex) or not math.isfinite(rate):
+                            raise ValueError()
+                    else:
+                        # Else upgrade returns to yearly returns
+                        returns = [pow(1.0 + x, factor) - 1.0 for x in returns]
+                        if any(isinstance(x, complex) or not math.isfinite(x) for x in returns):
+                            raise ValueError()
+                except (ValueError, TypeError, ZeroDivisionError, OverflowError):
+                    conversion_failed = True
                     ratio = None
-                else:
-                    try:
-                        # Calculate Sharpe ratio
-                        ratio = ret_free_avg / retdev
-                        # If factor is not None, annual risk-free rate was converted to daily, and need to calculate annualized Sharpe ratio
-                        if factor is not None and self.p.convertrate and self.p.annualize:
-                            # Convert Sharpe ratio from daily to annual
-                            ratio = math.sqrt(factor) * ratio
-                        if not math.isfinite(ratio):
-                            ratio = None
-                    except (ValueError, TypeError, ZeroDivisionError):
+            if not conversion_failed:
+                # Number of trading days
+                lrets = len(returns) - self.p.stddev_sample
+                # Check if the ratio can be calculated
+                if lrets:
+                    # Get the excess returns - arithmetic mean - original sharpe
+                    # Calculate daily excess returns
+                    ret_free = [r - rate for r in returns]
+                    # Calculate average of daily excess returns
+                    ret_free_avg = average(ret_free)
+                    # Calculate standard deviation of daily excess returns
+                    retdev = standarddev(ret_free, avgx=ret_free_avg, bessel=self.p.stddev_sample)
+                    # ret_avg = average(returns)
+                    # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
+
+                    if not math.isfinite(ret_free_avg) or not math.isfinite(retdev):
                         ratio = None
-            else:
-                # no returns or stddev_sample was active and 1 return
-                ratio = None
+                    else:
+                        try:
+                            # Calculate Sharpe ratio
+                            ratio = ret_free_avg / retdev
+                            # If factor is not None, annual risk-free rate was converted to daily, and need to calculate annualized Sharpe ratio
+                            if factor is not None and self.p.convertrate and self.p.annualize:
+                                # Convert Sharpe ratio from daily to annual
+                                ratio = math.sqrt(factor) * ratio
+                            if not math.isfinite(ratio):
+                                ratio = None
+                        except (ValueError, TypeError, ZeroDivisionError):
+                            ratio = None
+                else:
+                    # no returns or stddev_sample was active and 1 return
+                    ratio = None
         # Save Sharpe ratio
         self.rets["sharperatio"] = ratio
 

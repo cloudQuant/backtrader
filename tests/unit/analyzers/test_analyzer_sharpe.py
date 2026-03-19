@@ -14,6 +14,7 @@ Example:
 """
 
 import backtrader as bt
+import pytest
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -55,6 +56,25 @@ class RunStrategy(bt.Strategy):
                 self.buy()
         elif self.cross < 0.0:
             self.close()
+
+
+def _build_nonlegacy_sharpe_analyzer(**overrides):
+    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
+    params = dict(
+        legacyannual=False,
+        riskfreerate=0.0,
+        timeframe=bt.TimeFrame.Years,
+        daysfactor=None,
+        factor=None,
+        convertrate=True,
+        annualize=False,
+        stddev_sample=False,
+    )
+    params.update(overrides)
+    analyzer.p = SimpleNamespace(**params)
+    analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": 0.05, "b": 0.1})
+    analyzer.rets = {}
+    return analyzer
 
 
 def test_run(main=False):
@@ -127,19 +147,37 @@ def test_legacyannual_nan_returns_none():
 
 
 def test_nonlegacy_nan_returns_none():
-    analyzer = bt.analyzers.SharpeRatio.__new__(bt.analyzers.SharpeRatio)
-    analyzer.p = SimpleNamespace(
-        legacyannual=False,
-        riskfreerate=0.0,
-        timeframe=bt.TimeFrame.Years,
-        daysfactor=None,
-        factor=None,
-        convertrate=True,
-        annualize=False,
-        stddev_sample=False,
-    )
+    analyzer = _build_nonlegacy_sharpe_analyzer()
     analyzer.timereturn = SimpleNamespace(get_analysis=lambda: {"a": float("nan"), "b": 0.1})
-    analyzer.rets = {}
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"factor": 0},
+        {"factor": -2},
+        {"factor": float("nan")},
+        {"timeframe": bt.TimeFrame.Days, "daysfactor": 0},
+        {"timeframe": bt.TimeFrame.Days, "daysfactor": -5},
+        {"timeframe": bt.TimeFrame.Days, "daysfactor": float("nan")},
+    ],
+)
+def test_nonlegacy_invalid_factor_inputs_return_none(overrides):
+    analyzer = _build_nonlegacy_sharpe_analyzer(**overrides)
+
+    with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
+        analyzer.stop()
+
+    assert analyzer.rets["sharperatio"] is None
+
+
+def test_nonlegacy_invalid_riskfreerate_conversion_returns_none():
+    analyzer = _build_nonlegacy_sharpe_analyzer(timeframe=bt.TimeFrame.Days, factor=252, riskfreerate=-2.0)
 
     with patch.object(type(analyzer).__mro__[1], "stop", return_value=None):
         analyzer.stop()
