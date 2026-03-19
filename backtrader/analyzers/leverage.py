@@ -19,6 +19,13 @@ import math
 from ..analyzer import Analyzer
 
 
+def _is_finite_real(value):
+    try:
+        return not isinstance(value, complex) and math.isfinite(value)
+    except TypeError:
+        return False
+
+
 # Ratio of used capital
 class GrossLeverage(Analyzer):
     """This analyzer calculates the Gross Leverage of the current strategy
@@ -96,14 +103,16 @@ class GrossLeverage(Analyzer):
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
         try:
-            if self._value and math.isfinite(self._value) and math.isfinite(self._cash):
+            if _is_finite_real(self._value) and self._value != 0.0 and _is_finite_real(self._cash):
                 lev = (self._value - self._cash) / self._value
+                if isinstance(lev, complex) or not math.isfinite(lev):
+                    lev = 0.0
             else:
                 lev = 0.0
-        except TypeError:
+        except (TypeError, ValueError, ZeroDivisionError):
             lev = 0.0
 
-        if not math.isfinite(lev):
+        if isinstance(lev, complex) or not math.isfinite(lev):
             lev = 0.0
 
         self.rets[self.data0.datetime.datetime()] = lev

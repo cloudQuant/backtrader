@@ -170,11 +170,15 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         super().next()
         # When the strategy is running, if there are too many losses, self._value / self._values[0] might be 0, avoid this situation
         try:
-            ratio = self._value / self._values[0]
-            if not math.isfinite(ratio) or ratio <= 0:
+            start_value = self._values[0]
+            ratio = self._value / start_value
+            if isinstance(ratio, complex) or not math.isfinite(ratio) or ratio <= 0:
                 raise ValueError(f"invalid log return ratio: {ratio}")
-            self.rets[self.dtkey] = math.log(ratio)
-        except Exception as e:
+            log_return = math.log(ratio)
+            if not math.isfinite(log_return):
+                raise ValueError(f"invalid log return value: {log_return}")
+            self.rets[self.dtkey] = log_return
+        except (TypeError, ValueError, ZeroDivisionError, OverflowError) as e:
             logger.debug("Log return calculation failed: %s", e)
-            self.rets[self.dtkey] = 0
+            self.rets[self.dtkey] = 0.0
         self._lastvalue = self._value  # keep last value

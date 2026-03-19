@@ -65,21 +65,38 @@ class TestGrossLeverageZeroValue:
         analyzer.next()
         assert analyzer.rets["2021-01-01"] == 0.0
 
+    @pytest.mark.parametrize(
+        "value,cash",
+        [
+            ("bad", 1000.0),
+            (complex(1000.0, 1.0), 1000.0),
+            (1000.0, "bad"),
+            (1000.0, complex(1000.0, 1.0)),
+        ],
+    )
+    def test_invalid_account_values_downgrade_to_zero(self, value, cash):
+        analyzer = self._make_analyzer(value=value, cash=cash)
+        analyzer.next()
+        assert analyzer.rets["2021-01-01"] == 0.0
+
 
 class TestLogReturnsRollingLogging:
     """Test that LogReturnsRolling logs errors instead of silently swallowing."""
 
-    def test_log_return_failure_is_logged(self):
-        """When log calculation fails, it should log a debug message."""
-        import math
+    def _make_analyzer(self, value, start_value):
         from backtrader.analyzers.logreturnsrolling import LogReturnsRolling
 
         analyzer = LogReturnsRolling.__new__(LogReturnsRolling)
         analyzer.rets = {}
         analyzer.dtkey = "2021-01-01"
-        analyzer._value = -100.0  # negative value → math.log of negative → ValueError
-        analyzer._values = [100.0]
+        analyzer._value = value
+        analyzer._values = [start_value]
         analyzer._lastvalue = None
+        return analyzer
+
+    def test_log_return_failure_is_logged(self):
+        """When log calculation fails, it should log a debug message."""
+        analyzer = self._make_analyzer(value=-100.0, start_value=100.0)
 
         # Mock super().next() to be a no-op
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
@@ -91,20 +108,32 @@ class TestLogReturnsRollingLogging:
 
     def test_log_return_nan_ratio_is_logged(self):
         """NaN ratios should be treated as invalid and downgraded to 0."""
-        from backtrader.analyzers.logreturnsrolling import LogReturnsRolling
-
-        analyzer = LogReturnsRolling.__new__(LogReturnsRolling)
-        analyzer.rets = {}
-        analyzer.dtkey = "2021-01-01"
-        analyzer._value = float("nan")
-        analyzer._values = [100.0]
-        analyzer._lastvalue = None
+        analyzer = self._make_analyzer(value=float("nan"), start_value=100.0)
 
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
             with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
                 analyzer.next()
 
         assert analyzer.rets["2021-01-01"] == 0
+        mock_logger.debug.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "value,start_value",
+        [
+            ("bad", 100.0),
+            (complex(1.0, 1.0), 100.0),
+            (100.0, "bad"),
+            (100.0, complex(1.0, 1.0)),
+        ],
+    )
+    def test_invalid_ratio_inputs_are_logged(self, value, start_value):
+        analyzer = self._make_analyzer(value=value, start_value=start_value)
+
+        with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
+            with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
+                analyzer.next()
+
+        assert analyzer.rets["2021-01-01"] == 0.0
         mock_logger.debug.assert_called_once()
 
 
@@ -126,14 +155,7 @@ class TestAnnualReturnLogging:
 
     def test_log_return_zero_denominator_is_logged(self):
         """Division by zero in log return should be logged."""
-        from backtrader.analyzers.logreturnsrolling import LogReturnsRolling
-
-        analyzer = LogReturnsRolling.__new__(LogReturnsRolling)
-        analyzer.rets = {}
-        analyzer.dtkey = "2021-01-01"
-        analyzer._value = 100.0
-        analyzer._values = [0.0]  # division by zero
-        analyzer._lastvalue = None
+        analyzer = TestLogReturnsRollingLogging()._make_analyzer(value=100.0, start_value=0.0)
 
         with patch.object(type(analyzer).__mro__[1], "next", return_value=None):
             with patch("backtrader.analyzers.logreturnsrolling.logger") as mock_logger:
