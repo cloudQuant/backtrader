@@ -198,6 +198,8 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
         sr = estimated_sharpe_ratio(returns)
     if sr_std is None:
         sr_std = estimated_sharpe_ratio_stdev(returns, sr=sr)
+    if np.any(~np.isfinite(np.asarray(sr_std))) or np.any(np.asarray(sr_std) <= 0):
+        raise ValueError("probabilistic_sharpe_ratio requires finite sr_std > 0")
 
     psr = scipy_stats.norm.cdf((sr - sr_benchmark) / sr_std)
 
@@ -258,10 +260,14 @@ def min_track_record_length(
 
     if n is None:
         n = len(returns)
+    if n <= 1:
+        raise ValueError("min_track_record_length requires n > 1")
     if sr is None:
         sr = estimated_sharpe_ratio(returns)
     if sr_std is None:
         sr_std = estimated_sharpe_ratio_stdev(returns, sr=sr)
+    if np.any(~np.isfinite(np.asarray(sr_std))) or np.any(np.asarray(sr_std) <= 0):
+        raise ValueError("min_track_record_length requires finite sr_std > 0")
 
     min_trl = 1 + (sr_std**2 * (n - 1)) * (scipy_stats.norm.ppf(prob) / (sr - sr_benchmark)) ** 2
 
@@ -358,6 +364,8 @@ def expected_maximum_sr(
             raise ValueError("expected_maximum_sr requires trials_returns or trials_sr_std when independent_trials > 1")
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
+    if np.any(np.isfinite(np.asarray(trials_sr_std)) & (np.asarray(trials_sr_std) < 0)):
+        raise ValueError("expected_maximum_sr requires trials_sr_std >= 0")
 
     if not np.isfinite(trials_sr_std):
         return expected_mean_sr

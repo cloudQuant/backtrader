@@ -268,6 +268,13 @@ def test_expected_maximum_sr_nonfinite_std_returns_expected_mean():
     assert result == 0.25
 
 
+def test_expected_maximum_sr_requires_nonnegative_std():
+    from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
+
+    with pytest.raises(ValueError, match="requires trials_sr_std >= 0"):
+        expected_maximum_sr(independent_trials=5, expected_mean_sr=0.25, trials_sr_std=-0.5)
+
+
 def test_expected_maximum_sr_requires_trials_returns_or_std_for_multiple_trials():
     from backtrader.analyzers.sharpe_ratio_stats import expected_maximum_sr
 
@@ -300,6 +307,14 @@ def test_probabilistic_sharpe_ratio_requires_explicit_params_without_returns(kwa
 
     with pytest.raises(ValueError, match="requires sr and sr_std"):
         probabilistic_sharpe_ratio(**kwargs)
+
+
+@pytest.mark.parametrize("sr_std", [0.0, -0.5, float("nan")])
+def test_probabilistic_sharpe_ratio_requires_finite_positive_std(sr_std):
+    from backtrader.analyzers.sharpe_ratio_stats import probabilistic_sharpe_ratio
+
+    with pytest.raises(ValueError, match="requires finite sr_std > 0"):
+        probabilistic_sharpe_ratio(returns=None, sr=1.5, sr_std=sr_std)
 
 
 def test_min_track_record_length_single_value_series_uses_position_not_label():
@@ -337,6 +352,22 @@ def test_min_track_record_length_requires_probability_between_zero_and_one(prob)
 
     with pytest.raises(ValueError, match="requires 0 < prob < 1"):
         min_track_record_length(returns=None, n=10, sr=1.5, sr_std=0.5, prob=prob)
+
+
+@pytest.mark.parametrize("n", [0, 1, -3])
+def test_min_track_record_length_requires_n_above_one(n):
+    from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
+
+    with pytest.raises(ValueError, match="requires n > 1"):
+        min_track_record_length(returns=None, n=n, sr=1.5, sr_std=0.5)
+
+
+@pytest.mark.parametrize("sr_std", [0.0, -0.5, float("nan")])
+def test_min_track_record_length_requires_finite_positive_std(sr_std):
+    from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
+
+    with pytest.raises(ValueError, match="requires finite sr_std > 0"):
+        min_track_record_length(returns=None, n=10, sr=1.5, sr_std=sr_std)
 
 
 def test_deflated_sharpe_ratio_caps_default_independent_trials_to_available_columns():
