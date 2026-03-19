@@ -12,6 +12,7 @@ Typical usage example:
 """
 
 import backtrader as bt
+import pytest
 from types import SimpleNamespace
 
 import testcommon
@@ -136,6 +137,30 @@ def test_periodstats_nonfinite_returns_degrade_to_zero():
         "best": 0.0,
         "worst": 0.0,
     }
+
+
+@pytest.mark.parametrize(
+    "returns",
+    [
+        {"a": complex(1.0, 1.0), "b": "bad"},
+        {"a": complex(1.0, 1.0), "b": float("nan"), "c": "bad"},
+    ],
+)
+def test_periodstats_invalid_nonnumeric_returns_degrade_to_zero(returns):
+    analyzer = bt.analyzers.PeriodStats.__new__(bt.analyzers.PeriodStats)
+    analyzer._tr = SimpleNamespace(get_analysis=lambda: returns)
+    analyzer.p = SimpleNamespace(zeroispos=False)
+    analyzer.rets = {}
+
+    analyzer.stop()
+
+    assert analyzer.rets["average"] == 0.0
+    assert analyzer.rets["stddev"] == 0.0
+    assert analyzer.rets["positive"] == 0
+    assert analyzer.rets["negative"] == 0
+    assert analyzer.rets["nochange"] == len(returns)
+    assert analyzer.rets["best"] == 0.0
+    assert analyzer.rets["worst"] == 0.0
 
 
 if __name__ == "__main__":

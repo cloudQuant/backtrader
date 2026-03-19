@@ -106,7 +106,16 @@ class PeriodStats(Analyzer):
         trets = self._tr.get_analysis()  # dict key = date, value = ret
         # Count years with positive, negative, and zero returns
         pos = nul = neg = 0
-        trets = [tret if math.isfinite(tret) else 0.0 for tret in itervalues(trets)]
+        sanitized_trets = []
+        for tret in itervalues(trets):
+            try:
+                tret = float(tret)
+            except (TypeError, ValueError):
+                tret = 0.0
+            if not math.isfinite(tret):
+                tret = 0.0
+            sanitized_trets.append(tret)
+        trets = sanitized_trets
         if not trets:
             self.rets["average"] = 0.0
             self.rets["stddev"] = 0.0
