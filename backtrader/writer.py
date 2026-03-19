@@ -145,7 +145,7 @@ class WriterFile(WriterBase):
         if self.close_out and self.out is not None:
             try:
                 self.out.close()
-            except Exception:
+            except OSError:
                 pass
 
     def __enter__(self):

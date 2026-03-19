@@ -67,7 +67,7 @@ class BuySell(Observer):
         """
         try:
             barref = self.data.datetime[0]
-        except Exception:
+        except (IndexError, AttributeError, TypeError):
             barref = None
 
         sentinel = object()

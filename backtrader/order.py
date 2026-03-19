@@ -661,12 +661,20 @@ class OrderBase:
     # Get order status name
     def getstatusname(self, status=None):
         """Returns the name for a given status or the one of the order"""
-        return self.Status[self.status if status is None else status]
+        idx = self.status if status is None else status
+        try:
+            return self.Status[idx]
+        except (IndexError, TypeError):
+            return f"Unknown({idx})"
 
     # Get order name
     def getordername(self, exectype=None):
         """Returns the name for a given exectype or the one of the order"""
-        return self.ExecTypes[self.exectype if exectype is None else exectype]
+        idx = self.exectype if exectype is None else exectype
+        try:
+            return self.ExecTypes[idx]
+        except (IndexError, TypeError):
+            return f"Unknown({idx})"
 
     @classmethod
     def ExecType(cls, exectype):
@@ -699,17 +707,15 @@ class OrderBase:
         """Activate the order."""
         self._active = True
 
+    # Frozenset for O(1) alive status lookup
+    _ALIVE_STATUSES = frozenset(range(4))  # Created, Submitted, Accepted, Partial
+
     # Order is alive if it's in Created, Submitted, Partial, or Accepted status
     def alive(self):
         """Returns True if the order is in a status in which it can still be
         executed
         """
-        return self.status in [
-            OrderBase.Created,
-            OrderBase.Submitted,
-            OrderBase.Partial,
-            OrderBase.Accepted,
-        ]
+        return self.status in self._ALIVE_STATUSES
 
     # Add commission related information
     def addcomminfo(self, comminfo):
@@ -731,6 +737,10 @@ class OrderBase:
     # Check if two orders are not equal
     def __ne__(self, other):
         return other is None or self.ref != other.ref
+
+    # Order ref is immutable, so hash based on ref is safe
+    def __hash__(self):
+        return hash(self.ref)
 
     # Check if current order is a buy order
     def isbuy(self):

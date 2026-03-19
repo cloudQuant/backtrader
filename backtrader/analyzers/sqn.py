@@ -98,12 +98,11 @@ class SQN(Analyzer):
             else:
                 if not math.isfinite(pnl_av) or not math.isfinite(pnl_stddev):
                     sqn = None
+                elif pnl_stddev == 0.0:
+                    sqn = None
                 else:
-                    try:
-                        sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
-                        if not math.isfinite(sqn):
-                            sqn = None
-                    except ZeroDivisionError:
+                    sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
+                    if not math.isfinite(sqn):
                         sqn = None
         else:
             sqn = 0

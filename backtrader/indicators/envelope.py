@@ -443,7 +443,7 @@ for movav in MovingAverage._movavs[0:]:
                     else:
                         # Use first key in the dictionary
                         linename = next(iter(movav.lines))
-                except Exception:
+                except (AttributeError, StopIteration, TypeError, KeyError):
                     # Fallback to the lower case name of the class
                     linename = movav.__name__.lower()
             else:
