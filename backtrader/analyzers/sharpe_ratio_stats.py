@@ -124,6 +124,8 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
 
     if _returns is not None and n is None:
         n = len(_returns)
+    if n <= 1:
+        raise ValueError("estimated_sharpe_ratio_stdev requires n > 1")
     if _returns is not None and skew is None:
         skew_values = scipy_stats.skew(_returns)
         if isinstance(_returns, pd.DataFrame):
@@ -243,6 +245,8 @@ def min_track_record_length(
     """
     if returns is None and any(param is None for param in (n, sr, sr_std)):
         raise ValueError("min_track_record_length requires n, sr, and sr_std when returns is None")
+    if not 0 < prob < 1:
+        raise ValueError("min_track_record_length requires 0 < prob < 1")
 
     if n is None:
         n = len(returns)

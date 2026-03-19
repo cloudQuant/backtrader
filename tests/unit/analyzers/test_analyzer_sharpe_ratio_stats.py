@@ -134,6 +134,13 @@ def test_estimated_sharpe_ratio_stdev_requires_explicit_params_without_returns()
         estimated_sharpe_ratio_stdev(returns=None, n=10, skew=0.0, kurtosis=3.0)
 
 
+def test_estimated_sharpe_ratio_stdev_requires_more_than_one_sample():
+    from backtrader.analyzers.sharpe_ratio_stats import estimated_sharpe_ratio_stdev
+
+    with pytest.raises(ValueError, match="requires n > 1"):
+        estimated_sharpe_ratio_stdev(returns=None, n=1, skew=0.0, kurtosis=3.0, sr=1.0)
+
+
 def test_num_independent_trials_handles_all_nan_correlations():
     from backtrader.analyzers.sharpe_ratio_stats import num_independent_trials
 
@@ -237,6 +244,14 @@ def test_min_track_record_length_requires_explicit_params_without_returns(kwargs
 
     with pytest.raises(ValueError, match="requires n, sr, and sr_std"):
         min_track_record_length(**kwargs)
+
+
+@pytest.mark.parametrize("prob", [0.0, 1.0, -0.1, 1.1])
+def test_min_track_record_length_requires_probability_between_zero_and_one(prob):
+    from backtrader.analyzers.sharpe_ratio_stats import min_track_record_length
+
+    with pytest.raises(ValueError, match="requires 0 < prob < 1"):
+        min_track_record_length(returns=None, n=10, sr=1.5, sr_std=0.5, prob=prob)
 
 
 if __name__ == "__main__":
