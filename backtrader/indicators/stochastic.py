@@ -232,8 +232,10 @@ class Stochastic(_StochasticBase):
 
         if len(self._fast_d_vals) >= period_d:
             fast_d = sum(self._fast_d_vals[-period_d:]) / period_d
-        else:
+        elif len(self._fast_d_vals) > 0:
             fast_d = sum(self._fast_d_vals) / len(self._fast_d_vals)
+        else:
+            fast_d = 0.0
 
         self.lines.percK[0] = fast_d
 

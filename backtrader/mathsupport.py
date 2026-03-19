@@ -48,9 +48,9 @@ def average(x, bessel=False):
     Returns:
       A float with the average of the elements of x
     """
-    # CRITICAL FIX: Prevent division by zero
+    # CRITICAL FIX: Prevent division by zero and negative denominator
     denominator = len(x) - bessel
-    if denominator == 0:
+    if denominator <= 0:
         return 0.0
     return math.fsum(x) / denominator
 

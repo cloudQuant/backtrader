@@ -164,9 +164,14 @@ class Position:
         """Create a copy of the current position.
 
         Returns:
-            Position: A new Position instance with the same size and price.
+            Position: A new Position instance with the same size and price,
+                including datetime and adjbase state.
         """
-        return Position(size=self.size, price=self.price)
+        pos = Position(size=self.size, price=self.price)
+        pos.adjbase = self.adjbase
+        pos.datetime = self.datetime
+        pos.updt = self.updt
+        return pos
 
     # Create a position instance, then update size and price
     def pseudoupdate(self, size, price):

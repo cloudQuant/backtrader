@@ -285,13 +285,17 @@ class Trade:
     # Return data name
     def getdataname(self):
         """Shortcut to retrieve the name of the data this trade references"""
-        return self.data._name
+        if self.data is None:
+            return ""
+        return getattr(self.data, "_name", "")
 
     # Return opening time
     def open_datetime(self, tz=None, naive=True):
         """Returns a datetime.datetime object with the datetime in which
         the trade was opened
         """
+        if self.data is None:
+            return None
         # data contains num2date method
         return self.data.num2date(self.dtopen, tz=tz, naive=naive)
 
@@ -300,6 +304,8 @@ class Trade:
         """Returns a datetime.datetime object with the datetime in which
         the trade was closed
         """
+        if self.data is None:
+            return None
         return self.data.num2date(self.dtclose, tz=tz, naive=naive)
 
     # Update trade event

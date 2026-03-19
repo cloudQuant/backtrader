@@ -207,10 +207,14 @@ class Store(SingletonMixin, StoreParams):
             *args: Additional positional arguments to store with the message.
             **kwargs: Additional keyword arguments to store with the message.
         """
+        if self.notifs is None:
+            self.notifs = collections.deque()
         self.notifs.append((msg, args, kwargs))
 
     # Get notification message
     def get_notifications(self):
         """Return the pending "store" notifications"""
+        if self.notifs is None:
+            return []
         self.notifs.append(None)  # put a mark / threads could still append
         return [x for x in iter(self.notifs.popleft, None)]
