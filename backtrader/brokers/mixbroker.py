@@ -51,6 +51,11 @@ class MixBroker(TickBroker):
         self._order_submit_ts = {}
         self._bar_matched_orders = set()
 
+    def start(self):
+        super().start()
+        self._order_submit_ts = {}
+        self._bar_matched_orders = set()
+
     def submit(self, order):
         """Submit an order to the broker and record its submission timestamp.
 
@@ -82,7 +87,7 @@ class MixBroker(TickBroker):
         _ = tick_event.symbol  # noqa: F841
 
         # Record submission timestamp on first tick seen
-        for order in self._pending_orders:
+        for order in self._orders_by_symbol.get(tick_event.symbol, []):
             order_id = id(order)
             if order_id in self._order_submit_ts and self._order_submit_ts[order_id] is None:
                 self._order_submit_ts[order_id] = tick_event.timestamp
@@ -90,7 +95,7 @@ class MixBroker(TickBroker):
         super().process_tick(tick_event, data)
 
         # Clean up completed orders from timestamp tracking
-        pending_ids = {id(o) for o in self._pending_orders}
+        pending_ids = {id(o) for o in self._orders_by_symbol.get(tick_event.symbol, [])}
         stale = [k for k in self._order_submit_ts if k not in pending_ids]
         for k in stale:
             del self._order_submit_ts[k]
@@ -111,16 +116,13 @@ class MixBroker(TickBroker):
         data_name = bar_event.symbol
         timeout = self.get_param("tick_timeout")
         current_ts = bar_event.timestamp
+        self._last_event_ts = current_ts
+        self._activate_visible_orders(current_ts)
 
         self._last_tick.setdefault(data_name, bar_event)
 
         matched = []
-        for order in list(self._pending_orders):
-            order_data_name = getattr(order.data, "_name", None) or getattr(
-                order.data, "symbol", str(order.data)
-            )
-            if order_data_name != data_name:
-                continue
+        for order in list(self._orders_by_symbol.get(data_name, [])):
 
             # Check if order has timed out waiting for tick match
             order_id = id(order)
@@ -137,10 +139,8 @@ class MixBroker(TickBroker):
                 self._bar_matched_orders.add(order_id)
 
         for order in matched:
-            try:
-                self._pending_orders.remove(order)
-            except ValueError:
-                pass
+            self._remove_pending_order(order)
+            self._order_submit_ts.pop(id(order), None)
 
     def _try_match_bar(self, order, bar):
         """Try to match an order against bar OHLC data.
@@ -208,52 +208,7 @@ class MixBroker(TickBroker):
             fill_size: The execution size.
             bar: The bar that triggered the fill.
         """
-        data_name = getattr(order.data, "_name", None) or getattr(
-            order.data, "symbol", str(order.data)
-        )
-        pos = self._positions[data_name]
-
-        if order.isbuy():
-            cost = fill_price * fill_size
-            comminfo = self.getcommissioninfo(order.data)
-            commission = comminfo.getcommission(fill_size, fill_price)
-            self._cash -= cost + commission
-            pos.update(fill_size, fill_price)
-        else:
-            revenue = fill_price * fill_size
-            comminfo = self.getcommissioninfo(order.data)
-            commission = comminfo.getcommission(fill_size, fill_price)
-            self._cash += revenue - commission
-            pos.update(-fill_size, fill_price)
-
-        order.execute(
-            dt=bar.timestamp,
-            size=fill_size if order.isbuy() else -fill_size,
-            price=fill_price,
-            closed=0,
-            closedvalue=0.0,
-            closedcomm=0.0,
-            opened=fill_size,
-            openedvalue=fill_price * fill_size,
-            openedcomm=0.0,
-            margin=0,
-            pnl=0,
-            psize=pos.size,
-            pprice=pos.price,
-        )
-        order.completed()
-        self.notify(order)
-
-        self._order_history.append(
-            {
-                "timestamp": bar.timestamp,
-                "symbol": data_name,
-                "side": "buy" if order.isbuy() else "sell",
-                "price": fill_price,
-                "size": fill_size,
-                "source": "bar_fallback",
-            }
-        )
+        self._execute(order, fill_price, fill_size, bar, source="bar_fallback")
 
     @property
     def bar_matched_count(self):

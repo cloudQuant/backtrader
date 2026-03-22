@@ -156,6 +156,8 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     def setcommission(
         self,
         commission=0.0,
+        maker_commission=None,
+        taker_commission=None,
         margin=None,
         mult=1.0,
         commtype=None,
@@ -177,6 +179,8 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
         comm = CommInfoBase(
             commission=commission,
+            maker_commission=maker_commission,
+            taker_commission=taker_commission,
             margin=margin,
             mult=mult,
             commtype=commtype,

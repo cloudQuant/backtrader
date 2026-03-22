@@ -21,6 +21,7 @@ Example:
 
 from backtrader.brokers.bbroker import BackBroker as BackBroker
 from backtrader.brokers.bbroker import BrokerBack as BrokerBack
+from backtrader.brokers.mixbroker import MixBroker as MixBroker
 from backtrader.brokers.tickbroker import TickBroker as TickBroker
 
 from backtrader.brokers.btapibroker import BtApiBroker as BtApiBroker

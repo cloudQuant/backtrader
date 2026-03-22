@@ -50,6 +50,16 @@ class CommInfoBase(ParameterizedBase):
         doc="Base commission, percentage or monetary units",
     )
 
+    maker_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional maker commission override, percentage or monetary units",
+    )
+
+    taker_commission = ParameterDescriptor(
+        default=None,
+        doc="Optional taker commission override, percentage or monetary units",
+    )
+
     mult = ParameterDescriptor(
         default=1.0,
         type_=float,
@@ -205,23 +215,38 @@ class CommInfoBase(ParameterizedBase):
         value += (position.price - price) * size  # increased value
         return value
 
-    def _getcommission(self, size, price, pseudoexec):
+    def _resolve_commission_rate(self, role=None):
+        """Return the commission rate for the requested fill role."""
+        if role == "maker":
+            maker_commission = self.get_param("maker_commission")
+            if maker_commission is not None:
+                return maker_commission
+
+        if role == "taker":
+            taker_commission = self.get_param("taker_commission")
+            if taker_commission is not None:
+                return taker_commission
+
+        return self.get_param("commission")
+
+    def _getcommission(self, size, price, pseudoexec, role=None):
         """Calculates the commission of an operation at a given price
 
         pseudoexec: if True the operation has not yet been executed
         """
-        commission = self.get_param("commission")
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         if self._commtype == self.COMM_PERC:
             return abs(size) * commission * price
         return abs(size) * commission
 
-    def getcommission(self, size, price):
-        """Calculates the commission of an operation at a given price"""
-        return self._getcommission(size, price, pseudoexec=True)
+    def getcommission(self, size, price, role=None):
+        """Calculates the commission of an operation at a given price."""
+        return self._getcommission(size, price, pseudoexec=True, role=role)
 
-    def confirmexec(self, size, price):
-        """Confirms execution and returns commission"""
-        return self._getcommission(size, price, pseudoexec=False)
+    def confirmexec(self, size, price, role=None):
+        """Confirms execution and returns commission."""
+        return self._getcommission(size, price, pseudoexec=False, role=role)
 
     def profitandloss(self, size, price, newprice):
         """Return actual profit and loss a position has"""
@@ -281,8 +306,9 @@ class ComminfoDC(CommInfoBase):
     percabs = ParameterDescriptor(default=True, type_=bool)
     interest = ParameterDescriptor(default=3.0, type_=float)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         mult = self.get_param("mult")
         return abs(size) * price * mult * commission
 
@@ -333,8 +359,9 @@ class ComminfoFuturesPercent(CommInfoBase):
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
     percabs = ParameterDescriptor(default=True, type_=bool)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         mult = self.get_param("mult")
         return abs(size) * price * mult * commission
 
@@ -364,8 +391,9 @@ class ComminfoFuturesFixed(CommInfoBase):
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_FIXED, type_=int)
     percabs = ParameterDescriptor(default=True, type_=bool)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         return abs(size) * commission
 
     def get_margin(self, price):
@@ -394,8 +422,9 @@ class ComminfoFundingRate(CommInfoBase):
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
     percabs = ParameterDescriptor(default=True, type_=bool)
 
-    def _getcommission(self, size, price, pseudoexec):
-        commission = self.get_param("commission")
+    def _getcommission(self, size, price, pseudoexec, role=None):
+        _ = pseudoexec
+        commission = self._resolve_commission_rate(role)
         mult = self.get_param("mult")
         total_commission = abs(size) * price * mult * commission
         return total_commission

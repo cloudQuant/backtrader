@@ -36,6 +36,8 @@ import matplotlib
 import matplotlib.font_manager as mfontmgr
 import matplotlib.ticker as mticker
 import numpy as np  # guaranteed by matplotlib
+if not hasattr(np, "unicode_"):
+    np.unicode_ = np.str_
 import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objs as go

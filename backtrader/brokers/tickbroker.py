@@ -17,6 +17,7 @@ import collections
 import logging
 
 from backtrader.broker import BrokerBase
+from backtrader.brokers.hft import FillRole, LatencyEngine, MatchingCore, Recorder, StateTracker
 from backtrader.order import BuyOrder, Order, SellOrder
 from backtrader.parameters import ParameterDescriptor
 from backtrader.position import Position
@@ -43,6 +44,8 @@ class TickBroker(BrokerBase):
         coc: Execute on Close-of-Cancel (default: False).
         max_depth_levels: Maximum order book levels to traverse (default: 20).
         enable_impact: Enable market impact adjustments (default: False).
+        shortcash: Increase cash when shorting stock-like assets (default: True).
+        int2pnl: Assign generated interest to profit and loss (default: True).
     """
 
     cash = ParameterDescriptor(default=100000.0, doc="Starting cash")
@@ -54,8 +57,18 @@ class TickBroker(BrokerBase):
     coc = ParameterDescriptor(default=False, doc="Close-on-Close")
     max_depth_levels = ParameterDescriptor(default=20, doc="Max depth levels to traverse")
     enable_impact = ParameterDescriptor(default=False, doc="Enable market impact model")
+    shortcash = ParameterDescriptor(default=True, doc="Increase cash when shorting stock-like assets")
+    int2pnl = ParameterDescriptor(default=True, doc="Assign generated interest to profit and loss")
 
-    def __init__(self, impact_model=None, **kwargs):
+    def __init__(
+        self,
+        impact_model=None,
+        latency_model=None,
+        state_tracker=None,
+        exchange_model=None,
+        recorder=None,
+        **kwargs,
+    ):
         """Initialize the TickBroker.
 
         Sets up internal state for cash, positions, orders, and notifications.
@@ -63,6 +76,10 @@ class TickBroker(BrokerBase):
 
         Args:
             impact_model: Optional market impact model for order book matching.
+            latency_model: Optional latency model for order visibility.
+            state_tracker: Optional state tracker instance.
+            exchange_model: Optional exchange model for maker/taker and TIF semantics.
+            recorder: Optional recorder used for timeline snapshots.
             **kwargs: Additional arguments passed to BrokerBase.
         """
         super().__init__(**kwargs)
@@ -79,6 +96,19 @@ class TickBroker(BrokerBase):
         self._last_tick = {}
         self._last_orderbook = {}
         self._impact_model = impact_model
+        self._latency_model = latency_model
+        self._exchange_model = exchange_model
+        self._state_tracker_factory = state_tracker
+        self._recorder_factory = recorder
+        self._latency_engine = LatencyEngine(latency_model=latency_model)
+        self._matching_core = MatchingCore(
+            latency_engine=self._latency_engine,
+            exchange_model=self._exchange_model,
+        )
+        self._state_tracker = state_tracker or StateTracker()
+        self._recorder = recorder or Recorder()
+        self._orders_by_symbol = collections.defaultdict(list)
+        self._last_event_ts = 0.0
         self._tick_count = 0
 
     def start(self):
@@ -90,6 +120,22 @@ class TickBroker(BrokerBase):
         super().start()
         self._cash = self.get_param("cash")
         self._value = self._cash
+        self._pending_orders = []
+        self._order_history = []
+        self._positions = collections.defaultdict(Position)
+        self._notifs = collections.deque()
+        self._last_tick = {}
+        self._last_orderbook = {}
+        self._orders_by_symbol = collections.defaultdict(list)
+        self._latency_engine = LatencyEngine(latency_model=self._latency_model)
+        self._matching_core = MatchingCore(
+            latency_engine=self._latency_engine,
+            exchange_model=self._exchange_model,
+        )
+        self._state_tracker = self._state_tracker_factory or StateTracker()
+        self._recorder = self._recorder_factory or Recorder()
+        self._last_event_ts = 0.0
+        self._tick_count = 0
 
     def stop(self):
         """Stop the broker and perform cleanup.
@@ -127,7 +173,9 @@ class TickBroker(BrokerBase):
         order.status = Order.Submitted
         order.broker = self
         order.plen = 0
-        self._pending_orders.append(order)
+        self._matching_core.submit_order(order, current_ts=self._last_event_ts)
+        if order in self._matching_core.pending_for_symbol(self._get_data_name(order.data)):
+            self._queue_pending_order(order)
         self.notify(order)
         return order
 
@@ -141,12 +189,44 @@ class TickBroker(BrokerBase):
         Args:
             order: The Order instance to cancel.
         """
-        try:
-            self._pending_orders.remove(order)
-        except ValueError:
+        result = self._matching_core.cancel_order(order)
+        if not result.success:
             return
+        self._remove_pending_order(order)
         order.cancel()
         self.notify(order)
+
+    def modify(self, order, size=None, price=None, plimit=None, exectype=None, **kwargs):
+        """Modify an order by canceling it and submitting a replacement order."""
+        if order not in self._pending_orders and not order.alive():
+            return None
+
+        tif = kwargs.pop("time_in_force", getattr(order, "time_in_force", None))
+        replacement = order.__class__(
+            owner=order.p.owner,
+            data=order.data,
+            size=size if size is not None else self._get_remaining_size(order),
+            price=price if price is not None else order.price,
+            pricelimit=plimit if plimit is not None else order.pricelimit,
+            exectype=exectype if exectype is not None else order.exectype,
+            valid=order.valid,
+            tradeid=order.tradeid,
+            oco=order.oco,
+            trailamount=order.trailamount,
+            trailpercent=order.trailpercent,
+            simulated=True,
+            **kwargs,
+        )
+        if tif is not None:
+            replacement.time_in_force = tif
+
+        for key, value in getattr(order, "info", {}).items():
+            replacement.addinfo(**{key: value})
+
+        self.cancel(order)
+        order.addinfo(cancel_reason="MODIFY_REPLACED")
+        replacement.addinfo(modified_from=order.ref)
+        return self.submit(replacement)
 
     def buy(
         self,
@@ -322,30 +402,54 @@ class TickBroker(BrokerBase):
             tick_event: TickEvent with current price/volume.
             data: The data feed associated with this tick (optional).
         """
+        tick_event = self._latency_engine.apply_feed_latency(tick_event)
         data_name = tick_event.symbol
+        current_ts = getattr(tick_event, "local_time", tick_event.timestamp)
+        self._last_event_ts = current_ts
         self._last_tick[data_name] = tick_event
         self._tick_count += 1
+        self._activate_visible_orders(current_ts)
+
+        active_orders = [
+            order
+            for order in list(self._orders_by_symbol.get(data_name, []))
+            if self._order_is_active_for_event(order, tick_event)
+        ]
 
         matched = []
-        for order in list(self._pending_orders):
-            order_data_name = getattr(order.data, "_name", None) or getattr(
-                order.data, "symbol", str(order.data)
-            )
-            if order_data_name != data_name:
-                continue
+        if self._exchange_model is not None:
+            for fill_order, fill_price, fill_size, fill_role in self._exchange_model.on_trade(
+                tick_event, active_orders
+            ):
+                self._execute(fill_order, fill_price, fill_size, tick_event, source=fill_role.value)
+                if not fill_order.alive() or not self.get_param("allow_partial"):
+                    matched.append(fill_order)
 
+        event_timestamp_ns = int(getattr(tick_event, "timestamp_ns", 0) or 0)
+        for order in active_orders:
+            if order in matched or getattr(order, "_fill_role", None) != FillRole.MAKER:
+                continue
+            if float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) <= 1e-12 and float(getattr(order, "_queue_fillable", 0.0)) <= 1e-12 and float(getattr(order, "_queue_trade_qty", 0.0)) > 1e-12:
+                order._queue_front_trade_timestamp_ns = event_timestamp_ns
+                order._queue_front_trade_persisted_depth = False
+            elif float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                order._queue_front_trade_timestamp_ns = None
+                order._queue_front_trade_persisted_depth = False
+
+        for order in active_orders:
+            if order in matched:
+                continue
+            if getattr(order, "_fill_role", None) == FillRole.MAKER:
+                continue
             result = self._try_match(order, tick_event)
             if result is not None:
                 fill_price, fill_size = result
                 self._execute(order, fill_price, fill_size, tick_event)
-                if order.status == Order.Completed or not self.get_param("allow_partial"):
+                if not order.alive() or not self.get_param("allow_partial"):
                     matched.append(order)
 
         for order in matched:
-            try:
-                self._pending_orders.remove(order)
-            except ValueError:
-                pass
+            self._remove_pending_order(order)
 
     def process_orderbook(self, ob_event, data=None):
         """Process an order book snapshot and match pending orders.
@@ -354,16 +458,257 @@ class TickBroker(BrokerBase):
             ob_event: OrderBookSnapshot with current depth.
             data: The data feed associated with this snapshot (optional).
         """
+        ob_event = self._latency_engine.apply_feed_latency(ob_event)
         data_name = ob_event.symbol
+        current_ts = getattr(ob_event, "local_time", ob_event.timestamp)
+        self._last_event_ts = current_ts
+        previous_orderbook = self._last_orderbook.get(data_name)
+        ob_event.previous_bids = list(getattr(previous_orderbook, "bids", []) or [])
+        ob_event.previous_asks = list(getattr(previous_orderbook, "asks", []) or [])
         self._last_orderbook[data_name] = ob_event
+        self._activate_visible_orders(current_ts)
+
+        active_orders = [
+            order
+            for order in list(self._orders_by_symbol.get(data_name, []))
+            if self._order_is_active_for_event(order, ob_event)
+        ]
+        for order in active_orders:
+            order._queue_trade_qty_before_depth_update = float(getattr(order, "_queue_trade_qty", 0.0))
 
         matched = []
-        for order in list(self._pending_orders):
-            order_data_name = getattr(order.data, "_name", None) or getattr(
-                order.data, "symbol", str(order.data)
-            )
-            if order_data_name != data_name:
+        if self._exchange_model is not None:
+            for fill_order, fill_price, fill_size, fill_role in self._exchange_model.on_depth_update(
+                ob_event, active_orders
+            ):
+                self._execute(fill_order, fill_price, fill_size, ob_event, source=fill_role.value)
+                if not fill_order.alive() or not self.get_param("allow_partial"):
+                    matched.append(fill_order)
+
+        for order in active_orders:
+            if order in matched:
                 continue
+            if self._exchange_model is not None and order.exectype in (Order.Market, Order.Limit):
+                exchange_result = self._exchange_model.on_new_order(order, ob_event)
+                if exchange_result.action == "REJECT":
+                    order.addinfo(reject_reason=exchange_result.reject_reason)
+                    order.reject(self)
+                    self.notify(order)
+                    self._order_history.append(
+                        {
+                            "timestamp": ob_event.timestamp,
+                            "symbol": data_name,
+                            "side": "buy" if order.isbuy() else "sell",
+                            "status": "rejected",
+                            "reason": exchange_result.reject_reason,
+                            "source": "orderbook_depth",
+                        }
+                    )
+                    matched.append(order)
+                    continue
+                if exchange_result.action == "FILL":
+                    fill_price, fill_size = self._aggregate_exchange_fills(exchange_result.fills)
+                    if fill_size > 0:
+                        self._execute(order, fill_price, fill_size, ob_event, source="orderbook_depth")
+                    tif = getattr(order, "time_in_force", "GTC")
+                    if tif == "IOC" and order.alive():
+                        order.addinfo(cancel_reason="IOC_REMAINDER_CANCELLED")
+                        order.cancel()
+                        self.notify(order)
+                        self._order_history.append(
+                            {
+                                "timestamp": ob_event.timestamp,
+                                "symbol": data_name,
+                                "side": "buy" if order.isbuy() else "sell",
+                                "status": "canceled",
+                                "reason": "IOC_REMAINDER_CANCELLED",
+                                "source": "orderbook_depth",
+                            }
+                        )
+                        matched.append(order)
+                        continue
+                    if not order.alive() or not self.get_param("allow_partial"):
+                        matched.append(order)
+                    continue
+
+                if getattr(order, "_fill_role", None) == FillRole.MAKER:
+                    if float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                        event_timestamp_ns = int(getattr(ob_event, "timestamp_ns", 0) or 0)
+                        if order.isbuy():
+                            same_side_moved_away = not ob_event.bids or float(ob_event.bids[0][0]) < float(order.price)
+                            if same_side_moved_away and getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                                fill_size = self._get_remaining_size(order)
+                                if fill_size > 0:
+                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    if not order.alive() or not self.get_param("allow_partial"):
+                                        matched.append(order)
+                                continue
+                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.bids and float(ob_event.bids[0][0]) == float(order.price) and abs(float(ob_event.bids[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12:
+                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                            elif getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                                pass
+                            else:
+                                order._queue_trade_remainder_confirmed_timestamp_ns = None
+                        else:
+                            same_side_moved_away = not ob_event.asks or float(ob_event.asks[0][0]) > float(order.price)
+                            if same_side_moved_away and getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                                fill_size = self._get_remaining_size(order)
+                                if fill_size > 0:
+                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    if not order.alive() or not self.get_param("allow_partial"):
+                                        matched.append(order)
+                                continue
+                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.asks and float(ob_event.asks[0][0]) == float(order.price) and abs(float(ob_event.asks[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12:
+                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                            elif getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                                pass
+                            else:
+                                order._queue_trade_remainder_confirmed_timestamp_ns = None
+                        order._queue_depleted_move_away_timestamp_ns = None
+                        continue
+                    event_timestamp_ns = int(getattr(ob_event, "timestamp_ns", 0) or 0)
+                    queue_tracked = float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12
+                    if not queue_tracked:
+                        order._queue_depleted_move_away_timestamp_ns = None
+                        order._queue_front_trade_timestamp_ns = None
+                        order._queue_front_trade_persisted_depth = False
+                        order._queue_trade_remainder_confirmed_timestamp_ns = None
+                        result = self._try_match_orderbook(order, ob_event)
+                        if result is None:
+                            continue
+                        fill_price, fill_size = result
+                        if fill_size <= 0:
+                            continue
+                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                        if not order.alive() or not self.get_param("allow_partial"):
+                            matched.append(order)
+                        continue
+                    same_side_moved_away = False
+                    if order.isbuy():
+                        same_side_moved_away = not ob_event.bids or float(ob_event.bids[0][0]) < float(order.price)
+                        front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
+                        if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not same_side_moved_away:
+                            order._queue_front_trade_persisted_depth = True
+                            if ob_event.bids and float(ob_event.bids[0][0]) == float(order.price) and abs(float(ob_event.bids[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                                order._queue_front_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                        if not same_side_moved_away:
+                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.bids and float(ob_event.bids[0][0]) == float(order.price) and abs(float(ob_event.bids[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                        if not ob_event.asks or float(ob_event.asks[0][0]) >= float(order.price):
+                            if queue_tracked and same_side_moved_away:
+                                moved_away_timestamp_ns = getattr(order, "_queue_depleted_move_away_timestamp_ns", None)
+                                front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
+                                front_trade_persisted_depth = bool(getattr(order, "_queue_front_trade_persisted_depth", False))
+                                remainder_confirmed_timestamp_ns = getattr(order, "_queue_front_trade_remainder_confirmed_timestamp_ns", None)
+                                trade_remainder_confirmed_timestamp_ns = getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)
+                                result = self._try_match_orderbook(order, ob_event)
+                                if result is not None and moved_away_timestamp_ns is not None and event_timestamp_ns == int(moved_away_timestamp_ns):
+                                    fill_price, fill_size = result
+                                    if fill_size > 0:
+                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        if not order.alive() or not self.get_param("allow_partial"):
+                                            matched.append(order)
+                                    continue
+                                if trade_remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(trade_remainder_confirmed_timestamp_ns):
+                                    fill_size = self._get_remaining_size(order)
+                                    if fill_size > 0:
+                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        if not order.alive() or not self.get_param("allow_partial"):
+                                            matched.append(order)
+                                    continue
+                                if front_trade_timestamp_ns is not None and front_trade_persisted_depth:
+                                    if remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(remainder_confirmed_timestamp_ns):
+                                        fill_size = self._get_remaining_size(order)
+                                        if fill_size > 0:
+                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                            if not order.alive() or not self.get_param("allow_partial"):
+                                                matched.append(order)
+                                        continue
+                                    order._queue_depleted_move_away_timestamp_ns = None
+                                    continue
+                                if moved_away_timestamp_ns is None:
+                                    if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not front_trade_persisted_depth:
+                                        fill_size = self._get_remaining_size(order)
+                                        if fill_size > 0:
+                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                            if not order.alive() or not self.get_param("allow_partial"):
+                                                matched.append(order)
+                                        continue
+                                    order._queue_depleted_move_away_timestamp_ns = event_timestamp_ns
+                                    continue
+                                if event_timestamp_ns <= int(moved_away_timestamp_ns):
+                                    continue
+                                fill_size = self._get_remaining_size(order)
+                                if fill_size > 0:
+                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    if not order.alive() or not self.get_param("allow_partial"):
+                                        matched.append(order)
+                                continue
+                            order._queue_depleted_move_away_timestamp_ns = None
+                            continue
+                    else:
+                        same_side_moved_away = not ob_event.asks or float(ob_event.asks[0][0]) > float(order.price)
+                        front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
+                        if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not same_side_moved_away:
+                            order._queue_front_trade_persisted_depth = True
+                            if ob_event.asks and float(ob_event.asks[0][0]) == float(order.price) and abs(float(ob_event.asks[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                                order._queue_front_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                        if not same_side_moved_away:
+                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.asks and float(ob_event.asks[0][0]) == float(order.price) and abs(float(ob_event.asks[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                        if not ob_event.bids or float(ob_event.bids[0][0]) <= float(order.price):
+                            if queue_tracked and same_side_moved_away:
+                                moved_away_timestamp_ns = getattr(order, "_queue_depleted_move_away_timestamp_ns", None)
+                                front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
+                                front_trade_persisted_depth = bool(getattr(order, "_queue_front_trade_persisted_depth", False))
+                                remainder_confirmed_timestamp_ns = getattr(order, "_queue_front_trade_remainder_confirmed_timestamp_ns", None)
+                                trade_remainder_confirmed_timestamp_ns = getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)
+                                result = self._try_match_orderbook(order, ob_event)
+                                if result is not None and moved_away_timestamp_ns is not None and event_timestamp_ns == int(moved_away_timestamp_ns):
+                                    fill_price, fill_size = result
+                                    if fill_size > 0:
+                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        if not order.alive() or not self.get_param("allow_partial"):
+                                            matched.append(order)
+                                    continue
+                                if trade_remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(trade_remainder_confirmed_timestamp_ns):
+                                    fill_size = self._get_remaining_size(order)
+                                    if fill_size > 0:
+                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        if not order.alive() or not self.get_param("allow_partial"):
+                                            matched.append(order)
+                                    continue
+                                if front_trade_timestamp_ns is not None and front_trade_persisted_depth:
+                                    if remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(remainder_confirmed_timestamp_ns):
+                                        fill_size = self._get_remaining_size(order)
+                                        if fill_size > 0:
+                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                            if not order.alive() or not self.get_param("allow_partial"):
+                                                matched.append(order)
+                                        continue
+                                    order._queue_depleted_move_away_timestamp_ns = None
+                                    continue
+                                if moved_away_timestamp_ns is None:
+                                    if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not front_trade_persisted_depth:
+                                        fill_size = self._get_remaining_size(order)
+                                        if fill_size > 0:
+                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                            if not order.alive() or not self.get_param("allow_partial"):
+                                                matched.append(order)
+                                        continue
+                                    order._queue_depleted_move_away_timestamp_ns = event_timestamp_ns
+                                    continue
+                                if event_timestamp_ns <= int(moved_away_timestamp_ns):
+                                    continue
+                                fill_size = self._get_remaining_size(order)
+                                if fill_size > 0:
+                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    if not order.alive() or not self.get_param("allow_partial"):
+                                        matched.append(order)
+                                continue
+                            order._queue_depleted_move_away_timestamp_ns = None
+                            continue
+                    order._queue_depleted_move_away_timestamp_ns = None
 
             result = self._try_match_orderbook(order, ob_event)
             if result is None:
@@ -373,15 +718,15 @@ class TickBroker(BrokerBase):
             if fill_size <= 0:
                 continue
 
+            if getattr(order, "_fill_role", None) == FillRole.MAKER:
+                fill_price = float(order.price)
+
             self._execute(order, fill_price, fill_size, ob_event, source="orderbook_depth")
-            if order.status == Order.Completed or not self.get_param("allow_partial"):
+            if not order.alive() or not self.get_param("allow_partial"):
                 matched.append(order)
 
         for order in matched:
-            try:
-                self._pending_orders.remove(order)
-            except ValueError:
-                pass
+            self._remove_pending_order(order)
 
     def _try_match(self, order, tick):
         """Try to match an order against a tick.
@@ -565,6 +910,23 @@ class TickBroker(BrokerBase):
             return price + impact
         return price - impact
 
+    @staticmethod
+    def _aggregate_exchange_fills(fills):
+        total_size = 0.0
+        total_value = 0.0
+        for price, size, _role in fills:
+            total_value += price * size
+            total_size += size
+        if total_size <= 0.0:
+            return (0.0, 0.0)
+        return (total_value / total_size, total_size)
+
+    @staticmethod
+    def _resolve_commission_role(source):
+        if source in {"maker", "taker"}:
+            return source
+        return "taker"
+
     def _execute(self, order, fill_price, fill_size, event, source="tick"):
         """Execute a fill on an order.
 
@@ -575,56 +937,121 @@ class TickBroker(BrokerBase):
             event: The event that triggered the fill.
             source: Source tag for order history.
         """
-        # Determine position change
-        data_name = getattr(order.data, "_name", None) or getattr(
-            order.data, "symbol", str(order.data)
-        )
-        pos = self._positions[data_name]
+        data_name = self._get_data_name(order.data)
+        position = self._positions[data_name]
+        exec_size = fill_size if order.isbuy() else -fill_size
+        comminfo = self.getcommissioninfo(order.data)
+        commission_role = self._resolve_commission_role(source)
+        pprice_orig = position.price
+        psize, pprice, opened, closed = position.pseudoupdate(exec_size, fill_price)
+        pnl = comminfo.profitandloss(-closed, pprice_orig, fill_price) if closed else 0.0
 
-        if order.isbuy():
-            cost = fill_price * fill_size
-            comminfo = self.getcommissioninfo(order.data)
-            commission = comminfo.getcommission(fill_size, fill_price)
+        cash = self._cash
+        if closed:
+            if self.get_param("shortcash"):
+                closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
+            else:
+                closedvalue = comminfo.getoperationcost(closed, pprice_orig)
 
-            self._cash -= cost + commission
-            pos.update(fill_size, fill_price)
+            closecash = closedvalue
+            if closedvalue > 0:
+                closecash /= comminfo.get_leverage()
+            cash += closecash + pnl * comminfo.stocklike
+            closedcomm = comminfo.getcommission(closed, fill_price, role=commission_role)
+            cash -= closedcomm
+            if position.adjbase is not None:
+                cash += comminfo.cashadjust(-closed, position.adjbase, fill_price)
         else:
-            revenue = fill_price * fill_size
-            comminfo = self.getcommissioninfo(order.data)
-            commission = comminfo.getcommission(fill_size, fill_price)
+            closedvalue = 0.0
+            closedcomm = 0.0
 
-            self._cash += revenue - commission
-            pos.update(-fill_size, fill_price)
+        popened = opened
+        if opened:
+            if self.get_param("shortcash"):
+                openedvalue = comminfo.getvaluesize(opened, fill_price)
+            else:
+                openedvalue = comminfo.getoperationcost(opened, fill_price)
 
-        # Complete the order
+            opencash = openedvalue
+            if openedvalue > 0:
+                opencash /= comminfo.get_leverage()
+            cash -= opencash
+            openedcomm = comminfo.getcommission(opened, fill_price, role=commission_role)
+            cash -= openedcomm
+
+            if cash < 0.0:
+                opened = 0
+                openedvalue = 0.0
+                openedcomm = 0.0
+            else:
+                if abs(psize) > abs(opened) and position.adjbase is not None:
+                    adjsize = psize - opened
+                    cash += comminfo.cashadjust(adjsize, position.adjbase, fill_price)
+                position.adjbase = fill_price
+        else:
+            openedvalue = 0.0
+            openedcomm = 0.0
+
+        self._cash = cash
+        executed_size = closed + opened
+        if not executed_size:
+            if popened and not opened:
+                order.margin()
+                self.notify(order)
+            return
+
+        comminfo.confirmexec(executed_size, fill_price, role=commission_role)
+        position.update(executed_size, fill_price, event.timestamp)
         order.execute(
             dt=event.timestamp,
-            size=fill_size if order.isbuy() else -fill_size,
+            size=executed_size,
             price=fill_price,
-            closed=0,
-            closedvalue=0.0,
-            closedcomm=0.0,
-            opened=fill_size,
-            openedvalue=fill_price * fill_size,
-            openedcomm=0.0,
-            margin=0,
-            pnl=0,
-            psize=pos.size,
-            pprice=pos.price,
+            closed=closed,
+            closedvalue=closedvalue,
+            closedcomm=closedcomm,
+            opened=opened,
+            openedvalue=openedvalue,
+            openedcomm=openedcomm,
+            margin=comminfo.margin,
+            pnl=pnl,
+            psize=psize,
+            pprice=pprice,
         )
+        order.addcomminfo(comminfo)
         self.notify(order)
+        self._state_tracker.on_fill(
+            data_name,
+            fill_price,
+            executed_size,
+            closedcomm + openedcomm,
+            role=source,
+        )
 
         self._order_history.append(
             {
                 "timestamp": event.timestamp,
+                "timestamp_ns": getattr(event, "timestamp_ns", int(round(float(event.timestamp) * 1_000_000_000.0))),
                 "symbol": data_name,
                 "side": "buy" if order.isbuy() else "sell",
+                "status": order.getstatusname(),
                 "price": fill_price,
-                "size": fill_size,
+                "size": abs(executed_size),
+                "opened": opened,
+                "closed": closed,
+                "pnl": pnl,
+                "commission": closedcomm + openedcomm,
                 "source": source,
+                "role": commission_role,
                 "reference_price": getattr(event, "price", None),
+                "order_ref": getattr(order, "ref", None),
             }
         )
+
+        self._recorder.record(event.timestamp, data_name, self._order_history[-1])
+
+        if popened and not opened:
+            order.margin()
+            self.notify(order)
 
     @staticmethod
     def _get_remaining_size(order):
@@ -666,6 +1093,26 @@ class TickBroker(BrokerBase):
         """List of currently pending orders."""
         return list(self._pending_orders)
 
+    def state_values(self, data=None):
+        """Return aggregated state values for one data feed or all symbols."""
+        if data is not None:
+            symbol = self._get_data_name(data)
+            mid_price = getattr(self._last_tick.get(symbol), "price", None)
+            return self._state_tracker.snapshot(
+                symbol,
+                self._positions[symbol].size,
+                self._cash,
+                mid_price,
+            )
+
+        positions = {symbol: pos.size for symbol, pos in self._positions.items()}
+        mid_prices = {
+            symbol: getattr(self._last_tick.get(symbol), "price", None)
+            for symbol in set(self._state_tracker._states) | set(self._positions)
+        }
+        balances = {symbol: self._cash for symbol in mid_prices}
+        return self._state_tracker.snapshot_all(positions, balances, mid_prices)
+
     @property
     def order_history(self):
         """Complete order execution history."""
@@ -675,3 +1122,59 @@ class TickBroker(BrokerBase):
     def tick_count(self):
         """Number of ticks processed."""
         return self._tick_count
+
+    def _get_data_name(self, data):
+        return getattr(data, "_name", None) or getattr(data, "symbol", str(data))
+
+    @staticmethod
+    def _event_timestamp_ns(event):
+        return int(getattr(event, "timestamp_ns", int(round(float(getattr(event, "timestamp", 0.0)) * 1_000_000_000.0))))
+
+    def _order_is_active_for_event(self, order, event):
+        active_after_ts = getattr(order, "_active_after_timestamp_ns", None)
+        if active_after_ts is None:
+            return True
+        return self._event_timestamp_ns(event) > int(active_after_ts)
+
+    def _order_is_queue_active_for_event(self, order, event):
+        active_after_seq = getattr(order, "_active_after_event_seq", None)
+        event_seq = getattr(event, "event_seq", None)
+        if active_after_seq is not None and event_seq is not None:
+            return int(event_seq) > int(active_after_seq)
+        active_after_ts = getattr(order, "_active_after_timestamp_ns", None)
+        if active_after_ts is None:
+            return True
+        return self._event_timestamp_ns(event) > int(active_after_ts)
+
+    def _queue_pending_order(self, order):
+        if order not in self._pending_orders:
+            self._pending_orders.append(order)
+        data_name = self._get_data_name(order.data)
+        if order not in self._orders_by_symbol[data_name]:
+            self._orders_by_symbol[data_name].append(order)
+
+    def _remove_pending_order(self, order):
+        try:
+            self._pending_orders.remove(order)
+        except ValueError:
+            pass
+
+        data_name = self._get_data_name(order.data)
+        bucket = self._orders_by_symbol.get(data_name)
+        if bucket is not None:
+            try:
+                bucket.remove(order)
+            except ValueError:
+                pass
+            if not bucket:
+                del self._orders_by_symbol[data_name]
+
+        self._matching_core.remove_order(order)
+
+    def _activate_visible_orders(self, current_ts):
+        for order in self._matching_core.activate_orders(current_ts):
+            self._queue_pending_order(order)
+
+    @property
+    def recorder(self):
+        return self._recorder
