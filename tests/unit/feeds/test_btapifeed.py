@@ -711,3 +711,33 @@ def test_feed_drains_live_orderbooks_into_channel_events():
     assert dispatched[0].data.best_bid == pytest.approx(100.0)
     assert dispatched[0].data.best_ask == pytest.approx(100.5)
     assert feed.haslivedata() is False
+
+
+@pytest.mark.parametrize(
+    "client_kwargs",
+    [
+        {"live_ticks": {DEFAULT_SYMBOL: [make_tick(0, 100.0)]}},
+        {"live_orderbooks": {DEFAULT_SYMBOL: [make_orderbook(0, 100.0, 100.5)]}},
+    ],
+)
+def test_feed_marks_live_when_realtime_events_arrive_before_a_completed_bar(client_kwargs):
+    client = FakeBtApiClient(**client_kwargs)
+    store = make_store(api=client)
+    feed = store.getdata(
+        dataname=DEFAULT_SYMBOL,
+        backfill_start=False,
+        timeframe=bt.TimeFrame.Seconds,
+        compression=5,
+    )
+
+    feed._start()
+
+    assert feed.get_notifications() == []
+
+    feed._check()
+
+    assert feed.get_notifications() == [(feed.LIVE, (), {})]
+
+    feed._check()
+
+    assert feed.get_notifications() == []

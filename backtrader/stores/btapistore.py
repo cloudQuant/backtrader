@@ -1195,6 +1195,7 @@ class BtApiStore(LiveStoreBase):
         self._broker = None
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars = collections.defaultdict(collections.deque)
+        self._historical_query_cache: Dict[Any, List[Dict[str, Any]]] = {}
         self._live_bars = collections.defaultdict(collections.deque)
         self._subscribed_datanames = set()
         self._successful_connect_count = 0
@@ -1420,13 +1421,18 @@ class BtApiStore(LiveStoreBase):
         limit: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
         """Fetch normalized historical bars for a symbol."""
-        if self._historical_bars[dataname]:
+        request_key = self._history_request_key(dataname, timeframe, compression, since, limit)
+        if self._is_default_history_request(timeframe, compression, since, limit) and self._historical_bars[dataname]:
             return deepcopy(list(self._historical_bars[dataname]))
+        if request_key in self._historical_query_cache:
+            return deepcopy(self._historical_query_cache[request_key])
 
         api = self._ensure_api_ready()
         bars = []
+        has_history_api = False
 
         if hasattr(api, "fetch_bars"):
+            has_history_api = True
             bars = api.fetch_bars(
                 dataname,
                 timeframe=timeframe,
@@ -1435,6 +1441,7 @@ class BtApiStore(LiveStoreBase):
                 limit=limit,
             )
         elif hasattr(api, "fetch_ohlcv"):
+            has_history_api = True
             bars = api.fetch_ohlcv(
                 dataname,
                 timeframe=timeframe,
@@ -1443,8 +1450,15 @@ class BtApiStore(LiveStoreBase):
                 limit=limit,
             )
 
+        if not has_history_api and self._historical_bars[dataname]:
+            return deepcopy(list(self._historical_bars[dataname]))
+
         normalized = [_normalize_bar(bar) for bar in bars or []]
-        self._historical_bars[dataname].extend(normalized)
+        if self._is_default_history_request(timeframe, compression, since, limit):
+            self._historical_bars[dataname].clear()
+            self._historical_bars[dataname].extend(normalized)
+        else:
+            self._historical_query_cache[request_key] = list(normalized)
         return deepcopy(normalized)
 
     def fetch_open_orders(self) -> List[Dict[str, Any]]:
@@ -1685,6 +1699,7 @@ class BtApiStore(LiveStoreBase):
 
     def set_history(self, dataname: str, bars: Iterable[Any]):
         """Replace the local historical bar cache, primarily for tests."""
+        self._clear_history_query_cache(dataname)
         self._historical_bars[dataname] = collections.deque(_normalize_bar(bar) for bar in bars)
 
     def put_notification(self, msg, *args, **kwargs):
@@ -1742,6 +1757,25 @@ class BtApiStore(LiveStoreBase):
 
         for dataname, bars in source.items():
             target[dataname].extend(_normalize_bar(bar) for bar in bars)
+
+    @staticmethod
+    def _is_default_history_request(timeframe, compression, since, limit) -> bool:
+        return timeframe is None and int(compression or 1) == 1 and since is None and limit is None
+
+    @staticmethod
+    def _history_request_key(dataname, timeframe, compression, since, limit):
+        return (
+            str(dataname),
+            repr(timeframe),
+            int(compression or 1),
+            repr(since),
+            None if limit is None else int(limit),
+        )
+
+    def _clear_history_query_cache(self, dataname: str) -> None:
+        key_prefix = str(dataname)
+        for key in [cache_key for cache_key in self._historical_query_cache if cache_key[0] == key_prefix]:
+            self._historical_query_cache.pop(key, None)
 
     def _ensure_api_ready(self):
         """Instantiate and connect the underlying bt_api_py client on demand."""

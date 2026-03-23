@@ -752,6 +752,41 @@ def test_store_history_queries_work_before_start_with_lightweight_fetch_ohlcv_cl
     assert store.fetch_history(DEFAULT_SYMBOL)[0]["close"] == pytest.approx(100.5)
 
 
+def test_store_history_cache_is_scoped_by_query_signature():
+    class ParameterAwareHistoryClient:
+        def __init__(self):
+            self.connected = False
+            self.calls = []
+
+        def connect(self):
+            self.connected = True
+
+        def disconnect(self):
+            self.connected = False
+
+        def fetch_bars(self, symbol, timeframe=None, compression=1, since=None, limit=None):
+            self.calls.append((symbol, timeframe, compression, since, limit))
+            if timeframe == "M5":
+                return [make_bar(0, 105.0, 106.0, 104.0, 105.5)]
+            return [make_bar(0, 100.0, 101.0, 99.0, 100.5)]
+
+    client = ParameterAwareHistoryClient()
+    store = make_store(api=client)
+    store.start()
+
+    minute_bars = store.fetch_history(DEFAULT_SYMBOL, timeframe="M1", compression=1, limit=1)
+    five_minute_bars = store.fetch_history(DEFAULT_SYMBOL, timeframe="M5", compression=5, limit=1)
+    cached_minute_bars = store.fetch_history(DEFAULT_SYMBOL, timeframe="M1", compression=1, limit=1)
+
+    assert minute_bars[0]["close"] == pytest.approx(100.5)
+    assert five_minute_bars[0]["close"] == pytest.approx(105.5)
+    assert cached_minute_bars[0]["close"] == pytest.approx(100.5)
+    assert client.calls == [
+        (DEFAULT_SYMBOL, "M1", 1, None, 1),
+        (DEFAULT_SYMBOL, "M5", 5, None, 1),
+    ]
+
+
 def test_store_live_tick_queries_fall_back_to_get_next_tick_alias():
     class AliasOnlyTickClient:
         def __init__(self):

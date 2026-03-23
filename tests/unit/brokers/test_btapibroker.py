@@ -1465,3 +1465,55 @@ def test_remote_trade_updates_complete_orders_and_positions():
         assert notifications[-1].status == bt.Order.Completed
     finally:
         broker.stop()
+
+
+def test_remote_trade_updates_split_commission_when_a_fill_reverses_position():
+    client = FakeBtApiClient(
+        positions=[{"instrument": DEFAULT_SYMBOL, "direction": "short", "volume": 1, "price": 100.0}],
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker(account_refresh_interval=60.0, positions_refresh_interval=60.0)
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    broker.setcommission(
+        commission=1.0,
+        commtype=bt.CommInfoBase.COMM_FIXED,
+    )
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=2,
+            price=101.0,
+            exectype=bt.Order.Market,
+        )
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "external_order_id": "btapi-1",
+                "trade_id": "trade-reversal-1",
+                "data_name": DEFAULT_SYMBOL,
+                "side": "buy",
+                "size": 2,
+                "price": 101.0,
+                "timestamp": "09:31:00",
+            }
+        )
+
+        broker.next()
+        exbit = order.executed.exbits[0]
+
+        assert order.status == bt.Order.Completed
+        assert exbit.closed == pytest.approx(1.0)
+        assert exbit.opened == pytest.approx(1.0)
+        assert exbit.closedcomm == pytest.approx(1.0)
+        assert exbit.openedcomm == pytest.approx(1.0)
+        assert broker.positions[DEFAULT_SYMBOL].size == pytest.approx(1.0)
+        assert broker.positions[DEFAULT_SYMBOL].price == pytest.approx(101.0)
+    finally:
+        broker.stop()

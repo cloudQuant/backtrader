@@ -153,8 +153,8 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if self._history:
             return self._load_history()
 
-        self._drain_live_ticks()
-        self._drain_live_orderbooks()
+        drained_ticks = self._drain_live_ticks()
+        drained_orderbooks = self._drain_live_orderbooks()
 
         if self._live:
             bar = self._live.popleft()
@@ -164,19 +164,21 @@ class BtApiFeed(DataBase, LiveFeedBase):
             bar = None
 
         if bar is None:
+            if drained_ticks or drained_orderbooks:
+                self._mark_live()
             return None
 
-        if not self._live_notified:
-            self.put_notification(self.LIVE)
-            self._live_notified = True
+        self._mark_live()
 
         return self._load_bar(bar)
 
     def _check(self, forcedata=None):
         """Drain live ticks while waiting for the next completed bar."""
         super()._check(forcedata=forcedata)
-        self._drain_live_ticks()
-        self._drain_live_orderbooks()
+        drained_ticks = self._drain_live_ticks()
+        drained_orderbooks = self._drain_live_orderbooks()
+        if not self._history and (drained_ticks or drained_orderbooks):
+            self._mark_live()
 
     def _load_bar(self, bar) -> bool:
         """Write a normalized bar into line buffers."""
@@ -193,12 +195,15 @@ class BtApiFeed(DataBase, LiveFeedBase):
     def _drain_live_ticks(self):
         """Drain queued live ticks and aggregate them into completed bars."""
         if self.store is None or not hasattr(self.store, "poll_tick"):
-            return
+            return False
+
+        drained = False
 
         while True:
             tick = self.store.poll_tick(self._dataname)
             if tick is None:
                 break
+            drained = True
 
             self._dispatch_event(
                 channel_type="tick",
@@ -206,21 +211,26 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 event_data=tick,
             )
             self._ingest_tick(tick)
+        return drained
 
     def _drain_live_orderbooks(self):
         if self.store is None or not hasattr(self.store, "poll_orderbook"):
-            return
+            return False
+
+        drained = False
 
         while True:
             orderbook = self.store.poll_orderbook(self._dataname)
             if orderbook is None:
                 break
+            drained = True
 
             self._dispatch_event(
                 channel_type="orderbook",
                 priority=EventPriority.ORDERBOOK,
                 event_data=orderbook,
             )
+        return drained
 
     def _ingest_tick(self, tick):
         """Update the current bar builder from a live tick."""
@@ -333,6 +343,12 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 data=event_data,
             )
         )
+
+    def _mark_live(self):
+        """Emit the LIVE status exactly once when real-time traffic begins."""
+        if not self._live_notified:
+            self.put_notification(self.LIVE)
+            self._live_notified = True
 
     def _get_bucket_start(self, dt_value):
         """Round a tick timestamp down to the current feed timeframe bucket."""

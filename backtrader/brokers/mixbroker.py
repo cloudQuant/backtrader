@@ -184,6 +184,11 @@ class MidFreqContext:
         symbols.update(self._broker._last_tick.keys())
         symbols.update(self._broker._last_orderbook.keys())
         symbols.update(self._broker._completed_bars.keys())
+        symbols.update(
+            symbol
+            for symbol, position in self._broker._positions.items()
+            if getattr(position, "size", 0)
+        )
         return sorted(symbols)
 
     def snapshot(self, symbol):

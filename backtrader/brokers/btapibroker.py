@@ -694,6 +694,12 @@ class BtApiBroker(BrokerBase):
         commission = comminfo.getcommission(fill_qty, fill_price) if comminfo is not None else 0.0
         closed_qty = abs(closed)
         opened_qty = abs(opened)
+        closed_commission, opened_commission = self._split_execution_commission(
+            commission,
+            fill_qty,
+            opened_qty,
+            closed_qty,
+        )
         closed_value = closed_qty * abs(old_price or fill_price)
         opened_value = opened_qty * abs(fill_price)
         pnl = 0.0
@@ -709,10 +715,10 @@ class BtApiBroker(BrokerBase):
             price=fill_price,
             closed=closed,
             closedvalue=closed_value,
-            closedcomm=commission if closed_qty else 0.0,
+            closedcomm=closed_commission,
             opened=opened,
             openedvalue=opened_value,
-            openedcomm=commission if opened_qty and not closed_qty else 0.0,
+            openedcomm=opened_commission,
             margin=0.0,
             pnl=pnl,
             psize=psize,
@@ -771,6 +777,13 @@ class BtApiBroker(BrokerBase):
         bt_order_ref = details.get("bt_order_ref") or update.get("bt_order_ref")
         if bt_order_ref in self.orders:
             return self.orders[bt_order_ref]
+        if bt_order_ref not in (None, ""):
+            try:
+                normalized_ref = int(bt_order_ref)
+            except (TypeError, ValueError):
+                normalized_ref = None
+            if normalized_ref in self.orders:
+                return self.orders[normalized_ref]
 
         return None
 
@@ -801,6 +814,25 @@ class BtApiBroker(BrokerBase):
             if value not in (None, ""):
                 return value
         return None
+
+    @staticmethod
+    def _split_execution_commission(total_commission, fill_qty, opened_qty, closed_qty):
+        """Split a fill commission between the closing and opening legs of a reversal."""
+        total_commission = float(total_commission or 0.0)
+        fill_qty = abs(float(fill_qty or 0.0))
+        opened_qty = abs(float(opened_qty or 0.0))
+        closed_qty = abs(float(closed_qty or 0.0))
+        if total_commission == 0.0 or fill_qty <= 0.0:
+            return 0.0, 0.0
+        if opened_qty <= 0.0:
+            return total_commission if closed_qty > 0.0 else 0.0, 0.0
+        if closed_qty <= 0.0:
+            return 0.0, total_commission
+
+        closed_ratio = min(closed_qty / fill_qty, 1.0)
+        closed_commission = total_commission * closed_ratio
+        opened_commission = total_commission - closed_commission
+        return closed_commission, opened_commission
 
     @staticmethod
     def _execution_datetime(update):
