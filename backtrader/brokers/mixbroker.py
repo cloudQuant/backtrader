@@ -1,216 +1,206 @@
-"""Mixed-mode broker for Tick+Bar hybrid order matching.
-
-MixBroker prioritizes tick-level matching when tick data is available,
-falling back to bar-level matching when ticks are unavailable or when
-a configurable timeout is exceeded.
-
-Example:
-    Using MixBroker with Cerebro::
-
-        cerebro = bt.Cerebro()
-        cerebro.setbroker(MixBroker(cash=100000, tick_timeout=5.0))
-        cerebro.run(mode='MIXED')
-"""
-
+"""Mixed-mode broker for tick-driven mid-frequency coordination.
+ 
+ MixBroker keeps TickBroker as the only execution path for orders while
+ maintaining low-frequency bar state and high-frequency order book windows
+ for strategy-side queries.
+ 
+ Example:
+     Using MixBroker with Cerebro:
+         cerebro = bt.Cerebro()
+         cerebro.setbroker(MixBroker(cash=100000))
+ """
+ 
+import collections
+import copy
 import logging
 
 from backtrader.brokers.tickbroker import TickBroker
-from backtrader.order import Order
 from backtrader.parameters import ParameterDescriptor
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["MixBroker"]
+__all__ = ["MixBroker", "MidFreqContext"]
 
 
 class MixBroker(TickBroker):
-    """Broker for mixed Tick+Bar mode with Tick-first matching.
+    """Experimental coordination broker for mid-frequency backtests."""
 
-    Inherits all tick-matching logic from TickBroker and adds bar-level
-    fallback for orders that haven't been matched within a configurable
-    timeout window.
-
-    Params:
-        tick_timeout: Seconds to wait for tick match before bar fallback (default: 5.0).
-        bar_fallback: Whether to enable bar-level fallback (default: True).
-    """
-
-    tick_timeout = ParameterDescriptor(default=5.0, doc="Tick match timeout before bar fallback")
-    bar_fallback = ParameterDescriptor(default=True, doc="Enable bar-level fallback matching")
+    max_ob_window = ParameterDescriptor(default=100, doc="Per-symbol order book window size")
+    max_bar_history = ParameterDescriptor(default=200, doc="Per-symbol completed bar history size")
+    default_sma_period = ParameterDescriptor(default=20, doc="Incrementally maintained SMA period")
 
     def __init__(self, **kwargs):
-        """Initialize the MixBroker.
-
-        Sets up tracking for order submission timestamps to enable
-        timeout-based fallback to bar-level matching.
-
-        Args:
-            **kwargs: Additional arguments passed to TickBroker.
-        """
         super().__init__(**kwargs)
-        self._order_submit_ts = {}
-        self._bar_matched_orders = set()
+        self._reset_midfreq_state()
 
     def start(self):
         super().start()
-        self._order_submit_ts = {}
-        self._bar_matched_orders = set()
+        self._reset_midfreq_state()
 
-    def submit(self, order):
-        """Submit an order to the broker and record its submission timestamp.
-
-        This method overrides the parent submit method to track when orders
-        are submitted for timeout-based bar fallback matching. The timestamp
-        is recorded as None initially and set to the first tick's timestamp
-        when tick processing begins.
-
-        Args:
-            order: The Order instance to submit for execution.
-
-        Returns:
-            The submitted Order instance.
-        """
-        result = super().submit(order)
-        self._order_submit_ts[id(order)] = None
-        return result
+    def _reset_midfreq_state(self):
+        self._ob_window = collections.defaultdict(
+            lambda: collections.deque(maxlen=self.get_param("max_ob_window"))
+        )
+        self._completed_bars = collections.defaultdict(
+            lambda: collections.deque(maxlen=self.get_param("max_bar_history"))
+        )
+        self._bar_indicators = collections.defaultdict(dict)
+        self._bar_indicator_state = collections.defaultdict(dict)
+        self._context = MidFreqContext(self)
 
     def process_tick(self, tick_event, data=None):
-        """Process a tick event and record first-tick timestamp for timeout tracking.
-
-        Delegates to parent TickBroker for order matching and tracks submission
-        timestamps to enable timeout-based fallback to bar-level matching.
-
-        Args:
-            tick_event: TickEvent with current price/volume.
-            data: The data feed associated with this tick (optional).
-        """
-        _ = tick_event.symbol  # noqa: F841
-
-        # Record submission timestamp on first tick seen
-        for order in self._orders_by_symbol.get(tick_event.symbol, []):
-            order_id = id(order)
-            if order_id in self._order_submit_ts and self._order_submit_ts[order_id] is None:
-                self._order_submit_ts[order_id] = tick_event.timestamp
-
         super().process_tick(tick_event, data)
 
-        # Clean up completed orders from timestamp tracking
-        pending_ids = {id(o) for o in self._orders_by_symbol.get(tick_event.symbol, [])}
-        stale = [k for k in self._order_submit_ts if k not in pending_ids]
-        for k in stale:
-            del self._order_submit_ts[k]
+    def process_orderbook(self, ob_event, data=None):
+        super().process_orderbook(ob_event, data)
+        self._ob_window[ob_event.symbol].append(copy.deepcopy(ob_event))
 
     def process_bar(self, bar_event, data=None):
-        """Process a bar event and match remaining orders via bar fallback.
+        symbol = bar_event.symbol
+        self._completed_bars[symbol].append(copy.deepcopy(bar_event))
+        self._update_bar_indicators(symbol)
 
-        Orders that haven't been matched by ticks within tick_timeout
-        are matched against the bar's OHLC data.
-
-        Args:
-            bar_event: BarEvent with OHLC data.
-            data: The data feed associated with this bar (optional).
-        """
-        if not self.get_param("bar_fallback"):
+    def _update_bar_indicators(self, symbol):
+        bars = self._completed_bars.get(symbol)
+        if not bars:
             return
 
-        data_name = bar_event.symbol
-        timeout = self.get_param("tick_timeout")
-        current_ts = bar_event.timestamp
-        self._last_event_ts = current_ts
-        self._activate_visible_orders(current_ts)
+        indicators = self._bar_indicators[symbol]
+        indicator_state = self._bar_indicator_state[symbol]
+        sma_period = int(self.get_param("default_sma_period"))
+        if sma_period <= 0:
+            return
 
-        self._last_tick.setdefault(data_name, bar_event)
+        previous_sum = float(indicator_state.get("sma_sum", 0.0))
+        previous_len = int(indicator_state.get("bar_count", 0))
+        current_bar = bars[-1]
+        rolling_sum = previous_sum + float(current_bar.close)
+        if previous_len >= sma_period and len(bars) > sma_period:
+            rolling_sum -= float(bars[-(sma_period + 1)].close)
+        elif len(bars) <= sma_period:
+            rolling_sum = sum(float(bar.close) for bar in bars)
 
-        matched = []
-        for order in list(self._orders_by_symbol.get(data_name, [])):
+        indicator_state["bar_count"] = len(bars)
+        indicator_state["sma_sum"] = rolling_sum
 
-            # Check if order has timed out waiting for tick match
-            order_id = id(order)
-            submit_ts = self._order_submit_ts.get(order_id)
+        if len(bars) >= sma_period:
+            indicators[f"sma_{sma_period}"] = rolling_sum / float(sma_period)
+        else:
+            indicators.pop(f"sma_{sma_period}", None)
 
-            if submit_ts is not None and (current_ts - submit_ts) < timeout:
-                continue
+    def get_context(self):
+        return self._context
 
-            result = self._try_match_bar(order, bar_event)
-            if result is not None:
-                fill_price, fill_size = result
-                self._execute_bar(order, fill_price, fill_size, bar_event)
-                matched.append(order)
-                self._bar_matched_orders.add(order_id)
+    def get_ob_window(self, symbol, n=30):
+        window = list(self._ob_window.get(symbol, ()))
+        if n is not None:
+            window = window[-n:]
+        return [copy.deepcopy(snapshot) for snapshot in window]
 
-        for order in matched:
-            self._remove_pending_order(order)
-            self._order_submit_ts.pop(id(order), None)
+    def get_completed_bars(self, symbol, n=20):
+        bars = list(self._completed_bars.get(symbol, ()))
+        if n is not None:
+            bars = bars[-n:]
+        return [copy.deepcopy(bar) for bar in bars]
 
-    def _try_match_bar(self, order, bar):
-        """Try to match an order against bar OHLC data.
+    def get_bar_indicator(self, symbol, indicator_name):
+        return self._bar_indicators.get(symbol, {}).get(indicator_name)
 
-        Args:
-            order: The order to match.
-            bar: The BarEvent with OHLC data.
+    def get_symbol_snapshot(self, symbol):
+        return self._context.snapshot(symbol)
 
-        Returns:
-            Tuple of (fill_price, fill_size) or None.
-        """
-        size = order.remaining_size if hasattr(order, "remaining_size") else order.size
-        exectype = order.exectype
+    def get_symbol_snapshots(self, symbols=None):
+        return self._context.snapshot_all(symbols=symbols)
 
-        if exectype == Order.Market:
-            fill_price = self._apply_slippage(bar.open, order.isbuy())
-            return (fill_price, abs(size))
 
-        elif exectype == Order.Limit:
-            limit_price = order.price
-            if order.isbuy():
-                if bar.low <= limit_price:
-                    return (limit_price, abs(size))
-            else:
-                if bar.high >= limit_price:
-                    return (limit_price, abs(size))
+class MidFreqContext:
+    def __init__(self, broker):
+        self._broker = broker
 
-        elif exectype == Order.Stop:
-            stop_price = order.price
-            if order.isbuy():
-                if bar.high >= stop_price:
-                    fill_price = self._apply_slippage(max(bar.open, stop_price), True)
-                    return (fill_price, abs(size))
-            else:
-                if bar.low <= stop_price:
-                    fill_price = self._apply_slippage(min(bar.open, stop_price), False)
-                    return (fill_price, abs(size))
+    def get_last_tick(self, symbol):
+        tick = self._broker._last_tick.get(symbol)
+        return copy.deepcopy(tick) if tick is not None else None
 
-        elif exectype == Order.StopLimit:
-            stop_price = order.price
-            limit_price = order.pricelimit
+    def get_last_orderbook(self, symbol):
+        orderbook = self._broker._last_orderbook.get(symbol)
+        return copy.deepcopy(orderbook) if orderbook is not None else None
 
-            if not getattr(order, "_stop_triggered", False):
-                if order.isbuy() and bar.high >= stop_price:
-                    order._stop_triggered = True
-                elif not order.isbuy() and bar.low <= stop_price:
-                    order._stop_triggered = True
+    def get_last_price(self, symbol):
+        tick = self._broker._last_tick.get(symbol)
+        return getattr(tick, "price", None)
 
-            if getattr(order, "_stop_triggered", False):
-                if order.isbuy():
-                    if bar.low <= limit_price:
-                        return (limit_price, abs(size))
-                else:
-                    if bar.high >= limit_price:
-                        return (limit_price, abs(size))
+    def get_ob_window(self, symbol, n=30):
+        return self._broker.get_ob_window(symbol, n)
 
-        return None
+    def get_ob_ratio(self, symbol, levels=10, window=30):
+        snapshots = self._broker.get_ob_window(symbol, window)
+        if not snapshots:
+            return None
 
-    def _execute_bar(self, order, fill_price, fill_size, bar):
-        """Execute a fill from bar-level matching.
+        total_bid_amount = 0.0
+        total_ask_amount = 0.0
+        for snapshot in snapshots:
+            for level, (price, qty) in enumerate(snapshot.bids or []):
+                if level >= levels:
+                    break
+                total_bid_amount += float(price) * float(qty)
+            for level, (price, qty) in enumerate(snapshot.asks or []):
+                if level >= levels:
+                    break
+                total_ask_amount += float(price) * float(qty)
 
-        Args:
-            order: The order being filled.
-            fill_price: The execution price.
-            fill_size: The execution size.
-            bar: The bar that triggered the fill.
-        """
-        self._execute(order, fill_price, fill_size, bar, source="bar_fallback")
+        if total_ask_amount < 1e-12:
+            return None
+        return total_bid_amount / total_ask_amount
 
-    @property
-    def bar_matched_count(self):
-        """Number of orders matched via bar fallback."""
-        return len(self._bar_matched_orders)
+    def get_completed_bars(self, symbol, n=20):
+        return self._broker.get_completed_bars(symbol, n)
+
+    def get_sma(self, symbol, period=20):
+        if period == 20:
+            return self._broker.get_bar_indicator(symbol, "sma_20")
+
+        bars = self._broker.get_completed_bars(symbol, period)
+        if len(bars) < period:
+            return None
+        return sum(bar.close for bar in bars) / float(period)
+
+    def get_last_bar(self, symbol):
+        bars = self._broker.get_completed_bars(symbol, 1)
+        return bars[0] if bars else None
+
+    def get_cash(self):
+        return self._broker.getcash()
+
+    def get_position(self, symbol):
+        position = self._broker._positions.get(symbol)
+        return copy.deepcopy(position) if position is not None else None
+
+    def get_portfolio_value(self):
+        return self._broker.getvalue()
+
+    def get_symbols(self):
+        symbols = set()
+        symbols.update(self._broker._last_tick.keys())
+        symbols.update(self._broker._last_orderbook.keys())
+        symbols.update(self._broker._completed_bars.keys())
+        return sorted(symbols)
+
+    def snapshot(self, symbol):
+        return {
+            "symbol": symbol,
+            "last_tick": self.get_last_tick(symbol),
+            "last_orderbook": self.get_last_orderbook(symbol),
+            "last_bar": self.get_last_bar(symbol),
+            "sma_20": self.get_sma(symbol, 20),
+            "ob_ratio": self.get_ob_ratio(symbol),
+            "position": self.get_position(symbol),
+        }
+
+    def snapshot_all(self, symbols=None):
+        selected_symbols = self.get_symbols() if symbols is None else sorted(set(symbols))
+        return {
+            "cash": self.get_cash(),
+            "portfolio_value": self.get_portfolio_value(),
+            "symbols": {symbol: self.snapshot(symbol) for symbol in selected_symbols},
+        }

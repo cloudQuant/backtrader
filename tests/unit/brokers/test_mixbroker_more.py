@@ -14,7 +14,7 @@ class DummyData:
 
 def test_mixbroker_prefers_tick_over_bar_and_no_double_fill():
     data = DummyData()
-    broker = MixBroker(cash=1000.0, tick_timeout=1.0, bar_fallback=True)
+    broker = MixBroker(cash=1000.0)
     broker.setcommission(commission=0.0, name=data.name)
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Market)
 
@@ -36,11 +36,10 @@ def test_mixbroker_prefers_tick_over_bar_and_no_double_fill():
     assert broker.order_history[0]["source"] == "tick"
 
 
-def test_mixbroker_timeout_boundary_allows_bar_fallback():
+def test_mixbroker_bar_does_not_act_as_timeout_fallback():
     data = DummyData()
-    broker = MixBroker(cash=1000.0, tick_timeout=1.0, bar_fallback=True)
+    broker = MixBroker(cash=1000.0)
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Limit)
-    broker._order_submit_ts[id(order)] = 1.0
 
     broker.process_bar(
         BarEvent(
@@ -54,5 +53,6 @@ def test_mixbroker_timeout_boundary_allows_bar_fallback():
         )
     )
 
-    assert order.status == Order.Completed
-    assert broker.pending_orders == []
+    assert order.status != Order.Completed
+    assert broker.pending_orders == [order]
+    assert broker.order_history == []

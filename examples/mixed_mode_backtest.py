@@ -124,7 +124,7 @@ def main():
 
     # 2. Set up Cerebro with MixBroker
     cerebro = bt.Cerebro()
-    cerebro.setbroker(MixBroker(cash=100000.0, bar_fallback_timeout=5.0))
+    cerebro.setbroker(MixBroker(cash=100000.0))
     cerebro.addstrategy(MixedStrategy, symbol=symbol)
 
     # 3. Run

@@ -95,6 +95,7 @@ from .trade import *
 from .utils import date2num, num2date, num2dt, num2time, time2num
 from .version import __btversion__, __version__
 from .writer import *
+from .profiles import LiveProfile, build_cerebro
 
 # Iteration 138: Tick-level backtesting and live trading
 from .events import TickEvent, OrderBookSnapshot, FundingEvent, BarEvent

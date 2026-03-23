@@ -7,6 +7,7 @@ import collections
 import datetime as _dt
 import logging
 import time
+from copy import deepcopy
 
 from ..broker import BrokerBase
 from ..order import BuyOrder, SellOrder
@@ -25,6 +26,9 @@ class BtApiBroker(BrokerBase):
         ("value", None),
         ("account_refresh_interval", 1.0),
         ("positions_refresh_interval", 1.0),
+        ("open_orders_refresh_interval", 1.0),
+        ("cancel_wait_remote", False),
+        ("force_refresh_queries", True),
         ("validation_enabled", True),
         ("contract_metadata", None),
         ("max_order_size", 0),
@@ -44,6 +48,7 @@ class BtApiBroker(BrokerBase):
         self.startingvalue = self._value
         self._last_account_refresh = 0.0
         self._last_positions_refresh = 0.0
+        self._last_open_orders_refresh = 0.0
         self._trading_enabled = True
         self._strategy_paused = False
         self._contract_metadata = {
@@ -51,6 +56,7 @@ class BtApiBroker(BrokerBase):
         }
         self._orders_by_external_id = {}
         self._orders_by_client_ref = {}
+        self._remote_open_orders_snapshot = []
         self._seen_trade_ids = set()
 
     def start(self):
@@ -60,10 +66,14 @@ class BtApiBroker(BrokerBase):
         if self.store is None:
             raise ValueError("BtApiBroker requires a BtApiStore instance")
 
+        if self._live_started and self.store.is_connected:
+            return
+
         self.store.start(broker=self)
         self._live_started = True
         self._refresh_account(force=True, raise_errors=True)
         self._sync_positions(force=True, raise_errors=True)
+        self._sync_remote_open_orders(force=True)
         self.startingcash = self._cash
         self.startingvalue = self._value
 
@@ -75,17 +85,17 @@ class BtApiBroker(BrokerBase):
 
     def getcash(self) -> float:
         """Return current available cash."""
-        self._refresh_account(force=True, raise_errors=True)
+        self._refresh_account(force=bool(self.p.force_refresh_queries), raise_errors=True)
         return self._cash
 
     def getvalue(self, datas=None) -> float:
         """Return current portfolio value."""
-        self._refresh_account(force=True, raise_errors=True)
+        self._refresh_account(force=bool(self.p.force_refresh_queries), raise_errors=True)
         return self._value
 
     def getposition(self, data, clone=True):
         """Return the cached position for a given data feed."""
-        self._sync_positions(force=True, raise_errors=True)
+        self._sync_positions(force=bool(self.p.force_refresh_queries), raise_errors=True)
         key = self._position_key(data)
         position = self.positions[key]
         return position.clone() if clone else position
@@ -114,6 +124,8 @@ class BtApiBroker(BrokerBase):
         try:
             order.submit(self)
             order.addcomminfo(self.getcommissioninfo(order.data))
+            if self.store is None:
+                raise ValueError("BtApiBroker requires a BtApiStore instance")
             response = self.store.submit_order(order)
             order.accept(self)
 
@@ -149,8 +161,26 @@ class BtApiBroker(BrokerBase):
 
     def cancel(self, order):
         """Cancel an existing order through the store."""
+        if order is None:
+            return None
+
+        if not order.alive():
+            return order
+
+        if bool(getattr(order.info, "cancel_requested_remote", False)):
+            return order
+
+        if self.store is None:
+            raise ValueError("BtApiBroker requires a BtApiStore instance")
+
         self.store.cancel_order(order)
+
+        if bool(self.p.cancel_wait_remote):
+            order.addinfo(cancel_requested_remote=True)
+            return order
+
         order.cancel()
+        self._clear_order_mappings(order)
         self.notify(order)
         return order
 
@@ -159,6 +189,7 @@ class BtApiBroker(BrokerBase):
         self._drain_store_updates()
         self._refresh_account()
         self._sync_positions()
+        self._sync_remote_open_orders()
 
     def get_notification(self):
         """Return the next pending order notification."""
@@ -182,6 +213,18 @@ class BtApiBroker(BrokerBase):
         if safe:
             return [order.clone() for order in orders]
         return orders
+
+    def fetch_open_orders(self):
+        """Fetch provider-side open orders through the bound store."""
+        return self._sync_remote_open_orders(force=True, raise_errors=True)
+
+    def get_open_orders(self):
+        """Alias for fetch_open_orders()."""
+        return self.fetch_open_orders()
+
+    def getopenorders(self):
+        """Compatibility alias for fetch_open_orders()."""
+        return self.fetch_open_orders()
 
     def buy(
         self,
@@ -430,6 +473,46 @@ class BtApiBroker(BrokerBase):
             if raise_errors:
                 raise
 
+    def _sync_remote_open_orders(self, force=False, raise_errors=False):
+        """Refresh the cached provider-side open-order snapshot."""
+        if self.store is None or not self._live_started or not self.store.is_connected:
+            return deepcopy(self._remote_open_orders_snapshot)
+        if not force and not self._should_refresh(
+            self._last_open_orders_refresh,
+            float(self.p.open_orders_refresh_interval or 0.0),
+        ):
+            return deepcopy(self._remote_open_orders_snapshot)
+
+        try:
+            orders = list(self.store.fetch_open_orders() or [])
+            self._remote_open_orders_snapshot = orders
+            self._last_open_orders_refresh = time.monotonic()
+            self._emit_runtime_event(
+                "open_orders_sync_completed",
+                status="completed",
+                details={
+                    "open_order_count": len(orders),
+                    "orders": list(orders),
+                },
+            )
+            return deepcopy(self._remote_open_orders_snapshot)
+        except Exception as e:
+            logger.debug("Failed to sync remote open orders: %s", e)
+            self._emit_runtime_event(
+                "open_orders_sync_failed",
+                level="ERROR",
+                status="failed",
+                error_code=type(e).__name__,
+                error_msg=str(e),
+                details={
+                    "open_order_count": len(self._remote_open_orders_snapshot),
+                    "orders": list(self._remote_open_orders_snapshot),
+                },
+            )
+            if raise_errors:
+                raise
+            return deepcopy(self._remote_open_orders_snapshot)
+
     @staticmethod
     def _should_refresh(last_refresh, interval):
         """Return whether a throttled live refresh should run now."""
@@ -548,6 +631,8 @@ class BtApiBroker(BrokerBase):
                 self._apply_order_update(update)
             elif kind == "trade":
                 self._apply_trade_update(update)
+            elif kind == "error":
+                self._apply_error_update(update)
 
     def _apply_order_update(self, update):
         """Apply a normalized remote order-status update."""
@@ -555,18 +640,7 @@ class BtApiBroker(BrokerBase):
         if order is None:
             return
 
-        external_id = update.get("external_order_id")
-        order_ref = update.get("order_ref")
-        if external_id not in (None, ""):
-            order.addinfo(external_order_id=external_id)
-            self._orders_by_external_id[str(external_id)] = order
-        if order_ref not in (None, ""):
-            order.addinfo(ctp_order_ref=order_ref)
-            self._orders_by_client_ref[str(order_ref)] = order
-        for key in ("front_id", "session_id", "exchange_id"):
-            value = update.get(key)
-            if value not in (None, ""):
-                order.addinfo(**{key: value})
+        self._cache_order_identifiers(order, update)
 
         status = str(update.get("status") or "").lower()
         status_msg = str(update.get("status_msg") or "")
@@ -578,11 +652,13 @@ class BtApiBroker(BrokerBase):
             self.notify(order)
         elif status == "canceled" and order.status != order.Canceled:
             order.cancel()
+            self._clear_order_mappings(order)
             self.notify(order)
         elif status == "rejected" and order.status != order.Rejected:
             if status_msg:
                 order.addinfo(error_code="remote_reject", error_msg=status_msg)
             order.reject(self)
+            self._clear_order_mappings(order)
             self.notify(order)
 
     def _apply_trade_update(self, update):
@@ -643,28 +719,49 @@ class BtApiBroker(BrokerBase):
             pprice=pprice,
         )
 
-        external_id = update.get("external_order_id")
-        if external_id not in (None, ""):
-            order.addinfo(external_order_id=external_id)
-            self._orders_by_external_id[str(external_id)] = order
-        if update.get("order_ref") not in (None, ""):
-            self._orders_by_client_ref[str(update["order_ref"])] = order
+        self._cache_order_identifiers(order, update)
 
         if order.executed.remsize:
             order.partial()
         else:
             order.completed()
+            self._clear_order_mappings(order)
         self.notify(order)
+
+    def _apply_error_update(self, update):
+        """Apply a normalized remote error update to a tracked order when possible."""
+        order = self._lookup_order(update)
+        if order is None or not order.alive():
+            return
+
+        self._cache_order_identifiers(order, update)
+        error_code = str(update.get("error_code") or "remote_error")
+        error_msg = str(update.get("error_msg") or update.get("status_msg") or "")
+        order.addinfo(error_code=error_code, error_msg=error_msg)
+        if order.status != order.Rejected:
+            order.reject(self)
+            self._clear_order_mappings(order)
+            self.notify(order)
+
+    def _clear_order_mappings(self, order):
+        """Drop cached identifier mappings once an order reaches a terminal state."""
+        external_order_id = getattr(order.info, "external_order_id", None)
+        ctp_order_ref = getattr(order.info, "ctp_order_ref", None)
+
+        if external_order_id not in (None, ""):
+            self._orders_by_external_id.pop(str(external_order_id), None)
+        if ctp_order_ref not in (None, ""):
+            self._orders_by_client_ref.pop(str(ctp_order_ref), None)
 
     def _lookup_order(self, update):
         """Resolve a local order object from normalized broker update identifiers."""
-        external_id = update.get("external_order_id")
+        external_id = self._extract_update_value(update, "external_order_id", "order_id", "OrderSysID")
         if external_id not in (None, ""):
             order = self._orders_by_external_id.get(str(external_id))
             if order is not None:
                 return order
 
-        order_ref = update.get("order_ref")
+        order_ref = self._extract_update_value(update, "order_ref", "ctp_order_ref", "OrderRef")
         if order_ref not in (None, ""):
             order = self._orders_by_client_ref.get(str(order_ref))
             if order is not None:
@@ -675,6 +772,34 @@ class BtApiBroker(BrokerBase):
         if bt_order_ref in self.orders:
             return self.orders[bt_order_ref]
 
+        return None
+
+    def _cache_order_identifiers(self, order, update):
+        """Attach provider identifiers from a remote update to a local order."""
+        external_id = self._extract_update_value(update, "external_order_id", "order_id", "OrderSysID")
+        order_ref = self._extract_update_value(update, "order_ref", "ctp_order_ref", "OrderRef")
+        if external_id not in (None, ""):
+            order.addinfo(external_order_id=external_id)
+            self._orders_by_external_id[str(external_id)] = order
+        if order_ref not in (None, ""):
+            order.addinfo(ctp_order_ref=order_ref)
+            self._orders_by_client_ref[str(order_ref)] = order
+        for key in ("front_id", "session_id", "exchange_id"):
+            value = self._extract_update_value(update, key)
+            if value not in (None, ""):
+                order.addinfo(**{key: value})
+
+    @staticmethod
+    def _extract_update_value(update, *keys):
+        """Read a top-level or detail payload field from a broker update."""
+        details = update.get("details") or {}
+        for key in keys:
+            value = update.get(key)
+            if value not in (None, ""):
+                return value
+            value = details.get(key)
+            if value not in (None, ""):
+                return value
         return None
 
     @staticmethod

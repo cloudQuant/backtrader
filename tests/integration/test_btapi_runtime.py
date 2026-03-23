@@ -6,7 +6,24 @@ import time
 import pytest
 import backtrader as bt
 
-from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store, make_tick
+from tests.fixtures.fake_btapi import (
+    DEFAULT_SYMBOL,
+    FakeBtApiClient,
+    make_bar,
+    make_orderbook,
+    make_store,
+    make_tick,
+)
+
+
+def _run_cerebro_with_timeout(cerebro, timeout=0.5):
+    stop_timer = threading.Timer(timeout, cerebro.runstop)
+    stop_timer.daemon = True
+    stop_timer.start()
+    try:
+        return cerebro.run()
+    finally:
+        stop_timer.cancel()
 
 
 @pytest.mark.integration
@@ -88,7 +105,7 @@ def test_btapi_feed_dispatches_tick_and_bar_events_before_next():
     cerebro.adddata(data)
     cerebro.addstrategy(TickBarStrategy)
 
-    results = cerebro.run()
+    results = _run_cerebro_with_timeout(cerebro)
     strategy = results[0]
 
     assert strategy.tick_count == 3
@@ -101,6 +118,59 @@ def test_btapi_feed_dispatches_tick_and_bar_events_before_next():
     assert strategy.last_bar.close == pytest.approx(101.0)
     assert strategy.last_bar.volume == pytest.approx(3.0)
     assert strategy.event_order.index("bar") < strategy.event_order.index("next")
+
+
+@pytest.mark.integration
+def test_btapi_feed_dispatches_orderbook_events_to_strategy():
+    client = FakeBtApiClient(
+        live_ticks={
+            DEFAULT_SYMBOL: [
+                make_tick(0, 100.0, volume=1.0),
+                make_tick(6, 101.0, volume=1.0),
+            ]
+        },
+        live_orderbooks={
+            DEFAULT_SYMBOL: [
+                make_orderbook(1, 99.8, 100.2),
+                make_orderbook(2, 99.9, 100.3),
+            ]
+        },
+    )
+    store = make_store(api=client)
+    data = store.getdata(
+        dataname=DEFAULT_SYMBOL,
+        timeframe=bt.TimeFrame.Seconds,
+        compression=5,
+        backfill_start=False,
+    )
+    broker = store.getbroker()
+    cerebro = bt.Cerebro()
+
+    class OrderBookStrategy(bt.Strategy):
+        def __init__(self):
+            self.orderbook_count = 0
+            self.last_orderbook = None
+            self.next_count = 0
+
+        def notify_orderbook(self, orderbook):
+            self.orderbook_count += 1
+            self.last_orderbook = orderbook
+
+        def next(self):
+            self.next_count += 1
+            self.cerebro.runstop()
+
+    cerebro.setbroker(broker)
+    cerebro.adddata(data)
+    cerebro.addstrategy(OrderBookStrategy)
+
+    results = _run_cerebro_with_timeout(cerebro)
+    strategy = results[0]
+
+    assert strategy.orderbook_count == 2
+    assert strategy.last_orderbook.best_bid == pytest.approx(99.9)
+    assert strategy.last_orderbook.best_ask == pytest.approx(100.3)
+    assert strategy.next_count == 1
 
 
 @pytest.mark.integration
@@ -153,7 +223,7 @@ def test_btapi_multidata_waits_for_all_completed_bars_before_next():
     cerebro.adddata(data_b)
     cerebro.addstrategy(MultiDataStrategy)
 
-    results = cerebro.run()
+    results = _run_cerebro_with_timeout(cerebro)
     strategy = results[0]
 
     assert strategy.bar_symbols.count(symbol_a) == 1
@@ -263,7 +333,7 @@ def test_btapi_remote_trade_updates_reach_strategy_notifications():
     cerebro.adddata(data)
     cerebro.addstrategy(RemoteFillStrategy)
 
-    results = cerebro.run()
+    results = _run_cerebro_with_timeout(cerebro)
     strategy = results[0]
 
     assert "Accepted" in strategy.order_statuses

@@ -18,6 +18,7 @@ import re
 import time
 import uuid
 import warnings
+from copy import deepcopy
 from typing import Any, Deque, Dict, Iterable, List, Optional
 
 from ..events import TickEvent
@@ -1158,6 +1159,9 @@ class BtApiStore(LiveStoreBase):
         api_kwargs: Optional[Dict[str, Any]] = None,
         cash: float = 0.0,
         value: Optional[float] = None,
+        account_cache_ttl: float = 0.0,
+        positions_cache_ttl: float = 0.0,
+        open_orders_cache_ttl: float = 0.0,
         positions: Optional[Iterable[Dict[str, Any]]] = None,
         historical_bars: Optional[Dict[str, Iterable[Any]]] = None,
         live_bars: Optional[Dict[str, Iterable[Any]]] = None,
@@ -1176,7 +1180,15 @@ class BtApiStore(LiveStoreBase):
         self._apply_env_gateway_overrides()
         self._cash = _coerce_float(cash)
         self._value = _coerce_float(value, self._cash)
+        self._account_cache_ttl = max(_coerce_float(account_cache_ttl), 0.0)
+        self._positions_cache_ttl = max(_coerce_float(positions_cache_ttl), 0.0)
+        self._open_orders_cache_ttl = max(_coerce_float(open_orders_cache_ttl), 0.0)
         self._positions_cache = list(positions or [])
+        self._open_orders_cache = []
+        seeded_at = time.monotonic() if positions or value is not None or cash else 0.0
+        self._last_balance_refresh = seeded_at
+        self._last_positions_refresh = seeded_at if positions else 0.0
+        self._last_open_orders_refresh = 0.0
         self._connected = False
         self._started = False
         self._data_feeds = []
@@ -1184,6 +1196,7 @@ class BtApiStore(LiveStoreBase):
         self.notifs: Deque[Any] = collections.deque()
         self._historical_bars = collections.defaultdict(collections.deque)
         self._live_bars = collections.defaultdict(collections.deque)
+        self._subscribed_datanames = set()
         self._successful_connect_count = 0
         self.contract_metadata = {
             str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()
@@ -1246,6 +1259,9 @@ class BtApiStore(LiveStoreBase):
 
     def stop(self):
         """Disconnect from the underlying bt_api_py client."""
+        if not self._connected and not self._started:
+            return
+
         if self._connected:
             self.emit_runtime_event("store_disconnect_requested", status="disconnecting")
 
@@ -1257,6 +1273,7 @@ class BtApiStore(LiveStoreBase):
 
         self._connected = False
         self._started = False
+        self._subscribed_datanames.clear()
         self.emit_runtime_event("store_disconnected", status="disconnected")
 
     def getbroker(self, *args, **kwargs):
@@ -1297,14 +1314,22 @@ class BtApiStore(LiveStoreBase):
 
     def get_balance(self):
         """Refresh cached cash and value from the API, if available."""
+        if self._is_cache_fresh(self._last_balance_refresh, self._account_cache_ttl):
+            return {"cash": self._cash, "value": self._value}
+
         api = self._ensure_api_ready()
 
-        if hasattr(api, "get_balance"):
-            balance = api.get_balance()
-        elif hasattr(api, "get_account"):
-            balance = api.get_account()
-        else:
-            return {"cash": self._cash, "value": self._value}
+        try:
+            if hasattr(api, "get_balance"):
+                balance = api.get_balance()
+            elif hasattr(api, "get_account"):
+                balance = api.get_account()
+            else:
+                return {"cash": self._cash, "value": self._value}
+        except Exception:
+            if self._last_balance_refresh > 0.0:
+                return {"cash": self._cash, "value": self._value}
+            raise
 
         if isinstance(balance, dict):
             self._cash = _coerce_float(
@@ -1315,7 +1340,8 @@ class BtApiStore(LiveStoreBase):
                 balance.get("value", balance.get("equity", balance.get("total"))),
                 self._value,
             )
-            return balance
+            self._last_balance_refresh = time.monotonic()
+            return {"cash": self._cash, "value": self._value}
 
         return {"cash": self._cash, "value": self._value}
 
@@ -1331,17 +1357,37 @@ class BtApiStore(LiveStoreBase):
 
     def get_positions(self) -> List[Dict[str, Any]]:
         """Return cached or queried positions."""
+        if self._is_cache_fresh(self._last_positions_refresh, self._positions_cache_ttl):
+            return deepcopy(self._positions_cache)
+
         api = self._ensure_api_ready()
 
-        if hasattr(api, "get_positions"):
-            positions = api.get_positions()
-            self._positions_cache = list(positions or [])
+        try:
+            if hasattr(api, "get_positions"):
+                positions = api.get_positions()
+            else:
+                positions = []
+        except AttributeError:
+            positions = []
+        except Exception:
+            if self._last_positions_refresh > 0.0:
+                return deepcopy(self._positions_cache)
+            raise
 
-        return list(self._positions_cache)
+        self._positions_cache = list(positions or [])
+        self._last_positions_refresh = time.monotonic()
+
+        return deepcopy(self._positions_cache)
 
     def getpositions(self) -> List[Dict[str, Any]]:
         """Alias for get_positions()."""
         return self.get_positions()
+
+    @staticmethod
+    def _is_cache_fresh(last_refresh: float, ttl: float) -> bool:
+        if ttl <= 0.0 or last_refresh <= 0.0:
+            return False
+        return (time.monotonic() - last_refresh) < ttl
 
     def register(self, feed):
         """Register a feed instance with this store."""
@@ -1351,9 +1397,14 @@ class BtApiStore(LiveStoreBase):
     def subscribe(self, dataname: str):
         """Subscribe to market data for the given symbol."""
         api = self._ensure_api_ready()
+        dataname = str(dataname)
+
+        if dataname in self._subscribed_datanames:
+            return
 
         if hasattr(api, "subscribe"):
             api.subscribe(dataname)
+            self._subscribed_datanames.add(dataname)
             self.emit_runtime_event(
                 "market_data_subscribe_request",
                 details={"data_name": dataname},
@@ -1370,7 +1421,7 @@ class BtApiStore(LiveStoreBase):
     ) -> List[Dict[str, Any]]:
         """Fetch normalized historical bars for a symbol."""
         if self._historical_bars[dataname]:
-            return list(self._historical_bars[dataname])
+            return deepcopy(list(self._historical_bars[dataname]))
 
         api = self._ensure_api_ready()
         bars = []
@@ -1394,7 +1445,40 @@ class BtApiStore(LiveStoreBase):
 
         normalized = [_normalize_bar(bar) for bar in bars or []]
         self._historical_bars[dataname].extend(normalized)
-        return normalized
+        return deepcopy(normalized)
+
+    def fetch_open_orders(self) -> List[Dict[str, Any]]:
+        """Fetch the provider's currently open orders, if supported."""
+        if self._is_cache_fresh(self._last_open_orders_refresh, self._open_orders_cache_ttl):
+            return deepcopy(self._open_orders_cache)
+
+        api = self._ensure_api_ready()
+
+        try:
+            if hasattr(api, "fetch_open_orders"):
+                orders = api.fetch_open_orders()
+            elif hasattr(api, "get_open_orders"):
+                orders = api.get_open_orders()
+            else:
+                orders = []
+        except AttributeError:
+            orders = []
+        except Exception:
+            if self._last_open_orders_refresh > 0.0:
+                return deepcopy(self._open_orders_cache)
+            raise
+
+        self._open_orders_cache = list(orders or [])
+        self._last_open_orders_refresh = time.monotonic()
+        return deepcopy(self._open_orders_cache)
+
+    def get_open_orders(self) -> List[Dict[str, Any]]:
+        """Alias for fetch_open_orders()."""
+        return self.fetch_open_orders()
+
+    def getopenorders(self) -> List[Dict[str, Any]]:
+        """Compatibility alias for fetch_open_orders()."""
+        return self.fetch_open_orders()
 
     def poll_live(self, dataname: str) -> Optional[Dict[str, Any]]:
         """Poll a single live bar from cache or the API."""
@@ -1426,6 +1510,18 @@ class BtApiStore(LiveStoreBase):
             return api.get_next_tick(dataname)
         return None
 
+    def poll_orderbook(self, dataname: str):
+        """Poll a single live orderbook snapshot from the API."""
+        if not self._connected:
+            return None
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "poll_orderbook"):
+            return api.poll_orderbook(dataname)
+        if hasattr(api, "get_next_orderbook"):
+            return api.get_next_orderbook(dataname)
+        return None
+
     def has_pending_tick(self, dataname: str) -> bool:
         """Return whether the API has queued live ticks for a symbol."""
         if not self._connected:
@@ -1434,6 +1530,26 @@ class BtApiStore(LiveStoreBase):
         api = self._ensure_api_ready()
         if hasattr(api, "has_pending_tick"):
             return bool(api.has_pending_tick(dataname))
+
+        live_ticks = getattr(api, "live_ticks", None)
+        if live_ticks is not None:
+            return bool(live_ticks.get(dataname))
+
+        return False
+
+    def has_pending_orderbook(self, dataname: str) -> bool:
+        """Return whether the API has queued live orderbooks for a symbol."""
+        if not self._connected:
+            return False
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "has_pending_orderbook"):
+            return bool(api.has_pending_orderbook(dataname))
+
+        live_orderbooks = getattr(api, "live_orderbooks", None)
+        if live_orderbooks is not None:
+            return bool(live_orderbooks.get(dataname))
+
         return False
 
     def supports_live_ticks(self, dataname: str) -> bool:
@@ -1444,6 +1560,26 @@ class BtApiStore(LiveStoreBase):
         api = self._ensure_api_ready()
         if hasattr(api, "supports_live_ticks"):
             return bool(api.supports_live_ticks(dataname))
+
+        live_ticks = getattr(api, "live_ticks", None)
+        if live_ticks is not None:
+            return dataname in live_ticks
+
+        return False
+
+    def supports_live_orderbook(self, dataname: str) -> bool:
+        """Return whether a symbol is configured for live orderbook streaming."""
+        if not self._connected:
+            return False
+
+        api = self._ensure_api_ready()
+        if hasattr(api, "supports_live_orderbook"):
+            return bool(api.supports_live_orderbook(dataname))
+
+        live_orderbooks = getattr(api, "live_orderbooks", None)
+        if live_orderbooks is not None:
+            return dataname in live_orderbooks
+
         return False
 
     def poll_broker_update(self):

@@ -136,6 +136,7 @@ class TestRefreshAccountLogging:
         broker.start()
         try:
             client.fail = True
+            store._last_balance_refresh = 0.0
             with caplog.at_level(logging.DEBUG):
                 broker.next()
             assert any("Failed to refresh account" in r.message for r in caplog.records)
@@ -164,9 +165,39 @@ class TestRefreshAccountLogging:
         broker.start()
         try:
             client.fail = True
+            store._last_positions_refresh = 0.0
             with caplog.at_level(logging.DEBUG):
                 broker.next()
             assert any("Failed to sync positions" in r.message for r in caplog.records)
+        finally:
+            broker.stop()
+
+    def test_sync_remote_open_orders_logs_on_failure(self, caplog):
+        """Transient remote open-order sync failure should emit a debug log."""
+
+        class FlakyOpenOrdersClient(FakeBtApiClient):
+            def __init__(self):
+                super().__init__(open_orders=[{"id": "btapi-1", "symbol": DEFAULT_SYMBOL, "side": "buy"}])
+                self.fail = False
+
+            def fetch_open_orders(self):
+                if self.fail:
+                    raise RuntimeError("open-order API down")
+                return super().fetch_open_orders()
+
+        client = FlakyOpenOrdersClient()
+        store = make_store(api=client)
+        broker = store.getbroker(open_orders_refresh_interval=0.0)
+
+        broker.start()
+        try:
+            client.fail = True
+            store._open_orders_cache_ttl = 0.0
+            store._open_orders_cache = []
+            store._last_open_orders_refresh = 0.0
+            with caplog.at_level(logging.DEBUG):
+                broker.next()
+            assert any("Failed to sync remote open orders" in r.message for r in caplog.records)
         finally:
             broker.stop()
 

@@ -107,3 +107,31 @@ class LiveStoreBase(ABC):
 
     def subscribe(self, dataname: str):
         """Subscribe to market data for *dataname* (optional)."""
+
+    def poll_live(self, dataname: str):
+        """Poll the next completed live bar for *dataname* (optional)."""
+        return None
+
+    def poll_tick(self, dataname: str):
+        """Poll the next live tick for *dataname* (optional)."""
+        return None
+
+    def poll_orderbook(self, dataname: str):
+        """Poll the next live order book snapshot for *dataname* (optional)."""
+        return None
+
+    def has_pending_tick(self, dataname: str) -> bool:
+        """Return whether *dataname* has queued live ticks (optional)."""
+        return False
+
+    def has_pending_orderbook(self, dataname: str) -> bool:
+        """Return whether *dataname* has queued order book data (optional)."""
+        return False
+
+    def supports_live_ticks(self, dataname: str) -> bool:
+        """Return whether the store can stream live ticks for *dataname* (optional)."""
+        return False
+
+    def supports_live_orderbook(self, dataname: str) -> bool:
+        """Return whether the store can stream live order books for *dataname* (optional)."""
+        return False

@@ -2,6 +2,14 @@
 
 ## [Unreleased] - 2026-02-07
 
+### 中频回测增强（迭代7）
+
+- **重构 `MixBroker` 为中频协调层**: 移除旧的 `bar_fallback`/`tick_timeout` 语义，`process_bar` 仅更新低频状态，不再承担订单撮合。
+- **新增 `MidFreqContext` 统一上下文**: 策略可通过 `self.context` 读取高频窗口、已完成 bar、SMA、账户与多品种快照。
+- **统一 channel 时间线**: 同一时间戳下固定按 `tick -> orderbook -> bar` 顺序处理，支持多品种全局时间推进。
+- **新增多品种 mixed channel / 套利样例**: 增加 `build_mixed_channel()`、`examples/004_midfreq_demo/`、`examples/005_midfreq_arbitrage/`。
+- **新增测试覆盖**: 补充单品种、多品种、集成与性能基线测试，验证高频优先执行、bar 不撮合、跨品种快照与 `get_ob_ratio()` 延迟基线。
+
 ### Bug 修复
 
 - **修复 position 日志缺少 dt 的问题**: 当数据源尚无数据时（`len(data)==0`），跳过该数据源的持仓记录，避免 dt 为空。

@@ -37,6 +37,8 @@ from .vchartcsv import *
 from .yahoo import *
 
 from .chainer import Chainer as Chainer
+from .mixed_channel import build_mixed_channel as build_mixed_channel
+from .mixed_channel import MixedChannel as MixedChannel
 from .rollover import RollOver as RollOver
 from .vchartfile import VChartFile as VChartFile
 from .btapifeed import BtApiFeed as BtApiFeed

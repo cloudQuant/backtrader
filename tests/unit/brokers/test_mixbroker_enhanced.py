@@ -12,9 +12,9 @@ class DummyData:
         self.symbol = name
 
 
-def test_mixbroker_uses_bar_fallback_and_cleans_pending_orders():
+def test_mixbroker_process_bar_keeps_order_pending_and_updates_bar_state():
     data = DummyData()
-    broker = MixBroker(cash=1000.0, tick_timeout=1.0, bar_fallback=True)
+    broker = MixBroker(cash=1000.0)
     order = broker.buy(owner=None, data=data, size=1, price=100.0, exectype=Order.Market)
 
     broker.process_bar(
@@ -29,8 +29,7 @@ def test_mixbroker_uses_bar_fallback_and_cleans_pending_orders():
         )
     )
 
-    assert order.status == Order.Completed
-    assert broker.pending_orders == []
-    assert broker.bar_matched_count == 1
-    assert broker.order_history[-1]["source"] == "bar_fallback"
-    assert broker.getposition(data).size == pytest.approx(1.0)
+    assert order.status != Order.Completed
+    assert broker.pending_orders == [order]
+    assert broker.order_history == []
+    assert broker.get_completed_bars(data.symbol, 1)[0].close == pytest.approx(101.0)

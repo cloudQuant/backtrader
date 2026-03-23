@@ -38,8 +38,8 @@ class EventPriority(IntEnum):
 
     SYSTEM = 0
     FUNDING = 10
-    ORDERBOOK = 20
-    TICK = 30
+    TICK = 20
+    ORDERBOOK = 30
     BAR = 40
 
 

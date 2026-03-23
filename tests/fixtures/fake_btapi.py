@@ -7,7 +7,7 @@ import datetime as dt
 from copy import deepcopy
 from typing import Any, Dict, Iterable, Optional
 
-from backtrader.events import TickEvent
+from backtrader.events import OrderBookSnapshot, TickEvent
 from backtrader.stores.btapistore import BtApiStore
 
 DEFAULT_SYMBOL = "BTC/USDT"
@@ -63,6 +63,28 @@ def make_tick(
     return event
 
 
+def make_orderbook(
+    offset_seconds: int,
+    bid_price: float,
+    ask_price: float,
+    bid_volume: float = 1.0,
+    ask_volume: float = 1.0,
+    symbol: str = DEFAULT_SYMBOL,
+) -> OrderBookSnapshot:
+    base = dt.datetime(2024, 1, 1, 9, 0, 0, tzinfo=dt.timezone.utc)
+    event = OrderBookSnapshot(
+        timestamp=(base + dt.timedelta(seconds=offset_seconds)).timestamp(),
+        symbol=symbol,
+        exchange="fake",
+        asset_type="futures",
+        local_time=(base + dt.timedelta(seconds=offset_seconds)).timestamp(),
+        bids=[(bid_price, bid_volume)],
+        asks=[(ask_price, ask_volume)],
+    )
+    event.datetime = (base + dt.timedelta(seconds=offset_seconds)).replace(tzinfo=None)
+    return event
+
+
 class FakeBtApiClient:
     """Minimal bt_api_py-compatible client for store/broker/feed tests."""
 
@@ -73,6 +95,8 @@ class FakeBtApiClient:
         history: Optional[Dict[str, Iterable[Dict[str, Any]]]] = None,
         live: Optional[Dict[str, Iterable[Dict[str, Any]]]] = None,
         live_ticks: Optional[Dict[str, Iterable[TickEvent]]] = None,
+        live_orderbooks: Optional[Dict[str, Iterable[OrderBookSnapshot]]] = None,
+        open_orders: Optional[Iterable[Dict[str, Any]]] = None,
         broker_updates: Optional[Iterable[Dict[str, Any]]] = None,
     ):
         self.balance = dict(balance or {"cash": 10000.0, "value": 10000.0})
@@ -84,6 +108,11 @@ class FakeBtApiClient:
         self.live_ticks = {
             key: collections.deque(deepcopy(list(value))) for key, value in (live_ticks or {}).items()
         }
+        self.live_orderbooks = {
+            key: collections.deque(deepcopy(list(value)))
+            for key, value in (live_orderbooks or {}).items()
+        }
+        self.open_orders = deepcopy(list(open_orders or []))
         self.connected = False
         self.subscriptions = []
         self.submitted_orders = []
@@ -114,6 +143,10 @@ class FakeBtApiClient:
         """Return historical bars for a symbol."""
         return deepcopy(self.history.get(dataname, []))
 
+    def fetch_open_orders(self):
+        """Return the provider's open orders payload."""
+        return deepcopy(self.open_orders)
+
     def poll_bar(self, dataname: str):
         """Return the next live bar for a symbol."""
         queue = self.live.get(dataname)
@@ -128,14 +161,27 @@ class FakeBtApiClient:
             return None
         return deepcopy(queue.popleft())
 
+    def poll_orderbook(self, dataname: str):
+        queue = self.live_orderbooks.get(dataname)
+        if not queue:
+            return None
+        return deepcopy(queue.popleft())
+
     def has_pending_tick(self, dataname: str):
         """Return whether a symbol has queued live ticks."""
         queue = self.live_ticks.get(dataname)
         return bool(queue)
 
+    def has_pending_orderbook(self, dataname: str):
+        queue = self.live_orderbooks.get(dataname)
+        return bool(queue)
+
     def supports_live_ticks(self, dataname: str):
         """Return whether a symbol is configured for live tick streaming."""
         return dataname in self.live_ticks
+
+    def supports_live_orderbook(self, dataname: str):
+        return dataname in self.live_orderbooks
 
     def submit_order(self, payload: Dict[str, Any]):
         """Record a submitted order and return an external id."""

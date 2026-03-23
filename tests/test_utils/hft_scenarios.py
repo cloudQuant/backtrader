@@ -1,6 +1,14 @@
 from dataclasses import asdict, dataclass
 
-from backtrader.brokers.hft import OBIAlphaQuoteBuilder, PlainGridQuoteBuilder, QueueExchangeModel, QueueMarketMakingQuoteBuilder
+from backtrader.brokers.hft import (
+    APTQuoteBuilder,
+    BasisAlphaQuoteBuilder,
+    GLFTQuoteBuilder,
+    OBIAlphaQuoteBuilder,
+    PlainGridQuoteBuilder,
+    QueueExchangeModel,
+    QueueMarketMakingQuoteBuilder,
+)
 from backtrader.brokers.tickbroker import TickBroker
 from backtrader.events import OrderBookSnapshot, TickEvent
 from backtrader.order import Order
@@ -28,12 +36,19 @@ class ScenarioResult:
 
 
 @dataclass
+class ContextTrade:
+    price: float
+    direction: str
+
+
+@dataclass
 class ScenarioSpec:
     name: str
     source: str
     orderbooks: list
     ticks: list
     builder_factory: object
+    contexts: list | None = None
 
 
 class ReferenceMakerRunner:
@@ -56,48 +71,48 @@ class ReferenceMakerRunner:
             normalized[side] = prices
         return normalized
 
-    def cancel_missing(self, new_quotes):
+    def cancel_missing(self, new_quotes, order_qty):
         normalized = self._normalize_quotes(new_quotes)
-        expected = {(side, price) for side, prices in normalized.items() for price in prices}
+        expected = {(side, price, float(order_qty)) for side, prices in normalized.items() for price in prices}
         stale = [key for key in self.pending if key not in expected]
         for key in stale:
             self.pending.pop(key, None)
             self.queue_ahead.pop(key, None)
 
-    def submit_quotes(self, snapshot, new_quotes):
+    def submit_quotes(self, snapshot, new_quotes, order_qty):
         normalized = self._normalize_quotes(new_quotes)
         best_bid_qty = snapshot.bids[0][1] if snapshot.bids else 0.0
         best_ask_qty = snapshot.asks[0][1] if snapshot.asks else 0.0
         for side, prices in normalized.items():
             for price in prices:
-                key = (side, price)
+                key = (side, price, float(order_qty))
                 if key in self.pending:
                     continue
                 self.pending[key] = price
                 self.queue_ahead[key] = best_bid_qty if side == "buy" else best_ask_qty
 
     def on_trade(self, tick):
-        for side, target_price in list(self.pending):
+        for side, target_price, order_qty in list(self.pending):
             if tick.price != target_price:
                 continue
 
             remaining_trade = tick.volume
-            key = (side, target_price)
+            key = (side, target_price, order_qty)
             ahead = self.queue_ahead.get(key, 0.0)
             consumed = min(ahead, remaining_trade)
             ahead -= consumed
             remaining_trade -= consumed
             self.queue_ahead[key] = ahead
-            if remaining_trade < self.order_qty:
+            if remaining_trade < order_qty:
                 continue
 
             if side == "buy":
-                self.cash -= target_price * self.order_qty
-                self.position += self.order_qty
+                self.cash -= target_price * order_qty
+                self.position += order_qty
             else:
-                self.cash += target_price * self.order_qty
-                self.position -= self.order_qty
-            self.fills.append(TradeFill(side=side, price=target_price, size=self.order_qty))
+                self.cash += target_price * order_qty
+                self.position -= order_qty
+            self.fills.append(TradeFill(side=side, price=target_price, size=order_qty))
             self.pending.pop(key, None)
             self.queue_ahead.pop(key, None)
 
@@ -121,10 +136,10 @@ def _normalize_quotes(quotes):
     return normalized
 
 
-def _submit_or_replace_quotes(broker, data, working_orders, quotes):
+def _submit_or_replace_quotes(broker, data, working_orders, quotes, order_qty):
     working_orders = _cleanup_orders(working_orders)
     normalized = _normalize_quotes(quotes)
-    target_keys = {(side, price) for side, prices in normalized.items() for price in prices}
+    target_keys = {(side, price, float(order_qty)) for side, prices in normalized.items() for price in prices}
 
     for key in list(working_orders):
         if key in target_keys:
@@ -134,16 +149,26 @@ def _submit_or_replace_quotes(broker, data, working_orders, quotes):
 
     for side, prices in normalized.items():
         for target_price in prices:
-            key = (side, target_price)
+            key = (side, target_price, float(order_qty))
             if key in working_orders:
                 continue
             if side == "buy":
-                order = broker.buy(owner=None, data=data, size=1.0, price=target_price, exectype=Order.Limit)
+                order = broker.buy(owner=None, data=data, size=order_qty, price=target_price, exectype=Order.Limit)
             else:
-                order = broker.sell(owner=None, data=data, size=1.0, price=target_price, exectype=Order.Limit)
+                order = broker.sell(owner=None, data=data, size=order_qty, price=target_price, exectype=Order.Limit)
             order.time_in_force = "GTX"
             working_orders[key] = order
     return _cleanup_orders(working_orders)
+
+
+def _scenario_context(spec, index):
+    if spec.contexts is None:
+        return None
+    return spec.contexts[index]
+
+
+def _current_order_qty(quote_builder):
+    return float(getattr(quote_builder, "current_order_qty", getattr(quote_builder, "order_qty", 1.0)))
 
 
 def _fill_history(broker):
@@ -161,9 +186,11 @@ def run_backtrader_scenario(spec, cash=1000.0):
     working_orders = {}
     quote_builder = spec.builder_factory()
 
-    for snapshot, trade in zip(spec.orderbooks, spec.ticks):
-        quotes = quote_builder(broker.getposition(data).size, snapshot)
-        working_orders = _submit_or_replace_quotes(broker, data, working_orders, quotes)
+    for index, (snapshot, trade) in enumerate(zip(spec.orderbooks, spec.ticks)):
+        context = _scenario_context(spec, index)
+        quotes = quote_builder(broker.getposition(data).size, snapshot, context)
+        order_qty = _current_order_qty(quote_builder)
+        working_orders = _submit_or_replace_quotes(broker, data, working_orders, quotes, order_qty)
         broker.process_orderbook(snapshot)
         working_orders = _cleanup_orders(working_orders)
         broker.process_tick(trade)
@@ -179,10 +206,12 @@ def run_backtrader_scenario(spec, cash=1000.0):
 def run_reference_scenario(spec, cash=1000.0):
     runner = ReferenceMakerRunner(cash=cash, order_qty=1.0)
     quote_builder = spec.builder_factory()
-    for snapshot, trade in zip(spec.orderbooks, spec.ticks):
-        quotes = quote_builder(runner.position, snapshot)
-        runner.cancel_missing(quotes)
-        runner.submit_quotes(snapshot, quotes)
+    for index, (snapshot, trade) in enumerate(zip(spec.orderbooks, spec.ticks)):
+        context = _scenario_context(spec, index)
+        quotes = quote_builder(runner.position, snapshot, context)
+        order_qty = _current_order_qty(quote_builder)
+        runner.cancel_missing(quotes, order_qty)
+        runner.submit_quotes(snapshot, quotes, order_qty)
         runner.on_trade(trade)
     return ScenarioResult(cash=runner.cash, position=runner.position, fills=runner.fills)
 
@@ -284,6 +313,86 @@ def get_hft_scenario_specs():
                 grid_num=1,
                 grid_interval=1.0,
             ),
+        ),
+        ScenarioSpec(
+            name="basis_alpha_market_making",
+            source="Market Making with Alpha - Basis.ipynb",
+            orderbooks=[
+                OrderBookSnapshot(timestamp=1.0, symbol="BTC/USDT", bids=[(100.0, 5.0)], asks=[(101.0, 5.0)]),
+                OrderBookSnapshot(timestamp=2.0, symbol="BTC/USDT", bids=[(100.0, 5.0)], asks=[(101.0, 5.0)]),
+            ],
+            ticks=[
+                TickEvent(timestamp=1.5, symbol="BTC/USDT", price=100.0, volume=6.0),
+                TickEvent(timestamp=2.5, symbol="BTC/USDT", price=101.0, volume=6.0),
+            ],
+            builder_factory=lambda: BasisAlphaQuoteBuilder(
+                tick_size=1.0,
+                lot_size=1.0,
+                half_spread=0.0,
+                skew=0.0,
+                order_qty_dollar=100.0,
+                max_position_dollar=1_000.0,
+                grid_num=1,
+                grid_interval=1.0,
+                precompute_data=[[50, 100.0, 0.0], [150, 101.0, 0.0], [250, 100.0, 0.0]],
+            ),
+            contexts=[
+                {"timestamp_ns": 100},
+                {"timestamp_ns": 200},
+            ],
+        ),
+        ScenarioSpec(
+            name="apt_alpha_market_making",
+            source="Market Making with Alpha - APT.ipynb",
+            orderbooks=[
+                OrderBookSnapshot(timestamp=1.0, symbol="BTC/USDT", bids=[(100.0, 5.0)], asks=[(101.0, 5.0)]),
+                OrderBookSnapshot(timestamp=2.0, symbol="BTC/USDT", bids=[(100.0, 5.0)], asks=[(101.0, 5.0)]),
+            ],
+            ticks=[
+                TickEvent(timestamp=1.5, symbol="BTC/USDT", price=100.0, volume=6.0),
+                TickEvent(timestamp=2.5, symbol="BTC/USDT", price=101.0, volume=6.0),
+            ],
+            builder_factory=lambda: APTQuoteBuilder(
+                tick_size=1.0,
+                lot_size=1.0,
+                half_spread=0.0,
+                skew=0.0,
+                order_qty_dollar=100.0,
+                max_position_dollar=1_000.0,
+                grid_num=1,
+                grid_interval=0.01,
+                precompute_data=[[50, 0.0, 0.0, 0.0, 100.0], [150, 0.0, 0.0, 0.0, 101.0], [250, 0.0, 0.0, 0.0, 100.0]],
+            ),
+            contexts=[
+                {"timestamp_ns": 100},
+                {"timestamp_ns": 200},
+            ],
+        ),
+        ScenarioSpec(
+            name="glft_market_making",
+            source="Grid Trading with GLFT Market Making Model and Hedging.ipynb",
+            orderbooks=[
+                OrderBookSnapshot(timestamp=1.0, symbol="BTC/USDT", bids=[(100.0, 5.0)], asks=[(101.0, 5.0)]),
+                OrderBookSnapshot(timestamp=2.0, symbol="BTC/USDT", bids=[(100.0, 5.0)], asks=[(101.0, 5.0)]),
+            ],
+            ticks=[
+                TickEvent(timestamp=1.5, symbol="BTC/USDT", price=100.0, volume=6.0),
+                TickEvent(timestamp=2.5, symbol="BTC/USDT", price=101.0, volume=6.0),
+            ],
+            builder_factory=lambda: GLFTQuoteBuilder(
+                tick_size=1.0,
+                lot_size=1.0,
+                gamma=0.05,
+                delta=1.0,
+                order_qty=1.0,
+                max_position=1.0,
+                grid_num=1,
+                grid_interval=1.0,
+            ),
+            contexts=[
+                {"timestamp_ns": 100, "last_trades": (ContextTrade(price=100.0, direction="buy"),)},
+                {"timestamp_ns": 200, "last_trades": (ContextTrade(price=101.0, direction="sell"),)},
+            ],
         ),
     ]
 

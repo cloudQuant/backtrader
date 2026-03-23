@@ -994,6 +994,12 @@ class Cerebro(ParameterizedBase):
                     continue  # user requested skip, same as standard run() path
                 runstrats.append(strat)
 
+        context_getter = getattr(self._broker, "get_context", None)
+        if callable(context_getter):
+            context = context_getter()
+            for strat in runstrats:
+                strat.context = context
+
         # Call user's start() hook on each strategy
         for strat in runstrats:
             strat.start()

@@ -39,6 +39,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self._live = collections.deque(_normalize_bar(bar) for bar in (self.p.live_bars or []))
         self._live_notified = False
         self._bar_builder = None
+        self._history_backfilled = bool(self._history)
 
     def start(self):
         """Start the feed, register it, and backfill if configured."""
@@ -53,7 +54,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         self.store.start(data=self)
         self.store.register(self)
 
-        if self.p.backfill_start and not self._history:
+        if self.p.backfill_start and not self._history and not self._history_backfilled:
             try:
                 bars = self.store.fetch_history(
                     self._dataname,
@@ -61,6 +62,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
                     compression=self._compression,
                 )
                 self._history.extend(bars)
+                self._history_backfilled = True
             except Exception as e:
                 logger.debug("Failed to backfill history: %s", e)
 
@@ -94,9 +96,20 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 except Exception as e:
                     logger.debug("supports_live_ticks check failed: %s", e)
 
+            if hasattr(api, "supports_live_orderbook"):
+                try:
+                    if bool(api.supports_live_orderbook(dataname)):
+                        return True
+                except Exception as e:
+                    logger.debug("supports_live_orderbook check failed: %s", e)
+
             live_ticks = getattr(api, "live_ticks", None)
             if live_ticks is not None:
                 return dataname in live_ticks
+
+            live_orderbooks = getattr(api, "live_orderbooks", None)
+            if live_orderbooks is not None:
+                return dataname in live_orderbooks
 
             live_bars = getattr(api, "live", None)
             if live_bars is not None:
@@ -115,13 +128,17 @@ class BtApiFeed(DataBase, LiveFeedBase):
         if self._live:
             return True
 
-        if self.store is None:
+        store = self.store or getattr(self, "_store", None)
+        if store is None:
             return False
 
-        if hasattr(self.store, "has_pending_tick") and self.store.has_pending_tick(self._dataname):
+        if hasattr(store, "has_pending_tick") and store.has_pending_tick(self._dataname):
             return True
 
-        live_cache = getattr(self.store, "_live_bars", {})
+        if hasattr(store, "has_pending_orderbook") and store.has_pending_orderbook(self._dataname):
+            return True
+
+        live_cache = getattr(store, "_live_bars", {})
         return bool(live_cache.get(self._dataname))
 
     def _load_history(self) -> bool:
@@ -137,6 +154,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
             return self._load_history()
 
         self._drain_live_ticks()
+        self._drain_live_orderbooks()
 
         if self._live:
             bar = self._live.popleft()
@@ -158,6 +176,7 @@ class BtApiFeed(DataBase, LiveFeedBase):
         """Drain live ticks while waiting for the next completed bar."""
         super()._check(forcedata=forcedata)
         self._drain_live_ticks()
+        self._drain_live_orderbooks()
 
     def _load_bar(self, bar) -> bool:
         """Write a normalized bar into line buffers."""
@@ -187,6 +206,21 @@ class BtApiFeed(DataBase, LiveFeedBase):
                 event_data=tick,
             )
             self._ingest_tick(tick)
+
+    def _drain_live_orderbooks(self):
+        if self.store is None or not hasattr(self.store, "poll_orderbook"):
+            return
+
+        while True:
+            orderbook = self.store.poll_orderbook(self._dataname)
+            if orderbook is None:
+                break
+
+            self._dispatch_event(
+                channel_type="orderbook",
+                priority=EventPriority.ORDERBOOK,
+                event_data=orderbook,
+            )
 
     def _ingest_tick(self, tick):
         """Update the current bar builder from a live tick."""
