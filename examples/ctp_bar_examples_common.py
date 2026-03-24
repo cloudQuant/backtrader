@@ -30,6 +30,7 @@ BAR_STRATEGY_PARAMS = BASE_FUTURES_STRATEGY_PARAMS + (
     ("bar_source", "datafeed"),
     ("bar_seconds", 5),
     ("stop_after_bars", 0),
+    ("stop_after_open_position", False),
     ("force_entry_after_bars", 0),
     ("force_exit_after_bars", 0),
     ("max_bar_history", 64),
@@ -312,6 +313,11 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
         self.maybe_stop_after_bar_limit()
 
     def after_terminal_order(self, order):
+        def _maybe_stop_after_open_position():
+            if bool(getattr(self.p, "stop_after_open_position", False)) and not self.pending_refs:
+                self.log("open position observed, stopping")
+                self.cerebro.runstop()
+
         info = getattr(order, "info", None)
         signal_tag = info.get("signal_tag", "") if hasattr(info, "get") else getattr(info, "signal_tag", "")
         if signal_tag == "forced_bar_single_entry":
@@ -324,6 +330,7 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
                     self._observed_open_position = True
                     self._open_bar_at = self.symbol_bar_count(self.p.symbol)
                     self._forced_phase = "open"
+                    _maybe_stop_after_open_position()
             return
 
         if signal_tag == "forced_bar_single_exit":
@@ -346,6 +353,7 @@ class SingleSymbolMaStrategy(FiveSecondBarStrategyBase):
             self._observed_open_position = True
             if self._open_bar_at is None:
                 self._open_bar_at = self.symbol_bar_count(self.p.symbol)
+            _maybe_stop_after_open_position()
             return
 
         if abs(position) < 1e-12 and self._observed_open_position and not self.pending_refs:
@@ -515,6 +523,11 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
         self.maybe_stop_after_bar_limit()
 
     def after_terminal_order(self, order):
+        def _maybe_stop_after_open_position():
+            if bool(getattr(self.p, "stop_after_open_position", False)) and not self.pending_refs:
+                self.log("open position observed, stopping")
+                self.cerebro.runstop()
+
         info = getattr(order, "info", None)
         signal_tag = info.get("signal_tag", "") if hasattr(info, "get") else getattr(info, "signal_tag", "")
         if signal_tag.startswith("forced_pair_bar_open_"):
@@ -527,6 +540,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
                     self._observed_open_pair = True
                     self._pair_open_bar_at = self.pair_bar_progress(self.p.symbol_a, self.p.symbol_b)
                     self._forced_phase = "open"
+                    _maybe_stop_after_open_position()
             return
 
         if signal_tag.startswith("forced_pair_bar_close_"):
@@ -548,6 +562,7 @@ class PairSpreadStrategy(FiveSecondBarStrategyBase):
             self._observed_open_pair = True
             if self._pair_open_bar_at is None:
                 self._pair_open_bar_at = self.pair_bar_progress(self.p.symbol_a, self.p.symbol_b)
+            _maybe_stop_after_open_position()
             return
 
         if self._pair_is_flat() and self._observed_open_pair and not self.pending_refs:

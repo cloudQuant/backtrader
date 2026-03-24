@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -32,6 +34,7 @@ def _build_parser():
     parser = argparse.ArgumentParser(description='Run MixBroker-style 5s live examples')
     parser.add_argument('--config', default='single_symbol.yaml', help='YAML config path')
     parser.add_argument('--dry-run', action='store_true', help='Validate config wiring without connecting to SimNow')
+    parser.add_argument('--subprocess-child', action='store_true', help=argparse.SUPPRESS)
     return parser
 
 
@@ -47,6 +50,11 @@ def _validate_config(config):
 
 def main():
     args = _build_parser().parse_args()
+    if not args.dry_run and not args.subprocess_child:
+        cmd = [sys.executable, '-u', str(Path(__file__).resolve()), '--subprocess-child', *sys.argv[1:]]
+        completed = subprocess.run(cmd, check=False)
+        return int(completed.returncode)
+
     config, config_path = load_config(args.config, _RUN_DIR, 'single_symbol.yaml')
     symbols = _validate_config(config)
 
@@ -87,4 +95,9 @@ def main():
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    exit_code = int(main())
+    if '--subprocess-child' in sys.argv:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(exit_code)
+    raise SystemExit(exit_code)

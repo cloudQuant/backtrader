@@ -5,10 +5,10 @@ symbols:
 simnow_env: auto
 run_timeout_seconds: 300
 broker:
-  force_refresh_queries: true
-  account_refresh_interval: 0.0
-  positions_refresh_interval: 0.0
-  open_orders_refresh_interval: 0.0
+  force_refresh_queries: false
+  account_refresh_interval: 3600.0
+  positions_refresh_interval: 3600.0
+  open_orders_refresh_interval: 3600.0
 feed:
   timeframe: seconds
   compression: 5
@@ -20,14 +20,21 @@ strategy_params:
   bar_seconds: 5
   spread_window: 3
   entry_edge: 1.0
-  exit_edge: 0.2
+  exit_edge: -999999.0
   order_size: 1
-  max_roundtrips: 1
+  max_roundtrips: 0
   max_bar_history: 64
   printlog: true
   open_offset: open
   close_offset: close_today
-  stop_after_bars: 40
+  stop_after_bars: 10
+  stop_after_open_position: true
   force_entry_after_bars: 4
-  force_exit_after_bars: 8
+  force_exit_after_bars: 0
   cancel_pending_after_ticks: 24
+trade_logger:
+  log_ticks: false
+  log_bars: false
+  log_value: false
+  log_positions: false
+  log_position_snapshot: true

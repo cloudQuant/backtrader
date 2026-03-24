@@ -456,7 +456,11 @@ def create_simnow_connection(env_key=None):
 
 
 def create_live_store(config):
-    requested_env = _normalize_simnow_env_key(config.get("simnow_env") or os.getenv("SIMNOW_ENV") or DEFAULT_SIMNOW_ENV)
+    config_env = _normalize_simnow_env_key(config.get("simnow_env") or "")
+    env_override = _normalize_simnow_env_key(os.getenv("SIMNOW_ENV") or "")
+    requested_env = config_env or DEFAULT_SIMNOW_ENV
+    if requested_env in {"", AUTO_SIMNOW_ENV} and env_override:
+        requested_env = env_override
     strict_env = bool(config.get("simnow_strict_env", False))
     candidates = iter_simnow_env_candidates(requested_env, strict=strict_env)
     store_kwargs = dict(config.get("store_kwargs") or {})
