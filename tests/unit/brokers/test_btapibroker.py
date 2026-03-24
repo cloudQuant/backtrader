@@ -439,6 +439,66 @@ def test_cancel_wait_remote_keeps_order_alive_until_remote_cancel_confirmation()
         broker.stop()
 
 
+def test_late_trade_update_after_local_cancel_recovers_completed_order():
+    client = FakeBtApiClient(
+        history={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    store = make_store(api=client)
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        broker.cancel(order)
+
+        assert order.status == bt.Order.Canceled
+        assert client.cancelled_orders == [{"order_ref": "btapi-1", "dataname": DEFAULT_SYMBOL}]
+
+        client.push_broker_update(
+            {
+                "kind": "trade",
+                "order_ref": str(order.ref),
+                "external_order_id": "server-ref-1",
+                "data_name": DEFAULT_SYMBOL,
+                "side": "buy",
+                "size": 1,
+                "price": 101.0,
+                "trade_id": "trade-1",
+            }
+        )
+        client.push_broker_update(
+            {
+                "kind": "order",
+                "order_ref": str(order.ref),
+                "external_order_id": "server-ref-1",
+                "data_name": DEFAULT_SYMBOL,
+                "status": "canceled",
+                "status_msg": "cancel arrived after fill",
+            }
+        )
+
+        broker.next()
+
+        assert order.status == bt.Order.Completed
+        assert order.executed.size == pytest.approx(1.0)
+        position = broker.positions[broker._position_key(data)]
+        assert position.size == pytest.approx(1.0)
+        assert broker._orders_by_external_id == {}
+        assert broker._orders_by_client_ref == {}
+    finally:
+        broker.stop()
+
+
 def test_getposition_reads_positions_from_store(started_stack):
     """Broker positions should reflect the unified store payload."""
     _client, _store, data, broker = started_stack

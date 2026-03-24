@@ -1294,7 +1294,7 @@ class Strategy(StrategyBase):
                 self._notify(qorders=qorders, qtrades=qtrades)
             return
         # Get trade data - if order.data._compensate is None, use order.data; otherwise use order.data._compensate
-        tradedata = order.data._compensate
+        tradedata = getattr(order.data, "_compensate", None)
         if tradedata is None:
             tradedata = order.data
         # Get trade data - if trade exists in _trades, use the last one; otherwise create a new trade and save to datatrades

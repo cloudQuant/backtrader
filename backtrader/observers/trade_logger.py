@@ -672,6 +672,38 @@ class TradeLogger(Observer):
             logger.debug("Failed to read broker cash: %s", e)
             return 0.0
 
+    def _iter_position_datas(self):
+        """Yield data-like objects that can be queried for positions."""
+        if not hasattr(self, "_owner") or self._owner is None:
+            return []
+
+        datas = list(getattr(self._owner, "datas", []) or [])
+        if datas:
+            return datas
+
+        placeholder_data = getattr(self._owner, "placeholder_data", None)
+        if isinstance(placeholder_data, dict):
+            return [data for _, data in sorted(placeholder_data.items()) if data is not None]
+
+        if placeholder_data:
+            try:
+                return [data for data in placeholder_data if data is not None]
+            except TypeError:
+                pass
+
+        return []
+
+    @staticmethod
+    def _position_market_value(data, position):
+        """Best-effort mark-to-market value for data-less strategies."""
+        if position.size == 0:
+            return 0.0
+
+        try:
+            return float(position.size) * float(data.close[0])
+        except Exception:
+            return float(position.size) * float(getattr(position, "price", 0.0) or 0.0)
+
     def _log_bar_snapshots(self):
         """Log per-bar OHLC snapshots during regular backtests."""
         if not self._bar_logger:
@@ -805,14 +837,19 @@ class TradeLogger(Observer):
         if not self.p.log_signals:
             return
 
+        owner_data_name = getattr(getattr(self._owner, "data", None), "_name", None)
+        if owner_data_name is None:
+            position_datas = self._iter_position_datas()
+            if position_datas:
+                owner_data_name = getattr(position_datas[0], "_name", None)
+
         log_data = {
             "log_time": self._log_time_str(),
             "datetime": self._get_datetime_str(),
             "action": action,
             "size": size,
             "price": price,
-            "data_name": data_name
-            or (self._owner.data._name if hasattr(self._owner, "data") else None),
+            "data_name": data_name or owner_data_name,
             "reason": reason or "",
             "strategy_name": self._get_strategy_name(),
         }
@@ -1049,15 +1086,17 @@ class TradeLogger(Observer):
         if not hasattr(self, "_owner") or self._owner is None:
             return
 
-        if not hasattr(self._owner, "datas") or not self._owner.datas:
+        position_datas = self._iter_position_datas()
+        if not position_datas:
             return
 
         broker_value = self._get_broker_value()
         broker_cash = self._get_broker_cash()
 
-        for data in self._owner.datas:
+        for data in position_datas:
             position = self._owner.getposition(data)
             data_name = getattr(data, "_name", str(data))
+            market_value = self._position_market_value(data, position)
 
             log_data = {
                 "log_time": self._log_time_str(),
@@ -1065,7 +1104,7 @@ class TradeLogger(Observer):
                 "data_name": data_name,
                 "size": position.size,
                 "price": position.price,
-                "value": position.size * data.close[0] if position.size != 0 else 0,
+                "value": market_value,
                 "broker_value": broker_value,
                 "broker_cash": broker_cash,
                 "strategy_name": self._get_strategy_name(),
@@ -1211,16 +1250,20 @@ class TradeLogger(Observer):
             "positions": {},
         }
 
-        for data in self._owner.datas:
+        for data in self._iter_position_datas():
             position = self._owner.getposition(data)
             data_name = getattr(data, "_name", str(data))
 
             if position.size != 0:
+                try:
+                    current_price = round(float(data.close[0]), 4)
+                except Exception:
+                    current_price = round(float(getattr(position, "price", 0.0) or 0.0), 4)
                 snapshot["positions"][data_name] = {
                     "size": position.size,
                     "price": round(position.price, 4),
-                    "value": round(position.size * data.close[0], 2),
-                    "current_price": round(data.close[0], 4),
+                    "value": round(self._position_market_value(data, position), 2),
+                    "current_price": current_price,
                 }
 
         snapshot_path = os.path.join(self.p.log_dir, self.p.snapshot_file)
@@ -1236,6 +1279,7 @@ class TradeLogger(Observer):
 
     def _format_order(self, order):
         """Format order data for logging."""
+        data = getattr(order, "data", None)
         return {
             "log_time": self._log_time_str(),
             "datetime": self._get_datetime_str(),
@@ -1248,7 +1292,7 @@ class TradeLogger(Observer):
             "executed_size": order.executed.size,
             "executed_value": order.executed.value,
             "commission": order.executed.comm,
-            "data_name": order.data._name if order.data else None,
+            "data_name": getattr(data, "_name", None) if data is not None else None,
             "strategy_name": self._get_strategy_name(),
             "external_order_id": self._safe_order_info(order, "external_order_id"),
             "error_code": self._safe_order_info(order, "error_code", ""),

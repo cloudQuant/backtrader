@@ -1,0 +1,32 @@
+strategy: single_symbol
+symbols:
+- rb2605
+simnow_env: auto
+run_timeout_seconds: 240
+broker:
+  force_refresh_queries: true
+  account_refresh_interval: 0.0
+  positions_refresh_interval: 0.0
+  open_orders_refresh_interval: 0.0
+feed:
+  timeframe: seconds
+  compression: 5
+  backfill_start: false
+strategy_params:
+  symbol: rb2605
+  bar_source: datafeed
+  bar_seconds: 5
+  fast_window: 2
+  slow_window: 3
+  entry_bias: 0.0
+  exit_bias: 0.0
+  order_size: 1
+  max_roundtrips: 1
+  max_bar_history: 64
+  printlog: true
+  open_offset: open
+  close_offset: close_today
+  stop_after_bars: 36
+  force_entry_after_bars: 3
+  force_exit_after_bars: 6
+  cancel_pending_after_ticks: 20

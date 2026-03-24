@@ -955,6 +955,98 @@ class Cerebro(ParameterizedBase):
                 strat.notify_bar(data)
                 strat._notify_bar_to_observers(data)
 
+    def _start_channel_strategy(self, strat):
+        """Start a channel-mode strategy without assuming bar datas exist."""
+        if getattr(strat, "datas", None):
+            strat._start()
+            return
+
+        for analyzer in itertools.chain(strat.analyzers, strat._slave_analyzers):
+            analyzer._start()
+
+        for observer in strat._get_all_observers():
+            observer._start()
+
+        strat.start()
+
+    def _advance_channel_strategy_clock(self, strat, event):
+        """Advance no-data channel strategies so observers can run per event."""
+        if getattr(strat, "datas", None):
+            return
+
+        try:
+            strat.forward()
+        except Exception:
+            logger.debug("Channel strategy forward() failed", exc_info=True)
+
+        timestamp = getattr(event, "timestamp", None)
+        if timestamp is None:
+            return
+
+        try:
+            event_dt = datetime.datetime.fromtimestamp(float(timestamp), UTC)
+            event_num = date2num(event_dt)
+            strat.lines.datetime[0] = event_num
+            strat._last_valid_datetime = event_num
+            placeholder_map = getattr(strat, "placeholder_data", None)
+            if isinstance(placeholder_map, dict):
+                symbol = getattr(getattr(event, "data", None), "symbol", None)
+                placeholder = placeholder_map.get(str(symbol)) if symbol is not None else None
+                if placeholder is not None:
+                    try:
+                        placeholder._len = max(int(getattr(placeholder, "_len", 0)), len(strat))
+                    except Exception:
+                        logger.debug("Channel placeholder length update failed", exc_info=True)
+
+                    try:
+                        placeholder.datetime[0] = event_num
+                    except Exception:
+                        logger.debug("Channel placeholder datetime update failed", exc_info=True)
+
+                    try:
+                        last_price = getattr(event.data, "price", None)
+                        if last_price is None:
+                            last_price = getattr(event.data, "close", None)
+                        if last_price is not None:
+                            placeholder.close[0] = float(last_price)
+                    except Exception:
+                        logger.debug("Channel placeholder price update failed", exc_info=True)
+        except Exception:
+            logger.debug("Channel strategy datetime update failed", exc_info=True)
+
+    def _step_channel_strategy(self, strat):
+        """Run channel-mode analyzers and observers once per event."""
+        if getattr(strat, "datas", None):
+            return
+
+        for analyzer in itertools.chain(strat.analyzers, strat._slave_analyzers):
+            analyzer._next()
+
+        for observer in strat._get_all_observers():
+            observer._next()
+
+    def _stop_channel_strategy(self, strat):
+        """Stop a channel-mode strategy without requiring bar datas."""
+        if getattr(strat, "datas", None):
+            strat._stop()
+            return
+
+        strat.stop()
+
+        for analyzer in itertools.chain(strat.analyzers, strat._slave_analyzers):
+            analyzer._stop()
+
+        for observer in strat._get_all_observers():
+            try:
+                if hasattr(observer, "stop"):
+                    observer.stop()
+            except Exception:
+                logger.warning(
+                    "Observer %s.stop() raised an exception",
+                    type(observer).__name__,
+                    exc_info=True,
+                )
+
     # ------------------------------------------------------------------
     # Channel mode implementation (called from run(channel=...))
     # ------------------------------------------------------------------
@@ -972,6 +1064,10 @@ class Cerebro(ParameterizedBase):
         for key, val in kwargs.items():
             if key in pkeys:
                 setattr(self.params, key, val)
+
+        # Channel-mode brokers emit simulated order notifications; force the
+        # quick-notify path so strategy/observer callbacks receive them.
+        self.p.quicknotify = True
 
         # --- strategy instantiation (simplified, no bar-data required) ---
         self._init_stcount()
@@ -992,6 +1088,10 @@ class Cerebro(ParameterizedBase):
                             strat = stratcls(*sargs, **skwargs)
                 except errors.StrategySkipError:
                     continue  # user requested skip, same as standard run() path
+                if self.p.oldsync:
+                    strat._oldsync = True
+                if self.p.tradehistory:
+                    strat.set_tradehistory()
                 runstrats.append(strat)
 
         context_getter = getattr(self._broker, "get_context", None)
@@ -1000,9 +1100,20 @@ class Cerebro(ParameterizedBase):
             for strat in runstrats:
                 strat.context = context
 
-        # Call user's start() hook on each strategy
-        for strat in runstrats:
-            strat.start()
+        # Channel mode still needs explicit observers/analyzers initialization.
+        defaultsizer = self.sizers.get(None, (None, None, None))
+        for idx, strat in enumerate(runstrats):
+            for multi, obscls, obsargs, obskwargs in self.observers:
+                strat._addobserver(multi, obscls, *obsargs, **obskwargs)
+
+            for ancls, anargs, ankwargs in self.analyzers:
+                strat._addanalyzer(ancls, *anargs, **ankwargs)
+
+            sizer, sargs, skwargs = self.sizers.get(idx, defaultsizer)
+            if sizer is not None:
+                strat._addsizer(sizer, *sargs, **skwargs)
+
+            self._start_channel_strategy(strat)
 
         # If channel is just True, return strategies for external event loops
         if channel is True:
@@ -1013,6 +1124,9 @@ class Cerebro(ParameterizedBase):
         for event in channel:
             if self._event_stop:
                 break
+
+            for strat in runstrats:
+                self._advance_channel_strategy_clock(strat, event)
 
             # 1. Let the broker process the raw event data
             ch = event.channel_type
@@ -1029,18 +1143,24 @@ class Cerebro(ParameterizedBase):
                 order = self._broker.get_notification()
                 if order is None:
                     break
-                owner = order.owner
+                owner = getattr(order, "owner", None)
+                if owner is None:
+                    owner = getattr(getattr(order, "p", None), "owner", None)
                 if owner is None and runstrats:
                     owner = runstrats[0]
                 if owner is not None:
-                    owner.notify_order(order)
+                    owner._addnotification(order, quicknotify=True)
 
             # 3. Dispatch channel event to strategies
             self.dispatch_channel_event(event)
 
+            # 4. Advance analyzers/observers that rely on next()-style hooks
+            for strat in runstrats:
+                self._step_channel_strategy(strat)
+
         # --- teardown ---
         for strat in runstrats:
-            strat.stop()
+            self._stop_channel_strategy(strat)
 
         self._broker.stop()
         self.runstrats = [runstrats]

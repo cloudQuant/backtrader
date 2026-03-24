@@ -7,12 +7,54 @@ import json
 import backtrader as bt
 import pytest
 
+from backtrader.brokers.tickbroker import TickBroker
+from backtrader.channel import DataChannel, StreamingEventQueue
+from backtrader.events import TickEvent
+
 from tests.fixtures.fake_btapi import DEFAULT_SYMBOL, FakeBtApiClient, make_bar, make_store, make_tick
 
 
 def _read_json_lines(path):
     with open(path, "r", encoding="utf-8") as handle:
         return [json.loads(line) for line in handle if line.strip()]
+
+
+class MemoryChannel(DataChannel):
+    def __init__(self, channel_type, symbol, events):
+        super().__init__(symbol=symbol, validate=False, auto_fix=False)
+        self.channel_type = channel_type
+        self._events = list(events)
+
+    def load(self):
+        for event in self._events:
+            yield event
+
+
+class _ScalarLine:
+    def __init__(self, value=0.0):
+        self.value = value
+
+    def __getitem__(self, index):
+        return self.value
+
+    def __setitem__(self, index, value):
+        self.value = value
+
+
+class ChannelPlaceholderData:
+    def __init__(self, symbol):
+        self._name = symbol
+        self.symbol = symbol
+        self._compensate = None
+        self._len = 0
+        self.datetime = _ScalarLine(0.0)
+        self.close = _ScalarLine(0.0)
+
+    def __len__(self):
+        return int(self._len)
+
+    def __bool__(self):
+        return True
 
 
 @pytest.mark.integration
@@ -351,3 +393,90 @@ def test_trade_logger_records_reconnect_success_in_system_log(tmp_path):
     system_events = [entry["event_type"] for entry in system_entries]
 
     assert "store_reconnect_success" in system_events
+
+
+@pytest.mark.integration
+def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
+    """Channel-mode strategies without datas should still start TradeLogger and emit files."""
+    symbol = "rb2610"
+    tick_channel = MemoryChannel(
+        "tick",
+        symbol,
+        [
+            TickEvent(timestamp=1.0, symbol=symbol, price=100.0, volume=1.0),
+            TickEvent(timestamp=2.0, symbol=symbol, price=101.0, volume=1.0),
+            TickEvent(timestamp=3.0, symbol=symbol, price=99.0, volume=1.0),
+            TickEvent(timestamp=4.0, symbol=symbol, price=98.0, volume=1.0),
+        ],
+    )
+    queue = StreamingEventQueue(channels=[tick_channel], preload_window=1.0, adaptive=False)
+
+    class ChannelTradeLoggerStrategy(bt.Strategy):
+        params = (("symbol", symbol),)
+
+        def __init__(self):
+            self.pending_order = None
+            self.completed_orders = 0
+            self._last_order_status = {}
+            self.placeholder_data = {
+                self.p.symbol: ChannelPlaceholderData(self.p.symbol)
+            }
+
+        @property
+        def data_obj(self):
+            return self.placeholder_data[self.p.symbol]
+
+        def notify_tick(self, tick):
+            if tick.symbol != self.p.symbol or self.pending_order is not None:
+                return
+
+            position = self.broker.getposition(self.data_obj).size
+            if self.completed_orders == 0 and position <= 0:
+                self.pending_order = self.buy(data=self.data_obj, size=1, exectype=bt.Order.Market)
+            elif self.completed_orders == 1 and position > 0:
+                self.pending_order = self.sell(data=self.data_obj, size=1, exectype=bt.Order.Market)
+
+        def notify_order(self, order):
+            previous_status = self._last_order_status.get(order.ref)
+            if previous_status == order.status:
+                return
+            self._last_order_status[order.ref] = order.status
+
+            if order.status in (order.Submitted, order.Accepted):
+                self.pending_order = order
+                return
+
+            if not order.alive():
+                self.pending_order = None
+
+            if order.status == order.Completed:
+                self.completed_orders += 1
+
+    cerebro = bt.Cerebro()
+    broker = TickBroker(cash=10000.0)
+    broker.setcommission(commission=0.0, name=symbol)
+    cerebro.setbroker(broker)
+    cerebro.addstrategy(ChannelTradeLoggerStrategy, symbol=symbol)
+    cerebro.addobserver(bt.observers.TradeLogger, log_dir=str(tmp_path), log_format="json")
+
+    results = cerebro.run(channel=queue)
+
+    assert len(results) == 1
+    assert results[0].datas == []
+
+    system_entries = _read_json_lines(tmp_path / "system.log")
+    tick_entries = _read_json_lines(tmp_path / "tick.log")
+    order_entries = _read_json_lines(tmp_path / "order.log")
+    trade_entries = _read_json_lines(tmp_path / "trade.log")
+    value_entries = _read_json_lines(tmp_path / "value.log")
+    position_entries = _read_json_lines(tmp_path / "position.log")
+
+    system_events = [entry["event_type"] for entry in system_entries]
+
+    assert "session_started" in system_events
+    assert "session_stopped" in system_events
+    assert [entry["price"] for entry in tick_entries] == [100.0, 101.0, 99.0, 98.0]
+    assert any(entry["status"] == "Completed" and entry["data_name"] == symbol for entry in order_entries)
+    assert any(entry["isclosed"] is True and entry["data_name"] == symbol for entry in trade_entries)
+    assert len(value_entries) == 4
+    assert any(entry["data_name"] == symbol for entry in position_entries)

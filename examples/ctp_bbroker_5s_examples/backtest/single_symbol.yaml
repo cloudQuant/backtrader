@@ -1,0 +1,68 @@
+strategy: single_symbol
+symbols:
+- rb2605
+initial_cash: 100000.0
+broker:
+  cash: 100000.0
+strategy_params:
+  symbol: rb2605
+  bar_source: datafeed
+  bar_seconds: 5
+  fast_window: 2
+  slow_window: 3
+  entry_bias: 0.0
+  exit_bias: 0.0
+  order_size: 1
+  max_roundtrips: 1
+  max_bar_history: 32
+  printlog: true
+  open_offset: open
+  close_offset: close_today
+scenario:
+  type: single_symbol_bars
+  symbol: rb2605
+  bar_seconds: 5
+  start_timestamp: 1710000000.0
+  bars:
+  - offset: 0
+    open: 100.0
+    high: 100.5
+    low: 99.8
+    close: 100.0
+    volume: 10
+  - offset: 5
+    open: 100.0
+    high: 100.4
+    low: 99.9
+    close: 100.0
+    volume: 12
+  - offset: 10
+    open: 100.1
+    high: 102.2
+    low: 100.0
+    close: 102.0
+    volume: 15
+  - offset: 15
+    open: 102.1
+    high: 104.2
+    low: 101.8
+    close: 104.0
+    volume: 16
+  - offset: 20
+    open: 103.8
+    high: 104.0
+    low: 100.8
+    close: 101.0
+    volume: 13
+  - offset: 25
+    open: 101.0
+    high: 101.1
+    low: 98.8
+    close: 99.0
+    volume: 18
+  - offset: 30
+    open: 99.0
+    high: 99.2
+    low: 98.5
+    close: 98.8
+    volume: 11

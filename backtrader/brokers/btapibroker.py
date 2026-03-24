@@ -650,16 +650,18 @@ class BtApiBroker(BrokerBase):
         if status == "accepted" and order.status < order.Accepted:
             order.accept(self)
             self.notify(order)
-        elif status == "canceled" and order.status != order.Canceled:
-            order.cancel()
+        elif status == "canceled":
+            if order.status not in (order.Canceled, order.Completed):
+                order.cancel()
+                self.notify(order)
             self._clear_order_mappings(order)
-            self.notify(order)
-        elif status == "rejected" and order.status != order.Rejected:
+        elif status == "rejected":
             if status_msg:
                 order.addinfo(error_code="remote_reject", error_msg=status_msg)
-            order.reject(self)
+            if order.status not in (order.Rejected, order.Completed):
+                order.reject(self)
+                self.notify(order)
             self._clear_order_mappings(order)
-            self.notify(order)
 
     def _apply_trade_update(self, update):
         """Apply a normalized remote trade fill to the local order/position state."""
@@ -772,6 +774,14 @@ class BtApiBroker(BrokerBase):
             order = self._orders_by_client_ref.get(str(order_ref))
             if order is not None:
                 return order
+            try:
+                normalized_order_ref = int(str(order_ref).strip())
+            except (TypeError, ValueError):
+                normalized_order_ref = None
+            if normalized_order_ref in self.orders:
+                return self.orders[normalized_order_ref]
+            if order_ref in self.orders:
+                return self.orders[order_ref]
 
         details = update.get("details") or {}
         bt_order_ref = details.get("bt_order_ref") or update.get("bt_order_ref")

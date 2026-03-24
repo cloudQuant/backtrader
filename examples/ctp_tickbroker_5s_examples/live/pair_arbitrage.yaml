@@ -1,0 +1,33 @@
+strategy: pair_arbitrage
+symbols:
+- rb2605
+- hc2605
+simnow_env: auto
+run_timeout_seconds: 300
+broker:
+  force_refresh_queries: true
+  account_refresh_interval: 0.0
+  positions_refresh_interval: 0.0
+  open_orders_refresh_interval: 0.0
+feed:
+  timeframe: ticks
+  compression: 1
+  backfill_start: false
+strategy_params:
+  symbol_a: rb2605
+  symbol_b: hc2605
+  bar_source: ticks
+  bar_seconds: 5
+  spread_window: 3
+  entry_edge: 1.0
+  exit_edge: 0.2
+  order_size: 1
+  max_roundtrips: 1
+  max_bar_history: 64
+  printlog: true
+  open_offset: open
+  close_offset: close_today
+  stop_after_bars: 40
+  force_entry_after_bars: 4
+  force_exit_after_bars: 8
+  cancel_pending_after_ticks: 24

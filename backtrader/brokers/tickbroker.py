@@ -339,7 +339,7 @@ class TickBroker(BrokerBase):
         Args:
             order: The Order instance with updated status.
         """
-        self._notifs.append(order)
+        self._notifs.append(order.clone())
 
     def get_notification(self):
         """Get the next pending notification from the queue.
