@@ -53,6 +53,15 @@ from .lineroot import LineRoot, LineSingle
 from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
+from .position_modes import (
+    POSITION_MODE_DUAL_SIDE,
+    POSITION_OFFSET_CLOSE,
+    POSITION_SIDE_LONG,
+    POSITION_SIDE_SHORT,
+    normalize_position_mode,
+    normalize_position_side,
+    trade_key_from_order,
+)
 from .signal import (
     SIGNAL_LONG,
     SIGNAL_LONG_ANY,
@@ -1298,9 +1307,10 @@ class Strategy(StrategyBase):
         if tradedata is None:
             tradedata = order.data
         # Get trade data - if trade exists in _trades, use the last one; otherwise create a new trade and save to datatrades
-        datatrades = self._trades[tradedata][order.tradeid]
+        tradekey = trade_key_from_order(order)
+        datatrades = self._trades[tradedata][tradekey]
         if not datatrades:
-            trade = Trade(data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon)
+            trade = Trade(data=tradedata, tradeid=tradekey, historyon=self._tradehistoryon)
             datatrades.append(trade)
         else:
             trade = datatrades[-1]
@@ -1334,9 +1344,7 @@ class Strategy(StrategyBase):
             if exbit.opened:
                 # If trade is closed, create new trade and save to datatrades
                 if trade.isclosed:
-                    trade = Trade(
-                        data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon
-                    )
+                    trade = Trade(data=tradedata, tradeid=tradekey, historyon=self._tradehistoryon)
                     datatrades.append(trade)
                 # Update trade
                 trade.update(
@@ -1898,6 +1906,40 @@ class Strategy(StrategyBase):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
+        position_side = kwargs.pop("position_side", None)
+        position_side = normalize_position_side(position_side)
+        broker_mode = normalize_position_mode(
+            getattr(self.broker, "get_param", lambda *_args, **_kwargs: "net")("position_mode", "net")
+        )
+
+        if position_side is not None or broker_mode == POSITION_MODE_DUAL_SIDE:
+            if position_side is None:
+                long_size = abs(self.getposition(data, self.broker, side=POSITION_SIDE_LONG).size)
+                short_size = abs(self.getposition(data, self.broker, side=POSITION_SIDE_SHORT).size)
+                if long_size and short_size:
+                    raise ValueError(
+                        "close() requires position_side when both long and short legs are open"
+                    )
+                if long_size:
+                    position_side = POSITION_SIDE_LONG
+                    possize = long_size
+                elif short_size:
+                    position_side = POSITION_SIDE_SHORT
+                    possize = short_size
+                else:
+                    return None
+            else:
+                possize = abs(self.getposition(data, self.broker, side=position_side).size)
+
+            size = abs(size if size is not None else possize)
+            if not size:
+                return None
+
+            kwargs.setdefault("position_side", position_side)
+            kwargs.setdefault("offset", POSITION_OFFSET_CLOSE)
+            if position_side == POSITION_SIDE_LONG:
+                return self.sell(data=data, size=size, **kwargs)
+            return self.buy(data=data, size=size, **kwargs)
         # Get the current position size
         possize = self.getposition(data, self.broker).size
         # If size is None, close the entire position; otherwise close the specified size
@@ -2253,7 +2295,7 @@ class Strategy(StrategyBase):
 
         return self.order_target_value(data=data, target=target, **kwargs)
 
-    def getposition(self, data=None, broker=None):
+    def getposition(self, data=None, broker=None, side=None, **kwargs):
         """Get the current position for a data feed.
 
         Args:
@@ -2268,12 +2310,12 @@ class Strategy(StrategyBase):
         """
         data = data if data is not None else self.datas[0]
         broker = broker or self.broker
-        return broker.getposition(data)
+        return broker.getposition(data, side=side, **kwargs)
 
     # Property to access position for the default data feed
     position = property(getposition)
 
-    def getpositionbyname(self, name=None, broker=None):
+    def getpositionbyname(self, name=None, broker=None, side=None, **kwargs):
         """Get the current position for a data feed by name.
 
         Args:
@@ -2288,7 +2330,7 @@ class Strategy(StrategyBase):
         """
         data = self.datas[0] if not name else self.getdatabyname(name)
         broker = broker or self.broker
-        return broker.getposition(data)
+        return broker.getposition(data, side=side, **kwargs)
 
     # Property to access position by name
     positionbyname = property(getpositionbyname)

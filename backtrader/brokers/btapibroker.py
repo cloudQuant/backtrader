@@ -11,6 +11,14 @@ from copy import deepcopy
 
 from ..broker import BrokerBase
 from ..order import BuyOrder, SellOrder
+from ..position_modes import (
+    POSITION_MODE_DUAL_SIDE,
+    infer_position_side,
+    normalize_order_position_meta,
+    normalize_position_mode,
+    normalize_position_side,
+    signed_position_size,
+)
 from ..position import Position
 
 logger = logging.getLogger(__name__)
@@ -32,6 +40,7 @@ class BtApiBroker(BrokerBase):
         ("validation_enabled", True),
         ("contract_metadata", None),
         ("max_order_size", 0),
+        ("position_mode", "net"),
     )
 
     def __init__(self, **kwargs):
@@ -41,6 +50,8 @@ class BtApiBroker(BrokerBase):
         self.notifs = collections.deque()
         self.orders = collections.OrderedDict()
         self.positions = collections.defaultdict(Position)
+        self.long_positions = collections.defaultdict(Position)
+        self.short_positions = collections.defaultdict(Position)
         self._cash = float(self.p.cash or 0.0)
         self._value = float(self.p.value if self.p.value is not None else self._cash)
         self._live_started = False
@@ -58,6 +69,9 @@ class BtApiBroker(BrokerBase):
         self._orders_by_client_ref = {}
         self._remote_open_orders_snapshot = []
         self._seen_trade_ids = set()
+        self._position_mode_frozen = False
+        self._position_mode_frozen_reason = None
+        BrokerBase.set_param(self, "position_mode", normalize_position_mode(self.get_param("position_mode")))
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
@@ -69,6 +83,12 @@ class BtApiBroker(BrokerBase):
         if self._live_started and self.store.is_connected:
             return
 
+        if not self.supports_position_mode(self.get_param("position_mode")):
+            raise ValueError(
+                f"Provider {self.provider!r} does not advertise support for "
+                f"position_mode={self.get_param('position_mode')!r}"
+            )
+
         self.store.start(broker=self)
         self._live_started = True
         self._refresh_account(force=True, raise_errors=True)
@@ -76,6 +96,114 @@ class BtApiBroker(BrokerBase):
         self._sync_remote_open_orders(force=True)
         self.startingcash = self._cash
         self.startingvalue = self._value
+        self._freeze_position_mode("start()")
+
+    def set_param(self, name, value, validate=True):
+        if name == "position_mode":
+            self._ensure_position_mode_mutable()
+            value = normalize_position_mode(value)
+        return super().set_param(name, value, validate=validate)
+
+    def _freeze_position_mode(self, reason):
+        self._position_mode_frozen = True
+        self._position_mode_frozen_reason = reason
+
+    def _ensure_position_mode_mutable(self):
+        if getattr(self, "_position_mode_frozen", False):
+            raise ValueError(
+                "position_mode is frozen after "
+                f"{self._position_mode_frozen_reason} and cannot be changed at runtime"
+            )
+
+    def _is_dual_side_mode(self):
+        return normalize_position_mode(self.get_param("position_mode")) == POSITION_MODE_DUAL_SIDE
+
+    def supports_position_mode(self, mode):
+        mode = normalize_position_mode(mode)
+        if mode != POSITION_MODE_DUAL_SIDE:
+            return True
+        if self.store is not None and hasattr(self.store, "supports_position_mode"):
+            try:
+                return bool(self.store.supports_position_mode(mode))
+            except Exception as exc:
+                logger.debug("Failed to query store position mode capability: %s", exc)
+        broker_meta = self._contract_metadata.get("__broker__", {})
+        return bool(
+            broker_meta.get("supports_dual_side")
+            or str(broker_meta.get("position_mode", "")).lower() == POSITION_MODE_DUAL_SIDE
+        )
+
+    def _normalize_order_meta(self, isbuy, kwargs):
+        local_kwargs = dict(kwargs)
+        position_side = local_kwargs.pop("position_side", None)
+        offset = local_kwargs.pop("offset", None)
+        position_side, offset = normalize_order_position_meta(
+            self.get_param("position_mode"),
+            isbuy,
+            position_side=position_side,
+            offset=offset,
+        )
+        return position_side, offset, local_kwargs
+
+    @staticmethod
+    def _attach_position_meta(order, position_side=None, offset=None, **kwargs):
+        if position_side is not None:
+            order.addinfo(position_side=position_side)
+        if offset is not None:
+            order.addinfo(offset=offset)
+        if kwargs:
+            order.addinfo(**kwargs)
+        return order
+
+    def _get_leg_store(self, position_side):
+        position_side = normalize_position_side(position_side)
+        if position_side == "long":
+            return self.long_positions
+        if position_side == "short":
+            return self.short_positions
+        raise ValueError(f"Unsupported position_side {position_side!r}")
+
+    def _get_leg_position(self, data, position_side):
+        return self._get_leg_store(position_side)[self._position_key(data)]
+
+    def _make_signed_position(self, position_side, position):
+        signed_position = position.clone()
+        signed_position.size = signed_position_size(position_side, position.size)
+        if not signed_position.size:
+            signed_position.price = 0.0
+            signed_position.price_orig = 0.0
+        return signed_position
+
+    def _apply_signed_position(self, position_side, leg_position, signed_position):
+        leg_position.size = abs(float(signed_position.size or 0.0))
+        leg_position.price = signed_position.price if leg_position.size else 0.0
+        leg_position.price_orig = signed_position.price_orig if leg_position.size else 0.0
+        leg_position.adjbase = signed_position.adjbase
+        leg_position.datetime = signed_position.datetime
+        leg_position.updt = signed_position.updt
+        leg_position.upopened = abs(float(signed_position.upopened or 0.0))
+        leg_position.upclosed = abs(float(signed_position.upclosed or 0.0))
+        return leg_position
+
+    def _sync_net_position(self, data):
+        key = self._position_key(data)
+        long_pos = self.long_positions[key]
+        short_pos = self.short_positions[key]
+        net_pos = self.positions[key]
+        net_size = long_pos.size - short_pos.size
+        if net_size > 0:
+            net_price = long_pos.price
+        elif net_size < 0:
+            net_price = short_pos.price
+        else:
+            net_price = 0.0
+        net_pos.fix(net_size, net_price)
+        if long_pos.datetime is not None and short_pos.datetime is not None:
+            net_pos.datetime = max(long_pos.datetime, short_pos.datetime)
+        else:
+            net_pos.datetime = long_pos.datetime or short_pos.datetime
+        net_pos.adjbase = long_pos.adjbase if long_pos.size else short_pos.adjbase
+        return net_pos
 
     def stop(self):
         """Stop the broker."""
@@ -93,15 +221,21 @@ class BtApiBroker(BrokerBase):
         self._refresh_account(force=bool(self.p.force_refresh_queries), raise_errors=True)
         return self._value
 
-    def getposition(self, data, clone=True):
+    def getposition(self, data, clone=True, side=None):
         """Return the cached position for a given data feed."""
         self._sync_positions(force=bool(self.p.force_refresh_queries), raise_errors=True)
-        key = self._position_key(data)
-        position = self.positions[key]
+        if side is not None:
+            if not self._is_dual_side_mode():
+                raise ValueError("side-specific getposition() is only available in dual_side mode")
+            position = self._get_leg_position(data, side)
+        else:
+            key = self._position_key(data)
+            position = self._sync_net_position(data) if self._is_dual_side_mode() else self.positions[key]
         return position.clone() if clone else position
 
     def submit(self, order):
         """Submit an order through the store."""
+        self._freeze_position_mode("first order submission")
         validation_error = self._validate_order(order)
         if validation_error is not None:
             code, message = validation_error
@@ -246,6 +380,7 @@ class BtApiBroker(BrokerBase):
         **kwargs,
     ):
         """Create and submit a buy order."""
+        position_side, offset, order_kwargs = self._normalize_order_meta(True, kwargs)
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -261,7 +396,7 @@ class BtApiBroker(BrokerBase):
             transmit=transmit,
             histnotify=histnotify,
         )
-        order.addinfo(**kwargs)
+        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
         if oco is not None:
             order.addinfo(oco=oco)
         return self.submit(order)
@@ -286,6 +421,7 @@ class BtApiBroker(BrokerBase):
         **kwargs,
     ):
         """Create and submit a sell order."""
+        position_side, offset, order_kwargs = self._normalize_order_meta(False, kwargs)
         order = SellOrder(
             owner=owner,
             data=data,
@@ -301,7 +437,7 @@ class BtApiBroker(BrokerBase):
             transmit=transmit,
             histnotify=histnotify,
         )
-        order.addinfo(**kwargs)
+        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
         if oco is not None:
             order.addinfo(oco=oco)
         return self.submit(order)
@@ -447,6 +583,8 @@ class BtApiBroker(BrokerBase):
 
         try:
             synced = collections.defaultdict(Position)
+            long_synced = collections.defaultdict(Position)
+            short_synced = collections.defaultdict(Position)
             for item in self.store.get_positions():
                 key = (
                     item.get("instrument")
@@ -460,13 +598,32 @@ class BtApiBroker(BrokerBase):
                 size = item.get("volume", item.get("size", item.get("position", 0)))
                 size = float(size or 0.0)
                 direction = str(item.get("direction", "")).lower()
-                if direction in {"short", "sell"} and size > 0:
-                    size = -size
 
                 price = item.get("price", item.get("avg_price", item.get("average_price", 0.0)))
-                synced[key] = Position(size=size, price=float(price or 0.0))
+                price = float(price or 0.0)
 
-            self.positions = synced
+                if self._is_dual_side_mode():
+                    if size and direction not in {"long", "buy", "short", "sell"}:
+                        raise ValueError(
+                            "dual_side mode requires provider positions with explicit direction"
+                        )
+                    if direction in {"short", "sell"}:
+                        short_synced[key] = Position(size=abs(size), price=price)
+                    else:
+                        long_synced[key] = Position(size=abs(size), price=price)
+                else:
+                    if direction in {"short", "sell"} and size > 0:
+                        size = -size
+                    synced[key] = Position(size=size, price=price)
+
+            if self._is_dual_side_mode():
+                self.long_positions = long_synced
+                self.short_positions = short_synced
+                self.positions = collections.defaultdict(Position)
+                for key in set(long_synced) | set(short_synced):
+                    self._sync_net_position(key)
+            else:
+                self.positions = synced
             self._last_positions_refresh = time.monotonic()
         except Exception as e:
             logger.debug("Failed to sync positions: %s", e)
@@ -524,6 +681,8 @@ class BtApiBroker(BrokerBase):
     @staticmethod
     def _position_key(data):
         """Extract a stable position key from a data feed."""
+        if isinstance(data, str):
+            return data
         return (
             getattr(data, "_name", None)
             or getattr(data, "_dataname", None)
@@ -551,6 +710,16 @@ class BtApiBroker(BrokerBase):
                 "max_order_size_exceeded",
                 f"Order size {order.size} exceeds the max allowed size {max_order_size}",
             )
+
+        if self._is_dual_side_mode() and getattr(order.info, "offset", None) == "close":
+            position_side = normalize_position_side(getattr(order.info, "position_side", None))
+            available = abs(float(self._get_leg_position(order.data, position_side).size or 0.0))
+            requested = abs(float(order.size or 0.0))
+            if requested > available + 1e-12:
+                return (
+                    "insufficient_position_to_close",
+                    "Close order size exceeds the available leg position",
+                )
 
         min_price_tick = rules.get("min_price_tick") or rules.get("price_tick")
         price = order.price if order.price is not None else getattr(order.created, "price", None)
@@ -680,6 +849,10 @@ class BtApiBroker(BrokerBase):
             return
 
         fill_price = float(update.get("price") or 0.0)
+        if self._is_dual_side_mode():
+            self._apply_dual_side_trade_update(order, update, fill_qty, fill_price)
+            return
+
         signed_fill = fill_qty if str(update.get("side") or "buy").lower() == "buy" else -fill_qty
 
         key = self._position_key(order.data)
@@ -727,6 +900,71 @@ class BtApiBroker(BrokerBase):
             pprice=pprice,
         )
 
+        self._cache_order_identifiers(order, update)
+
+        if order.executed.remsize:
+            order.partial()
+        else:
+            order.completed()
+            self._clear_order_mappings(order)
+        self.notify(order)
+
+    def _apply_dual_side_trade_update(self, order, update, fill_qty, fill_price):
+        isbuy = str(update.get("side") or "buy").lower() == "buy"
+        offset = getattr(order.info, "offset", None) or update.get("offset")
+        position_side = (
+            getattr(order.info, "position_side", None)
+            or update.get("position_side")
+            or infer_position_side(isbuy, offset)
+        )
+        position_side = normalize_position_side(position_side)
+        exec_size = fill_qty if isbuy else -fill_qty
+
+        leg_position = self._get_leg_position(order.data, position_side)
+        signed_position = self._make_signed_position(position_side, leg_position)
+        pprice_orig = signed_position.price
+        psize, pprice, opened, closed = signed_position.update(
+            exec_size,
+            fill_price,
+            dt=self._execution_datetime(update),
+        )
+
+        comminfo = order.comminfo or self.getcommissioninfo(order.data)
+        commission = comminfo.getcommission(fill_qty, fill_price) if comminfo is not None else 0.0
+        closed_qty = abs(closed)
+        opened_qty = abs(opened)
+        closed_commission, opened_commission = self._split_execution_commission(
+            commission,
+            fill_qty,
+            opened_qty,
+            closed_qty,
+        )
+        closed_value = closed_qty * abs(pprice_orig or fill_price)
+        opened_value = opened_qty * abs(fill_price)
+        pnl = comminfo.profitandloss(-closed, pprice_orig, fill_price) if closed else 0.0
+
+        self._apply_signed_position(position_side, leg_position, signed_position)
+        self._sync_net_position(order.data)
+
+        order.execute(
+            dt=self._order_execution_dt(order),
+            size=exec_size,
+            price=fill_price,
+            closed=closed,
+            closedvalue=closed_value,
+            closedcomm=closed_commission,
+            opened=opened,
+            openedvalue=opened_value,
+            openedcomm=opened_commission,
+            margin=0.0,
+            pnl=pnl,
+            psize=psize,
+            pprice=pprice,
+        )
+
+        order.addinfo(position_side=position_side)
+        if offset is not None:
+            order.addinfo(offset=offset)
         self._cache_order_identifiers(order, update)
 
         if order.executed.remsize:

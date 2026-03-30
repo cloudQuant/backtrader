@@ -280,11 +280,13 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     fundmode = property(get_fundmode, set_fundmode)
 
     # Get position
-    def getposition(self, data):
+    def getposition(self, data, side=None):
         """Get the current position for a data feed.
 
         Args:
             data: Data feed to get position for.
+            side: Optional side selector used by brokers that support
+                dual-side position books.
 
         Returns:
             Position: Current position for the data feed.

@@ -1313,6 +1313,25 @@ class BtApiStore(LiveStoreBase):
         self.get_balance()
         return self._value
 
+    def supports_position_mode(self, mode: str) -> bool:
+        """Return whether the configured provider advertises a position mode."""
+        mode = str(mode or "net").strip().lower()
+        if mode != "dual_side":
+            return True
+
+        if self._api is not None and hasattr(self._api, "supports_position_mode"):
+            try:
+                return bool(self._api.supports_position_mode(mode))
+            except Exception:
+                return False
+
+        return bool(
+            self._config.get("supports_dual_side")
+            or str(self._config.get("position_mode", "")).strip().lower() == "dual_side"
+            or self._api_kwargs.get("supports_dual_side")
+            or str(self._api_kwargs.get("position_mode", "")).strip().lower() == "dual_side"
+        )
+
     def get_balance(self):
         """Refresh cached cash and value from the API, if available."""
         if self._is_cache_fresh(self._last_balance_refresh, self._account_cache_ttl):
@@ -1852,6 +1871,12 @@ class BtApiStore(LiveStoreBase):
         offset = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)("offset")
         if offset:
             payload["offset"] = offset
+
+        position_side = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)(
+            "position_side"
+        )
+        if position_side:
+            payload["position_side"] = position_side
 
         exchange_id = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)(
             "exchange_id"

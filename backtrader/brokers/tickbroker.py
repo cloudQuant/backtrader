@@ -21,6 +21,15 @@ from backtrader.brokers.hft import FillRole, LatencyEngine, MatchingCore, Record
 from backtrader.order import BuyOrder, Order, SellOrder
 from backtrader.parameters import ParameterDescriptor
 from backtrader.position import Position
+from backtrader.position_modes import (
+    POSITION_MODE_DUAL_SIDE,
+    POSITION_SIDE_LONG,
+    POSITION_SIDE_SHORT,
+    normalize_order_position_meta,
+    normalize_position_mode,
+    normalize_position_side,
+    signed_position_size,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +68,7 @@ class TickBroker(BrokerBase):
     enable_impact = ParameterDescriptor(default=False, doc="Enable market impact model")
     shortcash = ParameterDescriptor(default=True, doc="Increase cash when shorting stock-like assets")
     int2pnl = ParameterDescriptor(default=True, doc="Assign generated interest to profit and loss")
+    position_mode = ParameterDescriptor(default="net", doc="net | dual_side")
 
     def __init__(
         self,
@@ -89,6 +99,9 @@ class TickBroker(BrokerBase):
         self._pending_orders = []
         self._order_history = []
         self._positions = collections.defaultdict(Position)
+        self.positions = self._positions
+        self.long_positions = collections.defaultdict(Position)
+        self.short_positions = collections.defaultdict(Position)
         self._notifs = collections.deque()
         self._fundval = self._cash
         self._fundshares = 1.0
@@ -110,6 +123,9 @@ class TickBroker(BrokerBase):
         self._orders_by_symbol = collections.defaultdict(list)
         self._last_event_ts = 0.0
         self._tick_count = 0
+        self._position_mode_frozen = False
+        self._position_mode_frozen_reason = None
+        BrokerBase.set_param(self, "position_mode", normalize_position_mode(self.get_param("position_mode")))
 
     def start(self):
         """Initialize the broker state for a new backtesting run.
@@ -123,6 +139,9 @@ class TickBroker(BrokerBase):
         self._pending_orders = []
         self._order_history = []
         self._positions = collections.defaultdict(Position)
+        self.positions = self._positions
+        self.long_positions = collections.defaultdict(Position)
+        self.short_positions = collections.defaultdict(Position)
         self._notifs = collections.deque()
         self._last_tick = {}
         self._last_orderbook = {}
@@ -136,6 +155,98 @@ class TickBroker(BrokerBase):
         self._recorder = self._recorder_factory or Recorder()
         self._last_event_ts = 0.0
         self._tick_count = 0
+        self._freeze_position_mode("start()")
+
+    def set_param(self, name, value, validate=True):
+        if name == "position_mode":
+            self._ensure_position_mode_mutable()
+            value = normalize_position_mode(value)
+        return super().set_param(name, value, validate=validate)
+
+    def _freeze_position_mode(self, reason):
+        self._position_mode_frozen = True
+        self._position_mode_frozen_reason = reason
+
+    def _ensure_position_mode_mutable(self):
+        if getattr(self, "_position_mode_frozen", False):
+            raise ValueError(
+                "position_mode is frozen after "
+                f"{self._position_mode_frozen_reason} and cannot be changed at runtime"
+            )
+
+    def _is_dual_side_mode(self):
+        return normalize_position_mode(self.get_param("position_mode")) == POSITION_MODE_DUAL_SIDE
+
+    def _normalize_order_meta(self, isbuy, kwargs):
+        local_kwargs = dict(kwargs)
+        position_side = local_kwargs.pop("position_side", None)
+        offset = local_kwargs.pop("offset", None)
+        position_side, offset = normalize_order_position_meta(
+            self.get_param("position_mode"),
+            isbuy,
+            position_side=position_side,
+            offset=offset,
+        )
+        return position_side, offset, local_kwargs
+
+    @staticmethod
+    def _attach_position_meta(order, position_side=None, offset=None, **kwargs):
+        if position_side is not None:
+            order.addinfo(position_side=position_side)
+        if offset is not None:
+            order.addinfo(offset=offset)
+        if kwargs:
+            order.addinfo(**kwargs)
+        return order
+
+    def _get_leg_store(self, position_side):
+        position_side = normalize_position_side(position_side)
+        if position_side == POSITION_SIDE_LONG:
+            return self.long_positions
+        if position_side == POSITION_SIDE_SHORT:
+            return self.short_positions
+        raise ValueError(f"Unsupported position_side {position_side!r}")
+
+    def _get_leg_position(self, symbol, position_side):
+        return self._get_leg_store(position_side)[symbol]
+
+    def _make_signed_position(self, position_side, position):
+        signed_position = position.clone()
+        signed_position.size = signed_position_size(position_side, position.size)
+        if not signed_position.size:
+            signed_position.price = 0.0
+            signed_position.price_orig = 0.0
+        return signed_position
+
+    def _apply_signed_position(self, position_side, leg_position, signed_position):
+        leg_position.size = abs(float(signed_position.size or 0.0))
+        leg_position.price = signed_position.price if leg_position.size else 0.0
+        leg_position.price_orig = signed_position.price_orig if leg_position.size else 0.0
+        leg_position.adjbase = signed_position.adjbase
+        leg_position.datetime = signed_position.datetime
+        leg_position.updt = signed_position.updt
+        leg_position.upopened = abs(float(signed_position.upopened or 0.0))
+        leg_position.upclosed = abs(float(signed_position.upclosed or 0.0))
+        return leg_position
+
+    def _sync_net_position(self, symbol):
+        long_pos = self.long_positions[symbol]
+        short_pos = self.short_positions[symbol]
+        net_pos = self._positions[symbol]
+        net_size = long_pos.size - short_pos.size
+        if net_size > 0:
+            net_price = long_pos.price
+        elif net_size < 0:
+            net_price = short_pos.price
+        else:
+            net_price = 0.0
+        net_pos.fix(net_size, net_price)
+        if long_pos.datetime is not None and short_pos.datetime is not None:
+            net_pos.datetime = max(long_pos.datetime, short_pos.datetime)
+        else:
+            net_pos.datetime = long_pos.datetime or short_pos.datetime
+        net_pos.adjbase = long_pos.adjbase if long_pos.size else short_pos.adjbase
+        return net_pos
 
     def stop(self):
         """Stop the broker and perform cleanup.
@@ -152,6 +263,16 @@ class TickBroker(BrokerBase):
     def getvalue(self, datas=None):
         """Get portfolio value including open positions."""
         val = self._cash
+        if self._is_dual_side_mode():
+            symbols = set(self.long_positions) | set(self.short_positions) | set(self._positions)
+            for symbol in symbols:
+                last_tick = self._last_tick.get(symbol)
+                if last_tick is None:
+                    continue
+                val += self.long_positions[symbol].size * last_tick.price
+                val -= self.short_positions[symbol].size * last_tick.price
+            return val
+
         for data_name, pos in self._positions.items():
             if pos.size != 0:
                 last_tick = self._last_tick.get(data_name)
@@ -159,9 +280,15 @@ class TickBroker(BrokerBase):
                     val += pos.size * last_tick.price
         return val
 
-    def getposition(self, data):
+    def getposition(self, data, side=None):
         """Get current position for a data feed."""
         name = getattr(data, "_name", None) or getattr(data, "symbol", str(data))
+        if side is not None:
+            if not self._is_dual_side_mode():
+                raise ValueError("side-specific getposition() is only available in dual_side mode")
+            return self._get_leg_position(name, side)
+        if self._is_dual_side_mode():
+            return self._sync_net_position(name)
         return self._positions[name]
 
     def submit(self, order):
@@ -170,6 +297,7 @@ class TickBroker(BrokerBase):
         Overrides the default submit to handle tick-mode orders that
         don't have LineSeries data (avoids len(data) call in Order.submit).
         """
+        self._freeze_position_mode("first order submission")
         order.status = Order.Submitted
         order.broker = self
         order.plen = 0
@@ -262,6 +390,7 @@ class TickBroker(BrokerBase):
         Returns:
             The submitted BuyOrder instance.
         """
+        position_side, offset, order_kwargs = self._normalize_order_meta(True, kwargs)
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -275,8 +404,8 @@ class TickBroker(BrokerBase):
             trailamount=trailamount,
             trailpercent=trailpercent,
             simulated=True,
-            **kwargs,
         )
+        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
         return self.submit(order)
 
     def sell(
@@ -313,6 +442,7 @@ class TickBroker(BrokerBase):
         Returns:
             The submitted SellOrder instance.
         """
+        position_side, offset, order_kwargs = self._normalize_order_meta(False, kwargs)
         order = SellOrder(
             owner=owner,
             data=data,
@@ -326,8 +456,8 @@ class TickBroker(BrokerBase):
             trailamount=trailamount,
             trailpercent=trailpercent,
             simulated=True,
-            **kwargs,
         )
+        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
         return self.submit(order)
 
     def notify(self, order):
@@ -937,6 +1067,8 @@ class TickBroker(BrokerBase):
             event: The event that triggered the fill.
             source: Source tag for order history.
         """
+        if self._is_dual_side_mode():
+            return self._execute_dual_side(order, fill_price, fill_size, event, source=source)
         data_name = self._get_data_name(order.data)
         position = self._positions[data_name]
         exec_size = fill_size if order.isbuy() else -fill_size
@@ -1048,6 +1180,150 @@ class TickBroker(BrokerBase):
         )
 
         self._recorder.record(event.timestamp, data_name, self._order_history[-1])
+
+        if popened and not opened:
+            order.margin()
+            self.notify(order)
+
+    def _execute_dual_side(self, order, fill_price, fill_size, event, source="tick"):
+        data_name = self._get_data_name(order.data)
+        position_side = normalize_position_side(getattr(order.info, "position_side", None))
+        leg_position = self._get_leg_position(data_name, position_side)
+        signed_position = self._make_signed_position(position_side, leg_position)
+        exec_size = fill_size if order.isbuy() else -fill_size
+        offset = getattr(order.info, "offset", None)
+
+        if offset == "close":
+            available = abs(float(signed_position.size or 0.0))
+            if available <= 1e-12:
+                order.reject()
+                self.notify(order)
+                self._remove_pending_order(order)
+                return
+            if abs(float(exec_size or 0.0)) > available + 1e-12:
+                exec_size = available if order.isbuy() else -available
+
+        comminfo = self.getcommissioninfo(order.data)
+        commission_role = self._resolve_commission_role(source)
+        pprice_orig = signed_position.price
+        psize, pprice, opened, closed = signed_position.pseudoupdate(exec_size, fill_price)
+        pnl = comminfo.profitandloss(-closed, pprice_orig, fill_price) if closed else 0.0
+
+        cash = self._cash
+        if closed:
+            if self.get_param("shortcash"):
+                closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
+            else:
+                closedvalue = comminfo.getoperationcost(closed, pprice_orig)
+
+            closecash = closedvalue
+            if closedvalue > 0:
+                closecash /= comminfo.get_leverage()
+            cash += closecash + pnl * comminfo.stocklike
+            closedcomm = comminfo.getcommission(closed, fill_price, role=commission_role)
+            cash -= closedcomm
+            if signed_position.adjbase is not None:
+                cash += comminfo.cashadjust(-closed, signed_position.adjbase, fill_price)
+        else:
+            closedvalue = 0.0
+            closedcomm = 0.0
+
+        popened = opened
+        if opened:
+            if self.get_param("shortcash"):
+                openedvalue = comminfo.getvaluesize(opened, fill_price)
+            else:
+                openedvalue = comminfo.getoperationcost(opened, fill_price)
+
+            opencash = openedvalue
+            if openedvalue > 0:
+                opencash /= comminfo.get_leverage()
+            cash -= opencash
+            openedcomm = comminfo.getcommission(opened, fill_price, role=commission_role)
+            cash -= openedcomm
+
+            if cash < 0.0:
+                opened = 0
+                openedvalue = 0.0
+                openedcomm = 0.0
+            else:
+                if abs(psize) > abs(opened) and signed_position.adjbase is not None:
+                    adjsize = psize - opened
+                    cash += comminfo.cashadjust(adjsize, signed_position.adjbase, fill_price)
+                signed_position.adjbase = fill_price
+        else:
+            openedvalue = 0.0
+            openedcomm = 0.0
+
+        self._cash = cash
+        executed_size = closed + opened
+        if not executed_size:
+            if popened and not opened:
+                order.margin()
+                self.notify(order)
+            return
+
+        comminfo.confirmexec(executed_size, fill_price, role=commission_role)
+        signed_position.update(executed_size, fill_price, event.timestamp)
+        self._apply_signed_position(position_side, leg_position, signed_position)
+        self._sync_net_position(data_name)
+        order.execute(
+            dt=event.timestamp,
+            size=executed_size,
+            price=fill_price,
+            closed=closed,
+            closedvalue=closedvalue,
+            closedcomm=closedcomm,
+            opened=opened,
+            openedvalue=openedvalue,
+            openedcomm=openedcomm,
+            margin=comminfo.margin,
+            pnl=pnl,
+            psize=psize,
+            pprice=pprice,
+        )
+        order.addcomminfo(comminfo)
+        self.notify(order)
+        self._state_tracker.on_fill(
+            data_name,
+            fill_price,
+            executed_size,
+            closedcomm + openedcomm,
+            role=source,
+        )
+
+        self._order_history.append(
+            {
+                "timestamp": event.timestamp,
+                "timestamp_ns": getattr(
+                    event,
+                    "timestamp_ns",
+                    int(round(float(event.timestamp) * 1_000_000_000.0)),
+                ),
+                "symbol": data_name,
+                "side": "buy" if order.isbuy() else "sell",
+                "position_side": position_side,
+                "offset": offset,
+                "status": order.getstatusname(),
+                "price": fill_price,
+                "size": abs(executed_size),
+                "opened": opened,
+                "closed": closed,
+                "pnl": pnl,
+                "commission": closedcomm + openedcomm,
+                "source": source,
+                "role": commission_role,
+                "reference_price": getattr(event, "price", None),
+                "order_ref": getattr(order, "ref", None),
+            }
+        )
+
+        self._recorder.record(event.timestamp, data_name, self._order_history[-1])
+
+        if offset == "close" and abs(self._get_leg_position(data_name, position_side).size) <= 1e-12 and order.alive():
+            order.cancel()
+            order.addinfo(cancel_reason="POSITION_DEPLETED")
+            self.notify(order)
 
         if popened and not opened:
             order.margin()

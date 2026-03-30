@@ -658,6 +658,16 @@ class OrderBase:
         obj.executed = self.executed.clone()
         return obj  # status could change in next to completed
 
+    @property
+    def position_side(self):
+        """Read-only alias for order.info.position_side."""
+        return getattr(self.info, "position_side", None)
+
+    @property
+    def offset(self):
+        """Read-only alias for order.info.offset."""
+        return getattr(self.info, "offset", None)
+
     # Get order status name
     def getstatusname(self, status=None):
         """Returns the name for a given status or the one of the order"""
