@@ -11,6 +11,7 @@ from backtrader.stores.btapistore import (
     BtApiProviderNotImplementedError,
     BtApiStoreError,
     BtApiStore,
+    _create_ctp_wrapper_class,
     _split_ctp_symbol,
 )
 from tests.fixtures.fake_btapi import (
@@ -1507,6 +1508,40 @@ def test_store_cancel_order_uses_external_order_id_and_emits_runtime_events():
     assert submitted["status"] == "accepted"
 
 
+def test_store_cancel_order_falls_back_to_ctp_order_ref_when_external_id_is_missing():
+    class CancelOrderClient:
+        def __init__(self):
+            self.connected = False
+            self.cancelled_orders = []
+
+        def connect(self):
+            self.connected = True
+
+        def disconnect(self):
+            self.connected = False
+
+        def cancel_order(self, order_ref, dataname=None):
+            self.cancelled_orders.append({"order_ref": order_ref, "dataname": dataname})
+            return True
+
+    class DummyOrder:
+        def __init__(self):
+            self.ref = 7
+            self.info = type("Info", (), {"ctp_order_ref": "ctp-ref-1"})()
+            self.data = type("Data", (), {"_name": DEFAULT_SYMBOL})()
+
+    client = CancelOrderClient()
+    store = make_store(api=client)
+
+    response = store.cancel_order(DummyOrder())
+
+    assert response is True
+    assert client.cancelled_orders == [{"order_ref": "ctp-ref-1", "dataname": DEFAULT_SYMBOL}]
+    runtime_events = [kwargs["event"] for _msg, _args, kwargs in store.get_notifications()]
+    submitted = next(event for event in runtime_events if event["event_type"] == "order_cancel_submitted")
+    assert submitted["order_ref"] == "ctp-ref-1"
+
+
 def test_store_cancel_order_raises_clear_error_and_emits_reject_event_when_unsupported():
     class NoCancelClient:
         def __init__(self):
@@ -1727,6 +1762,17 @@ def test_ctp_provider_switches_to_gateway_from_env(monkeypatch):
     assert store._api_kwargs["exchange_type"] == "CTP"
     assert store._api_kwargs["asset_type"] == "FUTURE"
     assert store._api_kwargs["gateway_start_local_runtime"] is False
+
+
+def test_create_ctp_wrapper_patches_missing_spi_callbacks():
+    _create_ctp_wrapper_class()
+
+    import bt_api_py.ctp.client as ctp_client_module
+
+    assert hasattr(ctp_client_module._MdSpi, "OnRspQryInvestorPositionDetail")
+    assert hasattr(ctp_client_module._MdSpi, "OnRspQryNotice")
+    assert hasattr(ctp_client_module._TraderSpi, "OnRspQryInvestorPositionDetail")
+    assert hasattr(ctp_client_module._TraderSpi, "OnRspQryNotice")
 
 
 def test_ctp_provider_switches_to_generic_gateway_from_env(monkeypatch):

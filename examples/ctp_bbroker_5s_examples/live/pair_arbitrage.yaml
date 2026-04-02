@@ -10,13 +10,13 @@ broker:
   positions_refresh_interval: 3600.0
   open_orders_refresh_interval: 3600.0
 feed:
-  timeframe: seconds
-  compression: 5
+  timeframe: ticks
+  compression: 1
   backfill_start: false
 strategy_params:
   symbol_a: rb2605
   symbol_b: hc2605
-  bar_source: datafeed
+  bar_source: ticks
   bar_seconds: 5
   spread_window: 3
   entry_edge: 1.0
@@ -37,4 +37,4 @@ trade_logger:
   log_bars: false
   log_value: false
   log_positions: false
-  log_position_snapshot: true
+  log_position_snapshot: false

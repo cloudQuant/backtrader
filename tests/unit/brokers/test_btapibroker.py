@@ -1,5 +1,7 @@
 """Unit tests for the unified BtApiBroker."""
 
+import collections
+
 import pytest
 import backtrader as bt
 
@@ -71,6 +73,23 @@ def test_sell_submits_sell_side_payload(started_stack):
     assert client.submitted_orders[0]["side"] == "sell"
 
 
+def test_sell_accepts_close_today_offset_and_passes_it_to_store(started_stack):
+    client, _store, data, broker = started_stack
+
+    order = broker.sell(
+        owner=None,
+        data=data,
+        size=1,
+        price=100.5,
+        exectype=bt.Order.Limit,
+        offset="close_today",
+    )
+
+    assert order.status == bt.Order.Accepted
+    assert order.info["offset"] == "close_today"
+    assert client.submitted_orders[0]["offset"] == "close_today"
+
+
 def test_buy_uses_store_create_order_alias_when_submit_order_is_unavailable():
     class CreateOrderOnlyClient:
         def __init__(self):
@@ -91,7 +110,7 @@ def test_buy_uses_store_create_order_alias_when_submit_order_is_unavailable():
 
         def create_order(self, **payload):
             self.created_orders.append(dict(payload))
-            return {"id": "alias-1", "order_ref": "alias-ref-1"}
+            return {"order_ref": "alias-ref-1"}
 
     client = CreateOrderOnlyClient()
     store = make_store(
@@ -114,10 +133,96 @@ def test_buy_uses_store_create_order_alias_when_submit_order_is_unavailable():
         )
 
         assert order.status == bt.Order.Accepted
-        assert order.info["external_order_id"] == "alias-1"
         assert order.info["ctp_order_ref"] == "alias-ref-1"
+        assert "external_order_id" not in order.info
         assert client.created_orders[0]["symbol"] == DEFAULT_SYMBOL
         assert client.created_orders[0]["price"] == pytest.approx(101.0)
+    finally:
+        broker.stop()
+
+
+def test_ctp_style_submit_only_attaches_order_ref_until_server_id_arrives():
+    class CtpStyleClient:
+        def __init__(self):
+            self.connected = False
+            self.created_orders = []
+            self.updates = collections.deque()
+
+        def connect(self):
+            self.connected = True
+
+        def disconnect(self):
+            self.connected = False
+
+        def get_balance(self):
+            return {"cash": 1000.0, "value": 1200.0}
+
+        def get_positions(self):
+            return []
+
+        def create_order(self, **payload):
+            self.created_orders.append(dict(payload))
+            return {"order_ref": "ctp-ref-1"}
+
+        def poll_broker_update(self):
+            if not self.updates:
+                return None
+            return self.updates.popleft()
+
+        def push_broker_update(self, update):
+            self.updates.append(dict(update))
+
+    client = CtpStyleClient()
+    store = make_store(
+        api=client,
+        historical_bars={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]},
+    )
+    data = store.getdata(dataname=DEFAULT_SYMBOL)
+    broker = store.getbroker()
+
+    data._start()
+    assert data.load() is True
+    broker.start()
+    try:
+        order = broker.buy(
+            owner=None,
+            data=data,
+            size=1,
+            price=101.0,
+            exectype=bt.Order.Limit,
+        )
+
+        assert order.info["ctp_order_ref"] == "ctp-ref-1"
+        assert "external_order_id" not in order.info
+
+        client.push_broker_update(
+            {
+                "kind": "order",
+                "order_ref": "ctp-ref-1",
+                "data_name": DEFAULT_SYMBOL,
+                "status": "accepted",
+            }
+        )
+        broker.next()
+
+        assert "external_order_id" not in order.info
+
+        client.push_broker_update(
+            {
+                "kind": "order",
+                "order_ref": "ctp-ref-1",
+                "external_order_id": "sys-101",
+                "data_name": DEFAULT_SYMBOL,
+                "status": "partial",
+                "filled": 1,
+                "remaining": 0,
+                "price": 101.0,
+                "size": 1,
+            }
+        )
+        broker.next()
+
+        assert order.info["external_order_id"] == "sys-101"
     finally:
         broker.stop()
 

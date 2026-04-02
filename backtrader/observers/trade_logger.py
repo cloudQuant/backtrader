@@ -34,6 +34,7 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import Mapping
 from datetime import datetime, timezone, timedelta
 
 from ..observer import Observer
@@ -325,7 +326,10 @@ class TradeLogger(Observer):
             return default
 
         try:
-            return getattr(info, key)
+            value = getattr(info, key)
+            if isinstance(value, Mapping) and not value:
+                return default
+            return value
         except AttributeError:
             pass
         except Exception:
@@ -334,7 +338,10 @@ class TradeLogger(Observer):
         get_method = getattr(info, "get", None)
         if callable(get_method):
             try:
-                return get_method(key, default)
+                value = get_method(key, default)
+                if isinstance(value, Mapping) and not value:
+                    return default
+                return value
             except Exception:
                 return default
 

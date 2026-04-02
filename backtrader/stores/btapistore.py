@@ -83,6 +83,125 @@ _CTP_ORDER_STATUS_MAP = {
     "c": "submitted",
 }
 
+_CTP_LOGIN_FIELDS = (
+    "FrontID",
+    "SessionID",
+    "TradingDay",
+    "LoginTime",
+    "BrokerID",
+    "UserID",
+    "SystemName",
+)
+_CTP_RSPINFO_FIELDS = (
+    "ErrorID",
+    "ErrorMsg",
+)
+_CTP_ORDER_FIELDS = (
+    "AccountID",
+    "ActiveTime",
+    "ActiveTraderID",
+    "ActiveUserID",
+    "BranchID",
+    "BrokerID",
+    "BrokerOrderSeq",
+    "BusinessUnit",
+    "CancelTime",
+    "ClearingPartID",
+    "ClientID",
+    "CombHedgeFlag",
+    "CombOffsetFlag",
+    "ContingentCondition",
+    "CurrencyID",
+    "Direction",
+    "ExchangeID",
+    "ExchangeInstID",
+    "ForceCloseReason",
+    "FrontID",
+    "GTDDate",
+    "IPAddress",
+    "InsertDate",
+    "InsertTime",
+    "InstallID",
+    "InstrumentID",
+    "InvestUnitID",
+    "InvestorID",
+    "IsAutoSuspend",
+    "IsSwapOrder",
+    "LimitPrice",
+    "MacAddress",
+    "MinVolume",
+    "NotifySequence",
+    "OrderLocalID",
+    "OrderMemo",
+    "OrderPriceType",
+    "OrderRef",
+    "OrderSource",
+    "OrderStatus",
+    "OrderSubmitStatus",
+    "OrderSysID",
+    "OrderType",
+    "ParticipantID",
+    "RelativeOrderSysID",
+    "RequestID",
+    "SequenceNo",
+    "SessionID",
+    "SessionReqSeq",
+    "SettlementID",
+    "StatusMsg",
+    "StopPrice",
+    "SuspendTime",
+    "TimeCondition",
+    "TraderID",
+    "TradingDay",
+    "UpdateTime",
+    "UserForceClose",
+    "UserID",
+    "UserProductInfo",
+    "VolumeCondition",
+    "VolumeTotal",
+    "VolumeTotalOriginal",
+    "VolumeTraded",
+    "ZCETotalTradedVolume",
+    "reserve1",
+    "reserve2",
+    "reserve3",
+)
+_CTP_TRADE_FIELDS = (
+    "BrokerID",
+    "BrokerOrderSeq",
+    "BusinessUnit",
+    "ClearingPartID",
+    "ClientID",
+    "Direction",
+    "ExchangeID",
+    "ExchangeInstID",
+    "HedgeFlag",
+    "InstrumentID",
+    "InvestUnitID",
+    "InvestorID",
+    "OffsetFlag",
+    "OrderLocalID",
+    "OrderRef",
+    "OrderSysID",
+    "ParticipantID",
+    "Price",
+    "PriceSource",
+    "SequenceNo",
+    "SettlementID",
+    "TradeDate",
+    "TradeID",
+    "TradeSource",
+    "TradeTime",
+    "TradeType",
+    "TraderID",
+    "TradingDay",
+    "TradingRole",
+    "UserID",
+    "Volume",
+    "reserve1",
+    "reserve2",
+)
+
 
 class BtApiStoreError(Exception):
     """Base error for btapi store failures."""
@@ -259,6 +378,24 @@ def _ctp_field_to_dict(field: Any) -> Dict[str, Any]:
     return result
 
 
+def _ctp_extract_fields(field: Any, attrs: Iterable[str]) -> Dict[str, Any]:
+    """Read only a whitelisted subset of SWIG CTP struct attributes safely."""
+    if field is None:
+        return {}
+
+    result: Dict[str, Any] = {}
+    for attr in attrs:
+        try:
+            value = getattr(field, attr)
+        except Exception as e:
+            logger.debug("Failed to read CTP field attr %s: %s", attr, e)
+            continue
+        if callable(value):
+            continue
+        result[attr] = value
+    return result
+
+
 def _normalize_bar(bar: Any) -> Dict[str, Any]:
     """Normalize historical/live bar payloads into a common dict."""
     if isinstance(bar, dict):
@@ -337,14 +474,38 @@ def _resolve_bt_api_client(provider: str = "btapi"):
 def _create_ctp_wrapper_class():
     """Create a wrapper class for CTP clients."""
     try:
+        import bt_api_py.ctp.client as ctp_client_module
         from bt_api_py.ctp.client import MdClient, TraderClient
+        from bt_api_py.ctp.ctp_md_api import CThostFtdcMdSpi
         from bt_api_py.ctp.ctp_structs_order import (
             CThostFtdcInputOrderActionField,
             CThostFtdcInputOrderField,
         )
         from bt_api_py.ctp.ctp_structs_query import CThostFtdcQryInstrumentField
+        from bt_api_py.ctp.ctp_trader_api import CThostFtdcTraderSpi
     except ImportError as exc:
         raise BtApiMissingDependencyError("bt_api_py CTP support is not available") from exc
+
+    def _noop_spi_method(self, *args, **kwargs):
+        return None
+
+    _spi_callback_names = {
+        name
+        for base_cls in (CThostFtdcMdSpi, CThostFtdcTraderSpi)
+        for name in dir(base_cls)
+        if name.startswith("On")
+    }
+
+    def _patch_spi_callbacks(spi_cls):
+        for name in _spi_callback_names:
+            if not name.startswith("On"):
+                continue
+            if hasattr(spi_cls, name):
+                continue
+            setattr(spi_cls, name, _noop_spi_method)
+
+    _patch_spi_callbacks(ctp_client_module._MdSpi)
+    _patch_spi_callbacks(ctp_client_module._TraderSpi)
 
     class CtpClientWrapper:
         """Wrapper for CTP market and trade clients."""
@@ -722,7 +883,6 @@ def _create_ctp_wrapper_class():
                 "session_id": int(getattr(self.trader_client, "_session_id", 0) or 0),
             }
             return {
-                "id": order_ref,
                 "order_ref": order_ref,
                 "front_id": self._pending_orders[order_ref]["front_id"],
                 "session_id": self._pending_orders[order_ref]["session_id"],
@@ -849,7 +1009,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_md_error(self, payload):
             """Capture market-data-side runtime errors."""
-            details = _ctp_field_to_dict(payload)
+            details = _ctp_extract_fields(payload, _CTP_RSPINFO_FIELDS)
             self._order_updates.append(
                 {
                     "kind": "error",
@@ -862,7 +1022,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_trader_login(self, payload):
             """Capture trader-login metadata for later cancel requests."""
-            details = _ctp_field_to_dict(payload)
+            details = _ctp_extract_fields(payload, _CTP_LOGIN_FIELDS)
             front_id = _coerce_int(details.get("FrontID"), 0)
             session_id = _coerce_int(details.get("SessionID"), 0)
             for pending in self._pending_orders.values():
@@ -873,7 +1033,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_trader_error(self, payload):
             """Capture trader-side runtime errors."""
-            details = _ctp_field_to_dict(payload)
+            details = _ctp_extract_fields(payload, _CTP_RSPINFO_FIELDS)
             self._order_updates.append(
                 {
                     "kind": "error",
@@ -886,7 +1046,7 @@ def _create_ctp_wrapper_class():
 
         def _handle_order(self, payload):
             """Normalize order status callbacks into broker updates."""
-            details = _ctp_field_to_dict(payload)
+            details = _ctp_extract_fields(payload, _CTP_ORDER_FIELDS)
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
             pending = self._pending_orders.get(order_ref, {})
@@ -914,7 +1074,6 @@ def _create_ctp_wrapper_class():
             event = {
                 "kind": "order",
                 "order_ref": order_ref,
-                "external_order_id": order_sys_id or order_ref,
                 "data_name": pending.get("data_name")
                 or _coerce_text(details.get("InstrumentID") or details.get("ExchangeInstID") or ""),
                 "instrument": _coerce_text(details.get("InstrumentID") or ""),
@@ -942,11 +1101,13 @@ def _create_ctp_wrapper_class():
                 "timestamp": str(details.get("UpdateTime") or details.get("InsertTime") or ""),
                 "details": details,
             }
+            if order_sys_id:
+                event["external_order_id"] = order_sys_id
             self._order_updates.append(event)
 
         def _handle_trade(self, payload):
             """Normalize trade callbacks into broker updates."""
-            details = _ctp_field_to_dict(payload)
+            details = _ctp_extract_fields(payload, _CTP_TRADE_FIELDS)
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
             pending = self._pending_orders.get(order_ref) or self._pending_orders_by_sys_id.get(order_sys_id, {})
@@ -959,7 +1120,6 @@ def _create_ctp_wrapper_class():
                 "kind": "trade",
                 "trade_id": str(details.get("TradeID") or "").strip(),
                 "order_ref": order_ref,
-                "external_order_id": order_sys_id or order_ref,
                 "data_name": pending.get("data_name")
                 or _coerce_text(details.get("InstrumentID") or details.get("ExchangeInstID") or ""),
                 "instrument": _coerce_text(details.get("InstrumentID") or ""),
@@ -974,6 +1134,8 @@ def _create_ctp_wrapper_class():
                 "timestamp": str(details.get("TradeTime") or details.get("TradingDay") or ""),
                 "details": details,
             }
+            if order_sys_id:
+                event["external_order_id"] = order_sys_id
             self._order_updates.append(event)
 
         def _next_order_ref(self):
@@ -1675,7 +1837,11 @@ class BtApiStore(LiveStoreBase):
     def cancel_order(self, order):
         """Cancel a submitted order through the unified API."""
         api = self._ensure_api_ready()
-        order_ref = getattr(order.info, "external_order_id", None) or getattr(order, "ref", None)
+        order_ref = (
+            getattr(order.info, "external_order_id", None)
+            or getattr(order.info, "ctp_order_ref", None)
+            or getattr(order, "ref", None)
+        )
         dataname = self._extract_dataname(order.data)
         details = {"order_ref": order_ref, "data_name": dataname}
         self.emit_runtime_event(

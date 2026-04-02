@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import sys
 from collections import defaultdict, deque
@@ -27,6 +28,8 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
     params = BASE_FUTURES_STRATEGY_PARAMS + (
         ("symbol", "rb2610"),
         ("bar_window", 3),
+        ("bar_source", "bars"),
+        ("bar_seconds", 1),
         ("entry_bias", 1.0),
         ("exit_bias", 0.5),
         ("order_size", 1),
@@ -43,6 +46,32 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
         self._forced_phase = "idle"
         self._forced_entry_terminal_refs = set()
         self._forced_exit_terminal_refs = set()
+        self._tick_bar_state = None
+
+    def _use_tick_bars(self):
+        return str(getattr(self.p, "bar_source", "bars") or "bars").strip().lower() == "ticks"
+
+    def _tick_bucket_start(self, tick):
+        tick_dt = getattr(tick, "datetime", None)
+        if tick_dt is None:
+            tick_dt = _dt.datetime.fromtimestamp(float(getattr(tick, "timestamp", 0.0) or 0.0))
+        tick_dt = tick_dt.replace(microsecond=0)
+        bar_seconds = max(int(getattr(self.p, "bar_seconds", 1) or 1), 1)
+        second = (tick_dt.second // bar_seconds) * bar_seconds
+        return tick_dt.replace(second=second)
+
+    def _ingest_tick_bar(self, tick):
+        bucket_start = self._tick_bucket_start(tick)
+        price = float(tick.price)
+        current = self._tick_bar_state
+        if current is None:
+            self._tick_bar_state = {"bucket_start": bucket_start, "close": price}
+            return
+        if bucket_start == current["bucket_start"]:
+            current["close"] = price
+            return
+        self.bar_closes.append(float(current["close"]))
+        self._tick_bar_state = {"bucket_start": bucket_start, "close": price}
 
     def _handle_forced_signals(self, position):
         force_entry_after_ticks = int(self.p.force_entry_after_ticks or 0)
@@ -78,6 +107,8 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
         return False
 
     def notify_bar(self, bar):
+        if self._use_tick_bars():
+            return
         if bar.symbol != self.p.symbol:
             return
         self.bar_closes.append(float(bar.close))
@@ -87,6 +118,8 @@ class SingleSymbolMixStrategy(ConfigurableFuturesStrategyBase):
             return
 
         self.latest_tick_price = float(tick.price)
+        if self._use_tick_bars():
+            self._ingest_tick_bar(tick)
         position = self._position_size(self.p.symbol)
         if position > 0:
             self._observed_open_position = True
@@ -186,6 +219,8 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
         ("symbol_a", "rb2610"),
         ("symbol_b", "hc2610"),
         ("bar_window", 3),
+        ("bar_source", "bars"),
+        ("bar_seconds", 1),
         ("entry_edge", 5.0),
         ("exit_edge", 1.0),
         ("order_size", 1),
@@ -204,8 +239,37 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
         self._forced_phase = "idle"
         self._forced_entry_terminal_refs = set()
         self._forced_exit_terminal_refs = set()
+        self._tick_bar_state = {}
+
+    def _use_tick_bars(self):
+        return str(getattr(self.p, "bar_source", "bars") or "bars").strip().lower() == "ticks"
+
+    def _tick_bucket_start(self, tick):
+        tick_dt = getattr(tick, "datetime", None)
+        if tick_dt is None:
+            tick_dt = _dt.datetime.fromtimestamp(float(getattr(tick, "timestamp", 0.0) or 0.0))
+        tick_dt = tick_dt.replace(microsecond=0)
+        bar_seconds = max(int(getattr(self.p, "bar_seconds", 1) or 1), 1)
+        second = (tick_dt.second // bar_seconds) * bar_seconds
+        return tick_dt.replace(second=second)
+
+    def _ingest_tick_bar(self, tick):
+        symbol = str(tick.symbol)
+        bucket_start = self._tick_bucket_start(tick)
+        price = float(tick.price)
+        current = self._tick_bar_state.get(symbol)
+        if current is None:
+            self._tick_bar_state[symbol] = {"bucket_start": bucket_start, "close": price}
+            return
+        if bucket_start == current["bucket_start"]:
+            current["close"] = price
+            return
+        self.bar_closes[symbol].append(float(current["close"]))
+        self._tick_bar_state[symbol] = {"bucket_start": bucket_start, "close": price}
 
     def notify_bar(self, bar):
+        if self._use_tick_bars():
+            return
         if bar.symbol not in (self.p.symbol_a, self.p.symbol_b):
             return
         self.bar_closes[bar.symbol].append(float(bar.close))
@@ -296,6 +360,8 @@ class PairMixArbitrageStrategy(ConfigurableFuturesStrategyBase):
             return
 
         self.latest_prices[tick.symbol] = float(tick.price)
+        if self._use_tick_bars():
+            self._ingest_tick_bar(tick)
         self.maybe_cancel_stale_orders()
         if self.maybe_stop_after_tick_limit():
             return

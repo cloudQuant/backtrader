@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 
 import backtrader as bt
@@ -40,6 +41,17 @@ class _ScalarLine:
     def __setitem__(self, index, value):
         self.value = value
 
+    def datetime(self, index=0):
+        return bt.num2date(self.value)
+
+    def date(self, index=0):
+        return self.datetime(index).date()
+
+
+class _PlaceholderParams:
+    def __init__(self):
+        self.sessionend = dt.time(23, 59, 59, 999990)
+
 
 class ChannelPlaceholderData:
     def __init__(self, symbol):
@@ -47,6 +59,7 @@ class ChannelPlaceholderData:
         self.symbol = symbol
         self._compensate = None
         self._len = 0
+        self.p = _PlaceholderParams()
         self.datetime = _ScalarLine(0.0)
         self.close = _ScalarLine(0.0)
 
@@ -55,6 +68,14 @@ class ChannelPlaceholderData:
 
     def __bool__(self):
         return True
+
+    @staticmethod
+    def date2num(value):
+        return bt.date2num(value)
+
+    @staticmethod
+    def num2date(value):
+        return bt.num2date(value)
 
 
 @pytest.mark.integration
@@ -480,3 +501,22 @@ def test_trade_logger_records_channel_mode_runtime_logs_without_datas(tmp_path):
     assert any(entry["isclosed"] is True and entry["data_name"] == symbol for entry in trade_entries)
     assert len(value_entries) == 4
     assert any(entry["data_name"] == symbol for entry in position_entries)
+
+
+@pytest.mark.integration
+def test_channel_placeholder_datetime_supports_market_order_construction():
+    """Channel placeholder data should expose datetime() for order initialization."""
+    data = ChannelPlaceholderData("rb2610")
+    sample_dt = dt.datetime(2024, 1, 1, 9, 0, 0)
+    data.datetime[0] = bt.date2num(sample_dt)
+
+    order = bt.BuyOrder(
+        owner=None,
+        data=data,
+        size=1,
+        exectype=bt.Order.Market,
+    )
+
+    assert order is not None
+    assert order.data is data
+    assert order.created.dt == bt.date2num(sample_dt)

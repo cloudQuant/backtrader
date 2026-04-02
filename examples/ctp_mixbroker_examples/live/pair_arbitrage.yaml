@@ -5,18 +5,20 @@ symbols:
 simnow_env: auto
 run_timeout_seconds: 300
 broker:
-  force_refresh_queries: true
-  account_refresh_interval: 0.0
-  positions_refresh_interval: 0.0
-  open_orders_refresh_interval: 0.0
+  force_refresh_queries: false
+  account_refresh_interval: 3600.0
+  positions_refresh_interval: 3600.0
+  open_orders_refresh_interval: 3600.0
 feed:
-  timeframe: seconds
+  timeframe: ticks
   compression: 1
   backfill_start: false
 strategy_params:
   symbol_a: rb2605
   symbol_b: hc2605
   bar_window: 2
+  bar_source: ticks
+  bar_seconds: 1
   entry_edge: 0.0
   exit_edge: 0.0
   order_size: 1
@@ -28,3 +30,7 @@ strategy_params:
   force_entry_after_ticks: 3
   force_exit_after_ticks: 10
   cancel_pending_after_ticks: 0
+trade_logger:
+  log_value: false
+  log_positions: false
+  log_position_snapshot: false

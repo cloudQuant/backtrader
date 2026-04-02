@@ -42,10 +42,10 @@ SIMNOW_ENVIRONMENTS = {
 
 AUTO_SIMNOW_ENV = "auto"
 SIMNOW_ENV_PRIORITY = (
+    "new_7x24",
     "new_group1",
     "new_group2",
     "new_group3",
-    "new_7x24",
 )
 DEFAULT_SIMNOW_ENV = AUTO_SIMNOW_ENV
 DEFAULT_BROKER_ID = "9999"
@@ -162,6 +162,20 @@ class _ScalarLine:
     def __setitem__(self, index, value):
         self.value = value
 
+    def datetime(self, index=0):
+        try:
+            return bt.num2date(self.value)
+        except Exception:
+            return _dt.datetime.fromtimestamp(0.0)
+
+    def date(self, index=0):
+        return self.datetime(index).date()
+
+
+class _PlaceholderParams:
+    def __init__(self):
+        self.sessionend = _dt.time(23, 59, 59, 999990)
+
 
 class PlaceholderData:
     def __init__(self, symbol):
@@ -170,6 +184,7 @@ class PlaceholderData:
         self.symbol = self._name
         self._compensate = None
         self._len = 0
+        self.p = _PlaceholderParams()
         self.datetime = _ScalarLine(0.0)
         self.close = _ScalarLine(0.0)
 
@@ -178,6 +193,14 @@ class PlaceholderData:
 
     def __bool__(self):
         return True
+
+    @staticmethod
+    def date2num(value):
+        return bt.date2num(value)
+
+    @staticmethod
+    def num2date(value):
+        return bt.num2date(value)
 
 
 BASE_FUTURES_STRATEGY_PARAMS = (
@@ -462,48 +485,34 @@ def create_live_store(config):
     if requested_env in {"", AUTO_SIMNOW_ENV} and env_override:
         requested_env = env_override
     strict_env = bool(config.get("simnow_strict_env", False))
-    candidates = iter_simnow_env_candidates(requested_env, strict=strict_env)
+    candidates = tuple(iter_simnow_env_candidates(requested_env, strict=strict_env))
     store_kwargs = dict(config.get("store_kwargs") or {})
-    failures = []
+    if not candidates:
+        raise RuntimeError("Unable to resolve any SimNow environment candidates")
 
-    # Probe with short-lived stores so we can fall back to another SimNow
-    # front without changing the normal BtApiStore/BtApiFeed live lifecycle.
-    for candidate_env in candidates:
-        connection = create_simnow_connection(candidate_env)
-        store_config = dict(
-            provider="ctp",
-            td_address=connection["td_address"],
-            md_address=connection["md_address"],
-            broker_id=connection["broker_id"],
-            investor_id=connection["investor_id"],
-            password=connection["password"],
-            app_id=connection["app_id"],
-            auth_code=connection["auth_code"],
-            **store_kwargs,
-        )
-        probe_store = BtApiStore(**store_config)
-        try:
-            probe_store.start()
-        except Exception as exc:
-            failures.append(f"{candidate_env}: {type(exc).__name__}: {exc}")
-            try:
-                probe_store.stop()
-            except Exception:
-                pass
-            continue
-        finally:
-            try:
-                probe_store.stop()
-            except Exception:
-                pass
+    candidate_env = candidates[0]
+    connection = create_simnow_connection(candidate_env)
+    store_config = dict(
+        provider="ctp",
+        td_address=connection["td_address"],
+        md_address=connection["md_address"],
+        broker_id=connection["broker_id"],
+        investor_id=connection["investor_id"],
+        password=connection["password"],
+        app_id=connection["app_id"],
+        auth_code=connection["auth_code"],
+        **store_kwargs,
+    )
 
-        connection["requested_simnow_env"] = requested_env
-        connection["fallback_used"] = requested_env not in {"", AUTO_SIMNOW_ENV, candidate_env}
-        connection["attempted_simnow_envs"] = tuple(candidates)
-        return BtApiStore(**store_config), connection
-
-    attempted = "; ".join(failures) if failures else "no environments were attempted"
-    raise RuntimeError(f"Unable to connect to any SimNow environment. Tried: {attempted}")
+    # Do not eager-start the live store here. BtApiFeed/BtApiBroker must own
+    # the startup sequence inside Cerebro; starting the CTP clients before the
+    # feed is attached causes live runs to exit immediately with 0 ticks/0
+    # events, and the process may later crash while the native md/trader
+    # threads are still shutting down.
+    connection["requested_simnow_env"] = requested_env
+    connection["fallback_used"] = requested_env not in {"", AUTO_SIMNOW_ENV, candidate_env}
+    connection["attempted_simnow_envs"] = candidates
+    return BtApiStore(**store_config), connection
 
 
 def create_live_broker(store, config):

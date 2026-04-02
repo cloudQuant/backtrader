@@ -20,6 +20,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from backtrader.observers.trade_logger import TradeLogger
+from backtrader.utils import AutoOrderedDict
 
 
 # ===========================================================================
@@ -298,6 +299,11 @@ class TestSafeOrderInfo:
 
         order = SimpleNamespace(info=BrokenAttrInfo())
         assert TradeLogger._safe_order_info(order, "error_code", "safe") == "from-get"
+
+    def test_empty_auto_ordered_dict_is_treated_as_missing(self):
+        order = SimpleNamespace(info=AutoOrderedDict())
+        assert TradeLogger._safe_order_info(order, "external_order_id") is None
+        assert TradeLogger._safe_order_info(order, "error_code", "") == ""
 
 
 # ===========================================================================

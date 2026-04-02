@@ -4,10 +4,10 @@ symbols:
 simnow_env: auto
 run_timeout_seconds: 150
 broker:
-  force_refresh_queries: true
-  account_refresh_interval: 0.0
-  positions_refresh_interval: 0.0
-  open_orders_refresh_interval: 0.0
+  force_refresh_queries: false
+  account_refresh_interval: 3600.0
+  positions_refresh_interval: 3600.0
+  open_orders_refresh_interval: 3600.0
 feed:
   timeframe: ticks
   compression: 1
@@ -26,3 +26,7 @@ strategy_params:
   force_entry_after_ticks: 2
   force_exit_after_ticks: 6
   cancel_pending_after_ticks: 12
+trade_logger:
+  log_value: false
+  log_positions: false
+  log_position_snapshot: false
