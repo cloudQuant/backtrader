@@ -747,10 +747,10 @@ class TradeLogger(Observer):
                     self._bar_logger,
                     log_data,
                     text_line=(
-                        f"{log_data['log_time']} | BAR | data_name={data_name} | "
-                        f"O={log_data['open']:.4f} H={log_data['high']:.4f} "
-                        f"L={log_data['low']:.4f} C={log_data['close']:.4f} | "
-                        f"vol={log_data['volume']:.2f} | "
+                        f"{log_data['log_time']} | BAR | datetime={log_data['datetime']} | "
+                        f"data_name={data_name} | open={log_data['open']:.4f} | "
+                        f"high={log_data['high']:.4f} | low={log_data['low']:.4f} | "
+                        f"close={log_data['close']:.4f} | volume={log_data['volume']:.2f} | "
                         f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
                     ),
                 )
@@ -864,8 +864,9 @@ class TradeLogger(Observer):
             self._signal_logger,
             log_data,
             text_line=(
-                f"{log_data['log_time']} | {action.upper()} | size={size} | "
-                f"price={price} | {reason or ''}"
+                f"{log_data['log_time']} | {action.upper()} | datetime={log_data['datetime']} | "
+                f"data_name={log_data['data_name'] or ''} | size={size} | "
+                f"price={price} | reason={reason or ''}"
             ),
         )
 
@@ -1123,8 +1124,9 @@ class TradeLogger(Observer):
                     self._position_logger,
                     log_data,
                     text_line=(
-                        f"{log_data['log_time']} | {data_name} | "
-                        f"size={position.size} | price={position.price:.4f} | "
+                        f"{log_data['log_time']} | POSITION | datetime={log_data['datetime']} | "
+                        f"data_name={data_name} | size={position.size} | "
+                        f"price={position.price:.4f} | "
                         f"value={log_data['value']:.2f} | "
                         f"broker_value={broker_value:.2f} | broker_cash={broker_cash:.2f}"
                     ),
@@ -1159,7 +1161,10 @@ class TradeLogger(Observer):
             self._emit_payload(
                 self._indicator_logger,
                 log_data,
-                text_line=f"{log_data['log_time']} | {indicator_str}",
+                text_line=(
+                    f"{log_data['log_time']} | INDICATOR | datetime={log_data['datetime']} | "
+                    f"{indicator_str}"
+                ),
             )
 
         # MySQL logging - insert each indicator separately
@@ -1311,8 +1316,10 @@ class TradeLogger(Observer):
         return (
             f"{self._log_time_str()} | "
             f"{'BUY' if order.isbuy() else 'SELL'} | "
+            f"datetime={self._get_datetime_str()} | "
             f"ref={order.ref} | status={order.getstatusname()} | "
-            f"size={order.size} | price={order.price}"
+            f"size={order.size} | price={order.price} | "
+            f"executed_price={order.executed.price if order.executed.size else None}"
         )
 
     def _format_trade(self, trade):
@@ -1341,8 +1348,9 @@ class TradeLogger(Observer):
         status = "CLOSED" if trade.isclosed else ("OPEN" if trade.isopen else "UPDATE")
         return (
             f"{self._log_time_str()} | {status} | "
-            f"ref={trade.ref} | data={trade.data._name} | "
-            f"size={trade.size} | pnl={trade.pnl:.2f} | pnlcomm={trade.pnlcomm:.2f}"
+            f"datetime={self._get_datetime_str()} | ref={trade.ref} | data={trade.data._name} | "
+            f"size={trade.size} | price={trade.price:.4f} | value={trade.value:.4f} | "
+            f"commission={trade.commission:.4f} | pnl={trade.pnl:.2f} | pnlcomm={trade.pnlcomm:.2f}"
         )
 
     def _insert_order_mysql(self, log_data):

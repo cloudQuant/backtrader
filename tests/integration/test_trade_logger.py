@@ -703,6 +703,15 @@ def test_trade_logger_text_format():
         # but should contain readable text with | separators
         assert len(content) > 0, "order.log is empty"
         assert '|' in content, "Text format should contain | separators"
+        assert 'datetime=' in content, "Text format should include explicit datetime fields"
+
+        trade_log_path = os.path.join(temp_dir, 'trade.log')
+        with open(trade_log_path, 'r', encoding='utf-8') as f:
+            trade_content = f.read()
+
+        assert 'datetime=' in trade_content, "trade.log text format should include explicit datetime fields"
+        assert 'price=' in trade_content, "trade.log text format should include price"
+        assert 'value=' in trade_content, "trade.log text format should include value"
 
         print("✓ TradeLogger text format test passed")
 
