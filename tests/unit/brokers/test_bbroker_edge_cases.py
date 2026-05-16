@@ -10,9 +10,12 @@ import collections
 
 import pytest
 
+import backtrader as bt
 from backtrader.brokers.bbroker import BackBroker
 from backtrader.order import Order
 from backtrader.position import Position
+
+pd = pytest.importorskip("pandas")
 
 
 # ---------------------------------------------------------------------------
@@ -157,3 +160,49 @@ class TestFundstartvalZero:
         broker._get_value()
         # Cash should still be added
         assert abs(broker._cash - 10500.0) < 1e-10
+
+
+class TestSubmittedOrderCashProjection:
+    """Rejected submitted orders must not consume cash for later orders."""
+
+    class _SequentialOrderStrategy(bt.Strategy):
+        def __init__(self):
+            self.ordered = False
+            self.statuses = []
+
+        def next(self):
+            if self.ordered:
+                return
+            self.ordered = True
+            self.buy(data=self.datas[0], size=200)
+            self.buy(data=self.datas[1], size=50)
+
+        def notify_order(self, order):
+            self.statuses.append((order.data._name, order.getstatusname()))
+
+    def test_margin_rejected_order_does_not_reserve_cash_for_next_submission(self):
+        index = pd.date_range("2020-01-01", periods=3, freq="D")
+        frame = pd.DataFrame(
+            {
+                "open": [1.0, 1.0, 1.0],
+                "high": [1.0, 1.0, 1.0],
+                "low": [1.0, 1.0, 1.0],
+                "close": [1.0, 1.0, 1.0],
+                "volume": [0.0, 0.0, 0.0],
+                "openinterest": [0.0, 0.0, 0.0],
+            },
+            index=index,
+        )
+
+        cerebro = bt.Cerebro()
+        cerebro.broker.setcash(100.0)
+        cerebro.adddata(bt.feeds.PandasData(dataname=frame), name="oversized")
+        cerebro.adddata(bt.feeds.PandasData(dataname=frame.copy()), name="affordable")
+        cerebro.addstrategy(self._SequentialOrderStrategy)
+
+        result = cerebro.run()
+        statuses = result[0].statuses
+
+        assert ("oversized", "Margin") in statuses
+        assert ("affordable", "Margin") not in statuses
+        assert ("affordable", "Completed") in statuses

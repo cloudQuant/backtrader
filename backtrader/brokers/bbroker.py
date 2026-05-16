@@ -1144,9 +1144,12 @@ class BackBroker(BrokerBase):
                 continue
             # pseudo-execute the order to get the remaining cash after exec
             # Cash obtained after assuming order execution
-            cash = self._execute(order, cash=cash, position=position)
+            trial_position = position.clone()
+            trial_cash = self._execute(order, cash=cash, position=trial_position)
             # If remaining cash is greater than 0, call submit_accept to accept order
-            if cash >= 0.0:
+            if trial_cash >= 0.0:
+                cash = trial_cash
+                positions[preview_key] = trial_position
                 self.submit_accept(order)
                 continue
             # If cash is less than 0, insufficient margin, notify order status, call _ococheck and _bracketize
