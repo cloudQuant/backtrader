@@ -911,6 +911,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             for line, val in zip(self.itersize(), coll.popleft()):
                 line[0] = val
 
+            self._tick_fill(force=True)
             return True
 
         return False

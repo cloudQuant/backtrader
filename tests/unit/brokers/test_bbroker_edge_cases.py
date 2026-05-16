@@ -206,3 +206,54 @@ class TestSubmittedOrderCashProjection:
         assert ("oversized", "Margin") in statuses
         assert ("affordable", "Margin") not in statuses
         assert ("affordable", "Completed") in statuses
+
+
+class TestStackedBarTickRefresh:
+    """Stacked/resampled bars must not execute orders with stale tick prices."""
+
+    class _MarketOnPenultimateResampledBar(bt.Strategy):
+        def __init__(self):
+            self.order = None
+            self.executed_prices = []
+
+        def next(self):
+            if len(self.data) == 2 and self.order is None:
+                self.order = self.buy(size=1)
+
+        def notify_order(self, order):
+            if order.status == order.Completed:
+                self.executed_prices.append(order.executed.price)
+
+    def test_market_order_uses_final_stacked_bar_open_not_stale_tick_open(self):
+        index = pd.to_datetime(
+            [
+                "2020-01-01 00:00:00",
+                "2020-01-01 00:01:00",
+                "2020-01-01 00:02:00",
+                "2020-01-01 00:03:00",
+            ]
+        )
+        frame = pd.DataFrame(
+            {
+                "open": [1.0, 2.0, 3.0, 4.0],
+                "high": [1.0, 2.0, 3.0, 4.0],
+                "low": [1.0, 2.0, 3.0, 4.0],
+                "close": [1.0, 2.0, 3.0, 4.0],
+                "volume": [0.0, 0.0, 0.0, 0.0],
+                "openinterest": [0.0, 0.0, 0.0, 0.0],
+            },
+            index=index,
+        )
+
+        cerebro = bt.Cerebro(stdstats=False)
+        cerebro.broker.setcash(1000.0)
+        cerebro.resampledata(
+            bt.feeds.PandasData(dataname=frame, timeframe=bt.TimeFrame.Minutes, compression=1),
+            timeframe=bt.TimeFrame.Minutes,
+            compression=2,
+        )
+        cerebro.addstrategy(self._MarketOnPenultimateResampledBar)
+
+        result = cerebro.run()
+
+        assert result[0].executed_prices == [pytest.approx(4.0)]
