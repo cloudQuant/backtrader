@@ -1612,6 +1612,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                     # Set _idx to the last processed position
                     line._idx = final_len - 1 if final_len > 0 else -1
 
+        # CRITICAL FIX: Call oncebinding to propagate computed values to bound lines
+        # This is needed for bt.If, Logic subclasses etc. that compute values into
+        # their own array and need to copy them to the bound output line.
+        self.oncebinding()
+
     @classmethod
     def cleancache(cls):
         """Clean the cache - called by cerebro"""

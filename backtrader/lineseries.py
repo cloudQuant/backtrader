@@ -957,7 +957,7 @@ class Lines:
 
                         # CRITICAL FIX: Check for LinesOperation first (it has 'lines' but stores values differently)
                         # LinesOperation inherits from LineBuffer and stores values in its own array
-                        from .linebuffer import LinesOperation
+                        from .linebuffer import LinesOperation, LineBuffer
 
                         if isinstance(value, LinesOperation):
                             # LinesOperation stores values in itself (LineBuffer), not in its .lines[0]
@@ -981,6 +981,33 @@ class Lines:
                                 # initialized with different keys depending on how it was created
                                 ind_type = LineIterator.IndType  # This is 0
                                 # Ensure the key exists (defaultdict will create it)
+                                if value not in owner_ref._lineiterators[ind_type]:
+                                    owner_ref._lineiterators[ind_type].append(value)
+                                    value._owner = owner_ref
+                            return  # Don't set the attribute directly
+
+                        # CRITICAL FIX: Handle LineBuffer subclasses (bt.If, Logic, etc.)
+                        # that store computed values in themselves, not in .lines[0]
+                        elif isinstance(value, LineBuffer) and hasattr(value, "_minperiod"):
+                            # bt.If, Logic subclasses etc. are LineBuffers that compute
+                            # values into their own array. Bind value directly.
+                            value.addbinding(parent_line)
+
+                            # Propagate minperiod
+                            try:
+                                owner_ref = object.__getattribute__(self, "_owner_ref")
+                            except AttributeError:
+                                owner_ref = None
+
+                            if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
+                                if value._minperiod > owner_ref._minperiod:
+                                    owner_ref._minperiod = value._minperiod
+
+                            # Register as sub-indicator so its _next()/once() gets called
+                            if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
+                                from .lineiterator import LineIterator
+
+                                ind_type = LineIterator.IndType
                                 if value not in owner_ref._lineiterators[ind_type]:
                                     owner_ref._lineiterators[ind_type].append(value)
                                     value._owner = owner_ref
