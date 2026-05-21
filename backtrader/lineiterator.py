@@ -1465,6 +1465,35 @@ class LineIterator(LineIteratorMixin, LineSeries):
         except AttributeError:
             pass  # No _lineiterators
 
+        # Child indicators have now filled their arrays and their line pointers
+        # are at the end of the buffer. The parent may still be executed through
+        # Indicator.once_via_next(), which reads child values with [0] while
+        # replaying bars one by one. Rewind every dependency before entering the
+        # parent phases so those [0] reads move in lockstep with the parent.
+        try:
+            for data in self.datas:
+                try:
+                    data.home()
+                except Exception as e:
+                    logger.debug("data.home() before once failed: %s", e)
+        except AttributeError:
+            pass
+
+        try:
+            for lineiter_list in self._lineiterators.values():
+                for lineiterator in lineiter_list:
+                    try:
+                        lineiterator.home()
+                    except Exception as e:
+                        logger.debug("lineiterator.home() before once failed: %s", e)
+        except AttributeError:
+            pass
+
+        try:
+            self.home()
+        except Exception as e:
+            logger.debug("self.home() before once failed: %s", e)
+
         # CRITICAL FIX: Follow original backtrader's _once sequence exactly
         # preonce processes bars 0 to minperiod-2
         try:

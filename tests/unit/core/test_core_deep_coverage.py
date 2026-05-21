@@ -322,6 +322,53 @@ class TestLineIteratorOncePaths:
         strat = run_cerebro(St, num_bars=30, runonce=False)
         assert strat.bar_count > 0
 
+    def test_runonce_parent_next_reads_current_subindicator_value(self):
+        """A parent indicator using next() must see the current child line."""
+
+        class SequenceChild(bt.Indicator):
+            lines = ("value",)
+
+            def next(self):
+                self.lines.value[0] = float(len(self.data))
+
+            def once(self, start, end):
+                dst = self.lines.value.array
+                while len(dst) < end:
+                    dst.append(0.0)
+
+                for i in range(start, end):
+                    dst[i] = float(i + 1)
+
+        class ParentIndicator(bt.Indicator):
+            lines = ("value",)
+
+            def __init__(self):
+                self.child = SequenceChild(self.data)
+                self.addminperiod(8)
+
+            def next(self):
+                self.lines.value[0] = self.child[0]
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.indicator = ParentIndicator(self.data)
+                self.values = []
+
+            def next(self):
+                self.values.append(float(self.indicator[0]))
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(num_bars=20)))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0].values
+
+        runonce_values = run(True)
+        step_values = run(False)
+
+        assert runonce_values == step_values
+        assert runonce_values == [float(i) for i in range(8, 21)]
+
     def test_exactbars_true_qbuffer(self):
         """Exercise qbuffer allocation with exactbars=True.
 
