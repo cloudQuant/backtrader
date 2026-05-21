@@ -236,6 +236,20 @@ def test_feed_reports_live_when_store_has_preseeded_live_bars():
     assert feed.haslivedata() is True
 
 
+def test_feed_reports_live_when_client_declares_streaming_capability_before_subscription():
+    class StreamingCapabilityClient(FakeBtApiClient):
+        def supports_live_streaming(self, _symbol):
+            return True
+
+    store = make_store(api=StreamingCapabilityClient())
+    feed = store.getdata(dataname=DEFAULT_SYMBOL, backfill_start=False)
+
+    feed._start()
+
+    assert feed.islive() is True
+    assert feed.haslivedata() is False
+
+
 def test_feed_store_preseeded_live_bars_are_drained_from_haslivedata():
     client = FakeBtApiClient()
     store = make_store(api=client, live_bars={DEFAULT_SYMBOL: [make_bar(0, 100.0, 101.0, 99.0, 100.5)]})

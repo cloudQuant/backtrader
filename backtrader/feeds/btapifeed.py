@@ -89,6 +89,13 @@ class BtApiFeed(DataBase, LiveFeedBase):
 
         api = getattr(store, "_api", None)
         if api is not None and dataname is not None:
+            if hasattr(api, "supports_live_streaming"):
+                try:
+                    if bool(api.supports_live_streaming(dataname)):
+                        return True
+                except Exception as e:
+                    logger.debug("supports_live_streaming check failed: %s", e)
+
             if hasattr(api, "supports_live_ticks"):
                 try:
                     if bool(api.supports_live_ticks(dataname)):

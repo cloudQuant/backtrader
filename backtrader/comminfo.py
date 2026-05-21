@@ -6,6 +6,8 @@ Migrated CommInfo system from MetaParams to new ParameterizedBase system.
 Maintains fully backward compatible API interface.
 """
 
+import inspect
+
 from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase, _BoolValidator
 
 
@@ -240,13 +242,31 @@ class CommInfoBase(ParameterizedBase):
             return abs(size) * commission * price
         return abs(size) * commission
 
+    def _call_getcommission(self, size, price, pseudoexec, role=None):
+        """Call custom _getcommission overrides with backwards compatibility."""
+        accepts_role = getattr(self, "_getcommission_accepts_role", None)
+        if accepts_role is None:
+            try:
+                parameters = inspect.signature(self._getcommission).parameters
+                accepts_role = (
+                    "role" in parameters
+                    or any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values())
+                )
+            except (TypeError, ValueError):
+                accepts_role = True
+            self._getcommission_accepts_role = accepts_role
+
+        if accepts_role:
+            return self._getcommission(size, price, pseudoexec=pseudoexec, role=role)
+        return self._getcommission(size, price, pseudoexec)
+
     def getcommission(self, size, price, role=None):
         """Calculates the commission of an operation at a given price."""
-        return self._getcommission(size, price, pseudoexec=True, role=role)
+        return self._call_getcommission(size, price, pseudoexec=True, role=role)
 
     def confirmexec(self, size, price, role=None):
         """Confirms execution and returns commission."""
-        return self._getcommission(size, price, pseudoexec=False, role=role)
+        return self._call_getcommission(size, price, pseudoexec=False, role=role)
 
     def profitandloss(self, size, price, newprice):
         """Return actual profit and loss a position has"""

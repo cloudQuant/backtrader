@@ -22,6 +22,8 @@ from ..utils import AutoOrderedDict
 
 __all__ = ["SQN"]
 
+_PNL_EPSILON = 1e-10
+
 
 # Get SQN indicator
 class SQN(Analyzer):
@@ -91,8 +93,12 @@ class SQN(Analyzer):
         """
         if self.count > 1:
             try:
-                pnl_av = average(self.pnl)
-                pnl_stddev = standarddev(self.pnl)
+                pnl_values = [
+                    0.0 if abs(value) <= _PNL_EPSILON else value
+                    for value in self.pnl
+                ]
+                pnl_av = average(pnl_values)
+                pnl_stddev = standarddev(pnl_values)
             except (TypeError, ValueError, ZeroDivisionError):
                 sqn = None
             else:

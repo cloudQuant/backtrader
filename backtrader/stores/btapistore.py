@@ -634,6 +634,10 @@ def _create_ctp_wrapper_class():
             """Return whether a symbol has an active live tick subscription."""
             return str(symbol) in self._subscribed_aliases
 
+        def supports_live_streaming(self, _symbol=None):
+            """Gateway/CTP market data is live-capable once the client is connected."""
+            return True
+
         def get_balance(self):
             """Get account balance."""
             if self.trader_client and self.trader_client.is_ready:
@@ -1190,6 +1194,9 @@ def _create_ctp_gateway_wrapper_class():
 
         def supports_live_ticks(self, symbol):
             return self._client.supports_live_ticks(symbol)
+
+        def supports_live_streaming(self, _symbol=None):
+            return True
 
         def get_balance(self):
             return self._client.get_balance()

@@ -14,6 +14,11 @@ class DummyData:
         self.symbol = name
 
 
+class LegacyCommissionInfo(CommissionInfo):
+    def _getcommission(self, size, price, pseudoexec):
+        return abs(size) * price * self.p.commission
+
+
 def test_comminfo_uses_role_specific_commission_rates_with_fallback():
     comminfo = CommissionInfo(
         commission=0.001,
@@ -24,6 +29,13 @@ def test_comminfo_uses_role_specific_commission_rates_with_fallback():
     assert comminfo.getcommission(1.0, 100.0, role="maker") == pytest.approx(-0.05)
     assert comminfo.getcommission(1.0, 100.0, role="taker") == pytest.approx(0.2)
     assert comminfo.getcommission(1.0, 100.0, role="unknown") == pytest.approx(0.1)
+
+
+def test_comminfo_supports_legacy_getcommission_override_without_role():
+    comminfo = LegacyCommissionInfo(commission=0.001)
+
+    assert comminfo.getcommission(2.0, 100.0, role="maker") == pytest.approx(0.2)
+    assert comminfo.confirmexec(3.0, 100.0, role="taker") == pytest.approx(0.3)
 
 
 def test_broker_setcommission_supports_role_specific_rates():

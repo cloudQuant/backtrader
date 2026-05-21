@@ -309,6 +309,18 @@ def test_sqn_nan_pnl_returns_none():
     assert analyzer.rets.trades == 2
 
 
+def test_sqn_tiny_pnl_dust_returns_none():
+    analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
+    analyzer.count = 3
+    analyzer.pnl = [0.0, 9.094947017729282e-12, 0.0]
+    analyzer.rets = SimpleNamespace()
+
+    analyzer.stop()
+
+    assert analyzer.rets.sqn is None
+    assert analyzer.rets.trades == 3
+
+
 @pytest.mark.parametrize("pnl", [[complex(1.0, 1.0), 1.0], ["bad", 1.0]])
 def test_sqn_invalid_pnl_values_return_none(pnl):
     analyzer = bt.analyzers.SQN.__new__(bt.analyzers.SQN)
