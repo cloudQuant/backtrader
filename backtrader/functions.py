@@ -355,44 +355,262 @@ class If(Logic):
         """Calculate the next conditional value."""
         self[0] = self.a[0] if self.cond[0] else self.b[0]
 
+    def _has_self_reference(self):
+        """Check if this If operation has a self-referencing pattern.
+
+        Detects patterns like: self.lines.direction = bt.If(..., direction(-1))
+        where the output line appears as an input via _LineDelay.
+        """
+        if not self.bindings:
+            return False
+
+        # Get the bound line(s)
+        bound_lines = set(id(b) for b in self.bindings)
+
+        # Check if any operand references a bound line (via _LineDelay)
+        def _check_ref(obj, depth=0):
+            if depth > 10:
+                return False
+            if hasattr(obj, 'a'):
+                # _LineDelay: check if obj.a is one of our bound lines
+                if id(getattr(obj, 'a', None)) in bound_lines:
+                    return True
+                # Check if obj.a's array is the same as a bound line's array
+                obj_a = getattr(obj, 'a', None)
+                if obj_a is not None:
+                    for binding in self.bindings:
+                        if hasattr(obj_a, 'array') and hasattr(binding, 'array'):
+                            if obj_a.array is binding.array:
+                                return True
+                    if _check_ref(obj_a, depth + 1):
+                        return True
+            if hasattr(obj, 'b'):
+                obj_b = getattr(obj, 'b', None)
+                if obj_b is not None:
+                    if id(obj_b) in bound_lines:
+                        return True
+                    if hasattr(obj_b, 'array'):
+                        for binding in self.bindings:
+                            if hasattr(binding, 'array') and obj_b.array is binding.array:
+                                return True
+                    if _check_ref(obj_b, depth + 1):
+                        return True
+            if hasattr(obj, 'args'):
+                for arg in getattr(obj, 'args', []):
+                    if _check_ref(arg, depth + 1):
+                        return True
+            if hasattr(obj, 'cond'):
+                if _check_ref(getattr(obj, 'cond', None), depth + 1):
+                    return True
+            return False
+
+        return _check_ref(self.a) or _check_ref(self.b) or _check_ref(self.cond)
+
     def once(self, start, end):
         """Calculate all conditional values at once.
+
+        Supports self-referencing patterns like:
+            self.lines.direction = bt.If(cond, 1, bt.If(cond2, -1, self.lines.direction(-1)))
+
+        For self-referencing patterns, processes bar-by-bar using next() semantics
+        to ensure previously computed values are available for the next bar.
 
         Args:
             start: Starting index for calculation.
             end: Ending index for calculation.
         """
-        # cache python dictionary lookups
         dst = self.array
 
-        # CRITICAL FIX: Ensure destination array is properly sized
+        # Ensure destination array is properly sized
         while len(dst) < end:
             dst.append(0.0)
 
-        # CRITICAL FIX: Check if a and b are LineNum constants (scalar values)
-        # LineNum creates _LineDelay(PseudoArray(repeat(num)), 0) which has empty array
-        # but supports __getitem__ access that returns the constant value
+        # Also ensure bound line arrays are sized
+        for binding in self.bindings:
+            while len(binding.array) < end:
+                binding.array.append(0.0)
+
+        # For self-referencing patterns, use bar-by-bar processing
+        # This ensures _LineDelay can read previously computed values
+        if self.bindings and self._has_self_reference():
+            self._once_sequential(start, end)
+            return
+
+        # Standard batch processing for non-self-referencing patterns
+        self._once_batch(start, end)
+
+    def _once_sequential(self, start, end):
+        """Process bar-by-bar for self-referencing patterns.
+
+        Ensures all operand arrays are computed first, then processes
+        sequentially with immediate binding propagation so _LineDelay
+        can read previously written values.
+        """
+        dst = self.array
+        has_bindings = bool(self.bindings)
+
+        # Ensure operand arrays are computed first
+        # The condition (LinesOperation) needs its once() called
+        if hasattr(self.cond, 'once') and len(getattr(self.cond, 'array', [])) < end:
+            try:
+                self.cond.once(start, end)
+            except Exception:
+                pass
+
+        # The 'a' operand (could be constant or LinesOperation)
+        if hasattr(self.a, 'once') and len(getattr(self.a, 'array', [])) < end:
+            try:
+                self.a.once(start, end)
+            except Exception:
+                pass
+
+        # The 'b' operand - for self-referencing, this is typically another bt.If
+        # We need to compute it BUT it contains the self-reference, so we handle it specially
+        if hasattr(self.b, 'once') and len(getattr(self.b, 'array', [])) < end:
+            # Check if b itself has self-reference (nested bt.If with direction(-1))
+            # If so, we need to compute b bar-by-bar too
+            if hasattr(self.b, '_has_self_reference') and self.b._has_self_reference():
+                # Don't call b.once() - we'll compute b[i] dynamically
+                pass
+            else:
+                try:
+                    self.b.once(start, end)
+                except Exception:
+                    pass
+
+        # Get arrays for direct access where possible
+        cond_array = getattr(self.cond, 'array', [])
+        cond_has_array = len(cond_array) >= end
+        a_array = getattr(self.a, 'array', [])
+        a_has_array = len(a_array) >= end
+        # Check if a is a constant (_LineDelay wrapping PseudoArray)
+        a_is_constant = False
+        a_constant_val = None
+        if not a_has_array:
+            try:
+                a_constant_val = self.a[0]
+                a_is_constant = True
+            except Exception:
+                pass
+
+        b_array = getattr(self.b, 'array', [])
+        b_has_array = len(b_array) >= end
+
+        for i in range(start, end):
+            # Get condition value
+            if cond_has_array:
+                cond_val = cond_array[i]
+            else:
+                try:
+                    cond_val = self.cond.array[i] if i < len(getattr(self.cond, 'array', [])) else 0.0
+                except (IndexError, TypeError):
+                    cond_val = 0.0
+
+            cond_bool = (cond_val != 0.0) and (
+                not (isinstance(cond_val, float) and math.isnan(cond_val))
+            )
+
+            if cond_bool:
+                # Get a value
+                if a_is_constant:
+                    val = a_constant_val
+                elif a_has_array:
+                    val = a_array[i]
+                else:
+                    try:
+                        val = self.a.array[i] if i < len(getattr(self.a, 'array', [])) else 0.0
+                    except (IndexError, TypeError):
+                        val = 0.0
+            else:
+                # Get b value - for self-referencing, b is the inner bt.If
+                # which reads from _LineDelay(direction, -1)
+                if b_has_array:
+                    val = b_array[i]
+                else:
+                    # b's array isn't fully computed - compute dynamically
+                    # For nested bt.If with self-reference, we need to evaluate it
+                    try:
+                        val = self._eval_operand_at(self.b, i)
+                    except Exception:
+                        val = 0.0
+
+            if val is None or (isinstance(val, float) and math.isnan(val)):
+                val = 0.0
+
+            dst[i] = val
+
+            # Propagate to bindings immediately for self-referencing
+            if has_bindings:
+                for binding in self.bindings:
+                    binding.array[i] = val
+
+    def _eval_operand_at(self, operand, i):
+        """Evaluate an operand at absolute index i.
+
+        For nested bt.If with self-reference, recursively evaluates
+        the condition and branches at the given index.
+        """
+        if isinstance(operand, If):
+            # Recursively evaluate the nested If
+            # Get condition
+            cond_arr = getattr(operand.cond, 'array', [])
+            if i < len(cond_arr):
+                cond_val = cond_arr[i]
+            else:
+                cond_val = 0.0
+
+            cond_bool = (cond_val != 0.0) and (
+                not (isinstance(cond_val, float) and math.isnan(cond_val))
+            )
+
+            if cond_bool:
+                return self._eval_operand_at(operand.a, i)
+            else:
+                return self._eval_operand_at(operand.b, i)
+
+        # For _LineDelay, read from its source array at offset
+        if hasattr(operand, 'ago') and hasattr(operand, 'a'):
+            src_array = getattr(operand.a, 'array', [])
+            src_idx = i + operand.ago
+            if 0 <= src_idx < len(src_array):
+                return src_array[src_idx]
+            return 0.0
+
+        # For arrays, direct access
+        arr = getattr(operand, 'array', [])
+        if i < len(arr):
+            return arr[i]
+
+        # Constant
+        try:
+            return operand[0]
+        except Exception:
+            return 0.0
+
+    def _once_batch(self, start, end):
+        """Standard batch processing for non-self-referencing patterns."""
+        dst = self.array
+
+        # Detect constants
         a_is_constant = False
         a_constant_val = None
         try:
             srca = self.a.array
             a_has_array = len(srca) > 0
             if not a_has_array:
-                # Empty array - might be a LineNum constant, try direct access
                 try:
                     a_constant_val = self.a[0]
                     a_is_constant = True
-                except Exception as e:
-                    logger.debug("Cannot access a[0] as constant: %s", e)
+                except Exception:
+                    pass
         except (AttributeError, TypeError):
             srca = []
             a_has_array = False
-            # Try direct access for constants
             try:
                 a_constant_val = self.a[0]
                 a_is_constant = True
-            except Exception as e:
-                logger.debug("Cannot access a[0] as constant (no array): %s", e)
+            except Exception:
+                pass
 
         b_is_constant = False
         b_constant_val = None
@@ -400,21 +618,19 @@ class If(Logic):
             srcb = self.b.array
             b_has_array = len(srcb) > 0
             if not b_has_array:
-                # Empty array - might be a LineNum constant, try direct access
                 try:
                     b_constant_val = self.b[0]
                     b_is_constant = True
-                except Exception as e:
-                    logger.debug("Cannot access b[0] as constant: %s", e)
+                except Exception:
+                    pass
         except (AttributeError, TypeError):
             srcb = []
             b_has_array = False
-            # Try direct access for constants
             try:
                 b_constant_val = self.b[0]
                 b_is_constant = True
-            except Exception as e:
-                logger.debug("Cannot access b[0] as constant (no array): %s", e)
+            except Exception:
+                pass
 
         try:
             cond = self.cond.array
@@ -423,71 +639,68 @@ class If(Logic):
             cond = []
             cond_has_array = False
 
+        a_use_dynamic = not a_is_constant and not a_has_array and hasattr(self.a, "__getitem__")
+        b_use_dynamic = not b_is_constant and not b_has_array and hasattr(self.b, "__getitem__")
+        has_bindings = bool(self.bindings)
+
         for i in range(start, end):
-            # Get condition value - convert to boolean properly
-            cond_val = 0.0
             if cond_has_array:
                 try:
-                    if i < len(cond):
-                        cond_val = cond[i]
-                    elif len(cond) > 0:
-                        cond_val = cond[-1]  # Use last value if index out of bounds
+                    cond_val = cond[i] if i < len(cond) else (cond[-1] if cond else 0.0)
                 except (IndexError, TypeError):
-                    pass
+                    cond_val = 0.0
             else:
-                # Fallback: try to get value directly from cond object
                 try:
                     cond_val = self.cond[i] if hasattr(self.cond, "__getitem__") else 0.0
-                except Exception as e:
-                    logger.debug("Cannot access cond[%d]: %s", i, e)
+                except Exception:
                     cond_val = 0.0
 
-            # Convert to boolean: non-zero values are True, zero is False
-            # Use explicit comparison to handle float precision issues
             cond_bool = (cond_val != 0.0) and (
                 not (isinstance(cond_val, float) and math.isnan(cond_val))
             )
 
-            # Get a value - use constant if detected, otherwise array
             if a_is_constant:
                 a_val = a_constant_val
             elif a_has_array:
                 try:
-                    if i < len(srca):
-                        a_val = srca[i]
-                    elif len(srca) > 0:
-                        a_val = srca[-1]
-                    else:
-                        a_val = 0.0
+                    a_val = srca[i] if i < len(srca) else (srca[-1] if srca else 0.0)
                 except (IndexError, TypeError):
+                    a_val = 0.0
+            elif a_use_dynamic:
+                try:
+                    a_val = self.a[i]
+                except Exception:
                     a_val = 0.0
             else:
                 a_val = 0.0
 
-            # Get b value - use constant if detected, otherwise array
             if b_is_constant:
                 b_val = b_constant_val
             elif b_has_array:
                 try:
-                    if i < len(srcb):
-                        b_val = srcb[i]
-                    elif len(srcb) > 0:
-                        b_val = srcb[-1]
-                    else:
-                        b_val = 0.0
+                    b_val = srcb[i] if i < len(srcb) else (srcb[-1] if srcb else 0.0)
                 except (IndexError, TypeError):
+                    b_val = 0.0
+            elif b_use_dynamic:
+                try:
+                    b_val = self.b[i]
+                except Exception:
                     b_val = 0.0
             else:
                 b_val = 0.0
 
-            # Ensure values are not None or NaN
             if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
                 a_val = 0.0
             if b_val is None or (isinstance(b_val, float) and math.isnan(b_val)):
                 b_val = 0.0
 
-            # Select value based on condition
-            dst[i] = a_val if cond_bool else b_val
+            val = a_val if cond_bool else b_val
+            dst[i] = val
+
+            # Propagate to bindings for consistency
+            if has_bindings:
+                for binding in self.bindings:
+                    binding.array[i] = val
 
 
 # Apply one logic to multiple elements
@@ -511,6 +724,11 @@ class MultiLogic(Logic):
         """
         # cache python dictionary lookups
         dst = self.array
+
+        # Ensure destination array is properly sized
+        while len(dst) < end:
+            dst.append(0.0)
+
         arrays = [arg.array for arg in self.args]
         flogic = self.flogic
 

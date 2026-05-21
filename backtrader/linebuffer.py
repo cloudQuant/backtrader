@@ -1537,10 +1537,13 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             end = start
 
         # CRITICAL FIX: Get the actual buffer length if available
+        # Skip this check if _clock is MinimalClock (always returns 0)
         if hasattr(self, "_clock") and self._clock and hasattr(self._clock, "buflen"):
-            max_len = self._clock.buflen()
-            if end > max_len:
-                end = max_len
+            clock_class_name = getattr(self._clock, "__class__", type(None)).__name__
+            if "MinimalClock" not in clock_class_name:
+                max_len = self._clock.buflen()
+                if max_len > 0 and end > max_len:
+                    end = max_len
 
         # CRITICAL FIX: Call _once() on all child line iterators first
         # This ensures dependencies are calculated before this indicator
@@ -1560,6 +1563,24 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 self.preonce(start, end)
         except Exception as e:
             logger.debug("preonce failed: %s", e)
+
+        # CRITICAL FIX: Ensure operand arrays are computed before once()
+        # For Logic subclasses (bt.If, bt.And, etc.), operands (args, cond) need
+        # their arrays populated before once() reads from them.
+        if hasattr(self, "args"):
+            for arg in self.args:
+                if hasattr(arg, "once") and hasattr(arg, "array") and len(arg.array) < end:
+                    try:
+                        arg.once(0, end)
+                    except Exception:
+                        pass
+        if hasattr(self, "cond"):
+            cond = self.cond
+            if hasattr(cond, "once") and hasattr(cond, "array") and len(cond.array) < end:
+                try:
+                    cond.once(0, end)
+                except Exception:
+                    pass
 
         # CRITICAL FIX: Process the main once calculation
         # Try to call once method if it exists
