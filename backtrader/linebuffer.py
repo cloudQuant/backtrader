@@ -2054,13 +2054,24 @@ class LinesOperation(LineActions):
         return None
 
     def __getitem__(self, ago):
-        """CRITICAL FIX: Override __getitem__ to compute value dynamically from source operands.
+        """Get value at the specified offset.
 
-        This ensures correct values in runonce mode where LinesOperation's _idx may not be
-        properly advanced because it's not registered as IndType.
+        In runonce mode, the array is pre-computed by once(), so use it directly.
+        Falls back to dynamic computation only if the array is not populated.
         """
         try:
-            # Get values from source operands at the same relative position
+            # Use pre-computed array if available (runonce mode)
+            current_idx = self._idx
+            if current_idx >= 0 and len(self.array) > 0:
+                target_idx = current_idx + ago
+                if 0 <= target_idx < len(self.array):
+                    value = self.array[target_idx]
+                    if value is not None and value == value:  # not NaN
+                        if isinstance(value, float) and not math.isfinite(value):
+                            return 0.0
+                        return value
+
+            # Fallback: compute value dynamically from source operands
             a_val = self.a[ago] if hasattr(self.a, "__getitem__") else self.a
             b_val = self.b[ago] if hasattr(self.b, "__getitem__") else self.b
 

@@ -299,8 +299,8 @@ class Indicator(IndicatorBase):
             # Advance all sub-indicators
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
-            # Advance self
-            self.advance()
+            # CRITICAL FIX: Directly advance lines instead of using self.advance()
+            self.lines.advance()
             # Call prenext
             self.prenext()
 
@@ -321,7 +321,8 @@ class Indicator(IndicatorBase):
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
 
-            self.advance()
+            # CRITICAL FIX: Directly advance lines instead of using self.advance()
+            self.lines.advance()
             self.nextstart()
 
     def once_via_next(self, start, end):
@@ -343,7 +344,11 @@ class Indicator(IndicatorBase):
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
 
-            self.advance()
+            # CRITICAL FIX: Directly advance lines instead of using self.advance()
+            # self.advance() checks len(self) < len(self._clock) which fails when
+            # _clock is MinimalClock (always returns 0) or when _clock is not properly
+            # synchronized. In once_via_next, we always need to advance.
+            self.lines.advance()
             self.next()
 
 

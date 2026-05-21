@@ -1269,36 +1269,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Set up the indicator's clock to match the data feed it operates on
         if not hasattr(indicator, "_clock") or indicator._clock is None:
-            # CRITICAL FIX: Use the indicator's actual data source's parent data feed as clock
-            # This ensures proper synchronization when indicator operates on secondary data feeds
-            clock_set = False
-            if (
-                hasattr(self, "datas")
-                and self.datas
-                and hasattr(indicator, "datas")
-                and indicator.datas
-            ):
-                # Find which data feed the indicator's data source belongs to
-                ind_data = indicator.datas[0]
-                for data_feed in self.datas:
-                    # Check if ind_data is the data feed itself
-                    if ind_data is data_feed:
-                        indicator._clock = data_feed
-                        clock_set = True
-                        break
-                    # Check if ind_data is one of the lines of this data feed
-                    if hasattr(data_feed, "lines"):
-                        if ind_data in data_feed.lines:
-                            indicator._clock = data_feed
-                            clock_set = True
-                            break
-                # Fallback to datas[0] if no match found
-                if not clock_set:
-                    indicator._clock = self.datas[0]
+            if hasattr(indicator, "datas") and indicator.datas:
+                indicator._clock = indicator.datas[0]
             elif hasattr(self, "datas") and self.datas:
                 indicator._clock = self.datas[0]
             elif hasattr(self, "_clock") and self._clock is not None:
-                # Check if clock is MinimalClock (fallback), skip it
                 if not (
                     hasattr(self._clock, "__class__")
                     and "MinimalClock" in self._clock.__class__.__name__
