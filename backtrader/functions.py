@@ -155,6 +155,10 @@ class DivByZero(Logic):
         srcb = self.b.array
         zero = self.zero
 
+        # Ensure destination array is properly sized
+        while len(dst) < end:
+            dst.append(0.0)
+
         for i in range(start, end):
             a = _sanitize_div_value(srca[i])
             b = _sanitize_div_value(srcb[i])
@@ -213,6 +217,10 @@ class DivZeroByZero(Logic):
         single = self.single
         dual = self.dual
 
+        # Ensure destination array is properly sized
+        while len(dst) < end:
+            dst.append(0.0)
+
         for i in range(start, end):
             b = _sanitize_div_value(srcb[i])
             a = _sanitize_div_value(srca[i])
@@ -256,6 +264,10 @@ class Cmp(Logic):
         dst = self.array
         srca = self.a.array
         srcb = self.b.array
+
+        # Ensure destination array is properly sized
+        while len(dst) < end:
+            dst.append(0.0)
 
         for i in range(start, end):
             dst[i] = cmp(_sanitize_cmp_value(srca[i]), _sanitize_cmp_value(srcb[i]))
@@ -316,6 +328,10 @@ class CmpEx(Logic):
         r1 = self.r1.array
         r2 = self.r2.array
         r3 = self.r3.array
+
+        # Ensure destination array is properly sized
+        while len(dst) < end:
+            dst.append(0.0)
 
         for i in range(start, end):
             ai = _sanitize_cmp_value(srca[i])
