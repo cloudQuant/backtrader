@@ -33,6 +33,175 @@ _recursion_guards = set()
 _MISSING = object()
 
 
+def _line_assignment_ltype(child):
+    ltype = getattr(child, "_ltype", None)
+    if ltype is None and isinstance(child, LineActions):
+        ltype = LineActions._ltype
+        try:
+            child._ltype = ltype
+        except AttributeError:
+            pass
+    return ltype
+
+
+def _line_owner(operand):
+    try:
+        owner = operand._owner
+    except AttributeError:
+        return None
+
+    if owner is None:
+        return None
+
+    try:
+        owner_ref = owner._owner_ref
+    except AttributeError:
+        owner_ref = None
+
+    if owner_ref is not None:
+        return owner_ref
+
+    if hasattr(owner, "_lineiterators") and hasattr(owner, "_once"):
+        return owner
+
+    return None
+
+
+def _is_constant_line_delay(operand):
+    try:
+        source = operand.a
+    except AttributeError:
+        return False
+
+    return operand.__class__.__name__ == "_LineDelay" and source.__class__.__name__ == "PseudoArray"
+
+
+def _iter_line_assignment_dependencies(child):
+    for attr in ("_parent_a", "_parent_b"):
+        try:
+            dependency = getattr(child, attr)
+        except AttributeError:
+            dependency = None
+        if dependency is not None:
+            yield dependency
+
+    for attr in ("a", "b", "cond"):
+        try:
+            operand = getattr(child, attr)
+        except AttributeError:
+            continue
+        for dependency in _iter_operand_dependencies(operand):
+            yield dependency
+
+    try:
+        args = child.args
+    except AttributeError:
+        return
+
+    for operand in args:
+        for dependency in _iter_operand_dependencies(operand):
+            yield dependency
+
+
+def _iter_operand_dependencies(operand):
+    if operand is None:
+        return
+
+    if isinstance(operand, (list, tuple)):
+        for item in operand:
+            for dependency in _iter_operand_dependencies(item):
+                yield dependency
+        return
+
+    if isinstance(operand, LineActions) and not _is_constant_line_delay(operand):
+        yield operand
+
+    owner = _line_owner(operand)
+    if owner is not None:
+        yield owner
+
+
+def _register_line_assignment_child(owner, child, seen=None):
+    """Attach a line-assignment source to the object owning the target line."""
+    if owner is None or child is None or child is owner:
+        return
+
+    if seen is None:
+        seen = set()
+
+    child_id = id(child)
+    if child_id in seen:
+        return
+    seen.add(child_id)
+
+    try:
+        owner_lineiterators = owner._lineiterators
+    except AttributeError:
+        return
+
+    for dependency in _iter_line_assignment_dependencies(child):
+        if dependency is not child and dependency is not owner:
+            _register_line_assignment_child(owner, dependency, seen)
+
+    ltype = _line_assignment_ltype(child)
+    if ltype is None:
+        return
+
+    old_owner = getattr(child, "_owner", None)
+    if old_owner is not None and old_owner is not owner:
+        try:
+            for old_list in old_owner._lineiterators.values():
+                while child in old_list:
+                    old_list.remove(child)
+        except AttributeError:
+            pass
+
+    for existing_ltype, child_list in list(owner_lineiterators.items()):
+        if existing_ltype != ltype:
+            while child in child_list:
+                child_list.remove(child)
+
+    if child not in owner_lineiterators[ltype]:
+        owner_lineiterators[ltype].append(child)
+
+    child._owner = owner
+
+    try:
+        if owner._minperiod < child._minperiod:
+            owner._minperiod = child._minperiod
+    except AttributeError:
+        pass
+
+    try:
+        child_clock = child._clock
+    except AttributeError:
+        child_clock = None
+
+    clock_name = child_clock.__class__.__name__ if child_clock is not None else ""
+    if child_clock is None or clock_name == "MinimalClock":
+        try:
+            owner_clock = owner._clock
+        except AttributeError:
+            owner_clock = None
+
+        owner_clock_name = owner_clock.__class__.__name__ if owner_clock is not None else ""
+        if owner_clock is not None and owner_clock_name != "MinimalClock":
+            child._clock = owner_clock
+        else:
+            try:
+                if owner.datas:
+                    child._clock = owner.datas[0]
+                    return
+            except AttributeError:
+                pass
+
+            try:
+                if child.datas:
+                    child._clock = child.datas[0]
+            except AttributeError:
+                pass
+
+
 class MinimalData:
     """
     Minimal data replacement for missing data0, data1, etc. attributes.
@@ -216,6 +385,9 @@ class LineAlias:
         inside the line can be "set". This is achieved by adding a binding
         to the line inside "value"
         """
+        source = value
+        owner = getattr(obj, "_owner", None)
+
         if isinstance(value, LineMultiple):
             value = value.lines[0]
 
@@ -227,22 +399,9 @@ class LineAlias:
         if not isinstance(value, LineActions):
             value = value(0)
 
-        # CRITICAL FIX: For LinesOperation, ensure it has an owner and is registered
-        if type(value).__name__ == "LinesOperation":
-            # Get the owner from obj (which is the Lines instance)
-            owner = getattr(obj, "_owner", None)
-            if owner is not None:
-                # Set the LinesOperation's owner if not already set
-                if not hasattr(value, "_owner") or value._owner is None:
-                    value._owner = owner
-
-                # Add to owner's_lineiterators if not already there
-                if hasattr(owner, "_lineiterators") and hasattr(value, "_ltype"):
-                    from .lineiterator import LineIterator
-
-                    ltype = getattr(value, "_ltype", LineIterator.IndType)
-                    if value not in owner._lineiterators[ltype]:
-                        owner._lineiterators[ltype].append(value)
+        _register_line_assignment_child(owner, source)
+        if source is not value:
+            _register_line_assignment_child(owner, value)
 
         value.addbinding(obj.lines[self.line])
 
@@ -974,16 +1133,7 @@ class Lines:
                                     owner_ref._minperiod = value._minperiod
 
                             # Register LinesOperation as sub-indicator so its _next() gets called
-                            if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
-                                from .lineiterator import LineIterator
-
-                                # CRITICAL FIX: Use 0 directly as key since _lineiterators may be
-                                # initialized with different keys depending on how it was created
-                                ind_type = LineIterator.IndType  # This is 0
-                                # Ensure the key exists (defaultdict will create it)
-                                if value not in owner_ref._lineiterators[ind_type]:
-                                    owner_ref._lineiterators[ind_type].append(value)
-                                    value._owner = owner_ref
+                            _register_line_assignment_child(owner_ref, value)
                             return  # Don't set the attribute directly
 
                         # CRITICAL FIX: Handle LineBuffer subclasses (bt.If, Logic, etc.)
@@ -1004,13 +1154,7 @@ class Lines:
                                     owner_ref._minperiod = value._minperiod
 
                             # Register as sub-indicator so its _next()/once() gets called
-                            if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
-                                from .lineiterator import LineIterator
-
-                                ind_type = LineIterator.IndType
-                                if value not in owner_ref._lineiterators[ind_type]:
-                                    owner_ref._lineiterators[ind_type].append(value)
-                                    value._owner = owner_ref
+                            _register_line_assignment_child(owner_ref, value)
                             return  # Don't set the attribute directly
 
                         # Handle indicator/line-like objects with binding
@@ -1036,18 +1180,7 @@ class Lines:
                                         owner_ref._minperiod = value._minperiod
 
                                 # Register as sub-indicator
-                                if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
-                                    from .lineiterator import LineIterator
-
-                                    if LineIterator.IndType in owner_ref._lineiterators:
-                                        if (
-                                            value
-                                            not in owner_ref._lineiterators[LineIterator.IndType]
-                                        ):
-                                            owner_ref._lineiterators[LineIterator.IndType].append(
-                                                value
-                                            )
-                                            value._owner = owner_ref
+                                _register_line_assignment_child(owner_ref, value)
                                 return  # Don't set the attribute directly
 
                         elif hasattr(value, "_minperiod") and hasattr(value, "addbinding"):
@@ -1065,13 +1198,7 @@ class Lines:
                                     owner_ref._minperiod = value._minperiod
 
                             # CRITICAL FIX: Register LinesOperation as sub-indicator so its next() gets called
-                            if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
-                                from .lineiterator import LineIterator
-
-                                if LineIterator.IndType in owner_ref._lineiterators:
-                                    if value not in owner_ref._lineiterators[LineIterator.IndType]:
-                                        owner_ref._lineiterators[LineIterator.IndType].append(value)
-                                        value._owner = owner_ref
+                            _register_line_assignment_child(owner_ref, value)
                             return  # Don't set the attribute directly
                 except (ValueError, IndexError):
                     pass

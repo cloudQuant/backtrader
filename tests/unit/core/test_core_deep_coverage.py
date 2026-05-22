@@ -369,6 +369,95 @@ class TestLineIteratorOncePaths:
         assert runonce_values == step_values
         assert runonce_values == [float(i) for i in range(8, 21)]
 
+    def test_line_assignment_indicator_runs_under_parent_indicator(self):
+        """self.lines.xxx = Indicator(...) must drive the source as a child."""
+
+        from backtrader.lineiterator import LineIterator
+
+        class BoundChannel(bt.Indicator):
+            lines = ("upper", "lower")
+            params = (("period", 3),)
+
+            def __init__(self):
+                self.lines.upper = bt.indicators.Highest(self.data.high, period=self.p.period)
+                self.lines.lower = bt.indicators.Lowest(self.data.low, period=self.p.period)
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.channel = BoundChannel(self.data)
+                self.values = []
+                self.child_names = [
+                    type(ind).__name__
+                    for ind in self.channel._lineiterators[LineIterator.IndType]
+                ]
+                self.top_names = [
+                    type(ind).__name__ for ind in self._lineiterators[LineIterator.IndType]
+                ]
+
+            def next(self):
+                self.values.append(round(float(self.channel.lower[0]), 8))
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(num_bars=12)))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0]
+
+        step_strat = run(False)
+        once_strat = run(True)
+
+        assert step_strat.values == once_strat.values
+        assert all(value != 0.0 for value in step_strat.values)
+        assert step_strat.child_names == ["Highest", "Lowest"]
+        assert step_strat.top_names == ["BoundChannel"]
+
+    def test_line_assignment_operation_dependencies_run_under_parent_indicator(self):
+        """Nested line operations must drive temporary indicator dependencies."""
+
+        from backtrader.lineiterator import LineIterator
+
+        class ExprChannel(bt.Indicator):
+            lines = ("mid", "top")
+
+            def __init__(self):
+                self.lines.mid = bt.indicators.Lowest(self.data.low, period=3)
+                spread = bt.indicators.Highest(self.data.high, period=4)
+                self.lines.top = self.lines.mid + 2.0 * spread
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.channel = ExprChannel(self.data)
+                self.values = []
+                self.child_names = [
+                    type(ind).__name__
+                    for ind in self.channel._lineiterators[LineIterator.IndType]
+                ]
+                self.top_names = [
+                    type(ind).__name__ for ind in self._lineiterators[LineIterator.IndType]
+                ]
+                self.has_operation_child = any(
+                    isinstance(ind, linebuffer.LinesOperation)
+                    for ind in self.channel._lineiterators[LineIterator.IndType]
+                )
+
+            def next(self):
+                self.values.append(round(float(self.channel.top[0]), 8))
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=generate_ohlcv(num_bars=16)))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0]
+
+        step_strat = run(False)
+        once_strat = run(True)
+
+        assert step_strat.values == once_strat.values
+        assert all(math.isfinite(value) and value != 0.0 for value in step_strat.values)
+        assert step_strat.child_names[:2] == ["Lowest", "Highest"]
+        assert step_strat.has_operation_child
+        assert step_strat.top_names == ["ExprChannel"]
+
     def test_exactbars_true_qbuffer(self):
         """Exercise qbuffer allocation with exactbars=True.
 
