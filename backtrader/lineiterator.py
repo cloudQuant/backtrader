@@ -28,6 +28,141 @@ from .utils.py3 import range, string_types, zip
 logger = logging.getLogger(__name__)
 
 
+def _clock_is_replaying(clock, seen=None):
+    """Return True when a clock or one of its source clocks is replaying."""
+    if clock is None:
+        return False
+
+    if seen is None:
+        seen = set()
+
+    clock_id = id(clock)
+    if clock_id in seen:
+        return False
+    seen.add(clock_id)
+
+    try:
+        if bool(getattr(clock, "replaying", False)):
+            return True
+    except Exception:
+        pass
+
+    try:
+        source_clock = clock._clock
+    except AttributeError:
+        source_clock = None
+
+    if source_clock is not None and source_clock is not clock:
+        if _clock_is_replaying(source_clock, seen):
+            return True
+
+    try:
+        datas = clock.datas
+    except AttributeError:
+        datas = ()
+
+    for data in datas:
+        if _clock_is_replaying(data, seen):
+            return True
+
+    return False
+
+
+def _lineaction_source_clock(lineaction, seen=None):
+    """Resolve a LineActions object to the concrete clock that drives it."""
+    if lineaction is None:
+        return None
+
+    if seen is None:
+        seen = set()
+
+    action_id = id(lineaction)
+    if action_id in seen:
+        return None
+    seen.add(action_id)
+
+    try:
+        clock = lineaction._clock
+    except AttributeError:
+        clock = None
+
+    if clock is not None and clock.__class__.__name__ != "MinimalClock":
+        if isinstance(clock, LineActions):
+            source_clock = _lineaction_source_clock(clock, seen)
+            if source_clock is not None:
+                return source_clock
+        else:
+            return clock
+
+    for attr in ("_parent_a", "_parent_b", "a", "b", "cond"):
+        try:
+            dependency = getattr(lineaction, attr)
+        except AttributeError:
+            continue
+
+        if isinstance(dependency, LineActions):
+            source_clock = _lineaction_source_clock(dependency, seen)
+            if source_clock is not None:
+                return source_clock
+
+        try:
+            dep_clock = dependency._clock
+        except AttributeError:
+            dep_clock = None
+        if (
+            dep_clock is not None
+            and dep_clock.__class__.__name__ != "MinimalClock"
+            and not isinstance(dep_clock, LineActions)
+        ):
+            return dep_clock
+
+    try:
+        args = lineaction.args
+    except AttributeError:
+        args = ()
+
+    for dependency in args:
+        if isinstance(dependency, LineActions):
+            source_clock = _lineaction_source_clock(dependency, seen)
+            if source_clock is not None:
+                return source_clock
+
+        try:
+            dep_clock = dependency._clock
+        except AttributeError:
+            dep_clock = None
+        if (
+            dep_clock is not None
+            and dep_clock.__class__.__name__ != "MinimalClock"
+            and not isinstance(dep_clock, LineActions)
+        ):
+            return dep_clock
+
+    try:
+        datas = lineaction.datas
+    except AttributeError:
+        datas = ()
+
+    for data in datas:
+        if isinstance(data, LineActions):
+            source_clock = _lineaction_source_clock(data, seen)
+            if source_clock is not None:
+                return source_clock
+
+        try:
+            data_clock = data._clock
+        except AttributeError:
+            data_clock = None
+        if (
+            data_clock is not None
+            and data_clock.__class__.__name__ != "MinimalClock"
+            and not isinstance(data_clock, LineActions)
+        ):
+            return data_clock
+
+    return None
+
+
 class LineIteratorMixin:
     """Mixin for LineIterator that handles data argument processing.
 
@@ -312,6 +447,11 @@ class LineIteratorMixin:
                 _obj._clock = owner if owner is not None else None
             except AttributeError:
                 _obj._clock = None
+
+        if isinstance(_obj._clock, LineActions):
+            source_clock = _lineaction_source_clock(_obj._clock)
+            if source_clock is not None:
+                _obj._clock = source_clock
 
         # Calculate minimum period from datas
         if _obj.datas:
@@ -1444,6 +1584,27 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     except Exception as e:
                         logger.debug("Failed to get end from clock: %s", e)
 
+        if self._ltype != LineIterator.StratType and end is not None:
+            try:
+                clock = self._clock
+            except AttributeError:
+                clock = None
+
+            clock_name = clock.__class__.__name__ if clock is not None else ""
+            if clock is not None and clock_name != "MinimalClock":
+                try:
+                    clock_end = clock.buflen()
+                except AttributeError:
+                    try:
+                        clock_end = len(clock)
+                    except Exception:
+                        clock_end = 0
+                except Exception:
+                    clock_end = 0
+
+                if clock_end > 0 and end > clock_end:
+                    end = clock_end
+
         # OPTIMIZATION: Process lineiterators with minimal overhead
         # Direct access to _lineiterators (should always exist)
         try:
@@ -1464,6 +1625,45 @@ class LineIterator(LineIteratorMixin, LineSeries):
                         logger.debug("Indicator _once failed in _once: %s", e)
         except AttributeError:
             pass  # No _lineiterators
+
+        try:
+            datas = self.datas
+        except AttributeError:
+            datas = ()
+
+        for data in datas:
+            if not isinstance(data, LineActions):
+                continue
+
+            data_end = end
+            source_clock = _lineaction_source_clock(data)
+            if source_clock is not None:
+                try:
+                    clock_end = source_clock.buflen()
+                except AttributeError:
+                    try:
+                        clock_end = len(source_clock)
+                    except Exception:
+                        clock_end = 0
+                except Exception:
+                    clock_end = 0
+
+                if clock_end > 0:
+                    data_end = min(data_end, clock_end)
+
+            if data_end <= 0:
+                continue
+
+            try:
+                if getattr(data, "_once_called", False) and len(data.array) >= data_end:
+                    continue
+            except Exception:
+                pass
+
+            try:
+                data._once(0, data_end)
+            except Exception as e:
+                logger.debug("LineActions data _once failed in _once: %s", e)
 
         # Child indicators have now filled their arrays and their line pointers
         # are at the end of the buffer. The parent may still be executed through
@@ -1607,7 +1807,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
         Updates indicators and calls notification methods.
         """
         # Current clock data length
+        prev_len = len(self)
         clock_len = self._clk_update()
+
+        replaying = _clock_is_replaying(getattr(self, "_clock", None))
+
+        if self._ltype != LineIterator.StratType and clock_len == prev_len and not replaying:
+            return
+
         # Call _next for each indicator
         for indicator in self._lineiterators[LineIterator.IndType]:
             indicator._next()

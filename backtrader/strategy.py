@@ -478,6 +478,94 @@ class Strategy(StrategyBase):
         else:
             pass
 
+    def _iter_strategy_lineactions(self):
+        """Yield LineActions stored as strategy attributes."""
+        from .linebuffer import LineActions
+
+        seen = set()
+        registered = set()
+
+        def mark_registered(lineiter):
+            lineiter_id = id(lineiter)
+            if lineiter_id in registered:
+                return
+            registered.add(lineiter_id)
+
+            try:
+                child_lists = lineiter._lineiterators.values()
+            except AttributeError:
+                return
+
+            for children in child_lists:
+                for child in children:
+                    mark_registered(child)
+
+        try:
+            for children in self._lineiterators.values():
+                for child in children:
+                    mark_registered(child)
+        except AttributeError:
+            pass
+
+        def visit(value):
+            value_id = id(value)
+            if value_id in seen:
+                return
+            seen.add(value_id)
+
+            if isinstance(value, LineActions):
+                if value_id not in registered:
+                    yield value
+
+                for attr_name in ("_parent_a", "_parent_b", "a", "b", "cond"):
+                    try:
+                        dependency = getattr(value, attr_name)
+                    except AttributeError:
+                        continue
+                    yield from visit(dependency)
+
+                try:
+                    args = value.args
+                except AttributeError:
+                    args = ()
+                for dependency in args:
+                    yield from visit(dependency)
+
+                return
+
+            if isinstance(value, dict):
+                for item in value.values():
+                    yield from visit(item)
+            elif isinstance(value, (list, tuple, set, frozenset)):
+                for item in value:
+                    yield from visit(item)
+
+        try:
+            attrs = object.__getattribute__(self, "__dict__")
+        except AttributeError:
+            attrs = {}
+
+        for attr_name, attr_value in attrs.items():
+            if attr_name.startswith("_"):
+                continue
+            yield from visit(attr_value)
+
+    def _stage2(self):
+        super()._stage2()
+        for lineaction in self._iter_strategy_lineactions():
+            try:
+                lineaction._stage2()
+            except Exception:
+                logger.debug("Failed to stage2 strategy LineActions", exc_info=True)
+
+    def _stage1(self):
+        super()._stage1()
+        for lineaction in self._iter_strategy_lineactions():
+            try:
+                lineaction._stage1()
+            except Exception:
+                logger.debug("Failed to stage1 strategy LineActions", exc_info=True)
+
     def _periodset(self):
         """Calculate and set the minimum period required for strategy execution.
 
@@ -485,12 +573,30 @@ class Strategy(StrategyBase):
         the strategy's next() method can be called, based on the minimum
         periods of all indicators and data feeds.
         """
+        def iter_indicator_tree(indicators):
+            seen = set()
+            stack = list(indicators)
+            while stack:
+                lineiter = stack.pop(0)
+                lineiter_id = id(lineiter)
+                if lineiter_id in seen:
+                    continue
+                seen.add(lineiter_id)
+                yield lineiter
+
+                try:
+                    children = lineiter._lineiterators[LineIterator.IndType]
+                except (AttributeError, KeyError):
+                    continue
+                stack.extend(children)
+
         # Data IDs
         dataids = [id(data) for data in self.datas]
         # Data minimum periods
         _dminperiods = collections.defaultdict(list)
         # Loop through all indicators
-        for lineiter in self._lineiterators[LineIterator.IndType]:
+        all_indicators = list(iter_indicator_tree(self._lineiterators[LineIterator.IndType]))
+        for lineiter in all_indicators:
             # If multiple datas are used and multiple timeframes, the larger
             # timeframe may place larger time constraints in calling next.
             # Get the indicator's _clock attribute
@@ -594,7 +700,7 @@ class Strategy(StrategyBase):
 
         # Set the minperiod
         # Indicator minimum periods
-        minperiods = [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
+        minperiods = [x._minperiod for x in all_indicators]
 
         # CRITICAL FIX: Also scan strategy attributes for LineActions objects
         # (like LinesOperation from sma - sma(-10)) that aren't registered as indicators
@@ -628,20 +734,19 @@ class Strategy(StrategyBase):
                 try:
                     attr = getattr(self, attr_name)
                     if isinstance(attr, LineActions) and hasattr(attr, "_minperiod"):
-                        if attr not in self._lineiterators[LineIterator.IndType]:
-                            # Try to determine which data this LineActions is associated with
-                            # by checking its _clock or data sources
-                            data_idx = 0  # Default to data[0]
-                            if hasattr(attr, "_clock") and attr._clock is not None:
-                                for i, d in enumerate(self.datas):
-                                    if attr._clock is d or attr._clock in d.lines:
-                                        data_idx = i
-                                        break
-                            # Only update minperiod for the specific data
-                            if data_idx < len(self._minperiods):
-                                self._minperiods[data_idx] = max(
-                                    self._minperiods[data_idx], attr._minperiod
-                                )
+                        # Try to determine which data this LineActions is associated with
+                        # by checking its _clock or data sources
+                        data_idx = 0  # Default to data[0]
+                        if hasattr(attr, "_clock") and attr._clock is not None:
+                            for i, d in enumerate(self.datas):
+                                if attr._clock is d or attr._clock in d.lines:
+                                    data_idx = i
+                                    break
+                        # Only update minperiod for the specific data
+                        if data_idx < len(self._minperiods):
+                            self._minperiods[data_idx] = max(
+                                self._minperiods[data_idx], attr._minperiod
+                            )
                 except (AttributeError, TypeError):
                     pass
 
@@ -860,7 +965,10 @@ class Strategy(StrategyBase):
         # This ensures len(indicator) == len(strategy) at the end of processing
         try:
             strategy_len = len(self)
+            strategy_clock = getattr(self, "_clock", None)
             for indicator in self._lineiterators[LineIterator.IndType]:
+                if getattr(indicator, "_clock", None) is not strategy_clock:
+                    continue
                 # Only update if indicator was processed in runonce mode
                 if hasattr(indicator, "_once_called") and indicator._once_called:
                     # Update lencount for all lines in the indicator
@@ -1204,12 +1312,15 @@ class Strategy(StrategyBase):
         # This must be done BEFORE calling user's stop() method, as tests check len(indicator) == len(strategy)
         try:
             strategy_len = len(self)
+            strategy_clock = getattr(self, "_clock", None)
             # Update lencount for all indicators to match strategy length
             # This is critical for runonce mode where indicators are pre-calculated but lencount may not match
             if hasattr(self, "_lineiterators"):
                 from .lineiterator import LineIterator
 
                 for indicator in self._lineiterators.get(LineIterator.IndType, []):
+                    if getattr(indicator, "_clock", None) is not strategy_clock:
+                        continue
                     # Update lencount for all lines in the indicator to match strategy length
                     if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
                         for line in indicator.lines.lines:

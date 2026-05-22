@@ -213,7 +213,6 @@ class LineBuffer(LineSingle, LineRootMixin):
         # preserve the array and lencount, only reset idx
         # Check if we're in runonce mode and array is populated
         preserve_array = False
-        saved_lencount = 0
         try:
             # Check if this is an indicator line that was processed in runonce mode
             # Line's _owner might be a Lines object, which has _owner pointing to the indicator
@@ -230,7 +229,6 @@ class LineBuffer(LineSingle, LineRootMixin):
                             array_len = len(self.array)
                             if array_len > 0:
                                 preserve_array = True
-                                saved_lencount = array_len
                 # Also check if owner itself is an indicator
                 elif hasattr(owner, "_once_called") and owner._once_called:
                     # Check if array has data
@@ -238,16 +236,16 @@ class LineBuffer(LineSingle, LineRootMixin):
                         array_len = len(self.array)
                         if array_len > 0:
                             preserve_array = True
-                            saved_lencount = array_len
         except Exception as e:
             logger.debug("Failed to check runonce array preservation: %s", e)
 
         if preserve_array:
-            # In runonce mode with populated array: only reset idx, preserve array and lencount
+            # In runonce mode with populated arrays, preserve the precomputed
+            # values but restart logical length so Cerebro's event replay can
+            # advance indicators according to their own clocks.
             self.idx = -1
-            # Keep lencount at saved value (array length)
             if hasattr(self, "lencount"):
-                self.lencount = saved_lencount
+                self.lencount = 0
             self.extension = 0
         else:
             # Normal reset: clear array and reset all counters

@@ -76,6 +76,106 @@ def _is_constant_line_delay(operand):
     return operand.__class__.__name__ == "_LineDelay" and source.__class__.__name__ == "PseudoArray"
 
 
+def _valid_assignment_clock(clock):
+    return (
+        clock is not None
+        and clock.__class__.__name__ != "MinimalClock"
+        and not isinstance(clock, LineBuffer)
+    )
+
+
+def _line_assignment_source_clock(owner, source, seen=None):
+    if source is None:
+        return None
+
+    if seen is None:
+        seen = set()
+
+    source_id = id(source)
+    if source_id in seen:
+        return None
+    seen.add(source_id)
+
+    if _valid_assignment_clock(source):
+        return source
+
+    try:
+        clock = source._clock
+    except AttributeError:
+        clock = None
+    if _valid_assignment_clock(clock):
+        return clock
+
+    source_owner = _line_owner(source)
+    if source_owner is not None:
+        try:
+            clock = source_owner._clock
+        except AttributeError:
+            clock = None
+        if _valid_assignment_clock(clock):
+            return clock
+
+    try:
+        owner_datas = owner.datas
+    except AttributeError:
+        owner_datas = ()
+
+    for data in owner_datas:
+        if source is data:
+            return data
+        try:
+            if source in data.lines:
+                return data
+        except (AttributeError, TypeError):
+            pass
+
+    try:
+        owner_lineiterators = owner._lineiterators
+    except AttributeError:
+        owner_lineiterators = {}
+
+    for child_list in owner_lineiterators.values():
+        for lineiter in child_list:
+            if source is lineiter:
+                return _line_assignment_source_clock(owner, getattr(lineiter, "_clock", None), seen)
+
+            try:
+                in_lines = source in lineiter.lines
+            except (AttributeError, TypeError):
+                in_lines = False
+
+            if in_lines:
+                clock = _line_assignment_source_clock(owner, getattr(lineiter, "_clock", None), seen)
+                if clock is not None:
+                    return clock
+
+    return None
+
+
+def _line_assignment_dependency_clock(child):
+    if not isinstance(child, LineActions):
+        return None
+
+    for dependency in _iter_line_assignment_dependencies(child):
+        try:
+            clock = dependency._clock
+        except AttributeError:
+            clock = None
+        if _valid_assignment_clock(clock):
+            return clock
+
+        owner = _line_owner(dependency)
+        if owner is not None:
+            try:
+                clock = owner._clock
+            except AttributeError:
+                clock = None
+            if _valid_assignment_clock(clock):
+                return clock
+
+    return None
+
+
 def _iter_line_assignment_dependencies(child):
     for attr in ("_parent_a", "_parent_b"):
         try:
@@ -139,13 +239,18 @@ def _register_line_assignment_child(owner, child, seen=None):
     except AttributeError:
         return
 
-    for dependency in _iter_line_assignment_dependencies(child):
-        if dependency is not child and dependency is not owner:
-            _register_line_assignment_child(owner, dependency, seen)
+    if isinstance(child, LineActions):
+        for dependency in _iter_line_assignment_dependencies(child):
+            if dependency is not child and dependency is not owner:
+                _register_line_assignment_child(owner, dependency, seen)
 
     ltype = _line_assignment_ltype(child)
     if ltype is None:
         return
+
+    owner_is_strategy = getattr(owner, "_ltype", None) == getattr(owner, "StratType", None)
+    executable_child = not isinstance(child, LineActions) or hasattr(child, "_next")
+    should_register = not (owner_is_strategy and isinstance(child, LineActions)) and executable_child
 
     old_owner = getattr(child, "_owner", None)
     if old_owner is not None and old_owner is not owner:
@@ -161,21 +266,30 @@ def _register_line_assignment_child(owner, child, seen=None):
             while child in child_list:
                 child_list.remove(child)
 
-    if child not in owner_lineiterators[ltype]:
+    if should_register and child not in owner_lineiterators[ltype]:
         owner_lineiterators[ltype].append(child)
 
     child._owner = owner
 
     try:
-        if owner._minperiod < child._minperiod:
-            owner._minperiod = child._minperiod
-    except AttributeError:
-        pass
-
-    try:
         child_clock = child._clock
     except AttributeError:
         child_clock = None
+
+    try:
+        child_data_clock = child.datas[0] if child.datas else None
+    except (AttributeError, IndexError):
+        child_data_clock = None
+
+    source_clock = _line_assignment_source_clock(owner, child_data_clock)
+    if source_clock is not None:
+        child._clock = source_clock
+        return
+
+    dependency_clock = _line_assignment_dependency_clock(child)
+    if dependency_clock is not None:
+        child._clock = dependency_clock
+        return
 
     clock_name = child_clock.__class__.__name__ if child_clock is not None else ""
     if child_clock is None or clock_name == "MinimalClock":
@@ -1632,6 +1746,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             object.__setattr__(self, name, value)
             return
 
+        if name == "data" or (
+            name
+            and len(name) >= 5
+            and name[:4] == "data"
+            and (name[4].isdigit() or name[4] == "_")
+        ):
+            object.__setattr__(self, name, value)
+            return
+
         # Fast path 3: Simple types (int, str, float, etc.)
         # OPTIMIZATION: Use type() instead of isinstance() - faster
         value_type = type(value)
@@ -1652,36 +1775,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             # Set the attribute first
             object.__setattr__(self, name, value)
 
-            # Set owner if needed (simplified logic)
-            try:
-                # Try to read _owner
-                existing_owner = value._owner
-                # NOTE: value._owner may be lazily loaded by LineSeries.__getattribute__ into MinimalOwner
-                # In this case, also change owner to the real owner (self here), otherwise indicator won't
-                # Attach to strategy's _lineiterators, causing _next not to be called, len(indicator)==0.
-                if existing_owner is None or existing_owner.__class__.__name__ == "MinimalOwner":
-                    value._owner = self
-            except AttributeError:
-                # _owner doesn't exist, try to set it
-                try:
-                    value._owner = self
-                except Exception as e:
-                    logger.debug("Cannot set _owner on value: %s", e)
-
-            # Add to lineiterators if applicable
-            # CRITICAL FIX: Check for duplicates before appending
-            try:
-                self_dict = object.__getattribute__(self, "__dict__")
-                lineiterators = self_dict.get("_lineiterators")
-                if lineiterators is not None:
-                    try:
-                        ltype = value._ltype
-                        if value not in lineiterators[ltype]:
-                            lineiterators[ltype].append(value)
-                    except Exception as e:
-                        logger.debug("Failed to register lineiterator by ltype: %s", e)
-            except Exception as e:
-                logger.debug("Failed to access _lineiterators: %s", e)
+            _register_line_assignment_child(self, value)
 
             return
 

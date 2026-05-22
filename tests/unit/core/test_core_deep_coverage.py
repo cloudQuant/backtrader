@@ -458,6 +458,85 @@ class TestLineIteratorOncePaths:
         assert step_strat.has_operation_child
         assert step_strat.top_names == ["ExprChannel"]
 
+    def test_runonce_multidata_indicator_uses_own_clock_for_attr_operations(self):
+        """A data1 indicator with attr operations must replay on data1's clock."""
+
+        from backtrader.lineiterator import LineIterator
+
+        def make_bars(closes, minutes):
+            start = datetime.datetime(2024, 1, 1)
+            bars = []
+            for i, close in enumerate(closes):
+                bars.append({
+                    "datetime": start + datetime.timedelta(minutes=i * minutes),
+                    "open": close,
+                    "high": close + 1.0,
+                    "low": close - 1.0,
+                    "close": close,
+                    "volume": 1000,
+                    "openinterest": 0,
+                })
+            return bars
+
+        fast_bars = make_bars([10.0 + i * 0.1 for i in range(24)], 60)
+        slow_bars = make_bars([10.0, 11.0, 13.0, 12.0, 15.0, 20.0], 240)
+
+        class SlowSignal(bt.Indicator):
+            lines = ("signal",)
+
+            def __init__(self):
+                self.sma = bt.indicators.SMA(self.data.close, period=2)
+                self.delta = self.data.close - self.sma
+                self.addminperiod(3)
+
+            def next(self):
+                self.lines.signal[0] = float("nan")
+                if float(self.delta[0]) > float(self.delta[-1]):
+                    self.lines.signal[0] = float(self.delta[0])
+
+        class St(bt.Strategy):
+            def __init__(self):
+                self.signal = SlowSignal(self.data1)
+                self.last_slow_len = 0
+                self.events = []
+                self.top_names = [
+                    type(ind).__name__ for ind in self._lineiterators[LineIterator.IndType]
+                ]
+                self.child_names = [
+                    type(ind).__name__
+                    for ind in self.signal._lineiterators[LineIterator.IndType]
+                ]
+
+            def next(self):
+                if len(self.data1) == self.last_slow_len:
+                    return
+                self.last_slow_len = len(self.data1)
+                value = float(self.signal[0])
+                if math.isfinite(value) and value != 0.0:
+                    self.events.append((len(self.data0), len(self.data1), round(value, 8)))
+
+            def stop(self):
+                self.signal_len = len(self.signal)
+                self.data1_len = len(self.data1)
+                self.signal_uses_data1_clock = self.signal._clock is self.data1
+
+        def run(runonce):
+            cerebro = bt.Cerebro(runonce=runonce, stdstats=False)
+            cerebro.adddata(SimpleFeed(data_list=fast_bars))
+            cerebro.adddata(SimpleFeed(data_list=slow_bars))
+            cerebro.addstrategy(St)
+            return cerebro.run()[0]
+
+        step_strat = run(False)
+        once_strat = run(True)
+
+        assert step_strat.events == once_strat.events
+        assert step_strat.events == [(9, 3, 1.0), (17, 5, 1.5), (21, 6, 2.5)]
+        assert step_strat.top_names == ["SlowSignal"]
+        assert step_strat.child_names == ["MovingAverageSimple", "LinesOperation"]
+        assert once_strat.signal_len == once_strat.data1_len
+        assert once_strat.signal_uses_data1_clock
+
     def test_exactbars_true_qbuffer(self):
         """Exercise qbuffer allocation with exactbars=True.
 
