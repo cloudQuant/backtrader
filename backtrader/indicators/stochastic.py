@@ -75,6 +75,43 @@ class _StochasticBase(Indicator):
             return 0.0
         return 100.0 * (knum / kden)
 
+    def _calc_k_at(self, ago):
+        """Calculate raw %K at a relative bar offset."""
+        try:
+            hh = self.highesthigh[ago]
+            ll = self.lowestlow[ago]
+            close = self.data.close[ago]
+        except (IndexError, TypeError):
+            return float("nan")
+
+        if isinstance(hh, float) and math.isnan(hh):
+            return float("nan")
+        if isinstance(ll, float) and math.isnan(ll):
+            return float("nan")
+
+        knum = close - ll
+        kden = hh - ll
+        if self.p.safediv and kden == 0:
+            return self.p.safezero
+        if kden == 0:
+            return 0.0
+        return 100.0 * (knum / kden)
+
+    @staticmethod
+    def _mean_or_nan(values):
+        """Return the arithmetic mean, or NaN when any component is NaN."""
+        total = 0.0
+        for value in values:
+            if isinstance(value, float) and math.isnan(value):
+                return float("nan")
+            total += value
+        return total / len(values)
+
+    def _fast_d_at(self, ago):
+        """Calculate fast %D at a relative bar offset."""
+        values = [self._calc_k_at(ago - i) for i in range(self.p.period_dfast)]
+        return self._mean_or_nan(values)
+
 
 class StochasticFast(_StochasticBase):
     """
@@ -115,12 +152,7 @@ class StochasticFast(_StochasticBase):
         """
         k_val = self._calc_k()
         self.lines.percK[0] = k_val
-        # Calculate %D as SMA of %K
-        period_d = self.p.period_dfast
-        k_sum = k_val
-        for i in range(1, period_d):
-            k_sum += self.lines.percK[-i]
-        self.lines.percD[0] = k_sum / period_d
+        self.lines.percD[0] = self._fast_d_at(0)
 
     def once(self, start, end):
         """Calculate Fast Stochastic in runonce mode.
@@ -223,28 +255,10 @@ class Stochastic(_StochasticBase):
 
         Fast %D becomes Slow %K, then Slow %D is SMA of Slow %K.
         """
-        k_val = self._calc_k()
-        # Fast %D becomes slow %K
-        period_d = self.p.period_dfast
-        self._fast_d_vals.append(k_val)
-        if len(self._fast_d_vals) > period_d:
-            self._fast_d_vals.pop(0)
-
-        if len(self._fast_d_vals) >= period_d:
-            fast_d = sum(self._fast_d_vals[-period_d:]) / period_d
-        elif len(self._fast_d_vals) > 0:
-            fast_d = sum(self._fast_d_vals) / len(self._fast_d_vals)
-        else:
-            fast_d = 0.0
-
+        fast_d = self._fast_d_at(0)
         self.lines.percK[0] = fast_d
-
-        # Slow %D is SMA of slow %K
-        period_dslow = self.p.period_dslow
-        d_sum = fast_d
-        for i in range(1, period_dslow):
-            d_sum += self.lines.percK[-i]
-        self.lines.percD[0] = d_sum / period_dslow
+        values = [self._fast_d_at(-i) for i in range(self.p.period_dslow)]
+        self.lines.percD[0] = self._mean_or_nan(values)
 
     def once(self, start, end):
         """Calculate Slow Stochastic in runonce mode.
@@ -374,19 +388,12 @@ class StochasticFull(_StochasticBase):
         self.lines.percK[0] = k_val
 
         # %D is SMA of %K
-        period_d = self.p.period_dfast
-        k_sum = k_val
-        for i in range(1, period_d):
-            k_sum += self.lines.percK[-i]
-        d_val = k_sum / period_d
+        d_val = self._fast_d_at(0)
         self.lines.percD[0] = d_val
 
         # %DSlow is SMA of %D
-        period_dslow = self.p.period_dslow
-        d_sum = d_val
-        for i in range(1, period_dslow):
-            d_sum += self.lines.percD[-i]
-        self.lines.percDSlow[0] = d_sum / period_dslow
+        values = [self._fast_d_at(-i) for i in range(self.p.period_dslow)]
+        self.lines.percDSlow[0] = self._mean_or_nan(values)
 
     def once(self, start, end):
         """Calculate Full Stochastic in runonce mode.

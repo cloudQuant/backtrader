@@ -1827,7 +1827,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Call _next for each indicator
         for indicator in self._lineiterators[LineIterator.IndType]:
-            indicator._next()
+            if hasattr(indicator, "_next"):
+                indicator._next()
 
         # Call _notify function
         self._notify()

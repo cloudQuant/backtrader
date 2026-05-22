@@ -99,7 +99,18 @@ class OperationN(PeriodN):
         """
         # CRITICAL FIX: Use proper line assignment instead of direct array manipulation
         # The line[0] assignment will handle the buffer correctly
-        value = self.func(self.data.get(size=self.p.period))
+        window = self.data.get(size=self.p.period)
+        if len(window) < self.p.period:
+            try:
+                window = [self.data[i] for i in range(-self.p.period + 1, 1)]
+            except (IndexError, TypeError):
+                window = ()
+
+        if len(window) < self.p.period:
+            self.lines[0][0] = float("nan")
+            return
+
+        value = self.func(window)
         self.lines[0][0] = value
 
     def once(self, start, end):
