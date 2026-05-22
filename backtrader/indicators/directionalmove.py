@@ -246,6 +246,8 @@ class DirectionalIndicator(_DirectionalIndicator):
         period = self.p.period
         high = self.data.high[0]
         low = self.data.low[0]
+        if len(self.data) <= 1:
+            return
         try:
             prev_high = self.data.high[-1]
             prev_low = self.data.low[-1]
@@ -301,7 +303,7 @@ class DirectionalIndicator(_DirectionalIndicator):
         sm_mdm = 0.0
         bar_count = 0
 
-        for i in range(max(1, start), end):
+        for i in range(1, min(end, len(high_arr), len(low_arr), len(close_arr))):
             high = high_arr[i]
             low = low_arr[i]
             prev_high = high_arr[i - 1]
@@ -379,6 +381,8 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
         period = self.p.period
         high = self.data.high[0]
         low = self.data.low[0]
+        if len(self.data) <= 1:
+            return
         try:
             prev_high = self.data.high[-1]
             prev_low = self.data.low[-1]
@@ -418,7 +422,7 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
         sm_tr = 0.0
         sm_pdm = 0.0
         bc = 0
-        for i in range(max(1, start), end):
+        for i in range(1, min(end, len(high_arr), len(low_arr), len(close_arr))):
             tr = max(high_arr[i], close_arr[i-1]) - min(low_arr[i], close_arr[i-1])
             upmove = high_arr[i] - high_arr[i-1]
             downmove = low_arr[i-1] - low_arr[i]
@@ -477,6 +481,8 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
         period = self.p.period
         high = self.data.high[0]
         low = self.data.low[0]
+        if len(self.data) <= 1:
+            return
         try:
             prev_high = self.data.high[-1]
             prev_low = self.data.low[-1]
@@ -516,7 +522,7 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
         sm_tr = 0.0
         sm_mdm = 0.0
         bc = 0
-        for i in range(max(1, start), end):
+        for i in range(1, min(end, len(high_arr), len(low_arr), len(close_arr))):
             tr = max(high_arr[i], close_arr[i-1]) - min(low_arr[i], close_arr[i-1])
             upmove = high_arr[i] - high_arr[i-1]
             downmove = low_arr[i-1] - low_arr[i]
@@ -585,17 +591,100 @@ class AverageDirectionalMovementIndex(Indicator):
         self._plusDMav_val = 0.0
         self._minusDMav_val = 0.0
         self._adx_val = 0.0
-        self._prev_high = None
-        self._prev_low = None
+        self._adx_bootstrapped = False
+        self._last_adx_idx = None
 
     def prenext(self):
         """Track previous high/low during warmup.
 
         Stores high and low values for directional move calculation.
         """
-        # Track previous high/low for directional move calculation
-        self._prev_high = self.data.high[0]
-        self._prev_low = self.data.low[0]
+        pass
+
+    def _adx_atr_value(self, atr_array, index):
+        import math
+
+        atr_val = atr_array[index]
+        if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
+            return 0.0001
+        return atr_val
+
+    def _adx_dx(self, plus_dmav, minus_dmav, atr_val):
+        diplus = 100.0 * plus_dmav / atr_val
+        diminus = 100.0 * minus_dmav / atr_val
+        disum = diplus + diminus
+        return 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
+
+    def _adx_bootstrap(self, target_idx):
+        high_array = self.data.high.array
+        low_array = self.data.low.array
+        atr_array = self.atr.lines[0].array
+
+        period = self.p.period
+        seed_idx = 2 * period - 1
+        data_len = min(len(high_array), len(low_array), len(atr_array))
+        if target_idx < seed_idx or data_len <= seed_idx:
+            return False
+
+        dm_plus_sum = 0.0
+        dm_minus_sum = 0.0
+        for i in range(1, period + 1):
+            upmove = high_array[i] - high_array[i - 1]
+            downmove = low_array[i - 1] - low_array[i]
+            dm_plus_sum += upmove if (upmove > downmove and upmove > 0) else 0.0
+            dm_minus_sum += downmove if (downmove > upmove and downmove > 0) else 0.0
+
+        plus_dmav = dm_plus_sum / period
+        minus_dmav = dm_minus_sum / period
+        dx_values = [
+            self._adx_dx(plus_dmav, minus_dmav, self._adx_atr_value(atr_array, period))
+        ]
+
+        for i in range(period + 1, seed_idx + 1):
+            upmove = high_array[i] - high_array[i - 1]
+            downmove = low_array[i - 1] - low_array[i]
+            plus_dm = upmove if (upmove > downmove and upmove > 0) else 0.0
+            minus_dm = downmove if (downmove > upmove and downmove > 0) else 0.0
+            plus_dmav = plus_dmav * self.alpha1 + plus_dm * self.alpha
+            minus_dmav = minus_dmav * self.alpha1 + minus_dm * self.alpha
+            dx_values.append(
+                self._adx_dx(plus_dmav, minus_dmav, self._adx_atr_value(atr_array, i))
+            )
+
+        self._plusDMav_val = plus_dmav
+        self._minusDMav_val = minus_dmav
+        self._adx_val = sum(dx_values[:period]) / period
+        self._last_adx_idx = seed_idx
+        self._adx_bootstrapped = True
+        return True
+
+    def _adx_advance_to(self, target_idx):
+        if not self._adx_bootstrapped and not self._adx_bootstrap(target_idx):
+            return False
+
+        high_array = self.data.high.array
+        low_array = self.data.low.array
+        atr_array = self.atr.lines[0].array
+        data_len = min(len(high_array), len(low_array), len(atr_array))
+        if target_idx >= data_len:
+            return False
+
+        for i in range(self._last_adx_idx + 1, target_idx + 1):
+            upmove = high_array[i] - high_array[i - 1]
+            downmove = low_array[i - 1] - low_array[i]
+            plus_dm = upmove if (upmove > downmove and upmove > 0) else 0.0
+            minus_dm = downmove if (downmove > upmove and downmove > 0) else 0.0
+            self._plusDMav_val = self._plusDMav_val * self.alpha1 + plus_dm * self.alpha
+            self._minusDMav_val = self._minusDMav_val * self.alpha1 + minus_dm * self.alpha
+            dx = self._adx_dx(
+                self._plusDMav_val,
+                self._minusDMav_val,
+                self._adx_atr_value(atr_array, i),
+            )
+            self._adx_val = self._adx_val * self.alpha1 + dx * self.alpha
+            self._last_adx_idx = i
+
+        return True
 
     def nextstart(self):
         """Seed ADX calculation on first valid bar.
@@ -603,37 +692,10 @@ class AverageDirectionalMovementIndex(Indicator):
         Calculates initial DM, DI, DX, and ADX values.
         """
         idx = self.lines[0].idx
-
-        # Get ATR value
-        atr_val = self.atr.lines[0].array[idx] if idx < len(self.atr.lines[0].array) else 0.0
-        if atr_val == 0:
-            atr_val = 0.0001  # Avoid division by zero
-
-        # Calculate +DM and -DM
-        upmove = self.data.high[0] - (self._prev_high if self._prev_high else self.data.high[-1])
-        downmove = (self._prev_low if self._prev_low else self.data.low[-1]) - self.data.low[0]
-
-        plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
-        minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
-
-        # Seed smoothed DM values
-        self._plusDMav_val = plusDM
-        self._minusDMav_val = minusDM
-
-        # Calculate DI
-        diplus = 100.0 * self._plusDMav_val / atr_val
-        diminus = 100.0 * self._minusDMav_val / atr_val
-
-        # Calculate DX
-        disum = diplus + diminus
-        dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
-
-        # Seed ADX
-        self._adx_val = dx
-        self.lines.adx[0] = self._adx_val
-
-        self._prev_high = self.data.high[0]
-        self._prev_low = self.data.low[0]
+        if self._adx_advance_to(idx):
+            self.lines.adx[0] = self._adx_val
+        else:
+            self.lines.adx[0] = float("nan")
 
     def next(self):
         """Calculate ADX for the current bar.
@@ -641,34 +703,10 @@ class AverageDirectionalMovementIndex(Indicator):
         Calculates DM smoothing, DI, DX, and ADX values.
         """
         idx = self.lines[0].idx
-
-        # Get ATR value
-        atr_val = self.atr.lines[0].array[idx] if idx < len(self.atr.lines[0].array) else 0.0
-        if atr_val == 0:
-            atr_val = 0.0001
-
-        # Calculate +DM and -DM
-        upmove = self.data.high[0] - self.data.high[-1]
-        downmove = self.data.low[-1] - self.data.low[0]
-
-        plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
-        minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
-
-        # Smooth DM values (SMMA)
-        self._plusDMav_val = self._plusDMav_val * self.alpha1 + plusDM * self.alpha
-        self._minusDMav_val = self._minusDMav_val * self.alpha1 + minusDM * self.alpha
-
-        # Calculate DI
-        diplus = 100.0 * self._plusDMav_val / atr_val
-        diminus = 100.0 * self._minusDMav_val / atr_val
-
-        # Calculate DX
-        disum = diplus + diminus
-        dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
-
-        # Smooth ADX (SMMA of DX)
-        self._adx_val = self._adx_val * self.alpha1 + dx * self.alpha
-        self.lines.adx[0] = self._adx_val
+        if self._adx_advance_to(idx):
+            self.lines.adx[0] = self._adx_val
+        else:
+            self.lines.adx[0] = float("nan")
 
     def once(self, start, end):
         """Calculate ADX in runonce mode using proper Wilder seeding.

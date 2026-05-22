@@ -176,6 +176,46 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Optimization A: Removed hasattr check, __init__ ensures _idx exists
         return self._idx
 
+    def _refresh_cached_line_flags(self, owner=None, ltype=None):
+        """Refresh cached owner/type-derived flags after a line is attached."""
+        if owner is not None:
+            self._owner = owner
+        if ltype is not None:
+            self._ltype = ltype
+
+        effective_ltype = getattr(self, "_ltype", None)
+        owner_obj = getattr(self, "_owner", None)
+        owner_ref = getattr(owner_obj, "_owner_ref", None)
+
+        if effective_ltype is None and owner_ref is not None:
+            effective_ltype = getattr(owner_ref, "_ltype", None)
+        if effective_ltype is None and owner_obj is not None:
+            effective_ltype = getattr(owner_obj, "_ltype", None)
+
+        try:
+            self._is_indicator = (effective_ltype == LineRoot.IndType) or (
+                "Indicator" in str(self.__class__.__name__)
+            )
+        except Exception:
+            self._is_indicator = False
+
+        try:
+            if hasattr(self, "_name"):
+                name_str = str(self._name).lower()
+                self._is_datetime_line = "datetime" in name_str
+            else:
+                class_str = str(self.__class__.__name__).lower()
+                self._is_datetime_line = "datetime" in class_str
+        except Exception:
+            self._is_datetime_line = False
+
+        if self._is_datetime_line:
+            self._default_value = 1.0
+        elif self._is_indicator:
+            self._default_value = float("nan")
+        else:
+            self._default_value = 0.0
+
     # Set the value of _idx
     def set_idx(self, idx, force=False):
         """Set the index position.
@@ -1263,6 +1303,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                         line_obj._idx = -1
                         line_obj.lencount = 0
 
+                    line_obj._refresh_cached_line_flags(
+                        owner=instance.lines,
+                        ltype=getattr(instance, "_ltype", cls._ltype),
+                    )
+
                 # Set up convenience references - first line as .line
                 instance.line = instance.lines.lines[0] if instance.lines.lines else instance
                 instance.l = instance.lines  # Common shorthand
@@ -1412,6 +1457,19 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
         # Call parent init
         super().__init__()
+
+        self._refresh_cached_line_flags(
+            owner=getattr(self, "_owner", None),
+            ltype=getattr(self.__class__, "_ltype", LineRoot.IndType),
+        )
+
+        if hasattr(self, "lines") and hasattr(self.lines, "lines"):
+            for line_obj in self.lines.lines:
+                if hasattr(line_obj, "_refresh_cached_line_flags"):
+                    line_obj._refresh_cached_line_flags(
+                        owner=self.lines,
+                        ltype=getattr(self, "_ltype", LineRoot.IndType),
+                    )
 
         # Call post-init
         self.__class__.dopostinit(self, *args, **kwargs)
@@ -2220,10 +2278,6 @@ class LinesOperation(LineActions):
             start: Starting index.
             end: Ending index.
         """
-        # Check if array is already populated (avoid redundant work)
-        if len(self.array) >= end:
-            return
-
         # CRITICAL FIX: Always use start=0 for nested operations
         # This ensures historical values are available for indicators like SMA
         nested_start = 0

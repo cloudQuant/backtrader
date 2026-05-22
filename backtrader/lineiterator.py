@@ -919,6 +919,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if hasattr(instance, "lines") and instance.lines is not None:
             # Use object.__setattr__ to directly set _owner_ref (bypasses Lines.__setattr__)
             object.__setattr__(instance.lines, "_owner_ref", instance)
+            try:
+                ltype = getattr(cls, "_ltype", None)
+                for line in instance.lines:
+                    if hasattr(line, "_refresh_cached_line_flags"):
+                        line._refresh_cached_line_flags(owner=instance.lines, ltype=ltype)
+            except Exception as e:
+                logger.debug("Failed to refresh line flags in LineIterator.__new__: %s", e)
 
         return instance
 
@@ -1527,7 +1534,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 pass
 
         if clock_len != len(self):
-            self.forward()
+            if getattr(self, "_ltype", None) == LineIterator.IndType:
+                self.lines.forward(value=float("nan"))
+            else:
+                self.forward()
 
         return clock_len
 

@@ -14,6 +14,7 @@ Key Components:
 """
 
 import logging
+import time as _time
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
 from .utils.py3 import string_types
@@ -132,27 +133,30 @@ class ParameterDescriptor:
             True if value is valid, False otherwise
         """
         try:
+            type_ = self.type_
+            validator = self.validator
+
             # Required check
             if self.required and value is None:
                 return False
 
             # Type check - be more flexible with numeric types
-            if self.type_ is not None and value is not None:
-                if self.type_ is float:
+            if type_ is not None and value is not None:
+                if type_ is float:
                     # For float, accept int, float, and convertible strings
                     if not isinstance(value, (int, float)):
                         try:
                             float(value)  # Test conversion
                         except (ValueError, TypeError):
                             return False
-                elif self.type_ is int:
+                elif type_ is int:
                     # For int, accept int and convertible values
                     if not isinstance(value, int):
                         try:
                             int(value)  # Test conversion
                         except (ValueError, TypeError):
                             return False
-                elif self.type_ is bool:
+                elif type_ is bool:
                     # For bool, be flexible with boolean-like values
                     if not isinstance(value, bool) and value not in (
                         0,
@@ -163,15 +167,15 @@ class ParameterDescriptor:
                         "false",
                     ):
                         return False
-                elif not isinstance(value, self.type_):
+                elif not isinstance(value, type_):
                     try:
-                        self.type_(value)  # Test conversion for other types
+                        type_(value)  # Test conversion for other types
                     except (ValueError, TypeError):
                         return False
 
             # Custom validation
-            if self.validator is not None:
-                return self.validator(value)
+            if validator is not None:
+                return validator(value)
 
             return True
         except (ValueError, TypeError):
@@ -275,8 +279,7 @@ class ParameterManager:
     def _invalidate_cache(self, name: str) -> None:
         """Invalidate cache for a parameter."""
         self._cache_valid.discard(name)
-        if name in self._value_cache:
-            del self._value_cache[name]
+        self._value_cache.pop(name, None)
 
     def _clear_cache(self) -> None:
         """Clear all cached values."""
@@ -363,8 +366,8 @@ class ParameterManager:
         old_value = self.get(name)
 
         # Validate if not skipping validation
-        if not skip_validation and name in self._descriptors:
-            descriptor = self._descriptors[name]
+        descriptor = self._descriptors.get(name) if not skip_validation else None
+        if descriptor is not None:
             if not descriptor.validate(value):
                 raise ValueError(f"Invalid value for parameter '{name}': {value}")
 
@@ -377,15 +380,10 @@ class ParameterManager:
 
         # Record change in history
         if self._enable_history and self._change_history is not None:
-            if name not in self._change_history:
-                self._change_history[name] = []
-
-            import time
-
             self._history_seq += 1
-            self._change_history[name].append(
+            self._change_history.setdefault(name, []).append(
                 {
-                    "timestamp": time.time(),
+                    "timestamp": _time.time(),
                     "seq": self._history_seq,
                     "old_value": old_value,
                     "new_value": value,
@@ -394,7 +392,15 @@ class ParameterManager:
             )
 
         # Trigger callbacks only if not in transaction
-        if trigger_callbacks and self._enable_callbacks and not self._in_transaction:
+        has_callbacks = bool(self._global_callbacks) or (
+            bool(self._change_callbacks) and name in self._change_callbacks
+        )
+        if (
+            trigger_callbacks
+            and self._enable_callbacks
+            and not self._in_transaction
+            and has_callbacks
+        ):
             self._trigger_change_callbacks(name, old_value, value)
 
         # Update dependent parameters
@@ -430,15 +436,10 @@ class ParameterManager:
 
         # Record change in history
         if self._enable_history and self._change_history is not None:
-            if name not in self._change_history:
-                self._change_history[name] = []
-
-            import time
-
             self._history_seq += 1
-            self._change_history[name].append(
+            self._change_history.setdefault(name, []).append(
                 {
-                    "timestamp": time.time(),
+                    "timestamp": _time.time(),
                     "seq": self._history_seq,
                     "old_value": old_value,
                     "new_value": new_value,
@@ -448,7 +449,10 @@ class ParameterManager:
             )
 
         # Trigger callbacks only if not in transaction
-        if self._enable_callbacks and not self._in_transaction:
+        has_callbacks = bool(self._global_callbacks) or (
+            bool(self._change_callbacks) and name in self._change_callbacks
+        )
+        if self._enable_callbacks and not self._in_transaction and has_callbacks:
             self._trigger_change_callbacks(name, old_value, new_value)
 
         # Update dependent parameters
@@ -971,11 +975,10 @@ class ParameterManager:
 
     def _update_dependents(self, param_name: str, new_value: Any) -> None:
         """Update dependent parameters when a parameter changes."""
-        if param_name in self._dependencies:
-            for dependent in self._dependencies[param_name]:
-                # This is a placeholder for custom dependency logic
-                # In a real implementation, you might have specific update rules
-                pass
+        for dependent in self._dependencies.get(param_name, ()):
+            # This is a placeholder for custom dependency logic
+            # In a real implementation, you might have specific update rules
+            pass
 
     # Transaction support
     def begin_transaction(self) -> None:
@@ -1588,18 +1591,13 @@ class _IntValidator:
         Returns:
             True if value is a valid integer within range, False otherwise.
         """
-        # Only accept actual int values, not floats or other types
         if not isinstance(value, int) or isinstance(value, bool):
             return False
-        try:
-            int_val = int(value)
-            if self.min_val is not None and int_val < self.min_val:
-                return False
-            if self.max_val is not None and int_val > self.max_val:
-                return False
-            return True
-        except (ValueError, TypeError):
+        if self.min_val is not None and value < self.min_val:
             return False
+        if self.max_val is not None and value > self.max_val:
+            return False
+        return True
 
     def __reduce__(self):
         """Support pickling for multiprocessing."""
@@ -1635,15 +1633,11 @@ class _FloatValidator:
         # Only accept actual numeric types, not strings
         if not isinstance(value, (int, float)):
             return False
-        try:
-            float_val = float(value)
-            if self.min_val is not None and float_val < self.min_val:
-                return False
-            if self.max_val is not None and float_val > self.max_val:
-                return False
-            return True
-        except (ValueError, TypeError):
+        if self.min_val is not None and value < self.min_val:
             return False
+        if self.max_val is not None and value > self.max_val:
+            return False
+        return True
 
     def __reduce__(self):
         """Support pickling for multiprocessing."""
