@@ -53,6 +53,16 @@ def _sanitize_numeric_values(values):
     return [_sanitize_div_value(value) for value in values]
 
 
+def _value_at(array, index, default=0.0):
+    try:
+        return array[index]
+    except (IndexError, TypeError):
+        try:
+            return array[-1]
+        except (IndexError, TypeError):
+            return default
+
+
 def _maxlogic(values):
     return max(_sanitize_numeric_values(values))
 
@@ -109,6 +119,12 @@ class Logic(LineActions):
             max_minperiod = max(_minperiods)
             self.updateminperiod(max_minperiod)
 
+    def _next(self):
+        self.advance()
+        self.next()
+        for binding in self.bindings:
+            binding[0] = self[0]
+
 
 # Avoid division by zero when dividing two lines, if denominator is 0, division result is 0
 class DivByZero(Logic):
@@ -132,8 +148,8 @@ class DivByZero(Logic):
             zero: Value to return when division by zero occurs.
         """
         super().__init__(a, b)
-        self.a = a
-        self.b = b
+        self.a = self.args[0]
+        self.b = self.args[1]
         self.zero = zero
 
     def next(self):
@@ -160,8 +176,8 @@ class DivByZero(Logic):
             dst.append(0.0)
 
         for i in range(start, end):
-            a = _sanitize_div_value(srca[i])
-            b = _sanitize_div_value(srcb[i])
+            a = _sanitize_div_value(_value_at(srca, i))
+            b = _sanitize_div_value(_value_at(srcb, i))
             dst[i] = a / b if b else zero
 
 
@@ -189,8 +205,8 @@ class DivZeroByZero(Logic):
             dual: Value to return when both numerator and denominator are zero.
         """
         super().__init__(a, b)
-        self.a = a
-        self.b = b
+        self.a = self.args[0]
+        self.b = self.args[1]
         self.single = single
         self.dual = dual
 
@@ -222,8 +238,8 @@ class DivZeroByZero(Logic):
             dst.append(0.0)
 
         for i in range(start, end):
-            b = _sanitize_div_value(srcb[i])
-            a = _sanitize_div_value(srca[i])
+            b = _sanitize_div_value(_value_at(srcb, i))
+            a = _sanitize_div_value(_value_at(srca, i))
             if b == 0.0:
                 dst[i] = dual if a == 0.0 else single
             else:
@@ -270,7 +286,10 @@ class Cmp(Logic):
             dst.append(0.0)
 
         for i in range(start, end):
-            dst[i] = cmp(_sanitize_cmp_value(srca[i]), _sanitize_cmp_value(srcb[i]))
+            dst[i] = cmp(
+                _sanitize_cmp_value(_value_at(srca, i)),
+                _sanitize_cmp_value(_value_at(srcb, i)),
+            )
 
 
 # Compare two lines, a and b, return corresponding r1 value when a<b, return r2 value when a=b, return r3 value when a>b
@@ -308,11 +327,11 @@ class CmpEx(Logic):
         b0 = _sanitize_cmp_value(self.b[0])
 
         if a0 < b0:
-            self[0] = self.r1[0]
+            self[0] = _sanitize_div_value(self.r1[0])
         elif a0 > b0:
-            self[0] = self.r3[0]
+            self[0] = _sanitize_div_value(self.r3[0])
         else:
-            self[0] = self.r2[0]
+            self[0] = _sanitize_div_value(self.r2[0])
 
     def once(self, start, end):
         """Calculate all extended comparison values at once.
@@ -334,15 +353,15 @@ class CmpEx(Logic):
             dst.append(0.0)
 
         for i in range(start, end):
-            ai = _sanitize_cmp_value(srca[i])
-            bi = _sanitize_cmp_value(srcb[i])
+            ai = _sanitize_cmp_value(_value_at(srca, i))
+            bi = _sanitize_cmp_value(_value_at(srcb, i))
 
             if ai < bi:
-                dst[i] = r1[i]
+                dst[i] = _sanitize_div_value(_value_at(r1, i))
             elif ai > bi:
-                dst[i] = r3[i]
+                dst[i] = _sanitize_div_value(_value_at(r3, i))
             else:
-                dst[i] = r2[i]
+                dst[i] = _sanitize_div_value(_value_at(r2, i))
 
 
 # If statement, return corresponding a value when cond is satisfied, return b value when not satisfied
@@ -362,14 +381,16 @@ class If(Logic):
             a: Value to return when condition is True.
             b: Value to return when condition is False.
         """
-        super().__init__(a, b)
-        self.a = self.args[0]
-        self.b = self.args[1]
-        self.cond = self.arrayize(cond)
+        super().__init__(cond, a, b)
+        self.cond = self.args[0]
+        self.a = self.args[1]
+        self.b = self.args[2]
 
     def next(self):
         """Calculate the next conditional value."""
-        self[0] = self.a[0] if self.cond[0] else self.b[0]
+        cond_val = _sanitize_div_value(self.cond[0])
+        value = self.a[0] if cond_val else self.b[0]
+        self[0] = _sanitize_div_value(value)
 
     def _has_self_reference(self):
         """Check if this If operation has a self-referencing pattern.
@@ -550,8 +571,7 @@ class If(Logic):
                     except Exception:
                         val = 0.0
 
-            if val is None or (isinstance(val, float) and math.isnan(val)):
-                val = 0.0
+            val = _sanitize_div_value(val)
 
             dst[i] = val
 
@@ -705,10 +725,8 @@ class If(Logic):
             else:
                 b_val = 0.0
 
-            if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
-                a_val = 0.0
-            if b_val is None or (isinstance(b_val, float) and math.isnan(b_val)):
-                b_val = 0.0
+            a_val = _sanitize_div_value(a_val)
+            b_val = _sanitize_div_value(b_val)
 
             val = a_val if cond_bool else b_val
             dst[i] = val
@@ -749,7 +767,7 @@ class MultiLogic(Logic):
         flogic = self.flogic
 
         for i in range(start, end):
-            dst[i] = flogic([arr[i] for arr in arrays])
+            dst[i] = flogic([_value_at(arr, i) for arr in arrays])
 
 
 # Mainly uses functools.partial to generate partial function, functools.reduce, iterates function on a sequence

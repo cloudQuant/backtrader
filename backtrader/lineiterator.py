@@ -74,7 +74,22 @@ def _lineaction_source_clock(lineaction, seen=None):
         return None
 
     if seen is None:
+        try:
+            return lineaction._lineaction_source_clock_cache
+        except AttributeError:
+            pass
         seen = set()
+        cache_result = True
+    else:
+        cache_result = False
+
+    def finish(result):
+        if cache_result and result is not None:
+            try:
+                lineaction._lineaction_source_clock_cache = result
+            except Exception:
+                pass
+        return result
 
     action_id = id(lineaction)
     if action_id in seen:
@@ -90,9 +105,9 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(clock, LineActions):
             source_clock = _lineaction_source_clock(clock, seen)
             if source_clock is not None:
-                return source_clock
+                return finish(source_clock)
         else:
-            return clock
+            return finish(clock)
 
     for attr in ("_parent_a", "_parent_b", "a", "b", "cond"):
         try:
@@ -103,7 +118,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(dependency, LineActions):
             source_clock = _lineaction_source_clock(dependency, seen)
             if source_clock is not None:
-                return source_clock
+                return finish(source_clock)
 
         try:
             dep_clock = dependency._clock
@@ -114,7 +129,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             and dep_clock.__class__.__name__ != "MinimalClock"
             and not isinstance(dep_clock, LineActions)
         ):
-            return dep_clock
+            return finish(dep_clock)
 
     try:
         args = lineaction.args
@@ -125,7 +140,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(dependency, LineActions):
             source_clock = _lineaction_source_clock(dependency, seen)
             if source_clock is not None:
-                return source_clock
+                return finish(source_clock)
 
         try:
             dep_clock = dependency._clock
@@ -136,7 +151,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             and dep_clock.__class__.__name__ != "MinimalClock"
             and not isinstance(dep_clock, LineActions)
         ):
-            return dep_clock
+            return finish(dep_clock)
 
     try:
         datas = lineaction.datas
@@ -147,7 +162,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         if isinstance(data, LineActions):
             source_clock = _lineaction_source_clock(data, seen)
             if source_clock is not None:
-                return source_clock
+                return finish(source_clock)
 
         try:
             data_clock = data._clock
@@ -158,7 +173,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             and data_clock.__class__.__name__ != "MinimalClock"
             and not isinstance(data_clock, LineActions)
         ):
-            return data_clock
+            return finish(data_clock)
 
     return None
 
@@ -1825,6 +1840,25 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if self._ltype != LineIterator.StratType and clock_len == prev_len and not replaying:
             return
 
+        try:
+            datas = self.datas
+        except AttributeError:
+            datas = ()
+
+        for data in datas:
+            if not isinstance(data, LineActions) or not hasattr(data, "_next"):
+                continue
+
+            data_clock = _lineaction_source_clock(data) or getattr(data, "_clock", None)
+            if data_clock is not None:
+                try:
+                    if len(data_clock) <= len(data):
+                        continue
+                except Exception:
+                    pass
+
+            data._next()
+
         # Call _next for each indicator
         for indicator in self._lineiterators[LineIterator.IndType]:
             if hasattr(indicator, "_next"):
@@ -1832,6 +1866,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Call _notify function
         self._notify()
+
+        if self._ltype == LineIterator.StratType and hasattr(self, "_next_strategy_lineactions"):
+            self._next_strategy_lineactions()
 
         # If _ltype is Strategy type
         if self._ltype == LineIterator.StratType:

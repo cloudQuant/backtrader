@@ -1825,8 +1825,9 @@ class Cerebro(ParameterizedBase):
                     self._timerscheat.append(timer)
                 else:
                     self._timers.append(timer)
-            # Run the main loop; use try/finally to guarantee cleanup
-            # (_runnext handles its own exceptions; _runnext_old/_runonce_old do not)
+            # Run the main loop; keep cleanup deterministic, but never turn a
+            # strategy/runtime exception into a successful empty backtest.
+            run_exception = None
             try:
                 # If _dopreload and _dorunonce are True
                 if self._dopreload and self._dorunonce:
@@ -1842,8 +1843,9 @@ class Cerebro(ParameterizedBase):
                         self._runnext_old(runstrats)
                     else:
                         self._runnext(runstrats)
-            except Exception:
-                logger.exception("Unhandled exception in run loop, proceeding with cleanup")
+            except Exception as exc:
+                run_exception = exc
+                logger.exception("Unhandled exception in run loop, cleaning up before re-raising")
             finally:
                 # Iterate strategies and stop running (always runs)
                 for strat in runstrats:
@@ -1862,6 +1864,8 @@ class Cerebro(ParameterizedBase):
             store.stop()
         # Stop writer
         self.stop_writers(runstrats)
+        if run_exception is not None:
+            raise run_exception
         # If doing parameter optimization and optreturn is True, get strategy results and add to results
         if self._dooptimize and self.p.optreturn:
             # Results can be optimized
@@ -2266,7 +2270,7 @@ class Cerebro(ParameterizedBase):
                 return
         except Exception:
             logger.exception("Unhandled exception in _runnext")
-            self._run_exception = getattr(self, '_run_exception', None) or True
+            raise
 
     # runonce
     def _runonce(self, runstrats):

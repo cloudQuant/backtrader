@@ -701,7 +701,14 @@ class LineBuffer(LineSingle, LineRootMixin):
         arr = self.array
         arr_len = len(arr)
         if arr_len > 0:
-            del arr[max(0, arr_len - size) :]
+            remove_count = min(size, arr_len)
+            try:
+                del arr[arr_len - remove_count :]
+            except TypeError:
+                # qbuffer/exactbars uses deque, which does not support slice
+                # deletion. Remove newest values explicitly in that mode.
+                for _ in range(remove_count):
+                    arr.pop()
 
     # Move backward one step (original backwards was overridden)
     def safe_backwards(self, size=1):
@@ -1955,7 +1962,7 @@ class _LineForward(LineActions):
                 try:
                     a_val = self.a[0]
                 except (IndexError, TypeError):
-                    a_val = 0.0
+                    a_val = float("nan")
             else:
                 # Direct value
                 a_val = self.a
@@ -1965,31 +1972,36 @@ class _LineForward(LineActions):
                 try:
                     b_val = self.b[0]
                 except (IndexError, TypeError):
-                    b_val = 0.0
+                    b_val = float("nan")
             else:
                 # Direct value
                 b_val = self.b
 
-            # CRITICAL FIX: Ensure values are numeric and not None/NaN
-            if a_val is None:
-                a_val = 0.0
-            elif isinstance(a_val, float) and not math.isfinite(a_val):
+            # Preserve indicator warmup semantics. NaN/None operands must
+            # remain NaN instead of becoming valid trading signals.
+            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
+                self[0] = float("nan")
+                return
+            if isinstance(a_val, float) and not math.isfinite(a_val):
                 a_val = 0.0
             elif not isinstance(a_val, (int, float)):
                 try:
                     a_val = float(a_val)
                 except (ValueError, TypeError):
-                    a_val = 0.0
+                    self[0] = float("nan")
+                    return
 
-            if b_val is None:
-                b_val = 0.0
-            elif isinstance(b_val, float) and not math.isfinite(b_val):
+            if b_val is None or (isinstance(b_val, float) and b_val != b_val):
+                self[0] = float("nan")
+                return
+            if isinstance(b_val, float) and not math.isfinite(b_val):
                 b_val = 0.0
             elif not isinstance(b_val, (int, float)):
                 try:
                     b_val = float(b_val)
                 except (ValueError, TypeError):
-                    b_val = 0.0
+                    self[0] = float("nan")
+                    return
 
             # CRITICAL FIX: Actually perform the operation and store the result
             # Handle both normal and reverse operations
@@ -2002,14 +2014,17 @@ class _LineForward(LineActions):
 
                 # Ensure result is a valid number
                 if result is None:
-                    result = 0.0
+                    result = float("nan")
                 elif isinstance(result, float) and not math.isfinite(result):
-                    result = 0.0
+                    if result != result:
+                        result = float("nan")
+                    else:
+                        result = 0.0
                 elif not isinstance(result, (int, float)):
                     try:
                         result = float(result)
                     except (ValueError, TypeError):
-                        result = 0.0
+                        result = float("nan")
 
                 # Store the result in the current position
                 self[0] = result
@@ -2119,6 +2134,78 @@ class LinesOperation(LineActions):
         max_minperiod = max(a_minperiod, b_minperiod)
         self.updateminperiod(max_minperiod)
 
+        self._a_minperiod = a_minperiod
+        self._b_minperiod = b_minperiod
+        self._a_guard_minperiod = self._needs_minperiod_guard(self.a)
+        self._b_guard_minperiod = self._needs_minperiod_guard(self.b)
+        self._next_operands = tuple(
+            operand
+            for operand in (self.a, self.b)
+            if operand is not self and isinstance(operand, LineActions) and hasattr(operand, "_next")
+        )
+
+    @staticmethod
+    def _is_constant_operand(operand):
+        """Return True for constants wrapped as LineDelay(PseudoArray)."""
+        return (
+            operand.__class__.__name__ == "_LineDelay"
+            and getattr(operand, "a", None).__class__.__name__ == "PseudoArray"
+        )
+
+    @staticmethod
+    def _is_line_delay_operand(operand):
+        return operand.__class__.__name__ == "_LineDelay"
+
+    @classmethod
+    def _needs_minperiod_guard(cls, operand):
+        return (
+            not cls._is_constant_operand(operand)
+            and not cls._is_line_delay_operand(operand)
+            and hasattr(operand, "__len__")
+            and hasattr(operand, "_minperiod")
+        )
+
+    @staticmethod
+    def _is_missing(value):
+        return value is None or (isinstance(value, float) and value != value)
+
+    def _operand_value(self, operand, ago=0, guard_minperiod=False, minperiod=1):
+        """Read an operand while preserving indicator warmup NaN semantics."""
+        if guard_minperiod:
+            try:
+                target_len = len(operand) + ago
+                if target_len < minperiod:
+                    return float("nan")
+            except Exception:
+                pass
+
+        if hasattr(operand, "__getitem__"):
+            return operand[ago]
+        return operand
+
+    def _normalize_operand(self, value):
+        if self._is_missing(value):
+            return float("nan")
+        if isinstance(value, float) and not math.isfinite(value):
+            return 0.0
+        if isinstance(value, (int, float)):
+            return value
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return float("nan")
+
+    def _next_operand_if_due(self, operand):
+        clock = getattr(operand, "_clock", None)
+        if clock is not None:
+            try:
+                if len(clock) <= len(operand):
+                    return
+            except Exception:
+                pass
+
+        operand._next()
+
     def _find_parent_indicator(self, operand):
         """Find the parent indicator that owns this operand (LineBuffer)"""
         # If operand is already an indicator (has _once method), return it
@@ -2148,30 +2235,35 @@ class LinesOperation(LineActions):
                 target_idx = current_idx + ago
                 if 0 <= target_idx < len(self.array):
                     value = self.array[target_idx]
-                    if value is not None and value == value:  # not NaN
-                        if isinstance(value, float) and not math.isfinite(value):
+                    if value is None:
+                        return float("nan")
+                    if isinstance(value, float):
+                        if value != value:
+                            return float("nan")
+                        if not math.isfinite(value):
                             return 0.0
-                        return value
+                    return value
 
-            # Fallback: compute value dynamically from source operands
-            a_val = self.a[ago] if hasattr(self.a, "__getitem__") else self.a
-            b_val = self.b[ago] if hasattr(self.b, "__getitem__") else self.b
+            # Fallback: compute value dynamically from source operands.
+            a_val = self._normalize_operand(
+                self._operand_value(self.a, ago, self._a_guard_minperiod, self._a_minperiod)
+            )
+            b_val = self._normalize_operand(
+                self._operand_value(self.b, ago, self._b_guard_minperiod, self._b_minperiod)
+            )
 
-            # Handle None/NaN values
-            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
+            if self._is_missing(a_val):
                 return float("nan")
-            if b_val is None or (isinstance(b_val, float) and b_val != b_val):
+            if self._is_missing(b_val):
                 return float("nan")
-            if isinstance(a_val, float) and not math.isfinite(a_val):
-                a_val = 0.0
-            if isinstance(b_val, float) and not math.isfinite(b_val):
-                b_val = 0.0
 
             # Compute and return the operation result
             if self.r:
                 result = self.operation(b_val, a_val)
             else:
                 result = self.operation(a_val, b_val)
+            if self._is_missing(result):
+                return float("nan")
             if isinstance(result, float) and not math.isfinite(result):
                 return 0.0
             return result
@@ -2182,6 +2274,9 @@ class LinesOperation(LineActions):
         """CRITICAL FIX: _next() method for compatibility with LineIterator processing loop.
         This method is called by LineIterator._next() for items in _lineiterators[IndType].
         """
+        for operand in self._next_operands:
+            self._next_operand_if_due(operand)
+
         # Advance the line buffer
         self.advance()
         # Call next() to compute the value
@@ -2199,47 +2294,16 @@ class LinesOperation(LineActions):
         # operation(float, other) ... expecting other to be a float
         # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
         try:
-            # Get operand values with proper type checking
-            if hasattr(self.a, "__getitem__"):
-                # LineBuffer-like object - get current value
-                try:
-                    a_val = self.a[0]
-                except (IndexError, TypeError):
-                    a_val = 0.0
-            else:
-                # Direct value
-                a_val = self.a
+            a_val = self._normalize_operand(
+                self._operand_value(self.a, 0, self._a_guard_minperiod, self._a_minperiod)
+            )
+            b_val = self._normalize_operand(
+                self._operand_value(self.b, 0, self._b_guard_minperiod, self._b_minperiod)
+            )
 
-            if hasattr(self.b, "__getitem__"):
-                # LineBuffer-like object - get current value
-                try:
-                    b_val = self.b[0]
-                except (IndexError, TypeError):
-                    b_val = 0.0
-            else:
-                # Direct value
-                b_val = self.b
-
-            # CRITICAL FIX: Ensure values are numeric and not None/NaN
-            if a_val is None:
-                a_val = 0.0
-            elif isinstance(a_val, float) and not math.isfinite(a_val):
-                a_val = 0.0
-            elif not isinstance(a_val, (int, float)):
-                try:
-                    a_val = float(a_val)
-                except (ValueError, TypeError):
-                    a_val = 0.0
-
-            if b_val is None:
-                b_val = 0.0
-            elif isinstance(b_val, float) and not math.isfinite(b_val):
-                b_val = 0.0
-            elif not isinstance(b_val, (int, float)):
-                try:
-                    b_val = float(b_val)
-                except (ValueError, TypeError):
-                    b_val = 0.0
+            if self._is_missing(a_val) or self._is_missing(b_val):
+                self[0] = float("nan")
+                return
 
             # CRITICAL FIX: Actually perform the operation and store the result
             # Handle both normal and reverse operations
@@ -2252,14 +2316,17 @@ class LinesOperation(LineActions):
 
                 # Ensure result is a valid number
                 if result is None:
-                    result = 0.0
+                    result = float("nan")
                 elif isinstance(result, float) and not math.isfinite(result):
-                    result = 0.0
+                    if result != result:
+                        result = float("nan")
+                    else:
+                        result = 0.0
                 elif not isinstance(result, (int, float)):
                     try:
                         result = float(result)
                     except (ValueError, TypeError):
-                        result = 0.0
+                        result = float("nan")
 
                 # Store the result in the current position
                 self[0] = result
@@ -2268,8 +2335,7 @@ class LinesOperation(LineActions):
                 self[0] = a_val
 
         except Exception:
-            # If anything fails, store 0.0 to prevent crashes
-            self[0] = 0.0
+            self[0] = float("nan")
 
     def once(self, start, end):
         """Calculate operation results in batch mode (runonce).

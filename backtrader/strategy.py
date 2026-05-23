@@ -482,6 +482,15 @@ class Strategy(StrategyBase):
         """Yield LineActions stored as strategy attributes."""
         from .linebuffer import LineActions
 
+        try:
+            cache = object.__getattribute__(self, "_strategy_lineactions_cache")
+        except AttributeError:
+            cache = None
+
+        if cache is not None:
+            yield from cache
+            return
+
         seen = set()
         registered = set()
 
@@ -514,9 +523,6 @@ class Strategy(StrategyBase):
             seen.add(value_id)
 
             if isinstance(value, LineActions):
-                if value_id not in registered:
-                    yield value
-
                 for attr_name in ("_parent_a", "_parent_b", "a", "b", "cond"):
                     try:
                         dependency = getattr(value, attr_name)
@@ -530,6 +536,9 @@ class Strategy(StrategyBase):
                     args = ()
                 for dependency in args:
                     yield from visit(dependency)
+
+                if value_id not in registered:
+                    yield value
 
                 return
 
@@ -545,14 +554,39 @@ class Strategy(StrategyBase):
         except AttributeError:
             attrs = {}
 
+        result = []
         for attr_name, attr_value in attrs.items():
             if attr_name.startswith("_"):
                 continue
-            yield from visit(attr_value)
+            result.extend(visit(attr_value))
+
+        cache = tuple(result)
+        object.__setattr__(self, "_strategy_lineactions_cache", cache)
+        yield from cache
+
+    def _get_strategy_lineactions(self):
+        try:
+            return object.__getattribute__(self, "_strategy_lineactions_cache")
+        except AttributeError:
+            return tuple(self._iter_strategy_lineactions())
+
+    def _get_strategy_next_lineactions(self):
+        try:
+            return object.__getattribute__(self, "_strategy_next_lineactions_cache")
+        except AttributeError:
+            pass
+
+        cache = tuple(
+            (lineaction, getattr(lineaction, "_clock", None))
+            for lineaction in self._get_strategy_lineactions()
+            if hasattr(lineaction, "_next")
+        )
+        object.__setattr__(self, "_strategy_next_lineactions_cache", cache)
+        return cache
 
     def _stage2(self):
         super()._stage2()
-        for lineaction in self._iter_strategy_lineactions():
+        for lineaction in self._get_strategy_lineactions():
             try:
                 lineaction._stage2()
             except Exception:
@@ -560,11 +594,28 @@ class Strategy(StrategyBase):
 
     def _stage1(self):
         super()._stage1()
-        for lineaction in self._iter_strategy_lineactions():
+        for lineaction in self._get_strategy_lineactions():
             try:
                 lineaction._stage1()
             except Exception:
                 logger.debug("Failed to stage1 strategy LineActions", exc_info=True)
+
+    def _next_strategy_lineactions(self):
+        """Advance LineActions stored directly on the strategy.
+
+        LineActions created as strategy attributes, such as bt.Cmp/bt.If/bt.Max,
+        are not LineIterator indicators. They still need to be evaluated before
+        user next/prenext/nextstart reads them.
+        """
+        for lineaction, clock in self._get_strategy_next_lineactions():
+            if clock is not None:
+                try:
+                    if len(clock) <= len(lineaction):
+                        continue
+                except Exception:
+                    pass
+
+            lineaction._next()
 
     def _periodset(self):
         """Calculate and set the minimum period required for strategy execution.
@@ -960,6 +1011,8 @@ class Strategy(StrategyBase):
             self._last_valid_datetime = dt
         # Notify
         self._notify()
+
+        self._next_strategy_lineactions()
 
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
         # This ensures len(indicator) == len(strategy) at the end of processing
