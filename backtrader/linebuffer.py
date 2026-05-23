@@ -536,7 +536,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                 value = 1.0
 
         # Calculate the required index
-        required_index = self.idx + ago
+        required_index = self._idx + ago
 
         # Handle index out of bounds - fast path
         array_len = len(array)
@@ -602,7 +602,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # Array is always initialized in __init__, use direct access
         arr = self.array
-        required_index = self.idx + ago
+        required_index = self._idx + ago
         arr_len = len(arr)
         if required_index >= arr_len:
             fill_value = self._default_value
@@ -674,7 +674,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         if size <= 0:
             return
 
-        self.idx += size
+        if self.mode == self.QBuffer:
+            self.idx = self._idx + size
+        else:
+            self._idx += size
         self.lencount += size
 
         append_val = value
@@ -694,7 +697,11 @@ class LineBuffer(LineSingle, LineRootMixin):
                           regardless of the minperiod
         """
         # CRITICAL FIX: Match master behavior - use set_idx for force support and pop array elements
-        self.set_idx(self._idx - size, force=force)
+        new_idx = self._idx - size
+        if self.mode == self.QBuffer:
+            self.set_idx(new_idx, force=force)
+        else:
+            self._idx = new_idx
         self.lencount -= size
         # PERFORMANCE OPTIMIZATION: Use slice deletion instead of loop pop
         # Called 3.4M+ times, batch deletion is faster than loop
@@ -736,7 +743,10 @@ class LineBuffer(LineSingle, LineRootMixin):
             size: Number of positions to rewind.
         """
         # PERF: idx and lencount are always initialized in __init__
-        self.idx -= size
+        if self.mode == self.QBuffer:
+            self.idx = self._idx - size
+        else:
+            self._idx -= size
         self.lencount -= size
 
     # Increase idx and lencount by size
@@ -744,7 +754,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         """Advances the logical index without touching the underlying buffer"""
         # CRITICAL FIX: Remove hasattr checks - attributes are always initialized in __init__
         # The hasattr checks were preventing proper advancement
-        self.idx += size
+        if self.mode == self.QBuffer:
+            self.idx = self._idx + size
+        else:
+            self._idx += size
         self.lencount += size
 
     # Extend forward
