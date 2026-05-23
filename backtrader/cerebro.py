@@ -2151,12 +2151,18 @@ class Cerebro(ParameterizedBase):
                 # from the qcheck value
                 # Record start time and notify feed to subtract elapsed time from qcheck
                 drets = []
-                qstart = datetime.datetime.now(UTC)
-                for d in datas:
-                    qlapse = datetime.datetime.now(UTC) - qstart
-                    d.do_qcheck(newqcheck, qlapse.total_seconds())
-                    d_next = d.next(ticks=False)
-                    drets.append(d_next)
+                if newqcheck and any(d.p.qcheck for d in datas):
+                    qstart = datetime.datetime.now(UTC)
+                    for d in datas:
+                        qlapse = datetime.datetime.now(UTC) - qstart
+                        d.do_qcheck(newqcheck, qlapse.total_seconds())
+                        d_next = d.next(ticks=False)
+                        drets.append(d_next)
+                else:
+                    for d in datas:
+                        d.do_qcheck(False, 0.0)
+                        d_next = d.next(ticks=False)
+                        drets.append(d_next)
                 # Iterate drets, if d0ret is False and any dret is None, d0ret is None
                 d0ret = any(dret for dret in drets)
                 if not d0ret and any(dret is None for dret in drets):

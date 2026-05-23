@@ -44,7 +44,6 @@ import datetime
 import inspect
 import itertools
 import logging
-import operator
 
 logger = logging.getLogger(__name__)
 
@@ -934,8 +933,19 @@ class Strategy(StrategyBase):
             int: Maximum value of (minperiod - current_length) across all data feeds.
                  Negative values indicate all minimum periods are satisfied.
         """
-        dlens = map(operator.sub, self._minperiods, map(len, self.datas))
-        self._minperstatus = minperstatus = max(dlens)
+        data_iter = iter(zip(self._minperiods, self.datas))
+        try:
+            minperiod, data = next(data_iter)
+        except StopIteration:
+            raise ValueError("max() arg is an empty sequence")
+
+        minperstatus = minperiod - len(data)
+        for minperiod, data in data_iter:
+            status = minperiod - len(data)
+            if status > minperstatus:
+                minperstatus = status
+
+        self._minperstatus = minperstatus
         return minperstatus
 
     def prenext_open(self):
@@ -1074,16 +1084,20 @@ class Strategy(StrategyBase):
             clk_len = super()._clk_update()
             # Set datetime
             if self.datas:
-                valid_datetimes = [
-                    d.datetime[0]
-                    for d in self.datas
-                    if len(d)
-                    and isinstance(d.datetime[0], (int, float))
-                    and math.isfinite(d.datetime[0])
-                    and d.datetime[0] > 0
-                ]
-                if valid_datetimes:
-                    self.lines.datetime[0] = max(valid_datetimes)
+                max_datetime = None
+                for data in self.datas:
+                    if not len(data):
+                        continue
+                    dt_value = data.datetime[0]
+                    if (
+                        isinstance(dt_value, (int, float))
+                        and math.isfinite(dt_value)
+                        and dt_value > 0
+                    ):
+                        if max_datetime is None or dt_value > max_datetime:
+                            max_datetime = dt_value
+                if max_datetime is not None:
+                    self.lines.datetime[0] = max_datetime
             # Return data length
             return clk_len
 
@@ -1091,23 +1105,28 @@ class Strategy(StrategyBase):
         if not hasattr(self, "_dlens"):
             self._dlens = [len(d) for d in self.datas]
 
-        # Current new data lengths
-        newdlens = [len(d) for d in self.datas]
+        # Current new data lengths and valid datetimes in a single pass.
+        newdlens = []
+        max_datetime = None
+        for data in self.datas:
+            data_len = len(data)
+            newdlens.append(data_len)
+            if data_len:
+                dt_value = data.datetime[0]
+                if (
+                    isinstance(dt_value, (int, float))
+                    and math.isfinite(dt_value)
+                    and dt_value > 0
+                ):
+                    if max_datetime is None or dt_value > max_datetime:
+                        max_datetime = dt_value
+
         # If new data length > old data length, forward
         if any(nl > old_len for old_len, nl in zip(self._dlens, newdlens)):
             self.forward()
         # Set datetime to max of current datetimes - only update if we have valid datetimes
-        if self.datas:
-            valid_datetimes = [
-                d.datetime[0]
-                for d in self.datas
-                if len(d)
-                and isinstance(d.datetime[0], (int, float))
-                and math.isfinite(d.datetime[0])
-                and d.datetime[0] > 0
-            ]
-            if valid_datetimes:
-                self.lines.datetime[0] = max(valid_datetimes)
+        if max_datetime is not None:
+            self.lines.datetime[0] = max_datetime
         # Old data length equals new data length
         self._dlens = newdlens
 

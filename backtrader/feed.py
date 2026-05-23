@@ -415,9 +415,11 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         """
         # if onoff is True, the data will wait p.qcheck for incoming live data
         # on its queue.
-        qwait = self.p.qcheck if onoff else 0.0
-        qwait = max(0.0, qwait - qlapse)
-        self._qcheck = qwait
+        if not onoff:
+            self._qcheck = 0.0
+            return
+
+        self._qcheck = max(0.0, self.p.qcheck - qlapse)
 
     # Whether is live data; default is False; if True, cerebro will not use preload and runonce, because live data needs
     # to be fetched tick by tick or bar by bar
