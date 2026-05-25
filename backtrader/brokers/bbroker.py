@@ -866,6 +866,13 @@ class BackBroker(BrokerBase):
             data_iterable = list(datas) if datas is not None else None
             single_data_request = data_iterable is not None and len(data_iterable) == 1
             for data in data_iterable or (set(self.long_positions) | set(self.short_positions) | set(self.positions)):
+                long_position = self.long_positions[self._position_storage_key(data)]
+                short_position = self.short_positions[self._position_storage_key(data)]
+                if not long_position.size and not short_position.size:
+                    if single_data_request:
+                        return 0.0
+                    continue
+
                 comminfo = getcommissioninfo(data)
                 close0 = data.close[0]
                 leverage = comminfo.get_leverage()
@@ -875,8 +882,8 @@ class BackBroker(BrokerBase):
                 data_unrealized = 0.0
 
                 for _position_side, leg_position in (
-                    (POSITION_SIDE_LONG, self.long_positions[self._position_storage_key(data)]),
-                    (POSITION_SIDE_SHORT, self.short_positions[self._position_storage_key(data)]),
+                    (POSITION_SIDE_LONG, long_position),
+                    (POSITION_SIDE_SHORT, short_position),
                 ):
                     if not leg_position.size:
                         continue
@@ -921,6 +928,10 @@ class BackBroker(BrokerBase):
                 comminfo = getcommissioninfo(data)
                 # Get data position
                 position = positions[data]
+                if not position:
+                    if datas and len(datas) == 1:
+                        return 0.0
+                    continue
                 close0 = data.close[0]
                 # use valuesize:  returns raw value, rather than negative adj val
                 # If shortcash is False, use comminfo.getvalue to get data value

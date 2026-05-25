@@ -179,3 +179,6 @@ assets/
 bandit-report.json
 fix_readme.py
 optimize_code.sh
+
+tests/functional/datas/
+tests/functional/strategies_regression/

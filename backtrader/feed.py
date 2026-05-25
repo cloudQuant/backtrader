@@ -1286,6 +1286,8 @@ class DataClone(AbstractDataBase):
 
         # Get dataname and set it as self.data
         dataname = kwargs.get("dataname")
+        if dataname is None and hasattr(self, "p"):
+            dataname = getattr(self.p, "dataname", None)
         if dataname is None:
             raise ValueError("DataClone requires 'dataname' parameter")
 

@@ -20,8 +20,10 @@ REM Default configuration
 set WORKERS=8
 set TIMEOUT=45
 set TEST_PATH=tests
+set TEST_PATH_SPECIFIED=0
 set VERBOSE=
 set FILTER=
+set IGNORE_ARGS=
 set LOG_FILE=test_results.log
 
 REM Parse command line arguments
@@ -41,6 +43,7 @@ if "%~1"=="-t" (
 )
 if "%~1"=="-p" (
     set TEST_PATH=%~2
+    set TEST_PATH_SPECIFIED=1
     shift
     shift
     goto :parse_args
@@ -70,6 +73,10 @@ if "%~1"=="-h" (
 shift
 goto :parse_args
 :done_args
+
+if "%TEST_PATH_SPECIFIED%"=="0" (
+    set IGNORE_ARGS=--ignore=tests/functional/strategies_regression
+)
 
 REM Clean up old temp directories that may cause permission issues
 REM Use cmd for cleanup (more reliable on Windows)
@@ -106,7 +113,7 @@ echo.
 echo Running tests...
 echo.
 
-python -m pytest %TEST_PATH% -n %WORKERS% --timeout=%TIMEOUT% --timeout-method=thread --tb=short --disable-warnings -q --basetemp=%BASETEMP% %VERBOSE% %FILTER% 2>&1 | powershell -NoProfile -Command "$input | Tee-Object -FilePath '%LOG_FILE%' -Append"
+python -m pytest %TEST_PATH% -n %WORKERS% --timeout=%TIMEOUT% --timeout-method=thread --tb=short --disable-warnings -q --basetemp=%BASETEMP% %IGNORE_ARGS% %VERBOSE% %FILTER% 2>&1 | powershell -NoProfile -Command "$input | Tee-Object -FilePath '%LOG_FILE%' -Append"
 
 REM Clean up the temp directory after tests
 rd /s /q %BASETEMP% 2>nul
