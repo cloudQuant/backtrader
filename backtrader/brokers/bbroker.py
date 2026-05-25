@@ -794,10 +794,22 @@ class BackBroker(BrokerBase):
         Returns:
             bool: True if order was cancelled, False if not found
         """
-        try:
-            self.pending.remove(order)
-        except ValueError:
-            # If the list didn't have the element we didn't cancel anything
+        if order is None or not order.alive():
+            return False
+
+        if order.status not in (Order.Submitted, Order.Accepted, Order.Partial):
+            return False
+
+        removed = False
+        for queue in (self.pending, self.submitted):
+            try:
+                queue.remove(order)
+            except ValueError:
+                continue
+            removed = True
+            break
+
+        if not removed:
             return False
 
         order.cancel()
