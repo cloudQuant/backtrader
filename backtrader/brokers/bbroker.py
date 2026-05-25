@@ -681,9 +681,12 @@ class BackBroker(bt.BrokerBase):
                 order.data, self.positions[order.data].clone())
             # pseudo-execute the order to get the remaining cash after exec
             # 假设执行订单之后获取的现金
-            cash = self._execute(order, cash=cash, position=position)
+            trial_position = position.clone()
+            trial_cash = self._execute(order, cash=cash, position=trial_position)
             # 如果剩余的现金大于0，调用submit_accept接受订单
-            if cash >= 0.0:
+            if trial_cash >= 0.0:
+                cash = trial_cash
+                positions[order.data] = trial_position
                 self.submit_accept(order)
                 continue
             # 如果cash是小于0的话，保证金不足，通知order的状态，调用_ococheck和_bracketize
