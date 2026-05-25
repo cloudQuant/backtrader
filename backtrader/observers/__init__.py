@@ -14,4 +14,5 @@ from .drawdown import *
 from .timereturn import *
 from .benchmark import *
 
+from .trade_logger import TradeLogger
 from .logreturns import *

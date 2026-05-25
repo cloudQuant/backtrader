@@ -103,6 +103,50 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # keep the latest delivered data date in the line
     # 保存最新的数据的日期
     lines = ('datetime',)
+
+    def _notify_signal_to_observers(self, action, size, price, data=None, reason=None):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "log_signal"):
+                    data_name = getattr(data, "_name", None) if data else None
+                    observer.log_signal(action, size, price, data_name, reason)
+
+    def _notify_order_to_observers(self, order):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_order"):
+                    observer.notify_order(order)
+
+    def _notify_trade_to_observers(self, trade):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_trade"):
+                    observer.notify_trade(trade)
+
+    def _notify_store_to_observers(self, msg, *args, **kwargs):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_store_event"):
+                    observer.notify_store_event(msg, *args, **kwargs)
+
+    def _notify_data_to_observers(self, data, status, *args, **kwargs):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_data_event"):
+                    observer.notify_data_event(data, status, *args, **kwargs)
+
+    def _notify_tick_to_observers(self, tick):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_tick_event"):
+                    observer.notify_tick_event(tick)
+
+    def _notify_bar_to_observers(self, bar):
+        if hasattr(self, "stats") and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, "notify_bar_event"):
+                    observer.notify_bar_event(bar)
+
     # 缓存数据
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
@@ -552,6 +596,9 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 结束analyzer和observer的analyzer
         for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
             analyzer._stop()
+        for observer in self._lineiterators[LineIterator.ObsType]:
+            if hasattr(observer, "stop"):
+                observer.stop()
 
         # change operators back to stage 1 - allows reuse of datas
         # 把操作状态转变为状态1,允许重新使用数据
@@ -684,12 +731,14 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             for analyzer in itertools.chain(self.analyzers,
                                             self._slave_analyzers):
                 analyzer._notify_order(order)
+            self._notify_order_to_observers(order)
         # 循环待处理的trade，进行通知，并对于analyzer和observer中的analyzer进行通知
         for trade in proctrades:
             self.notify_trade(trade)
             for analyzer in itertools.chain(self.analyzers,
                                             self._slave_analyzers):
                 analyzer._notify_trade(trade)
+            self._notify_trade_to_observers(trade)
         # 如果qorders是空的话，通知结束
         if qorders:
             return  # cash is notified on a regular basis
@@ -882,6 +931,12 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     def notify_data(self, data, status, *args, **kwargs):
         """Receives a notification from data"""
         pass
+
+    def notify_tick(self, tick):
+        self._notify_tick_to_observers(tick)
+
+    def notify_bar(self, bar):
+        self._notify_bar_to_observers(bar)
 
     # 获取存在的数据名称
     def getdatanames(self):
@@ -1104,13 +1159,19 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         size = size if size is not None else self.getsizing(data, isbuy=True)
         # 如果size不同于0
         if size:
-            return self.broker.buy(
+            order = self.broker.buy(
                 self, data,
                 size=abs(size), price=price, plimit=plimit,
                 exectype=exectype, valid=valid, tradeid=tradeid, oco=oco,
                 trailamount=trailamount, trailpercent=trailpercent,
                 parent=parent, transmit=transmit,
                 **kwargs)
+            signal_price = (
+                price if price is not None else
+                (data.close[0] if hasattr(data, "close") and hasattr(data.close, "__getitem__") else 0)
+            )
+            self._notify_signal_to_observers("buy", abs(size), signal_price, data)
+            return order
 
         return None
 
@@ -1135,13 +1196,19 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         size = size if size is not None else self.getsizing(data, isbuy=False)
 
         if size:
-            return self.broker.sell(
+            order = self.broker.sell(
                 self, data,
                 size=abs(size), price=price, plimit=plimit,
                 exectype=exectype, valid=valid, tradeid=tradeid, oco=oco,
                 trailamount=trailamount, trailpercent=trailpercent,
                 parent=parent, transmit=transmit,
                 **kwargs)
+            signal_price = (
+                price if price is not None else
+                (data.close[0] if hasattr(data, "close") and hasattr(data.close, "__getitem__") else 0)
+            )
+            self._notify_signal_to_observers("sell", abs(size), signal_price, data)
+            return order
 
         return None
 

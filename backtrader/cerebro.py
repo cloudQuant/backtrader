@@ -791,6 +791,8 @@ class Cerebro(with_metaclass(MetaParams, object)):
                 self._notify_store(msg, *args, **kwargs)
                 for strat in self.runningstrats:
                     strat.notify_store(msg, *args, **kwargs)
+                    if hasattr(strat, "_notify_store_to_observers"):
+                        strat._notify_store_to_observers(msg, *args, **kwargs)
 
     # 增加一个callable用于获取notify_data通知的信息
     def adddatacb(self, callback):
@@ -816,6 +818,8 @@ class Cerebro(with_metaclass(MetaParams, object)):
                 self._notify_data(data, status, *args, **kwargs)
                 for strat in self.runningstrats:
                     strat.notify_data(data, status, *args, **kwargs)
+                    if hasattr(strat, "_notify_data_to_observers"):
+                        strat._notify_data_to_observers(data, status, *args, **kwargs)
 
     # 通知数据信息
     def _notify_data(self, data, status, *args, **kwargs):
