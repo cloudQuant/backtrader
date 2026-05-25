@@ -2,21 +2,21 @@
 
 English | [中文](README.md)
 
-[![Tests](https://github.com/yunjinqi/backtrader/actions/workflows/tests.yml/badge.svg)](https://github.com/yunjinqi/backtrader/actions/workflows/tests.yml)
-[![Build](https://github.com/yunjinqi/backtrader/actions/workflows/publish.yml/badge.svg)](https://github.com/yunjinqi/backtrader/actions/workflows/publish.yml)
-[![CodeQL](https://github.com/yunjinqi/backtrader/actions/workflows/codeql.yml/badge.svg)](https://github.com/yunjinqi/backtrader/actions/workflows/codeql.yml)
-[![Python Versions](https://img.shields.io/pypi/pyversions/backtrader.svg)](https://pypi.org/project/backtrader/)
-[![PyPI Version](https://img.shields.io/pypi/v/backtrader.svg)](https://pypi.org/project/backtrader/)
-[![License](https://img.shields.io/badge/license-GPL-blue.svg)](LICENSE)
+[![CI Tests](https://github.com/cloudQuant/backtrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/cloudQuant/backtrader/actions/workflows/tests.yml)
+[![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-GPL%203.0-green)](LICENSE)
+[![Code style: flake8](https://img.shields.io/badge/code%20style-flake8-black)](https://flake8.pycqa.org/)
+[![GitHub stars](https://img.shields.io/github/stars/cloudQuant/backtrader?style=social)](https://github.com/cloudQuant/backtrader/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/cloudQuant/backtrader?style=social)](https://github.com/cloudQuant/backtrader/network/members)
+[![Gitee](https://img.shields.io/badge/mirror-Gitee-red)](https://gitee.com/yunjinqi/backtrader)
 
 ## Introduction
 
-A high-performance quantitative research tool built on backtrader, focused on medium-to-low frequency trading strategies with Cython/Numba optimizations for improved backtesting efficiency. This project is an enhanced version of backtrader that maintains compatibility while adding numerous practical features.
+An enhanced version of the backtrader Python library for quantitative trading and backtesting. This project keeps compatibility with the original backtrader while adding cryptocurrency support, futures-market integrations, extra testing utilities, and improved stability across Python 3.8-3.13.
 
 ### Core Features
 
-- 🚀 **Performance Optimization**: Core computation modules optimized with Cython and Numba for significantly faster backtesting
-- 📊 **Vectorized Backtesting**: Support for Time Series (TS) and Cross-Sectional (CS) vectorized backtesting frameworks
+- � **Event-Driven Architecture**: Fast and efficient event-driven backtesting engine
 - 🪙 **Cryptocurrency Support**:
   - CCXT integration supporting 100+ cryptocurrency exchanges
   - Funding rate backtesting for crypto perpetual contracts
@@ -26,8 +26,10 @@ A high-performance quantitative research tool built on backtrader, focused on me
   - CTP futures trading interface
   - Oanda forex trading
   - Traditional stock markets
-- 📈 **Rich Technical Indicators**: 60+ built-in technical indicators with custom indicator development support
-- 📝 **Strategy Analyzers**: Multiple performance analysis tools (Sharpe ratio, maximum drawdown, SQN, etc.)
+- 📈 **Rich Technical Indicators**: 50+ built-in indicators with custom indicator development support
+- � **Comprehensive Analyzers**: Sharpe ratio, drawdown, trade statistics, PyFolio integration, and custom analyzers
+- 🎯 **Flexible Order Types**: Market, limit, stop, stop-limit, bracket, and OCO orders
+- 📉 **Data Processing**: Resampling, replaying, and multi-timeframe analysis
 
 ### Version Information
 
@@ -38,7 +40,7 @@ A high-performance quantitative research tool built on backtrader, focused on me
 
 ### System Requirements
 
-- Python 3.8 - 3.12 (Python 3.11 recommended for best performance)
+- Python 3.8 - 3.13 (Python 3.11 recommended for best performance)
 - Operating Systems: Windows, Linux, macOS
 
 ### Installation
@@ -141,7 +143,6 @@ cerebro.plot()
 
 ### 2. Strategy Development
 - Event-driven strategy framework
-- Vectorized strategy framework (CS/TS)
 - Multi-asset, multi-timeframe strategy support
 - Signal system
 
@@ -192,39 +193,17 @@ data = store.getdata(
 cerebro.adddata(data)
 ```
 
-### Vectorized Backtesting Example
-
-```python
-# Time series vectorized strategy
-from backtrader.vectors import TimeSeriesStrategy
-
-class MyTSStrategy(TimeSeriesStrategy):
-    def compute_signal(self, data):
-        # Use numpy for vectorized calculations
-        sma_20 = data['close'].rolling(20).mean()
-        sma_50 = data['close'].rolling(50).mean()
-        
-        # Generate signals
-        signal = (sma_20 > sma_50).astype(int)
-        return signal
-```
-
 ## Documentation & Resources
 
+- 📚 [Project Documentation Index](docs/README.md)
+- 🛠️ [Installation & Troubleshooting Guide](docs/INSTALLATION_GUIDE.md)
+- 🧾 [Changelog](docs/CHANGELOG.md)
+- 🐛 [DataTrades Fix Note](docs/DATATRADES_FIX.md)
+- 🔌 [ExtendPandasFeed Fix Note](docs/EXTENDED_FEED_FIX.md)
 - 📚 [Official Documentation](https://www.backtrader.com/)
 - 📝 [CSDN Tutorial Series](https://blog.csdn.net/qq_26948675/category_10220116.html)
 - 💬 [Issue Tracker](https://gitee.com/yunjinqi/backtrader/issues)
-- 🔧 [Development Guide](CONTRIBUTING.md)
-
-## Performance Comparison
-
-Performance improvements with Cython optimization:
-
-| Module | Original Speed | Optimized Speed | Improvement |
-|--------|---------------|-----------------|-------------|
-| Indicator Calculations | 1.00x | 3-5x | 200-400% |
-| Vectorized Backtesting | N/A | 10-20x | - |
-| Order Matching | 1.00x | 2-3x | 100-200% |
+- 🔧 [Development Guide](CLAUDE.md)
 
 ## Contributing
 
@@ -238,18 +217,22 @@ We welcome code contributions, bug reports, and feature suggestions:
 
 ## Changelog
 
-### Latest Updates 2024
-- ✅ Added funding rate backtesting support for cryptocurrency
-- ✅ Fixed Python 3.12+ compatibility issues
-- ✅ Optimized Cython compilation process
+### 2026 Updates
+- ✅ Reorganized helper scripts under `scripts/`
+- ✅ Added the strategies regression framework (generated locally and gitignored)
+- ✅ Made `backtrader.analyzers.pyfolio` lazy-load `empyrical`
+
+### 2024 Updates
+- ✅ Added funding rate backtesting support for cryptocurrency perpetual contracts
+- ✅ Fixed Python 3.12 and 3.13 compatibility issues
+- ✅ Improved CCXT integration stability
 - ✅ Added CI/CD automated testing
 
 ### 2023 Updates
-- ✅ Implemented Time Series (TS) vectorized backtesting framework
-- ✅ Optimized Cross-Sectional (CS) strategy performance
+- ✅ Improved multi-exchange support
 - ✅ Fixed multiple known bugs
 
-For detailed changelog, see [CHANGELOG.md](CHANGELOG.md)
+For detailed changelog, see [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ## License
 

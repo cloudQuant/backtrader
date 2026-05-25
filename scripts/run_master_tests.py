@@ -13,9 +13,9 @@ Features:
 - Tracks test execution time
 
 Usage:
-    python run_master_tests.py              # Run tests and generate report (default)
-    python run_master_tests.py --analyze    # Only show analysis without running tests
-    python run_master_tests.py -a          # Short form for --analyze
+    python scripts/run_master_tests.py              # Run tests and generate report (default)
+    python scripts/run_master_tests.py --analyze    # Only show analysis without running tests
+    python scripts/run_master_tests.py -a           # Short form for --analyze
 """
 
 import os
@@ -25,6 +25,10 @@ import subprocess
 import json
 from datetime import datetime
 from pathlib import Path
+
+# Always operate from the repo root so relative paths below remain stable
+REPO_ROOT = Path(__file__).resolve().parent.parent
+os.chdir(REPO_ROOT)
 
 
 def get_system_info():
@@ -215,10 +219,10 @@ def analyze_existing_report():
     else:
         findings.append("✗ report.html does not exist")
     
-    # Check test execution scripts
+    # Check test execution scripts (moved under scripts/)
     test_scripts = [
-        'test_python_versions_simple.bat',
-        'test_python_versions_simple.sh'
+        'scripts/test_python_versions_simple.bat',
+        'scripts/test_python_versions_simple.sh'
     ]
     for script in test_scripts:
         if Path(script).exists():
@@ -250,7 +254,7 @@ def analyze_existing_report():
     print("3. To generate reports automatically, you need to:")
     print("   - Run pytest with '--html=report.html --self-contained-html'")
     print("   - Or add 'addopts = --html=report.html' to [tool.pytest.ini_options]")
-    print("   - Or use this script: python run_master_tests.py")
+    print("   - Or use this script: python scripts/run_master_tests.py")
     print()
     print("=" * 80)
     print()
@@ -264,19 +268,19 @@ def main():
         # Only run analysis without executing tests
         analyze_existing_report()
         print()
-        print("Analysis complete. To run tests, execute: python run_master_tests.py")
+        print("Analysis complete. To run tests, execute: python scripts/run_master_tests.py")
         sys.exit(0)
     
     # Default behavior: run tests directly and generate report
     print("Starting Backtrader Master Test Suite...")
-    print("(Use 'python run_master_tests.py --analyze' to only see analysis)")
+    print("(Use 'python scripts/run_master_tests.py --analyze' to only see analysis)")
     print()
     
     exit_code = run_tests()
     
     print()
     print("To view detailed analysis of report generation, run:")
-    print("  python run_master_tests.py --analyze")
+    print("  python scripts/run_master_tests.py --analyze")
     
     sys.exit(exit_code)
 

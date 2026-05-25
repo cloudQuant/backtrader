@@ -1,4 +1,25 @@
-# Backtrader Additional Tests - 测试覆盖率提升
+# Backtrader Documentation
+
+本目录收纳项目维护文档、安装说明、变更记录、问题修复说明和历史测试覆盖报告。
+
+## 文档入口
+
+- **项目首页**: [../README.md](../README.md)
+- **安装与环境排查**: [INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)
+- **更新日志**: [CHANGELOG.md](CHANGELOG.md)
+- **DataTrades 修复说明**: [DATATRADES_FIX.md](DATATRADES_FIX.md)
+- **ExtendPandasFeed 修复说明**: [EXTENDED_FEED_FIX.md](EXTENDED_FEED_FIX.md)
+- **测试覆盖率提升报告**: [COMPLETION_REPORT.md](COMPLETION_REPORT.md)
+
+## 文档维护说明
+
+- `docs/source/` 当前只保留少量历史 Sphinx 资源；实际可读文档以本目录 Markdown 文件和根目录 `README.md` 为准。
+- 含账号、密码、认证材料或本地实验数据的内容不要提交到仓库。
+- 新增长期有效文档时，优先在本文件补充入口，避免文档分散。
+
+---
+
+## Backtrader Additional Tests - 测试覆盖率提升
 
 ## 🎉 测试完成状态
 
@@ -315,9 +336,9 @@ pytest tests/add_tests --cov=backtrader --cov-report=html
 
 ## 📚 参考文档
 
-- [需求0.md](../../需求0.md) - 原始需求文档
+- `需求0.md` - 历史原始需求文档（当前仓库未包含）
 - [COMPLETION_REPORT.md](COMPLETION_REPORT.md) - 详细完成报告
-- [original_tests/](../original_tests/) - 原始测试用例参考
+- [original_tests/](../tests/original_tests/) - 原始测试用例参考
 
 ---
 

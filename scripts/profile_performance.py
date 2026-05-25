@@ -4,7 +4,7 @@ Performance profiling script for backtrader tests
 Analyzes function call counts and execution time across multiple strategies
 
 Usage:
-    python profile_performance.py [--processes N] [--strategies STRATEGY_LIST]
+    python scripts/profile_performance.py [--processes N] [--strategies STRATEGY_LIST]
 
 Options:
     --processes N       Number of parallel processes (default: 7)
@@ -28,7 +28,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-# Add the project root to the path
+# Add the project root to the path (scripts/ lives one level below repo root)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 

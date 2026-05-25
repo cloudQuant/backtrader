@@ -8,10 +8,14 @@ import backtrader as bt
 from backtrader.utils.py3 import iteritems
 import pandas as pd  # For data manipulation and analysis
 import numpy as np   # For numerical operations
-import empyrical as ep  # For financial performance metrics calculation
 
 # Import backtrader analyzers that will be used as components
 from . import TimeReturn, PositionsValue, Transactions, GrossLeverage
+
+
+def _get_empyrical():
+    import empyrical as ep
+    return ep
 
 
 # PyFolio analysis module (pyfolio的分析模块)
@@ -334,6 +338,7 @@ class PyFolio(bt.Analyzer):
         df.columns = ['benchmark', 'return']
         df['super'] = df['return'] - df['benchmark']
         print(df)
+        ep = _get_empyrical()
         # 获取夏普率、年化收益率、最大回测率、交易次数
         b_mdd = round(results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"], 2)
         # trade_num = results[0].analyzers.my_trade_analyzer.get_analysis()['total']['total']

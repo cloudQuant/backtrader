@@ -145,3 +145,53 @@ backtrader_master_tests_report.html
 backtrader_remove_metaprogramming_report.html
 backtrader_remove_metaprogramming_report_timing.json
 backtrader-master/*
+
+# Generated regression test baselines (per-strategy run.py produces them locally)
+tests/functional/strategies_regression/
+
+# Large local market data fixtures (1GB+, not suitable for git)
+tests/functional/datas/
+
+# Runtime / generated artifacts
+logs/
+examples/logs/
+*.log
+bandit-report.json
+bandit-report.*.json
+
+# Matplotlib runtime font cache
+.mplconfig/
+docs/.mplconfig/
+
+# Internal / personal docs (may contain credentials, real account info, etc.)
+docs/_internal/
+
+# Live trading certification artefacts (CTP penetration test credentials, etc.)
+examples/live_certification/
+
+# Reference-only local documentation config
+.readthedocs-zh.yaml
+
+# Local data copied for experiments; current tests do not reference these paths
+tests/datas/CFFEX_Futures_Contract_Data.csv
+tests/datas/ChiNext_ETF.csv
+tests/datas/SSE50_ETF.csv
+tests/datas/binance_bbo_demo/
+tests/datas/tick_data/
+
+# Local agent / planning workspaces
+_bmad/
+_bmad-output/
+.kiro/
+.opencode/
+.claude/
+.cursor/
+.windsurf/
+
+# Editor settings
+.vscode/
+
+# Misc local files
+*.csv.bak
+*.tmp
+*.bak

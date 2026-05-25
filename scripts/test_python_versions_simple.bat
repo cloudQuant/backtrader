@@ -2,6 +2,9 @@
 REM Simple test script for backtrader across Python versions
 setlocal EnableDelayedExpansion
 
+REM Always run from the repo root, regardless of how this script was invoked
+pushd "%~dp0\.."
+
 echo ======================================== 
 echo Backtrader Python Compatibility Test
 echo ======================================== 

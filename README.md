@@ -464,11 +464,47 @@ class FundingRateStrategy(bt.Strategy):
 
 ### Documentation & Resources
 
-- 📚 [Official Backtrader Documentation](https://www.backtrader.com/)
+- 📚 [Project Documentation Index](docs/README.md)
+- 🛠️ [Installation & Troubleshooting Guide](docs/INSTALLATION_GUIDE.md)
+- 🧾 [Changelog](docs/CHANGELOG.md)
+- 🐛 [DataTrades Fix Note](docs/DATATRADES_FIX.md)
+- 🔌 [ExtendPandasFeed Fix Note](docs/EXTENDED_FEED_FIX.md)
+- 📖 [Official Backtrader Documentation](https://www.backtrader.com/)
 - 📝 [CSDN Tutorial Series (Chinese)](https://blog.csdn.net/qq_26948675/category_10220116.html)
 - 💬 [Issue Tracker - Gitee](https://gitee.com/yunjinqi/backtrader/issues)
 - 💬 [Issue Tracker - GitHub](https://github.com/cloudQuant/backtrader/issues)
 - 🔧 [Development Guide](CLAUDE.md)
+
+### Project Structure
+
+```
+backtrader/
+├── backtrader/                # Core framework package
+├── docs/                      # Project docs, changelog, installation guide, fix notes
+├── examples/                  # Runnable example projects
+├── scripts/                   # Maintenance & QA helper scripts
+│   ├── run_master_tests.py            # Full pytest run + HTML report
+│   ├── run_test_with_log.py           # Run a single test with branch-aware logging
+│   ├── sync_and_test.py               # Sync a test file across branches & run it
+│   ├── profile_performance.py         # cProfile-based strategy profiler
+│   ├── debug_macd_replay.py           # MACD-in-replay debugging harness
+│   ├── backtest_strategy_regression_expected.py  # Regression baseline generator
+│   ├── run_all_backtests.py           # Batch backtest runner
+│   └── test_python_versions_simple.sh/.bat  # Multi-version conda test runner
+├── strategies/                # Shared strategy helpers (e.g. benchmark_metrics)
+├── studies/                   # Research notebooks & UML
+├── tests/                     # Pytest test suites
+│   ├── original_tests/                # Upstream backtrader tests
+│   ├── strategies/                    # In-house strategy tests
+│   ├── funding_rate_examples/         # Crypto funding-rate tests
+│   └── functional/strategies_regression/  # 1000+ generated regression scripts (gitignored)
+├── pyproject.toml / setup.py / requirements.txt
+└── README.md / CLAUDE.md / LICENSE
+```
+
+> `tests/functional/strategies_regression/` is generated locally by
+> `scripts/backtest_strategy_regression_expected.py` and is intentionally
+> excluded from version control.
 
 ### Testing
 
@@ -480,11 +516,21 @@ pytest tests
 pytest tests --cov=backtrader --cov-report=html
 
 # Run specific test category
-pytest tests/original_tests  # Core functionality
-pytest tests/funding_rate_examples  # Crypto features
+pytest tests/original_tests        # Core functionality
+pytest tests/funding_rate_examples # Crypto features
+pytest tests/strategies            # In-house strategies
 
 # Run in parallel
 pytest tests -n 4
+
+# Convenience wrappers (always run from repo root)
+python scripts/run_master_tests.py                       # Full suite + HTML report
+python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
+bash   scripts/test_python_versions_simple.sh            # Multi Python version sweep
+
+# Regenerate strategy regression baselines (long-running)
+python scripts/backtest_strategy_regression_expected.py \
+    tests/functional/strategies_regression --workers 4 --overwrite
 ```
 
 ### Contributing
@@ -499,6 +545,13 @@ We welcome code contributions, bug reports, and feature suggestions:
 
 ### Changelog
 
+#### 2026 Updates
+- ✅ Reorganised root-level helper scripts under `scripts/`
+- ✅ Added the strategies regression framework (1000+ per-strategy `run.py` baselines, generated locally and gitignored)
+- ✅ Made `backtrader.analyzers.pyfolio` lazy-load `empyrical` so `import backtrader` works without it on pandas 3
+- ✅ Replaced `risk_free_rate` keyword with `riskfreerate` for `SharpeRatio` across the regression suite
+- ✅ Normalised `comminfo.get_param('mult')` usage to `getattr(comminfo.p, 'mult', 1.0)`
+
 #### 2024 Updates
 - ✅ Added funding rate backtesting support for cryptocurrency perpetual contracts
 - ✅ Fixed Python 3.12 and 3.13 compatibility issues
@@ -511,7 +564,7 @@ We welcome code contributions, bug reports, and feature suggestions:
 - ✅ Fixed multiple known bugs
 - ✅ Enhanced CTP integration
 
-For detailed changelog, see [CHANGELOG.md](CHANGELOG.md) (if available)
+For detailed changelog, see [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ### License
 
@@ -976,11 +1029,46 @@ class FundingRateStrategy(bt.Strategy):
 
 ### 文档与资源
 
-- 📚 [官方 Backtrader 文档](https://www.backtrader.com/)
+- 📚 [项目文档索引](docs/README.md)
+- 🛠️ [安装与环境排查](docs/INSTALLATION_GUIDE.md)
+- 🧾 [更新日志](docs/CHANGELOG.md)
+- 🐛 [DataTrades 修复说明](docs/DATATRADES_FIX.md)
+- 🔌 [ExtendPandasFeed 修复说明](docs/EXTENDED_FEED_FIX.md)
+- 📖 [官方 Backtrader 文档](https://www.backtrader.com/)
 - 📝 [CSDN 教程系列](https://blog.csdn.net/qq_26948675/category_10220116.html)
 - 💬 [问题反馈 - Gitee](https://gitee.com/yunjinqi/backtrader/issues)
 - 💬 [问题反馈 - GitHub](https://github.com/cloudQuant/backtrader/issues)
 - 🔧 [开发指南](CLAUDE.md)
+
+### 项目结构
+
+```
+backtrader/
+├── backtrader/                # 核心框架包
+├── docs/                      # 项目文档、更新日志、安装指南和修复说明
+├── examples/                  # 可运行示例项目
+├── scripts/                   # 辅助维护与 QA 脚本
+│   ├── run_master_tests.py            # 完整 pytest 运行 + HTML 报告
+│   ├── run_test_with_log.py           # 单个测试运行并按分支输出日志
+│   ├── sync_and_test.py               # 在分支间同步测试文件并对比运行
+│   ├── profile_performance.py         # 基于 cProfile 的策略性能分析
+│   ├── debug_macd_replay.py           # MACD replay 模式调试环境
+│   ├── backtest_strategy_regression_expected.py  # 回归基准生成器
+│   ├── run_all_backtests.py           # 批量回测运行器
+│   └── test_python_versions_simple.sh/.bat  # 多 Python 版本 conda 测试
+├── strategies/                # 公用策略辅助包（如 benchmark_metrics）
+├── studies/                   # 研究笔记与 UML 图
+├── tests/                     # Pytest 测试集
+│   ├── original_tests/                # 上游原版测试
+│   ├── strategies/                    # 自用策略测试
+│   ├── funding_rate_examples/         # 加密货币资金费率测试
+│   └── functional/strategies_regression/  # 1000+ 个生成的回归脚本（已加入 .gitignore）
+├── pyproject.toml / setup.py / requirements.txt
+└── README.md / CLAUDE.md / LICENSE
+```
+
+> `tests/functional/strategies_regression/` 由
+> `scripts/backtest_strategy_regression_expected.py` 本地生成，不跟随仓库提交。
 
 ### 测试
 
@@ -992,11 +1080,21 @@ pytest tests
 pytest tests --cov=backtrader --cov-report=html
 
 # 运行特定测试类别
-pytest tests/original_tests  # 核心功能
-pytest tests/funding_rate_examples  # 加密货币特性
+pytest tests/original_tests        # 核心功能
+pytest tests/funding_rate_examples # 加密货币特性
+pytest tests/strategies            # 自用策略
 
 # 并行运行
 pytest tests -n 4
+
+# 便捷包装脚本（始终从仓库根目录运行）
+python scripts/run_master_tests.py                       # 完整测试套件 + HTML 报告
+python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
+bash   scripts/test_python_versions_simple.sh            # 多 Python 版本扫描
+
+# 重新生成策略回归基准（耗时较长）
+python scripts/backtest_strategy_regression_expected.py \
+    tests/functional/strategies_regression --workers 4 --overwrite
 ```
 
 ### 贡献指南
@@ -1011,6 +1109,13 @@ pytest tests -n 4
 
 ### 更新日志
 
+#### 2026年更新
+- ✅ 根目录辅助脚本全部归档到 `scripts/`
+- ✅ 新增策略回归测试框架（1000+ 个以策略为粒度的 `run.py`基准，本地生成、已 gitignore）
+- ✅ `backtrader.analyzers.pyfolio` 改为懒加载 `empyrical`，在 pandas 3 下也能正常 `import backtrader`
+- ✅ 策略回归套件中将 `SharpeRatio` 的 `risk_free_rate` 参数统一改为 `riskfreerate`
+- ✅ 将 `comminfo.get_param('mult')` 调用统一为 `getattr(comminfo.p, 'mult', 1.0)`
+
 #### 2024年更新
 - ✅ 增加了加密货币永续合约资金费率回测支持
 - ✅ 修复了 Python 3.12 和 3.13 兼容性问题
@@ -1023,7 +1128,7 @@ pytest tests -n 4
 - ✅ 修复了多个已知 bug
 - ✅ 增强了 CTP 集成
 
-详细更新日志请查看 [CHANGELOG.md](CHANGELOG.md)（如果有）
+详细更新日志请查看 [docs/CHANGELOG.md](docs/CHANGELOG.md)
 
 ### 许可证
 

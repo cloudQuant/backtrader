@@ -1,6 +1,10 @@
 #!/bin/bash
 # Simple test script for backtrader across Python versions
 
+# Always run from the repo root, regardless of how this script was invoked
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+cd "${SCRIPT_DIR}/.."
+
 echo "========================================"
 echo "Backtrader Python Compatibility Test"
 echo "========================================"

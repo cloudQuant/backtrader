@@ -10,16 +10,16 @@ import datetime
 from pathlib import Path
 import backtrader as bt
 
-BASE_DIR = Path(__file__).resolve().parent
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parent
 
 
 def resolve_data_path(filename: str) -> Path:
     search_paths = [
-        BASE_DIR / filename,
-        BASE_DIR.parent / filename,
-        BASE_DIR / "tests" / "datas" / filename,
-        BASE_DIR / "datas" / filename,
-        BASE_DIR.parent / "tests" / "datas" / filename,
+        REPO_ROOT / "tests" / "datas" / filename,
+        REPO_ROOT / "datas" / filename,
+        REPO_ROOT / filename,
+        SCRIPT_DIR / filename,
     ]
     for p in search_paths:
         if p.exists():

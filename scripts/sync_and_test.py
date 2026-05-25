@@ -8,10 +8,10 @@
 3. 自动在master和origin分支上运行测试并输出日志
 
 用法:
-    python sync_and_test.py <test_file_path>
+    python scripts/sync_and_test.py <test_file_path>
     
 示例:
-    python sync_and_test.py tests/strategies/test_120_data_replay_macd.py
+    python scripts/sync_and_test.py tests/strategies/test_120_data_replay_macd.py
 """
 
 import argparse
@@ -351,7 +351,7 @@ def main():
   - 自动备份和恢复修改过的文件
 
 示例:
-    python sync_and_test.py tests/strategies/test_120_data_replay_macd.py
+    python scripts/sync_and_test.py tests/strategies/test_120_data_replay_macd.py
         """
     )
     

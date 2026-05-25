@@ -4,7 +4,7 @@
 日志文件名包含当前git分支名称
 
 用法:
-    python run_test_with_log.py <test_script> [--both]
+    python scripts/run_test_with_log.py <test_script> [--both]
     
 参数:
     test_script: 要测试的脚本路径
@@ -13,13 +13,13 @@
             
 示例:
     # 只在当前分支运行
-    python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
+    python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
     
     # 在两个分支上运行
-    python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
+    python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
     
     # 在master和origin两个分支上运行
-    python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
+    python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
 """
 
 import argparse
@@ -376,10 +376,10 @@ def main():
         epilog="""
 示例:
     # 只在当前分支运行
-    python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
+    python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
     
     # 在两个分支上运行并对比
-    python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
+    python scripts/run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
         """
     )
     

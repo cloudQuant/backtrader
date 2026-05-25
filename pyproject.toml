@@ -96,7 +96,7 @@ Homepage = "https://gitee.com/yunjinqi/backtrader"
 Documentation = "https://www.backtrader.com/"
 Repository = "https://gitee.com/yunjinqi/backtrader.git"
 Issues = "https://gitee.com/yunjinqi/backtrader/issues"
-Changelog = "https://gitee.com/yunjinqi/backtrader/blob/master/CHANGELOG.md"
+Changelog = "https://gitee.com/yunjinqi/backtrader/blob/master/docs/CHANGELOG.md"
 
 [tool.setuptools]
 packages = ["backtrader"]
