@@ -21,7 +21,7 @@ DYNAMIC_LOG_KEYS = {
     "run_id",
 }
 
-DEFAULT_BRANCHES = ["current", "dev"]
+DEFAULT_BRANCHES = ["current", "master"]
 LOG_FILE_NAMES = {
     "bar.log",
     "error.log",
@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
         action="append",
         help=(
             "Branch/ref to run. Use 'current' for the current working tree including uncommitted changes. "
-            "Can be repeated. Default: current and dev."
+            "Can be repeated. Default: current and master."
         ),
     )
     parser.add_argument("--timeout", type=int, default=300, help="Timeout for run.py in seconds.")

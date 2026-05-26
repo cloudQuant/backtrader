@@ -49,6 +49,7 @@ An enhanced version of the backtrader Python library for quantitative trading an
   - Trade statistics and performance metrics
   - PyFolio integration
 - 🎯 **Flexible Order Types**: Market, Limit, Stop, Stop-Limit, OCO orders
+- 🔁 **Cancelable Submitted Orders**: Orders that have been submitted but not yet accepted by the broker can be canceled, matching event-driven broker behavior for strategies that adjust protective stop/limit orders within the same cycle.
 - 💼 **Position Sizing**: Built-in position sizers and custom sizing strategies
 - 📉 **Data Processing**: Resampling, replaying, and multi-timeframe analysis
 
