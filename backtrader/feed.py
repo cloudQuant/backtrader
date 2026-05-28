@@ -652,6 +652,13 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
             for line, val in zip(self.itersize(), coll.popleft()):
                 line[0] = val
 
+            # Bug fix: refresh tick_* attributes when delivering a bar from
+            # the stack. Without this, the tick_open / tick_high / tick_low /
+            # tick_close attributes can retain values from the previous bar,
+            # producing a "stale tick" effect that misprices market orders
+            # executed against bars delivered via _last() / _fromstack
+            # (typically the final bar in resampled / replayed feeds).
+            self._tick_fill(force=True)
             return True
 
         return False

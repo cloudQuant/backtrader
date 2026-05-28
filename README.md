@@ -19,6 +19,18 @@
 
 ---
 
+## 🐛 Recent Bug Fixes / 最近修复
+
+### Stacked Bar Tick Refresh (2026-05-28)
+
+**Bug**: 在 `cerebro.resampledata()` / `cerebro.replaydata()` 场景下，当 resampler 通过 `_fromstack` 弹出暂存的 bar 时（特别是数据耗尽时由 `_last()` 刷出的最后一根 bar），`data.tick_open / tick_high / tick_low / tick_close` 不会同步更新到当前 bar 的 OHLC，而是保留前一根 bar 的值（"stale tick"）。这导致 broker 在用 `tick_open` 估值未平仓位的市价单时使用了过时的价格。
+
+**Fix**: 在 `backtrader/feed.py::_fromstack()` 末尾添加 `self._tick_fill(force=True)`，确保从栈中弹出的 bar 立刻同步 `tick_*` 属性到当前 bar 的 OHLC。
+
+**Impact**: 修复后，使用 `cerebro.resampledata()` 时未平仓位的市价单成交价更准确地反映当前 bar 的 OHLC，而不是上一根 bar 的过时值。
+
+---
+
 ## English
 
 ### Introduction
