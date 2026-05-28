@@ -1,0 +1,31 @@
+strategy:
+  id: "0018"
+  name: "Gold Factor Timing"
+  type: "commodity_currency"
+
+data:
+  timeframe: "MONTHLY"
+  fromdate: "2011-05-23 00:00:00"
+  todate: "2025-12-31 00:00:00"
+  assets:
+    XAUUSD: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+    IVV: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IVV_1d.csv"
+    GTIP: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GTIP_1d.csv"
+
+params:
+  momentum_lookback_months: 12
+  valuation_lookback_months: 36
+  equity_relative_lookback_months: 12
+  momentum_threshold: 0.0
+  value_zscore_threshold: -0.5
+  momentum_max_valuation_z: 0.75
+  single_factor_weight: 0.5
+  dual_factor_weight: 1.0
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

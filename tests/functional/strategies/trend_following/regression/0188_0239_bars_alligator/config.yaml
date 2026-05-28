@@ -1,0 +1,39 @@
+strategy:
+  name: "BARS Alligator"
+  source_ea: "ea/0239_BARS_Alligator/bars_alligator.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression_minutes: 15
+
+params:
+  stop_loss_pips: 150
+  take_profit_pips: 150
+  trailing_stop_pips: 5
+  trailing_step_pips: 5
+  lot_or_risk: "lot"
+  volume_or_risk: 1.0
+  jaw_period: 13
+  jaw_shift: 8
+  teeth_period: 8
+  teeth_shift: 5
+  lips_period: 5
+  lips_shift: 3
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+  contract_multiplier: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

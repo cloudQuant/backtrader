@@ -1,0 +1,36 @@
+strategy:
+  name: "IStochastic_Trading"
+  source_ea: "ea/0583_IStochastic_Trading/istochastic_trading.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 15
+
+params:
+  lots: 0.1
+  take_profit: 50
+  stop_loss: 50
+  trailing_stop: 10
+  trailing_step: 5
+  max_positions: 3
+  gap: 7
+  kperiod: 5
+  dperiod: 3
+  slowing: 3
+  zone_buy: 30
+  zone_sell: 70
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,30 @@
+strategy:
+  id: "0049"
+  name: "Gold Asset Rotation"
+  type: "rotation"
+  source_spec: "research_papers_gold/strategy_specs/rotation/0049_Gold_Asset_Rotation.md"
+
+data:
+  timeframe: "MONTHLY"
+  fromdate: "2006-01-01 00:00:00"
+  todate: "2025-12-31 00:00:00"
+  assets:
+    XAUUSD: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+    IVV: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IVV_1d.csv"
+    IEF: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv"
+    DBC: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/DBC_1d.csv"
+
+params:
+  lookback_months: 3
+  top1_weight: 0.7
+  top2_weight: 0.3
+  absolute_momentum_threshold: 0.0
+  defensive_asset: "IEF"
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

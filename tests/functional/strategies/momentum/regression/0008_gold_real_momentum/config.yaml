@@ -1,0 +1,34 @@
+strategy:
+  id: "0047"
+  name: "Gold Real Momentum Strategy"
+  type: "momentum"
+  source_spec: "research_papers_gold/strategy_specs/momentum/0047_Gold_Real_Momentum.md"
+
+data:
+  timeframe: "D1"
+  fromdate: "2010-01-01 00:00:00"
+  todate: "2025-12-31 00:00:00"
+  gold_symbol: "XAUUSD"
+  inflation_proxy_symbol: "GTIP"
+  defensive_symbol: "IEF"
+  gold_file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+  inflation_proxy_file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GTIP_1d.csv"
+  defensive_file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv"
+
+params:
+  lookback_days: 252
+  threshold: 0.0
+  stop_loss_pct: 0.10
+  rebalance_frequency: "monthly"
+  volatility_window: 63
+  high_vol_threshold: 0.25
+  reduced_weight: 0.5
+  full_weight: 1.0
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

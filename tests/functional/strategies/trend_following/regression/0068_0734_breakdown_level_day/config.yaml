@@ -1,0 +1,38 @@
+strategy:
+  name: "BreakdownLevelDay"
+  source_ea: "ea/0734_BreakdownLevelDay"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  time_set: "07:30"
+  delta: 0
+  sl: 120
+  tp: 90
+  risk: 0.0
+  no_loss: 0
+  trailing: 0
+  lot: 0.10
+  open_stop: true
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+  last_day: 0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false
+  min_lot: 0.01
+  max_lot: 100.0
+  lot_precision: 2
+  stop_level: 0

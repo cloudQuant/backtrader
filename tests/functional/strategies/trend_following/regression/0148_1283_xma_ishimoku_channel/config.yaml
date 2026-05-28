@@ -1,0 +1,33 @@
+strategy:
+  name: "XMA_Ishimoku_Channel"
+  source_ea: "ea/1283_Exp_XMA_Ishimoku_Channel"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  up_period: 3
+  dn_period: 3
+  up_mode: "high"
+  dn_mode: "low"
+  xma_method: "sma"
+  xlength: 100
+  xphase: 15
+  up_percent: 1.0
+  dn_percent: 1.0
+  price_shift: 0
+  signal_bar: 1
+  lot: 0.1
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

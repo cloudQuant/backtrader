@@ -1,0 +1,37 @@
+strategy:
+  name: "Larry_Conners_RSI_2"
+  source_ea: "ea/0488_Larry_Conners_RSI_2/larryconnersrsi2.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  base_timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  returns_compression_minutes: 15
+  feature_cache_dir: "features"
+
+params:
+  lot: 1.0
+  short_sma_periods: 5
+  long_sma_periods: 200
+  rsi_periods: 2
+  rsi_long_entry: 6
+  rsi_short_entry: 95
+  use_stop_loss: true
+  stop_loss_pips: 30
+  use_take_profit: true
+  take_profit_pips: 60
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

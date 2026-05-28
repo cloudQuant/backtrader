@@ -1,0 +1,35 @@
+strategy:
+  name: "5_8_macross"
+  source_ea: "ea/0695_5_8_MACross/5_8_macross.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lot: 0.1
+  stop_loss_pips: 0
+  take_profit_pips: 40
+  trailing_stop_pips: 0
+  point: 0.01
+  price_digits: 2
+  ma_fast_period: 5
+  ma_fast_shift: -1
+  ma_fast_method: "MODE_EMA"
+  ma_fast_price: "PRICE_CLOSE"
+  ma_slow_period: 8
+  ma_slow_shift: 0
+  ma_slow_method: "MODE_EMA"
+  ma_slow_price: "PRICE_OPEN"
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

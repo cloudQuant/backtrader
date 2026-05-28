@@ -1,0 +1,28 @@
+strategy:
+  id: '0355'
+  name: Renko Kagi Pairs Strategy
+  source_spec: research_papers_gold/strategy_specs/pairs_trading/0355_Renko_Kagi_Pairs_Strategy.md
+
+data:
+  timeframe: H1
+  assets:
+    xauusd: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_H1.csv
+    xagusd: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAGUSD_H1.csv
+  fromdate: '2025-09-01 00:00:00'
+  todate: '2025-12-31 23:59:00'
+
+params:
+  atr_period: 14
+  atr_multiplier: 1.5
+  confirmation_bricks: 2
+  deviation_threshold: 1.0
+  hedge_ratio_lookback: 96
+  position_size: 0.5
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

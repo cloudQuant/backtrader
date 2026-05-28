@@ -1,0 +1,34 @@
+strategy:
+  name: "Three Indicators"
+  source_ea: "ea/0186_三个指标"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  work_timeframe: "15min"
+  lots: 1.0
+  macd_fast_period: 11
+  macd_slow_period: 53
+  macd_signal_period: 26
+  macd_applied_price: "close"
+  sto_k_period: 40
+  sto_d_period: 23
+  sto_slowing: 82
+  sto_ma_method: "sma"
+  sto_price_field: "lowhigh"
+  rsi_period: 86
+  rsi_applied_price: "close"
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

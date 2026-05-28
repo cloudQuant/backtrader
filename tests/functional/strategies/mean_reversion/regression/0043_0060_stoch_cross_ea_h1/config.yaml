@@ -1,0 +1,36 @@
+strategy:
+  name: "Stoch Cross EA H1"
+  source_ea: "scripts/0060_Stoch_Cross_EA_-_在_20_点以下买入，在_80_点以上卖出（H1�?stochasticfrizt1810update.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M1"
+  trading_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 00:00:00"
+  todate: "2026-03-17 23:59:59"
+  bar_shift_minutes: 1
+  trading_compression_minutes: 60
+
+params:
+  risk_percent: 5.0
+  stoch_k_period: 14
+  stoch_d_period: 3
+  slowing: 7
+  cooldown_minutes: 60
+  stop_loss_points: 300
+  take_profit_points: 300
+  lot_size: 0.1
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

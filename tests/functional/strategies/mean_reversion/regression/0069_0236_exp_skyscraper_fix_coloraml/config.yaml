@@ -1,0 +1,53 @@
+strategy:
+  name: "Exp Skyscraper Fix ColorAML"
+  source_ea: "ea/0236_Exp_Skyscraper_Fix_ColorAML/exp_skyscraper_fix_coloraml.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H4"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 240
+  feature_cache_dir: "features"
+
+params:
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+  contract_multiplier: 100.0
+  a_mm: 0.1
+  a_mm_mode: "LOT"
+  a_stoploss_points: 1000
+  a_takeprofit_points: 2000
+  a_buy_pos_open: true
+  a_sell_pos_open: true
+  a_sell_pos_close: true
+  a_buy_pos_close: true
+  a_length: 10
+  a_kv: 0.9
+  a_percentage: 0.0
+  a_use_high_low: true
+  b_mm: 0.1
+  b_mm_mode: "LOT"
+  b_stoploss_points: 1000
+  b_takeprofit_points: 2000
+  b_buy_pos_open: true
+  b_sell_pos_open: true
+  b_sell_pos_close: true
+  b_buy_pos_close: true
+  b_fractal: 6
+  b_lag: 7
+  b_shift: 0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

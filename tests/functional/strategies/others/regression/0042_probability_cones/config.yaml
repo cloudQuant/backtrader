@@ -1,0 +1,24 @@
+strategy:
+  id: '0334'
+  name: Probability Cones
+  source_spec: research_papers_gold/strategy_specs/others/0334_Probability_Cones_Strategy.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+params:
+  lookback: 60
+  num_std: 2.0
+  lot_size: 1.0
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

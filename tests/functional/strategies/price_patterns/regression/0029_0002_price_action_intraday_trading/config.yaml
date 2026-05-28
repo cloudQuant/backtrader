@@ -1,0 +1,47 @@
+strategy:
+  name: Price Action Intraday Trading
+  source_ea: ea/0002_Price_Action_Intraday_Trading_-_Expert_for_MT5/Daily_Price_Action_EA.mq5
+data:
+  symbol: XAUUSD
+  timeframe: M15
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv
+  fromdate: '2025-12-03 01:15:00'
+  todate: '2025-12-23 18:15:00'
+  bar_shift_minutes: 15
+params:
+  risk_percent: 1.5
+  stop_loss_pips: 40
+  take_profit_ratio: 2.0
+  max_daily_loss: 3.0
+  pin_bar_pip_size: 10
+  pin_bar_ratio: 2.0
+  engulfing_min_pips: 15
+  sr_lookback: 20
+  sr_tolerance: 10.0
+  fast_ma: 20
+  slow_ma: 50
+  start_hour: 2
+  end_hour: 20
+  close_at_end_of_day: true
+  magic_number: 123456
+  use_break_even: true
+  break_even_pips: 20.0
+  use_trailing_stop: true
+  trailing_stop_pips: 30.0
+  trailing_step_pips: 10.0
+  point: 0.01
+  price_digits: 2
+  tick_value: 1.0
+  tick_size: 0.01
+  volume_step: 0.01
+  volume_min: 0.01
+  volume_max: 100.0
+  margin_required_per_lot: 250.0
+  lot: 0.1
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: fixed
+  stocklike: false

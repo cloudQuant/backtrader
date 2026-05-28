@@ -1,0 +1,41 @@
+strategy:
+  name: "Exp ColorXDerivative"
+  source_ea: "ea/0348_Exp_ColorXDerivative/Exp_ColorXDerivative.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H12"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 720
+  feature_cache_dir: "features"
+
+params:
+  fixed_lot: 0.1
+  risk_percent: 0.0
+  point_size: 0.01
+  stoploss_pips: 1000
+  takeprofit_pips: 2000
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  i_slowing: 34
+  xlength: 15
+  signal_bar: 1
+  lot_min: 0.01
+  lot_step: 0.01
+  lot_max: 100.0
+  contract_multiplier: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

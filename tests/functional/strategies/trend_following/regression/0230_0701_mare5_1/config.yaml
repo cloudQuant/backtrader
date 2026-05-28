@@ -1,0 +1,32 @@
+strategy:
+  name: "MARE5.1"
+  source_ea: "ea/0701_MARE5.1"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv"
+  fromdate: "2026-03-05 00:00:00"
+  todate: "2026-03-10 23:59:00"
+  bar_shift_minutes: 1
+
+params:
+  lots: 0.01
+  take_profit: 35.0
+  stop_loss: 55.0
+  ma_fast_period: 14
+  ma_slow_period: 79
+  moving_shift: 4
+  hour_time_open: 2
+  hour_time_close: 3
+  point: 0.0001
+  digits_adjust: 1
+  price_digits: 5
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,33 @@
+strategy:
+  name: "Donchain counter"
+  source_ea: "ea/0429_唐奇安_(Donchain)_顺势交易/donchain_counter.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H1"
+  feature_cache_dir: "features"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  base_compression_minutes: 15
+  signal_compression_minutes: 60
+
+params:
+  fixed_lot: 1.0
+  channel_period: 20
+  cooldown_hours: 24
+  stop_trigger_points: 50
+  point: 0.01
+  lot_min: 0.01
+  lot_step: 0.01
+  lot_max: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

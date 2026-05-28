@@ -1,0 +1,40 @@
+strategy:
+  name: "Exp_i_Trend"
+  source_ea: "ea/0995_Exp_i_Trend"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  indicator_timeframe: "H4"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  signal_tf_minutes: 240
+
+params:
+  signal_bar: 1
+  price_type: "close"
+  ma_period: 13
+  ma_type: "EMA"
+  ma_price: "close"
+  bb_period: 20
+  deviation: 2.0
+  bb_price: "close"
+  bb_mode: 0
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  lot: 0.1
+  point: 0.01
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,49 @@
+strategy:
+  name: "Exp_ColorZerolagTriXOSMA"
+  source_ea: "ea/1033_Exp_ColorZerolagTriXOSMA"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  signal_tf_minutes: 240
+
+params:
+  mm: 0.1
+  mm_mode: "LOT"
+  stop_loss: 1000
+  take_profit: 2000
+  deviation: 10
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  signal_bar: 1
+  smoothing1: 15
+  smoothing2: 7
+  applied_price: "close"
+  factor1: 0.05
+  trix_period1: 8
+  factor2: 0.10
+  trix_period2: 21
+  factor3: 0.16
+  trix_period3: 34
+  factor4: 0.26
+  trix_period4: 55
+  factor5: 0.43
+  trix_period5: 89
+  size: 0.1
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

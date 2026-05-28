@@ -1,0 +1,27 @@
+strategy:
+  id: '0397'
+  name: FX News Trading Strategy
+  source_spec: research_papers_gold/strategy_specs/event_driven/0397_FX_News_Trading_Strategy.md
+
+data:
+  symbol: EURUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/EURUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  volatility_lookback: 20
+  volatility_multiplier: 1.0
+  total_risk: 0.01
+  hold_days_after_event: 3
+  event_window_days_before: 1
+  stop_loss_multiplier: 1.0
+  commission_pct: 0.0002
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

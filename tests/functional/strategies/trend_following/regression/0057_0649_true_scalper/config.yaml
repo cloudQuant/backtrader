@@ -1,0 +1,36 @@
+strategy:
+  name: "TrueScalperProfitLock"
+  source_ea: "ea/0649_真实锁定剥头皮利�?true_scalper_profit_lock.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 60
+
+params:
+  lots: 1.0
+  take_profit: 44
+  stop_loss: 90
+  rsi_value: 50
+  rsi_method_a: false
+  rsi_method_b: true
+  abandon_method_a: true
+  abandon_method_b: false
+  abandon: 101
+  use_profit_lock: true
+  break_even_trigger: 25
+  break_even: 3
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

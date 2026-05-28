@@ -1,0 +1,35 @@
+strategy:
+  name: "jMaster RSI"
+  source_ea: "ea/0143_jMaster_RSI"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M5"
+  execution_timeframe: "M5"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M5.csv"
+  fromdate: "2026-02-01 00:00:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 5
+
+params:
+  fixed_lot: 1.0
+  long_timeframe_period: 10
+  short_timeframe_period: 4
+  long_buy_level: 25
+  short_buy_level: 25
+  long_sell_level: 75
+  short_sell_level: 75
+  long_trend_spread: 4
+  linreg_len: 5
+  linreg_trade_pips: 40
+  trade_trend: true
+  point_size: 0.01
+  verbose: false
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,38 @@
+strategy:
+  name: "starter"
+  source_ea: "ea/1156_starter"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 0.1
+  maximum_risk: 0.05
+  decrease_factor: 0
+  stop_loss: 100
+  take_profit: 0
+  virtual_sltp: true
+  lag_gamma: 0.7
+  cci_period: 14
+  cci_price: 0
+  cci_level: 5
+  ma_period: 5
+  ma_shift: 0
+  ma_method: "ema"
+  ma_price: 4
+  shift: 0
+  point: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

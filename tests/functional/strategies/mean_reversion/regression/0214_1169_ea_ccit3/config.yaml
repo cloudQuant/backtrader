@@ -1,0 +1,39 @@
+strategy:
+  name: "EA_CCIT3"
+  source_ea: "ea/1169_EA_CCIT3"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 1.0
+  tp: 1750.0
+  sl: 0.0
+  trail: 0.0
+  max_drawdown: 0.0
+  trade_overturn: false
+  max_lot: 50.0
+  point: 0.01
+  use_simple_ccit3: true
+  use_norecalc_ccit3: false
+  cci_period_smpl: 285
+  cci_price_type_smpl: "typical"
+  t3_period_smpl: 60
+  coeff_b_smpl: 0.618
+  cci_period_otrng: 250
+  cci_price_type_otrng: "typical"
+  t3_period_otrng: 170
+  coeff_b_otrng: 0.618
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

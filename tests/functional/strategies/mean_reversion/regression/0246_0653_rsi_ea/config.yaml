@@ -1,0 +1,34 @@
+strategy:
+  name: "RSI_EA"
+  source_ea: "ea/0653_RSI_EA/rsi_ea.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 60
+
+params:
+  open_buy: true
+  open_sell: true
+  close_by_signal: true
+  stop_loss: 0
+  take_profit: 0
+  trailing_stop: 0
+  rsi_period: 14
+  rsi_buy_level: 30.0
+  rsi_sell_level: 70.0
+  lots: 0.1
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

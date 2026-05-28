@@ -21,7 +21,7 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 REGRESSION_ROOT = REPO / "tests" / "functional" / "strategies_regression"
 DATA_ROOT = REPO / "tests" / "functional" / "datas"
-TARGET_PER_CATEGORY = 5
+TARGET_PER_CATEGORY = 10000  # effectively no cap — pick everything that's eligible
 
 
 def find_strategies():

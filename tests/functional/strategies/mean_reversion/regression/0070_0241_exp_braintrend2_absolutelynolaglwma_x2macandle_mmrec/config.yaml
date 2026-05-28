@@ -1,0 +1,70 @@
+strategy:
+  name: "Exp BrainTrend2 AbsolutelyNoLagLwma X2MACandle MMRec"
+  source_ea: "ea/0241_Exp_BrainTrend2_AbsolutelyNoLagLwma_X2MACandle_MMRec/Exp_BrainTrend2_AbsolutelyNoLagLwma_X2MACandle_MMRec.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H6"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 360
+  feature_cache_dir: "features"
+
+params:
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+  contract_multiplier: 100.0
+  a_buy_loss_trigger: 2
+  a_sell_loss_trigger: 2
+  a_small_mm: 0.01
+  a_mm: 0.1
+  a_mm_mode: "LOT"
+  a_stoploss_points: 2000
+  a_takeprofit_points: 5000
+  a_buy_pos_open: true
+  a_sell_pos_open: true
+  a_sell_pos_close: true
+  a_buy_pos_close: true
+  a_atr_period: 7
+  b_buy_loss_trigger: 2
+  b_sell_loss_trigger: 2
+  b_small_mm: 0.01
+  b_mm: 0.1
+  b_mm_mode: "LOT"
+  b_stoploss_points: 2000
+  b_takeprofit_points: 5000
+  b_buy_pos_open: true
+  b_sell_pos_open: true
+  b_sell_pos_close: true
+  b_buy_pos_close: true
+  b_length: 7
+  c_buy_loss_trigger: 2
+  c_sell_loss_trigger: 2
+  c_small_mm: 0.01
+  c_mm: 0.1
+  c_mm_mode: "LOT"
+  c_stoploss_points: 1000
+  c_takeprofit_points: 2000
+  c_buy_pos_open: true
+  c_sell_pos_open: true
+  c_sell_pos_close: true
+  c_buy_pos_close: true
+  c_length1: 12
+  c_phase1: 15
+  c_length2: 5
+  c_phase2: 15
+  c_gap: 10.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

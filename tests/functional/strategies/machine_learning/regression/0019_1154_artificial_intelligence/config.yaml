@@ -1,0 +1,30 @@
+strategy:
+  name: "ArtificialIntelligence"
+  source_ea: "ea/1154_ArtificialIntelligence"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 0.1
+  stop_loss: 850
+  shift: 1
+  x1: 135
+  x2: 127
+  x3: 16
+  x4: 93
+  point: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

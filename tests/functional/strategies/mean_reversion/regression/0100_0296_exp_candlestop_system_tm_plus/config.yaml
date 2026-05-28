@@ -1,0 +1,39 @@
+strategy:
+  name: "Exp CandleStop System Tm Plus"
+  source_ea: "ea/0296_Exp_CandleStop_System_Tm_Plus/exp_candlestop_system_tm_plus.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 480
+  feature_cache_dir: "features"
+
+params:
+  fixed_lot: 0.1
+  point_size: 0.01
+  stoploss_pips: 1000
+  takeprofit_pips: 2000
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  time_trade: true
+  hold_minutes: 1920
+  up_trail_periods: 5
+  up_trail_shift: 5
+  dn_trail_periods: 5
+  dn_trail_shift: 5
+  signal_bar: 1
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

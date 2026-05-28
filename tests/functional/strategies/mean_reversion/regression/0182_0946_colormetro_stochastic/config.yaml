@@ -1,0 +1,41 @@
+strategy:
+  name: "Exp_ColorMETRO_Stochastic"
+  source_ea: "ea/0946_Exp_ColorMETRO_Stochastic"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  base_timeframe: "M15"
+  indicator_timeframe: "H8"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  returns_compression_minutes: 15
+  feature_cache_dir: "features"
+
+params:
+  signal_bar: 1
+  k_period: 5
+  d_period: 3
+  slowing: 3
+  ma_method: "simple"
+  step_size_fast: 5
+  step_size_slow: 15
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  fixed_lot: 0.1
+  point: 0.01
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,46 @@
+strategy:
+  name: "Exp X2MACandle MMRec"
+  source_ea: "ea/0234_Exp_X2MACandle_MMRec/Exp_X2MACandle_MMRec.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H6"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 360
+
+params:
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+  contract_multiplier: 100.0
+  buy_loss_trigger: 2
+  sell_loss_trigger: 2
+  small_mm: 0.01
+  mm: 0.1
+  mm_mode: "LOT"
+  stoploss_points: 1000
+  takeprofit_points: 2000
+  buy_pos_open: true
+  sell_pos_open: true
+  sell_pos_close: true
+  buy_pos_close: true
+  length1: 12
+  phase1: 15
+  length2: 5
+  phase2: 15
+  gap: 10.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,29 @@
+strategy:
+  id: 0269
+  name: Trend Equity Strategy
+  source_spec: research_papers_gold/strategy_specs/trend_following/0269_Trend_Equity_Strategy.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+params:
+  lookback_period_1: 63
+  lookback_period_2: 126
+  lookback_period_3: 252
+  weight_1: 0.2
+  weight_2: 0.3
+  weight_3: 0.5
+  volatility_lookback: 21
+  volatility_target: 0.15
+  rebalance_interval_days: 21
+  rebalance_threshold: 0.05
+  max_drawdown: 0.1
+  commission_pct: 0.0005
+  lot: 0.1
+backtest:
+  initial_cash: 1000000
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

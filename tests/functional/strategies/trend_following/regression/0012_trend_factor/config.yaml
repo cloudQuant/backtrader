@@ -1,0 +1,29 @@
+strategy:
+  id: 0408
+  name: Trend Factor
+  source_spec: research_papers_gold/strategy_specs/trend_following/0408_Trend_Factor_Strategy.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+params:
+  lookback_3m: 63
+  lookback_6m: 126
+  lookback_12m: 252
+  w1: 0.2
+  w2: 0.3
+  w3: 0.5
+  threshold: 0.0
+  lot_size: 1.0
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

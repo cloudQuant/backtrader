@@ -1,0 +1,36 @@
+strategy:
+  name: "Expert_RSI_Stochastic_MA"
+  source_ea: "ea/0577_Expert_RSI_Stochastic_MA/expert_rsi_stochastic_ma.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 15
+
+params:
+  rsi_period: 3
+  rsi_up_level: 80
+  rsi_dn_level: 20
+  st_k_period: 6
+  st_d_period: 3
+  st_slowing: 3
+  st_up_level: 70
+  st_dn_level: 30
+  ma_period: 150
+  lot: 0.01
+  allow_loss: 30
+  trailing_stop: 30
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

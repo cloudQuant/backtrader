@@ -1,0 +1,39 @@
+strategy:
+  name: "Exp_ThreeCandles"
+  source_ea: "ea/0636_Exp_ThreeCandles/exp_threecandles.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "H6"
+  base_timeframe: "H6"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  base_compression: 15
+  compression: 360
+  execution_compression_minutes: 360
+  returns_compression_minutes: 360
+  feature_cache_dir: "features"
+
+params:
+  stop_loss: 1000
+  take_profit: 2000
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  signal_bar: 1
+  max_bar1: 300
+  volume_type: "tick"
+  lots: 0.1
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

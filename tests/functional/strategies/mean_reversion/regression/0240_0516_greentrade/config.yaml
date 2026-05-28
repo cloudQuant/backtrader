@@ -1,0 +1,38 @@
+strategy:
+  name: "GreenTrade"
+  source_ea: "ea/0516_GreenTrade/greentrade.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M5"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M5.csv"
+  fromdate: "2025-12-03 00:05:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 5
+  compression: 5
+
+params:
+  ma_period: 67
+  shift_bar: 1
+  shift_bar_1: 1
+  shift_bar_2: 2
+  shift_bar_3: 3
+  rsi_period: 57
+  rsi_buy_level: 60
+  rsi_sell_level: 36
+  lots: 0.1
+  stop_loss: 300
+  take_profit: 300
+  trailing_stop: 12
+  trailing_step: 5
+  max_position: 7
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

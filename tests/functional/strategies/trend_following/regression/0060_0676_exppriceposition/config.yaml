@@ -1,0 +1,39 @@
+strategy:
+  name: "ExpPricePosition"
+  source_ea: "ea/0676_ExpPricePosition/exppriceposition.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  base_compression: 15
+
+params:
+  risk_percentage: 0.10
+  tp_vs_sl_ratio: 3.0
+  money_management_type: "fixed"
+  trade_lot_size: 0.1
+  close_by_opposite_signal: true
+  use_trailing_stop: true
+  trailing_fixed_pips_sl: 10
+  point: 0.01
+  price_digits: 2
+  contract_multiplier: 100.0
+  min_stop_pips: 38
+  step_fast_period: 2
+  step_slow_period: 30
+  price_position_smma_period: 26
+  price_position_sma_period: 20
+  max_bars: 360
+  min_lookback: 12
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

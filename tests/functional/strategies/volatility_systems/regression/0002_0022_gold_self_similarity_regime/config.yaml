@@ -1,0 +1,32 @@
+strategy:
+  id: "0022"
+  name: "Gold Self-Similarity Regime"
+  type: "volatility_regime"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "D1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+  fromdate: "2008-01-01 00:00:00"
+  todate: "2025-12-31 00:00:00"
+
+params:
+  hurst_window: 128
+  trend_threshold: 0.55
+  mean_revert_threshold: 0.45
+  breakout_lookback: 20
+  mean_window: 20
+  zscore_entry_threshold: 1.5
+  zscore_exit_threshold: 0.2
+  trend_exit_lookback: 10
+  base_position_pct: 0.03
+  max_position_pct: 0.05
+  stop_loss_pct: 0.03
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

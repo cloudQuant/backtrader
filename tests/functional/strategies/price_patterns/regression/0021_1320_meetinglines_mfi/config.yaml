@@ -1,0 +1,32 @@
+strategy:
+  name: "Meeting Lines + MFI"
+  source_ea: "ea/1320_MQL5_向导_-_基于_牛市约会线_熊市约会线形态的交易信号_+_MFI"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  mfi_period: 12
+  mfi_entry_long: 40
+  mfi_entry_short: 60
+  mfi_exit_upper: 70
+  mfi_exit_lower: 30
+  ma_period: 4
+  lot: 0.1
+  point: 0.01
+  price_digits: 2
+  body_multiplier: 0.25
+  close_tolerance_multiplier: 3.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

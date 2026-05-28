@@ -1,0 +1,29 @@
+strategy:
+  id: '0135'
+  name: 52-Week High Effect
+  source_spec: research_papers_gold/strategy_specs/others/0135_52Week_High_Effect.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+  bar_shift_minutes: 0
+params:
+  lookback_weeks: 26
+  lower_threshold: 0.75
+  upper_threshold: 0.98
+  exit_threshold: 0.7
+  trend_ma_days: 200
+  max_holding_days: 63
+  target_percent: 0.95
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

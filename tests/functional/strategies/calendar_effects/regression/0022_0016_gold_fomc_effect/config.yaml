@@ -1,0 +1,35 @@
+strategy:
+  id: "0016"
+  name: "Gold FOMC Effect"
+  type: "event_driven"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "D1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+  fromdate: "2008-01-01 00:00:00"
+  todate: "2025-12-31 00:00:00"
+
+params:
+  pre_event_days: 5
+  trend_lookback: 20
+  vol_lookback: 20
+  hold_days_after_event: 1
+  min_history_events: 4
+  stop_vol_multiplier: 2.0
+  min_stop_pct: 0.01
+  max_stop_pct: 0.05
+  event_position_pct: 0.03
+  allow_short: false
+  pause_after_losses: 3
+  pause_events_after_losses: 1
+
+backtest:
+  initial_cash: 1000000.0
+  commission: 0.0001
+  margin: 0.1
+  multiplier: 1.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

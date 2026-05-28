@@ -1,0 +1,24 @@
+strategy:
+  id: '0119'
+  name: Gold Intraday Mean Reversion
+  source_spec: research_papers_gold/strategy_specs/mean_reversion/0119_Mean_Reversion_System.md
+
+data:
+  symbol: XAUUSD
+  timeframe: M15
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv
+  fromdate: '2025-01-01 00:00:00'
+  todate: '2025-12-31 23:59:59'
+params:
+  entry_z: 2.0
+  exit_z: 0.5
+  lookback_days: 252
+  max_holding_hours: 4
+  early_entry_cutoff: 14
+  gross_exposure: 0.95
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

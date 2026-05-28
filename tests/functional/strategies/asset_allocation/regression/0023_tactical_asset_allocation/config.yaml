@@ -1,0 +1,40 @@
+strategy:
+  id: '0414'
+  name: Tactical Asset Allocation Strategy
+  source_spec: research_papers_gold/strategy_specs/asset_allocation/0414_Tactical_Asset_Allocation_Strategy.md
+
+data:
+  symbol: IVV/GLD/IEF/CASH
+  timeframe: MONTHLY
+  assets:
+    IVV: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IVV_1d.csv
+    GLD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+    IEF: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  ma_fast: 50
+  ma_slow: 200
+  volatility_window: 21
+  volatility_threshold: 0.20
+  offensive_equity: 0.65
+  offensive_gold: 0.15
+  offensive_bond: 0.15
+  offensive_cash: 0.05
+  defensive_equity: 0.30
+  defensive_gold: 0.25
+  defensive_bond: 0.35
+  defensive_cash: 0.10
+  neutral_equity: 0.45
+  neutral_gold: 0.20
+  neutral_bond: 0.30
+  neutral_cash: 0.05
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

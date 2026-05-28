@@ -1,0 +1,32 @@
+strategy:
+  name: "ASCV"
+  source_ea: "ea/0268_ASCV/ascv.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+
+params:
+  fixed_lot: 0.1
+  point_size: 0.01
+  stoploss_pips: 15
+  takeprofit_pips: 46
+  trailing_stop_pips: 0
+  trailing_step_pips: 5
+  atr_period: 14
+  sto_period: 12
+  reverse: false
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

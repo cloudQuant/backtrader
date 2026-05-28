@@ -1,0 +1,32 @@
+strategy:
+  name: "EA_AML"
+  source_ea: "ea/1168_EA_AML"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 0.1
+  tp: 3500.0
+  sl: 500.0
+  use_opposite: true
+  use_multpl: false
+  max_drawdown: 1800.0
+  max_lot: 50.0
+  point: 0.01
+  fractal: 70
+  lag: 18
+  shift: 0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

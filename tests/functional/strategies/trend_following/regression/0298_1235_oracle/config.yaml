@@ -1,0 +1,36 @@
+strategy:
+  name: "Oracle"
+  source_ea: "ea/1235_Exp_Oracle"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  indicator_minutes: 240
+  mode: 1
+  oracle_period: 55
+  applied_price: 0
+  smooth: 8
+  recount: true
+  signal_bar: 1
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  mm: -0.1
+  point: 0.01
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

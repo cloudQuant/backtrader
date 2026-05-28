@@ -1,0 +1,41 @@
+strategy:
+  name: "MaRsiTrigger"
+  source_ea: "ea/1240_Exp_MaRsi-Trigger"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  indicator_minutes: 240
+  n_period_rsi: 3
+  n_rsi_price: 6
+  n_period_rsi_long: 13
+  n_rsi_price_long: 4
+  n_period_ma: 5
+  n_ma_type: 1
+  n_ma_price: 0
+  n_period_ma_long: 10
+  n_ma_type_long: 1
+  n_ma_price_long: 0
+  signal_bar: 1
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  mm: -0.1
+  point: 0.01
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

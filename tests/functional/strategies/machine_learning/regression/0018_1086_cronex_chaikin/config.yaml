@@ -1,0 +1,45 @@
+strategy:
+  name: "Exp_CronexChaikin"
+  source_ea: "ea/1086_Exp_CronexChaikin"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  signal_tf_minutes: 240
+
+params:
+  mm: 0.1
+  mm_mode: "LOT"
+  stop_loss: 1000
+  take_profit: 2000
+  deviation: 10
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  chaikin_method: "MODE_SMA"
+  chaikin_fast_period: 3
+  chaikin_slow_period: 10
+  xma_method: "MODE_SMA"
+  fast_period: 14
+  slow_period: 25
+  xphase: 15
+  volume_type: "VOLUME_TICK"
+  signal_bar: 1
+  size: 0.1
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

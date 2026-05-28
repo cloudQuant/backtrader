@@ -1,0 +1,26 @@
+strategy:
+  id: '0401'
+  name: Seasonal Sell August Strategy
+  source_spec: research_papers_gold/strategy_specs/seasonality/0401_Seasonal_Sell_August_Strategy.md
+
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  min_history_years: 5
+  test_entry_months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+  test_holding_months: [3, 6, 9]
+  target_percent: 1.0
+  rebalance_tolerance: 0.05
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

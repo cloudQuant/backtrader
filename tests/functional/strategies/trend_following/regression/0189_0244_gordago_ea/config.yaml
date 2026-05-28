@@ -1,0 +1,43 @@
+strategy:
+  name: "Gordago EA"
+  source_ea: "ea/0244_Gordago_EA/gordago_ea.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M1"
+  work_timeframe: "M3"
+  macd_timeframe: "M12"
+  sto_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv"
+  fromdate: "2026-03-05 00:00:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 0
+  work_compression_minutes: 3
+  macd_compression_minutes: 12
+  sto_compression_minutes: 60
+
+params:
+  fixed_lot: 0.1
+  point_size: 0.01
+  stoploss_buy_pips: 40
+  takeprofit_buy_pips: 70
+  stoploss_sell_pips: 10
+  takeprofit_sell_pips: 40
+  trailing_stop_pips: 5
+  trailing_step_pips: 1
+  sto_level_buy: 37.0
+  sto_level_sell: 96.0
+  macd_signal_period: 9
+  macd_fast_ema_period: 12
+  macd_slow_ema_period: 26
+  sto_kperiod: 5
+  sto_dperiod: 3
+  sto_slowing: 3
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

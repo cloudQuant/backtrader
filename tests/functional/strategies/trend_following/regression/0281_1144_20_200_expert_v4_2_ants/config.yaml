@@ -1,0 +1,36 @@
+strategy:
+  name: "20_200 expert_v4.2_AntS"
+  source_ea: "ea/1144_20_200_expert_v4.2_AntS"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  t1: 6
+  t2: 2
+  delta_l: 6
+  delta_s: 21
+  take_profit_l: 390
+  stop_loss_l: 1470
+  take_profit_s: 320
+  stop_loss_s: 2670
+  lots: 0.1
+  auto_lot: true
+  big_lot_size: 6.0
+  one_mult: true
+  trade_time: 14
+  max_open_time: 504
+  point: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

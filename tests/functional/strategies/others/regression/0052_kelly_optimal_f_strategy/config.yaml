@@ -1,0 +1,28 @@
+strategy:
+  id: '0362'
+  name: Kelly Optimal F Strategy
+  source_spec: research_papers_gold/strategy_specs/others/0362_Kelly_Optimal_F_Strategy.md
+
+data:
+  timeframe: D1
+  symbol: GLD
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  method: kelly
+  lookback: 126
+  trend_period: 63
+  kelly_adjustment: 0.5
+  max_fraction: 0.20
+  optimal_f_adjustment: 0.5
+  optimal_f_step: 0.02
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

@@ -1,0 +1,32 @@
+strategy:
+  name: "夜间横盘交易"
+  source_ea: "ea/0381_夜间横盘交易/night_flat_trade.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M1"
+  signal_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv"
+  fromdate: "2026-03-05 00:00:00"
+  todate: "2026-03-10 09:00:00"
+
+params:
+  take_profit_pips: 50
+  trailing_stop_pips: 15
+  trailing_step_pips: 5
+  diff_min_pips: 100
+  diff_max_pips: 400
+  open_hour: 0
+  lots: 0.10
+  risk: 5.0
+  margin_per_lot: 1000.0
+  point: 0.1
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  stocklike: false
+
+  commission_type: "fixed"

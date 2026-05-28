@@ -1,0 +1,41 @@
+strategy:
+  name: "RockTraderNeuro"
+  source_ea: "ea/1115_?????????????"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  stop_loss: 30
+  take_profit: 100
+  lot: 1.0
+  point: 0.01
+  bb_period: 20
+  bb_devfactor: 2.0
+  w0: 0.8
+  w1: 0.4
+  w2: -0.9
+  w3: 0.0
+  w4: 0.7
+  w5: -0.2
+  w6: 0.9
+  w7: 0.7
+  w8: -1.0
+  w9: 0.3
+  w10: 0.5
+  w11: 0.5
+  w12: 0.0
+  w13: 1.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

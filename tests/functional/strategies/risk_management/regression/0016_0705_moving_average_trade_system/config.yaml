@@ -1,0 +1,28 @@
+strategy:
+  name: "移动均线交易系统"
+  source_ea: "ea/0705_移动均线交易系统"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M30"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M30.csv"
+  fromdate: "2025-12-03 00:00:00"
+  todate: "2026-03-10 23:59:00"
+  bar_shift_minutes: 30
+
+params:
+  take_profit: 50
+  stop_loss: 50
+  trailing_stop: 11
+  lots: 0.1
+  point: 0.0001
+  digits_adjust: 1
+  price_digits: 5
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

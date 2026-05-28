@@ -1,0 +1,29 @@
+strategy:
+  name: "Simple Pending Orders Time"
+  source_ea: "ea/0013_简单待处理订单时间/simple_pending_orders_time.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv"
+  fromdate: "2026-03-05 00:00:00"
+  todate: "2026-03-10 09:03:00"
+  bar_shift_minutes: 1
+
+params:
+  trading_start: 15
+  end_of_trade: 16
+  indent: 100
+  stop_loss: 200
+  lots: 0.1
+  magic_number: 9462
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

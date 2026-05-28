@@ -1,0 +1,18 @@
+{
+  "rows": 4538,
+  "bar_num": 4538,
+  "buy_count": 312,
+  "sell_count": 311,
+  "win_count": 211,
+  "loss_count": 100,
+  "sum_profit": 876852.9600000016,
+  "trade_num": 311,
+  "total_trades": 311,
+  "stop_count": 0,
+  "contracts": null,
+  "final_value": 1703436.2393480046,
+  "sharpe_ratio": 0.48839622630865354,
+  "annual_return": 0.03002027620520954,
+  "max_drawdown": 0.17366762239328148,
+  "return_rate": 70.34362393480045
+}

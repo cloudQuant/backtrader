@@ -1,0 +1,28 @@
+strategy:
+  name: "MovingAverage"
+  source_ea: "ea/1120_移动平均(Moving_Average)"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  maximum_risk: 0.0001
+  decrease_factor: 3.0
+  moving_period: 12
+  moving_shift: 6
+  min_volume: 0.01
+  max_volume: 100.0
+  volume_step: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

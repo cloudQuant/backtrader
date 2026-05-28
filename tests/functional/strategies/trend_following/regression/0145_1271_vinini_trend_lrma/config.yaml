@@ -1,0 +1,41 @@
+strategy:
+  name: "VininI_Trend_LRMA"
+  source_ea: "ea/1271_Exp_VininI_Trend_LRMA"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  mode: "twist"
+  signal_bar: 1
+  lrma_period: 13
+  ma_method1: "sma"
+  length1: 3
+  phase1: 15
+  ma_step: 10
+  ma_count: 10
+  ma_method2: "jjma"
+  length2: 20
+  phase2: 100
+  ipc: "price_close"
+  up_level: 10
+  dn_level: -10
+  mperiod: 1
+  short: 6
+  long: 100
+  max_trend_level: 0
+  lot: 0.1
+  ensure_trade_after_bars: 150
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

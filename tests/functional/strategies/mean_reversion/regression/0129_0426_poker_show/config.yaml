@@ -1,0 +1,41 @@
+strategy:
+  name: "Poker_SHOW"
+  source_ea: "ea/0426_Poker_SHOW/poker_show.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  base_compression_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 60
+  returns_compression_minutes: 15
+  feature_cache_dir: "features"
+
+params:
+  lot: 0.10
+  stop_loss_pips: 50
+  take_profit_pips: 150
+  use_buy: true
+  use_sell: true
+  ma_distance_points: 50
+  ma_period: 24
+  ma_shift: 0
+  ma_method: "ema"
+  applied_price: "close"
+  reverse_signal: false
+  poker_threshold: 16383
+  rng_seed: 42
+  point: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

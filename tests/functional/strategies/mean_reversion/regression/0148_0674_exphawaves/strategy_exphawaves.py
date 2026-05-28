@@ -1,0 +1,367 @@
+from __future__ import absolute_import, division, print_function, unicode_literals
+
+import io
+import json
+import os
+from pathlib import Path
+
+import backtrader as bt
+import pandas as pd
+
+
+def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    with open(filepath, 'r', encoding='utf-8') as f:
+        lines = f.read().strip().split('\n')
+    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
+    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
+    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
+    df = df.rename(columns={
+        '<OPEN>': 'open',
+        '<HIGH>': 'high',
+        '<LOW>': 'low',
+        '<CLOSE>': 'close',
+        '<TICKVOL>': 'tick_volume',
+        '<VOL>': 'real_volume',
+    })
+    df['openinterest'] = 0
+    df['volume'] = df['tick_volume']
+    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
+    df = df.set_index('datetime')
+    if bar_shift_minutes:
+        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
+    if fromdate is not None:
+        df = df[df.index >= fromdate]
+    if todate is not None:
+        df = df[df.index <= todate]
+    return df
+
+
+class Mt5PandasFeed(bt.feeds.PandasData):
+    params = (
+        ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
+    )
+
+
+class ExpHAWavesStrategy(bt.Strategy):
+    params = dict(
+        risk_percentage=0.10,
+        tp_vs_sl_ratio=3.0,
+        money_management_type='fixed',
+        trade_lot_size=0.1,
+        close_by_opposite_signal=True,
+        use_trailing_stop=True,
+        trailing_fixed_pips_sl=10,
+        point=0.01,
+        price_digits=2,
+        contract_multiplier=100.0,
+        min_stop_pips=38,
+        step_fast_period=2,
+        step_slow_period=30,
+        max_bars=360,
+    )
+
+    def __init__(self):
+        self.base = self.datas[0]
+        self.h1 = self.datas[1]
+
+        median_h1 = (self.h1.high + self.h1.low) / 2.0
+        typical_h1 = (self.h1.high + self.h1.low + self.h1.close) / 3.0
+
+        self.step_fast = bt.indicators.SimpleMovingAverage(typical_h1, period=self.p.step_fast_period)
+        self.step_slow = bt.indicators.SmoothedMovingAverage(median_h1, period=self.p.step_slow_period)
+
+        self.bar_num = 0
+        self.signal_count = 0
+        self.buy_count = 0
+        self.sell_count = 0
+        self.trade_count = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.completed_order_count = 0
+        self.rejected_order_count = 0
+
+        self.order = None
+        self.pending_reverse = None
+        self.stop_price = None
+        self.take_profit_price = None
+        self.last_h1_len = 0
+        self.last_close_dt = None
+        self.semantic_log_path = None
+        trade_log_root = os.environ.get('BT_TRADE_LOG_DIR', '').strip()
+        if trade_log_root:
+            log_dir = Path(trade_log_root) / 'python'
+            log_dir.mkdir(parents=True, exist_ok=True)
+            self.semantic_log_path = log_dir / 'semantic.log'
+            self.semantic_log_path.write_text('', encoding='utf-8')
+
+    def _current_dt(self):
+        return bt.num2date(self.base.datetime[0])
+
+    def _log_semantic(self, event, action='', reason='', signal=0):
+        if self.semantic_log_path is None:
+            return
+        row = {
+            'datetime': self._current_dt().strftime('%Y-%m-%d %H:%M:%S'),
+            'event': event,
+            'action': action,
+            'reason': reason,
+            'bar_num': int(self.bar_num),
+            'base_len': len(self.base),
+            'h1_len': len(self.h1),
+            'last_h1_len': int(self.last_h1_len),
+            'position_size': float(self.position.size) if self.position else 0.0,
+            'position_price': float(self.position.price) if self.position else 0.0,
+            'high': float(self.base.high[0]),
+            'low': float(self.base.low[0]),
+            'close': float(self.base.close[0]),
+            'stop_price': self.stop_price,
+            'take_profit_price': self.take_profit_price,
+            'signal': int(signal),
+            'order_pending': self.order is not None,
+        }
+        with self.semantic_log_path.open('a', encoding='utf-8') as f:
+            f.write(json.dumps(row, sort_keys=True) + '\n')
+
+    def _point_value(self):
+        return float(self.p.point)
+
+    def _can_open_after_close(self):
+        if self.last_close_dt is None:
+            return True
+        current_dt = self._current_dt()
+        return not (
+            current_dt.year == self.last_close_dt.year
+            and current_dt.month == self.last_close_dt.month
+            and current_dt.day == self.last_close_dt.day
+            and current_dt.hour == self.last_close_dt.hour
+        )
+
+    def _trade_size(self):
+        if str(self.p.money_management_type).lower() != 'dynamic':
+            return float(self.p.trade_lot_size)
+        equity = float(self.broker.getvalue())
+        money_risk = equity * float(self.p.risk_percentage) / 100.0
+        lots = money_risk / max(float(self.p.contract_multiplier), 1.0)
+        return max(float(self.p.trade_lot_size), round(lots, 2))
+
+    def _risk_distance(self, lots):
+        equity = float(self.broker.getvalue())
+        money_risk = equity * float(self.p.risk_percentage) / 100.0
+        raw_distance = money_risk / max(lots * float(self.p.contract_multiplier), 1e-9)
+        min_distance = float(self.p.min_stop_pips) * self._point_value()
+        spread_pad = self._point_value() * 2.0
+        return max(min_distance, raw_distance + spread_pad)
+
+    def _set_entry_risk(self, side, price, lots):
+        distance = self._risk_distance(lots)
+        if side == 'buy':
+            self.stop_price = round(price - distance, int(self.p.price_digits))
+            self.take_profit_price = round(price + distance * float(self.p.tp_vs_sl_ratio), int(self.p.price_digits))
+        else:
+            self.stop_price = round(price + distance, int(self.p.price_digits))
+            self.take_profit_price = round(price - distance * float(self.p.tp_vs_sl_ratio), int(self.p.price_digits))
+
+    def _trail_distances(self):
+        stop_distance = float(self.p.trailing_fixed_pips_sl) * self._point_value()
+        tp_distance = stop_distance * float(self.p.tp_vs_sl_ratio)
+        return stop_distance, tp_distance
+
+    def _manage_position(self):
+        if not self.position or self.order is not None:
+            return
+        high = float(self.base.high[0])
+        low = float(self.base.low[0])
+        close = float(self.base.close[0])
+        if self.position.size > 0:
+            if self.take_profit_price is not None and high >= float(self.take_profit_price):
+                self._log_semantic('close_request', 'sell', 'take_profit')
+                self.order = self.close()
+                return
+            if self.stop_price is not None and low <= float(self.stop_price):
+                self._log_semantic('close_request', 'sell', 'stop_loss')
+                self.order = self.close()
+                return
+            if self.p.use_trailing_stop:
+                stop_distance, tp_distance = self._trail_distances()
+                if close - float(self.position.price) > stop_distance:
+                    candidate_sl = round(close - stop_distance, int(self.p.price_digits))
+                    candidate_tp = round(close + tp_distance, int(self.p.price_digits))
+                    if self.stop_price is None or candidate_sl > float(self.stop_price):
+                        self.stop_price = candidate_sl
+                        self.take_profit_price = max(float(self.take_profit_price), candidate_tp) if self.take_profit_price is not None else candidate_tp
+                        self._log_semantic('risk_update', 'hold', 'trailing_long')
+        else:
+            if self.take_profit_price is not None and low <= float(self.take_profit_price):
+                self._log_semantic('close_request', 'buy', 'take_profit')
+                self.order = self.close()
+                return
+            if self.stop_price is not None and high >= float(self.stop_price):
+                self._log_semantic('close_request', 'buy', 'stop_loss')
+                self.order = self.close()
+                return
+            if self.p.use_trailing_stop:
+                stop_distance, tp_distance = self._trail_distances()
+                if float(self.position.price) - close > stop_distance:
+                    candidate_sl = round(close + stop_distance, int(self.p.price_digits))
+                    candidate_tp = round(close - tp_distance, int(self.p.price_digits))
+                    if self.stop_price is None or candidate_sl < float(self.stop_price):
+                        self.stop_price = candidate_sl
+                        self.take_profit_price = min(float(self.take_profit_price), candidate_tp) if self.take_profit_price is not None else candidate_tp
+                        self._log_semantic('risk_update', 'hold', 'trailing_short')
+
+    def _step_up_down(self):
+        pr = 9
+        if len(self.h1) < pr + 2:
+            return 0
+        fast_values = [float(self.step_fast[-i]) for i in range(0, pr + 1)]
+        slow_values = [float(self.step_slow[-i]) for i in range(0, pr + 1)]
+        ma_hi = fast_values[1]
+        ma_lo = fast_values[1]
+        ml_hi = 0
+        ml_lo = 0
+        for idx in range(pr, -1, -1):
+            value = fast_values[idx]
+            if value > ma_hi:
+                ma_hi = value
+                ml_hi = idx
+            if value < ma_lo:
+                ma_lo = value
+                ml_lo = idx
+        div0 = fast_values[0] - slow_values[0]
+        div1 = fast_values[1] - slow_values[1]
+        ups = False
+        dns = False
+        available = min(int(self.p.max_bars), len(self.h1))
+        for j in range(available - 1, -1, -1):
+            fast_j = float(self.step_fast[-j])
+            if ml_hi > ml_lo and fast_j > ma_lo:
+                ups = True
+                dns = False
+            if ml_hi > ml_lo and div0 < div1:
+                dns = True
+                ups = False
+            if ml_hi < ml_lo and fast_j < ma_hi:
+                dns = True
+                ups = False
+            if ml_hi < ml_lo and div0 > div1:
+                ups = True
+                dns = False
+        if ups:
+            return 1
+        if dns:
+            return -1
+        return 0
+
+    def _heiken(self):
+        if len(self.h1) < 2:
+            return 0
+        ex_open_prev = float(self.h1.open[0])
+        ex_close_prev = float(self.h1.close[0])
+        ha_open = (ex_open_prev + ex_close_prev) / 2.0
+        ha_close = (float(self.h1.open[-1]) + float(self.h1.high[-1]) + float(self.h1.low[-1]) + float(self.h1.close[-1])) / 4.0
+        if ha_open < ha_close:
+            return 1
+        if ha_open > ha_close:
+            return -1
+        return 0
+
+    def _trade_signal(self):
+        if len(self.h1) < max(self.p.step_slow_period, 12):
+            return 0
+        step_ud = self._step_up_down()
+        heiken = self._heiken()
+        if heiken == 1 and step_ud == 1:
+            return 1
+        if heiken == -1 and step_ud == -1:
+            return -1
+        return 0
+
+    def _close_profitable_on_step_flip(self):
+        if not self.position or self.order is not None:
+            return
+        if self.p.use_trailing_stop:
+            return
+        current_pnl = (float(self.base.close[0]) - float(self.position.price)) * float(self.position.size) * float(self.p.contract_multiplier)
+        step_ud = self._step_up_down()
+        if self.position.size > 0 and step_ud == -1 and current_pnl > 0:
+            self.order = self.close()
+        elif self.position.size < 0 and step_ud == 1 and current_pnl > 0:
+            self.order = self.close()
+
+    def _open_side(self, side):
+        lots = self._trade_size()
+        price = float(self.base.close[0])
+        self._set_entry_risk(side, price, lots)
+        self.signal_count += 1
+        self._log_semantic('open_request', side, 'entry_signal')
+        if side == 'buy':
+            self.order = self.buy(size=lots)
+        else:
+            self.order = self.sell(size=lots)
+
+    def next(self):
+        self.bar_num += 1
+        self._manage_position()
+        self._close_profitable_on_step_flip()
+        if len(self.h1) == self.last_h1_len:
+            return
+        self.last_h1_len = len(self.h1)
+        if self.order is not None:
+            return
+        signal = self._trade_signal()
+        self._log_semantic('h1_signal', 'buy' if signal > 0 else 'sell' if signal < 0 else 'hold', 'signal_eval', signal)
+        if signal == 0:
+            return
+        if self.position:
+            if self.position.size > 0 and signal < 0:
+                if self.p.close_by_opposite_signal:
+                    self.pending_reverse = 'sell'
+                    self._log_semantic('close_request', 'sell', 'opposite_signal', signal)
+                    self.order = self.close()
+                return
+            if self.position.size < 0 and signal > 0:
+                if self.p.close_by_opposite_signal:
+                    self.pending_reverse = 'buy'
+                    self._log_semantic('close_request', 'buy', 'opposite_signal', signal)
+                    self.order = self.close()
+                return
+            return
+        if not self._can_open_after_close():
+            return
+        if signal > 0:
+            self._open_side('buy')
+        else:
+            self._open_side('sell')
+
+    def notify_order(self, order):
+        if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
+            return
+        if order.status == bt.Order.Completed:
+            self.completed_order_count += 1
+            if order.isbuy() and order.executed.size > 0:
+                self.buy_count += 1
+            elif order.issell() and order.executed.size < 0:
+                self.sell_count += 1
+            if not self.position:
+                self.last_close_dt = self._current_dt()
+                self.stop_price = None
+                self.take_profit_price = None
+                if self.pending_reverse is not None:
+                    side = self.pending_reverse
+                    self.pending_reverse = None
+                    self._open_side(side)
+                    return
+        elif order.status in [bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected, bt.Order.Expired]:
+            self.rejected_order_count += 1
+            self.pending_reverse = None
+        if self.order is not None and order.ref == self.order.ref and order.status not in [bt.Order.Submitted, bt.Order.Accepted]:
+            self.order = None
+
+    def notify_trade(self, trade):
+        if not trade.isclosed:
+            return
+        self.trade_count += 1
+        if trade.pnlcomm >= 0:
+            self.win_count += 1
+        else:
+            self.loss_count += 1

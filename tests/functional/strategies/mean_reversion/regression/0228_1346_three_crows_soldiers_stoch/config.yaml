@@ -1,0 +1,28 @@
+strategy:
+  name: "3 Crows/Soldiers + Stochastic"
+  source_ea: "ea/1346_MQL5_向导_-_基于_3_乌鸦_3_白兵_+_Stochastic/expert_abc_ws_stoch.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  stoch_period_k: 47
+  stoch_period_d: 9
+  stoch_period_slow: 13
+  ma_period: 5
+  lot: 0.1
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

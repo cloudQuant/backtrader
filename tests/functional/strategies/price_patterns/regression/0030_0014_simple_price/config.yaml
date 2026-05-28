@@ -1,0 +1,26 @@
+strategy:
+  name: "Simple Price"
+  source_ea: "ea/0014_简单价�?simple_price_ea.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M1.csv"
+  fromdate: "2026-03-08 00:00:00"
+  todate: "2026-03-10 09:03:00"
+  bar_shift_minutes: 1
+
+params:
+  check_bars: 60
+  lots: 0.1
+  point: 0.01
+  price_digits: 2
+  tp_points: 50
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

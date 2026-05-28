@@ -1,0 +1,51 @@
+strategy:
+  name: "Exp_FineTuningMACandle_Duplex"
+  source_ea: "ea/0197_Exp_FineTuningMACandle_Duplex"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "H4"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  point: 0.01
+  long_pos_open: true
+  long_pos_close: true
+  long_lot: 0.1
+  long_stop_loss_points: 1000
+  long_take_profit_points: 2000
+  short_pos_open: true
+  short_pos_close: true
+  short_lot: 0.1
+  short_stop_loss_points: 1000
+  short_take_profit_points: 2000
+  long_indicator:
+    ftma: 10
+    rank1: 2.0
+    rank2: 2.0
+    rank3: 2.0
+    shift1: 1.0
+    shift2: 1.0
+    shift3: 1.0
+    gap: 10
+  short_indicator:
+    ftma: 10
+    rank1: 2.0
+    rank2: 2.0
+    rank3: 2.0
+    shift1: 1.0
+    shift2: 1.0
+    shift3: 1.0
+    gap: 10
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

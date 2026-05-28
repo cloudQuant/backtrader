@@ -1,0 +1,40 @@
+strategy:
+  name: "XBullsBearsEyes Vol"
+  source_ea: "ea/0190_Exp_XBullsBearsEyes_Vol"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "H8"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  mm1: 0.1
+  mm2: 0.2
+  lot_or_risk: "lot"
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  period: 13
+  gamma: 0.6
+  high_level_2: 25
+  high_level_1: 10
+  low_level_1: -10
+  low_level_2: -25
+  ma_length: 12
+  signal_bar: 1
+  volume_type: "tick"
+  point: 0.01
+  lot_step: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

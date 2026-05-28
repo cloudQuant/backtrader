@@ -1,0 +1,40 @@
+strategy:
+  name: "Breakout Strategy with Prop Firm Helper Functions"
+  source_ea: "ea/0036_Breakout_Strategy_with_Prop_Firm_Helper_Functions/propfirmhelper.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  trading_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  trading_compression_minutes: 60
+
+params:
+  bot_name: "Breakout Strategy with Prop Firm Challenge Helper"
+  expert_magic: 1
+  entry_period: 20
+  entry_shift: 1
+  exit_period: 20
+  exit_shift: 1
+  is_challenge: false
+  pass_criteria: 110100.0
+  daily_loss_limit: 4500.0
+  risk_per_trade: 1.0
+  atr_period: 20
+  tick_size: 0.01
+  min_stop_distance: 0.0
+  lot_step: 0.01
+  volume_min: 0.01
+  volume_max: 100.0
+  value_per_price_unit: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

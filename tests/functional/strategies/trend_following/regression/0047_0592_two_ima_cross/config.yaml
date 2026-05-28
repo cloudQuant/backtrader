@@ -1,0 +1,40 @@
+strategy:
+  name: "Crossing_of_Two_iMA"
+  source_ea: "ea/0592_两个iMA的交�?crossing_of_two_ima.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 15
+
+params:
+  ma_period_first: 5
+  ma_shift_first: 3
+  ma_method_first: "smma"
+  ma_period_second: 8
+  ma_shift_second: 5
+  ma_method_second: "smma"
+  filter_ma: true
+  ma_period_third: 13
+  ma_shift_third: 8
+  ma_method_third: "smma"
+  lots: 0.1
+  price_level: 0
+  stop_loss: 50
+  take_profit: 50
+  trailing_stop: 10
+  trailing_step: 4
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

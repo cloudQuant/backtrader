@@ -1,0 +1,35 @@
+strategy:
+  name: "EA_MARSI"
+  source_ea: "ea/1172_EA_MARSI"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 0.1
+  tp_points: 0.0
+  sl_points: 0.0
+  use_multpl: false
+  max_drawdown: 10000.0
+  slow_rsi_period: 310
+  slow_ema_periods: 40
+  slow_price: 0
+  fast_rsi_period: 200
+  fast_ema_periods: 50
+  fast_price: 0
+  signal_bar: 1
+  point: 0.01
+  max_lot: null
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

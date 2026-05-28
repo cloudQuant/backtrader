@@ -1,0 +1,30 @@
+strategy:
+  name: "TDSGlobal"
+  source_ea: "ea/0703_TDSGlobal"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 00:00:00"
+  todate: "2026-03-10 23:59:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 1
+  take_profit: 999
+  stoploss: 0
+  trailing_stop: 10
+  williams_l: -75
+  williams_h: -25
+  point: 0.0001
+  digits_adjust: 1
+  price_digits: 5
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

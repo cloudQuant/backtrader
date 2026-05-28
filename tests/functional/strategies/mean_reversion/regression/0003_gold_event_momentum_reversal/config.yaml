@@ -1,0 +1,25 @@
+strategy:
+  id: '0004'
+  name: Gold Event Momentum Reversal
+  source_spec: research_papers_gold/strategy_specs/mean_reversion/0004_Gold_Event_Momentum_Reversal.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+params:
+  lookback: 20
+  momentum_threshold: 0.03
+  holding_days: 3
+  lot_size: 1.0
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

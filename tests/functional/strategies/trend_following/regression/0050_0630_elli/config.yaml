@@ -1,0 +1,34 @@
+strategy:
+  name: "Elli"
+  source_ea: "ea/0630_Elli/elli.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 15
+
+params:
+  tenkan: 9
+  kijun: 26
+  senkou_b: 52
+  po: 0
+  adx_period: 10
+  convert_high: 5
+  convert_low: 99
+  stop_loss: 30
+  take_profit: 60
+  lots: 0.1
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

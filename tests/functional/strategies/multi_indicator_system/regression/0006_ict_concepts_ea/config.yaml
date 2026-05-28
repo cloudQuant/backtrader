@@ -1,0 +1,50 @@
+strategy:
+  name: "ICT Concepts EA"
+  source_ea: "ea/0104_ICT_conceptsEA_by_Emil"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  risk_percent_per_trade: 0.25
+  max_total_drawdown_percent: 10.0
+  max_daily_drawdown_percent: 5.0
+  initial_balance: 5000.0
+  tp1_rr: 1.0
+  tp2_rr: 2.0
+  tp3_rr: 3.0
+  partial_close_percent_tp1: 50.0
+  partial_close_percent_tp2: 25.0
+  partial_close_percent_tp3: 25.0
+  move_sl_to_be_after_tp1: true
+  be_plus_pips: 1
+  trailing_sl_pips: 10.0
+  use_silver_bullet: true
+  sb_start_time: "10:00"
+  sb_end_time: "11:00"
+  use_2022_model: true
+  use_ote_entry: true
+  htf_ma_period: 200
+  dol_lookback_bars: 120
+  ndog_nwog_threshold: 0.5
+  ote_lower_level: 0.618
+  ote_upper_level: 0.786
+  point_size: 0.01
+  digits_factor: 1.0
+  min_lot: 0.01
+  lot_step: 0.01
+  max_lot: 100.0
+  verbose: false
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

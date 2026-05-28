@@ -1,0 +1,31 @@
+strategy:
+  id: "0035"
+  name: "Gold Tactical Asset Allocation"
+  type: "asset_allocation"
+
+data:
+  symbol: "XAUUSD/IVV/IEF"
+  timeframe: "MONTHLY"
+  assets:
+    XAUUSD: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+    IVV: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IVV_1d.csv"
+    IEF: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv"
+  fromdate: "2008-01-01 00:00:00"
+  todate: "2025-12-31 00:00:00"
+
+params:
+  gold_base_weight: 0.10
+  gold_min_weight: 0.05
+  gold_max_weight: 0.25
+  tactical_deviation: 0.10
+  momentum_lookback_months: 12
+  equity_vol_lookback_months: 3
+  rates_lookback_months: 3
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

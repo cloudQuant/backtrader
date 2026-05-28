@@ -1,0 +1,44 @@
+strategy:
+  name: "Exp_RSIOMA"
+  source_ea: "ea/0736_Exp_RSIOMA"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  indicator_timeframe_minutes: 240
+
+indicator:
+  rsioma_method: "ema"
+  rsioma: 14
+  marsioma_method: "ema"
+  marsioma: 21
+  mom_period: 1
+  price_type: "close"
+
+params:
+  stop_loss: 1000
+  take_profit: 2000
+  lots: 0.1
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  mode: "histdisposition"
+  high_level: 20.0
+  middle_level: 0.0
+  low_level: -20.0
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

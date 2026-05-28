@@ -1,0 +1,38 @@
+strategy:
+  name: "ProMart"
+  source_ea: "ea/1191_ProMart"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  dml: 1000.0
+  doubling_count: 1
+  stop_points: 500
+  take_points: 1500
+  macd1_fast: 5
+  macd1_slow: 20
+  macd2_fast: 10
+  macd2_slow: 15
+  macd_signal: 3
+  base_lot_scale: 0.001
+  volume_min: 0.1
+  volume_step: 0.1
+  volume_max: 5.0
+  margin_per_lot: 250.0
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

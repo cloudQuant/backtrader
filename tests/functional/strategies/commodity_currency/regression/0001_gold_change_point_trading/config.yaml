@@ -1,0 +1,32 @@
+strategy:
+  id: '0008'
+  name: Gold Change Point Trading
+  source_spec: research_papers_gold/strategy_specs/commodity_currency/0008_Gold_Change_Point_Trading.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+  bar_shift_minutes: 0
+params:
+  detection_window: 60
+  confirm_days: 3
+  min_change_gap: 20
+  t_stat_threshold: 1.0
+  vol_switch_threshold: 1.4
+  target_volatility: 0.15
+  base_target_percent: 0.02
+  max_target_percent: 0.05
+  stop_loss_pct: 0.02
+  take_profit_pct: 0.05
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

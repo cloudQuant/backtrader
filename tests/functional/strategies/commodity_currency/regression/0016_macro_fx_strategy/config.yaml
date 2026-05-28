@@ -1,0 +1,42 @@
+strategy:
+  id: '0386'
+  name: Macro FX Strategy
+  source_spec: research_papers_gold/strategy_specs/commodity_currency/0386_Macro_FX_Strategy.md
+
+data:
+  timeframe: D1
+  pairs:
+    EURUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/EURUSD_1d.csv
+    AUDUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/AUDUSD_1d.csv
+    NZDUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/NZDUSD_1d.csv
+    GBPUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/GBPUSD_1d.csv
+  macro_proxies:
+    IVV: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IVV_1d.csv
+    IEF: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  macro_lookback: 63
+  pair_trend_lookback: 63
+  zscore_lookback: 126
+  signal_threshold: 0.5
+  rebalance_interval_days: 21
+  max_pair_weight: 0.25
+  factor_weights:
+    growth: 0.4
+    rates: 0.35
+    trend: 0.25
+  pair_betas:
+    EURUSD: 0.6
+    AUDUSD: 1.0
+    NZDUSD: 1.0
+    GBPUSD: 0.8
+  commission_pct: 0.0002
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

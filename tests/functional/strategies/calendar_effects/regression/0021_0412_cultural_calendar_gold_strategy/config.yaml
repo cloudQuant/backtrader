@@ -1,0 +1,36 @@
+strategy:
+  id: '0412'
+  name: Cultural Calendar Gold Strategy
+  source_spec: research_papers_gold/strategy_specs/seasonality/0412_Cultural_Calendar_Gold_Strategy.md
+
+data:
+  symbol: GLD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+  bar_shift_minutes: 0
+
+params:
+  base_position_size: 0.10
+  diwali_entry_days_before: 20
+  diwali_exit_days_after: 5
+  diwali_weight: 1.2
+  lunar_new_year_entry_days_before: 20
+  lunar_new_year_exit_days_after: 5
+  lunar_new_year_weight: 1.2
+  eid_al_fitr_entry_days_before: 15
+  eid_al_fitr_exit_days_after: 3
+  eid_al_fitr_weight: 1.0
+  christmas_entry_days_before: 15
+  christmas_exit_days_after: 3
+  christmas_weight: 0.8
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0005
+  stocklike: true
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

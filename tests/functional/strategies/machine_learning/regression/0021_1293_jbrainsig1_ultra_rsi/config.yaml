@@ -1,0 +1,43 @@
+strategy:
+  name: "JBrainSig1 UltraRSI"
+  source_ea: "ea/1293_Exp_JBrainSig1_UltraRSI"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  mode: "ultrarsi"
+  signal_bar: 1
+  atr_period: 7
+  sto_period: 9
+  ma_method: "sma"
+  xlength: 7
+  xphase: 100
+  rsi_period: 13
+  applied_price: "close"
+  w_method: "jjma"
+  start_length: 3
+  wphase: 100
+  nstep: 5
+  nsteps_total: 10
+  smooth_method: "jjma"
+  smooth_length: 3
+  smooth_phase: 100
+  lot: 0.1
+  point: 0.01
+  price_digits: 2
+  fallback_price_momentum: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

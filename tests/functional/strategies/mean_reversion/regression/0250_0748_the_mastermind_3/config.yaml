@@ -1,0 +1,31 @@
+strategy:
+  name: "大师观念_3"
+  source_ea: "ea/0748_大师观念_3"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 200.0
+  stop_loss: 2000
+  take_profit: 0
+  trade_at_close_bar: false
+  trailing_stop: 0
+  trailing_step: 1
+  break_even: 0
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

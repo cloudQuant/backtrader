@@ -1,0 +1,44 @@
+strategy:
+  name: "Exp_Hans_Indicator_Cloud_System_Tm_Plus"
+  source_ea: "ea/0177_Exp_Hans_Indicator_Cloud_System_Tm_Plus/exp_hans_indicator_cloud_system_tm_plus.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "M30"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 30
+  feature_cache_dir: "../0053_0176_exp_hans_indicator_cloud_system/features"
+
+params:
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+  contract_multiplier: 100.0
+  mm: 0.1
+  mm_mode: "lot"
+  stoploss_points: 1000
+  takeprofit_points: 2000
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  time_trade: true
+  hold_minutes: 1500
+  signal_bar: 1
+  local_timezone: 0
+  dest_timezone: 4
+  pips_for_entry: 100
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

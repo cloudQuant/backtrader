@@ -1,0 +1,27 @@
+strategy:
+  name: Harami + MFI
+  source_ea: ea/1336_MQL5_向导_-_基于_牛市孕育_熊市孕育形态的交易信号_+_MFI/expert_abh_bh_mfi.mq5
+data:
+  symbol: XAUUSD
+  timeframe: M15
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv
+  fromdate: '2025-12-03 01:15:00'
+  todate: '2026-03-10 09:00:00'
+  bar_shift_minutes: 15
+params:
+  mfi_period: 37
+  ma_period: 11
+  lot: 0.1
+  point: 0.01
+  price_digits: 2
+  mfi_entry_long: 30
+  mfi_entry_short: 70
+  mfi_exit_upper: 80
+  mfi_exit_lower: 20
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: fixed
+  stocklike: false

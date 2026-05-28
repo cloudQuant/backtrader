@@ -1,0 +1,37 @@
+strategy:
+  id: '0228'
+  name: Trend Equity Primer
+  source_spec: research_papers_gold/strategy_specs/trend_following/0228_Trend_Equity_Primer.md
+
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  ma_fast: 50
+  ma_slow: 200
+  momentum_window: 63
+  breakout_window: 63
+  volatility_window: 21
+  position_method: risk_parity
+  target_volatility: 0.18
+  max_leverage: 1.5
+  use_momentum_confirmation: false
+  use_breakout_confirmation: false
+  apply_trend_filter_to_risk_parity: true
+  rebalance_interval_days: 5
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

@@ -1,0 +1,43 @@
+strategy:
+  name: "Exp_CGOscillator_X2"
+  source_ea: "ea/0639_Exp_CGOscillator_X2/exp_cgoscillator_x2.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  base_timeframe: "M30"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  base_compression: 15
+  fast_compression: 30
+  slow_compression: 360
+  execution_compression_minutes: 30
+  returns_compression_minutes: 30
+  feature_cache_dir: "features"
+
+params:
+  length_slow: 10
+  length_fast: 10
+  signal_bar: 1
+  signal_bar_fast: 1
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  buy_pos_close_fast: false
+  sell_pos_close_fast: false
+  stop_loss: 1000
+  take_profit: 2000
+  lots: 0.1
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

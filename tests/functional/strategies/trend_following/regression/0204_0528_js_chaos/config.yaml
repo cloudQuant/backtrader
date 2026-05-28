@@ -1,0 +1,37 @@
+strategy:
+  name: "JS-Chaos"
+  source_ea: "ea/0528_JS-Chaos/js-chaos.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M30"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  source_compression: 15
+  compression: 30
+
+params:
+  use_time: true
+  open_hour: 7
+  close_hour: 18
+  lots: 0.1
+  indenting: 0
+  fibo_1: 1.618
+  fibo_2: 4.618
+  use_close_positions: true
+  use_trailing: true
+  use_breakeven: true
+  breakeven_plus: 1
+  fractal_lookback: 10
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

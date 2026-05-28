@@ -1,0 +1,29 @@
+strategy:
+  id: '0376'
+  name: Pairs Trading Strategy
+  source_spec: research_papers_gold/strategy_specs/pairs_trading/0376_Pairs_Trading_Strategy.md
+
+data:
+  timeframe: H1
+  asset_a_symbol: XAUUSD
+  asset_a_file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_H1.csv
+  asset_b_symbol: XAGUSD
+  asset_b_file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAGUSD_H1.csv
+  fromdate: '2025-07-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  lookback_bars: 960
+  min_correlation: 0.8
+  entry_z: 2.0
+  exit_z: 0.5
+  stop_loss_z: 4.0
+  pair_weight: 0.9
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

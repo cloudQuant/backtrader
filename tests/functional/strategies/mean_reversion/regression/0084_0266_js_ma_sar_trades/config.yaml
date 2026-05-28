@@ -1,0 +1,39 @@
+strategy:
+  name: "JS MA SAR Trades"
+  source_ea: "ea/0266_JS_MA_SAR_Trades/js_ma_sar_trades.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+
+params:
+  fixed_lot: 0.1
+  point_size: 0.01
+  stoploss_pips: 50
+  takeprofit_pips: 50
+  trailing_stop_pips: 5
+  trailing_step_pips: 5
+  use_time: true
+  start_hour: 19
+  end_hour: 22
+  ma_fast_period: 55
+  ma_fast_shift: 3
+  ma_slow_period: 120
+  ma_slow_shift: 0
+  sar_step: 0.02
+  sar_maximum: 0.2
+  zigzag_depth: 12
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,46 @@
+strategy:
+  name: "Exp_KWAN_NRP"
+  source_ea: "ea/0401_Exp_KWAN_NRP/Exp_KWAN_NRP.mq5"
+  source_indicator: "ea/0401_Exp_KWAN_NRP/KWAN_NRP.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  base_timeframe: "M15"
+  signal_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 60
+  feature_cache_dir: "features"
+
+params:
+  mm: 0.1
+  mm_mode: "LOT"
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  deviation_points: 10
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  # KWAN_NRP indicator
+  k_period: 5
+  d_period: 3
+  slowing: 3
+  rsi_period: 14
+  momentum_period: 14
+  x_length: 3
+  signal_bar: 1
+  lot: 0.10
+  point: 0.01
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

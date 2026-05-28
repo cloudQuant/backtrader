@@ -1,0 +1,42 @@
+strategy:
+  name: "Exp_ColorZerolagDeMarker"
+  source_ea: "ea/0972_Exp_ColorZerolagDeMarker"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  indicator_timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2026-02-01 00:00:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  signal_bar: 1
+  smoothing: 5
+  factor1: 0.05
+  demarker_period1: 5
+  factor2: 0.10
+  demarker_period2: 8
+  factor3: 0.16
+  demarker_period3: 13
+  factor4: 0.26
+  demarker_period4: 21
+  factor5: 0.43
+  demarker_period5: 34
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  fixed_lot: 0.1
+  point: 0.01
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

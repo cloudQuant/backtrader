@@ -1,0 +1,40 @@
+strategy:
+  name: "e-Regr"
+  source_ea: "ea/0799_e-Regr"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  trading_timeframe: "H1"
+  protection_timeframe: "D1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  trading_compression_minutes: 60
+  protection_compression_minutes: 1440
+
+params:
+  trade_time: "3:00-21:20"
+  lots: 0.1
+  stop_loss: 0
+  take_profit: 0
+  protection: 50000
+  regr_degree: 3
+  regr_kstd: 0.5
+  regr_bars: 80
+  regr_shift: 0
+  trailing_on: false
+  trailing_start: 30
+  trailing_size: 30
+  repeat_n: 3
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

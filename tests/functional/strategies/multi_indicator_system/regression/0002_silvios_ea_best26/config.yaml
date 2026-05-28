@@ -1,0 +1,42 @@
+strategy:
+  name: "SilviosEAbest26"
+  source_ea: "ea/0001_SilviosEAbest26/SilviosEAbest26.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M5"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M5.csv"
+  fromdate: "2026-02-15 00:00:00"
+  todate: "2026-03-17 23:55:00"
+  bar_shift_minutes: 5
+
+params:
+  magic_number: 20260111
+  risk_percent: 1.0
+  max_spread_pips: 3.0
+  stop_loss_pips: 25
+  take_profit_pips: 75
+  break_even_pips: 5
+  trailing_stop_pips: 15
+  rsi_period: 14
+  lookback_period: 48
+  zone_buffer_pips: 10
+  long_rsi_entry: 40.0
+  short_rsi_entry: 55.0
+  long_rsi_exit: 65.0
+  short_rsi_exit: 35.0
+  point: 0.01
+  price_digits: 2
+  tick_value: 1.0
+  margin_required_per_lot: 250.0
+  volume_step: 0.01
+  volume_min: 0.01
+  volume_max: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

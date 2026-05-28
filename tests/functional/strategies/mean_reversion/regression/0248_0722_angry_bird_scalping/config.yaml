@@ -1,0 +1,36 @@
+strategy:
+  name: "愤怒小鸟_(剥头�?"
+  source_ea: "ea/0722_愤怒小鸟_(剥头�?"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  stoploss: 500
+  min_profit_point: 10
+  trail_step: 10
+  lot_exponent: 1.62
+  default_pips: 12
+  glubina: 24
+  lots: 0.01
+  lotdecimal: 2
+  take_profit: 20
+  cci_drop: 500
+  rsi_min: 30.0
+  rsi_max: 70.0
+  max_trades: 10
+  use_equity_stop: false
+  total_equity_risk: 20.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

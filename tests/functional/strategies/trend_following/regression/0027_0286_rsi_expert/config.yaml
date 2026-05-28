@@ -1,0 +1,31 @@
+strategy:
+  name: "RSI Expert"
+  source_ea: "ea/0286_RSI_Expert/rsi_expert.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+
+params:
+  fixed_lot: 0.1
+  point_size: 0.01
+  stoploss_pips: 0
+  takeprofit_pips: 60
+  trailing_stop_pips: 15
+  trailing_step_pips: 5
+  period_rsi: 14
+  level_up_rsi: 60.0
+  level_down_rsi: 20.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

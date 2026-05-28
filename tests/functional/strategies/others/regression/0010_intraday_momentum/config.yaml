@@ -1,0 +1,26 @@
+strategy:
+  id: '0177'
+  name: Intraday Momentum
+  source_spec: research_papers_gold/strategy_specs/others/0177_市场日内动量.md
+
+data:
+  timeframe: M5
+  fromdate: '2025-10-01 00:00:00'
+  todate: '2025-12-31 23:59:59'
+  symbol: XAUUSD
+  csv_path: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M5.csv
+
+params:
+  signal_bar_index: 11
+  signal_threshold: 0.0015
+  gross_exposure: 0.95
+  stop_loss_pct: 0.004
+  take_profit_pct: 0.008
+  commission_pct: 0.0002
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

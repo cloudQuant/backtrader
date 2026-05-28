@@ -1,0 +1,35 @@
+strategy:
+  name: "fuzzy_logic"
+  source_ea: "ea/0688_模糊逻辑/fuzzy_logic.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  feature_cache_dir: "features"
+  bar_shift_minutes: 15
+
+params:
+  trailing_stop: 0
+  percent_mm: 8.0
+  delta_mm: 0.0
+  initial_balance: 10000
+  take_profit_pips: 20
+  stop_loss_pips: 60
+  fixed_lots: 0.1
+  use_mm: true
+  point: 0.01
+  price_digits: 2
+  lot_step: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

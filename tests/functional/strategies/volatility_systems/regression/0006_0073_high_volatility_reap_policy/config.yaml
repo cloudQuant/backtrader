@@ -1,0 +1,35 @@
+strategy:
+  id: '0073'
+  name: High Volatility Rebalancing Gold Policy
+  source_spec: research_papers_gold/strategy_specs/volatility_regime/0073_High_Volatility_Re_Re_Re_Reap_Policy.md
+
+data:
+  gold_symbol: XAUUSD
+  benchmark_symbol: IVV
+  timeframe: D1
+  gold_file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv
+  benchmark_file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IVV_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  target_gold_weight: 0.15
+  target_benchmark_weight: 0.85
+  rebalance_frequency: monthly
+  drift_threshold: 0.05
+  single_day_stop_loss: 0.10
+  portfolio_stop_drawdown: 0.15
+  risk_off_cooldown_bars: 5
+
+backtest:
+  initial_cash: 1000000
+  gold_commission: 0.0002
+  gold_margin: 0.01
+  gold_multiplier: 100.0
+  benchmark_commission: 0.0002
+  benchmark_margin: 1.0
+  benchmark_multiplier: 1.0
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

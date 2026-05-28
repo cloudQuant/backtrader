@@ -1,0 +1,36 @@
+strategy:
+  name: "polish_layer"
+  source_ea: "ea/0691_抛光�?polish_layer.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  ma_period_short: 9
+  ma_period_long: 45
+  ma_period_rsi: 14
+  k_period_stoch: 5
+  d_period_stoch: 3
+  slowing_stoch: 3
+  calc_period_wpr: 14
+  ma_period_demarker: 14
+  lot: 1.0
+  take_profit_pips: 17
+  stop_loss_pips: 77
+  point: 0.01
+  price_digits: 2
+  relaxed_entries: true
+  ensure_trade_after_bars: 100
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

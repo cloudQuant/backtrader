@@ -1,0 +1,46 @@
+strategy:
+  name: "Exp UltraAbsolutelyNoLagLwma"
+  source_ea: "ea/0350_Exp_UltraAbsolutelyNoLagLwma/Exp_UltraAbsolutelyNoLagLwma.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "H4"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 240
+  feature_cache_dir: "features"
+
+params:
+  fixed_lot: 0.1
+  risk_percent: 0.0
+  point_size: 0.01
+  stoploss_pips: 1000
+  takeprofit_pips: 2000
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  flength: 7
+  start_length: 5
+  pstep: 2
+  psteps_total: 10
+  smooth_length: 3
+  up_level: 80.0
+  dn_level: 20.0
+  signal_bar: 1
+  lot_min: 0.01
+  lot_step: 0.01
+  lot_max: 100.0
+  contract_multiplier: 100.0
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

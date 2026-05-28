@@ -1,0 +1,32 @@
+strategy:
+  name: "Ravi AO"
+  source_ea: "ea/0252_Ravi_AO/ravi_ao.mq5"
+
+data:
+  symbol: "XAUUSD"
+  base_timeframe: "M15"
+  signal_timeframe: "M30"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  execution_compression_minutes: 15
+  signal_compression_minutes: 30
+
+params:
+  fixed_lot: 0.1
+  point_size: 0.01
+  stoploss_pips: 15
+  takeprofit_pips: 45
+  trailing_stop_pips: 5
+  trailing_step_pips: 5
+  fast_length: 7
+  slow_length: 65
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

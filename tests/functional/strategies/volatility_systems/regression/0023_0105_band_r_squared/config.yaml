@@ -1,0 +1,30 @@
+strategy:
+  name: "Band R Squared"
+  source_ea: "ea/0105_波段_R_平方"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  lots: 0.1
+  b_period: 100
+  b_deviation: 1.0
+  donch_period: 100
+  c_period: 100
+  atr_period: 21
+  stop_atr: 4.0
+  take_atr: 4.0
+  verbose: false
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

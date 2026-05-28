@@ -1,0 +1,32 @@
+strategy:
+  name: "N_Candles_v4"
+  source_ea: "ea/0581_N_Candles_v4/n_candles_v4.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  compression: 15
+
+params:
+  n_candles: 3
+  lot: 0.01
+  take_profit: 50
+  stop_loss: 50
+  trailing_stop: 10
+  trailing_step: 4
+  max_positions: 2
+  max_position_volume: 2.0
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

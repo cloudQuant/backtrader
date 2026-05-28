@@ -1,0 +1,36 @@
+strategy:
+  name: "3XMA_Ishimoku"
+  source_ea: "ea/1280_Exp_3XMA_Ishimoku"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  up_period1: 3
+  dn_period1: 3
+  up_period2: 6
+  dn_period2: 6
+  up_period3: 9
+  dn_period3: 9
+  xma1_method: "sma"
+  xma2_method: "sma"
+  xma3_method: "sma"
+  xlength1: 8
+  xlength2: 25
+  xlength3: 80
+  xphase: 15
+  signal_bar: 1
+  lot: 0.1
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

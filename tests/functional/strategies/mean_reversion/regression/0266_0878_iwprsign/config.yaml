@@ -1,0 +1,36 @@
+strategy:
+  name: "Exp_iWPRSign"
+  source_ea: "ea/0878_Exp_iWPRSign"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  indicator_timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  indicator_minutes: 60
+  atr_period: 14
+  wpr_period: 14
+  up_level: -30
+  dn_level: -70
+  signal_bar: 1
+  stop_loss_points: 1000
+  take_profit_points: 2000
+  fixed_lot: 0.1
+  point: 0.01
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

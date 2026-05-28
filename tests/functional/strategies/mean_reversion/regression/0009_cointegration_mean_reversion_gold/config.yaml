@@ -1,0 +1,25 @@
+strategy:
+  id: 0081
+  name: Cointegration Mean Reversion Gold
+  source_spec: research_papers_gold/strategy_specs/mean_reversion/0081_Cointegration_Mean_Reversion_Gold.md
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+params:
+  lookback: 100
+  zscore_threshold: 2.0
+  holding_days: 5
+  lot_size: 1.0
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: percent
+  stocklike: false
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

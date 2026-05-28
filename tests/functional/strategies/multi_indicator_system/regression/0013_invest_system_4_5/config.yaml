@@ -1,0 +1,30 @@
+strategy:
+  name: "InvestSystem4.5"
+  source_ea: "ea/0457_投资系统_4.5/invest_system_4.5.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  stop_loss_pips: 240
+  take_profit_pips: 40
+  point: 0.01
+  current_tf_compression: 15
+  higher_tf_compression: 240
+  lots1: 0.1
+  lots2: 0.2
+  lots3: 0.7
+  lots4: 1.4
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

@@ -1,0 +1,43 @@
+strategy:
+  name: "iCHO Trend CCIDualOnMA Filter"
+  source_ea: "ea/0108_iCHO_??_CCIDualOnMA_???"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  fixed_lot: 3.0
+  stop_loss_points: 150
+  take_profit_points: 460
+  trailing_stop_points: 250
+  trailing_step_points: 50
+  cho_fast_period: 3
+  cho_slow_period: 10
+  cci_fast_period: 14
+  cci_slow_period: 50
+  ma_period: 12
+  trade_mode: "buy_sell"
+  only_one_position: true
+  reverse: false
+  close_opposite: true
+  use_time_control: true
+  start_hour: 10
+  start_minute: 1
+  end_hour: 15
+  end_minute: 2
+  point_size: 0.01
+  verbose: false
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

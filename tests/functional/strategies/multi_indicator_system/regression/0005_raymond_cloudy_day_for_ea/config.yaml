@@ -1,0 +1,31 @@
+strategy:
+  name: "Raymond Cloudy Day For EA"
+  source_ea: "ea/0045_Raymond_Cloudy_Day_For_EA/raymond_cloudy_day_for_ea.mq5"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  raymond_timeframe: "D"
+
+params:
+  raymond_timeframe: "D1"
+  lot_size: 0.01
+  stop_points: 500
+  take_profit_points: 500
+  point_size: 0.01
+  lot_min: 0.01
+  lot_max: 100.0
+  lot_step: 0.01
+  comment: "Comment"
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false
