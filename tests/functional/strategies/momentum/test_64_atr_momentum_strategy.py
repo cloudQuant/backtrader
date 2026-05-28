@@ -35,6 +35,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -220,7 +221,8 @@ class ATRMomentumStrategy(bt.Strategy):
         pass
 
 
-def test_atr_momentum_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_atr_momentum_strategy(runonce):
     """Test the ATR Momentum strategy.
 
     This function tests the ATR Momentum strategy by running a backtest
@@ -267,7 +269,7 @@ def test_atr_momentum_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

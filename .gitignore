@@ -182,3 +182,6 @@ optimize_code.sh
 
 tests/functional/datas/
 tests/functional/strategies_regression/
+
+# Local git worktrees for branch comparison (should not be tracked)
+.branch_compare_worktrees/

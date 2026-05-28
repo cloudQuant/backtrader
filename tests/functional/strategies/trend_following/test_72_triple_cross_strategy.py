@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -148,7 +149,8 @@ class TripleCrossStrategy(bt.Strategy):
         pass
 
 
-def test_triple_cross_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_triple_cross_strategy(runonce):
     """Test the triple moving average crossover strategy.
 
     This test performs the following operations:
@@ -195,7 +197,7 @@ def test_triple_cross_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

@@ -13,6 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -115,7 +116,8 @@ class HeikinAshiStrategy(bt.Strategy):
             self.order = self.close()
 
 
-def test_heikin_ashi_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_heikin_ashi_strategy(runonce):
     """Test the Heikin Ashi strategy backtest.
 
     This test runs a backtest on Oracle stock data (2010-2014) and validates
@@ -142,7 +144,7 @@ def test_heikin_ashi_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

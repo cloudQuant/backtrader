@@ -26,6 +26,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -177,7 +178,8 @@ class DoubleSevensStrategy(bt.Strategy):
         pass
 
 
-def test_double_sevens_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_double_sevens_strategy(runonce):
     """Test the Double Sevens strategy with historical data.
 
     This test function:
@@ -239,7 +241,7 @@ def test_double_sevens_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

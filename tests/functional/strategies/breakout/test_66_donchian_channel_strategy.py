@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -169,7 +170,8 @@ class DonchianChannelStrategy(bt.Strategy):
         pass
 
 
-def test_donchian_channel_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_donchian_channel_strategy(runonce):
     """Test the Donchian Channel strategy.
 
     This test function runs a backtest of the Donchian Channel strategy
@@ -206,12 +208,15 @@ def test_donchian_channel_strategy():
     cerebro.broker.setcommission(commission=0.001)
 
     # Add analyzers
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name='sharpe',
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -252,7 +253,8 @@ class AbbrationStrategy(bt.Strategy):
         )
 
 
-def test_abbration_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_abbration_strategy(runonce):
     """Test the Abbration Bollinger Band breakout strategy.
 
     This test function performs a complete backtest of the AbbrationStrategy
@@ -328,7 +330,7 @@ def test_abbration_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]

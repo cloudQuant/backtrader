@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -167,7 +168,8 @@ class LongShortStrategy(bt.Strategy):
         )
 
 
-def test_long_short_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_long_short_strategy(runonce):
     """Test the Long Short Strategy.
 
     This test function runs a backtest of the LongShortStrategy with
@@ -201,7 +203,7 @@ def test_long_short_strategy():
     cerebro.addanalyzer(bt.analyzers.SQN, _name="my_sqn")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

@@ -14,6 +14,7 @@ from pathlib import Path
 import pandas as pd
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesFixed
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -246,8 +247,8 @@ def load_fg_data(filename: str = "FG889.csv", max_rows: int = None) -> pd.DataFr
         DataFrame containing the loaded futures data with filtered date range.
     """
     data_kwargs = dict(
-        fromdate=datetime.datetime(2020, 1, 1),  # Further shorten date range to accelerate testing
-        todate=datetime.datetime(2021, 7, 31),
+        fromdate=datetime.datetime(2020, 1, 1),  # Shortened range to accelerate testing
+        todate=datetime.datetime(2020, 6, 30),
     )
 
     df = pd.read_csv(resolve_data_path(filename))
@@ -261,7 +262,8 @@ def load_fg_data(filename: str = "FG889.csv", max_rows: int = None) -> pd.DataFr
     return df
 
 
-def test_dual_thrust_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_dual_thrust_strategy(runonce):
     """Test Dual Thrust intraday breakout strategy.
 
     Performs backtesting using glass futures data from FG889.csv file.
@@ -292,14 +294,17 @@ def test_dual_thrust_strategy():
 
     # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -323,16 +328,18 @@ def test_dual_thrust_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values) - Based on data from 2020-01-01 to 2021-07-31
-    assert strat.bar_num == 123960, f"Expected bar_num=123960, got {strat.bar_num}"
-    assert strat.buy_count == 14, f"Expected buy_count=14, got {strat.buy_count}"
-    assert strat.sell_count == 7, f"Expected sell_count=7, got {strat.sell_count}"
-    assert total_trades == 21, f"Expected total_trades=21, got {total_trades}"
+    # Assert test results (exact values) - Based on data from 2020-01-01 to 2020-06-30
+    assert strat.bar_num == 32220, f"Expected bar_num=32220, got {strat.bar_num}"
+    assert strat.buy_count == 7, f"Expected buy_count=7, got {strat.buy_count}"
+    assert strat.sell_count == 3, f"Expected sell_count=3, got {strat.sell_count}"
+    assert total_trades == 10, f"Expected total_trades=10, got {total_trades}"
+    assert total_trades > 0, "trade count must be > 0"
+    # Sharpe with daily timeframe + annualize=True is finite even on a 6-month window
+    assert abs(sharpe_ratio - (-2.2883220403025635)) < 1e-6, f"Expected sharpe_ratio=-2.288, got {sharpe_ratio}"
     # final_value tolerance: 0.01, other indicators tolerance: 1e-6
-    assert abs(sharpe_ratio - (-16.73034120003273)) < 1e-6, f"Expected sharpe_ratio=-16.73034120003273, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.016015877679295135)) < 1e-6, f"Expected annual_return=-0.016015877679295135, got {annual_return}"
-    assert abs(max_drawdown - 0.04545908283255804) < 1e-6, f"Expected max_drawdown=0.04545908283255804, got {max_drawdown}"
-    assert abs(final_value - 48788.0) < 0.01, f"Expected final_value=48788.0, got {final_value}"
+    assert abs(annual_return - (-0.07239281862299175)) < 1e-6, f"Expected annual_return=-0.07239281862299175, got {annual_return}"
+    assert abs(max_drawdown - 0.044420930743276965) < 1e-6, f"Expected max_drawdown=0.044420930743276965, got {max_drawdown}"
+    assert abs(final_value - 48300.0) < 0.01, f"Expected final_value=48300.0, got {final_value}"
 
     print("\nAll tests passed!")
 

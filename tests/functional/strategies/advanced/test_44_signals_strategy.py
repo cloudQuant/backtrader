@@ -63,6 +63,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -158,7 +159,8 @@ class SMACloseSignal(bt.Indicator):
         self.lines.signal = self.data - bt.indicators.SMA(period=self.p.period)
 
 
-def test_signals_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_signals_strategy(runonce):
     """Test the signal-based strategy functionality using cerebro.add_signal.
 
     This test validates the signal-based approach to trading strategies by
@@ -235,7 +237,7 @@ def test_signals_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract performance metrics

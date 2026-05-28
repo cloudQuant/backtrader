@@ -15,6 +15,7 @@ from pathlib import Path
 import pandas as pd
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -231,7 +232,7 @@ class RbPandasFeed(bt.feeds.PandasData):
     )
 
 
-def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 50000) -> pd.DataFrame:
+def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 20000) -> pd.DataFrame:
     """Load rebar futures data.
 
     Maintains original data loading logic and limits data rows for faster testing.
@@ -258,7 +259,8 @@ def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 50000) -> pd.Da
     return df
 
 
-def test_r_breaker_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_r_breaker_strategy(runonce):
     """Test R-Breaker intraday breakout strategy.
 
     Performs backtesting using rebar futures data RB889.csv.
@@ -293,7 +295,7 @@ def test_r_breaker_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]
@@ -317,15 +319,16 @@ def test_r_breaker_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # Assert test results (exact values)
-    assert strat.bar_num == 50000, f"Expected bar_num=50000, got {strat.bar_num}"
-    assert strat.buy_count == 437, f"Expected buy_count=437, got {strat.buy_count}"
-    assert strat.sell_count == 396, f"Expected sell_count=396, got {strat.sell_count}"
-    assert total_trades == 667, f"Expected total_trades=667, got {total_trades}"
-    assert abs(sharpe_ratio - (-1.9029317932144931)) < 1e-6, f"Expected sharpe_ratio=-1.9029317932144931, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.21595324795115386)) < 1e-6, f"Expected annual_return=-0.21595324795115386, got {annual_return}"
-    assert abs(max_drawdown - 0.5703196091543717) < 1e-6, f"Expected max_drawdown=0.5703196091543717, got {max_drawdown}"
-    assert abs(final_value - 24145.40199999989) < 0.01, f"Expected final_value=24145.40, got {final_value}"
+    # Assert test results (exact values) - based on max_rows=20000
+    assert strat.bar_num == 20000, f"Expected bar_num=20000, got {strat.bar_num}"
+    assert strat.buy_count == 215, f"Expected buy_count=215, got {strat.buy_count}"
+    assert strat.sell_count == 188, f"Expected sell_count=188, got {strat.sell_count}"
+    assert total_trades == 322, f"Expected total_trades=322, got {total_trades}"
+    assert total_trades > 0, "trade count must be > 0"
+    assert abs(sharpe_ratio - (-11.346045232681163)) < 1e-6, f"Expected sharpe_ratio=-11.346045232681163, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.27966681044602454)) < 1e-6, f"Expected annual_return=-0.27966681044602454, got {annual_return}"
+    assert abs(max_drawdown - 0.3662767199999983) < 1e-6, f"Expected max_drawdown=0.3662767199999983, got {max_drawdown}"
+    assert abs(final_value - 34144.78200000009) < 0.01, f"Expected final_value=34144.78, got {final_value}"
 
     print("\nAll tests passed!")
 

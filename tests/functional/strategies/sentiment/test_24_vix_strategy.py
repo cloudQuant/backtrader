@@ -30,6 +30,7 @@ import os
 from pathlib import Path
 
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -299,7 +300,8 @@ class VIXStrategy(bt.Strategy):
         )
 
 
-def test_vix_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_vix_strategy(runonce):
     """Run backtest for the VIX volatility index strategy.
 
     This test function executes a comprehensive backtest of the VIX-based trading
@@ -362,7 +364,7 @@ def test_vix_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results
     strat = results[0]

@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -136,7 +137,8 @@ class BTFDStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_btfd_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_btfd_strategy(runonce):
     """Test the BTFD (Buy The F* Dip) strategy.
 
     This test function:
@@ -172,7 +174,7 @@ def test_btfd_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

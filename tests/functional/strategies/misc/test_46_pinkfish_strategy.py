@@ -13,6 +13,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -148,7 +149,8 @@ class PinkfishStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_pinkfish_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_pinkfish_strategy(runonce):
     """Test the Pinkfish Challenge strategy backtest execution.
 
     This test verifies that the Pinkfish Challenge strategy works correctly
@@ -178,7 +180,7 @@ def test_pinkfish_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

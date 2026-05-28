@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -160,7 +161,8 @@ class ReplayEMAStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_data_replay_ema():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_data_replay_ema(runonce):
     """Test data replay functionality using EMA dual moving average strategy.
 
     This test validates that backtrader's data replay feature works correctly
@@ -211,7 +213,7 @@ def test_data_replay_ema():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run(preload=False)
+    results = cerebro.run(runonce=runonce, preload=False)
     strat = results[0]
 
     # Get analysis results

@@ -14,6 +14,7 @@ import datetime
 from pathlib import Path
 import numpy as np
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -245,7 +246,8 @@ class PairTradeBollingerStrategy(bt.Strategy):
                 self.position_state = 0
 
 
-def test_pair_trade_bollinger_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_pair_trade_bollinger_strategy(runonce):
     """Run a backtest of the Pair Trade Bollinger strategy.
 
     This test function sets up and executes a complete backtest using historical
@@ -311,7 +313,7 @@ def test_pair_trade_bollinger_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -190,7 +191,8 @@ class SmaCrossSignalStrategy(bt.Strategy):
         )
 
 
-def test_sma_cross_signal_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_sma_cross_signal_strategy(runonce):
     """Test the SMA Cross Signal moving average crossover strategy.
 
     This test sets up a backtesting environment with the SmaCrossSignalStrategy,
@@ -219,7 +221,7 @@ def test_sma_cross_signal_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

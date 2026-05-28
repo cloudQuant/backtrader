@@ -21,6 +21,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -151,7 +152,8 @@ class SlippageStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_slippage_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_slippage_strategy(runonce):
     """Test SMA crossover strategy with 1% slippage applied.
 
     This test demonstrates how slippage affects trading performance by
@@ -190,7 +192,7 @@ def test_slippage_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)

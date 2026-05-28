@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -101,7 +102,8 @@ class OrderCloseStrategy(bt.Strategy):
         print(f"OrderClose: bar_num={self.bar_num}, buy={self.buy_count}, sell={self.sell_count}")
 
 
-def test_order_close():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_order_close(runonce):
     """Test Order Close execution at closing price.
 
     This test verifies that orders are correctly executed at the
@@ -126,7 +128,7 @@ def test_order_close():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
 
     print("Running backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

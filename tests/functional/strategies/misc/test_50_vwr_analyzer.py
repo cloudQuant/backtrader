@@ -19,6 +19,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -144,7 +145,8 @@ class VWRTestStrategy(bt.Strategy):
         pass
 
 
-def test_vwr_analyzer():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_vwr_analyzer(runonce):
     """Test the VWR analyzer with a dual moving average strategy.
 
     This function sets up a complete backtest environment with the VWR
@@ -186,7 +188,7 @@ def test_vwr_analyzer():
     cerebro.addanalyzer(bt.analyzers.VWR, _name="vwr")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

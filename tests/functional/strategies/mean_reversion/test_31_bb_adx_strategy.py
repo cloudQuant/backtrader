@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -133,7 +134,8 @@ class BBADXStrategy(bt.Strategy):
         )
 
 
-def test_bb_adx_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_bb_adx_strategy(runonce):
     """Test BB_ADX Bollinger Bands + ADX mean reversion strategy.
 
     This test function creates a cerebro instance, loads Shanghai stock data,
@@ -175,7 +177,7 @@ def test_bb_adx_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtesting...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analyzer results

@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -133,7 +134,8 @@ class KeltnerChannelStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_keltner_channel_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_keltner_channel_strategy(runonce):
     """Test the Keltner Channel strategy.
 
     This test runs a backtest of the Keltner Channel strategy on Oracle
@@ -162,7 +164,7 @@ def test_keltner_channel_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

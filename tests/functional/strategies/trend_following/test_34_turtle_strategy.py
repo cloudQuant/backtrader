@@ -32,6 +32,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -286,7 +287,8 @@ class TurtleStrategy(bt.Strategy):
         )
 
 
-def test_turtle_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_turtle_strategy(runonce):
     """Run a complete backtest of the Turtle trading strategy.
 
     This test function:
@@ -358,7 +360,7 @@ def test_turtle_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analyzer results

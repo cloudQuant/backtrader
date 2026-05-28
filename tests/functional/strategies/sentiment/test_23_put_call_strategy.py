@@ -24,6 +24,7 @@ import os
 from pathlib import Path
 
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -312,7 +313,8 @@ class PutCallStrategy(bt.Strategy):
         )
 
 
-def test_put_call_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_put_call_strategy(runonce):
     """Run comprehensive backtest of Put/Call ratio sentiment strategy.
 
     This test function validates the PutCallStrategy implementation by running
@@ -373,7 +375,7 @@ def test_put_call_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Extract results
     strat = results[0]

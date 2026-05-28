@@ -21,6 +21,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -151,7 +152,7 @@ class OptimizeStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def run_optimization():
+def run_optimization(runonce=True):
     """Run parameter optimization and return all results.
 
     This function sets up and executes a parameter optimization run using
@@ -194,11 +195,11 @@ def run_optimization():
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     return results
 
 
-def run_best_strategy(best_params):
+def run_best_strategy(best_params, runonce=True):
     """Run a complete backtest using the optimal parameter combination.
 
     This function executes a single backtest with the best-performing
@@ -247,7 +248,7 @@ def run_best_strategy(best_params):
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results
@@ -269,7 +270,8 @@ def run_best_strategy(best_params):
     }
 
 
-def test_optimization():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_optimization(runonce):
     """Test backtrader's parameter optimization functionality.
 
     This test performs end-to-end validation of the parameter optimization
@@ -295,7 +297,7 @@ def test_optimization():
     """
     print("Loading data...")
     print("Starting optimization...")
-    results = run_optimization()
+    results = run_optimization(runonce=runonce)
 
     # Collect results from all parameter combinations
     all_results = []
@@ -332,7 +334,7 @@ def test_optimization():
 
     # Run complete backtest with best parameters
     print("\nRunning complete backtest with best parameters...")
-    best_metrics = run_best_strategy(best_params)
+    best_metrics = run_best_strategy(best_params, runonce=runonce)
 
     # Print complete metrics for best strategy
     print("\n" + "=" * 50)

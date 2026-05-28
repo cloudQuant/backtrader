@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -145,7 +146,8 @@ class StochasticSRStrategy(bt.Strategy):
         )
 
 
-def test_stochastic_sr_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_stochastic_sr_strategy(runonce):
     """Test the Stochastic SR (Stochastic Support/Resistance) strategy.
 
     This test function:
@@ -189,7 +191,7 @@ def test_stochastic_sr_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analyzer results

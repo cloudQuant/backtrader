@@ -47,6 +47,7 @@ import pandas as pd
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -525,7 +526,8 @@ def load_index_data(filename: str = "bond_index_000000.csv") -> pd.DataFrame:
     return df
 
 
-def test_stop_order_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_stop_order_strategy(runonce):
     """Test stop loss order strategy with convertible bond index data.
 
     This test function runs a complete backtest of the StopOrderStrategy using
@@ -597,7 +599,7 @@ def test_stop_order_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results from first strategy instance
     strat = results[0]

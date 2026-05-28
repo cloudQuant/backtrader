@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -167,7 +168,7 @@ class StrategyB(bt.Strategy):
                 self.order = self.close()
 
 
-def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
+def run_strategy_with_analyzer(strategy_class, data_path, strategy_name, runonce=True):
     """Run a single strategy with analyzers and return results.
 
     Args:
@@ -195,7 +196,7 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results
@@ -232,7 +233,8 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     }
 
 
-def test_strategy_selection():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_strategy_selection(runonce):
     """Test Strategy Selection.
 
     Tests two different strategies (StrategyA and StrategyB) and verifies
@@ -243,11 +245,11 @@ def test_strategy_selection():
 
     # Test StrategyA
     print("\n--- Testing StrategyA ---")
-    result_a = run_strategy_with_analyzer(StrategyA, data_path, "StrategyA")
+    result_a = run_strategy_with_analyzer(StrategyA, data_path, "StrategyA", runonce=runonce)
 
     # Test StrategyB
     print("\n--- Testing StrategyB ---")
-    result_b = run_strategy_with_analyzer(StrategyB, data_path, "StrategyB")
+    result_b = run_strategy_with_analyzer(StrategyB, data_path, "StrategyB", runonce=runonce)
 
     # Assert test results
     assert result_a['bar_num'] == 482, f"Expected bar_num=482, got {result_a['bar_num']}"

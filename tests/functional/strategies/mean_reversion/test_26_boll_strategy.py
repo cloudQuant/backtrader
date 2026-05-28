@@ -29,6 +29,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -313,7 +314,8 @@ class BollStrategy(bt.Strategy):
         )
 
 
-def test_boll_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_boll_strategy(runonce):
     """Test Bollinger Band strategy with historical data.
 
     This end-to-end test loads Shanghai stock data, runs the BollStrategy
@@ -377,7 +379,7 @@ def test_boll_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Extract results
     strat = results[0]

@@ -47,6 +47,7 @@ from pathlib import Path
 import pandas as pd
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -424,8 +425,8 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
         Loaded 15 contracts
     """
     data_kwargs = dict(
-        fromdate=datetime.datetime(2019, 1, 1),  # Shorten date range to speed up testing
-        todate=datetime.datetime(2020, 12, 31),
+        fromdate=datetime.datetime(2019, 1, 1),  # Shortened range to speed up testing
+        todate=datetime.datetime(2019, 12, 31),
     )
 
     data_path = resolve_data_path(data_dir)
@@ -463,7 +464,8 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
     return datas
 
 
-def test_keltner_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_keltner_strategy(runonce):
     """Test Keltner Channel multi-contract futures strategy.
 
     This test performs a complete backtest using rebar futures multi-contract data.
@@ -524,14 +526,17 @@ def test_keltner_strategy():
 
     # Add performance analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Get results from first strategy instance
     strat = results[0]
@@ -557,15 +562,16 @@ def test_keltner_strategy():
 
     # Assert test results - using precise assertions
     # Tolerance: 1e-6 for most metrics, 0.01 for final_value
-    assert strat.bar_num == 5540, f"Expected bar_num=5540, got {strat.bar_num}"
-    assert strat.buy_count > 0, f"Expected buy_count > 0, got {strat.buy_count}"
-    assert strat.sell_count > 0, f"Expected sell_count > 0, got {strat.sell_count}"
+    # Based on data 2019-01-01 to 2019-12-31
+    assert strat.bar_num == 2892, f"Expected bar_num=2892, got {strat.bar_num}"
+    assert strat.buy_count == 25, f"Expected buy_count=25, got {strat.buy_count}"
+    assert strat.sell_count == 25, f"Expected sell_count=25, got {strat.sell_count}"
+    assert total_trades == 27, f"Expected total_trades=27, got {total_trades}"
     assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
-    # Note: sharpe_ratio may vary slightly due to platform differences, using precise tolerance
-    assert abs(sharpe_ratio - (-0.7248889123130405)) < 1e-6, f"Expected sharpe_ratio=-0.7248889123130405, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.0015868610268626382)) < 1e-6, f"Expected annual_return=-0.0015868610268626382, got {annual_return}"
-    assert abs(max_drawdown - 0.1856158167743111) < 1e-6, f"Expected max_drawdown=0.1856158167743111, got {max_drawdown}"
-    assert abs(final_value - 49847.09399999999) < 0.01, f"Expected final_value=49847.09399999999, got {final_value}"
+    assert abs(sharpe_ratio - 0.18581337725976052) < 1e-6, f"Expected sharpe_ratio=0.186, got {sharpe_ratio}"
+    assert abs(annual_return - 0.014863545737573586) < 1e-6, f"Expected annual_return=0.0149, got {annual_return}"
+    assert abs(max_drawdown - 0.09835944499236125) < 1e-6, f"Expected max_drawdown=0.0984, got {max_drawdown}"
+    assert abs(final_value - 50716.446) < 0.01, f"Expected final_value=50716.45, got {final_value}"
 
     print("\nAll tests passed!")
 

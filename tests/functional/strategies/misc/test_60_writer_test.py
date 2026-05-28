@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -105,7 +106,8 @@ class WriterTestStrategy(bt.Strategy):
             self.close()
 
 
-def test_writer():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_writer(runonce):
     """Test Writer output functionality.
 
     This function tests the Writer functionality by running a backtest
@@ -145,7 +147,7 @@ def test_writer():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

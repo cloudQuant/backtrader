@@ -17,6 +17,7 @@ import datetime
 import math
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -445,7 +446,8 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
                 self._reset_entry_state()
 
 
-def test_sunrise_volatility_expansion_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_sunrise_volatility_expansion_strategy(runonce):
     """Test the Sunrise Volatility Expansion Strategy with XAUUSD data.
 
     This test function:
@@ -482,17 +484,20 @@ def test_sunrise_volatility_expansion_strategy():
         tmformat='%H:%M:%S',
         datetime=0, time=1, open=2, high=3, low=4, close=5, volume=6, openinterest=-1,
         fromdate=datetime.datetime(2024, 6, 1),
-        todate=datetime.datetime(2025, 6, 30),
+        todate=datetime.datetime(2024, 9, 30),
     )
     cerebro.adddata(data)
     cerebro.addstrategy(SunriseVolatilityExpansionStrategy)
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name='sharpe',
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
@@ -511,11 +516,13 @@ def test_sunrise_volatility_expansion_strategy():
     print("=" * 50)
 
     # final_value tolerance: 0.01, other metrics tolerance: 1e-6
-    assert strat.bar_num == 76055, f"Expected bar_num=76055, got {strat.bar_num}"
-    assert abs(final_value - 99780.54) < 0.01, f"Expected final_value=99780.54, got {final_value}"
-    assert abs(sharpe_ratio - (-0.058262402599915615)) < 1e-6, f"Expected sharpe_ratio=-0.058, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.0016463951849173732)) < 1e-6, f"Expected annual_return=-0.00165, got {annual_return}"
-    assert abs(max_drawdown - 2.169140984136156) < 1e-6, f"Expected max_drawdown=2.169, got {max_drawdown}"
+    # Based on data range 2024-06-01 to 2024-09-30 (4 months of 5-min XAUUSD)
+    assert strat.bar_num == 23295, f"Expected bar_num=23295, got {strat.bar_num}"
+    assert strat.buy_count + strat.sell_count > 0, "trade count must be > 0"
+    assert abs(final_value - 100453.33) < 0.01, f"Expected final_value=100453.33, got {final_value}"
+    assert abs(sharpe_ratio - 0.9804841214823056) < 1e-6, f"Expected sharpe_ratio=0.980, got {sharpe_ratio}"
+    assert abs(annual_return - 0.011127670935409412) < 1e-6, f"Expected annual_return=0.0111, got {annual_return}"
+    assert abs(max_drawdown - 0.5246180478425686) < 1e-6, f"Expected max_drawdown=0.5246, got {max_drawdown}"
 
     print("\nTest passed!")
 

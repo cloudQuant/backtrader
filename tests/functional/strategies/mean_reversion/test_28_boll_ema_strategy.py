@@ -32,6 +32,7 @@ from pathlib import Path
 
 import pandas as pd
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -350,7 +351,8 @@ class BollEMAStrategy(bt.Strategy):
         )
 
 
-def test_boll_ema_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_boll_ema_strategy(runonce):
     """Test the BollEMA Bollinger Bands + EMA strategy.
 
     This test function validates the BollEMA strategy implementation by running
@@ -428,7 +430,7 @@ def test_boll_ema_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Extract strategy results
     strat = results[0]

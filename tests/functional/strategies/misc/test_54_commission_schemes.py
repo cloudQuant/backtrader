@@ -15,6 +15,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -117,7 +118,8 @@ class CommissionStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_commission_schemes():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_commission_schemes(runonce):
     """Test different commission schemes using a dual moving average crossover strategy.
 
     This test function sets up a complete backtesting environment with percentage-based
@@ -165,7 +167,7 @@ def test_commission_schemes():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Get analysis results

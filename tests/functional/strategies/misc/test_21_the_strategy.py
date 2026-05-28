@@ -30,6 +30,7 @@ import os
 from pathlib import Path
 
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -328,7 +329,8 @@ class EmaCrossStrategy(bt.Strategy):
         )
 
 
-def test_ema_cross_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_ema_cross_strategy(runonce):
     """Test EMA dual moving average crossover strategy with historical data.
 
     This test function:
@@ -436,7 +438,7 @@ def test_ema_cross_strategy():
 
     # Run backtest
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
 
     # Extract results
     strat = results[0]

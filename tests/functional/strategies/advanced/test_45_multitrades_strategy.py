@@ -14,6 +14,7 @@ import datetime
 import itertools
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -198,7 +199,8 @@ class MultiTradesStrategy(bt.Strategy):
               f"win_rate={win_rate:.2f}%, profit={self.sum_profit:.2f}")
 
 
-def test_multitrades_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_multitrades_strategy(runonce):
     """Test the MultiTrades strategy backtest execution.
 
     This test verifies that multiple trade IDs work correctly by running
@@ -238,14 +240,17 @@ def test_multitrades_strategy():
     cerebro.addstrategy(MultiTradesStrategy, period=15, stake=10, mtrade=True)
 
     # Add performance analyzers
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(
+        bt.analyzers.SharpeRatio, _name="my_sharpe",
+        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0,
+    )
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
     print("Running backtest...")
     # Run the backtest and get results
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
 
     # Extract analysis results
@@ -274,7 +279,7 @@ def test_multitrades_strategy():
     # Tolerance: 0.01 for final_value, 1e-6 for other metrics
     assert strat.bar_num == 240, f"Expected bar_num=240, got {strat.bar_num}"
     assert abs(final_value - 100916.1) < 0.01, f"Expected final_value=100916.10, got {final_value}"
-    assert sharpe_ratio is None, f"Expected sharpe_ratio=None, got {sharpe_ratio}"
+    assert abs(sharpe_ratio - 0.20168236053740432) < 1e-6, f"Expected sharpe_ratio=0.202, got {sharpe_ratio}"
     assert abs(annual_return - (0.009052737167560457)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 3.195383835382446) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 

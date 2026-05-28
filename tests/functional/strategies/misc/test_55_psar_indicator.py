@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -92,7 +93,8 @@ class PSARStrategy(bt.Strategy):
         print(f"PSAR: bar_num={self.bar_num}, buy={self.buy_count}, sell={self.sell_count}")
 
 
-def test_psar_indicator():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_psar_indicator(runonce):
     """Tests the PSAR Parabolic SAR indicator.
 
     This test loads historical data and runs a backtesting strategy using
@@ -117,7 +119,7 @@ def test_psar_indicator():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
 
     print("Starting backtest...")
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)

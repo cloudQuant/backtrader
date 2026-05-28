@@ -14,6 +14,7 @@ from __future__ import (absolute_import, division, print_function,
 import datetime
 from pathlib import Path
 import backtrader as bt
+import pytest
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -149,7 +150,8 @@ class BuyTheDipStrategy(bt.Strategy):
                 self.order = self.close()
 
 
-def test_buy_the_dip_strategy():
+@pytest.mark.parametrize("runonce", [True, False])
+def test_buy_the_dip_strategy(runonce):
     """Run a backtest of the BuyTheDipStrategy and verify expected results.
 
     This function sets up a complete backtesting environment using Oracle
@@ -184,7 +186,7 @@ def test_buy_the_dip_strategy():
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 
-    results = cerebro.run()
+    results = cerebro.run(runonce=runonce)
     strat = results[0]
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
