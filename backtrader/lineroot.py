@@ -733,14 +733,12 @@ class LineMultiple(LineRoot):
         except (AttributeError, TypeError):
             pass
 
-        cls_dict = getattr(self.__class__, "__dict__", {})
-        once_method = getattr(self.__class__, "once", None)
-        manual_next_only = (
-            "next" in cls_dict
-            and getattr(once_method, "__name__", "") == "once_via_next"
+        has_linebinding_output = any(
+            getattr(line, "_linebinding_assigned", False)
+            for line in getattr(self, "lines", [])
         )
 
-        if has_child_iterators and manual_next_only:
+        if has_child_iterators and not has_linebinding_output:
             self._minperiod = max(self._minperiod, minperiod)
             for line in self.lines:
                 line.updateminperiod(self._minperiod)

@@ -75,14 +75,7 @@ def _propagate_assignment_minperiod(owner, child):
     except AttributeError:
         owner_minperiod = child_minperiod
 
-    try:
-        for line in owner.lines:
-            try:
-                line.updateminperiod(owner_minperiod)
-            except AttributeError:
-                pass
-    except (AttributeError, TypeError):
-        pass
+    return
 
 
 def _line_owner(operand):
@@ -288,6 +281,13 @@ def _register_line_assignment_child(owner, child, seen=None):
     ltype = _line_assignment_ltype(child)
     if ltype is None:
         return
+
+    try:
+        if any(child is line for line in owner.lines):
+            _propagate_assignment_minperiod(owner, child)
+            return
+    except (AttributeError, TypeError):
+        pass
 
     owner_is_strategy = getattr(owner, "_ltype", None) == getattr(owner, "StratType", None)
     executable_child = not isinstance(child, LineActions) or hasattr(child, "_next")
@@ -1277,6 +1277,7 @@ class Lines:
                         if isinstance(value, LinesOperation):
                             # LinesOperation stores values in itself (LineBuffer), not in its .lines[0]
                             value.addbinding(parent_line)
+                            object.__setattr__(parent_line, "_linebinding_assigned", True)
 
                             # Propagate minperiod
                             try:
@@ -1298,6 +1299,7 @@ class Lines:
                             # bt.If, Logic subclasses etc. are LineBuffers that compute
                             # values into their own array. Bind value directly.
                             value.addbinding(parent_line)
+                            object.__setattr__(parent_line, "_linebinding_assigned", True)
 
                             # Propagate minperiod
                             try:
@@ -1324,6 +1326,7 @@ class Lines:
                             if indicator_line is not None and hasattr(indicator_line, "addbinding"):
                                 # Set up binding: indicator's output -> parent's line
                                 indicator_line.addbinding(parent_line)
+                                object.__setattr__(parent_line, "_linebinding_assigned", True)
 
                                 # CRITICAL FIX: Propagate minperiod to parent indicator
                                 try:
@@ -1342,6 +1345,7 @@ class Lines:
                         elif hasattr(value, "_minperiod") and hasattr(value, "addbinding"):
                             # Value is a LineBuffer-like object (e.g., LinesOperation)
                             value.addbinding(parent_line)
+                            object.__setattr__(parent_line, "_linebinding_assigned", True)
 
                             # Propagate minperiod
                             try:
@@ -1816,6 +1820,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
             # Set the attribute first
             object.__setattr__(self, name, value)
+
+            if isinstance(value, LineBuffer) and not isinstance(value, LineActions):
+                return
 
             _register_line_assignment_child(self, value)
 

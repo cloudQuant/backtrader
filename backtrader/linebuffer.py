@@ -1219,7 +1219,7 @@ class PseudoArray:
         try:
             # Try normal indexing first
             return self.wrapped[key]
-        except TypeError:
+        except (TypeError, IndexError, AttributeError):
             # Handle itertools.repeat objects and other iterables that don't support indexing
             if hasattr(self.wrapped, "__iter__"):
                 # For repeat objects, all values are the same, so just get the first one
@@ -1254,6 +1254,8 @@ class PseudoArray:
             return [next(iter(self.wrapped))]
         elif hasattr(self.wrapped, "array"):
             return self.wrapped.array
+        elif not hasattr(self.wrapped, "__iter__"):
+            return []
         else:
             return self.wrapped
 
@@ -2450,7 +2452,7 @@ class LinesOperation(LineActions):
                 logger.debug("operand b.once() failed: %s", e)
 
         # CRITICAL FIX: Always process from 0 to populate historical values
-        if hasattr(self.b, "array"):
+        if hasattr(self.b, "array") and type(self.b).__name__ != "PseudoArray":
             self._once_op(nested_start, end)
         else:
             if isinstance(self.b, float):

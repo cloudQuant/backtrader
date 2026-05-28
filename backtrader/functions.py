@@ -120,6 +120,23 @@ class Logic(LineActions):
             self.updateminperiod(max_minperiod)
 
     def _next(self):
+        clock = getattr(self, "_clock", None)
+        if clock is not None and clock.__class__.__name__ != "MinimalClock":
+            try:
+                if len(clock) <= len(self):
+                    return
+            except Exception:
+                pass
+
+        target_len = len(self) + 1
+        for arg in getattr(self, "args", ()):
+            if isinstance(arg, LineActions) and hasattr(arg, "_next"):
+                try:
+                    if len(arg) < target_len:
+                        arg._next()
+                except Exception as e:
+                    logger.debug("Logic operand _next() failed: %s", e)
+
         self.advance()
         self.next()
         for binding in self.bindings:
@@ -772,6 +789,14 @@ class MultiLogic(Logic):
         # Ensure destination array is properly sized
         while len(dst) < end:
             dst.append(0.0)
+
+        for arg in self.args:
+            if isinstance(arg, LineActions) and hasattr(arg, "once"):
+                try:
+                    if len(getattr(arg, "array", [])) < end:
+                        arg.once(0, end)
+                except Exception as e:
+                    logger.debug("MultiLogic operand once() failed: %s", e)
 
         arrays = [arg.array for arg in self.args]
         flogic = self.flogic

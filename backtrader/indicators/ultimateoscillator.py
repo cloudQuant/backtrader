@@ -69,8 +69,11 @@ class UltimateOscillator(Indicator):
         self.truelow = TrueLow(self.data)
         self.truerange = TrueRange(self.data)
         # TrueRange/TrueLow already contribute minperiod=2 (they need close[-1]).
-        # addminperiod(p3) adds p3-1 to the existing 2, giving total=p3+1=29.
-        self.addminperiod(self.p.p3)
+        # We need a total minperiod of p3 + 1 because we read close[-i]/truelow[-i]/
+        # truerange[-i] for i in [0, p3-1], so we need p3 historical bars plus the
+        # current one. addminperiod(p3 + 1) accumulates correctly under the new
+        # max-path semantics in LineMultiple.addminperiod.
+        self.addminperiod(self.p.p3 + 1)
 
     def next(self):
         """Calculate Ultimate Oscillator for the current bar.

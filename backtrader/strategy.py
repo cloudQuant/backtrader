@@ -610,6 +610,13 @@ class Strategy(StrategyBase):
             if clock is not None:
                 try:
                     if len(clock) <= len(lineaction):
+                        try:
+                            current_value = lineaction[0]
+                        except Exception:
+                            continue
+                        if current_value == current_value:
+                            continue
+                        lineaction.next()
                         continue
                 except Exception:
                     pass

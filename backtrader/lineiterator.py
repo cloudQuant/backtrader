@@ -279,7 +279,9 @@ def _ensure_lineactions_inputs_computed(indicator, end, _seen=None):
             continue
         array = getattr(src, "array", None)
         if isinstance(src, LineActions):
-            if array is None or len(array) >= end:
+            if array is None:
+                continue
+            if len(array) >= end and getattr(src, "_once_called", False):
                 continue
             _ensure_lineactions_inputs_computed(src, end, _seen)
             try:

@@ -33,6 +33,7 @@ Example:
 """
 
 from . import ATR, And, If, Indicator, MovAv
+from ..lineroot import LineRoot
 from ..functions import DivByZero
 
 
@@ -169,14 +170,14 @@ class _DirectionalIndicator(Indicator):
             plusDM = If(plus, upmove, 0.0)
             self._plusDMav = self.p.movav(plusDM, period=self.p.period)
 
-            self.DIplus = DivByZero(100.0 * self._plusDMav, self._di_atr, zero=0.0)
+            self.DIplus = 100.0 * self._plusDMav / self._di_atr
 
         if _minus:
             minus = And(downmove > upmove, downmove > 0.0)
             minusDM = If(minus, downmove, 0.0)
             self._minusDMav = self.p.movav(minusDM, period=self.p.period)
 
-            self.DIminus = DivByZero(100.0 * self._minusDMav, self._di_atr, zero=0.0)
+            self.DIminus = 100.0 * self._minusDMav / self._di_atr
 
         super().__init__()
 
@@ -223,6 +224,8 @@ class DirectionalIndicator(_DirectionalIndicator):
         Calculates both +DI and -DI from raw OHLC using Wilder smoothing.
         """
         super().__init__()
+        self.lines.plusDI = self.DIplus
+        self.lines.minusDI = self.DIminus
         # State for Wilder smoothing (used by next/prenext)
         self._sm_tr = 0.0
         self._sm_pdm = 0.0
@@ -336,6 +339,13 @@ class DirectionalIndicator(_DirectionalIndicator):
                 dst_plus[i] = 0.0
                 dst_minus[i] = 0.0
 
+    prenext = LineRoot.prenext
+    nextstart = LineRoot.nextstart
+    next = LineRoot.next
+    preonce = LineRoot.preonce
+    oncestart = LineRoot.oncestart
+    once = LineRoot.once
+
 
 class PlusDirectionalIndicator(_DirectionalIndicator):
     """
@@ -373,6 +383,7 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
     def __init__(self):
         """Initialize the +DI indicator."""
         super().__init__(_minus=False)
+        self.lines.plusDI = self.DIplus
         self._sm_tr = 0.0
         self._sm_pdm = 0.0
         self._bar_count = 0
@@ -436,6 +447,13 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
                 sm_pdm = sm_pdm - sm_pdm / period + pdm
             dst[i] = (100.0 * sm_pdm / sm_tr) if sm_tr > 0 else 0.0
 
+    prenext = LineRoot.prenext
+    nextstart = LineRoot.nextstart
+    next = LineRoot.next
+    preonce = LineRoot.preonce
+    oncestart = LineRoot.oncestart
+    once = LineRoot.once
+
 
 class MinusDirectionalIndicator(_DirectionalIndicator):
     """
@@ -473,6 +491,7 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
     def __init__(self):
         """Initialize the -DI indicator."""
         super().__init__(_plus=False)
+        self.lines.minusDI = self.DIminus
         self._sm_tr = 0.0
         self._sm_mdm = 0.0
         self._bar_count = 0
@@ -536,6 +555,13 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
                 sm_mdm = sm_mdm - sm_mdm / period + mdm
             dst[i] = (100.0 * sm_mdm / sm_tr) if sm_tr > 0 else 0.0
 
+    prenext = LineRoot.prenext
+    nextstart = LineRoot.nextstart
+    next = LineRoot.next
+    preonce = LineRoot.preonce
+    oncestart = LineRoot.oncestart
+    once = LineRoot.once
+
 
 class AverageDirectionalMovementIndex(Indicator):
     """
@@ -568,6 +594,23 @@ class AverageDirectionalMovementIndex(Indicator):
         """
         super().__init__()
         period = self.p.period
+
+        atr = ATR(self.data, period=period, movav=self.p.movav)
+        upmove = self.data.high - self.data.high(-1)
+        downmove = self.data.low(-1) - self.data.low
+
+        plus = And(upmove > downmove, upmove > 0.0)
+        plusDM = If(plus, upmove, 0.0)
+        plusDMav = self.p.movav(plusDM, period=period)
+        self.DIplus = 100.0 * plusDMav / atr
+
+        minus = And(downmove > upmove, downmove > 0.0)
+        minusDM = If(minus, downmove, 0.0)
+        minusDMav = self.p.movav(minusDM, period=period)
+        self.DIminus = 100.0 * minusDMav / atr
+
+        dx = abs(self.DIplus - self.DIminus) / (self.DIplus + self.DIminus)
+        self.lines.adx = 100.0 * self.p.movav(dx, period=period)
 
         # Store sub-indicators for direct array access (like MACD)
         self.atr = ATR(self.data, period=period, movav=self.p.movav)
@@ -819,6 +862,13 @@ class AverageDirectionalMovementIndex(Indicator):
             adx_val = adx_val * alpha1 + dx * alpha
             adx_array[i] = adx_val
 
+    prenext = LineRoot.prenext
+    nextstart = LineRoot.nextstart
+    next = LineRoot.next
+    preonce = LineRoot.preonce
+    oncestart = LineRoot.oncestart
+    once = LineRoot.once
+
 
 class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
     """
@@ -866,6 +916,7 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
         Extends ADX with rating line.
         """
         super().__init__()
+        self.lines.adxr = (self.l.adx + self.l.adx(-self.p.period)) / 2.0
 
     def next(self):
         """Calculate ADX and ADXR for the current bar.
@@ -907,6 +958,13 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
                     adxr_array[i] = (adx_curr + adx_prev) / 2.0
             else:
                 adxr_array[i] = float("nan")
+
+    prenext = LineRoot.prenext
+    nextstart = LineRoot.nextstart
+    next = LineRoot.next
+    preonce = LineRoot.preonce
+    oncestart = LineRoot.oncestart
+    once = LineRoot.once
 
 
 class DirectionalMovementIndex(AverageDirectionalMovementIndex, DirectionalIndicator):
