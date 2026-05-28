@@ -1,0 +1,26 @@
+strategy:
+  id: '0117'
+  name: Gold ACA Strategy
+  source_spec: research_papers_gold/strategy_specs/others/0117_Stoken_ACA_Strategy.md
+
+data:
+  timeframe: D1
+  assets:
+    GLD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+    IEF: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv
+    BIL: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/BIL_1d.csv
+    GOVT: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/GOVT_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+params:
+  lookback_days: 126
+  rebalance_on_year_end: true
+  lot_size: 1.0
+backtest:
+  initial_cash: 1000000
+  commission: 0.001
+  margin: 1.0
+  multiplier: 1.0
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

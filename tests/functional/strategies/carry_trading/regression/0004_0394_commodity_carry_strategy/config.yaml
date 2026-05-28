@@ -1,0 +1,33 @@
+strategy:
+  id: '0394'
+  name: Commodity Carry Strategy
+  source_spec: research_papers_gold/strategy_specs/arbitrage/0394_Commodity_Carry_Strategy.md
+
+data:
+  timeframe: D1
+  commodities:
+    DBC: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/DBC_1d.csv
+    GLD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+    XAUUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv
+    XAGUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAGUSD_1d.csv
+    XPTUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XPTUSD_1d.csv
+    XPDUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XPDUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  short_window: 21
+  long_window: 126
+  annualize_factor: 12
+  n_long: 2
+  n_short: 2
+  rebalance_interval_days: 21
+  max_leg_notional_pct: 0.25
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

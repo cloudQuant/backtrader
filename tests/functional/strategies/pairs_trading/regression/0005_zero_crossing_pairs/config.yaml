@@ -1,0 +1,25 @@
+strategy:
+  id: '0118'
+  name: Gold Silver Zero Crossing Pairs
+  source_spec: research_papers_gold/strategy_specs/pairs_trading/0118_Zero_Crossing_Pairs.md
+
+data:
+  timeframe: H1
+  assets:
+    XAUUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_H1.csv
+    XAGUSD: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/XAGUSD_H1.csv
+  fromdate: '2025-07-01 00:00:00'
+  todate: '2025-12-31 23:59:59'
+params:
+  hedge_window: 60
+  zscore_window: 20
+  exit_z: 0.5
+  gross_exposure: 1.0
+backtest:
+  initial_cash: 1000000
+  commission: 0.0002
+  margin: 0.02
+  multiplier: 1.0
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

@@ -185,3 +185,7 @@ tests/functional/strategies_regression/
 
 # Local git worktrees for branch comparison (should not be tracked)
 .branch_compare_worktrees/
+
+# Auto-generated transient outputs from regression tests
+tests/functional/strategies/**/strategy_backtest_results.csv
+tests/functional/strategies/**/backtest_result.json

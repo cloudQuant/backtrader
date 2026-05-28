@@ -1,0 +1,30 @@
+strategy:
+  id: '0263'
+  name: Omega Ratio Strategy
+  source_spec: research_papers_gold/strategy_specs/others/0263_Omega_Ratio_Strategy.md
+
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  threshold: 0.0
+  window: 252
+  upper_threshold: 1.2
+  lower_threshold: 0.8
+  rebalance_interval_days: 5
+  position_size: 0.90
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0005
+  margin: 0.01
+  multiplier: 100.0
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

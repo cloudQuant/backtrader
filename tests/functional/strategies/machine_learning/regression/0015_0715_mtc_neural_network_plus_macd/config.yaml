@@ -1,0 +1,45 @@
+strategy:
+  name: "MTC_神经网络_加上_MACD"
+  source_ea: "ea/0715_MTC_神经网络,_加上_MACD"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "H1"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_H1.csv"
+  fromdate: "2025-12-03 00:00:00"
+  todate: "2026-03-10 23:59:00"
+  bar_shift_minutes: 60
+
+params:
+  x11: 100
+  x12: 100
+  x13: 100
+  x14: 100
+  tp1: 100.0
+  sl1: 50.0
+  p1: 10
+  x21: 120
+  x22: 120
+  x23: 120
+  x24: 120
+  tp2: 100.0
+  sl2: 50.0
+  p2: 10
+  x31: 100
+  x32: 100
+  x33: 100
+  x34: 100
+  p3: 10
+  pass_level: 2
+  m_lots: 0.1
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

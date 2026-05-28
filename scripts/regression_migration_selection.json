@@ -1,0 +1,1194 @@
+[
+  {
+    "category": "asset_allocation",
+    "name": "0007_permanent_portfolio",
+    "path": "tests/functional/strategies_regression/asset_allocation/0007_permanent_portfolio",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 137,
+    "total_trades": 3,
+    "final_value": 4268547.061174153,
+    "score": 1.37
+  },
+  {
+    "category": "asset_allocation",
+    "name": "0022_adaptive_asset_allocation_strategy",
+    "path": "tests/functional/strategies_regression/asset_allocation/0022_adaptive_asset_allocation_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 155,
+    "total_trades": 4,
+    "final_value": 2509017.8285587,
+    "score": 1.55
+  },
+  {
+    "category": "asset_allocation",
+    "name": "0020_volatility_based_allocation_strategy",
+    "path": "tests/functional/strategies_regression/asset_allocation/0020_volatility_based_allocation_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 159,
+    "total_trades": 3,
+    "final_value": 3118684.5432578,
+    "score": 1.59
+  },
+  {
+    "category": "asset_allocation",
+    "name": "0018_optimal_gold_allocation_strategy",
+    "path": "tests/functional/strategies_regression/asset_allocation/0018_optimal_gold_allocation_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 160,
+    "total_trades": 4,
+    "final_value": 3332737.091119301,
+    "score": 1.6
+  },
+  {
+    "category": "asset_allocation",
+    "name": "0019_crypto_optimal_allocation_strategy",
+    "path": "tests/functional/strategies_regression/asset_allocation/0019_crypto_optimal_allocation_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 165,
+    "total_trades": 4,
+    "final_value": 1205943.2747002998,
+    "score": 1.65
+  },
+  {
+    "category": "calendar_effects",
+    "name": "0014_0364_bitcoin_seasonal_anomalies_strategy",
+    "path": "tests/functional/strategies_regression/calendar_effects/0014_0364_bitcoin_seasonal_anomalies_strategy",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/IBIT_1d.csv"
+    ],
+    "data_mb": 0.04,
+    "strategy_lines": 139,
+    "total_trades": 1,
+    "final_value": 1000000.1184110501,
+    "score": 1.46
+  },
+  {
+    "category": "calendar_effects",
+    "name": "0023_0079_rate_hike_cycle_gold",
+    "path": "tests/functional/strategies_regression/calendar_effects/0023_0079_rate_hike_cycle_gold",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 174,
+    "total_trades": 39,
+    "final_value": 903874.8682283605,
+    "score": 1.74
+  },
+  {
+    "category": "calendar_effects",
+    "name": "0004_0027_gold_turn_of_month",
+    "path": "tests/functional/strategies_regression/calendar_effects/0004_0027_gold_turn_of_month",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 109,
+    "total_trades": 263,
+    "final_value": 1217908.7920049992,
+    "score": 1.746
+  },
+  {
+    "category": "calendar_effects",
+    "name": "0026_0306_pre_election_drift",
+    "path": "tests/functional/strategies_regression/calendar_effects/0026_0306_pre_election_drift",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 111,
+    "total_trades": 5,
+    "final_value": 1129132.392754001,
+    "score": 1.766
+  },
+  {
+    "category": "calendar_effects",
+    "name": "0020_0407_turn_of_month_strategy",
+    "path": "tests/functional/strategies_regression/calendar_effects/0020_0407_turn_of_month_strategy",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 121,
+    "total_trades": 210,
+    "final_value": 2000333.4843350013,
+    "score": 1.866
+  },
+  {
+    "category": "carry_trading",
+    "name": "0003_0393_carry_trading_strategy",
+    "path": "tests/functional/strategies_regression/carry_trading/0003_0393_carry_trading_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 156,
+    "total_trades": 200,
+    "final_value": 912208.0529995362,
+    "score": 1.56
+  },
+  {
+    "category": "carry_trading",
+    "name": "0004_0394_commodity_carry_strategy",
+    "path": "tests/functional/strategies_regression/carry_trading/0004_0394_commodity_carry_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 156,
+    "total_trades": 286,
+    "final_value": 1306885.2544243822,
+    "score": 1.56
+  },
+  {
+    "category": "carry_trading",
+    "name": "0001_0031_gold_rate_carry",
+    "path": "tests/functional/strategies_regression/carry_trading/0001_0031_gold_rate_carry",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/XAUUSD_1d.csv",
+      "tests/functional/datas/mt5_1d_data/IEF_1d.csv"
+    ],
+    "data_mb": 0.66,
+    "strategy_lines": 172,
+    "total_trades": 117,
+    "final_value": 1032287.543705847,
+    "score": 3.045
+  },
+  {
+    "category": "carry_trading",
+    "name": "0002_0050_gold_relative_value",
+    "path": "tests/functional/strategies_regression/carry_trading/0002_0050_gold_relative_value",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/XAUUSD_1d.csv",
+      "tests/functional/datas/mt5_1d_data/XAGUSD_1d.csv",
+      "tests/functional/datas/mt5_1d_data/XPTUSD_1d.csv"
+    ],
+    "data_mb": 0.75,
+    "strategy_lines": 181,
+    "total_trades": 125,
+    "final_value": 1013987.5713519965,
+    "score": 3.303
+  },
+  {
+    "category": "commodity_currency",
+    "name": "0005_gold_currency_prediction",
+    "path": "tests/functional/strategies_regression/commodity_currency/0005_gold_currency_prediction",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 149,
+    "total_trades": 429,
+    "final_value": 984137.6844200027,
+    "score": 1.49
+  },
+  {
+    "category": "commodity_currency",
+    "name": "0015_commodity_skewness_strategy",
+    "path": "tests/functional/strategies_regression/commodity_currency/0015_commodity_skewness_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 153,
+    "total_trades": 119,
+    "final_value": 969572.26612874,
+    "score": 1.53
+  },
+  {
+    "category": "commodity_currency",
+    "name": "0017_metal_inventory_strategy",
+    "path": "tests/functional/strategies_regression/commodity_currency/0017_metal_inventory_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 153,
+    "total_trades": 88,
+    "final_value": 1006023.4972163584,
+    "score": 1.53
+  },
+  {
+    "category": "commodity_currency",
+    "name": "0009_gold_ranking_system",
+    "path": "tests/functional/strategies_regression/commodity_currency/0009_gold_ranking_system",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 154,
+    "total_trades": 47,
+    "final_value": 1504661.5662439999,
+    "score": 1.54
+  },
+  {
+    "category": "commodity_currency",
+    "name": "0014_gold_market_timing",
+    "path": "tests/functional/strategies_regression/commodity_currency/0014_gold_market_timing",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 166,
+    "total_trades": 105,
+    "final_value": 2956871.8934750007,
+    "score": 1.66
+  },
+  {
+    "category": "forecasting",
+    "name": "0003_1010_ema_prediction",
+    "path": "tests/functional/strategies_regression/forecasting/0003_1010_ema_prediction",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 324,
+    "total_trades": 55,
+    "final_value": 1000475.9000000008,
+    "score": 18.17
+  },
+  {
+    "category": "forecasting",
+    "name": "0002_1003_forecastoscilator",
+    "path": "tests/functional/strategies_regression/forecasting/0002_1003_forecastoscilator",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 325,
+    "total_trades": 21,
+    "final_value": 999479.5,
+    "score": 18.18
+  },
+  {
+    "category": "grid_trading",
+    "name": "0006_0463_rndtrade",
+    "path": "tests/functional/strategies_regression/grid_trading/0006_0463_rndtrade",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 113,
+    "total_trades": 1537,
+    "final_value": 1001053.6999999972,
+    "score": 16.06
+  },
+  {
+    "category": "grid_trading",
+    "name": "0007_0555_new_random",
+    "path": "tests/functional/strategies_regression/grid_trading/0007_0555_new_random",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 150,
+    "total_trades": 3063,
+    "final_value": 1054624.9999999972,
+    "score": 16.43
+  },
+  {
+    "category": "grid_trading",
+    "name": "0001_moneyrain",
+    "path": "tests/functional/strategies_regression/grid_trading/0001_moneyrain",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 152,
+    "total_trades": 3048,
+    "final_value": 999983.4599999975,
+    "score": 16.45
+  },
+  {
+    "category": "grid_trading",
+    "name": "0008_1196_random_robot",
+    "path": "tests/functional/strategies_regression/grid_trading/0008_1196_random_robot",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 164,
+    "total_trades": 909,
+    "final_value": 1005472.4000000014,
+    "score": 16.57
+  },
+  {
+    "category": "grid_trading",
+    "name": "0002_very_blonde_system",
+    "path": "tests/functional/strategies_regression/grid_trading/0002_very_blonde_system",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 192,
+    "total_trades": 1469,
+    "final_value": 1005018.2999998461,
+    "score": 16.85
+  },
+  {
+    "category": "machine_learning",
+    "name": "0004_reinforcement_learning",
+    "path": "tests/functional/strategies_regression/machine_learning/0004_reinforcement_learning",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 130,
+    "total_trades": 56,
+    "final_value": 1956006.557688002,
+    "score": 1.956
+  },
+  {
+    "category": "machine_learning",
+    "name": "0002_extreme_short_term_gain",
+    "path": "tests/functional/strategies_regression/machine_learning/0002_extreme_short_term_gain",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 137,
+    "total_trades": 4,
+    "final_value": 855936.8189219997,
+    "score": 2.026
+  },
+  {
+    "category": "machine_learning",
+    "name": "0003_gold_ml_prediction",
+    "path": "tests/functional/strategies_regression/machine_learning/0003_gold_ml_prediction",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 139,
+    "total_trades": 39,
+    "final_value": 3334048.027492007,
+    "score": 2.046
+  },
+  {
+    "category": "machine_learning",
+    "name": "0006_sentiment_signal_strategy",
+    "path": "tests/functional/strategies_regression/machine_learning/0006_sentiment_signal_strategy",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 160,
+    "total_trades": 35,
+    "final_value": 898450.8304339992,
+    "score": 2.256
+  },
+  {
+    "category": "machine_learning",
+    "name": "0015_0715_mtc_neural_network_plus_macd",
+    "path": "tests/functional/strategies_regression/machine_learning/0015_0715_mtc_neural_network_plus_macd",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_H1.csv"
+    ],
+    "data_mb": 1.88,
+    "strategy_lines": 217,
+    "total_trades": 10,
+    "final_value": 1000080.7000000002,
+    "score": 5.931
+  },
+  {
+    "category": "mean_reversion",
+    "name": "0231_rsi2_double_returns",
+    "path": "tests/functional/strategies_regression/mean_reversion/0231_rsi2_double_returns",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 154,
+    "total_trades": 145,
+    "final_value": 1027578.1265860408,
+    "score": 1.54
+  },
+  {
+    "category": "mean_reversion",
+    "name": "0039_bitcoin_trend_mean_reversion_strategy",
+    "path": "tests/functional/strategies_regression/mean_reversion/0039_bitcoin_trend_mean_reversion_strategy",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/IBIT_1d.csv"
+    ],
+    "data_mb": 0.04,
+    "strategy_lines": 153,
+    "total_trades": 1,
+    "final_value": 1000000.17023695,
+    "score": 1.6
+  },
+  {
+    "category": "mean_reversion",
+    "name": "0027_mean_reversion_across_markets",
+    "path": "tests/functional/strategies_regression/mean_reversion/0027_mean_reversion_across_markets",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 171,
+    "total_trades": 1196,
+    "final_value": 437162.57448899734,
+    "score": 1.71
+  },
+  {
+    "category": "mean_reversion",
+    "name": "0036_sparse_mean_reversion_portfolio",
+    "path": "tests/functional/strategies_regression/mean_reversion/0036_sparse_mean_reversion_portfolio",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 119,
+    "total_trades": 41,
+    "final_value": 1704784.3737240017,
+    "score": 1.846
+  },
+  {
+    "category": "mean_reversion",
+    "name": "0232_crypto_rsi",
+    "path": "tests/functional/strategies_regression/mean_reversion/0232_crypto_rsi",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 121,
+    "total_trades": 56,
+    "final_value": 2656442.1528580026,
+    "score": 1.866
+  },
+  {
+    "category": "momentum",
+    "name": "0010_momentum_rotation_roc",
+    "path": "tests/functional/strategies_regression/momentum/0010_momentum_rotation_roc",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 156,
+    "total_trades": 6,
+    "final_value": 894549.1381368168,
+    "score": 1.56
+  },
+  {
+    "category": "momentum",
+    "name": "0026_momentum_combination_strategy",
+    "path": "tests/functional/strategies_regression/momentum/0026_momentum_combination_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 171,
+    "total_trades": 4,
+    "final_value": 3161951.1969715497,
+    "score": 1.71
+  },
+  {
+    "category": "momentum",
+    "name": "0024_online_momentum",
+    "path": "tests/functional/strategies_regression/momentum/0024_online_momentum",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 113,
+    "total_trades": 192,
+    "final_value": 2199901.8396479953,
+    "score": 1.786
+  },
+  {
+    "category": "momentum",
+    "name": "0012_gold_momentum_rotation",
+    "path": "tests/functional/strategies_regression/momentum/0012_gold_momentum_rotation",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 180,
+    "total_trades": 23,
+    "final_value": 998701.3437797009,
+    "score": 1.8
+  },
+  {
+    "category": "momentum",
+    "name": "0013_gold_time_series_momentum",
+    "path": "tests/functional/strategies_regression/momentum/0013_gold_time_series_momentum",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 129,
+    "total_trades": 28,
+    "final_value": 2674070.651118001,
+    "score": 1.946
+  },
+  {
+    "category": "multi_indicator_system",
+    "name": "0001_0092_kaufman_efficiency_ratio",
+    "path": "tests/functional/strategies_regression/multi_indicator_system/0001_0092_kaufman_efficiency_ratio",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 183,
+    "total_trades": 100,
+    "final_value": 860937.6837019995,
+    "score": 2.486
+  },
+  {
+    "category": "multi_indicator_system",
+    "name": "0027_sar_adx_sma",
+    "path": "tests/functional/strategies_regression/multi_indicator_system/0027_sar_adx_sma",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 130,
+    "total_trades": 267,
+    "final_value": 998908.1000000025,
+    "score": 16.23
+  },
+  {
+    "category": "multi_indicator_system",
+    "name": "0021_macdcci",
+    "path": "tests/functional/strategies_regression/multi_indicator_system/0021_macdcci",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 137,
+    "total_trades": 120,
+    "final_value": 997954.6667879662,
+    "score": 16.3
+  },
+  {
+    "category": "multi_indicator_system",
+    "name": "0019_statistics",
+    "path": "tests/functional/strategies_regression/multi_indicator_system/0019_statistics",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 154,
+    "total_trades": 691,
+    "final_value": 994598.0576000001,
+    "score": 16.47
+  },
+  {
+    "category": "multi_indicator_system",
+    "name": "0011_mysystem",
+    "path": "tests/functional/strategies_regression/multi_indicator_system/0011_mysystem",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 163,
+    "total_trades": 1722,
+    "final_value": 988733.200000001,
+    "score": 16.56
+  },
+  {
+    "category": "options",
+    "name": "0004_options_valuation",
+    "path": "tests/functional/strategies_regression/options/0004_options_valuation",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 127,
+    "total_trades": 27,
+    "final_value": 2876709.4435060024,
+    "score": 1.926
+  },
+  {
+    "category": "options",
+    "name": "0003_low_volatility_options",
+    "path": "tests/functional/strategies_regression/options/0003_low_volatility_options",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 201,
+    "total_trades": 2,
+    "final_value": 1139929.1144849996,
+    "score": 2.01
+  },
+  {
+    "category": "options",
+    "name": "0001_options_expiration_week_strategy",
+    "path": "tests/functional/strategies_regression/options/0001_options_expiration_week_strategy",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 172,
+    "total_trades": 36,
+    "final_value": 1024000.0987752499,
+    "score": 2.376
+  },
+  {
+    "category": "options",
+    "name": "0002_options_expiration_week",
+    "path": "tests/functional/strategies_regression/options/0002_options_expiration_week",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/GLD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 203,
+    "total_trades": 199,
+    "final_value": 947033.8405414012,
+    "score": 2.692
+  },
+  {
+    "category": "others",
+    "name": "0011_simple_hedging_time_exit",
+    "path": "tests/functional/strategies_regression/others/0011_simple_hedging_time_exit",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 123,
+    "total_trades": 309,
+    "final_value": 480914.5108050011,
+    "score": 1.23
+  },
+  {
+    "category": "others",
+    "name": "0010_intraday_momentum",
+    "path": "tests/functional/strategies_regression/others/0010_intraday_momentum",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 152,
+    "total_trades": 29,
+    "final_value": 966374.8182120001,
+    "score": 1.52
+  },
+  {
+    "category": "others",
+    "name": "0005_gold_aca",
+    "path": "tests/functional/strategies_regression/others/0005_gold_aca",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 163,
+    "total_trades": 16,
+    "final_value": 981845.10357,
+    "score": 1.63
+  },
+  {
+    "category": "others",
+    "name": "0040_gap_down",
+    "path": "tests/functional/strategies_regression/others/0040_gap_down",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 111,
+    "total_trades": 5,
+    "final_value": 978447.4633840002,
+    "score": 1.766
+  },
+  {
+    "category": "others",
+    "name": "0017_omega_ratio",
+    "path": "tests/functional/strategies_regression/others/0017_omega_ratio",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 112,
+    "total_trades": 18,
+    "final_value": 2442493.50732,
+    "score": 1.776
+  },
+  {
+    "category": "pairs_trading",
+    "name": "0014_cad_crude_pairs_strategy",
+    "path": "tests/functional/strategies_regression/pairs_trading/0014_cad_crude_pairs_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 157,
+    "total_trades": 139,
+    "final_value": 539372.4643203745,
+    "score": 1.57
+  },
+  {
+    "category": "pairs_trading",
+    "name": "0002_gold_silver_pairs_trading",
+    "path": "tests/functional/strategies_regression/pairs_trading/0002_gold_silver_pairs_trading",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 170,
+    "total_trades": 102,
+    "final_value": 990238.3797095226,
+    "score": 1.7
+  },
+  {
+    "category": "pairs_trading",
+    "name": "0005_zero_crossing_pairs",
+    "path": "tests/functional/strategies_regression/pairs_trading/0005_zero_crossing_pairs",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 180,
+    "total_trades": 166,
+    "final_value": 756037.542295799,
+    "score": 1.8
+  },
+  {
+    "category": "pairs_trading",
+    "name": "0011_copula_pairs_trading",
+    "path": "tests/functional/strategies_regression/pairs_trading/0011_copula_pairs_trading",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 121,
+    "total_trades": 333,
+    "final_value": 857277.9802100017,
+    "score": 1.866
+  },
+  {
+    "category": "pairs_trading",
+    "name": "0013_distance_pairs_trading",
+    "path": "tests/functional/strategies_regression/pairs_trading/0013_distance_pairs_trading",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 121,
+    "total_trades": 82,
+    "final_value": 1728834.0624120017,
+    "score": 1.866
+  },
+  {
+    "category": "pivot_fibonacci_system",
+    "name": "0002_simplepivot",
+    "path": "tests/functional/strategies_regression/pivot_fibonacci_system/0002_simplepivot",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 139,
+    "total_trades": 25,
+    "final_value": 1157597.0,
+    "score": 16.32
+  },
+  {
+    "category": "pivot_fibonacci_system",
+    "name": "0005_fibocandles",
+    "path": "tests/functional/strategies_regression/pivot_fibonacci_system/0005_fibocandles",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 302,
+    "total_trades": 95,
+    "final_value": 999617.7000000003,
+    "score": 17.95
+  },
+  {
+    "category": "pivot_fibonacci_system",
+    "name": "0006_volatility_pivot",
+    "path": "tests/functional/strategies_regression/pivot_fibonacci_system/0006_volatility_pivot",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 334,
+    "total_trades": 9,
+    "final_value": 1001382.000000002,
+    "score": 18.27
+  },
+  {
+    "category": "price_patterns",
+    "name": "0038_nr7_price_breakout_entry",
+    "path": "tests/functional/strategies_regression/price_patterns/0038_nr7_price_breakout_entry",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 173,
+    "total_trades": 229,
+    "final_value": 676555.0075939989,
+    "score": 2.386
+  },
+  {
+    "category": "price_patterns",
+    "name": "0039_nr7_breakout_filter_exit",
+    "path": "tests/functional/strategies_regression/price_patterns/0039_nr7_breakout_filter_exit",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 190,
+    "total_trades": 228,
+    "final_value": 718029.4475080037,
+    "score": 2.556
+  },
+  {
+    "category": "price_patterns",
+    "name": "0037_nr7_pattern_breakout",
+    "path": "tests/functional/strategies_regression/price_patterns/0037_nr7_pattern_breakout",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 196,
+    "total_trades": 132,
+    "final_value": 1310862.6102999994,
+    "score": 2.616
+  },
+  {
+    "category": "price_patterns",
+    "name": "0015_1204_heiken_ashi",
+    "path": "tests/functional/strategies_regression/price_patterns/0015_1204_heiken_ashi",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 111,
+    "total_trades": 1520,
+    "final_value": 999417.2999999995,
+    "score": 16.04
+  },
+  {
+    "category": "price_patterns",
+    "name": "0011_0615_n_candles",
+    "path": "tests/functional/strategies_regression/price_patterns/0011_0615_n_candles",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 113,
+    "total_trades": 16,
+    "final_value": 1052955.8500000057,
+    "score": 16.06
+  },
+  {
+    "category": "risk_management",
+    "name": "0002_gold_multi_market_hedge",
+    "path": "tests/functional/strategies_regression/risk_management/0002_gold_multi_market_hedge",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 146,
+    "total_trades": 1275,
+    "final_value": 1796742.55483001,
+    "score": 1.46
+  },
+  {
+    "category": "risk_management",
+    "name": "0005_bond_risk_premium",
+    "path": "tests/functional/strategies_regression/risk_management/0005_bond_risk_premium",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 150,
+    "total_trades": 2,
+    "final_value": 1407605.1528964809,
+    "score": 1.5
+  },
+  {
+    "category": "risk_management",
+    "name": "0006_managed_futures_hedge",
+    "path": "tests/functional/strategies_regression/risk_management/0006_managed_futures_hedge",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 111,
+    "total_trades": 13,
+    "final_value": 3571828.0289739957,
+    "score": 1.766
+  },
+  {
+    "category": "risk_management",
+    "name": "0008_risk_on_risk_off",
+    "path": "tests/functional/strategies_regression/risk_management/0008_risk_on_risk_off",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 116,
+    "total_trades": 81,
+    "final_value": 3881633.302637997,
+    "score": 1.816
+  },
+  {
+    "category": "risk_management",
+    "name": "0007_crisis_hedge",
+    "path": "tests/functional/strategies_regression/risk_management/0007_crisis_hedge",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 117,
+    "total_trades": 89,
+    "final_value": 1570371.391227997,
+    "score": 1.826
+  },
+  {
+    "category": "rotation",
+    "name": "0006_rotational_trading_strategy",
+    "path": "tests/functional/strategies_regression/rotation/0006_rotational_trading_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 140,
+    "total_trades": 4,
+    "final_value": 1901833.8413137004,
+    "score": 1.4
+  },
+  {
+    "category": "rotation",
+    "name": "0005_three_factor_etf_rotation_strategy",
+    "path": "tests/functional/strategies_regression/rotation/0005_three_factor_etf_rotation_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 150,
+    "total_trades": 5,
+    "final_value": 1006620.2808596508,
+    "score": 1.5
+  },
+  {
+    "category": "rotation",
+    "name": "0003_timing_bond_rotation",
+    "path": "tests/functional/strategies_regression/rotation/0003_timing_bond_rotation",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 176,
+    "total_trades": 16,
+    "final_value": 2435587.8511000006,
+    "score": 1.76
+  },
+  {
+    "category": "rotation",
+    "name": "0002_safe_haven_rotation",
+    "path": "tests/functional/strategies_regression/rotation/0002_safe_haven_rotation",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 177,
+    "total_trades": 3,
+    "final_value": 1156920.1667999995,
+    "score": 1.77
+  },
+  {
+    "category": "rotation",
+    "name": "0004_monthly_rotation_ranking",
+    "path": "tests/functional/strategies_regression/rotation/0004_monthly_rotation_ranking",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 120,
+    "total_trades": 20,
+    "final_value": 2631363.6268039993,
+    "score": 1.856
+  },
+  {
+    "category": "time_session_system",
+    "name": "0007_open_close_on_time",
+    "path": "tests/functional/strategies_regression/time_session_system/0007_open_close_on_time",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 140,
+    "total_trades": 67,
+    "final_value": 1000497.0000000003,
+    "score": 16.33
+  },
+  {
+    "category": "time_session_system",
+    "name": "0003_opentime",
+    "path": "tests/functional/strategies_regression/time_session_system/0003_opentime",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 170,
+    "total_trades": 67,
+    "final_value": 1002199.6999999996,
+    "score": 16.63
+  },
+  {
+    "category": "time_session_system",
+    "name": "0006_times_direction",
+    "path": "tests/functional/strategies_regression/time_session_system/0006_times_direction",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 189,
+    "total_trades": 67,
+    "final_value": 998920.8000000002,
+    "score": 16.82
+  },
+  {
+    "category": "time_session_system",
+    "name": "0005_opening_closing_on_time_v2",
+    "path": "tests/functional/strategies_regression/time_session_system/0005_opening_closing_on_time_v2",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 262,
+    "total_trades": 64,
+    "final_value": 1003121.0000000005,
+    "score": 17.55
+  },
+  {
+    "category": "trend_following",
+    "name": "0008_trend_following_macro_strategy",
+    "path": "tests/functional/strategies_regression/trend_following/0008_trend_following_macro_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 152,
+    "total_trades": 55,
+    "final_value": 739739.9517594005,
+    "score": 1.52
+  },
+  {
+    "category": "trend_following",
+    "name": "0001_sma_trend_following",
+    "path": "tests/functional/strategies_regression/trend_following/0001_sma_trend_following",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 106,
+    "total_trades": 65,
+    "final_value": 3686124.7930120006,
+    "score": 1.716
+  },
+  {
+    "category": "trend_following",
+    "name": "0003_risk_parity_trend",
+    "path": "tests/functional/strategies_regression/trend_following/0003_risk_parity_trend",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 173,
+    "total_trades": 93,
+    "final_value": 1235742.0940861136,
+    "score": 1.73
+  },
+  {
+    "category": "trend_following",
+    "name": "0176_persistent_rally",
+    "path": "tests/functional/strategies_regression/trend_following/0176_persistent_rally",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 119,
+    "total_trades": 224,
+    "final_value": 702592.7521359972,
+    "score": 1.846
+  },
+  {
+    "category": "trend_following",
+    "name": "0009_crypto_trend_following_strategy",
+    "path": "tests/functional/strategies_regression/trend_following/0009_crypto_trend_following_strategy",
+    "data_files": [
+      "tests/functional/datas/mt5_1d_data/XPDUSD_1d.csv"
+    ],
+    "data_mb": 0.17,
+    "strategy_lines": 157,
+    "total_trades": 94,
+    "final_value": 964103.0375954988,
+    "score": 1.907
+  },
+  {
+    "category": "volatility_systems",
+    "name": "0015_0374_correlation_regime_strategy",
+    "path": "tests/functional/strategies_regression/volatility_systems/0015_0374_correlation_regime_strategy",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 144,
+    "total_trades": 4,
+    "final_value": 2765193.3855676,
+    "score": 1.44
+  },
+  {
+    "category": "volatility_systems",
+    "name": "0003_0025_gold_paired_switching",
+    "path": "tests/functional/strategies_regression/volatility_systems/0003_0025_gold_paired_switching",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 155,
+    "total_trades": 7,
+    "final_value": 1267962.6224149999,
+    "score": 1.55
+  },
+  {
+    "category": "volatility_systems",
+    "name": "0008_0144_volatility_correlation_model",
+    "path": "tests/functional/strategies_regression/volatility_systems/0008_0144_volatility_correlation_model",
+    "data_files": [],
+    "data_mb": 0.0,
+    "strategy_lines": 166,
+    "total_trades": 80,
+    "final_value": 409657.05651999917,
+    "score": 1.66
+  },
+  {
+    "category": "volatility_systems",
+    "name": "0013_0320_vix_futures_basis",
+    "path": "tests/functional/strategies_regression/volatility_systems/0013_0320_vix_futures_basis",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 116,
+    "total_trades": 243,
+    "final_value": 2399456.0226180004,
+    "score": 1.816
+  },
+  {
+    "category": "volatility_systems",
+    "name": "0014_0327_volatility_hedge_fund",
+    "path": "tests/functional/strategies_regression/volatility_systems/0014_0327_volatility_hedge_fund",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_1d.csv"
+    ],
+    "data_mb": 0.33,
+    "strategy_lines": 122,
+    "total_trades": 27,
+    "final_value": 2876709.4435060024,
+    "score": 1.876
+  },
+  {
+    "category": "volume_system",
+    "name": "0001_volume_weighted_macandle",
+    "path": "tests/functional/strategies_regression/volume_system/0001_volume_weighted_macandle",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 153,
+    "total_trades": 54,
+    "final_value": 1001008.499999999,
+    "score": 16.46
+  },
+  {
+    "category": "volume_system",
+    "name": "0002_volume_weighted_ma_digit_system",
+    "path": "tests/functional/strategies_regression/volume_system/0002_volume_weighted_ma_digit_system",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 167,
+    "total_trades": 45,
+    "final_value": 999505.9000000004,
+    "score": 16.6
+  },
+  {
+    "category": "volume_system",
+    "name": "0004_volume_weighted_ma",
+    "path": "tests/functional/strategies_regression/volume_system/0004_volume_weighted_ma",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 222,
+    "total_trades": 54,
+    "final_value": 1000646.8,
+    "score": 17.15
+  },
+  {
+    "category": "volume_system",
+    "name": "0003_volume_weighted_ma_stdev",
+    "path": "tests/functional/strategies_regression/volume_system/0003_volume_weighted_ma_stdev",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 270,
+    "total_trades": 133,
+    "final_value": 1003220.0999999994,
+    "score": 17.63
+  },
+  {
+    "category": "volume_system",
+    "name": "0005_ergodic_ticks_volume_osma",
+    "path": "tests/functional/strategies_regression/volume_system/0005_ergodic_ticks_volume_osma",
+    "data_files": [
+      "tests/functional/datas/XAUUSD_M15.csv"
+    ],
+    "data_mb": 7.46,
+    "strategy_lines": 302,
+    "total_trades": 13,
+    "final_value": 1004046.8000000009,
+    "score": 17.95
+  }
+]

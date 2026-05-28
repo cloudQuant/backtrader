@@ -1,0 +1,30 @@
+strategy:
+  id: "0024"
+  name: "Gold Silver Pairs Trading"
+  type: "pairs_trading"
+
+data:
+  timeframe: "H1"
+  fromdate: "2025-07-01 00:00:00"
+  todate: "2025-12-31 23:59:59"
+  asset_a: "XAUUSD"
+  asset_b: "XAGUSD"
+  file_a: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_H1.csv"
+  file_b: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/XAGUSD_H1.csv"
+
+params:
+  hedge_ratio: 1.0
+  zscore_window: 192
+  entry_threshold: 2.0
+  exit_threshold: 0.5
+  stop_threshold: 3.0
+  max_notional_pct: 0.05
+  commission_pct: 0.0005
+  annualization_factor: 6048
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

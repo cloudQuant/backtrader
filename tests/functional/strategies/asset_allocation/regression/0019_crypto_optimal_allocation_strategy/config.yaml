@@ -1,0 +1,31 @@
+strategy:
+  id: '0371'
+  name: Crypto Optimal Allocation Strategy
+  source_spec: research_papers_gold/strategy_specs/asset_allocation/0371_Crypto_Optimal_Allocation_Strategy.md
+
+data:
+  timeframe: D1
+  assets:
+    equity: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/IVV_1d.csv
+    bond: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv
+    gold: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+    crypto: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IBIT_1d.csv
+  fromdate: '2024-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  lookback_days: 63
+  rebalance_interval_days: 21
+  risk_free_rate: 0.02
+  min_weight: 0.0
+  max_crypto_weight: 0.10
+  min_crypto_weight: 0.02
+  crypto_grid_step: 0.01
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

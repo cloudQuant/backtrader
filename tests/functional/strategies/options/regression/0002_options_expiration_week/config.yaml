@@ -1,0 +1,26 @@
+strategy:
+  id: '0292'
+  name: Options Expiration Week
+  source_spec: research_papers_gold/strategy_specs/options/0292_Options_Expiration_Week_Strategy.md
+
+data:
+  symbol: GLD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  bullish_months: [1, 2, 3, 4, 5, 9, 10, 11, 12]
+  bearish_months: [6, 7, 8]
+  stop_loss: 0.02
+  take_profit: 0.015
+  position_size: 0.95
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

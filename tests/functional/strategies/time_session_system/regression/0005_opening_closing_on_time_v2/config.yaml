@@ -1,0 +1,35 @@
+strategy:
+  name: "Opening and Closing on Time v2"
+  source_ea: "ea/0770_根据时间建仓和平仓，版本2"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+
+params:
+  open_time: "05:00"
+  close_time: "21:01"
+  lots: 1.0
+  stop_loss: 30
+  take_profit: 50
+  trade_mode: "buy_and_sell"
+  slow_ma_period: 200
+  slow_ma_method: "EMA"
+  slow_ma_applied_price: "median"
+  fast_ma_period: 50
+  fast_ma_method: "EMA"
+  fast_ma_applied_price: "median"
+  point: 0.01
+  price_digits: 2
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

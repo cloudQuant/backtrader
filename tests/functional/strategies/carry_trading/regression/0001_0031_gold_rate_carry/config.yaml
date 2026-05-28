@@ -1,0 +1,31 @@
+strategy:
+  id: "0031"
+  name: "Gold Rate Carry"
+  type: "arbitrage"
+
+data:
+  symbol: "XAUUSD/IEF"
+  timeframe: "D1"
+  gold_file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv"
+  rate_proxy_file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv"
+  fromdate: "2008-01-01 00:00:00"
+  todate: "2025-12-31 00:00:00"
+
+params:
+  relationship_window: 126
+  rate_window: 126
+  entry_z: 1.0
+  spread_entry_z: 0.5
+  exit_z: 0.2
+  atr_window: 14
+  atr_stop_multiplier: 3.0
+  position_pct: 0.25
+  allow_short: true
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: "backtest_result.json"
+  global_summary_csv: "../../strategy_backtest_results.csv"

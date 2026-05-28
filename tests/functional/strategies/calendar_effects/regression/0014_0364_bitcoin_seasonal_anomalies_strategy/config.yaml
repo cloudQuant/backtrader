@@ -1,0 +1,26 @@
+strategy:
+  id: '0364'
+  name: Bitcoin Seasonal Anomalies Strategy
+  source_spec: research_papers_gold/strategy_specs/seasonality/0364_Bitcoin_Seasonal_Anomalies_Strategy.md
+
+data:
+  timeframe: D1
+  symbol: IBIT
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IBIT_1d.csv
+  fromdate: '2024-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  lookback_days: 63
+  min_samples: 5
+  target_weekdays_count: 2
+  use_overnight: true
+  position_size: 1.0
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

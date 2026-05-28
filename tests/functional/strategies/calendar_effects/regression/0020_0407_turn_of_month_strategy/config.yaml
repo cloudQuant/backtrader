@@ -1,0 +1,25 @@
+strategy:
+  id: '0407'
+  name: Turn of Month Strategy
+  source_spec: research_papers_gold/strategy_specs/seasonality/0407_Turn_of_Month_Strategy.md
+
+data:
+  symbol: XAUUSD
+  timeframe: D1
+  file: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+  bar_shift_minutes: 0
+
+params:
+  last_days: 3
+  first_days: 3
+  stop_loss_pct: 0.02
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

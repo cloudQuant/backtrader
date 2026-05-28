@@ -1,0 +1,33 @@
+strategy:
+  id: '0356'
+  name: Optimal Gold Allocation Strategy
+  source_spec: research_papers_gold/strategy_specs/asset_allocation/0356_Optimal_Gold_Allocation_Strategy.md
+
+data:
+  timeframe: D1
+  assets:
+    equity: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/IVV_1d.csv
+    bond: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/IEF_1d.csv
+    gold: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/GLD_1d.csv
+    commodity: /Users/yunjinqi/Documents/new_projects/backtrader/tests/functional/datas/mt5_1d_data/DBC_1d.csv
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+
+params:
+  base_gold_weight: 0.05
+  max_gold_weight: 0.15
+  min_gold_weight: 0.0
+  trend_weight: 0.5
+  volatility_weight: 0.3
+  economic_weight: 0.2
+  sma_period: 200
+  vol_lookback: 60
+  rebalance_interval_days: 21
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../strategy_backtest_results.csv

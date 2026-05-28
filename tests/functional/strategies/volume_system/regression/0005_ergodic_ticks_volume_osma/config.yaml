@@ -1,0 +1,46 @@
+strategy:
+  name: "Exp_Ergodic_Ticks_Volume_OSMA"
+  source_ea: "ea/1008_Exp_Ergodic_Ticks_Volume_OSMA"
+
+data:
+  symbol: "XAUUSD"
+  timeframe: "M15"
+  file: "/Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/XAUUSD_M15.csv"
+  feature_cache_dir: "features"
+  fromdate: "2025-12-03 01:15:00"
+  todate: "2026-03-10 09:00:00"
+  bar_shift_minutes: 15
+  signal_tf_minutes: 480
+
+params:
+  mm: 0.1
+  mm_mode: "LOT"
+  stop_loss: 1000
+  take_profit: 2000
+  deviation: 10
+  buy_pos_open: true
+  sell_pos_open: true
+  buy_pos_close: true
+  sell_pos_close: true
+  signal_bar: 1
+  volume_type: "volume_tick"
+  xma_method: "mode_ema"
+  xlength1: 12
+  xlength2: 12
+  xlength3: 1
+  xlength4: 5
+  xlength5: 5
+  xlength6: 5
+  xlength7: 3
+  point: 0.01
+  digits_adjust: 10
+  price_digits: 2
+  size: 0.1
+
+backtest:
+  initial_cash: 1000000
+  commission: 0.0
+  margin: 0.01
+  multiplier: 100.0
+  commission_type: "fixed"
+  stocklike: false

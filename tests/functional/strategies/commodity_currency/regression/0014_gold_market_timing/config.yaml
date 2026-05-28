@@ -1,0 +1,27 @@
+strategy:
+  id: '0171'
+  name: Gold Market Timing
+  source_spec: research_papers_gold/strategy_specs/commodity_currency/0171_Gold_Market_Timing.md
+
+data:
+  timeframe: D1
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+  symbol: XAUUSD
+  csv_path: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv
+
+params:
+  sma_fast: 20
+  sma_slow: 100
+  momentum_period: 63
+  vol_window: 21
+  vol_lookback: 252
+  rsi_period: 14
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv

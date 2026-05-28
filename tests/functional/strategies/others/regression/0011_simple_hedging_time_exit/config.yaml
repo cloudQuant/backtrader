@@ -1,0 +1,24 @@
+strategy:
+  id: '0179'
+  name: Simple Hedging Time Exit
+  source_spec: research_papers_gold/strategy_specs/others/0179_Simple_Hedging_Time_Exit.md
+
+data:
+  timeframe: D1
+  fromdate: '2008-01-01 00:00:00'
+  todate: '2025-12-31 00:00:00'
+  symbol: XAUUSD
+  csv_path: /Users/yunjinqi/Documents/new_projects/backtrader/tests/datas/mt5_1d_data/XAUUSD_1d.csv
+
+params:
+  breakout_period: 10
+  max_holding_days: 4
+  hedge_ratio: 0.95
+  commission_pct: 0.0005
+
+backtest:
+  initial_cash: 1000000.0
+
+outputs:
+  local_result_json: backtest_result.json
+  global_summary_csv: ../../strategy_backtest_results.csv
