@@ -54,6 +54,21 @@ def _propagate_assignment_minperiod(owner, child):
     if child_minperiod is None:
         return
 
+    # When the child is a LineBuffer (e.g., rsi.l.rsi), its _minperiod
+    # only reflects its own addminperiod calls, not the full indicator
+    # chain. Check if the child belongs to a Lines container whose
+    # _owner_ref (the indicator) has a higher minperiod.
+    try:
+        child_lines_owner = getattr(child, '_owner', None)
+        if child_lines_owner is not None and child_lines_owner is not owner:
+            ref = getattr(child_lines_owner, '_owner_ref', None)
+            if ref is not None and hasattr(ref, '_minperiod'):
+                ref_mp = ref._minperiod
+                if ref_mp is not None and ref_mp > child_minperiod:
+                    child_minperiod = ref_mp
+    except (AttributeError, TypeError):
+        pass
+
     try:
         owner.updateminperiod(child_minperiod)
     except AttributeError:
@@ -69,11 +84,6 @@ def _propagate_assignment_minperiod(owner, child):
                 owner._minperiod = child_minperiod
     except Exception:
         return
-
-    try:
-        owner_minperiod = owner._minperiod
-    except AttributeError:
-        owner_minperiod = child_minperiod
 
     return
 
@@ -1301,15 +1311,27 @@ class Lines:
                             value.addbinding(parent_line)
                             object.__setattr__(parent_line, "_linebinding_assigned", True)
 
-                            # Propagate minperiod
+                            # Propagate minperiod — use the owning indicator's
+                            # minperiod if it's higher than the line's own.
+                            effective_mp = value._minperiod
+                            try:
+                                value_lines_owner = getattr(value, '_owner', None)
+                                if value_lines_owner is not None:
+                                    vref = getattr(value_lines_owner, '_owner_ref', None)
+                                    if vref is not None and hasattr(vref, '_minperiod'):
+                                        if vref._minperiod > effective_mp:
+                                            effective_mp = vref._minperiod
+                            except (AttributeError, TypeError):
+                                pass
+
                             try:
                                 owner_ref = object.__getattribute__(self, "_owner_ref")
                             except AttributeError:
                                 owner_ref = None
 
                             if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
-                                if value._minperiod > owner_ref._minperiod:
-                                    owner_ref._minperiod = value._minperiod
+                                if effective_mp > owner_ref._minperiod:
+                                    owner_ref._minperiod = effective_mp
 
                             # Register as sub-indicator so its _next()/once() gets called
                             _register_line_assignment_child(owner_ref, value)
@@ -1337,6 +1359,12 @@ class Lines:
                                 if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
                                     if value._minperiod > owner_ref._minperiod:
                                         owner_ref._minperiod = value._minperiod
+
+                                # CRITICAL FIX: Also update parent_line's minperiod
+                                # so that subsequent indicators using self.l.xxx as
+                                # data source see the full indicator chain minperiod.
+                                if hasattr(parent_line, 'updateminperiod'):
+                                    parent_line.updateminperiod(value._minperiod)
 
                                 # Register as sub-indicator
                                 _register_line_assignment_child(owner_ref, value)
@@ -1822,6 +1850,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             object.__setattr__(self, name, value)
 
             if isinstance(value, LineBuffer) and not isinstance(value, LineActions):
+                # Plain LineBuffer (e.g., rsi.l.rsi) — don't register as a
+                # child iterator, but DO propagate its minperiod to the owner.
+                _propagate_assignment_minperiod(self, value)
                 return
 
             _register_line_assignment_child(self, value)
