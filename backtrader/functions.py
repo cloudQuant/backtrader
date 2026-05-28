@@ -473,6 +473,16 @@ class If(Logic):
             self._once_sequential(start, end)
             return
 
+        # Standard If expressions can contain nested LinesOperation/_LineDelay
+        # operands which are not always scheduled separately by LineIterator.
+        # Compute them explicitly before reading their arrays below.
+        for operand in (self.cond, self.a, self.b):
+            if hasattr(operand, 'once') and len(getattr(operand, 'array', [])) < end:
+                try:
+                    operand.once(0, end)
+                except Exception as e:
+                    logger.debug("If operand once() failed: %s", e)
+
         # Standard batch processing for non-self-referencing patterns
         self._once_batch(start, end)
 

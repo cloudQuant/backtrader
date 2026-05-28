@@ -243,9 +243,9 @@ def test_supertrend_rsi_strategy():
 
     Expected Results:
         - Bars processed: 1243
-        - Final portfolio value: $100,078.43
-        - Sharpe ratio: 0.9185839368203687
-        - Annual return: 0.000157191624133124
+        - Final portfolio value: $100,085.04
+        - Sharpe ratio: 0.8987542282805036
+        - Annual return: 0.0001704277101155587
         - Maximum drawdown: 7.72%
 
     Raises:
@@ -290,10 +290,10 @@ def test_supertrend_rsi_strategy():
     # Assertions - using precise assertions
     # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1243, f"Expected bar_num=1243, got {strat.bar_num}"
-    assert abs(final_value - 100078.43) < 0.01, f"Expected final_value=100078.43, got {final_value}"
-    assert abs(sharpe_ratio - (0.9185839368203687)) < 1e-6, f"Expected sharpe_ratio=0.9185839368203687, got {sharpe_ratio}"
-    assert abs(annual_return - (0.000157191624133124)) < 1e-6, f"Expected annual_return=0.000157191624133124, got {annual_return}"
-    assert abs(max_drawdown - 0.07723546273124525) < 1e-6, f"Expected max_drawdown=0.07723546273124525, got {max_drawdown}"
+    assert abs(final_value - 100085.04) < 0.01, f"Expected final_value=100085.04, got {final_value}"
+    assert abs(sharpe_ratio - (0.8987542282805036)) < 1e-6, f"Expected sharpe_ratio=0.8987542282805036, got {sharpe_ratio}"
+    assert abs(annual_return - (0.0001704277101155587)) < 1e-6, f"Expected annual_return=0.0001704277101155587, got {annual_return}"
+    assert abs(max_drawdown - 0.07723036627142686) < 1e-6, f"Expected max_drawdown=0.07723036627142686, got {max_drawdown}"
 
     print("\nTest passed!")
 

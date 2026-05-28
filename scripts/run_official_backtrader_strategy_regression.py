@@ -41,8 +41,14 @@ def is_same_or_child(path: Path, parent: Path) -> bool:
     return resolved_path == resolved_parent or resolved_parent in resolved_path.parents
 
 
-def cleaned_env(repo_root: Path) -> dict[str, str]:
+def cleaned_env(repo_root: Path, keep_repo_pythonpath: bool = False) -> dict[str, str]:
     env = os.environ.copy()
+    if keep_repo_pythonpath:
+        pythonpath_parts = [str(repo_root), env.get("PYTHONPATH", "")]
+        env["PYTHONPATH"] = os.pathsep.join(item for item in pythonpath_parts if item)
+        env["PYTHONUNBUFFERED"] = "1"
+        env["PYTHONIOENCODING"] = "utf-8"
+        return env
     pythonpath = env.get("PYTHONPATH", "")
     if pythonpath:
         kept = []
@@ -82,7 +88,7 @@ def run_command(command: list[str], cwd: Path, timeout: int, env: dict[str, str]
     return result.returncode
 
 
-def backtrader_location(repo_root: Path) -> str:
+def backtrader_location(repo_root: Path, keep_repo_pythonpath: bool = False) -> str:
     code = (
         "import backtrader; "
         "print(getattr(backtrader, '__version__', 'unknown')); "
@@ -91,7 +97,7 @@ def backtrader_location(repo_root: Path) -> str:
     result = subprocess.run(
         [sys.executable, "-c", code],
         cwd="/tmp",
-        env=cleaned_env(repo_root),
+        env=cleaned_env(repo_root, keep_repo_pythonpath=keep_repo_pythonpath),
         text=True,
         capture_output=True,
         timeout=60,
@@ -103,6 +109,66 @@ def backtrader_location(repo_root: Path) -> str:
 
 def collect_test_files(test_root: Path) -> list[Path]:
     return sorted(path for path in test_root.rglob("test*.py") if path.is_file())
+
+
+def resolve_existing_path(repo_root: Path, default_test_root: Path, target: str) -> Path:
+    selected_path = Path(target)
+    if selected_path.is_absolute():
+        return selected_path
+
+    repo_relative = repo_root / selected_path
+    if repo_relative.exists():
+        return repo_relative
+
+    return default_test_root / selected_path
+
+
+def load_failure_targets_from_report(repo_root: Path, report_path: Path) -> list[str]:
+    resolved_report = report_path.resolve() if report_path.is_absolute() else (repo_root / report_path).resolve()
+    payload = json.loads(resolved_report.read_text(encoding="utf-8"))
+    failures = payload.get("failures")
+    if not isinstance(failures, list):
+        raise ValueError(f"Report has no 'failures' list: {resolved_report}")
+
+    targets = []
+    for item in failures:
+        if not isinstance(item, dict):
+            continue
+        path = item.get("path")
+        if isinstance(path, str) and path:
+            targets.append(path)
+
+    if not targets:
+        raise ValueError(f"Report contains no failure paths: {resolved_report}")
+    return targets
+
+
+def collect_selected_test_files(repo_root: Path, default_test_root: Path, targets: list[str]) -> list[Path]:
+    collected: list[Path] = []
+    seen: set[Path] = set()
+
+    for target in targets:
+        resolved = resolve_existing_path(repo_root, default_test_root, target)
+        if not resolved.exists():
+            raise FileNotFoundError(f"Target does not exist: {target} -> {resolved}")
+
+        if resolved.is_dir():
+            current_files = collect_test_files(resolved)
+            if not current_files:
+                raise ValueError(f"No regression test files found under: {resolved}")
+        elif resolved.is_file():
+            current_files = [resolved]
+        else:
+            raise ValueError(f"Unsupported target path: {resolved}")
+
+        for test_file in current_files:
+            canonical = test_file.resolve()
+            if canonical in seen:
+                continue
+            seen.add(canonical)
+            collected.append(canonical)
+
+    return sorted(collected, key=lambda path: str(path.relative_to(repo_root)))
 
 
 def tail(text: str, limit: int) -> str:
@@ -142,7 +208,13 @@ def extract_root_error(stderr: str) -> str:
     return ""
 
 
-def run_one_test(script_path: Path, test_file: Path, repo_root: Path, timeout: int) -> dict[str, Any]:
+def run_one_test(
+    script_path: Path,
+    test_file: Path,
+    repo_root: Path,
+    timeout: int,
+    use_current_backtrader: bool,
+) -> dict[str, Any]:
     started = time.time()
     command = [
         sys.executable,
@@ -150,12 +222,13 @@ def run_one_test(script_path: Path, test_file: Path, repo_root: Path, timeout: i
         WORKER_COMMAND,
         str(test_file),
         str(repo_root),
+        "1" if use_current_backtrader else "0",
     ]
     try:
         result = subprocess.run(
             command,
             cwd=str(test_file.parent),
-            env=cleaned_env(repo_root),
+            env=cleaned_env(repo_root, keep_repo_pythonpath=use_current_backtrader),
             text=True,
             capture_output=True,
             timeout=timeout,
@@ -199,10 +272,18 @@ def run_one_test(script_path: Path, test_file: Path, repo_root: Path, timeout: i
         }
 
 
-def run_tests(script_path: Path, repo_root: Path, test_root: Path, workers: int, timeout: int) -> list[dict[str, Any]]:
-    test_files = collect_test_files(test_root)
+def run_tests(
+    script_path: Path,
+    repo_root: Path,
+    test_files: list[Path],
+    workers: int,
+    timeout: int,
+    use_current_backtrader: bool,
+) -> list[dict[str, Any]]:
     print("=" * 80, flush=True)
-    print(f"Test root: {test_root}", flush=True)
+    if test_files:
+        print(f"First test: {test_files[0].relative_to(repo_root)}", flush=True)
+        print(f"Last test:  {test_files[-1].relative_to(repo_root)}", flush=True)
     print(f"Total test files: {len(test_files)}", flush=True)
     print(f"Workers: {workers}", flush=True)
     print(f"Per-test timeout: {timeout}s", flush=True)
@@ -215,7 +296,14 @@ def run_tests(script_path: Path, repo_root: Path, test_root: Path, workers: int,
 
     with futures.ThreadPoolExecutor(max_workers=workers) as executor:
         future_map = {
-            executor.submit(run_one_test, script_path, test_file, repo_root, timeout): test_file
+            executor.submit(
+                run_one_test,
+                script_path,
+                test_file,
+                repo_root,
+                timeout,
+                use_current_backtrader,
+            ): test_file
             for test_file in test_files
         }
         for index, future in enumerate(futures.as_completed(future_map), 1):
@@ -241,7 +329,7 @@ def write_report(repo_root: Path, output_path: Path | None, results: list[dict[s
         output_dir = repo_root / "logs"
         output_dir.mkdir(parents=True, exist_ok=True)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_path = output_dir / f"official_backtrader_strategy_regression_{stamp}.json"
+        output_path = output_dir / f"current_backtrader_strategy_regression_{stamp}.json"
     else:
         output_path = output_path.resolve()
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -270,7 +358,7 @@ def print_summary(results: list[dict[str, Any]], report_path: Path) -> None:
         )
         failure_roots[key] = failure_roots.get(key, 0) + 1
     print("=" * 80, flush=True)
-    print("Official backtrader strategy regression summary", flush=True)
+    print("Current backtrader strategy regression summary", flush=True)
     print("=" * 80, flush=True)
     print(f"Total:  {len(results)}", flush=True)
     print(f"Passed: {len(results) - len(failures)}", flush=True)
@@ -294,7 +382,7 @@ def print_summary(results: list[dict[str, Any]], report_path: Path) -> None:
 def worker_main(argv: list[str]) -> int:
     test_file = Path(argv[0]).resolve()
     repo_root = Path(argv[1]).resolve()
-    clean_sys_path(repo_root)
+    use_current_backtrader = len(argv) >= 3 and argv[2] == "1"
 
     module_name = "_official_backtrader_regression_test"
     try:
@@ -305,7 +393,8 @@ def worker_main(argv: list[str]) -> int:
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
 
-        module.BACKTRADER_REPO = repo_root / ".official_backtrader_missing_repo_path"
+        _ = use_current_backtrader
+        module.BACKTRADER_REPO = repo_root
         expected = module._load_json(module.EXPECTED_PATH)
         actual = module._run_strategy()
         module._assert_metrics(actual, expected)
@@ -349,23 +438,34 @@ def resolve_test_root(repo_root: Path, target: str | None, explicit_test_root: s
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Install official PyPI backtrader, run strategy regression scripts with 7 workers, then restore local backtrader."
+        description="Run strategy regression scripts against the current project backtrader."
     )
     parser.add_argument(
-        "target",
-        nargs="?",
-        default=None,
-        help="Optional target folder or test path. Examples: asset_allocation, tests/functional/strategies_regression/asset_allocation.",
+        "targets",
+        nargs="*",
+        default=[],
+        help="Optional target folders or test paths. Examples: asset_allocation tests/functional/strategies_regression/asset_allocation/test_1_x.py.",
     )
     parser.add_argument(
         "--test-root",
         default=None,
         help="Explicit regression test root, relative to repo root or absolute path. If omitted, defaults to tests/functional/strategies_regression.",
     )
+    parser.add_argument(
+        "--from-report",
+        type=Path,
+        default=None,
+        help="Load failure paths from a previous JSON report and rerun only those failed tests.",
+    )
     parser.add_argument("--workers", type=int, default=7, help="Number of concurrent workers.")
     parser.add_argument("--timeout", type=int, default=240, help="Timeout per test script in seconds.")
     parser.add_argument("--pip-timeout", type=int, default=900, help="Timeout for pip install commands in seconds.")
     parser.add_argument("--output", type=Path, default=None, help="Optional JSON report output path.")
+    parser.add_argument(
+        "--use-current-backtrader",
+        action="store_true",
+        help="Legacy compatibility flag. The current project backtrader is always used.",
+    )
     return parser.parse_args()
 
 
@@ -373,51 +473,45 @@ def main() -> int:
     args = parse_args()
     repo_root = find_repo_root()
     script_path = Path(__file__).resolve()
-    test_root = resolve_test_root(repo_root, args.target, args.test_root)
-    if not test_root.exists():
-        print(f"Test root does not exist: {test_root}", file=sys.stderr, flush=True)
+    test_root = resolve_test_root(repo_root, None, args.test_root)
+
+    requested_targets = list(args.targets)
+    if args.from_report is not None:
+        requested_targets.extend(load_failure_targets_from_report(repo_root, args.from_report))
+
+    if requested_targets:
+        test_files = collect_selected_test_files(repo_root, test_root, requested_targets)
+    else:
+        if not test_root.exists():
+            print(f"Test root does not exist: {test_root}", file=sys.stderr, flush=True)
+            return 2
+        test_files = collect_test_files(test_root)
+
+    if not test_files:
+        print("No regression test files selected.", file=sys.stderr, flush=True)
         return 2
 
     started_at = datetime.now().isoformat(timespec="seconds")
     started = time.time()
-    results: list[dict[str, Any]] = []
-    install_ok = False
-    restore_ok = False
-
-    try:
-        install_code = run_command(
-            [sys.executable, "-m", "pip", "install", "-U", "backtrader"],
-            repo_root,
-            args.pip_timeout,
-        )
-        install_ok = install_code == 0
-        print("Backtrader after official install:", flush=True)
-        print(backtrader_location(repo_root), flush=True)
-        if not install_ok:
-            return 2
-
-        results = run_tests(script_path, repo_root, test_root, args.workers, args.timeout)
-        duration = time.time() - started
-        report_path = write_report(repo_root, args.output, results, started_at, duration)
-        print_summary(results, report_path)
-        return 1 if any(item["returncode"] != 0 for item in results) else 0
-    finally:
-        print("=" * 80, flush=True)
-        print("Restoring local project backtrader with: pip install -U .", flush=True)
-        print("=" * 80, flush=True)
-        try:
-            restore_code = run_command(
-                [sys.executable, "-m", "pip", "install", "-U", "."],
-                repo_root,
-                args.pip_timeout,
-            )
-            restore_ok = restore_code == 0
-            print("Backtrader after local restore:", flush=True)
-            print(backtrader_location(repo_root), flush=True)
-        except BaseException:
-            traceback.print_exc()
-        if not restore_ok:
-            print("WARNING: local project reinstall failed; run `python -m pip install -U .` from repo root manually.", file=sys.stderr, flush=True)
+    _ = args.use_current_backtrader
+    print("Running regression with current project backtrader", flush=True)
+    if args.from_report is not None:
+        print(f"Loaded failure targets from report: {args.from_report}", flush=True)
+    if args.targets:
+        print(f"Explicit targets: {len(args.targets)}", flush=True)
+    print(backtrader_location(repo_root, keep_repo_pythonpath=True), flush=True)
+    results = run_tests(
+        script_path,
+        repo_root,
+        test_files,
+        args.workers,
+        args.timeout,
+        True,
+    )
+    duration = time.time() - started
+    report_path = write_report(repo_root, args.output, results, started_at, duration)
+    print_summary(results, report_path)
+    return 1 if any(item["returncode"] != 0 for item in results) else 0
 
 
 if __name__ == "__main__":

@@ -106,5 +106,45 @@ def test_run(main=False):
     )
 
 
+class ManualChildMinPeriod(bt.Indicator):
+    lines = ("value",)
+    params = dict(period=8)
+
+    def __init__(self):
+        self.sma = btind.SMA(self.data, period=self.p.period)
+        self.addminperiod(self.p.period + 2)
+
+    def next(self):
+        self.lines.value[0] = self.sma[0]
+
+
+class ManualParentMinPeriod(bt.Indicator):
+    lines = ("value",)
+    params = dict(period=8)
+
+    def __init__(self):
+        self.child = ManualChildMinPeriod(self.data, period=self.p.period)
+        self.addminperiod(self.p.period + 2)
+
+    def next(self):
+        self.lines.value[0] = self.child.value[0]
+
+
+class ManualParentMinPeriodStrategy(bt.Strategy):
+    def __init__(self):
+        self.indicator = ManualParentMinPeriod(self.data)
+
+
+def test_manual_next_child_indicator_addminperiod_is_not_stacked():
+    cerebro = bt.Cerebro(runonce=False, preload=False, exactbars=False)
+    cerebro.adddata(testcommon.getdata(0))
+    cerebro.addstrategy(ManualParentMinPeriodStrategy)
+    strat = cerebro.run()[0]
+
+    assert strat.indicator._minperiod == 10
+    assert strat._minperiod == 10
+    assert strat._minperiods == [10]
+
+
 if __name__ == "__main__":
     test_run(main=True)

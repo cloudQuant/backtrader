@@ -44,6 +44,47 @@ def _line_assignment_ltype(child):
     return ltype
 
 
+def _propagate_assignment_minperiod(owner, child):
+    """Propagate a registered child line/indicator minperiod to its owner."""
+    try:
+        child_minperiod = child._minperiod
+    except AttributeError:
+        return
+
+    if child_minperiod is None:
+        return
+
+    try:
+        owner.updateminperiod(child_minperiod)
+    except AttributeError:
+        try:
+            owner_minperiod = owner._minperiod
+        except AttributeError:
+            try:
+                owner._minperiod = child_minperiod
+            except AttributeError:
+                return
+        else:
+            if child_minperiod > owner_minperiod:
+                owner._minperiod = child_minperiod
+    except Exception:
+        return
+
+    try:
+        owner_minperiod = owner._minperiod
+    except AttributeError:
+        owner_minperiod = child_minperiod
+
+    try:
+        for line in owner.lines:
+            try:
+                line.updateminperiod(owner_minperiod)
+            except AttributeError:
+                pass
+    except (AttributeError, TypeError):
+        pass
+
+
 def _line_owner(operand):
     try:
         owner = operand._owner
@@ -270,6 +311,7 @@ def _register_line_assignment_child(owner, child, seen=None):
         owner_lineiterators[ltype].append(child)
 
     child._owner = owner
+    _propagate_assignment_minperiod(owner, child)
 
     try:
         child_clock = child._clock
@@ -1004,11 +1046,11 @@ class Lines:
                     self._line_assignments = {}
                 self._line_assignments[line] = value
 
-    def forward(self, value=0.0, size=1):
+    def forward(self, value=NAN, size=1):
         """Forward all lines by the specified size.
 
         Args:
-            value: Value to use for forwarding (default: 0.0).
+            value: Value to use for forwarding (default: NAN).
             size: Number of positions to forward (default: 1).
         """
         for line in self.lines:
@@ -2004,11 +2046,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
         return delayed
 
-    def forward(self, value=0.0, size=1):
+    def forward(self, value=NAN, size=1):
         """Forward all lines by the specified size.
 
         Args:
-            value: Value to use for forwarding (default: 0.0).
+            value: Value to use for forwarding (default: NAN).
             size: Number of positions to forward (default: 1).
         """
         self.lines.forward(value, size)
@@ -2140,11 +2182,11 @@ class LineSeriesStub(LineSeries):
         self.lines.lines = [line]
         self.slave = slave
 
-    def forward(self, value=0.0, size=1):
+    def forward(self, value=NAN, size=1):
         """Forward the line if not a slave.
 
         Args:
-            value: Value to use for forwarding (default: 0.0).
+            value: Value to use for forwarding (default: NAN).
             size: Number of positions to forward (default: 1).
         """
         if not self.slave:

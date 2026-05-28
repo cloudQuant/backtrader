@@ -727,8 +727,25 @@ class LineMultiple(LineRoot):
         """
         The passed minperiod is fed to the lines
         """
-        # CRITICAL FIX: Use the same accumulation logic as LineSingle
-        # This ensures nested indicators properly accumulate minperiods
+        has_child_iterators = False
+        try:
+            has_child_iterators = any(self._lineiterators.values())
+        except (AttributeError, TypeError):
+            pass
+
+        cls_dict = getattr(self.__class__, "__dict__", {})
+        once_method = getattr(self.__class__, "once", None)
+        manual_next_only = (
+            "next" in cls_dict
+            and getattr(once_method, "__name__", "") == "once_via_next"
+        )
+
+        if has_child_iterators and manual_next_only:
+            self._minperiod = max(self._minperiod, minperiod)
+            for line in self.lines:
+                line.updateminperiod(self._minperiod)
+            return
+
         # minperiod is added with -1 to account for overlapping
         self._minperiod += minperiod - 1
 
@@ -749,10 +766,12 @@ class LineMultiple(LineRoot):
             # Use the first line for operations
             from .linebuffer import LinesOperation
 
-            # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
-            parent_a = self if hasattr(self, "_once") else None
+            from .linebuffer import LineActions
+            # Only set parent to LineActions instances — never full indicators.
+            # Full indicators are processed via _lineiterators ordering in _once().
+            parent_a = self if isinstance(self, LineActions) else None
             parent_b_candidate = original_other if original_other is not None else other
-            parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
+            parent_b = parent_b_candidate if isinstance(parent_b_candidate, LineActions) else None
             return LinesOperation(
                 self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
             )

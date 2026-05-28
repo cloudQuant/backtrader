@@ -519,9 +519,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Handle None/NaN values - use fast path for checking
         if value is None:
             value = self._default_value
-        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
+        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check.
+        # Preserve explicit NaN writes for non-datetime lines. Data feeds often
+        # use NaN as a sparse signal sentinel; converting it to 0.0 turns
+        # "no signal" into a finite tradable value.
         elif value != value:  # NaN detection without isinstance + isnan
-            value = self._default_value
+            value = self._default_value if self._is_datetime_line else float("nan")
         elif isinstance(value, float) and not math.isfinite(value):
             value = self._default_value
         # datetime line value validation
@@ -865,26 +868,32 @@ class LineBuffer(LineSingle, LineRootMixin):
         return LineDelay(self, ago)
 
     def _makeoperation(self, other, operation, r=False, _ownerskip=None, original_other=None):
-        # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
+        # Only set parent_a/parent_b to LineActions instances (LinesOperation, _LineDelay, etc.).
+        # Full indicators (ATR, SMA, SuperTrend, etc.) are processed separately by _lineiterators
+        # ordering in _once(), so they must never be called via _parent_a.once() which would
+        # trigger premature once_via_next() calls that corrupt the data feed index state.
         parent_a = None
         if hasattr(self, "_owner") and self._owner is not None:
             owner = self._owner
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                parent_a = owner._owner_ref
-            elif hasattr(owner, "_once"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    parent_a = ref
+            elif isinstance(owner, LineActions):
                 parent_a = owner
         parent_b_candidate = original_other if original_other is not None else other
-        parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
+        parent_b = parent_b_candidate if isinstance(parent_b_candidate, LineActions) else None
         return LinesOperation(self, other, operation, r=r, parent_a=parent_a, parent_b=parent_b)
 
     def _makeoperationown(self, operation, _ownerskip=None):
-        # CRITICAL FIX: Pass parent indicator so LineOwnOperation can call its _once
         parent_a = None
         if hasattr(self, "_owner") and self._owner is not None:
             owner = self._owner
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                parent_a = owner._owner_ref
-            elif hasattr(owner, "_once"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    parent_a = ref
+            elif isinstance(owner, LineActions):
                 parent_a = owner
         return LineOwnOperation(self, operation, parent_a=parent_a)
 
@@ -1106,10 +1115,21 @@ class LineActionsMixin:
             if not hasattr(_obj.lines, "_owner") or _obj.lines._owner is None:
                 _obj.lines._owner = _obj
 
-        # Set up clock from owner hierarchy
+        # Set up clock from explicit line arguments first, matching the
+        # original LineActions metaclass semantics. This is critical for
+        # operations built on secondary data feeds: the operation must follow
+        # the line it was created from, not the strategy's primary data clock.
         _obj._clock = None
 
-        if hasattr(_obj, "_owner") and _obj._owner is not None:
+        _obj._datas = [arg for arg in args if isinstance(arg, LineRoot)]
+        if _obj._datas:
+            data_clock = getattr(_obj._datas[0], "_clock", None)
+            if data_clock is not None and data_clock.__class__.__name__ != "MinimalClock":
+                _obj._clock = data_clock
+            else:
+                _obj._clock = _obj._datas[0]
+
+        if _obj._clock is None and hasattr(_obj, "_owner") and _obj._owner is not None:
             # Try to get clock from owner first
             if hasattr(_obj._owner, "_clock") and _obj._owner._clock is not None:
                 _obj._clock = _obj._owner._clock
@@ -1259,6 +1279,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         import collections
 
         instance._lineiterators = collections.defaultdict(list)
+        instance._lineaction_init_args = args
 
         # CRITICAL FIX: Define mindatas before using it
         mindatas = getattr(cls, "_mindatas", getattr(cls, "mindatas", 1))
@@ -1360,13 +1381,24 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
             owner = None
 
-            # Strategy 1: Use findowner
+            # Strategy 1: Use nearest LineIterator owner. Falling back directly
+            # to Strategy can skip an enclosing indicator and bind expression
+            # clocks to the primary strategy data.
+            try:
+                from .lineiterator import LineIterator
+            except ImportError:
+                LineIterator = None
+
+            if LineIterator is not None:
+                owner = metabase.findowner(instance, LineIterator)
+
+            # Strategy 2: Use findowner for Strategy
             try:
                 from .strategy import Strategy
             except ImportError:
                 Strategy = None
 
-            if Strategy is not None:
+            if owner is None and Strategy is not None:
                 owner = metabase.findowner(instance, Strategy)
 
             # If we found an owner with data, auto-assign it
@@ -1375,6 +1407,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 data_count = 0
                 for arg in args:
                     if (
+                        isinstance(arg, LineRoot)
+                        or
                         hasattr(arg, "lines")
                         or hasattr(arg, "_name")
                         or str(type(arg).__name__).endswith("Data")
@@ -1394,6 +1428,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
         for i, arg in enumerate(args):
             if (
+                isinstance(arg, LineRoot)
+                or
                 hasattr(arg, "lines")
                 or hasattr(arg, "_name")
                 or str(type(arg).__name__).endswith("Data")
@@ -1450,33 +1486,42 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         # Try findowner first with different classes
         self._owner = None
 
-        # First try to find a Strategy specifically
+        # First try to find the nearest LineIterator. For LineActions created
+        # inside an indicator this keeps ownership/clock fallback local to that
+        # indicator instead of jumping to the enclosing strategy.
+        try:
+            from .lineiterator import LineIterator
+
+            self._owner = metabase.findowner(self, LineIterator)
+        except Exception as e:
+            logger.debug("Failed to find LineIterator owner: %s", e)
+
+        # If no LineIterator found, try Strategy specifically
         try:
             from .strategy import Strategy
 
-            self._owner = metabase.findowner(self, Strategy)
+            if self._owner is None:
+                self._owner = metabase.findowner(self, Strategy)
         except Exception as e:
             logger.debug("Failed to find Strategy owner: %s", e)
-
-        # If no Strategy found, try LineIterator
-        if self._owner is None:
-            try:
-                from .lineiterator import LineIterator
-
-                self._owner = metabase.findowner(self, LineIterator)
-            except Exception as e:
-                logger.debug("Failed to find LineIterator owner: %s", e)
 
         # If still no owner, try a broader search
         # findowner() uses OwnerContext for owner lookup
         if self._owner is None:
             self._owner = metabase.findowner(self, None)
 
+        init_args = args or getattr(self, "_lineaction_init_args", ())
+
         # Call pre-init
-        self.__class__.dopreinit(self, *args, **kwargs)
+        self.__class__.dopreinit(self, *init_args, **kwargs)
 
         # Call parent init
         super().__init__()
+
+        # LineBuffer.__init__ initializes low-level buffer fields and resets
+        # _clock/_owner metadata. Re-apply the LineActions pre-init metadata
+        # afterwards so explicit line operands keep their own data clock.
+        self.__class__.dopreinit(self, *init_args, **kwargs)
 
         self._refresh_cached_line_flags(
             owner=getattr(self, "_owner", None),
@@ -1857,9 +1902,10 @@ class _LineDelay(LineActions):
         dst = self.array
         ago = self.ago
 
-        # CRITICAL FIX: Ensure destination array is properly sized
+        # Ensure destination array is properly sized. Missing delayed values must
+        # remain NaN; using 0.0 would turn unavailable bars into real signals.
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float("nan"))
 
         # CRITICAL FIX: Ensure source has computed its values before we access them
         # This is necessary for LinesOperation sources that haven't run once() yet
@@ -1891,13 +1937,10 @@ class _LineDelay(LineActions):
                     # Get the constant value from the repeat object
                     # Create a new iterator to avoid consuming it
                     constant_value = next(iter(wrapped))
-                    # Ensure constant value is not None or NaN
                     if constant_value is None:
-                        constant_value = 0.0
-                    elif isinstance(constant_value, float) and not math.isfinite(constant_value):
-                        constant_value = 0.0
+                        constant_value = float("nan")
                 except (StopIteration, TypeError):
-                    constant_value = 0.0
+                    constant_value = float("nan")
 
         # If not a constant, get the source array
         if not is_constant:
@@ -1914,23 +1957,12 @@ class _LineDelay(LineActions):
                 src_index = i + ago
                 if src_index >= 0 and src_index < len(src):
                     val = src[src_index]
-                    # Ensure value is never None or NaN
                     if val is None:
-                        val = 0.0
-                    elif isinstance(val, float) and not math.isfinite(val):
-                        val = 0.0
-                    dst[i] = val
-                elif len(src) > 0:
-                    # If index is out of bounds but we have source data, use the last available value
-                    val = src[-1]
-                    if val is None:
-                        val = 0.0
-                    elif isinstance(val, float) and not math.isfinite(val):
-                        val = 0.0
+                        val = float("nan")
                     dst[i] = val
                 else:
-                    # If no source data available, use 0.0
-                    dst[i] = 0.0
+                    # Out-of-range historical/future access is unavailable, not 0.
+                    dst[i] = float("nan")
 
 
 class _LineForward(LineActions):
@@ -2130,6 +2162,13 @@ class LinesOperation(LineActions):
         self.a = a  # always a linebuffer-like object
         self.b = self.arrayize(b)
         self.r = r
+        self._datas = [operand for operand in (self.a, self.b) if isinstance(operand, LineRoot)]
+        if self._datas:
+            data_clock = getattr(self._datas[0], "_clock", None)
+            if data_clock is not None and data_clock.__class__.__name__ != "MinimalClock":
+                self._clock = data_clock
+            else:
+                self._clock = self._datas[0]
 
         # CRITICAL FIX: Store references to parent indicators for _once processing
         # Use passed parent references if available, otherwise try to find them
@@ -2174,6 +2213,7 @@ class LinesOperation(LineActions):
         return (
             not cls._is_constant_operand(operand)
             and not cls._is_line_delay_operand(operand)
+            and not isinstance(operand, LineActions)
             and hasattr(operand, "__len__")
             and hasattr(operand, "_minperiod")
         )
@@ -2220,18 +2260,24 @@ class LinesOperation(LineActions):
         operand._next()
 
     def _find_parent_indicator(self, operand):
-        """Find the parent indicator that owns this operand (LineBuffer)"""
-        # If operand is already an indicator (has _once method), return it
-        if hasattr(operand, "_once") and hasattr(operand, "_lineiterators"):
+        """Find the parent indicator that owns this operand.
+
+        Only returns LineActions objects. Full Indicator/LineIterator objects are
+        never returned because they are processed separately via the _lineiterators
+        ordering in _once(). Returning a full Indicator here would cause premature
+        once_via_next() calls with incorrect data state.
+        """
+        # If operand is already a LineActions (arithmetic expression chain), return it
+        if isinstance(operand, LineActions):
             return operand
-        # If operand is a LineBuffer, try to find its owner indicator
+        # For plain LineBuffer: check if owner is a LineActions (not a full Indicator)
         if hasattr(operand, "_owner") and operand._owner is not None:
             owner = operand._owner
-            # Check if owner has _owner_ref pointing to the indicator
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                return owner._owner_ref
-            # Check if owner itself is an indicator
-            if hasattr(owner, "_once") and hasattr(owner, "_lineiterators"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    return ref
+            if isinstance(owner, LineActions):
                 return owner
         return None
 
@@ -2248,14 +2294,14 @@ class LinesOperation(LineActions):
                 target_idx = current_idx + ago
                 if 0 <= target_idx < len(self.array):
                     value = self.array[target_idx]
-                    if value is None:
-                        return float("nan")
-                    if isinstance(value, float):
-                        if value != value:
-                            return float("nan")
-                        if not math.isfinite(value):
-                            return 0.0
-                    return value
+                    if value is not None:
+                        if isinstance(value, float):
+                            if value == value:
+                                if not math.isfinite(value):
+                                    return 0.0
+                                return value
+                        else:
+                            return value
 
             # Fallback: compute value dynamically from source operands.
             a_val = self._normalize_operand(
@@ -2287,6 +2333,17 @@ class LinesOperation(LineActions):
         """CRITICAL FIX: _next() method for compatibility with LineIterator processing loop.
         This method is called by LineIterator._next() for items in _lineiterators[IndType].
         """
+        # Clock guard: skip if already advanced to the current clock position.
+        # This prevents double-advancing when a LinesOperation is both registered
+        # directly in _lineiterators AND driven via a parent's _next_operands chain.
+        clock = getattr(self, "_clock", None)
+        if clock is not None and clock.__class__.__name__ != "MinimalClock":
+            try:
+                if len(clock) <= len(self):
+                    return
+            except Exception:
+                pass
+
         for operand in self._next_operands:
             self._next_operand_if_due(operand)
 
@@ -2375,15 +2432,18 @@ class LinesOperation(LineActions):
             except Exception as e:
                 logger.debug("parent_b.once() failed: %s", e)
 
-        # CRITICAL FIX: Call once() on ALL operands that have it (not just LinesOperations)
-        # This ensures LineBuffer operands (like indicator outputs) are also computed
-        if hasattr(self.a, "once"):
+        # CRITICAL FIX: Call once() on operands that have it, but ONLY for LineActions
+        # instances (like _LineDelay, LinesOperation). Never call once() on full Indicators
+        # (ATR, SuperTrend, etc.) because those are managed by _lineiterators in _once().
+        # Calling once() on a full Indicator here would trigger premature once_via_next calls
+        # before the indicator's data state is properly set up.
+        if isinstance(self.a, LineActions) and hasattr(self.a, "once"):
             try:
                 self.a.once(nested_start, end)
             except Exception as e:
                 logger.debug("operand a.once() failed: %s", e)
 
-        if hasattr(self.b, "once"):
+        if isinstance(self.b, LineActions) and hasattr(self.b, "once"):
             try:
                 self.b.once(nested_start, end)
             except Exception as e:
@@ -2407,8 +2467,8 @@ class LinesOperation(LineActions):
         self.oncebinding()
 
     def _once_op(self, start, end):
-        # CRITICAL FIX: Ensure b's array is populated if b is a _LineDelay or similar
-        if hasattr(self.b, "once") and len(self.b.array) < end:
+        # Only call once() on LineActions instances (e.g., _LineDelay), not full Indicators
+        if isinstance(self.b, LineActions) and hasattr(self.b, "once") and len(self.b.array) < end:
             try:
                 self.b.once(start, end)
             except Exception as e:
@@ -2630,19 +2690,24 @@ class LineOwnOperation(LineActions):
         # CRITICAL FIX: Store reference to parent indicator for _once processing
         self._parent_a = parent_a if parent_a is not None else self._find_parent_indicator(a)
 
-        # CRITICAL FIX: Handle _minperiod attribute access more safely
         a_minperiod = getattr(a, "_minperiod", 1) if hasattr(a, "_minperiod") else 1
-        self.addminperiod(a_minperiod)
+        self.updateminperiod(a_minperiod)
 
     def _find_parent_indicator(self, operand):
-        """Find the parent indicator that owns this operand (LineBuffer)"""
-        if hasattr(operand, "_once") and hasattr(operand, "_lineiterators"):
+        """Find the parent indicator that owns this operand.
+
+        Only returns LineActions objects. Full Indicators are never returned to
+        prevent premature once_via_next() calls (see LinesOperation._find_parent_indicator).
+        """
+        if isinstance(operand, LineActions):
             return operand
         if hasattr(operand, "_owner") and operand._owner is not None:
             owner = operand._owner
             if hasattr(owner, "_owner_ref") and owner._owner_ref is not None:
-                return owner._owner_ref
-            if hasattr(owner, "_once") and hasattr(owner, "_lineiterators"):
+                ref = owner._owner_ref
+                if isinstance(ref, LineActions):
+                    return ref
+            if isinstance(owner, LineActions):
                 return owner
         return None
 

@@ -74,6 +74,9 @@ class UpDay(Indicator):
         while len(larray) < end:
             larray.append(0.0)
 
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
+
         for i in range(period, min(end, len(darray))):
             diff = darray[i] - darray[i - period]
             larray[i] = max(diff, 0.0)
@@ -124,6 +127,9 @@ class DownDay(Indicator):
 
         while len(larray) < end:
             larray.append(0.0)
+
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
 
         for i in range(period, min(end, len(darray))):
             diff = darray[i - period] - darray[i]
@@ -178,6 +184,9 @@ class UpDayBool(Indicator):
         while len(larray) < end:
             larray.append(0.0)
 
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
+
         for i in range(period, min(end, len(darray))):
             larray[i] = 1.0 if darray[i] > darray[i - period] else 0.0
 
@@ -229,6 +238,9 @@ class DownDayBool(Indicator):
 
         while len(larray) < end:
             larray.append(0.0)
+
+        for i in range(min(period, end, len(larray))):
+            larray[i] = 0.0
 
         for i in range(period, min(end, len(darray))):
             larray[i] = 1.0 if darray[i - period] > darray[i] else 0.0
@@ -349,6 +361,10 @@ class RelativeStrengthIndex(Indicator):
 
         Computes RSI values across all bars with safe division handling.
         """
+        for child in (self.upday, self.downday, self.maup, self.madown):
+            if hasattr(child, "once"):
+                child.once(0, end)
+
         maup_array = self.maup.lines[0].array
         madown_array = self.madown.lines[0].array
         larray = self.lines.rsi.array

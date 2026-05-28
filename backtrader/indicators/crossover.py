@@ -284,9 +284,17 @@ class CrossOver(Indicator):
         while len(crossarray) < end:
             crossarray.append(0.0)
 
+        # Defensive bound: never read past either input array. This protects
+        # against orphan sub-indicators (e.g., bt.indicators.SMA constructed
+        # at module level with no data) whose array remains empty when used
+        # as a CrossOver data source.
+        effective_end = min(end, len(d0array), len(d1array))
+        if effective_end <= start:
+            return
+
         # Initialize prev_nzd from prenext period (bar before start)
         # This matches next() which uses _last_nzd set during prenext
-        if start > 0 and start - 1 < len(d0array):
+        if start > 0 and start - 1 < len(d0array) and start - 1 < len(d1array):
             prev_nzd = d0array[start - 1] - d1array[start - 1]
             # Scan backwards to find last non-zero difference (like prenext does)
             for j in range(start - 1, -1, -1):
@@ -312,7 +320,7 @@ class CrossOver(Indicator):
         first_bar = start if is_replay else -1  # -1 means never skip
 
         # Process ALL bars from start
-        for i in range(start, end):
+        for i in range(start, effective_end):
             d0_val = d0array[i]
             d1_val = d1array[i]
             diff = d0_val - d1_val

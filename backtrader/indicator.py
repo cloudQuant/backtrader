@@ -11,7 +11,7 @@ in backtrader, managing line data, minimum periods, and calculation logic.
 
 from .lineiterator import IndicatorBase, LineIterator
 from .lineseries import Lines
-from .metabase import AutoInfoClass
+from .metabase import AutoInfoClass, OwnerContext
 from .utils.py3 import range
 
 
@@ -127,6 +127,37 @@ class Indicator(IndicatorBase):
             **kwargs: Additional keyword arguments
         """
         super().__init_subclass__(**kwargs)
+
+        init = cls.__dict__.get("__init__")
+        if init is not None and not getattr(init, "_bt_owner_context_wrapped", False):
+            def owner_context_init(self, *args, **kwargs):
+                parent_owner = OwnerContext.get_current_owner(LineIterator)
+                with OwnerContext.set_owner(self):
+                    result = init(self, *args, **kwargs)
+
+                if (
+                    parent_owner is not None
+                    and parent_owner is not self
+                    and hasattr(parent_owner, "addindicator")
+                ):
+                    old_owner = getattr(self, "_owner", None)
+                    if old_owner is not parent_owner:
+                        try:
+                            old_lists = getattr(old_owner, "_lineiterators", {})
+                            for indicators in old_lists.values():
+                                while self in indicators:
+                                    indicators.remove(self)
+                        except Exception:
+                            pass
+                        self._owner = parent_owner
+                        parent_owner.addindicator(self)
+
+                return result
+
+            owner_context_init.__name__ = getattr(init, "__name__", "__init__")
+            owner_context_init.__doc__ = getattr(init, "__doc__", None)
+            owner_context_init._bt_owner_context_wrapped = True
+            cls.__init__ = owner_context_init
 
         # CRITICAL FIX: Handle lines creation for indicators like LineSeries does
         # This ensures that lines tuples are converted to Lines instances
@@ -271,15 +302,17 @@ class Indicator(IndicatorBase):
     def advance(self, size=1):
         """Advance indicator lines when data length is less than clock length.
 
-        This method supports indicators with data feeds of different lengths
-        (e.g., different timeframes).
+        Also advances sub-indicators so that during _oncepost() replay every
+        level of the indicator tree stays in sync (fixes runonce ATR/SMMA
+        index mismatch when an indicator uses sub_ind[0] in next()).
 
         Args:
             size: Number of steps to advance (default: 1)
         """
-        # Need intercepting this call to support datas with different lengths (timeframes)
         if len(self) < len(self._clock):
             self.lines.advance(size=size)
+            for ind in self._lineiterators.get(LineIterator.IndType, []):
+                ind.advance(size)
 
     def preonce_via_prenext(self, start, end):
         """Implement preonce using prenext for batch calculation.

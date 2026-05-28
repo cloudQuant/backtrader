@@ -86,10 +86,12 @@ class ExponentialMovingAverage(MovingAverageBase):
         while len(larray) < end:
             larray.append(float("nan"))
 
-        # CRITICAL FIX: For LinesOperation data sources, call their once() to populate array
+        # CRITICAL FIX: For line-operation data sources, calculate the full
+        # input history needed to seed the EMA. Using this EMA's ``start``
+        # would skip the operation's warmup window and delay the seed.
         if hasattr(self.data, "once") and hasattr(self.data, "operation"):
             try:
-                self.data.once(start, end)
+                self.data.once(0, end)
             except Exception as e:
                 logger.debug("data.once() failed in EMA: %s", e)
 

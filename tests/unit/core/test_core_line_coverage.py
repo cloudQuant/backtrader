@@ -1215,7 +1215,7 @@ class TestLineIterator:
             def next(self):
                 """Calculate SMA for current bar."""
                 self.lines.out[0] = sum(
-                    self.data.close.get(ago=-i) for i in range(self.p.period)
+                    self.data.close[-i] for i in range(self.p.period)
                 ) / self.p.period
 
         class St(bt.Strategy):
