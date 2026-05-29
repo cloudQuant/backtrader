@@ -1,4 +1,4 @@
-"""Inlined regression test for trend_following/0248_0851_aroon_oscillator_sign_alert.
+"""Inlined regression test for trend_following/0078_0855_donchian_channels_system.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 """
@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import datetime
 import io
-import math
 from pathlib import Path
 
 import backtrader as bt
@@ -44,49 +43,52 @@ class Mt5PandasFeed(bt.feeds.PandasData):
     )
 
 
-class AroonOscillatorSignAlert(bt.Indicator):
-    lines = ("sell", "buy", "osc")
-    params = dict(atr_period=14, aroon_period=9, up_level=50, dn_level=-50)
+class DonchianChannelsSystem(bt.Indicator):
+    lines = ("color",)
+    params = dict(period=20, shift=2, margins=-2)
 
     def __init__(self):
-        self.addminperiod(max(int(self.p.atr_period), int(self.p.aroon_period)) + 3)
-        self.atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
+        self.addminperiod(int(self.p.period) + int(self.p.shift) + 3)
 
     def next(self):
-        p = int(self.p.aroon_period)
-        highs = [float(self.data.high[-i]) for i in range(p)]
-        lows = [float(self.data.low[-i]) for i in range(p)]
-        highest = highs.index(max(highs))
-        lowest = lows.index(min(lows))
-        osc = 100.0 * (highest - lowest) / float(p)
-        prev = float(self.lines.osc[-1]) if len(self) > 1 else osc
-        self.lines.osc[0] = osc
-        self.lines.buy[0] = float("nan")
-        self.lines.sell[0] = float("nan")
-        atr = float(self.atr[0])
-        if osc > float(self.p.dn_level) and prev <= float(self.p.dn_level):
-            self.lines.buy[0] = float(self.data.low[0]) - atr * 3.0 / 8.0
-        if osc < float(self.p.up_level) and prev >= float(self.p.up_level):
-            self.lines.sell[0] = float(self.data.high[0]) + atr * 3.0 / 8.0
+        shift = int(self.p.shift)
+        highs = [float(self.data.high[-(shift + i)]) for i in range(int(self.p.period))]
+        lows = [float(self.data.low[-(shift + i)]) for i in range(int(self.p.period))]
+        hh = max(highs)
+        ll = min(lows)
+        smin = ll + (hh - ll) * float(self.p.margins) / 100.0
+        smax = hh - (hh - ll) * float(self.p.margins) / 100.0
+        close = float(self.data.close[0])
+        open_ = float(self.data.open[0])
+        color = 2.0
+        if close > smax:
+            color = 4.0 if open_ <= close else 3.0
+        if close < smin:
+            color = 0.0 if open_ > close else 1.0
+        self.lines.color[0] = color
 
 
-class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
+class ExpDonchianChannelsSystemStrategy(bt.Strategy):
     params = dict(
-        atr_period=14, aroon_period=9, up_level=50, dn_level=-50,
-        signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
-        fixed_lot=0.1, point=0.01,
-        buy_pos_open=True, sell_pos_open=True,
-        buy_pos_close=True, sell_pos_close=True,
+        period=20, shift=2, margins=-2,
+        signal_bar=1,
+        stop_loss_points=1000,
+        take_profit_points=2000,
+        fixed_lot=0.1,
+        point=0.01,
+        buy_pos_open=True,
+        sell_pos_open=True,
+        buy_pos_close=True,
+        sell_pos_close=True,
         indicator_minutes=240,
     )
 
     def __init__(self):
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
-        self.ind = AroonOscillatorSignAlert(
+        self.ind = DonchianChannelsSystem(
             self.signal_data,
-            atr_period=self.p.atr_period, aroon_period=self.p.aroon_period,
-            up_level=self.p.up_level, dn_level=self.p.dn_level,
+            period=self.p.period, shift=self.p.shift, margins=self.p.margins,
         )
         self.bar_num = 0
         self.signal_count = 0
@@ -103,9 +105,9 @@ class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
             return False
         cp = float(self.base.close[0])
         pv = float(self.p.point)
+        ep = float(self.position.price)
         sd = self.p.stop_loss_points * pv
         td = self.p.take_profit_points * pv
-        ep = float(self.position.price)
         if self.position.size > 0 and (cp <= ep - sd or cp >= ep + td):
             self.close()
             return True
@@ -114,35 +116,22 @@ class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
             return True
         return False
 
-    def _has(self, line, offset):
-        v = float(line[-offset]) if offset else float(line[0])
-        return not math.isnan(v) and v != 0.0
-
     def next(self):
         self.bar_num += 1
         if self._check_exit_levels():
             return
         sb = max(int(self.p.signal_bar) - 1, 0)
-        if len(self.signal_data) < max(int(self.p.atr_period), int(self.p.aroon_period)) + sb + 4:
+        if len(self.signal_data) < int(self.p.period) + int(self.p.shift) + sb + 4:
             return
         if len(self.signal_data) == self._last_signal_len:
             return
         self._last_signal_len = len(self.signal_data)
-        buy_open = self._has(self.ind.buy, sb) and self.p.buy_pos_open
-        sell_open = self._has(self.ind.sell, sb) and self.p.sell_pos_open
+        c0 = float(self.ind.color[-sb]) if sb else float(self.ind.color[0])
+        c1 = float(self.ind.color[-(sb + 1)])
+        buy_open = c1 > 2.0 and c0 < 3.0 and self.p.buy_pos_open
+        sell_open = c1 < 2.0 and c0 > 1.0 and self.p.sell_pos_open
         buy_close = sell_open and self.p.buy_pos_close
         sell_close = buy_open and self.p.sell_pos_close
-        if (self.p.buy_pos_open and self.p.buy_pos_close) or (self.p.sell_pos_open and self.p.sell_pos_close):
-            if not buy_close and self.p.sell_pos_close:
-                for bar in range(sb + 1, len(self.signal_data) - 1):
-                    if self._has(self.ind.buy, bar):
-                        sell_close = True
-                        break
-            if not sell_close and self.p.buy_pos_close:
-                for bar in range(sb + 1, len(self.signal_data) - 1):
-                    if self._has(self.ind.sell, bar):
-                        buy_close = True
-                        break
         if sell_close and self.position.size < 0:
             self.close()
         if buy_close and self.position.size > 0:
@@ -184,8 +173,8 @@ def _build_signal_frame(df, minutes):
     return out
 
 
-def test_247_0248_0851_aroon_oscillator_sign_alert() -> None:
-    """Migrated regression test for trend_following/0248_0851_aroon_oscillator_sign_alert."""
+def test_077_0078_0855_donchian_channels_system() -> None:
+    """Migrated regression test for trend_following/0078_0855_donchian_channels_system."""
     fromdate = datetime.datetime(2025, 12, 3, 1, 15)
     todate = datetime.datetime(2026, 3, 10, 9, 0)
     df = load_mt5_csv(DATA_FILE, fromdate=fromdate, todate=todate, bar_shift_minutes=15)
@@ -200,8 +189,8 @@ def test_247_0248_0851_aroon_oscillator_sign_alert() -> None:
     cerebro.adddata(Mt5PandasFeed(dataname=df, timeframe=bt.TimeFrame.Minutes, compression=15))
     cerebro.adddata(Mt5PandasFeed(dataname=signal_df, timeframe=bt.TimeFrame.Minutes, compression=240))
     cerebro.addstrategy(
-        ExpAroonOscillatorSignAlertStrategy,
-        atr_period=14, aroon_period=9, up_level=50, dn_level=-50,
+        ExpDonchianChannelsSystemStrategy,
+        period=20, shift=2, margins=-2,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
         fixed_lot=0.1, point=0.01,
         buy_pos_open=True, sell_pos_open=True,
@@ -216,12 +205,12 @@ def test_247_0248_0851_aroon_oscillator_sign_alert() -> None:
     trade_analysis = strat.analyzers.trade.get_analysis()
     total_trades = trade_analysis.get("total", {}).get("closed", 0)
 
-    assert strat.bar_num == 5876, f"bar_num: expected=5876, got={strat.bar_num}"
-    assert strat.buy_count == 28, f"buy_count: expected=28, got={strat.buy_count}"
-    assert strat.sell_count == 13, f"sell_count: expected=13, got={strat.sell_count}"
-    assert strat.win_count == 18, f"win_count: expected=18, got={strat.win_count}"
-    assert strat.loss_count == 23, f"loss_count: expected=23, got={strat.loss_count}"
-    assert strat.trade_count == 41, f"trade_count: expected=41, got={strat.trade_count}"
-    assert total_trades == 41, f"total_trades: expected=41, got={total_trades}"
-    assert abs(final_value - 1001300.2) < 0.01, f"final_value: expected=1001300.2, got={final_value}"
+    assert strat.bar_num == 5756, f"bar_num: expected=5756, got={strat.bar_num}"
+    assert strat.buy_count == 18, f"buy_count: expected=18, got={strat.buy_count}"
+    assert strat.sell_count == 5, f"sell_count: expected=5, got={strat.sell_count}"
+    assert strat.win_count == 10, f"win_count: expected=10, got={strat.win_count}"
+    assert strat.loss_count == 13, f"loss_count: expected=13, got={strat.loss_count}"
+    assert strat.trade_count == 23, f"trade_count: expected=23, got={strat.trade_count}"
+    assert total_trades == 23, f"total_trades: expected=23, got={total_trades}"
+    assert abs(final_value - 1000230.4) < 0.01, f"final_value: expected=1000230.4, got={final_value}"
     assert (strat.buy_count + strat.sell_count) > 0, "must have non-zero activity"
