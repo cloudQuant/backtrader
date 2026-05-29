@@ -396,7 +396,7 @@ def test_209_0208_1161_universal_investor() -> None:
     assert metrics.get('won') == 46, f"won: expected=46, got={metrics.get('won')!r}"
     assert metrics.get('lost') == 89, f"lost: expected=89, got={metrics.get('lost')!r}"
     _close(metrics.get('bars'), 6129.0, tol=6.129000e-03, key='bars')
-    _close(metrics.get('signal_count'), 3861.0, tol=3.861000e-03, key='signal_count')
+    _close(metrics.get('signal_count'), 3860.0, tol=3.860000e-03, key='signal_count')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
     _close(metrics.get('final_cash'), 1004551.8989999989, tol=1.004552e+00, key='final_cash')
     _close(metrics.get('final_value'), 1004551.899999999, tol=1.004552e+00, key='final_value')

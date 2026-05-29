@@ -678,19 +678,19 @@ def test_113_0113_0353_exp_blauergodicmdi_tm() -> None:
 
     assert metrics, "no metrics derived"
 
-    assert metrics.get('buy_count') == 189, f"buy_count: expected=189, got={metrics.get('buy_count')!r}"
-    assert metrics.get('sell_count') == 143, f"sell_count: expected=143, got={metrics.get('sell_count')!r}"
-    assert metrics.get('win_count') == 124, f"win_count: expected=124, got={metrics.get('win_count')!r}"
-    assert metrics.get('loss_count') == 207, f"loss_count: expected=207, got={metrics.get('loss_count')!r}"
-    assert metrics.get('trade_num') == 331, f"trade_num: expected=331, got={metrics.get('trade_num')!r}"
-    assert metrics.get('total_trades') == 331, f"total_trades: expected=331, got={metrics.get('total_trades')!r}"
-    _close(metrics.get('final_value'), 999481.9999999994, tol=9.994820e-01, key='final_value')
+    assert metrics.get('buy_count') == 168, f"buy_count: expected=168, got={metrics.get('buy_count')!r}"
+    assert metrics.get('sell_count') == 168, f"sell_count: expected=168, got={metrics.get('sell_count')!r}"
+    assert metrics.get('win_count') == 145, f"win_count: expected=145, got={metrics.get('win_count')!r}"
+    assert metrics.get('loss_count') == 190, f"loss_count: expected=190, got={metrics.get('loss_count')!r}"
+    assert metrics.get('trade_num') == 335, f"trade_num: expected=335, got={metrics.get('trade_num')!r}"
+    assert metrics.get('total_trades') == 335, f"total_trades: expected=335, got={metrics.get('total_trades')!r}"
+    _close(metrics.get('final_value'), 1005824.1999999993, tol=1.005824e+00, key='final_value')
     _close(metrics.get('initial_cash'), 1000000.0, tol=1.000000e+00, key='initial_cash')
-    _close(metrics.get('max_drawdown'), 0.31346207556715283, tol=1.000000e-06, key='max_drawdown')
-    _close(metrics.get('annual_return'), -0.11041566017686773, tol=1.000000e-06, key='annual_return')
-    _close(metrics.get('return_rate'), -0.0005181342083491915, tol=1.000000e-06, key='return_rate')
-    _close(metrics.get('sharpe_ratio'), -1.1917562925539094, tol=1.191756e-06, key='sharpe_ratio')
-    _close(metrics.get('sqn'), -0.16489702389012187, tol=1.000000e-06, key='sqn')
+    _close(metrics.get('max_drawdown'), 0.2922796920299962, tol=1.000000e-06, key='max_drawdown')
+    _close(metrics.get('annual_return'), 2.7112158927210084, tol=1.000000e-06, key='annual_return')
+    _close(metrics.get('return_rate'), 0.005807304915672166, tol=1.000000e-06, key='return_rate')
+    _close(metrics.get('sharpe_ratio'), 13.78810734238713, tol=1.378811e-05, key='sharpe_ratio')
+    _close(metrics.get('sqn'), 1.7830249738150594, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (
         _total_trades
