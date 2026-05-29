@@ -137,7 +137,31 @@ pytest tests -n 4 -v
 
 ```bash
 
-#### 4️⃣ Submit Your PR
+#### 4️⃣ Choosing Which `backtrader` to Test Against
+
+When you run pytest from the repository root, `import backtrader` resolves to the local repo copy by default (the `backtrader/` directory next to `conftest.py`). This is what you want during development.
+
+If you also have an older or release version installed via `pip install backtrader`, you can switch the test suite to that copy on demand:
+
+```bash
+
+# Default — uses the local repo copy (what you usually want)
+
+pytest tests/functional/strategies -n 8
+
+# Switch to the installed (site-packages) copy via env var
+
+BACKTRADER_USE_INSTALLED=1 pytest tests/functional/strategies -n 8
+
+# Or via CLI flag
+
+pytest tests/functional/strategies -n 8 --use-installed-backtrader
+
+```bash
+
+The active `backtrader.__file__` is printed in the pytest session header so you can confirm which copy each run picked up. The switch works under `pytest-xdist` parallel mode as well.
+
+#### 5️⃣ Submit Your PR
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b fix/indicator-name`
@@ -942,7 +966,31 @@ pytest tests -n 4 -v
 
 ```bash
 
-#### 4️⃣ 提交您的 PR
+#### 4️⃣ 选择测试目标：本地代码 vs 已安装包
+
+从仓库根目录运行 pytest 时，`import backtrader` 默认解析到本地仓库副本（与 `conftest.py` 同级的 `backtrader/` 目录）。开发期间这是你想要的行为。
+
+如果你额外用 `pip install backtrader` 装过其他版本（比如稳定版或旧版本），可以临时把测试切到已安装的那一份：
+
+```bash
+
+# 默认 —— 使用本地仓库代码（开发常用）
+
+pytest tests/functional/strategies -n 8
+
+# 通过环境变量切到 site-packages 安装的副本
+
+BACKTRADER_USE_INSTALLED=1 pytest tests/functional/strategies -n 8
+
+# 或者通过命令行参数
+
+pytest tests/functional/strategies -n 8 --use-installed-backtrader
+
+```bash
+
+每次启动 pytest 都会在 session header 中打印当前生效的 `backtrader.__file__`，方便确认本次跑的到底是哪一份。该开关在 `pytest-xdist` 并行模式下同样生效。
+
+#### 5️⃣ 提交您的 PR
 
 1. Fork 本仓库
 2. 创建功能分支：`git checkout -b fix/indicator-name`
