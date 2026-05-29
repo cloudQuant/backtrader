@@ -189,3 +189,5 @@ tests/functional/strategies_regression/
 # Auto-generated transient outputs from regression tests
 tests/functional/strategies/**/strategy_backtest_results.csv
 tests/functional/strategies/**/backtest_result.json
+tests/functional/strategy_backtest_results.csv
+tests/functional/**/backtest_result.json
