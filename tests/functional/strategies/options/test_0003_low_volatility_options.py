@@ -30,9 +30,9 @@ _CONFIG = {
     'data': {
         'timeframe': 'D1',
         'assets': {
-            'low_vol': '{repo}/tests/functional/datas/mt5_1d_data/JEPI_1d.csv',
-            'covered_call': '{repo}/tests/functional/datas/mt5_1d_data/PBP_1d.csv',
-            'equity_proxy': '{repo}/tests/functional/datas/mt5_1d_data/IVV_1d.csv',
+            'low_vol': '{repo}/tests/datas/mt5_1d_data/JEPI_1d.csv',
+            'covered_call': '{repo}/tests/datas/mt5_1d_data/PBP_1d.csv',
+            'equity_proxy': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',

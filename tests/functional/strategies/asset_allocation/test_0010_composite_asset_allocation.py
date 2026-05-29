@@ -32,8 +32,8 @@ _CONFIG = {
         'timeframe': 'D1',
         'assets': {
             'ivv': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
-            'efa': '{repo}/tests/functional/datas/mt5_1d_data/EFA_1d.csv',
-            'bil': '{repo}/tests/functional/datas/mt5_1d_data/BIL_1d.csv',
+            'efa': '{repo}/tests/datas/mt5_1d_data/EFA_1d.csv',
+            'bil': '{repo}/tests/datas/mt5_1d_data/BIL_1d.csv',
             'ief': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
             'gtip': '{repo}/tests/datas/mt5_1d_data/GTIP_1d.csv',
         },

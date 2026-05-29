@@ -35,7 +35,7 @@ _CONFIG = {
         'asset_a': 'XAUUSD',
         'asset_b': 'XAGUSD',
         'file_a': '{repo}/tests/datas/XAUUSD_H1.csv',
-        'file_b': '{repo}/tests/functional/datas/XAGUSD_H1.csv',
+        'file_b': '{repo}/tests/datas/XAGUSD_H1.csv',
     },
     'params': {
         'hedge_ratio': 1.0,

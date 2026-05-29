@@ -35,9 +35,9 @@ _CONFIG = {
         'todate': '2025-12-31 00:00:00',
         'assets': {
             'XAUUSD': '{repo}/tests/datas/mt5_1d_data/XAUUSD_1d.csv',
-            'DXYN': '{repo}/tests/functional/datas/mt5_1d_data/DXYN_1d.csv',
-            'EURUSD': '{repo}/tests/functional/datas/mt5_1d_data/EURUSD_1d.csv',
-            'USDJPY': '{repo}/tests/functional/datas/mt5_1d_data/USDJPY_1d.csv',
+            'DXYN': '{repo}/tests/datas/mt5_1d_data/DXYN_1d.csv',
+            'EURUSD': '{repo}/tests/datas/mt5_1d_data/EURUSD_1d.csv',
+            'USDJPY': '{repo}/tests/datas/mt5_1d_data/USDJPY_1d.csv',
         },
     },
     'params': {

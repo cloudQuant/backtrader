@@ -38,7 +38,7 @@ _CONFIG = {
             'XAUUSD': '{repo}/tests/datas/mt5_1d_data/XAUUSD_1d.csv',
             'IVV': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
             'IEF': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
-            'DBC': '{repo}/tests/functional/datas/mt5_1d_data/DBC_1d.csv',
+            'DBC': '{repo}/tests/datas/mt5_1d_data/DBC_1d.csv',
         },
     },
     'params': {

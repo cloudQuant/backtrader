@@ -34,9 +34,9 @@ _CONFIG = {
         'timeframe': 'D1',
         'assets': {
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
-            'GDX': '{repo}/tests/functional/datas/mt5_1d_data/GDX_1d.csv',
-            'IVV': '{repo}/tests/functional/datas/mt5_1d_data/IVV_1d.csv',
-            'IDU': '{repo}/tests/functional/datas/mt5_1d_data/IDU_1d.csv',
+            'GDX': '{repo}/tests/datas/mt5_1d_data/GDX_1d.csv',
+            'IVV': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
+            'IDU': '{repo}/tests/datas/mt5_1d_data/IDU_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',

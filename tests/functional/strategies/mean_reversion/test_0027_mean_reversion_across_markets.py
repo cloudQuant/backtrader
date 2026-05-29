@@ -34,7 +34,7 @@ _CONFIG = {
         'todate': '2025-12-31 00:00:00',
         'assets': {
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
-            'GDX': '{repo}/tests/functional/datas/mt5_1d_data/GDX_1d.csv',
+            'GDX': '{repo}/tests/datas/mt5_1d_data/GDX_1d.csv',
             'XAGUSD': '{repo}/tests/datas/mt5_1d_data/XAGUSD_1d.csv',
             'IEF': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
         },

@@ -33,8 +33,8 @@ _CONFIG = {
         'assets': {
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
             'IEF': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
-            'BIL': '{repo}/tests/functional/datas/mt5_1d_data/BIL_1d.csv',
-            'GOVT': '{repo}/tests/functional/datas/mt5_1d_data/GOVT_1d.csv',
+            'BIL': '{repo}/tests/datas/mt5_1d_data/BIL_1d.csv',
+            'GOVT': '{repo}/tests/datas/mt5_1d_data/GOVT_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',

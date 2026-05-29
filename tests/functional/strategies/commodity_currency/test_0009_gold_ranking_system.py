@@ -35,10 +35,10 @@ _CONFIG = {
         'todate': '2025-12-31 00:00:00',
         'assets': {
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
-            'IAU': '{repo}/tests/functional/datas/mt5_1d_data/IAU_1d.csv',
-            'GDX': '{repo}/tests/functional/datas/mt5_1d_data/GDX_1d.csv',
-            'GDXJ': '{repo}/tests/functional/datas/mt5_1d_data/GDXJ_1d.csv',
-            'BAR': '{repo}/tests/functional/datas/mt5_1d_data/BAR_1d.csv',
+            'IAU': '{repo}/tests/datas/mt5_1d_data/IAU_1d.csv',
+            'GDX': '{repo}/tests/datas/mt5_1d_data/GDX_1d.csv',
+            'GDXJ': '{repo}/tests/datas/mt5_1d_data/GDXJ_1d.csv',
+            'BAR': '{repo}/tests/datas/mt5_1d_data/BAR_1d.csv',
         },
     },
     'params': {

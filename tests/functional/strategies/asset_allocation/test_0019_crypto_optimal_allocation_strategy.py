@@ -32,7 +32,7 @@ _CONFIG = {
     'data': {
         'timeframe': 'D1',
         'assets': {
-            'equity': '{repo}/tests/functional/datas/mt5_1d_data/IVV_1d.csv',
+            'equity': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
             'bond': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
             'gold': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
             'crypto': '{repo}/tests/datas/mt5_1d_data/IBIT_1d.csv',

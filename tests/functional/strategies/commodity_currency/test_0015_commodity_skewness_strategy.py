@@ -35,7 +35,7 @@ _CONFIG = {
             'XAGUSD': '{repo}/tests/datas/mt5_1d_data/XAGUSD_1d.csv',
             'XPTUSD': '{repo}/tests/datas/mt5_1d_data/XPTUSD_1d.csv',
             'XPDUSD': '{repo}/tests/datas/mt5_1d_data/XPDUSD_1d.csv',
-            'DBC': '{repo}/tests/functional/datas/mt5_1d_data/DBC_1d.csv',
+            'DBC': '{repo}/tests/datas/mt5_1d_data/DBC_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',

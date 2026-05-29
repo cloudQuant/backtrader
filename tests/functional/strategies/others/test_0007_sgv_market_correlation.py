@@ -34,9 +34,9 @@ _CONFIG = {
         'todate': '2025-12-31 00:00:00',
         'monitor_assets': {
             'IVV': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
-            'EZU': '{repo}/tests/functional/datas/mt5_1d_data/EZU_1d.csv',
-            'EWJ': '{repo}/tests/functional/datas/mt5_1d_data/EWJ_1d.csv',
-            'EEM': '{repo}/tests/functional/datas/mt5_1d_data/EEM_1d.csv',
+            'EZU': '{repo}/tests/datas/mt5_1d_data/EZU_1d.csv',
+            'EWJ': '{repo}/tests/datas/mt5_1d_data/EWJ_1d.csv',
+            'EEM': '{repo}/tests/datas/mt5_1d_data/EEM_1d.csv',
         },
         'trade_assets': {
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',

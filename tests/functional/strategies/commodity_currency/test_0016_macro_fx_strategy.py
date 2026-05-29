@@ -32,9 +32,9 @@ _CONFIG = {
         'timeframe': 'D1',
         'pairs': {
             'EURUSD': '{repo}/tests/datas/mt5_1d_data/EURUSD_1d.csv',
-            'AUDUSD': '{repo}/tests/functional/datas/mt5_1d_data/AUDUSD_1d.csv',
-            'NZDUSD': '{repo}/tests/functional/datas/mt5_1d_data/NZDUSD_1d.csv',
-            'GBPUSD': '{repo}/tests/functional/datas/mt5_1d_data/GBPUSD_1d.csv',
+            'AUDUSD': '{repo}/tests/datas/mt5_1d_data/AUDUSD_1d.csv',
+            'NZDUSD': '{repo}/tests/datas/mt5_1d_data/NZDUSD_1d.csv',
+            'GBPUSD': '{repo}/tests/datas/mt5_1d_data/GBPUSD_1d.csv',
         },
         'macro_proxies': {
             'IVV': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',

@@ -30,10 +30,10 @@ _CONFIG = {
     'data': {
         'timeframe': 'D1',
         'pairs': {
-            'AUDUSD': '{repo}/tests/functional/datas/mt5_1d_data/AUDUSD_1d.csv',
-            'NZDUSD': '{repo}/tests/functional/datas/mt5_1d_data/NZDUSD_1d.csv',
-            'GBPUSD': '{repo}/tests/functional/datas/mt5_1d_data/GBPUSD_1d.csv',
-            'EURUSD': '{repo}/tests/functional/datas/mt5_1d_data/EURUSD_1d.csv',
+            'AUDUSD': '{repo}/tests/datas/mt5_1d_data/AUDUSD_1d.csv',
+            'NZDUSD': '{repo}/tests/datas/mt5_1d_data/NZDUSD_1d.csv',
+            'GBPUSD': '{repo}/tests/datas/mt5_1d_data/GBPUSD_1d.csv',
+            'EURUSD': '{repo}/tests/datas/mt5_1d_data/EURUSD_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',

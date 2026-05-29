@@ -31,8 +31,8 @@ _CONFIG = {
     'data': {
         'timeframe': 'D1',
         'assets': {
-            'usdcad': '{repo}/tests/functional/datas/mt5_1d_data/USDCAD_1d.csv',
-            'crude': '{repo}/tests/functional/datas/mt5_1d_data/BNO_1d.csv',
+            'usdcad': '{repo}/tests/datas/mt5_1d_data/USDCAD_1d.csv',
+            'crude': '{repo}/tests/datas/mt5_1d_data/BNO_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',

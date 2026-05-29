@@ -32,7 +32,7 @@ _CONFIG = {
         'timeframe': 'D1',
         'assets': {
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
-            'IVV': '{repo}/tests/functional/datas/mt5_1d_data/IVV_1d.csv',
+            'IVV': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
             'IEF': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',

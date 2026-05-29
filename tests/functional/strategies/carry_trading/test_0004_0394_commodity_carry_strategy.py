@@ -31,7 +31,7 @@ _CONFIG = {
     'data': {
         'timeframe': 'D1',
         'commodities': {
-            'DBC': '{repo}/tests/functional/datas/mt5_1d_data/DBC_1d.csv',
+            'DBC': '{repo}/tests/datas/mt5_1d_data/DBC_1d.csv',
             'GLD': '{repo}/tests/datas/mt5_1d_data/GLD_1d.csv',
             'XAUUSD': '{repo}/tests/datas/mt5_1d_data/XAUUSD_1d.csv',
             'XAGUSD': '{repo}/tests/datas/mt5_1d_data/XAGUSD_1d.csv',

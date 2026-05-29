@@ -33,7 +33,7 @@ _CONFIG = {
         'timeframe': 'H1',
         'assets': {
             'XAUUSD': '{repo}/tests/datas/XAUUSD_H1.csv',
-            'XAGUSD': '{repo}/tests/functional/datas/XAGUSD_H1.csv',
+            'XAGUSD': '{repo}/tests/datas/XAGUSD_H1.csv',
         },
         'fromdate': '2025-07-01 00:00:00',
         'todate': '2025-12-31 23:59:59',

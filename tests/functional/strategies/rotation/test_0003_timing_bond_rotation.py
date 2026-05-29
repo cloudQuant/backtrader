@@ -30,11 +30,11 @@ _CONFIG = {
     'data': {
         'timeframe': 'D1',
         'assets': {
-            'equity': '{repo}/tests/functional/datas/mt5_1d_data/IVV_1d.csv',
+            'equity': '{repo}/tests/datas/mt5_1d_data/IVV_1d.csv',
             'ief': '{repo}/tests/datas/mt5_1d_data/IEF_1d.csv',
-            'agg': '{repo}/tests/functional/datas/mt5_1d_data/AGG_1d.csv',
-            'bnd': '{repo}/tests/functional/datas/mt5_1d_data/BND_1d.csv',
-            'govt': '{repo}/tests/functional/datas/mt5_1d_data/GOVT_1d.csv',
+            'agg': '{repo}/tests/datas/mt5_1d_data/AGG_1d.csv',
+            'bnd': '{repo}/tests/datas/mt5_1d_data/BND_1d.csv',
+            'govt': '{repo}/tests/datas/mt5_1d_data/GOVT_1d.csv',
         },
         'fromdate': '2008-01-01 00:00:00',
         'todate': '2025-12-31 00:00:00',
