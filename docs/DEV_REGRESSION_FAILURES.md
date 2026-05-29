@@ -2,266 +2,266 @@
 
 > Captured: 2026-05-29 · branch `dev` · baseline `master`
 >
-> All three tests below pass on `master` with the canonical metrics baked
-> into commit `9524f562` ("test(strategies): align 3 regression baselines
-> with master output"). They fail on `dev` because dev's runonce calculation
-> path produces different numbers than master.
->
-> Quick repro:
-> ```bash
-> # baseline check (must pass)
-> git checkout master && pip install -U . && \
->   pytest tests/functional/strategies -n 6 --use-installed-backtrader
->
-> # back to dev (the 3 tests below must currently fail)
-> git checkout dev && \
->   pytest tests/functional/strategies/trend_following/test_0194_0417_fx_chaos_scalp.py \
->          tests/functional/strategies/mean_reversion/test_0113_0353_exp_blauergodicmdi_tm.py \
->          tests/functional/strategies/mean_reversion/test_0208_1161_universal_investor.py -v
-> ```
+> Root cause confirmed via `scripts/run_strategy_branch_compare.py` log diff
+> with `bt.observers.TradeLogger` enabled on both branches. The 3 tests
+> below pass on `master` with the canonical metrics baked into commit
+> `9524f562` ("test(strategies): align 3 regression baselines with master
+> output"). They fail on `dev` because dev's metaclass-removal refactor
+> drops the `LineSeriesMaker` wrapping step that master applies to data
+> arguments inside `Indicator.__init__`. Indicators built on top of a
+> `LinesOperation` (e.g. `(h1.high + h1.low) / 2.0`) end up with a
+> `_clock` pointing at the strategy's primary feed instead of the
+> secondary feed the LinesOperation actually derives from, so runonce
+> emits indicator values too early, on misaligned bars.
 
 ---
 
-## TL;DR — Where to dig
+## How to reproduce the divergence
 
-The shared symptom is **"runonce on a multi-data setup produces different
-indicator values than master"**. The strongest single suspect is dev's
-rewritten `once()` in `backtrader/indicators/sma.py` (and the analogous
-direct-indexing code in `Average.once()` in `backtrader/indicators/basicops.py`):
-both iterate `range(start, end)` against `self.data.array` directly, which is
-broken when `self.data` is a `LinesOperation` whose underlying length is
-shorter than the primary feed's length. Master's `MovingAverageSimple`
-delegates to `Average(self.data, period=...)` and inherits the canonical
-`PeriodN.once()` machinery — so it never falls into this trap.
+```bash
+# Build per-strategy TradeLogger wrappers under studies/branch_compare/
+#   studies/branch_compare/0194_fx_chaos_scalp/run.py
+#   studies/branch_compare/0113_blauergodicmdi_tm/run.py
+#   studies/branch_compare/0208_universal_investor/run.py
+# Each wrapper imports the inlined regression test, attaches TradeLogger,
+# and dumps backtest_result.json for hash comparison.
 
-```python
-# master (correct, 3 lines):
-class MovingAverageSimple(MovingAverageBase):
-    alias = ('SMA', 'SimpleMovingAverage',)
-    lines = ('sma',)
-    def __init__(self):
-        self.lines[0] = Average(self.data, period=self.p.period)
-        super().__init__()
+# Diff dev vs master logs for each strategy (auto installs each branch,
+# runs run.py, and writes a comparison report under logs/branch_strategy_compare/)
+python scripts/run_strategy_branch_compare.py \
+    studies/branch_compare/0194_fx_chaos_scalp/run.py \
+    --branch current --branch master \
+    --timeout 600 --install-timeout 600
 ```
 
-```python
-# dev (broken once() — see the loop indexing self.data.array directly):
-class MovingAverageSimple(MovingAverageBase):
-    ...
-    def once(self, start, end):
-        dst = self.lines[0].array
-        src = self.data.array
-        period = self.p.period
-        actual_end = min(end, len(src))
-        ...
-        for i in range(calc_start, actual_end):
-            window = src[i - period + 1 : i + 1]
-            dst[i] = math.fsum(window) / period
-```
-
-The loop walks the primary timeline (length 6129 for these tests, M15 bars)
-but `src` only has 1538 valid entries (H1 bars) followed by trailing NaN,
-so `dst[i]` at `i` past 1538 is computed from misaligned (or NaN) windows
-— and even before that, the H1-bar at H1-array-index `i` is *not* the H1
-bar that the M15 clock at base-bar `i` belongs to.
-
-**Recommended fix direction (match master):** restore master's
-`MovingAverageSimple.__init__` delegation to `Average(...)`, drop dev's
-`next()` and `once()` overrides, and audit `Average.once()` /
-`PeriodN.once()` to ensure they honor multi-data clock binding. A first
-attempt at this fix was reverted at the editor level — re-do it cleanly,
-verify with the repro below, and audit other base-ops indicators
-(`SumN`, `AverageN`, `WeightedMovingAverage`, etc.) for the same bug
-shape.
+The report lists which TradeLogger files diverge (`order.log`, `trade.log`,
+`indicator.log`, `signal.log`, `position.log`, `value.log`). The
+`first_diff` field for each log shows the first JSON record that differs
+plus a per-field diff — that's where the real bug surfaces.
 
 ---
 
-## 1. `0194_0417_fx_chaos_scalp` (highest-signal failure)
+## Root cause (confirmed via TradeLogger log diff)
 
-| | master (expected) | dev (actual) | delta |
-|---|---:|---:|---:|
-| `buy_count`     | 21              | 2            | -19 |
-| `sell_count`    | 18              | 2            | -16 |
-| `win_count`     | 16              | 1            | -15 |
-| `loss_count`    | 23              | 3            | -20 |
-| `total_trades`  | 39              | 4            | -35 |
-| `final_value`   | 999928.80       | 999983.10    | +54.30 |
-| `max_drawdown`  | 0.04279         | 0.00572      | -0.0371 |
-| `sharpe_ratio`  | -0.8220         | -1.5103      |  |
-| `sqn`           | -0.10608        | -0.19693     |  |
+The following lines from `studies/branch_compare/0194_fx_chaos_scalp` (one
+of the 3 failing strategies) make the bug concrete.
 
-**Path:** `tests/functional/strategies/trend_following/test_0194_0417_fx_chaos_scalp.py`
-**Test fn:** `test_193_0194_0417_fx_chaos_scalp`
-
-**Strategy shape (relevant excerpt):**
+### Strategy code (excerpt)
 
 ```python
 class FxChaosScalpStrategy(bt.Strategy):
     def __init__(self):
-        self.base_feed = self.datas[0]   # M15  (6129 bars)
-        self.h1_feed   = self.datas[1]   # H1   (1538 bars)
-        self.d1_feed   = self.datas[2]   # D1   (68 bars)
-        median_price = (self.h1_feed.high + self.h1_feed.low) / 2.0   # LinesOperation on H1
+        self.base_feed = self.datas[0]   # M15 (6129 bars)
+        self.h1_feed   = self.datas[1]   # H1  (1538 bars)
+        self.d1_feed   = self.datas[2]   # D1  (68 bars)
+        median_price = (self.h1_feed.high + self.h1_feed.low) / 2.0
         self.ao_fast = bt.indicators.SimpleMovingAverage(median_price, period=5)
         self.ao_slow = bt.indicators.SimpleMovingAverage(median_price, period=34)
         self.ao = self.ao_fast - self.ao_slow
 ```
 
-### Diagnosis already collected
+### Master vs dev — `_clock` of the SMA on the LinesOperation
 
-- `h1.high[0]` and `h1.low[0]` are **identical** between master and dev
-  (data feed is fine).
-- `median_price` (the `LinesOperation`) values are **identical** between
-  master and dev when accessed via `[0]`/`[-N]`.
-- `SimpleMovingAverage(median_price, period=5)` is **wrong on dev**:
-  e.g. at one debug point dev returns `fast=4832.21` where master returns
-  `fast=4332.76` (real H1 median around 4334).
-- Inserting a debug print in `backtrader/indicators/sma.py once()` showed
-  `len(src) = 6129` (M15 length) but `src[1538:]` is all NaN — the SMA's
-  `for i in range(calc_start, end)` loop is computing `dst[i]` from
-  H1-array index `i`, which is the wrong H1 bar for the M15 clock at
-  base-bar position `i`.
-- Master avoids this entirely because `MovingAverageSimple.__init__`
-  delegates to `Average(self.data, period=...)`, which uses the
-  framework's data-binding machinery rather than raw array indexing.
+| | master | dev |
+|---|---|---|
+| `ao_fast.__class__` | `SimpleMovingAverage` | `MovingAverageSimple` (alias of same) |
+| `ao_fast.data` | **`LineSeriesStub` wrapping LinesOperation** | **raw `LinesOperation`** |
+| `ao_fast._clock` | **`LineSeriesStub`** (proxies LinesOperation's buflen) | **`Mt5PandasFeed` (the M15 base feed)** |
+| `ao_fast._clock.buflen()` at strategy.start | 0 (gets populated alongside H1) | **6129 (M15 length, not H1)** |
 
-### Likely fix
+Because dev's SMA `_clock` is the M15 feed (6129 bars), `_once()` calls:
 
-1. Replace `backtrader/indicators/sma.py` with master's 3-line delegation
-   form.
-2. Verify (and fix if needed) `Average.once()` /
-   `PeriodN.once()` in `backtrader/indicators/basicops.py` so they advance
-   along `self.data`'s clock-bound iterator instead of indexing
-   `self.data.array` directly.
-3. Re-run `tests/functional/runonce_parity` (added via
-   `575ec756 Add runonce parity strategy tests`) to catch regressions.
+```python
+self.forward(size=self._clock.buflen())   # forwards 6129 slots
+...
+self.once(self._minperiod, self.buflen())  # once(5, 6129)
+```
+
+But the underlying `LinesOperation.array` only has 1538 valid H1
+medians; positions 1538..6128 are NaN/uninitialized. Worse, even at
+position `i < 1538`, `dst[i] = mean(src[i-4..i])` uses **H1-array indices
+i-4..i**, which are not the H1 bars the M15 clock at `i` actually
+belongs to. So the SMA at every M15 bar reads from misaligned H1 data.
+
+On master, the SMA's `_clock` is a `LineSeriesStub` wrapping the
+`LinesOperation`. `forward(buflen=0)` is a no-op until child
+indicators populate the LinesOperation. Master's `_once()` flow then
+binds `[0]`/`[-1]` lookups to the H1 timeline correctly, so any M15
+bar reading `ao_fast[0]` gets the H1-bar-aligned SMA value.
+
+### First diverging indicator value (logged via `bt.observers.TradeLogger`)
+
+```text
+indicator.log  line 5  (datetime 2025-12-03 02:15:00 — 5th M15 base bar)
+  current__dev:  MovingAverageSimple_sma = 4215.991
+  master:        MovingAverageSimple_sma = null   (correct — only 1 H1 bar exists)
+```
+
+`4215.991 = mean([4209.545, 4208.765, 4216.325, 4221.49, 4223.83])` —
+the first 5 entries of the densely-packed H1 median array, computed
+**before H1 has actually emitted 5 bars**.
+
+### Where the wrap is dropped
+
+Master applies `LineSeriesMaker(arg)` to every line-like positional
+argument inside `LineIteratorMixin.donew`:
+
+```python
+# backtrader/lineiterator.py
+@classmethod
+def donew(cls, *args, **kwargs):
+    ...
+    for arg in args:
+        ...
+        if is_line_object:
+            datas.append(LineSeriesMaker(arg))   # wraps LinesOperation in LineSeriesStub
+    ...
+```
+
+Master's metaclass `MetaLineIterator(__call__)` always invoked `donew →
+dopreinit → init`, so the wrap always ran.
+
+Dev removed the metaclass and replaced it with `ParamsMixin.__init_subclass__`
++ `patched_init`. Inside `patched_init` (in `backtrader/metabase.py`),
+when the indicator is constructed with positional line arguments, dev
+sets `datas` directly from raw args:
+
+```python
+# backtrader/metabase.py — patched_init
+if temp_datas:
+    if not hasattr(self, "datas") or not self.datas:
+        self.datas = temp_datas       # <-- raw, no LineSeriesMaker wrap!
+        self.data = temp_datas[0]
+```
+
+So `LineIteratorMixin.donew` is never reached for indicators
+constructed through `patched_init`, and the `LineSeriesMaker` wrap is
+silently skipped. The downstream `_clock` resolution in `dopreinit`
+then walks the raw `LinesOperation`, can't recognize it as a wrapped
+proxy of a feed, and falls back to the strategy's primary feed
+(`base_feed = M15`).
+
+**Verification**: tracing every call to `LineSeriesMaker` during
+`bt.indicators.SimpleMovingAverage((self.data.high + self.data.low)/2.0,
+period=5)` shows it is never invoked on dev. Master invokes it once
+(wrapping the `LinesOperation` into a `LineSeriesStub`).
 
 ---
 
-## 2. `0113_0353_exp_blauergodicmdi_tm`
+## Recommended fix direction
 
-| | master (expected) | dev (actual) | delta |
-|---|---:|---:|---:|
-| `buy_count`     | 168             | 189          | +21 |
-| `sell_count`    | 168             | 143          | -25 |
-| `win_count`     | 145             | 124          | -21 |
-| `loss_count`    | 190             | 207          | +17 |
-| `total_trades`  | 335             | 331          | -4 |
-| `final_value`   | 1005824.20      | 999482.00    | -6342 |
-| `max_drawdown`  | 0.29228         | 0.31346      | +0.0212 |
-| `annual_return` | 2.7112          | -0.1104      | (sign flip) |
-| `sharpe_ratio`  | 13.7881         | -1.1918      | (sign flip) |
-| `sqn`           | 1.7830          | -0.1649      | (sign flip) |
+The failing case is "indicator built on top of a `LineActions`
+expression (LinesOperation, _LineDelay, bt.If/bt.And, etc.) where that
+expression derives from a non-primary data feed".
+
+Two fix paths, in order of preference:
+
+1. **Restore the `LineSeriesMaker` wrap in `patched_init`.** The
+   simplest equivalence with master: when `patched_init` extracts
+   `temp_datas` from positional args, run them through
+   `LineSeriesMaker(arg)` before assigning to `self.datas`. Validate
+   that this also fixes the `_clock` resolution because the resulting
+   `LineSeriesStub` exposes `buflen()` of the underlying line and
+   `_clock` of its concrete data source.
+
+2. **Or fix `_clock` resolution in `dopreinit` / `_register_indicator`** so
+   that when `_obj.datas[0]` is a raw `LineActions` (LinesOperation
+   etc.), `_line_like_source_clock` walks through it to the *concrete
+   feed* underneath (e.g. `h1_feed`) instead of falling back to the
+   strategy's primary feed. The current implementation already
+   recognizes `LineActions` but it bottoms out at `LineBuffer` (e.g.
+   `h1.high`) which doesn't have a feed-like `buflen()`, and a later
+   guard reassigns `_clock` to `self.datas[0]` of the strategy.
+
+Whichever direction is taken, add a runonce parity test that
+specifically covers `bt.indicators.SMA(secondary_feed.high - secondary_feed.low, ...)`
+to lock this scenario down. The existing
+`tests/functional/runonce_parity` tests added in commit `575ec756` do
+not cover this multi-feed-LinesOperation case — that's why the bug
+slipped through.
+
+---
+
+## Per-strategy summary
+
+### 1. `0194_0417_fx_chaos_scalp` (highest-signal failure)
+
+Root cause: SMA on `(h1.high + h1.low) / 2.0` returns wrong values from
+the very first bar of strategy.next(). Drives buy/sell counts from
+21/18 to 2/2.
+
+| | master (expected) | dev (actual) |
+|---|---:|---:|
+| `buy_count`     | 21              | 2            |
+| `sell_count`    | 18              | 2            |
+| `total_trades`  | 39              | 4            |
+| `final_value`   | 999928.80       | 999983.10    |
+
+**Path:** `tests/functional/strategies/trend_following/test_0194_0417_fx_chaos_scalp.py`
+**Test fn:** `test_193_0194_0417_fx_chaos_scalp`
+
+### 2. `0113_0353_exp_blauergodicmdi_tm`
+
+Root cause: same shape — stack of `ExponentialMovingAverage` over an
+H4 signal feed and over a `LinesOperation` (`dif = price - xprice`).
+`indicator.log line 24` shows dev's `ExponentialMovingAverage_ema =
+4208.69` where master logs `null` (correct warmup).
+
+| | master (expected) | dev (actual) |
+|---|---:|---:|
+| `buy_count`     | 168             | 189          |
+| `sell_count`    | 168             | 143          |
+| `total_trades`  | 335             | 331          |
+| `final_value`   | 1005824.20      | 999482.00    |
+| `sharpe_ratio`  | 13.7881         | -1.1918      |
+| `sqn`           | 1.7830          | -0.1649      |
 
 **Path:** `tests/functional/strategies/mean_reversion/test_0113_0353_exp_blauergodicmdi_tm.py`
 **Test fn:** `test_113_0113_0353_exp_blauergodicmdi_tm`
 
-**Strategy shape (relevant excerpt):**
+### 3. `0208_1161_universal_investor` (smallest delta)
 
-```python
-class ExpBlauErgodicMDITmStrategy(bt.Strategy):
-    def __init__(self):
-        self.exec_feed   = self.datas[0]   # M15  (6129 bars)
-        self.signal_feed = self.datas[1]   # H4   (signal timeframe)
-        # 4 stacked EMAs over signal_feed.close, signal lines built at H4 resolution.
-        price   = bt.indicators.ExponentialMovingAverage(self.signal_feed.close, period=20)
-        xprice  = bt.indicators.ExponentialMovingAverage(price,   period=5)
-        dif     = price - xprice                                  # LinesOperation
-        xdif    = bt.indicators.ExponentialMovingAverage(dif,    period=5)
-        xxdif   = bt.indicators.ExponentialMovingAverage(xdif,   period=5)
-        xxxdif  = bt.indicators.ExponentialMovingAverage(xxdif,  period=5)
-```
+Root cause: this one is **single-data** (M15 only) and only differs by
+floating-point precision in `WeightedMovingAverage`'s last mantissa bit
+(`4220.805434782608` on dev vs `4220.805434782609` on master). That
+1-ULP difference flips a strict `lwma1 > ema1` comparison once and
+generates one extra `signal_count` (3861 vs 3860). All trades and PnL
+metrics match master exactly. Lowest priority of the three; should
+become a non-issue once dev aligns its accumulation order with
+master's, but is independent of the multi-data clock bug above.
 
-### Diagnosis hypothesis
-
-Same family as 0194: a stack of `ExponentialMovingAverage` indicators is
-applied to the H4 signal feed (and to a `LinesOperation` `dif = price -
-xprice`) inside a strategy whose primary feed is M15. If
-`ExponentialSmoothing.once()` (in `backtrader/indicators/basicops.py`)
-indexes `self.data.array` directly using the M15 timeline, the same
-multi-data clock-misalignment bug applies and the EMA stack drifts.
-
-The sign-flip on `annual_return`, `sharpe_ratio` and `sqn` plus the asymmetric
-buy/sell counts (168/168 → 189/143) point at signals being generated at
-different bars, not just being slightly noisy.
-
-### Suggested next steps
-
-1. After fixing `SMA`, re-run; if 0113 still fails, instrument
-   `ExponentialSmoothing.once()` with a small print at e.g.
-   `len(self.data) == warmup` to compare the EMA value emitted on a known
-   H4 bar between master and dev.
-2. Cross-check with the new `runonce_parity` tests — the EMA stack may
-   already have a parity test that's silently passing because it doesn't
-   cover multi-data wiring.
-
----
-
-## 3. `0208_1161_universal_investor` (smallest delta)
-
-| | master (expected) | dev (actual) | delta |
-|---|---:|---:|---:|
-| `signal_count`        | 3860            | 3861         | +1 |
-| `buy_count`           | 68              | 68           | 0 |
-| `sell_count`          | 68              | 68           | 0 |
-| `total_trades`        | 136             | 136          | 0 |
-| `trade_count`         | 135             | 135          | 0 |
-| `win_count`           | 46              | 46           | 0 |
-| `loss_count`          | 89              | 89           | 0 |
-| `final_value`         | 1004551.90      | 1004551.90   | 0 |
-| every other metric    | (matches)       | (matches)    | 0 |
+| | master (expected) | dev (actual) |
+|---|---:|---:|
+| `signal_count` | 3860 | 3861 |
+| every other metric | (matches) | (matches) |
 
 **Path:** `tests/functional/strategies/mean_reversion/test_0208_1161_universal_investor.py`
 **Test fn:** `test_209_0208_1161_universal_investor`
 
-**Strategy shape (relevant excerpt):**
-
-```python
-class UniversalInvestorStrategy(bt.Strategy):
-    def __init__(self):
-        self.ema  = bt.indicators.ExponentialMovingAverage(self.data.close, period=23)
-        self.lwma = bt.indicators.WeightedMovingAverage(self.data.close, period=23)
-
-    def next(self):
-        self.bar_num += 1
-        ema1, ema2 = float(self.ema[-1]), float(self.ema[-2])
-        lwma1, lwma2 = float(self.lwma[-1]), float(self.lwma[-2])
-        open_buy  = lwma1 > ema1 and lwma1 > lwma2 and ema1 > ema2
-        open_sell = lwma1 < ema1 and lwma1 < lwma2 and ema1 < ema2
-        if (open_buy and not open_sell) or (open_sell and not open_buy):
-            self.signal_count += 1
-        ...
-```
-
-### Diagnosis hypothesis
-
-This one is **single-data** (only M15) and has **a single bar of drift in
-`signal_count` only** — every trade and PnL metric matches master. That's
-consistent with a one-bar-off boundary in either `ExponentialMovingAverage`
-or `WeightedMovingAverage` warmup / `nextstart` handling on dev. Worth
-checking:
-
-- Does dev's `EMA`/`WMA` `once()` emit a value one bar earlier than
-  master at the very first valid bar after `addminperiod`?
-- Or does the strategy itself trigger one extra `signal_count` because
-  some warmup-skip condition was relaxed?
-
-The fact that no actual trade fires off this extra signal (because the
-position is held when the extra signal occurs) is why all downstream
-metrics still match. Lowest priority of the three; fixable independently
-once the SMA/EMA `once()` family is healthy.
-
 ---
 
-## Reference: known-good (master) metrics live in the test files themselves
+## Tools left in place for future debugging
 
-The current expected values are baked directly into each test file's
-assertion block (see commit `9524f562`). When the dev fix lands, those
-assertions should pass on `dev` as well — no expected-value updates
-required.
+The following helpers stay in the repo so the user can iterate on the
+fix without rebuilding instrumentation:
 
-## Reference: artifacts deleted as part of this rewrite
+- `studies/branch_compare/_common.py` — TradeLogger-attached cerebro
+  runner, shared by the 3 wrapper `run.py` files.
+- `studies/branch_compare/0194_fx_chaos_scalp/run.py`
+- `studies/branch_compare/0113_blauergodicmdi_tm/run.py`
+- `studies/branch_compare/0208_universal_investor/run.py`
+- `scripts/run_strategy_branch_compare.py` (pre-existing) — small
+  patch added to also sync `tests/datas/` into the master worktree
+  and to expose `BT_BRANCH_COMPARE_DATA_ROOT` so the per-strategy
+  `run.py` files can load the dev-tracked test fixtures from
+  master's worktree.
 
-- `OFFICIAL_BACKTRADER_REGRESSION_ANALYSIS.md` (deleted)
-- `OFFICIAL_BACKTRADER_REGRESSION_FAILURES.md` (deleted)
-- `scripts/capture_master_metrics.py` (deleted — was a one-shot baseline tool)
+After fixing the root cause, re-run:
+
+```bash
+python scripts/run_strategy_branch_compare.py \
+    studies/branch_compare/0194_fx_chaos_scalp/run.py \
+    --branch current --branch master --timeout 600 --install-timeout 600
+```
+
+and verify `RESULT_ALL_EQUAL True` and `DIFFERING_LOG_FILES 0`.

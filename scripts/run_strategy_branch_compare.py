@@ -214,7 +214,7 @@ def parse_extra_env(items: list[str]) -> dict[str, str]:
     return extra
 
 
-def build_env(root: Path, branch_label: str, output_dir: Path, extra_env: dict[str, str]) -> dict[str, str]:
+def build_env(root: Path, branch_label: str, output_dir: Path, extra_env: dict[str, str], main_root: Path | None = None) -> dict[str, str]:
     env = os.environ.copy()
     pythonpath = [str(root)]
     sibling_back_trader = root.parent / "back_trader"
@@ -232,6 +232,10 @@ def build_env(root: Path, branch_label: str, output_dir: Path, extra_env: dict[s
     env["BT_TRADE_LOG_DIR"] = str(output_dir / "trade_logger")
     env["BT_TRADELOGGER_LOG_DIR"] = str(output_dir / "trade_logger")
     env["TRADE_LOG_DIR"] = str(output_dir / "trade_logger")
+    if main_root is not None:
+        # Used by branch-compare runners to resolve repo-relative test fixtures
+        # (e.g. tests/datas/XAUUSD_M15.csv) consistently across worktrees.
+        env["BT_BRANCH_COMPARE_DATA_ROOT"] = str(main_root)
     env.update(extra_env)
     return env
 
@@ -415,6 +419,7 @@ def sync_target_to_worktree(main_root: Path, source_root: Path, run_rel: Path) -
     shutil.copytree(source_dir, target_dir)
     sync_auxiliary_path(main_root, source_root, Path("tests/functional/datas"))
     sync_auxiliary_path(main_root, source_root, Path("tests/functional/strategies"))
+    sync_auxiliary_path(main_root, source_root, Path("tests/datas"))
 
 
 def sync_auxiliary_path(main_root: Path, source_root: Path, rel_path: Path) -> None:
@@ -495,7 +500,7 @@ def run_branch(
     if not run_file.exists():
         result.error = f"run.py not found in branch {branch}: {run_file}"
         return result
-    env = build_env(source_root, label, output_dir, extra_env)
+    env = build_env(source_root, label, output_dir, extra_env, main_root=main_root)
     log_candidates = [
         output_dir / "trade_logger",
         source_root / "logs",
