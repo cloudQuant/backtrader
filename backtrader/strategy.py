@@ -42,6 +42,7 @@ import copy
 import datetime
 import itertools
 import math
+from typing import Optional
 
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
@@ -2018,7 +2019,7 @@ class Strategy(StrategyBase):
         parent=None,
         transmit=True,
         **kwargs,
-    ):
+    ) -> Optional[Order]:
         """Create a buy (long) order and send it to the broker.
 
         Args:
@@ -2129,7 +2130,7 @@ class Strategy(StrategyBase):
         parent=None,
         transmit=True,
         **kwargs,
-    ):
+    ) -> Optional[Order]:
         """Create a sell (short) order and send it to the broker.
 
         See the documentation for ``buy`` for an explanation of the parameters.
@@ -2181,7 +2182,7 @@ class Strategy(StrategyBase):
 
         return None
 
-    def close(self, data=None, size=None, **kwargs):
+    def close(self, data=None, size=None, **kwargs) -> Optional[Order]:
         """Close a long or short position.
 
         Creates an order that counters the existing position to close it.
@@ -2476,7 +2477,7 @@ class Strategy(StrategyBase):
 
         return [o, ostop, olimit]
 
-    def order_target_size(self, data=None, target=0, **kwargs):
+    def order_target_size(self, data=None, target=0, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target position size.
 
         Rebalances the current position to reach the specified target size.
@@ -2512,7 +2513,7 @@ class Strategy(StrategyBase):
 
         return None  # no execution target == possize
 
-    def order_target_value(self, data=None, target=0.0, price=None, **kwargs):
+    def order_target_value(self, data=None, target=0.0, price=None, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target position value.
 
         Rebalances the position to reach the specified target value.
@@ -2559,7 +2560,7 @@ class Strategy(StrategyBase):
 
         return None  # no execution size == possize
 
-    def order_target_percent(self, data=None, target=0.0, **kwargs):
+    def order_target_percent(self, data=None, target=0.0, **kwargs) -> Optional[Order]:
         """Place an order to achieve a target percentage of portfolio value.
 
         Rebalances the position so its value equals the target percentage
