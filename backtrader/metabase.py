@@ -46,7 +46,7 @@ logger = get_logger(__name__)
 
 # PERFORMANCE OPTIMIZATION: Cache for MRO type checks
 # This avoids repeatedly traversing __mro__ for the same classes
-_type_check_cache = {}
+_type_check_cache: dict = {}
 
 # PERFORMANCE OPTIMIZATION: One-time guard for indicator alias initialization
 _INDICATOR_ALIASES_INITIALIZED = False
@@ -562,8 +562,8 @@ class AutoInfoClass:
     # Class methods returning empty defaults - equivalent to:
     # @classmethod
     # def _getpairsbase(cls): return OrderedDict()
-    _getpairsbase = classmethod(lambda cls: OrderedDict())
-    _getpairs = classmethod(lambda cls: OrderedDict())
+    _getpairsbase: classmethod = classmethod(lambda cls: OrderedDict())
+    _getpairs: classmethod = classmethod(lambda cls: OrderedDict())
     _getrecurse = classmethod(lambda cls: False)
 
     @classmethod
@@ -588,7 +588,7 @@ class AutoInfoClass:
         """
         # Collect the 3 sets of info: base class, other bases, and new info
         baseinfo = cls._getpairs().copy()  # Shallow copy to preserve base class params
-        obasesinfo = OrderedDict()  # Parameters from other base classes
+        obasesinfo: dict = OrderedDict()  # Parameters from other base classes
         for obase in otherbases:
             # If otherbases contains dicts/tuples, update directly
             # Otherwise, get params from class instances via _getpairs()

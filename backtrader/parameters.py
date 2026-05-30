@@ -14,7 +14,7 @@ Key Components:
 """
 
 import time as _time
-from typing import Any, Callable, Dict, List, Optional, Type, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Type, Union, cast
 
 from .utils.log_message import get_logger
 from .utils.py3 import string_types
@@ -60,11 +60,12 @@ class ParameterDescriptor:
         self.type_ = type_
         self.validator = validator
         self.doc = doc
-        self.name = name
+        self.name: Optional[str] = name
         self.required = required
 
-        # Internal attribute name where the value is stored
-        self._attr_name = None
+        # Internal attribute name where the value is stored. Always set to a
+        # concrete string by __set_name__ before the descriptor is ever used.
+        self._attr_name: Optional[str] = None
 
     def __set_name__(self, owner, name):
         """
@@ -86,8 +87,8 @@ class ParameterDescriptor:
         if hasattr(obj, "_param_manager"):
             return obj._param_manager.get(self.name, self.default)
 
-        # Fallback: get from object attribute
-        return getattr(obj, self._attr_name, self.default)
+        # Fallback: get from object attribute. _attr_name is a str post __set_name__.
+        return getattr(obj, self._attr_name, self.default)  # type: ignore[arg-type]
 
     def __set__(self, obj, value):
         """Set parameter value on object instance with validation."""
@@ -112,15 +113,15 @@ class ParameterDescriptor:
         if hasattr(obj, "_param_manager"):
             obj._param_manager.set(self.name, value)
         else:
-            # Fallback: set as object attribute
-            setattr(obj, self._attr_name, value)
+            # Fallback: set as object attribute (_attr_name is str post __set_name__).
+            setattr(obj, self._attr_name, value)  # type: ignore[arg-type]
 
     def __delete__(self, obj):
         """Delete parameter value, reverting to default."""
         if hasattr(obj, "_param_manager"):
             obj._param_manager.reset(self.name)
-        elif hasattr(obj, self._attr_name):
-            delattr(obj, self._attr_name)
+        elif hasattr(obj, self._attr_name):  # type: ignore[arg-type]
+            delattr(obj, self._attr_name)  # type: ignore[arg-type]
 
     def validate(self, value: Any) -> bool:
         """
@@ -229,9 +230,9 @@ class ParameterManager:
             enable_callbacks: Whether to enable change callbacks
         """
         self._descriptors = descriptors.copy()
-        self._values = {}
-        self._defaults = {}
-        self._modified = set()
+        self._values: Dict[str, Any] = {}
+        self._defaults: Dict[str, Any] = {}
+        self._modified: Set[str] = set()
 
         # Extract defaults from descriptors
         for name, desc in descriptors.items():
@@ -242,35 +243,35 @@ class ParameterManager:
         self._enable_callbacks = enable_callbacks
 
         # Change tracking
-        self._change_history = {} if enable_history else None
+        self._change_history: Optional[Dict[str, Any]] = {} if enable_history else None
         self._history_seq = 0  # Sequence counter for history ordering
-        self._change_callbacks = {} if enable_callbacks else None
-        self._global_callbacks = [] if enable_callbacks else None
+        self._change_callbacks: Optional[Dict[str, Any]] = {} if enable_callbacks else None
+        self._global_callbacks: Optional[List[Callable]] = [] if enable_callbacks else None
 
         # Parameter locking
-        self._locked_params = set()
+        self._locked_params: Set[str] = set()
 
         # Parameter groups
-        self._param_groups = {}
-        self._param_to_group = {}
+        self._param_groups: Dict[str, List[str]] = {}
+        self._param_to_group: Dict[str, str] = {}
 
         # Lazy defaults
-        self._lazy_defaults = {}
+        self._lazy_defaults: Dict[str, Callable[[], Any]] = {}
 
         # Dependencies
-        self._dependencies = {}  # param -> list of dependents
-        self._dependents = {}  # dependent -> list of params it depends on
+        self._dependencies: Dict[str, List[str]] = {}  # param -> list of dependents
+        self._dependents: Dict[str, List[str]] = {}  # dependent -> list of params it depends on
 
         # Transaction support
         self._in_transaction = False
         self._transaction_snapshot = None
 
         # Value cache for lazy evaluation
-        self._value_cache = {}
-        self._cache_valid = set()
+        self._value_cache: Dict[str, Any] = {}
+        self._cache_valid: Set[str] = set()
 
         # Inheritance tracking
-        self._inheritance_sources = {}  # param -> source ParameterManager
+        self._inheritance_sources: Dict[str, Any] = {}  # param -> source ParameterManager
 
         # Set initial values
         if initial_values:
@@ -393,7 +394,7 @@ class ParameterManager:
 
         # Trigger callbacks only if not in transaction
         has_callbacks = bool(self._global_callbacks) or (
-            bool(self._change_callbacks) and name in self._change_callbacks
+            self._change_callbacks is not None and name in self._change_callbacks
         )
         if (
             trigger_callbacks
@@ -450,7 +451,7 @@ class ParameterManager:
 
         # Trigger callbacks only if not in transaction
         has_callbacks = bool(self._global_callbacks) or (
-            bool(self._change_callbacks) and name in self._change_callbacks
+            self._change_callbacks is not None and name in self._change_callbacks
         )
         if self._enable_callbacks and not self._in_transaction and has_callbacks:
             self._trigger_change_callbacks(name, old_value, new_value)
@@ -1176,7 +1177,7 @@ class ParameterizedBase:
         )
 
     @classmethod
-    def _compute_parameter_descriptors(cls):
+    def _compute_parameter_descriptors(cls) -> Dict[str, "ParameterDescriptor"]:
         """
         Compute parameter descriptors for this class on-demand.
 
@@ -1184,14 +1185,14 @@ class ParameterizedBase:
         that occur when descriptors are computed during class definition.
         """
         if cls._parameter_descriptors_computed:
-            return cls._parameter_descriptors
+            return cast(Dict[str, "ParameterDescriptor"], cls._parameter_descriptors)
 
         # Create a completely new _parameter_descriptors for this class
         # Each class must have its own independent dictionary
 
         # STEP 1: Collect all parameters from the inheritance hierarchy
         # Process base classes in reverse MRO order to respect inheritance precedence
-        all_params = {}
+        all_params: Dict[str, "ParameterDescriptor"] = {}
 
         # Process base classes from least specific to most specific
         # This way, more specific classes override less specific ones

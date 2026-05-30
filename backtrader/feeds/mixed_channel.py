@@ -16,7 +16,7 @@ class MixedChannel(StreamingEventQueue):
         adaptive=True,
         batch_size=10000,
     ):
-        merged_channels = []
+        merged_channels: list = []
         for group in (
             channels or [],
             tick_channels or [],

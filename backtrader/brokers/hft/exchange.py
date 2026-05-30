@@ -128,7 +128,7 @@ class QueueExchangeModel(SimpleExchangeModel):
         return fills
 
     def on_depth_update(self, ob_event, pending_orders):
-        fills = []
+        fills: list = []
         prev_bids = getattr(ob_event, "previous_bids", None) or []
         prev_asks = getattr(ob_event, "previous_asks", None) or []
         curr_bids = getattr(ob_event, "bids", None) or []

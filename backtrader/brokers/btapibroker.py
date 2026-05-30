@@ -47,7 +47,7 @@ class BtApiBroker(BrokerBase):
         super().__init__(**kwargs)
         self.store = self.p.store
         self.provider = self.p.provider
-        self.notifs = collections.deque()
+        self.notifs: collections.deque = collections.deque()
         self.orders = collections.OrderedDict()
         self.positions = collections.defaultdict(Position)
         self.long_positions = collections.defaultdict(Position)

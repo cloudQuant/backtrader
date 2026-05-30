@@ -200,7 +200,7 @@ def get_valid_point(df):
     valid_dn_point_list = []
     valid_up_point_list = []
     dn_point_point_list = []
-    up_point_point_list = []
+    up_point_point_list: list = []
     first_swing = None
     pre_index = None
     pre_low = None

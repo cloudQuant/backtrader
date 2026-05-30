@@ -532,7 +532,7 @@ def _create_ctp_wrapper_class():
             self._last_total_volume = {}
             self._last_tick_price = {}
             self._price_tick_cache = {}
-            self._order_updates = collections.deque()
+            self._order_updates: collections.deque = collections.deque()
             self._pending_orders = {}
             self._pending_orders_by_sys_id = {}
             self._order_ref_seq = int(time.time()) % 1000000
@@ -663,7 +663,7 @@ def _create_ctp_wrapper_class():
                 return list(self._positions_cache)
 
             rows = self.trader_client.query_positions(timeout=5)
-            aggregated = {}
+            aggregated: dict = {}
             for row in rows or []:
                 instrument = _safe_text_attr(row, "InstrumentID")
                 if not instrument:
@@ -1396,20 +1396,20 @@ class BtApiStore(LiveStoreBase):
         self._positions_cache_ttl = max(_coerce_float(positions_cache_ttl), 0.0)
         self._open_orders_cache_ttl = max(_coerce_float(open_orders_cache_ttl), 0.0)
         self._positions_cache = list(positions or [])
-        self._open_orders_cache = []
+        self._open_orders_cache: list = []
         seeded_at = time.monotonic() if positions or value is not None or cash else 0.0
         self._last_balance_refresh = seeded_at
         self._last_positions_refresh = seeded_at if positions else 0.0
         self._last_open_orders_refresh = 0.0
         self._connected = False
         self._started = False
-        self._data_feeds = []
+        self._data_feeds: list = []
         self._broker = None
         self.notifs: Deque[Any] = collections.deque()
-        self._historical_bars = collections.defaultdict(collections.deque)
+        self._historical_bars: dict = collections.defaultdict(collections.deque)
         self._historical_query_cache: Dict[Any, List[Dict[str, Any]]] = {}
-        self._live_bars = collections.defaultdict(collections.deque)
-        self._subscribed_datanames = set()
+        self._live_bars: dict = collections.defaultdict(collections.deque)
+        self._subscribed_datanames: set = set()
         self._successful_connect_count = 0
         self.contract_metadata = {
             str(key): dict(value or {}) for key, value in (contract_metadata or {}).items()

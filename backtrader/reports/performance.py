@@ -375,7 +375,7 @@ class PerformanceCalculator:
 
         data = self.strategy.data
         dates = []
-        values = []
+        values: list = []
 
         try:
             length = len(data)

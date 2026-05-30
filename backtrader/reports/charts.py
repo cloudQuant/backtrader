@@ -243,7 +243,7 @@ class ReportChart:
                 running_max = value
                 break
 
-        drawdowns = []
+        drawdowns: list = []
 
         for v in values:
             if isinstance(v, (int, float)) and math.isfinite(v):

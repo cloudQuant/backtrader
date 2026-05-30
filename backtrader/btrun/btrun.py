@@ -140,7 +140,7 @@ def _split_kwargs(kwtext: str) -> list:
         list: List of individual key=value strings.
     """
     items = []
-    current = []
+    current: list = []
     depth = 0
     in_string = False
     string_char = None
@@ -613,7 +613,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
         if len(tokens) == 1:
             modpath = tokens[0]
             name = ""
-            kwargs = dict()
+            kwargs: dict = dict()
         else:
             modpath, name = tokens
             kwtokens = name.split(":", 1)
@@ -678,7 +678,7 @@ def getfunctions(iterable, modbase):
         if len(tokens) == 1:
             modpath = tokens[0]
             name = ""
-            kwargs = dict()
+            kwargs: dict = dict()
         else:
             modpath, name = tokens
             kwtokens = name.split(":", 1)

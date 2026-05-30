@@ -242,5 +242,5 @@ class AutoOrderedDict(OrderedDict):
 if __name__ == "__main__":
     aod = AutoOrderedDict()
     print("aod", dir(aod))
-    od = OrderedDict()
+    od: dict = OrderedDict()
     print("od", dir(od))

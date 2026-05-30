@@ -52,6 +52,7 @@ module = [
     "backtrader.indicator",
     "backtrader.dataseries",
     "backtrader.observer",
+    "backtrader.order",
 ]
 disable_error_code = ["method-assign", "attr-defined", "has-type", "assignment"]
 

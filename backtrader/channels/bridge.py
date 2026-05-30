@@ -57,7 +57,7 @@ class ChannelBridge:
         self.channel = channel
         self._maxlen = maxlen
         self._fields = fields or self._default_fields(channel)
-        self._lines = {f: deque(maxlen=maxlen) for f in self._fields}
+        self._lines: dict = {f: deque(maxlen=maxlen) for f in self._fields}
         self._count = 0
 
     def _default_fields(self, channel):

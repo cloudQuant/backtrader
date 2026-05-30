@@ -22,8 +22,8 @@ class IndicatorRegistry:
     caching mechanism from the original backtrader implementation.
     """
 
-    _indcol = dict()
-    _icache = dict()
+    _indcol: dict = dict()
+    _icache: dict = dict()
     _icacheuse = False
 
     @classmethod
@@ -426,7 +426,7 @@ class LinePlotterIndicatorBase(Indicator.__class__):
         cls.lines = lines._derive(name, (lname,), 0, [])
         # Derive plotlines
         plotlines = AutoInfoClass
-        newplotlines = dict()
+        newplotlines: dict = dict()
         newplotlines.setdefault(lname, dict())
         cls.plotlines = plotlines._derive(name, newplotlines, [], recurse=True)
 

@@ -155,7 +155,7 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
         return trade_price <= order_price if is_buy_order else trade_price >= order_price
 
     def on_trade(self, trade_event, pending_orders):
-        fills = []
+        fills: list = []
         trade_price = getattr(trade_event, "price", None)
         direction = str(getattr(trade_event, "direction", "")).lower()
         if trade_price is None or direction not in {"buy", "sell"}:
@@ -196,7 +196,7 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
         return fills
 
     def on_depth_update(self, ob_event, pending_orders):
-        fills = []
+        fills: list = []
         prev_bids = getattr(ob_event, "previous_bids", None) or []
         prev_asks = getattr(ob_event, "previous_asks", None) or []
         curr_bids = getattr(ob_event, "bids", None) or []
@@ -492,12 +492,12 @@ def _run_backtrader_strategy(
     depth_probe_timestamp_ns = (
         int(getattr(depth_probe, "current_timestamp", 0) or 0) if depth_probe is not None else None
     )
-    working_orders = {}
+    working_orders: dict = {}
     latest_snapshot = None
     latest_exchange_snapshot = None
     next_decision_ns = None
     decisions = 0
-    decision_trades = []
+    decision_trades: list = []
 
     for channel_type, event in exchange_events:
         event_ns = _event_timestamp_ns(event)
@@ -528,7 +528,7 @@ def _run_backtrader_strategy(
             depth_probe_timestamp_ns, decision_depth = _advance_depth_probe(
                 depth_probe, depth_probe_timestamp_ns, next_decision_ns
             )
-            finalized_exchange_snapshot = (
+            finalized_exchange_snapshot: Optional[object] = (
                 latest_exchange_snapshot
                 if int(getattr(latest_exchange_snapshot, "timestamp_ns", 0) or 0)
                 == int(next_decision_ns)
@@ -645,8 +645,8 @@ def _run_hftbacktest_strategy(
         .lot_size(float(lot_size))
     )
     hbt = HashMapMarketDepthBacktest([asset])
-    fills = []
-    seen_exec_qty = {}
+    fills: list = []
+    seen_exec_qty: dict = {}
     decisions = 0
 
     while hbt.elapse(interval_ns) == 0:

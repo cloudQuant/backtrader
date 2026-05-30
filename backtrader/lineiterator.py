@@ -264,7 +264,7 @@ def _ensure_lineactions_inputs_computed(indicator, end, _seen=None):
     end = _resolve_authoritative_buflen(indicator, end)
     if end <= 0:
         return
-    candidates = []
+    candidates: list = []
     for attr in ("data", "datas"):
         try:
             value = getattr(indicator, attr)
@@ -1551,7 +1551,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Recursion guard: track objects currently being processed to prevent infinite loops
         if not hasattr(self, "_stage1_in_progress") or self._stage1_in_progress is None:
-            self._stage1_in_progress = set()
+            self._stage1_in_progress: set = set()
 
         # Add this object to the processing set
         self_id = id(self)

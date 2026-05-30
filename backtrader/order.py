@@ -19,6 +19,7 @@ import collections
 import datetime
 import itertools
 from copy import copy
+from typing import Optional
 
 from .utils import AutoOrderedDict
 from .utils.py3 import iteritems, range
@@ -200,7 +201,7 @@ class OrderData:
             trailpercent: Trailing percent for stop orders.
         """
         self.pclose = pclose
-        self.exbits = collections.deque()  # for historical purposes
+        self.exbits: collections.deque = collections.deque()  # for historical purposes
         self.p1, self.p2 = 0, 0  # indices to pending notifications
 
         self.dt = dt
@@ -905,7 +906,7 @@ class Order(OrderBase):
     # Above is processing of OrderBase, below is processing of Order, Order inherits from OrderBase
     # Order class mainly adds dteos, ordtype and other information, also rewrites some functions, adds ordtype, a tracking price
     # ordtype variable determines whether this order is a buy order or sell order, not set by default
-    ordtype = None
+    ordtype: Optional[int] = None
 
     # Override initialization function, add processing for ordtype and dteos
     def __init__(self, **kwargs):

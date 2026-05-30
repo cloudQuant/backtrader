@@ -47,7 +47,7 @@ class RecorderAnalyzer(bt.Analyzer):
         super().__init__()
 
         # Data storage
-        self._data = OrderedDict()
+        self._data: dict = OrderedDict()
 
         # Initialize data source storage
         for i, data in enumerate(self.strategy.datas):

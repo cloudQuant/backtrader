@@ -127,7 +127,7 @@ class Strategy(StrategyBase):
     """
 
     # Class-level storage for strategies
-    _indcol = dict()
+    _indcol: dict = dict()
 
     @classmethod
     def _create_strategy_safely(cls, *args, **kwargs):
@@ -1593,7 +1593,7 @@ class Strategy(StrategyBase):
         # If in quick notify mode, initialize qorders and qtrades
         if quicknotify:
             qorders = [order]
-            qtrades = []
+            qtrades: list = []
         # If order has no executed volume
         if not order.executed.size:
             # If in quick notify mode, call _notify with info
@@ -2808,7 +2808,7 @@ class SignalStrategy(Strategy):
     """
 
     # Parameters for signal strategy
-    params = (
+    params: tuple = (
         ("signals", []),
         ("_accumulate", False),
         ("_concurrent", False),

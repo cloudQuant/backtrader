@@ -50,7 +50,7 @@ class MovingAverage:
     """
 
     # Storage for moving average classes
-    _movavs = []
+    _movavs: list = []
 
     @classmethod
     def register(cls, regcls):

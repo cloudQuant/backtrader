@@ -94,7 +94,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         # Yahoo sends data in reverse order and the file is still unreversed
         # Use deque double-ended queue, appending to left is much more efficient than list.
         # If file dates are reversed, data is reversed during transfer, so dates in new file are in correct order
-        dq = collections.deque()
+        dq: collections.deque = collections.deque()
         for line in self.f:
             dq.appendleft(line)
         # Create a string buffer object, write queue data to file, move pointer to 0th character, close file, assign file to self.f
@@ -254,7 +254,7 @@ class YahooFinanceData(YahooFinanceCSVData):
 
     """
 
-    params = (
+    params: tuple = (
         ("proxies", {}),
         ("period", "d"),
         ("reverse", False),

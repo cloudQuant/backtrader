@@ -29,7 +29,7 @@ from .utils.py3 import range, string_types
 logger = get_logger(__name__)
 
 # Performance optimization: use module-level set to track recursion, avoid massive setattr/delattr operations
-_recursion_guards = set()
+_recursion_guards: set = set()
 _MISSING = object()
 
 
@@ -731,7 +731,7 @@ class Lines:
         lines = cls._getlines()
         if i >= len(lines):
             return ""
-        linealias = lines[i]
+        linealias: str = lines[i]
         return linealias
 
     @classmethod
@@ -793,8 +793,8 @@ class Lines:
         # self._owner = None
 
         self.lines = list()
-        for line, linealias in enumerate(self._getlines()):
-            kwargs = dict()
+        for _ in self._getlines():
+            kwargs: dict = dict()
             self.lines.append(LineBuffer(**kwargs))
 
         # Add the required extralines

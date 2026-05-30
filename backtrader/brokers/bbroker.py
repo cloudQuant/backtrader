@@ -1158,7 +1158,7 @@ class BackBroker(BrokerBase):
         # Currently available cash
         cash = self._cash
         # Position
-        positions = dict()
+        positions: dict = dict()
         # When submitted is not empty
         while self.submitted:
             # Remove leftmost order and get it

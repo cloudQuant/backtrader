@@ -15,6 +15,7 @@ Example:
 
 import math
 from collections import OrderedDict
+from typing import Optional
 
 from ..analyzer import Analyzer
 
@@ -41,7 +42,7 @@ class TotalValue(Analyzer):
     """
 
     params = ()
-    rets = None
+    rets: Optional[dict] = None
 
     def start(self):
         """Initialize the analyzer at the start of the backtest.

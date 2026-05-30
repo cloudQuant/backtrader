@@ -121,7 +121,7 @@ class DataTrades(Observer):
 
     plotinfo = dict(plot=True, subplot=True, plothlines=[0.0], plotymargin=0.10)
 
-    plotlines = dict()
+    plotlines: dict = dict()
 
     # Define a reasonable number of lines for common use cases
     # This replaces the dynamic line creation from the metaclass

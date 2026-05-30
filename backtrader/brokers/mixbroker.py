@@ -45,8 +45,8 @@ class MixBroker(TickBroker):
         self._completed_bars = collections.defaultdict(
             lambda: collections.deque(maxlen=self.get_param("max_bar_history"))
         )
-        self._bar_indicators = collections.defaultdict(dict)
-        self._bar_indicator_state = collections.defaultdict(dict)
+        self._bar_indicators: dict = collections.defaultdict(dict)
+        self._bar_indicator_state: dict = collections.defaultdict(dict)
         self._context = MidFreqContext(self)
 
     def process_tick(self, tick_event, data=None):

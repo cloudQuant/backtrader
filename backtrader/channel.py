@@ -148,7 +148,7 @@ class DataChannel:
         self.symbol = symbol
         self.maxlen = maxlen
         self.params = kwargs
-        self._buffer = deque(maxlen=maxlen)
+        self._buffer: deque = deque(maxlen=maxlen)
         self._event_count = 0
         self._validate = validate
         self._auto_fix = auto_fix

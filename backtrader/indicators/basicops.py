@@ -794,7 +794,7 @@ class WeightedAverage(PeriodN):
 
     alias = ("AverageWeighted",)
     lines = ("av",)
-    params = (
+    params: tuple = (
         ("coef", 1.0),
         ("weights", tuple()),
     )

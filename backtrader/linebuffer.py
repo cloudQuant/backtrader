@@ -1099,7 +1099,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 class LineActionsCache:
     """Cache system for LineActions to avoid repetitive calculations"""
 
-    _cache = {}
+    _cache: dict = {}
     _cache_enabled = False
 
     @classmethod

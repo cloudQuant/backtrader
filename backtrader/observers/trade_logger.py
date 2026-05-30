@@ -161,7 +161,7 @@ class TradeLogger(Observer):
         self._mysql_conn = None
         self._last_position_state = {}
         self._run_id = self._generate_run_id()
-        self._monitoring = collections.Counter()
+        self._monitoring: collections.Counter = collections.Counter()
         self._duplicate_requests = collections.defaultdict(collections.deque)
         self._triggered_thresholds = set()
         self._loggers_initialized = False
@@ -1215,7 +1215,7 @@ class TradeLogger(Observer):
         Returns:
             dict: Dictionary of indicator names and their current values.
         """
-        indicators = {}
+        indicators: dict = {}
 
         try:
             # Get all indicators from the strategy

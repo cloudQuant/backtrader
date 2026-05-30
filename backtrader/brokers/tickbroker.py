@@ -101,11 +101,11 @@ class TickBroker(BrokerBase):
         self._orders = []
         self._pending_orders = []
         self._order_history = []
-        self._positions = collections.defaultdict(Position)
+        self._positions: dict = collections.defaultdict(Position)
         self.positions = self._positions
         self.long_positions = collections.defaultdict(Position)
         self.short_positions = collections.defaultdict(Position)
-        self._notifs = collections.deque()
+        self._notifs: collections.deque = collections.deque()
         self._fundval = self._cash
         self._fundshares = 1.0
         self._fundmode = False

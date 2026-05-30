@@ -176,7 +176,7 @@ class TradingCalendar(TradingCalendarBase):
     """
 
     # Parameters
-    params = (
+    params: tuple = (
         ("open", time.min),
         ("close", _time_max),
         ("holidays", []),  # list of non-trading days (date)

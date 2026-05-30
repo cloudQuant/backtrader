@@ -76,10 +76,10 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     """
 
     # Class-level registry dictionary, replacing metaclass _indcol functionality
-    _registry = {}
+    _registry: dict = {}
 
     # Parameter initialization settings - use _params_tuple to save original definition
-    _params_tuple = (
+    _params_tuple: tuple = (
         ("dataname", None),
         ("name", ""),
         ("compression", 1),
@@ -172,7 +172,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # Find the owner and store it
         self._feed = self._find_feed_owner()
         # Initialize a queue to store notifications from cerebro
-        self.notifs = collections.deque()  # store notifications for cerebro
+        self.notifs: collections.deque = collections.deque()  # store notifications for cerebro
         # Get _dataname value from parameters
         self._dataname = getattr(self.p, "dataname", None)
         # Default _name attribute is empty
@@ -229,8 +229,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         self._barstack = collections.deque()  # for filter operations
         self._barstash = collections.deque()  # for filter operations
         # Set _filters and _ffilters as empty lists
-        self._filters = list()
-        self._ffilters = list()
+        self._filters: list = list()
+        self._ffilters: list = list()
 
         # Iterate through filters in parameters, first check if it's a class; if class, instantiate first; if instance has last attribute, add filter to _ffilters
         # If not a class, directly add filter to _filters
