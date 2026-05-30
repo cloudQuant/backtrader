@@ -130,6 +130,7 @@ class Indicator(IndicatorBase):
 
         init = cls.__dict__.get("__init__")
         if init is not None and not getattr(init, "_bt_owner_context_wrapped", False):
+
             def owner_context_init(self, *args, **kwargs):
                 parent_owner = OwnerContext.get_current_owner(LineIterator)
                 with OwnerContext.set_owner(self):

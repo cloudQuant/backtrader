@@ -12,8 +12,6 @@ Example:
     >>> cerebro.addobserver(bt.observers.Trades)
 """
 
-import math
-
 from ..observer import Observer
 
 

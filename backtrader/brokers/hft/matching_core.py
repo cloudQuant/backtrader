@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
+
 from backtrader.order import Order
+
 from .exchange import FillRole
 
 
@@ -120,10 +122,17 @@ class MatchingCore:
         pending = list(self.pending_for_symbol(symbol))
         if self._exchange_model is not None:
             for order, price, size, role in self._exchange_model.on_trade(tick_event, pending):
-                fills.append(self._build_fill(order, price, size, tick_event.timestamp, source=role.value, role=role.value))
+                fills.append(
+                    self._build_fill(
+                        order, price, size, tick_event.timestamp, source=role.value, role=role.value
+                    )
+                )
 
         for order in pending:
-            if self._exchange_model is not None and getattr(order, "_fill_role", None) == FillRole.MAKER:
+            if (
+                self._exchange_model is not None
+                and getattr(order, "_fill_role", None) == FillRole.MAKER
+            ):
                 continue
             result = self._match_tick_order(order, tick_event)
             if result is None:
@@ -145,7 +154,9 @@ class MatchingCore:
                     price, size = self._aggregate_exchange_fills(exchange_result.fills)
                     if size > 0:
                         fills.append(
-                            self._build_fill(order, price, size, ob_event.timestamp, source="orderbook_depth")
+                            self._build_fill(
+                                order, price, size, ob_event.timestamp, source="orderbook_depth"
+                            )
                         )
                     continue
                 if getattr(order, "_fill_role", None) == FillRole.MAKER:
@@ -198,7 +209,11 @@ class MatchingCore:
             return (price, size)
 
         if exectype == Order.Limit:
-            limit_price = order.pricelimit if getattr(order, "_stop_triggered", False) and order.exectype == Order.StopLimit else order.price
+            limit_price = (
+                order.pricelimit
+                if getattr(order, "_stop_triggered", False) and order.exectype == Order.StopLimit
+                else order.price
+            )
             if order.isbuy() and price <= limit_price:
                 return (min(price, limit_price), size)
             if not order.isbuy() and price >= limit_price:
@@ -215,7 +230,11 @@ class MatchingCore:
             return self._match_sell_depth(ob_event.bids, size, None)
 
         if exectype == Order.Limit:
-            limit_price = order.pricelimit if getattr(order, "_stop_triggered", False) and order.exectype == Order.StopLimit else order.price
+            limit_price = (
+                order.pricelimit
+                if getattr(order, "_stop_triggered", False) and order.exectype == Order.StopLimit
+                else order.price
+            )
             if order.isbuy() and ob_event.asks and ob_event.asks[0][0] <= limit_price:
                 return self._match_buy_depth(ob_event.asks, size, limit_price)
             if (not order.isbuy()) and ob_event.bids and ob_event.bids[0][0] >= limit_price:

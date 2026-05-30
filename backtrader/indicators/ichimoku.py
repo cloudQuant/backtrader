@@ -134,7 +134,9 @@ class Ichimoku(Indicator):
             past_lo_tenkan = _line_value(self.lo_tenkan, -shift)
             past_hi_kijun = _line_value(self.hi_kijun, -shift)
             past_lo_kijun = _line_value(self.lo_kijun, -shift)
-            if all(_valid(v) for v in (past_hi_tenkan, past_lo_tenkan, past_hi_kijun, past_lo_kijun)):
+            if all(
+                _valid(v) for v in (past_hi_tenkan, past_lo_tenkan, past_hi_kijun, past_lo_kijun)
+            ):
                 past_tenkan = (past_hi_tenkan + past_lo_tenkan) / 2.0
                 past_kijun = (past_hi_kijun + past_lo_kijun) / 2.0
                 self.lines.senkou_span_a[0] = (past_tenkan + past_kijun) / 2.0

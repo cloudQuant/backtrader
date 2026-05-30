@@ -59,10 +59,10 @@ def _propagate_assignment_minperiod(owner, child):
     # chain. Check if the child belongs to a Lines container whose
     # _owner_ref (the indicator) has a higher minperiod.
     try:
-        child_lines_owner = getattr(child, '_owner', None)
+        child_lines_owner = getattr(child, "_owner", None)
         if child_lines_owner is not None and child_lines_owner is not owner:
-            ref = getattr(child_lines_owner, '_owner_ref', None)
-            if ref is not None and hasattr(ref, '_minperiod'):
+            ref = getattr(child_lines_owner, "_owner_ref", None)
+            if ref is not None and hasattr(ref, "_minperiod"):
                 ref_mp = ref._minperiod
                 if ref_mp is not None and ref_mp > child_minperiod:
                     child_minperiod = ref_mp
@@ -189,7 +189,9 @@ def _line_assignment_source_clock(owner, source, seen=None):
                 in_lines = False
 
             if in_lines:
-                clock = _line_assignment_source_clock(owner, getattr(lineiter, "_clock", None), seen)
+                clock = _line_assignment_source_clock(
+                    owner, getattr(lineiter, "_clock", None), seen
+                )
                 if clock is not None:
                     return clock
 
@@ -301,7 +303,9 @@ def _register_line_assignment_child(owner, child, seen=None):
 
     owner_is_strategy = getattr(owner, "_ltype", None) == getattr(owner, "StratType", None)
     executable_child = not isinstance(child, LineActions) or hasattr(child, "_next")
-    should_register = not (owner_is_strategy and isinstance(child, LineActions)) and executable_child
+    should_register = (
+        not (owner_is_strategy and isinstance(child, LineActions)) and executable_child
+    )
 
     old_owner = getattr(child, "_owner", None)
     if old_owner is not None and old_owner is not owner:
@@ -1018,7 +1022,10 @@ class Lines:
                             line_buffer._idx = line_buffer.lencount - 1
                             self.lines[line] = line_buffer
                         except Exception:
-                            logger.debug("Failed to materialize iterable assignment in LineSeries.__setitem__", exc_info=True)
+                            logger.debug(
+                                "Failed to materialize iterable assignment in LineSeries.__setitem__",
+                                exc_info=True,
+                            )
                             # Fallback: assign directly
                             self.lines[line] = value
                     else:
@@ -1050,7 +1057,9 @@ class Lines:
                     # Fallback 3: convert to string and set attribute
                     setattr(self, str(line), value)
             except Exception:
-                logger.debug("Secondary fallback assignment failed in LineSeries.__setitem__", exc_info=True)
+                logger.debug(
+                    "Secondary fallback assignment failed in LineSeries.__setitem__", exc_info=True
+                )
                 # Final fallback: store in a special dict
                 if not hasattr(self, "_line_assignments"):
                     self._line_assignments = {}
@@ -1282,7 +1291,7 @@ class Lines:
 
                         # CRITICAL FIX: Check for LinesOperation first (it has 'lines' but stores values differently)
                         # LinesOperation inherits from LineBuffer and stores values in its own array
-                        from .linebuffer import LinesOperation, LineBuffer
+                        from .linebuffer import LineBuffer, LinesOperation
 
                         if isinstance(value, LinesOperation):
                             # LinesOperation stores values in itself (LineBuffer), not in its .lines[0]
@@ -1315,10 +1324,10 @@ class Lines:
                             # minperiod if it's higher than the line's own.
                             effective_mp = value._minperiod
                             try:
-                                value_lines_owner = getattr(value, '_owner', None)
+                                value_lines_owner = getattr(value, "_owner", None)
                                 if value_lines_owner is not None:
-                                    vref = getattr(value_lines_owner, '_owner_ref', None)
-                                    if vref is not None and hasattr(vref, '_minperiod'):
+                                    vref = getattr(value_lines_owner, "_owner_ref", None)
+                                    if vref is not None and hasattr(vref, "_minperiod"):
                                         if vref._minperiod > effective_mp:
                                             effective_mp = vref._minperiod
                             except (AttributeError, TypeError):
@@ -1363,7 +1372,7 @@ class Lines:
                                 # CRITICAL FIX: Also update parent_line's minperiod
                                 # so that subsequent indicators using self.l.xxx as
                                 # data source see the full indicator chain minperiod.
-                                if hasattr(parent_line, 'updateminperiod'):
+                                if hasattr(parent_line, "updateminperiod"):
                                     parent_line.updateminperiod(value._minperiod)
 
                                 # Register as sub-indicator
@@ -1821,10 +1830,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             return
 
         if name == "data" or (
-            name
-            and len(name) >= 5
-            and name[:4] == "data"
-            and (name[4].isdigit() or name[4] == "_")
+            name and len(name) >= 5 and name[:4] == "data" and (name[4].isdigit() or name[4] == "_")
         ):
             object.__setattr__(self, name, value)
             return

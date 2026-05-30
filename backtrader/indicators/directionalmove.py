@@ -32,9 +32,8 @@ Example:
                 self.buy()
 """
 
-from . import ATR, And, If, Indicator, MovAv
 from ..lineroot import LineRoot
-from ..functions import DivByZero
+from . import ATR, And, If, Indicator, MovAv
 
 
 class UpMove(Indicator):
@@ -297,9 +296,9 @@ class DirectionalIndicator(_DirectionalIndicator):
         dst_minus = self.lines.minusDI.array
 
         while len(dst_plus) < end:
-            dst_plus.append(float('nan'))
+            dst_plus.append(float("nan"))
         while len(dst_minus) < end:
-            dst_minus.append(float('nan'))
+            dst_minus.append(float("nan"))
 
         sm_tr = 0.0
         sm_pdm = 0.0
@@ -339,12 +338,12 @@ class DirectionalIndicator(_DirectionalIndicator):
                 dst_plus[i] = 0.0
                 dst_minus[i] = 0.0
 
-    prenext = LineRoot.prenext
-    nextstart = LineRoot.nextstart
-    next = LineRoot.next
-    preonce = LineRoot.preonce
-    oncestart = LineRoot.oncestart
-    once = LineRoot.once
+    prenext = LineRoot.prenext  # noqa: F811
+    nextstart = LineRoot.nextstart  # noqa: F811
+    next = LineRoot.next  # noqa: F811
+    preonce = LineRoot.preonce  # noqa: F811
+    oncestart = LineRoot.oncestart  # noqa: F811
+    once = LineRoot.once  # noqa: F811
 
 
 class PlusDirectionalIndicator(_DirectionalIndicator):
@@ -429,14 +428,14 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
         close_arr = self.data.close.array
         dst = self.lines.plusDI.array
         while len(dst) < end:
-            dst.append(float('nan'))
+            dst.append(float("nan"))
         sm_tr = 0.0
         sm_pdm = 0.0
         bc = 0
         for i in range(1, min(end, len(high_arr), len(low_arr), len(close_arr))):
-            tr = max(high_arr[i], close_arr[i-1]) - min(low_arr[i], close_arr[i-1])
-            upmove = high_arr[i] - high_arr[i-1]
-            downmove = low_arr[i-1] - low_arr[i]
+            tr = max(high_arr[i], close_arr[i - 1]) - min(low_arr[i], close_arr[i - 1])
+            upmove = high_arr[i] - high_arr[i - 1]
+            downmove = low_arr[i - 1] - low_arr[i]
             pdm = upmove if (upmove > downmove and upmove > 0) else 0.0
             bc += 1
             if bc <= period:
@@ -447,12 +446,12 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
                 sm_pdm = sm_pdm - sm_pdm / period + pdm
             dst[i] = (100.0 * sm_pdm / sm_tr) if sm_tr > 0 else 0.0
 
-    prenext = LineRoot.prenext
-    nextstart = LineRoot.nextstart
-    next = LineRoot.next
-    preonce = LineRoot.preonce
-    oncestart = LineRoot.oncestart
-    once = LineRoot.once
+    prenext = LineRoot.prenext  # noqa: F811
+    nextstart = LineRoot.nextstart  # noqa: F811
+    next = LineRoot.next  # noqa: F811
+    preonce = LineRoot.preonce  # noqa: F811
+    oncestart = LineRoot.oncestart  # noqa: F811
+    once = LineRoot.once  # noqa: F811
 
 
 class MinusDirectionalIndicator(_DirectionalIndicator):
@@ -537,14 +536,14 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
         close_arr = self.data.close.array
         dst = self.lines.minusDI.array
         while len(dst) < end:
-            dst.append(float('nan'))
+            dst.append(float("nan"))
         sm_tr = 0.0
         sm_mdm = 0.0
         bc = 0
         for i in range(1, min(end, len(high_arr), len(low_arr), len(close_arr))):
-            tr = max(high_arr[i], close_arr[i-1]) - min(low_arr[i], close_arr[i-1])
-            upmove = high_arr[i] - high_arr[i-1]
-            downmove = low_arr[i-1] - low_arr[i]
+            tr = max(high_arr[i], close_arr[i - 1]) - min(low_arr[i], close_arr[i - 1])
+            upmove = high_arr[i] - high_arr[i - 1]
+            downmove = low_arr[i - 1] - low_arr[i]
             mdm = downmove if (downmove > upmove and downmove > 0) else 0.0
             bc += 1
             if bc <= period:
@@ -555,12 +554,12 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
                 sm_mdm = sm_mdm - sm_mdm / period + mdm
             dst[i] = (100.0 * sm_mdm / sm_tr) if sm_tr > 0 else 0.0
 
-    prenext = LineRoot.prenext
-    nextstart = LineRoot.nextstart
-    next = LineRoot.next
-    preonce = LineRoot.preonce
-    oncestart = LineRoot.oncestart
-    once = LineRoot.once
+    prenext = LineRoot.prenext  # noqa: F811
+    nextstart = LineRoot.nextstart  # noqa: F811
+    next = LineRoot.next  # noqa: F811
+    preonce = LineRoot.preonce  # noqa: F811
+    oncestart = LineRoot.oncestart  # noqa: F811
+    once = LineRoot.once  # noqa: F811
 
 
 class AverageDirectionalMovementIndex(Indicator):
@@ -679,9 +678,7 @@ class AverageDirectionalMovementIndex(Indicator):
 
         plus_dmav = dm_plus_sum / period
         minus_dmav = dm_minus_sum / period
-        dx_values = [
-            self._adx_dx(plus_dmav, minus_dmav, self._adx_atr_value(atr_array, period))
-        ]
+        dx_values = [self._adx_dx(plus_dmav, minus_dmav, self._adx_atr_value(atr_array, period))]
 
         for i in range(period + 1, seed_idx + 1):
             upmove = high_array[i] - high_array[i - 1]
@@ -690,9 +687,7 @@ class AverageDirectionalMovementIndex(Indicator):
             minus_dm = downmove if (downmove > upmove and downmove > 0) else 0.0
             plus_dmav = plus_dmav * self.alpha1 + plus_dm * self.alpha
             minus_dmav = minus_dmav * self.alpha1 + minus_dm * self.alpha
-            dx_values.append(
-                self._adx_dx(plus_dmav, minus_dmav, self._adx_atr_value(atr_array, i))
-            )
+            dx_values.append(self._adx_dx(plus_dmav, minus_dmav, self._adx_atr_value(atr_array, i)))
 
         self._plusDMav_val = plus_dmav
         self._minusDMav_val = minus_dmav
@@ -862,12 +857,12 @@ class AverageDirectionalMovementIndex(Indicator):
             adx_val = adx_val * alpha1 + dx * alpha
             adx_array[i] = adx_val
 
-    prenext = LineRoot.prenext
-    nextstart = LineRoot.nextstart
-    next = LineRoot.next
-    preonce = LineRoot.preonce
-    oncestart = LineRoot.oncestart
-    once = LineRoot.once
+    prenext = LineRoot.prenext  # noqa: F811
+    nextstart = LineRoot.nextstart  # noqa: F811
+    next = LineRoot.next  # noqa: F811
+    preonce = LineRoot.preonce  # noqa: F811
+    oncestart = LineRoot.oncestart  # noqa: F811
+    once = LineRoot.once  # noqa: F811
 
 
 class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
@@ -959,12 +954,12 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
             else:
                 adxr_array[i] = float("nan")
 
-    prenext = LineRoot.prenext
-    nextstart = LineRoot.nextstart
-    next = LineRoot.next
-    preonce = LineRoot.preonce
-    oncestart = LineRoot.oncestart
-    once = LineRoot.once
+    prenext = LineRoot.prenext  # noqa: F811
+    nextstart = LineRoot.nextstart  # noqa: F811
+    next = LineRoot.next  # noqa: F811
+    preonce = LineRoot.preonce  # noqa: F811
+    oncestart = LineRoot.oncestart  # noqa: F811
+    once = LineRoot.once  # noqa: F811
 
 
 class DirectionalMovementIndex(AverageDirectionalMovementIndex, DirectionalIndicator):

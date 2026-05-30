@@ -35,7 +35,7 @@ import os
 import time
 import uuid
 from collections.abc import Mapping
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 
 from ..observer import Observer
 
@@ -410,9 +410,7 @@ class TradeLogger(Observer):
                 details={"source": str(source)},
             )
         except Exception:
-            logging.getLogger(__name__).error(
-                "TradeLogger internal error in %s: %s", source, exc
-            )
+            logging.getLogger(__name__).error("TradeLogger internal error in %s: %s", source, exc)
 
     def _monitor_threshold(self, counter_name, threshold, event_type):
         """Emit a warning event when a monitoring threshold is crossed."""
@@ -437,6 +435,7 @@ class TradeLogger(Observer):
 
     def _make_duplicate_key(self, action_type, details):
         """Build a duplicate-request key within the configured time window."""
+
         def normalize(value):
             return "" if value is None else str(value)
 
@@ -739,7 +738,9 @@ class TradeLogger(Observer):
                     "low": float(data.low[0]),
                     "close": float(data.close[0]),
                     "volume": float(data.volume[0]) if hasattr(data, "volume") else 0.0,
-                    "openinterest": float(data.openinterest[0]) if hasattr(data, "openinterest") else 0.0,
+                    "openinterest": (
+                        float(data.openinterest[0]) if hasattr(data, "openinterest") else 0.0
+                    ),
                     "broker_value": broker_value,
                     "broker_cash": broker_cash,
                 }
@@ -755,7 +756,9 @@ class TradeLogger(Observer):
                     ),
                 )
             except Exception as e:
-                logger.debug("Failed to log bar snapshot for %s: %s", getattr(data, "_name", str(data)), e)
+                logger.debug(
+                    "Failed to log bar snapshot for %s: %s", getattr(data, "_name", str(data)), e
+                )
                 continue
 
     def next(self):
@@ -896,12 +899,26 @@ class TradeLogger(Observer):
             else:
                 tick_dict = {}
                 for attr in (
-                    "symbol", "price", "volume", "timestamp", "datetime",
-                    "bid_price", "ask_price", "bid_volume", "ask_volume",
-                    "openinterest", "turnover", "trade_id",
-                    "exchange", "exchange_id", "instrument_id",
-                    "trading_day", "update_time", "update_millisec",
-                    "asset_type", "local_time",
+                    "symbol",
+                    "price",
+                    "volume",
+                    "timestamp",
+                    "datetime",
+                    "bid_price",
+                    "ask_price",
+                    "bid_volume",
+                    "ask_volume",
+                    "openinterest",
+                    "turnover",
+                    "trade_id",
+                    "exchange",
+                    "exchange_id",
+                    "instrument_id",
+                    "trading_day",
+                    "update_time",
+                    "update_millisec",
+                    "asset_type",
+                    "local_time",
                 ):
                     val = getattr(tick, attr, None)
                     if val is not None:
@@ -949,9 +966,20 @@ class TradeLogger(Observer):
             else:
                 bar_dict = {}
                 for attr in (
-                    "symbol", "open", "high", "low", "close", "volume",
-                    "timestamp", "datetime", "interval", "period",
-                    "exchange", "asset_type", "turnover", "openinterest",
+                    "symbol",
+                    "open",
+                    "high",
+                    "low",
+                    "close",
+                    "volume",
+                    "timestamp",
+                    "datetime",
+                    "interval",
+                    "period",
+                    "exchange",
+                    "asset_type",
+                    "turnover",
+                    "openinterest",
                     "trading_day",
                 ):
                     val = getattr(bar, attr, None)

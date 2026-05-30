@@ -17,7 +17,7 @@ Example:
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 
-from .vchartfile import VChartFile as VChartFile
-from .btapistore import BtApiStore as BtApiStore
 from .btapistore import BtApiMissingDependencyError as BtApiMissingDependencyError
 from .btapistore import BtApiProviderNotImplementedError as BtApiProviderNotImplementedError
+from .btapistore import BtApiStore as BtApiStore
+from .vchartfile import VChartFile as VChartFile

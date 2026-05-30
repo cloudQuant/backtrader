@@ -16,6 +16,11 @@ import collections
 import datetime
 
 from backtrader.broker import BrokerBase
+
+# from backtrader.comminfo import CommInfoBase
+from backtrader.order import BuyOrder, Order, SellOrder
+from backtrader.parameters import Float, ParameterDescriptor
+from backtrader.position import Position
 from backtrader.position_modes import (
     POSITION_MODE_DUAL_SIDE,
     POSITION_SIDE_LONG,
@@ -25,11 +30,6 @@ from backtrader.position_modes import (
     normalize_position_side,
     signed_position_size,
 )
-
-# from backtrader.comminfo import CommInfoBase
-from backtrader.order import BuyOrder, Order, SellOrder
-from backtrader.parameters import Float, ParameterDescriptor
-from backtrader.position import Position
 from backtrader.utils.py3 import integer_types, string_types
 
 __all__ = ["BackBroker", "BrokerBack"]
@@ -386,7 +386,9 @@ class BackBroker(BrokerBase):
         self.short_positions = None
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
-        BrokerBase.set_param(self, "position_mode", normalize_position_mode(self.get_param("position_mode")))
+        BrokerBase.set_param(
+            self, "position_mode", normalize_position_mode(self.get_param("position_mode"))
+        )
 
     def init(self):
         """Initialize broker state and internal data structures.
@@ -582,7 +584,10 @@ class BackBroker(BrokerBase):
             return
         if getattr(order.info, "offset", None) != "close":
             return
-        if abs(float(order.executed.remsize or order.size or 0.0)) > abs(float(position.size or 0.0)) + 1e-12:
+        if (
+            abs(float(order.executed.remsize or order.size or 0.0))
+            > abs(float(position.size or 0.0)) + 1e-12
+        ):
             raise ValueError(
                 "Close order size exceeds the available leg position in dual_side mode"
             )
@@ -741,7 +746,6 @@ class BackBroker(BrokerBase):
 
     getcash = get_cash
 
-
     __getattribute__ = object.__getattribute__
 
     def set_cash(self, cash):
@@ -865,7 +869,9 @@ class BackBroker(BrokerBase):
         if self._is_dual_side_mode():
             data_iterable = list(datas) if datas is not None else None
             single_data_request = data_iterable is not None and len(data_iterable) == 1
-            for data in data_iterable or (set(self.long_positions) | set(self.short_positions) | set(self.positions)):
+            for data in data_iterable or (
+                set(self.long_positions) | set(self.short_positions) | set(self.positions)
+            ):
                 long_position = self.long_positions[self._position_storage_key(data)]
                 short_position = self.short_positions[self._position_storage_key(data)]
                 if not long_position.size and not short_position.size:
@@ -968,7 +974,11 @@ class BackBroker(BrokerBase):
         # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
             self._value = self._cash + pos_value_unlever
-            self._fundval = self._value / self._fundshares if self._fundshares else self.get_param("fundstartval")  # update fundvalue
+            self._fundval = (
+                self._value / self._fundshares
+                if self._fundshares
+                else self.get_param("fundstartval")
+            )  # update fundvalue
         # If in fundhist mode
         else:
             # Try to fetch a value
@@ -1345,7 +1355,9 @@ class BackBroker(BrokerBase):
             histnotify=histnotify,
         )
 
-        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         self._ocoize(order, oco)
 
         return self.submit(order, check=_checksubmit)
@@ -1409,7 +1421,9 @@ class BackBroker(BrokerBase):
             histnotify=histnotify,
         )
 
-        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         self._ocoize(order, oco)
 
         return self.submit(order, check=_checksubmit)
@@ -2230,7 +2244,9 @@ class BackBroker(BrokerBase):
                     comminfo = getcommissioninfo(data)
                     close0 = data.close[0]
                     signed_position = self._make_signed_position(position_side, pos)
-                    cash += comminfo.cashadjust(signed_position.size, signed_position.adjbase, close0)
+                    cash += comminfo.cashadjust(
+                        signed_position.size, signed_position.adjbase, close0
+                    )
                     pos.adjbase = close0
             for data in set(self.long_positions) | set(self.short_positions) | set(self.positions):
                 self._sync_net_position(data)

@@ -33,6 +33,7 @@ def is_finite_real(value):
     except TypeError:
         return False
 
+
 # These functions are mainly used for calculating indicators, not used in main code. Commented for now, will review later whether Cython optimization is needed, no immediate need.
 # However, these functions could potentially be optimized using numpy, which provides specific functions for calculating mean and standard deviation
 

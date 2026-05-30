@@ -36,8 +36,11 @@ import matplotlib
 import matplotlib.font_manager as mfontmgr
 import matplotlib.ticker as mticker
 import numpy as np  # guaranteed by matplotlib
+
 if not hasattr(np, "unicode_"):
-    np.unicode_ = np.str_
+    # Runtime shim for numpy>=2.0 which removed np.unicode_ (used by deps).
+    np.unicode_ = np.str_  # noqa: E402
+
 import pandas as pd
 import plotly.figure_factory as ff
 import plotly.graph_objs as go
@@ -45,8 +48,6 @@ import plotly.offline as py
 from dash import html
 from pyecharts import options as opts
 from pyecharts.charts import Bar, EffectScatter, Grid, Kline, Line
-
-logger = logging.getLogger(__name__)
 from pyecharts.commons.utils import JsCode
 from pyecharts.globals import SymbolType
 
@@ -60,6 +61,8 @@ from .formatters import MyDateFormatter, MyVolFormatter
 from .multicursor import MultiCursor
 from .scheme import PlotScheme
 from .utils import tag_box_style
+
+logger = logging.getLogger(__name__)
 
 # from jupyter_plotly_dash import JupyterDash
 
@@ -2484,4 +2487,3 @@ def run_cerebro_and_plot(
         df00.to_csv(result_path + strategy.__name__ + params_str + ".csv", encoding="gbk")
 
         return results
-

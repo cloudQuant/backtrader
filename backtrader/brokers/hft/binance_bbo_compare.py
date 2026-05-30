@@ -65,7 +65,9 @@ _EXCH_EVENT = 1 << 31
 
 def _build_runtime_builder(spec, market_data_path):
     builder = build_quote_builder(spec)
-    requirement = next((item for item in spec.input_requirements if item.name == "precompute_data"), None)
+    requirement = next(
+        (item for item in spec.input_requirements if item.name == "precompute_data"), None
+    )
     if requirement is None:
         return builder
     precompute_path = _resolve_required_input_path(market_data_path, requirement.patterns)
@@ -104,19 +106,29 @@ def _builder_order_qty(builder) -> float:
 
 
 class _NoPartialQueueExchangeModel(QueueExchangeModel):
-    def __init__(self, queue_model_power: float = 2.0, lot_size: float = 1.0, tick_size: float = None):
-        super().__init__(queue_model=ProbQueueModel(power=queue_model_power, lot_size=lot_size), tick_size=tick_size)
+    def __init__(
+        self, queue_model_power: float = 2.0, lot_size: float = 1.0, tick_size: float = None
+    ):
+        super().__init__(
+            queue_model=ProbQueueModel(power=queue_model_power, lot_size=lot_size),
+            tick_size=tick_size,
+        )
 
     def on_new_order(self, order, ob_snapshot):
         if getattr(order, "_fill_role", None) == FillRole.MAKER:
             return OrderResult(action="PENDING")
         result = super().on_new_order(order, ob_snapshot)
         if result.action == "PENDING" and getattr(order, "_fill_role", None) == FillRole.MAKER:
-            levels = getattr(ob_snapshot, "bids", None) if order.isbuy() else getattr(ob_snapshot, "asks", None)
+            levels = (
+                getattr(ob_snapshot, "bids", None)
+                if order.isbuy()
+                else getattr(ob_snapshot, "asks", None)
+            )
             level_qty = self._level_qty(levels, float(order.price))
             order._queue_wait_for_first_visible_level = (
-                order.isbuy() and
-                level_qty <= 1e-12 and float(getattr(order, "_queue_initial_ahead", 0.0)) <= 1e-12
+                order.isbuy()
+                and level_qty <= 1e-12
+                and float(getattr(order, "_queue_initial_ahead", 0.0)) <= 1e-12
             )
         return result
 
@@ -133,7 +145,9 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
                 return float(level_qty)
         return 0.0
 
-    def _trade_reaches_order(self, order_price: float, trade_price: float, is_buy_order: bool) -> bool:
+    def _trade_reaches_order(
+        self, order_price: float, trade_price: float, is_buy_order: bool
+    ) -> bool:
         if self._tick_size is not None and self._tick_size > 0:
             order_tick = round(order_price / self._tick_size)
             trade_tick = round(trade_price / self._tick_size)
@@ -153,12 +167,16 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
             if direction == "buy":
                 if order.isbuy():
                     continue
-                if not self._trade_reaches_order(float(order.price), float(trade_price), is_buy_order=False):
+                if not self._trade_reaches_order(
+                    float(order.price), float(trade_price), is_buy_order=False
+                ):
                     continue
             else:
                 if not order.isbuy():
                     continue
-                if not self._trade_reaches_order(float(order.price), float(trade_price), is_buy_order=True):
+                if not self._trade_reaches_order(
+                    float(order.price), float(trade_price), is_buy_order=True
+                ):
                     continue
 
             remaining = getattr(getattr(order, "executed", None), "remsize", None)
@@ -192,9 +210,15 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
                 continue
             prev_qty = self._level_qty(prev_bids if order.isbuy() else prev_asks, float(price))
             new_qty = self._level_qty(curr_bids if order.isbuy() else curr_asks, float(price))
-            if getattr(order, "_queue_wait_for_first_visible_level", False) and prev_qty <= 1e-12 and new_qty > 1e-12:
+            if (
+                getattr(order, "_queue_wait_for_first_visible_level", False)
+                and prev_qty <= 1e-12
+                and new_qty > 1e-12
+            ):
                 order._queue_ahead = float(new_qty)
-                order._queue_initial_ahead = max(float(getattr(order, "_queue_initial_ahead", 0.0)), float(new_qty))
+                order._queue_initial_ahead = max(
+                    float(getattr(order, "_queue_initial_ahead", 0.0)), float(new_qty)
+                )
                 order._queue_trade_qty = 0.0
                 order._queue_fillable = 0.0
                 order._queue_wait_for_first_visible_level = False
@@ -206,7 +230,9 @@ class _NoPartialQueueExchangeModel(QueueExchangeModel):
 
 
 def _fill_counter(fills: list[ComparisonFill]) -> Counter:
-    return Counter((item.side, round(float(item.price), 8), round(float(item.size), 8)) for item in fills)
+    return Counter(
+        (item.side, round(float(item.price), 8), round(float(item.size), 8)) for item in fills
+    )
 
 
 def _ordered_fill_sequence(fills: list[ComparisonFill]) -> list[tuple[object, ...]]:
@@ -242,9 +268,21 @@ def compare_binance_bbo_strategy(
 ) -> StrategyComparisonResult:
     spec = get_hftbacktest_example_spec(strategy_name)
     interval_ns = int(decision_interval_ns or spec.strategy.interval_ns)
-    maker_fee = float(maker_commission if maker_commission is not None else spec.asset_parameters.get("maker_commission", 0.0))
-    taker_fee = float(taker_commission if taker_commission is not None else spec.asset_parameters.get("taker_commission", 0.0))
-    queue_power = float(queue_model_power if queue_model_power is not None else spec.asset_parameters.get("queue_model_power", 2.0))
+    maker_fee = float(
+        maker_commission
+        if maker_commission is not None
+        else spec.asset_parameters.get("maker_commission", 0.0)
+    )
+    taker_fee = float(
+        taker_commission
+        if taker_commission is not None
+        else spec.asset_parameters.get("taker_commission", 0.0)
+    )
+    queue_power = float(
+        queue_model_power
+        if queue_model_power is not None
+        else spec.asset_parameters.get("queue_model_power", 2.0)
+    )
 
     backtrader_builder = _build_runtime_builder(spec, market_data_path)
     hftbacktest_builder = _build_runtime_builder(spec, market_data_path)
@@ -332,9 +370,21 @@ def run_binance_bbo_backtrader_strategy(
 ) -> EngineResult:
     spec = get_hftbacktest_example_spec(strategy_name)
     interval_ns = int(decision_interval_ns or spec.strategy.interval_ns)
-    maker_fee = float(maker_commission if maker_commission is not None else spec.asset_parameters.get("maker_commission", 0.0))
-    taker_fee = float(taker_commission if taker_commission is not None else spec.asset_parameters.get("taker_commission", 0.0))
-    queue_power = float(queue_model_power if queue_model_power is not None else spec.asset_parameters.get("queue_model_power", 2.0))
+    maker_fee = float(
+        maker_commission
+        if maker_commission is not None
+        else spec.asset_parameters.get("maker_commission", 0.0)
+    )
+    taker_fee = float(
+        taker_commission
+        if taker_commission is not None
+        else spec.asset_parameters.get("taker_commission", 0.0)
+    )
+    queue_power = float(
+        queue_model_power
+        if queue_model_power is not None
+        else spec.asset_parameters.get("queue_model_power", 2.0)
+    )
     builder = _build_runtime_builder(spec, market_data_path)
     decision_anchor_ns = _market_data_exchange_anchor_ns(market_data_path)
     exchange_book = _market_data_exchange_book(market_data_path)
@@ -373,9 +423,21 @@ def run_binance_bbo_hftbacktest_strategy(
     _ = (orderbook_path, tick_path, symbol)
     spec = get_hftbacktest_example_spec(strategy_name)
     interval_ns = int(decision_interval_ns or spec.strategy.interval_ns)
-    maker_fee = float(maker_commission if maker_commission is not None else spec.asset_parameters.get("maker_commission", 0.0))
-    taker_fee = float(taker_commission if taker_commission is not None else spec.asset_parameters.get("taker_commission", 0.0))
-    queue_power = float(queue_model_power if queue_model_power is not None else spec.asset_parameters.get("queue_model_power", 2.0))
+    maker_fee = float(
+        maker_commission
+        if maker_commission is not None
+        else spec.asset_parameters.get("maker_commission", 0.0)
+    )
+    taker_fee = float(
+        taker_commission
+        if taker_commission is not None
+        else spec.asset_parameters.get("taker_commission", 0.0)
+    )
+    queue_power = float(
+        queue_model_power
+        if queue_model_power is not None
+        else spec.asset_parameters.get("queue_model_power", 2.0)
+    )
     builder = _build_runtime_builder(spec, market_data_path)
     return _run_hftbacktest_strategy(
         market_data_path=market_data_path,
@@ -411,7 +473,9 @@ def _run_backtrader_strategy(
         cash=_BACKTRADER_COMPARISON_INITIAL_CASH,
         checksubmit=False,
         allow_partial=False,
-        exchange_model=_NoPartialQueueExchangeModel(queue_model_power=queue_model_power, lot_size=lot_size, tick_size=tick_size),
+        exchange_model=_NoPartialQueueExchangeModel(
+            queue_model_power=queue_model_power, lot_size=lot_size, tick_size=tick_size
+        ),
     )
     broker.setcommission(
         commission=0.0,
@@ -419,11 +483,15 @@ def _run_backtrader_strategy(
         taker_commission=taker_commission,
         name=data.name,
     )
-    local_orderbooks = iter(OrderBookChannel(symbol=symbol, dataname=str(orderbook_path), depth=1).load())
+    local_orderbooks = iter(
+        OrderBookChannel(symbol=symbol, dataname=str(orderbook_path), depth=1).load()
+    )
     next_local_orderbook = next(local_orderbooks, None)
     exchange_events = _iter_exchange_market_events(market_data_path, symbol)
     depth_probe = _create_depth_probe(market_data_path, tick_size=tick_size, lot_size=lot_size)
-    depth_probe_timestamp_ns = int(getattr(depth_probe, "current_timestamp", 0) or 0) if depth_probe is not None else None
+    depth_probe_timestamp_ns = (
+        int(getattr(depth_probe, "current_timestamp", 0) or 0) if depth_probe is not None else None
+    )
     working_orders = {}
     latest_snapshot = None
     latest_exchange_snapshot = None
@@ -435,7 +503,11 @@ def _run_backtrader_strategy(
         event_ns = _event_timestamp_ns(event)
         reached_limit = False
         if next_decision_ns is None:
-            next_decision_ns = int(decision_anchor_ns + interval_ns) if decision_anchor_ns is not None else int(event_ns + interval_ns)
+            next_decision_ns = (
+                int(decision_anchor_ns + interval_ns)
+                if decision_anchor_ns is not None
+                else int(event_ns + interval_ns)
+            )
         while next_decision_ns is not None and event_ns > next_decision_ns:
             decision_ts = float(next_decision_ns / 1_000_000_000.0)
             latest_snapshot, next_local_orderbook = _advance_local_orderbook_snapshot(
@@ -453,20 +525,35 @@ def _run_backtrader_strategy(
             }
             quotes = builder(broker.getposition(data).size, latest_snapshot, builder_context)
             decision_trades = []
-            depth_probe_timestamp_ns, decision_depth = _advance_depth_probe(depth_probe, depth_probe_timestamp_ns, next_decision_ns)
-            finalized_exchange_snapshot = latest_exchange_snapshot if int(getattr(latest_exchange_snapshot, "timestamp_ns", 0) or 0) == int(next_decision_ns) else None
+            depth_probe_timestamp_ns, decision_depth = _advance_depth_probe(
+                depth_probe, depth_probe_timestamp_ns, next_decision_ns
+            )
+            finalized_exchange_snapshot = (
+                latest_exchange_snapshot
+                if int(getattr(latest_exchange_snapshot, "timestamp_ns", 0) or 0)
+                == int(next_decision_ns)
+                else None
+            )
             if finalized_exchange_snapshot is not None:
                 base_submission_snapshot = finalized_exchange_snapshot
-            elif decision_depth is not None and _is_finite_book(float(decision_depth.best_bid), float(decision_depth.best_ask)):
+            elif decision_depth is not None and _is_finite_book(
+                float(decision_depth.best_bid), float(decision_depth.best_ask)
+            ):
                 base_submission_snapshot = SimpleNamespace(
                     bids=[(float(decision_depth.best_bid), float(decision_depth.best_bid_qty))],
                     asks=[(float(decision_depth.best_ask), float(decision_depth.best_ask_qty))],
                 )
             else:
-                base_submission_snapshot = latest_exchange_snapshot or _lookup_exchange_snapshot(exchange_book, next_decision_ns) or latest_snapshot
+                base_submission_snapshot = (
+                    latest_exchange_snapshot
+                    or _lookup_exchange_snapshot(exchange_book, next_decision_ns)
+                    or latest_snapshot
+                )
             submission_snapshot = base_submission_snapshot
             if submission_snapshot is not None:
-                submission_fallback_snapshot = None if finalized_exchange_snapshot is not None else latest_snapshot
+                submission_fallback_snapshot = (
+                    None if finalized_exchange_snapshot is not None else latest_snapshot
+                )
                 submission_snapshot = _augment_submission_snapshot(
                     base_submission_snapshot,
                     decision_depth,
@@ -490,7 +577,9 @@ def _run_backtrader_strategy(
                 reached_limit = True
                 break
         if channel_type == "orderbook":
-            depth_probe_timestamp_ns, event_depth = _advance_depth_probe(depth_probe, depth_probe_timestamp_ns, event_ns)
+            depth_probe_timestamp_ns, event_depth = _advance_depth_probe(
+                depth_probe, depth_probe_timestamp_ns, event_ns
+            )
             orderbook_event = _augment_orderbook_snapshot_for_orders(
                 event,
                 event_depth,
@@ -540,7 +629,7 @@ def _run_hftbacktest_strategy(
 ) -> EngineResult:
     try:
         from hftbacktest import BacktestAsset, HashMapMarketDepthBacktest
-        from hftbacktest.order import BUY, FILLED, GTX, LIMIT, PARTIALLY_FILLED, SELL
+        from hftbacktest.order import BUY, GTX, LIMIT, PARTIALLY_FILLED, SELL
     except Exception as exc:
         raise RuntimeError("hftbacktest is required to run this comparison") from exc
 
@@ -681,14 +770,24 @@ def _iter_exchange_market_events(market_data_path, symbol: str) -> Iterator[tupl
                     timestamp_ns=int(row["exch_ts"]),
                     event_seq=event_seq,
                     symbol=symbol,
-                    previous_bids=[(previous_bid_price, previous_bid_qty)] if previous_bid_price is not None else [],
-                    previous_asks=[(previous_ask_price, previous_ask_qty)] if previous_ask_price is not None else [],
+                    previous_bids=(
+                        [(previous_bid_price, previous_bid_qty)]
+                        if previous_bid_price is not None
+                        else []
+                    ),
+                    previous_asks=(
+                        [(previous_ask_price, previous_ask_qty)]
+                        if previous_ask_price is not None
+                        else []
+                    ),
                     bids=[(bid_price, bid_qty)],
                     asks=[(ask_price, ask_qty)],
                 )
 
 
-def _advance_local_orderbook_snapshot(latest_snapshot, next_orderbook, orderbooks, target_ts: float):
+def _advance_local_orderbook_snapshot(
+    latest_snapshot, next_orderbook, orderbooks, target_ts: float
+):
     while next_orderbook is not None and float(next_orderbook.timestamp) <= float(target_ts):
         latest_snapshot = next_orderbook
         next_orderbook = next(orderbooks, None)
@@ -715,7 +814,9 @@ def _create_depth_probe(market_data_path, tick_size: float, lot_size: float):
     return HashMapMarketDepthBacktest([asset])
 
 
-def _augment_submission_snapshot(base_snapshot, depth, quotes, tick_size: float, fallback_snapshot=None):
+def _augment_submission_snapshot(
+    base_snapshot, depth, quotes, tick_size: float, fallback_snapshot=None
+):
     if base_snapshot is None:
         return None
     if not getattr(base_snapshot, "bids", None) or not getattr(base_snapshot, "asks", None):
@@ -727,7 +828,10 @@ def _augment_submission_snapshot(base_snapshot, depth, quotes, tick_size: float,
         probe_best_bid = float(depth.best_bid)
         probe_best_ask = float(depth.best_ask)
         if _is_finite_book(probe_best_bid, probe_best_ask):
-            depth_usable = abs(base_best_bid - probe_best_bid) <= 1e-12 and abs(base_best_ask - probe_best_ask) <= 1e-12
+            depth_usable = (
+                abs(base_best_bid - probe_best_bid) <= 1e-12
+                and abs(base_best_ask - probe_best_ask) <= 1e-12
+            )
 
     bid_levels = [(float(price), float(qty)) for price, qty in base_snapshot.bids]
     ask_levels = [(float(price), float(qty)) for price, qty in base_snapshot.asks]
@@ -770,7 +874,9 @@ def _augment_submission_snapshot(base_snapshot, depth, quotes, tick_size: float,
     return SimpleNamespace(**payload)
 
 
-def _advance_depth_probe(depth_probe, current_timestamp_ns: Optional[int], target_timestamp_ns: int):
+def _advance_depth_probe(
+    depth_probe, current_timestamp_ns: Optional[int], target_timestamp_ns: int
+):
     if depth_probe is None:
         return current_timestamp_ns, None
     if current_timestamp_ns is None:
@@ -836,7 +942,17 @@ def _augment_orderbook_snapshot_for_orders(base_snapshot, depth, pending_orders,
     return SimpleNamespace(**payload)
 
 
-def _submit_or_replace_quotes(broker, data, working_orders, quotes, order_qty: float, tick_size: float, snapshot, activation_timestamp_ns: int | None = None, activation_event_seq: int | None = None):
+def _submit_or_replace_quotes(
+    broker,
+    data,
+    working_orders,
+    quotes,
+    order_qty: float,
+    tick_size: float,
+    snapshot,
+    activation_timestamp_ns: int | None = None,
+    activation_event_seq: int | None = None,
+):
     working_orders = {
         key: order
         for key, order in working_orders.items()
@@ -856,9 +972,13 @@ def _submit_or_replace_quotes(broker, data, working_orders, quotes, order_qty: f
         if key in working_orders:
             continue
         if side == "buy":
-            order = broker.buy(owner=None, data=data, size=order_qty, price=price, exectype=Order.Limit)
+            order = broker.buy(
+                owner=None, data=data, size=order_qty, price=price, exectype=Order.Limit
+            )
         else:
-            order = broker.sell(owner=None, data=data, size=order_qty, price=price, exectype=Order.Limit)
+            order = broker.sell(
+                owner=None, data=data, size=order_qty, price=price, exectype=Order.Limit
+            )
         order.time_in_force = "GTX"
         if activation_timestamp_ns is not None:
             order._active_after_timestamp_ns = int(activation_timestamp_ns)
@@ -902,7 +1022,13 @@ def _process_backtrader_depth_crosses(broker, data, ob_event) -> None:
     for order in list(broker._orders_by_symbol.get(data.name, [])):
         if getattr(order, "_fill_role", None) != FillRole.MAKER:
             continue
-        if order.status in (Order.Canceled, Order.Rejected, Order.Completed, Order.Expired, Order.Margin):
+        if order.status in (
+            Order.Canceled,
+            Order.Rejected,
+            Order.Completed,
+            Order.Expired,
+            Order.Margin,
+        ):
             continue
         if order.isbuy():
             if best_ask is None or float(order.price) <= float(best_ask):
@@ -920,8 +1046,20 @@ def _process_backtrader_depth_crosses(broker, data, ob_event) -> None:
         broker._remove_pending_order(order)
 
 
-def _replace_hft_orders(hbt, quotes, tick_size: float, order_qty: float, buy_flag, sell_flag, gtx_flag, limit_flag, partial_filled_flag):
-    target_keys = {(side, price_tick) for side, price_tick, _ in _normalize_quotes(quotes, tick_size=tick_size)}
+def _replace_hft_orders(
+    hbt,
+    quotes,
+    tick_size: float,
+    order_qty: float,
+    buy_flag,
+    sell_flag,
+    gtx_flag,
+    limit_flag,
+    partial_filled_flag,
+):
+    target_keys = {
+        (side, price_tick) for side, price_tick, _ in _normalize_quotes(quotes, tick_size=tick_size)
+    }
     active_orders = {}
     values = hbt.orders(0).values()
     while True:
@@ -1038,7 +1176,9 @@ def _market_data_exchange_book(market_data_path):
             data = payload["data"]
             if len(data) == 0:
                 return None
-            mask = (data["ev"] & np.uint64(_EXCH_EVENT) != 0) & (data["ev"] & np.uint64(_DEPTH_EVENT) != 0)
+            mask = (data["ev"] & np.uint64(_EXCH_EVENT) != 0) & (
+                data["ev"] & np.uint64(_DEPTH_EVENT) != 0
+            )
             rows = data[mask]
             if len(rows) == 0:
                 return None

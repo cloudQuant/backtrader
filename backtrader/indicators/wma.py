@@ -70,9 +70,7 @@ class WeightedMovingAverage(MovingAverageBase):
 
         # data oldest-first: data[-(period-1)] .. data[0]
         data = [self.data[-(period - 1 - i)] for i in range(period)]
-        self.lines.wma[0] = coef * math.fsum(
-            weights[i] * data[i] for i in range(period)
-        )
+        self.lines.wma[0] = coef * math.fsum(weights[i] * data[i] for i in range(period))
 
     def once(self, start, end):
         """Calculate WMA in runonce mode.
@@ -99,9 +97,7 @@ class WeightedMovingAverage(MovingAverageBase):
         for i in range(period - 1, min(end, darray_len)):
             window = darray[i - period + 1 : i + 1]
             # window is oldest-first; weights[0]=1.0 weights the oldest value.
-            larray[i] = coef * math.fsum(
-                weights[j] * window[j] for j in range(period)
-            )
+            larray[i] = coef * math.fsum(weights[j] * window[j] for j in range(period))
 
 
 WMA = WeightedMovingAverage

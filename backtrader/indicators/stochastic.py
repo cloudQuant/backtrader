@@ -250,9 +250,7 @@ class StochasticFull(_StochasticBase):
         super().__init__()
         self.lines.percK = self.k
         self.lines.percD = self.d
-        self.lines.percDSlow = self.p.movav(
-            self.lines.percD, period=self.p.period_dslow
-        )
+        self.lines.percDSlow = self.p.movav(self.lines.percD, period=self.p.period_dslow)
 
     def next(self):
         """Calculate Full Stochastic for the current bar.

@@ -103,7 +103,11 @@ class AnnualReturn(Analyzer):
             if dt.year > cur_year:
                 if cur_year >= 0:
                     try:
-                        valid_values = value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end)
+                        valid_values = (
+                            value_start != 0
+                            and math.isfinite(value_start)
+                            and math.isfinite(value_end)
+                        )
                     except TypeError:
                         valid_values = False
                     if not valid_values:
@@ -132,7 +136,9 @@ class AnnualReturn(Analyzer):
         if cur_year >= 0 and cur_year not in self.ret:
             # finish calculating pending data
             try:
-                valid_values = value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end)
+                valid_values = (
+                    value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end)
+                )
             except TypeError:
                 valid_values = False
             if not valid_values:

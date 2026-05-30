@@ -10,10 +10,10 @@ import logging
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
 from ..events import BarEvent
-from .livefeed import LiveFeedBase
 from ..feed import DataBase
-from ..utils import date2num
 from ..stores.btapistore import _normalize_bar
+from ..utils import date2num
+from .livefeed import LiveFeedBase
 
 logger = logging.getLogger(__name__)
 
@@ -274,7 +274,9 @@ class BtApiFeed(DataBase, LiveFeedBase):
         bucket_start = self._get_bucket_start(tick_dt)
         current = self._bar_builder
         if current is None:
-            self._bar_builder = self._new_bar_builder(bucket_start, tick, price, volume, openinterest)
+            self._bar_builder = self._new_bar_builder(
+                bucket_start, tick, price, volume, openinterest
+            )
             return
 
         if bucket_start == current["bucket_start"]:

@@ -25,20 +25,19 @@ Example:
     >>> cerebro.adddata(data)
 """
 
+from .btapifeed import BtApiFeed as BtApiFeed
 from .btcsv import *
+from .chainer import Chainer as Chainer
 from .csvgeneric import *
 from .influxfeed import *
+from .mixed_channel import MixedChannel as MixedChannel
+from .mixed_channel import build_mixed_channel as build_mixed_channel
 from .mt4csv import *
 from .pandafeed import *
 from .quandl import *
+from .rollover import RollOver as RollOver
 from .sierrachart import *
 from .vchart import *
 from .vchartcsv import *
-from .yahoo import *
-
-from .chainer import Chainer as Chainer
-from .mixed_channel import build_mixed_channel as build_mixed_channel
-from .mixed_channel import MixedChannel as MixedChannel
-from .rollover import RollOver as RollOver
 from .vchartfile import VChartFile as VChartFile
-from .btapifeed import BtApiFeed as BtApiFeed
+from .yahoo import *

@@ -39,9 +39,7 @@ def normalize_position_mode(mode):
     """Normalize and validate a broker position mode."""
     mode = POSITION_MODE_NET if mode in (None, "") else str(mode).strip().lower()
     if mode not in _VALID_POSITION_MODES:
-        raise ValueError(
-            f"Unsupported position_mode {mode!r}. Expected 'net' or 'dual_side'"
-        )
+        raise ValueError(f"Unsupported position_mode {mode!r}. Expected 'net' or 'dual_side'")
     return mode
 
 
@@ -52,9 +50,7 @@ def normalize_position_side(side):
 
     side = str(side).strip().lower()
     if side not in _VALID_POSITION_SIDES:
-        raise ValueError(
-            f"Unsupported position_side {side!r}. Expected 'long' or 'short'"
-        )
+        raise ValueError(f"Unsupported position_side {side!r}. Expected 'long' or 'short'")
     return side
 
 
@@ -65,9 +61,7 @@ def normalize_position_offset(offset):
 
     offset = str(offset).strip().lower()
     if offset not in _VALID_POSITION_OFFSETS:
-        raise ValueError(
-            f"Unsupported offset {offset!r}. Expected 'open' or 'close'"
-        )
+        raise ValueError(f"Unsupported offset {offset!r}. Expected 'open' or 'close'")
     return offset
 
 
@@ -77,9 +71,7 @@ def validate_dual_side_action(isbuy, position_side, offset):
     offset = normalize_position_offset(offset)
 
     if position_side is None or offset is None:
-        raise ValueError(
-            "dual_side mode requires both position_side and offset to be specified"
-        )
+        raise ValueError("dual_side mode requires both position_side and offset to be specified")
 
     if (bool(isbuy), position_side, offset) not in _VALID_DUAL_SIDE_COMBOS:
         action = "buy" if isbuy else "sell"

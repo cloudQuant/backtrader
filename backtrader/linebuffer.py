@@ -449,7 +449,14 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         return array.array(
             "d",
-            (0.0 if isinstance(value, float) and not math.isfinite(value) and value == value else value for value in values),
+            (
+                (
+                    0.0
+                    if isinstance(value, float) and not math.isfinite(value) and value == value
+                    else value
+                )
+                for value in values
+            ),
         )
 
     # Return the value at the actual index 0 of the array
@@ -488,7 +495,11 @@ class LineBuffer(LineSingle, LineRootMixin):
         return array.array(
             "d",
             (
-                0.0 if isinstance(value, float) and not math.isfinite(value) and value == value else value
+                (
+                    0.0
+                    if isinstance(value, float) and not math.isfinite(value) and value == value
+                    else value
+                )
                 for value in values
             ),
         )
@@ -829,7 +840,14 @@ class LineBuffer(LineSingle, LineRootMixin):
         else:
             values = list(self.array[start:end])
 
-        return [0.0 if isinstance(value, float) and not math.isfinite(value) and value == value else value for value in values]
+        return [
+            (
+                0.0
+                if isinstance(value, float) and not math.isfinite(value) and value == value
+                else value
+            )
+            for value in values
+        ]
 
     # Set array values for each binding when running in once mode
     def oncebinding(self):
@@ -1410,8 +1428,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 for arg in args:
                     if (
                         isinstance(arg, LineRoot)
-                        or
-                        hasattr(arg, "lines")
+                        or hasattr(arg, "lines")
                         or hasattr(arg, "_name")
                         or str(type(arg).__name__).endswith("Data")
                     ):
@@ -1431,8 +1448,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         for i, arg in enumerate(args):
             if (
                 isinstance(arg, LineRoot)
-                or
-                hasattr(arg, "lines")
+                or hasattr(arg, "lines")
                 or hasattr(arg, "_name")
                 or str(type(arg).__name__).endswith("Data")
             ):
@@ -2122,7 +2138,9 @@ class _LineForward(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug("LineOwnOperation.once fallback triggered at index %d", i, exc_info=True)
+                logger.debug(
+                    "LineOwnOperation.once fallback triggered at index %d", i, exc_info=True
+                )
                 # If operation fails, store 0.0
                 dst[i] = 0.0
 
@@ -2195,7 +2213,9 @@ class LinesOperation(LineActions):
         self._next_operands = tuple(
             operand
             for operand in (self.a, self.b)
-            if operand is not self and isinstance(operand, LineActions) and hasattr(operand, "_next")
+            if operand is not self
+            and isinstance(operand, LineActions)
+            and hasattr(operand, "_next")
         )
 
     @staticmethod
@@ -2536,7 +2556,9 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug("LinesOperation._once_op fallback triggered at index %d", i, exc_info=True)
+                logger.debug(
+                    "LinesOperation._once_op fallback triggered at index %d", i, exc_info=True
+                )
                 # If operation fails, store NaN for indicator semantics
                 dst[i] = float("nan")
 
@@ -2579,7 +2601,9 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug("LinesOperation._once_time_op fallback triggered at index %d", i, exc_info=True)
+                logger.debug(
+                    "LinesOperation._once_time_op fallback triggered at index %d", i, exc_info=True
+                )
                 dst[i] = float("nan")
 
     def _once_val_op(self, start, end):
@@ -2617,7 +2641,9 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug("LinesOperation._once_val_op fallback triggered at index %d", i, exc_info=True)
+                logger.debug(
+                    "LinesOperation._once_val_op fallback triggered at index %d", i, exc_info=True
+                )
                 dst[i] = float("nan")
 
     def _once_val_op_r(self, start, end):
@@ -2655,7 +2681,9 @@ class LinesOperation(LineActions):
 
                 dst[i] = result
             except Exception:
-                logger.debug("LinesOperation._once_val_op_r fallback triggered at index %d", i, exc_info=True)
+                logger.debug(
+                    "LinesOperation._once_val_op_r fallback triggered at index %d", i, exc_info=True
+                )
                 dst[i] = float("nan")
 
 

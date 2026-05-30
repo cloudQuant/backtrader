@@ -248,9 +248,8 @@ class CommInfoBase(ParameterizedBase):
         if accepts_role is None:
             try:
                 parameters = inspect.signature(self._getcommission).parameters
-                accepts_role = (
-                    "role" in parameters
-                    or any(param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values())
+                accepts_role = "role" in parameters or any(
+                    param.kind == inspect.Parameter.VAR_KEYWORD for param in parameters.values()
                 )
             except (TypeError, ValueError):
                 accepts_role = True

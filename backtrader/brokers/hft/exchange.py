@@ -3,7 +3,7 @@ from enum import Enum
 
 from backtrader.order import Order
 
-from .queue import NoQueueModel, ProbQueueModel
+from .queue import ProbQueueModel
 
 
 class FillRole(Enum):
@@ -72,8 +72,16 @@ class SimpleExchangeModel(ExchangeModel):
 
 
 class QueueExchangeModel(SimpleExchangeModel):
-    def __init__(self, queue_model=None, queue_model_power: float = 2.0, lot_size: float = 1.0, tick_size: float = None):
-        self._queue_model = queue_model or ProbQueueModel(power=queue_model_power, lot_size=lot_size)
+    def __init__(
+        self,
+        queue_model=None,
+        queue_model_power: float = 2.0,
+        lot_size: float = 1.0,
+        tick_size: float = None,
+    ):
+        self._queue_model = queue_model or ProbQueueModel(
+            power=queue_model_power, lot_size=lot_size
+        )
         self._tick_size = float(tick_size) if tick_size is not None else None
 
     def on_new_order(self, order, ob_snapshot):
@@ -108,7 +116,9 @@ class QueueExchangeModel(SimpleExchangeModel):
             if trade_price is None or order_price is None:
                 continue
             if self._tick_size is not None and self._tick_size > 0:
-                if round(float(trade_price) / self._tick_size) != round(float(order_price) / self._tick_size):
+                if round(float(trade_price) / self._tick_size) != round(
+                    float(order_price) / self._tick_size
+                ):
                     continue
             elif float(trade_price) != float(order_price):
                 continue
@@ -127,7 +137,9 @@ class QueueExchangeModel(SimpleExchangeModel):
         def level_qty(levels, price):
             for level_price, level_qty_value in levels:
                 if self._tick_size is not None and self._tick_size > 0:
-                    if round(float(level_price) / self._tick_size) == round(float(price) / self._tick_size):
+                    if round(float(level_price) / self._tick_size) == round(
+                        float(price) / self._tick_size
+                    ):
                         return float(level_qty_value)
                 elif float(level_price) == float(price):
                     return float(level_qty_value)

@@ -18,8 +18,6 @@ Example:
                 self.buy()
 """
 
-import math
-
 from . import MovingAverageBase
 
 

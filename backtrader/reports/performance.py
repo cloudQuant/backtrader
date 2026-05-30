@@ -113,9 +113,7 @@ class PerformanceCalculator:
                 for value in (result_won_trades, result_lost_trades)
             ):
                 if result_lost_trades != 0:
-                    metrics["profit_factor"] = abs(
-                        result_won_trades / result_lost_trades
-                    )
+                    metrics["profit_factor"] = abs(result_won_trades / result_lost_trades)
             elif result_won_trades is not None or result_lost_trades is not None:
                 logger.debug(
                     "Skipping profit_factor calculation for invalid trade PnL totals: won=%s, lost=%s",
@@ -147,9 +145,7 @@ class PerformanceCalculator:
             total_return_decimal = metrics["total_return"] / 100
             compound_ratio = 1 + total_return_decimal
             if math.isfinite(compound_ratio) and compound_ratio > 0:
-                metrics["annual_return"] = 100 * (
-                    compound_ratio ** (365.25 / bt_period_days) - 1
-                )
+                metrics["annual_return"] = 100 * (compound_ratio ** (365.25 / bt_period_days) - 1)
             else:
                 logger.debug(
                     "Skipping annual_return calculation for invalid compound ratio: %s",
@@ -191,9 +187,7 @@ class PerformanceCalculator:
                 and math.isfinite(max_pct_drawdown)
                 and max_pct_drawdown > 0
             ):
-                metrics["calmar_ratio"] = abs(
-                    annual_return / max_pct_drawdown
-                )
+                metrics["calmar_ratio"] = abs(annual_return / max_pct_drawdown)
             else:
                 logger.debug(
                     "Skipping calmar_ratio calculation for invalid inputs: annual_return=%s, max_pct_drawdown=%s",
@@ -401,7 +395,9 @@ class PerformanceCalculator:
 
                     price = data.open[idx]
                     if not isinstance(price, (int, float)) or not math.isfinite(price):
-                        logger.debug("Skipping invalid buy-and-hold price at idx %d: %s", idx, price)
+                        logger.debug(
+                            "Skipping invalid buy-and-hold price at idx %d: %s", idx, price
+                        )
                         values.append(values[-1] if values else 100)
                         continue
 

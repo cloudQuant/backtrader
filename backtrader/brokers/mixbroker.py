@@ -1,15 +1,15 @@
 """Mixed-mode broker for tick-driven mid-frequency coordination.
- 
- MixBroker keeps TickBroker as the only execution path for orders while
- maintaining low-frequency bar state and high-frequency order book windows
- for strategy-side queries.
- 
- Example:
-     Using MixBroker with Cerebro:
-         cerebro = bt.Cerebro()
-         cerebro.setbroker(MixBroker(cash=100000))
- """
- 
+
+MixBroker keeps TickBroker as the only execution path for orders while
+maintaining low-frequency bar state and high-frequency order book windows
+for strategy-side queries.
+
+Example:
+    Using MixBroker with Cerebro:
+        cerebro = bt.Cerebro()
+        cerebro.setbroker(MixBroker(cash=100000))
+"""
+
 import collections
 import copy
 import logging

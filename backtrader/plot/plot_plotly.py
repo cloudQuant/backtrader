@@ -19,9 +19,9 @@ from plotly.subplots import make_subplots
 from ..parameters import ParameterDescriptor, ParameterizedBase
 from ..utils.date import num2date
 from ..utils.py3 import range
+from .scheme import PlotScheme
 
 logger = logging.getLogger(__name__)
-from .scheme import PlotScheme
 
 # Tableau color schemes
 TABLEAU10 = [

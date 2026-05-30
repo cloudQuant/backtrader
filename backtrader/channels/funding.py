@@ -189,7 +189,8 @@ class FundingRateChannel(DataChannel):
                         asset_type=data.get("asset_type", "swap"),
                         rate=_parse_required_float(data["rate"]),
                         mark_price=_parse_required_float(data["mark_price"]),
-                        next_funding_time=_parse_optional_float(data.get("next_funding_time")) or 0.0,
+                        next_funding_time=_parse_optional_float(data.get("next_funding_time"))
+                        or 0.0,
                         predicted_rate=_parse_optional_float(data.get("predicted_rate")) or 0.0,
                     )
                     yield fe

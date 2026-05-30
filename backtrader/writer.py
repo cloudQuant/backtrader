@@ -18,9 +18,8 @@ Example:
 import io
 import itertools
 import sys
-from typing import List, Optional, Union, cast
-
 from collections.abc import Iterable
+from typing import List, Optional, Union, cast
 
 from .lineseries import LineSeries
 from .parameters import ParameterizedBase
@@ -102,9 +101,7 @@ class WriterFile(WriterBase):
         if not hasattr(self, "out") or not self.out:
             # If out parameter is None, set out to standard output, and close_out to False
             if self.p.out is None:
-                self.out = cast(
-                    Union[io.TextIOBase, io.TextIOWrapper], sys.stdout
-                )
+                self.out = cast(Union[io.TextIOBase, io.TextIOWrapper], sys.stdout)
                 self.close_out = False
             # If self.p.out is a string_types, open file in write mode, close_out needs to be True
             elif isinstance(self.p.out, string_types):
@@ -115,9 +112,7 @@ class WriterFile(WriterBase):
                 self.close_out = True
             # If self.p.out is neither None nor string format, self.out equals self.p.out
             else:
-                self.out = cast(
-                    Union[io.TextIOBase, io.TextIOWrapper], self.p.out
-                )
+                self.out = cast(Union[io.TextIOBase, io.TextIOWrapper], self.p.out)
                 self.close_out = self.p.close_out
 
     # Start

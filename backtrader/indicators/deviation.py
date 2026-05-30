@@ -93,7 +93,9 @@ class StandardDeviation(Indicator):
         ):
             return "smoothed"
 
-        if names.intersection({"ExponentialMovingAverage", "EMA", "MovingAverageExponential", "Exponential"}):
+        if names.intersection(
+            {"ExponentialMovingAverage", "EMA", "MovingAverageExponential", "Exponential"}
+        ):
             return "exponential"
 
         return "simple"
@@ -127,7 +129,10 @@ class StandardDeviation(Indicator):
         if alpha is None or self._meansq_prev is None:
             meansq = math.fsum(value * value for value in values) / period
         else:
-            meansq = self._meansq_prev * (1.0 - alpha) + float(self.data[0]) * float(self.data[0]) * alpha
+            meansq = (
+                self._meansq_prev * (1.0 - alpha)
+                + float(self.data[0]) * float(self.data[0]) * alpha
+            )
 
         if self._use_external_mean:
             mean = float(self.data1[0])
@@ -196,7 +201,7 @@ class StandardDeviation(Indicator):
         prev_meansq = None
         for i in range(period - 1, actual_end):
             if i == period - 1:
-                window = darray[0 : period]
+                window = darray[0:period]
                 if len(window) != period or any(value != value for value in window):
                     larray[i] = nan_val
                     continue

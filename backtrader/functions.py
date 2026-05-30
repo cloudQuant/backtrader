@@ -425,36 +425,36 @@ class If(Logic):
         def _check_ref(obj, depth=0):
             if depth > 10:
                 return False
-            if hasattr(obj, 'a'):
+            if hasattr(obj, "a"):
                 # _LineDelay: check if obj.a is one of our bound lines
-                if id(getattr(obj, 'a', None)) in bound_lines:
+                if id(getattr(obj, "a", None)) in bound_lines:
                     return True
                 # Check if obj.a's array is the same as a bound line's array
-                obj_a = getattr(obj, 'a', None)
+                obj_a = getattr(obj, "a", None)
                 if obj_a is not None:
                     for binding in self.bindings:
-                        if hasattr(obj_a, 'array') and hasattr(binding, 'array'):
+                        if hasattr(obj_a, "array") and hasattr(binding, "array"):
                             if obj_a.array is binding.array:
                                 return True
                     if _check_ref(obj_a, depth + 1):
                         return True
-            if hasattr(obj, 'b'):
-                obj_b = getattr(obj, 'b', None)
+            if hasattr(obj, "b"):
+                obj_b = getattr(obj, "b", None)
                 if obj_b is not None:
                     if id(obj_b) in bound_lines:
                         return True
-                    if hasattr(obj_b, 'array'):
+                    if hasattr(obj_b, "array"):
                         for binding in self.bindings:
-                            if hasattr(binding, 'array') and obj_b.array is binding.array:
+                            if hasattr(binding, "array") and obj_b.array is binding.array:
                                 return True
                     if _check_ref(obj_b, depth + 1):
                         return True
-            if hasattr(obj, 'args'):
-                for arg in getattr(obj, 'args', []):
+            if hasattr(obj, "args"):
+                for arg in getattr(obj, "args", []):
                     if _check_ref(arg, depth + 1):
                         return True
-            if hasattr(obj, 'cond'):
-                if _check_ref(getattr(obj, 'cond', None), depth + 1):
+            if hasattr(obj, "cond"):
+                if _check_ref(getattr(obj, "cond", None), depth + 1):
                     return True
             return False
 
@@ -494,7 +494,7 @@ class If(Logic):
         # operands which are not always scheduled separately by LineIterator.
         # Compute them explicitly before reading their arrays below.
         for operand in (self.cond, self.a, self.b):
-            if hasattr(operand, 'once') and len(getattr(operand, 'array', [])) < end:
+            if hasattr(operand, "once") and len(getattr(operand, "array", [])) < end:
                 try:
                     operand.once(0, end)
                 except Exception as e:
@@ -515,14 +515,14 @@ class If(Logic):
 
         # Ensure operand arrays are computed first
         # The condition (LinesOperation) needs its once() called
-        if hasattr(self.cond, 'once') and len(getattr(self.cond, 'array', [])) < end:
+        if hasattr(self.cond, "once") and len(getattr(self.cond, "array", [])) < end:
             try:
                 self.cond.once(start, end)
             except Exception:
                 pass
 
         # The 'a' operand (could be constant or LinesOperation)
-        if hasattr(self.a, 'once') and len(getattr(self.a, 'array', [])) < end:
+        if hasattr(self.a, "once") and len(getattr(self.a, "array", [])) < end:
             try:
                 self.a.once(start, end)
             except Exception:
@@ -530,10 +530,10 @@ class If(Logic):
 
         # The 'b' operand - for self-referencing, this is typically another bt.If
         # We need to compute it BUT it contains the self-reference, so we handle it specially
-        if hasattr(self.b, 'once') and len(getattr(self.b, 'array', [])) < end:
+        if hasattr(self.b, "once") and len(getattr(self.b, "array", [])) < end:
             # Check if b itself has self-reference (nested bt.If with direction(-1))
             # If so, we need to compute b bar-by-bar too
-            if hasattr(self.b, '_has_self_reference') and self.b._has_self_reference():
+            if hasattr(self.b, "_has_self_reference") and self.b._has_self_reference():
                 # Don't call b.once() - we'll compute b[i] dynamically
                 pass
             else:
@@ -543,9 +543,9 @@ class If(Logic):
                     pass
 
         # Get arrays for direct access where possible
-        cond_array = getattr(self.cond, 'array', [])
+        cond_array = getattr(self.cond, "array", [])
         cond_has_array = len(cond_array) >= end
-        a_array = getattr(self.a, 'array', [])
+        a_array = getattr(self.a, "array", [])
         a_has_array = len(a_array) >= end
         # Check if a is a constant (_LineDelay wrapping PseudoArray)
         a_is_constant = False
@@ -557,7 +557,7 @@ class If(Logic):
             except Exception:
                 pass
 
-        b_array = getattr(self.b, 'array', [])
+        b_array = getattr(self.b, "array", [])
         b_has_array = len(b_array) >= end
 
         for i in range(start, end):
@@ -566,7 +566,9 @@ class If(Logic):
                 cond_val = cond_array[i]
             else:
                 try:
-                    cond_val = self.cond.array[i] if i < len(getattr(self.cond, 'array', [])) else 0.0
+                    cond_val = (
+                        self.cond.array[i] if i < len(getattr(self.cond, "array", [])) else 0.0
+                    )
                 except (IndexError, TypeError):
                     cond_val = 0.0
 
@@ -582,7 +584,7 @@ class If(Logic):
                     val = a_array[i]
                 else:
                     try:
-                        val = self.a.array[i] if i < len(getattr(self.a, 'array', [])) else 0.0
+                        val = self.a.array[i] if i < len(getattr(self.a, "array", [])) else 0.0
                     except (IndexError, TypeError):
                         val = 0.0
             else:
@@ -616,7 +618,7 @@ class If(Logic):
         if isinstance(operand, If):
             # Recursively evaluate the nested If
             # Get condition
-            cond_arr = getattr(operand.cond, 'array', [])
+            cond_arr = getattr(operand.cond, "array", [])
             if i < len(cond_arr):
                 cond_val = cond_arr[i]
             else:
@@ -632,15 +634,15 @@ class If(Logic):
                 return self._eval_operand_at(operand.b, i)
 
         # For _LineDelay, read from its source array at offset
-        if hasattr(operand, 'ago') and hasattr(operand, 'a'):
-            src_array = getattr(operand.a, 'array', [])
+        if hasattr(operand, "ago") and hasattr(operand, "a"):
+            src_array = getattr(operand.a, "array", [])
             src_idx = i + operand.ago
             if 0 <= src_idx < len(src_array):
                 return src_array[src_idx]
             return 0.0
 
         # For arrays, direct access
-        arr = getattr(operand, 'array', [])
+        arr = getattr(operand, "array", [])
         if i < len(arr):
             return arr[i]
 

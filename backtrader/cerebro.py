@@ -36,15 +36,7 @@ import datetime
 import itertools
 import logging
 import multiprocessing
-import traceback
 from datetime import timezone
-
-logger = logging.getLogger(__name__)
-
-try:  # For new Python versions
-    collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
-except AttributeError:  # For old Python versions
-    collectionsAbc = collections  # collections.Iterable
 
 from . import errors, feeds, indicator, linebuffer, observers
 from .brokers import BackBroker
@@ -57,6 +49,13 @@ from .tradingcal import PandasMarketCalendar, TradingCalendarBase
 from .utils import OrderedDict, date2num, num2date, tzparse
 from .utils.py3 import integer_types, map, range, string_types, zip
 from .writer import WriterFile
+
+logger = logging.getLogger(__name__)
+
+try:  # For new Python versions
+    collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
+except AttributeError:  # For old Python versions
+    collectionsAbc = collections  # collections.Iterable
 
 # Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
 UTC = timezone.utc
@@ -2186,7 +2185,8 @@ class Cerebro(ParameterizedBase):
                     if dt0 < 1:
                         logger.warning(
                             "Invalid datetime value dt0=%s detected in "
-                            "_runnext, aborting run loop", dt0
+                            "_runnext, aborting run loop",
+                            dt0,
                         )
                         return
                     # Get master data and time
@@ -2345,7 +2345,6 @@ class Cerebro(ParameterizedBase):
                 if self._event_stop:  # stop if requested
                     return
                 self._next_writers(runstrats)
-
 
     # Check timer
     def _check_timers(self, runstrats, dt0, cheat=False):

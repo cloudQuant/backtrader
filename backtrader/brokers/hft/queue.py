@@ -20,7 +20,9 @@ class NoQueueModel:
 
     def update_on_depth(self, order, prev_qty, new_qty):
         _ = prev_qty
-        order._queue_ahead = min(max(0.0, float(getattr(order, "_queue_ahead", 0.0))), float(new_qty))
+        order._queue_ahead = min(
+            max(0.0, float(getattr(order, "_queue_ahead", 0.0))), float(new_qty)
+        )
         order._queue_trade_qty = 0.0
 
     def is_filled(self, order):

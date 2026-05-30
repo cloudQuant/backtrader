@@ -35,7 +35,9 @@ class ConstantLatencyModel(LatencyModel):
 class IntpLatencyModel(LatencyModel):
     def __init__(self, latency_data, latency_offset=0.0):
         self._offset = float(latency_offset)
-        rows = sorted((float(row[0]), float(row[1]), float(row[2]), float(row[3])) for row in latency_data)
+        rows = sorted(
+            (float(row[0]), float(row[1]), float(row[2]), float(row[3])) for row in latency_data
+        )
         self._ts = [row[0] for row in rows]
         self._feed = [row[1] for row in rows]
         self._entry = [row[2] for row in rows]

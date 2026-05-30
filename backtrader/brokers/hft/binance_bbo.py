@@ -44,7 +44,9 @@ _LATENCY_DTYPE = np.dtype(
     align=True,
 )
 
-_FILENAME_RE = re.compile(r"^(?P<symbol>[A-Z0-9]+)-(?P<kind>[A-Za-z]+)-(?P<date>\d{4}-\d{2}-\d{2})\.zip$")
+_FILENAME_RE = re.compile(
+    r"^(?P<symbol>[A-Z0-9]+)-(?P<kind>[A-Za-z]+)-(?P<date>\d{4}-\d{2}-\d{2})\.zip$"
+)
 
 
 @dataclass(frozen=True)
@@ -368,7 +370,9 @@ def _lookup_latency_ms(timestamp_ms: int, lookup_ts: list[int], lookup_latency: 
     return lookup_latency[index]
 
 
-def _lookup_book_row(timestamp_ms: int, book_event_times: list[int], book_rows: list[_BookRow]) -> _BookRow:
+def _lookup_book_row(
+    timestamp_ms: int, book_event_times: list[int], book_rows: list[_BookRow]
+) -> _BookRow:
     index = bisect.bisect_right(book_event_times, timestamp_ms) - 1
     if index < 0:
         return book_rows[0]
@@ -438,7 +442,8 @@ def _correct_event_order(base_array: np.ndarray) -> np.ndarray:
                 continue
 
             if exch_row["exch_ts"] < local_row["exch_ts"] or (
-                exch_row["exch_ts"] == local_row["exch_ts"] and exch_row["local_ts"] < local_row["local_ts"]
+                exch_row["exch_ts"] == local_row["exch_ts"]
+                and exch_row["local_ts"] < local_row["local_ts"]
             ):
                 output[out_pos] = exch_row
                 output[out_pos]["ev"] = int(output[out_pos]["ev"]) | EXCH_EVENT

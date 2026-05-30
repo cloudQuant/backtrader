@@ -468,7 +468,9 @@ def _resolve_bt_api_client(provider: str = "btapi"):
         if client_cls is not None:
             return client_cls
 
-    raise BtApiMissingDependencyError("bt_api_py is installed but no supported client class was found")
+    raise BtApiMissingDependencyError(
+        "bt_api_py is installed but no supported client class was found"
+    )
 
 
 def _create_ctp_wrapper_class():
@@ -707,12 +709,16 @@ def _create_ctp_wrapper_class():
 
             return list(self._positions_cache)
 
-        def fetch_bars(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
+        def fetch_bars(
+            self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
+        ):
             """Fetch historical bars (not implemented for CTP live)."""
             # CTP live doesn't support historical data in basic mode
             return []
 
-        def fetch_ohlcv(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
+        def fetch_ohlcv(
+            self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
+        ):
             """Fetch OHLCV data (not implemented for CTP live)."""
             # CTP live doesn't support historical data in basic mode
             return []
@@ -740,20 +746,19 @@ def _create_ctp_wrapper_class():
             if self.trader_client and self.trader_client.is_ready:
                 try:
                     import threading
+
                     result_event = threading.Event()
                     result_holder = {}
-
-                    original_cb = getattr(self.trader_client, '_on_rsp_qry_instrument', None)
 
                     def _on_instrument(inst_field, rsp_info, request_id, is_last):
                         try:
                             if inst_field is not None:
                                 iid = _safe_text_attr(inst_field, "InstrumentID")
-                                pt = getattr(inst_field, 'PriceTick', 0.0)
+                                pt = getattr(inst_field, "PriceTick", 0.0)
                                 if pt > 0:
                                     self._price_tick_cache[iid] = pt
                                     if iid == instrument:
-                                        result_holder['price_tick'] = pt
+                                        result_holder["price_tick"] = pt
                         except Exception as e:
                             logger.debug("Failed to process instrument response: %s", e)
                         if is_last:
@@ -763,9 +768,7 @@ def _create_ctp_wrapper_class():
                     qry = CThostFtdcQryInstrumentField()
                     qry.InstrumentID = instrument
                     self.trader_client._req_id += 1
-                    self.trader_client._api.ReqQryInstrument(
-                        qry, self.trader_client._req_id
-                    )
+                    self.trader_client._api.ReqQryInstrument(qry, self.trader_client._req_id)
                     result_event.wait(timeout=3)
 
                     if instrument in self._price_tick_cache:
@@ -814,7 +817,9 @@ def _create_ctp_wrapper_class():
             if offset_flag is None:
                 raise BtApiStoreError(f"Unsupported CTP offset flag: {offset}")
 
-            order_ref = str(payload.get("order_ref") or payload.get("bt_order_ref") or self._next_order_ref())
+            order_ref = str(
+                payload.get("order_ref") or payload.get("bt_order_ref") or self._next_order_ref()
+            )
             volume = _coerce_int(payload.get("size"), 0)
             if volume <= 0:
                 raise BtApiStoreError("CTP order volume must be positive")
@@ -857,8 +862,8 @@ def _create_ctp_wrapper_class():
                     limit_price = last_price + slippage
                 else:
                     limit_price = max(last_price - slippage, price_tick)
-                field.OrderPriceType = "2"   # LimitPrice
-                field.TimeCondition = "3"    # GFD (good for day)
+                field.OrderPriceType = "2"  # LimitPrice
+                field.TimeCondition = "3"  # GFD (good for day)
                 field.VolumeCondition = "1"  # AnyVolume
                 field.LimitPrice = round(limit_price, 4)
                 price = field.LimitPrice
@@ -928,7 +933,9 @@ def _create_ctp_wrapper_class():
                 field.OrderSysID = order_sys_id
 
             field.OrderRef = str(pending.get("order_ref") or ref)
-            field.FrontID = int(pending.get("front_id") or getattr(self.trader_client, "_front_id", 0) or 0)
+            field.FrontID = int(
+                pending.get("front_id") or getattr(self.trader_client, "_front_id", 0) or 0
+            )
             field.SessionID = int(
                 pending.get("session_id") or getattr(self.trader_client, "_session_id", 0) or 0
             )
@@ -967,7 +974,9 @@ def _create_ctp_wrapper_class():
             exchange_id = str(getattr(payload, "ExchangeID", "") or "").strip().upper()
             total_volume = _coerce_float(getattr(payload, "Volume", None))
             previous_total = self._last_total_volume.get(instrument)
-            tick_volume = max(total_volume - previous_total, 0.0) if previous_total is not None else 0.0
+            tick_volume = (
+                max(total_volume - previous_total, 0.0) if previous_total is not None else 0.0
+            )
             self._last_total_volume[instrument] = total_volume
 
             bid_price = _coerce_float(getattr(payload, "BidPrice1", None), 0.0) or None
@@ -1081,13 +1090,19 @@ def _create_ctp_wrapper_class():
                 "data_name": pending.get("data_name")
                 or _coerce_text(details.get("InstrumentID") or details.get("ExchangeInstID") or ""),
                 "instrument": _coerce_text(details.get("InstrumentID") or ""),
-                "exchange_id": str(details.get("ExchangeID") or pending.get("exchange_id") or "").strip(),
-                "front_id": _coerce_int(details.get("FrontID"), _coerce_int(pending.get("front_id"), 0)),
+                "exchange_id": str(
+                    details.get("ExchangeID") or pending.get("exchange_id") or ""
+                ).strip(),
+                "front_id": _coerce_int(
+                    details.get("FrontID"), _coerce_int(pending.get("front_id"), 0)
+                ),
                 "session_id": _coerce_int(
                     details.get("SessionID"),
                     _coerce_int(pending.get("session_id"), 0),
                 ),
-                "status": _CTP_ORDER_STATUS_MAP.get(str(details.get("OrderStatus") or "a"), "submitted"),
+                "status": _CTP_ORDER_STATUS_MAP.get(
+                    str(details.get("OrderStatus") or "a"), "submitted"
+                ),
                 "submit_status": str(details.get("OrderSubmitStatus") or ""),
                 "status_msg": str(details.get("StatusMsg") or ""),
                 "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
@@ -1095,7 +1110,9 @@ def _create_ctp_wrapper_class():
                     str(details.get("CombOffsetFlag") or "0")[:1],
                     pending.get("offset") or "open",
                 ),
-                "price": _coerce_float(details.get("LimitPrice"), _coerce_float(pending.get("price"), 0.0)),
+                "price": _coerce_float(
+                    details.get("LimitPrice"), _coerce_float(pending.get("price"), 0.0)
+                ),
                 "size": _coerce_int(
                     details.get("VolumeTotalOriginal"),
                     _coerce_int(pending.get("size"), 0),
@@ -1114,7 +1131,9 @@ def _create_ctp_wrapper_class():
             details = _ctp_extract_fields(payload, _CTP_TRADE_FIELDS)
             order_ref = str(details.get("OrderRef") or "").strip()
             order_sys_id = str(details.get("OrderSysID") or "").strip()
-            pending = self._pending_orders.get(order_ref) or self._pending_orders_by_sys_id.get(order_sys_id, {})
+            pending = self._pending_orders.get(order_ref) or self._pending_orders_by_sys_id.get(
+                order_sys_id, {}
+            )
 
             # Filter out cross-strategy trade notifications (same logic as _handle_order).
             if not pending:
@@ -1127,13 +1146,17 @@ def _create_ctp_wrapper_class():
                 "data_name": pending.get("data_name")
                 or _coerce_text(details.get("InstrumentID") or details.get("ExchangeInstID") or ""),
                 "instrument": _coerce_text(details.get("InstrumentID") or ""),
-                "exchange_id": str(details.get("ExchangeID") or pending.get("exchange_id") or "").strip(),
+                "exchange_id": str(
+                    details.get("ExchangeID") or pending.get("exchange_id") or ""
+                ).strip(),
                 "side": _CTP_DIRECTION_MAP.get(str(details.get("Direction") or "0"), "buy"),
                 "offset": _CTP_OFFSET_MAP.get(
                     str(details.get("OffsetFlag") or "0")[:1],
                     pending.get("offset") or "open",
                 ),
-                "price": _coerce_float(details.get("Price"), _coerce_float(pending.get("price"), 0.0)),
+                "price": _coerce_float(
+                    details.get("Price"), _coerce_float(pending.get("price"), 0.0)
+                ),
                 "size": _coerce_int(details.get("Volume"), 0),
                 "timestamp": str(details.get("TradeTime") or details.get("TradingDay") or ""),
                 "details": details,
@@ -1207,7 +1230,9 @@ def _create_ctp_gateway_wrapper_class():
         def get_positions(self):
             return self._client.get_positions()
 
-        def fetch_bars(self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs):
+        def fetch_bars(
+            self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
+        ):
             tf = self._resolve_timeframe(timeframe, compression)
             count = int(limit or 200)
             if hasattr(self._client, "fetch_bars"):
@@ -1220,7 +1245,14 @@ def _create_ctp_gateway_wrapper_class():
         def fetch_ohlcv(
             self, symbol, timeframe=None, compression=None, since=None, limit=None, **kwargs
         ):
-            return self.fetch_bars(symbol, timeframe=timeframe, compression=compression, since=since, limit=limit, **kwargs)
+            return self.fetch_bars(
+                symbol,
+                timeframe=timeframe,
+                compression=compression,
+                since=since,
+                limit=limit,
+                **kwargs,
+            )
 
         def fetch_symbol_info(self, symbol):
             if hasattr(self._client, "fetch_symbol_info"):
@@ -1257,15 +1289,26 @@ def _create_ctp_gateway_wrapper_class():
         def _resolve_timeframe(timeframe=None, compression=None):
             """Map backtrader timeframe+compression to gateway timeframe string."""
             if isinstance(timeframe, str) and timeframe.upper() in (
-                "M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN1",
+                "M1",
+                "M5",
+                "M15",
+                "M30",
+                "H1",
+                "H4",
+                "D1",
+                "W1",
+                "MN1",
             ):
                 return timeframe.upper()
             comp = int(compression or 1)
             try:
                 import backtrader as bt
+
                 tf_val = timeframe
                 if tf_val == bt.TimeFrame.Minutes:
-                    return {1: "M1", 5: "M5", 15: "M15", 30: "M30", 60: "H1", 240: "H4"}.get(comp, "M1")
+                    return {1: "M1", 5: "M5", 15: "M15", 30: "M30", 60: "H1", 240: "H4"}.get(
+                        comp, "M1"
+                    )
                 if tf_val == bt.TimeFrame.Days:
                     return "D1"
                 if tf_val == bt.TimeFrame.Weeks:
@@ -1610,7 +1653,10 @@ class BtApiStore(LiveStoreBase):
     ) -> List[Dict[str, Any]]:
         """Fetch normalized historical bars for a symbol."""
         request_key = self._history_request_key(dataname, timeframe, compression, since, limit)
-        if self._is_default_history_request(timeframe, compression, since, limit) and self._historical_bars[dataname]:
+        if (
+            self._is_default_history_request(timeframe, compression, since, limit)
+            and self._historical_bars[dataname]
+        ):
             return deepcopy(list(self._historical_bars[dataname]))
         if request_key in self._historical_query_cache:
             return deepcopy(self._historical_query_cache[request_key])
@@ -1818,7 +1864,9 @@ class BtApiStore(LiveStoreBase):
             elif hasattr(api, "create_order"):
                 response = api.create_order(**payload)
             else:
-                raise BtApiStoreError("Underlying bt_api_py client does not support order submission")
+                raise BtApiStoreError(
+                    "Underlying bt_api_py client does not support order submission"
+                )
         except Exception as exc:
             self.emit_runtime_event(
                 "order_reject_remote",
@@ -1839,7 +1887,6 @@ class BtApiStore(LiveStoreBase):
             status="accepted",
         )
         return response
-
 
     def cancel_order(self, order):
         """Cancel a submitted order through the unified API."""
@@ -1966,7 +2013,9 @@ class BtApiStore(LiveStoreBase):
 
     def _clear_history_query_cache(self, dataname: str) -> None:
         key_prefix = str(dataname)
-        for key in [cache_key for cache_key in self._historical_query_cache if cache_key[0] == key_prefix]:
+        for key in [
+            cache_key for cache_key in self._historical_query_cache if cache_key[0] == key_prefix
+        ]:
             self._historical_query_cache.pop(key, None)
 
     def _ensure_api_ready(self):
@@ -2041,7 +2090,9 @@ class BtApiStore(LiveStoreBase):
         if order.pricelimit is not None:
             payload["pricelimit"] = order.pricelimit
 
-        offset = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)("offset")
+        offset = getattr(getattr(order, "info", {}), "get", lambda *_args, **_kwargs: None)(
+            "offset"
+        )
         if offset:
             payload["offset"] = offset
 

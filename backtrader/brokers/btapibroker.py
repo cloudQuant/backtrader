@@ -11,6 +11,7 @@ from copy import deepcopy
 
 from ..broker import BrokerBase
 from ..order import BuyOrder, SellOrder
+from ..position import Position
 from ..position_modes import (
     POSITION_MODE_DUAL_SIDE,
     infer_position_side,
@@ -19,7 +20,6 @@ from ..position_modes import (
     normalize_position_side,
     signed_position_size,
 )
-from ..position import Position
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +71,9 @@ class BtApiBroker(BrokerBase):
         self._seen_trade_ids = set()
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
-        BrokerBase.set_param(self, "position_mode", normalize_position_mode(self.get_param("position_mode")))
+        BrokerBase.set_param(
+            self, "position_mode", normalize_position_mode(self.get_param("position_mode"))
+        )
 
     def start(self):
         """Start the broker and hydrate account state from the store."""
@@ -230,7 +232,9 @@ class BtApiBroker(BrokerBase):
             position = self._get_leg_position(data, side)
         else:
             key = self._position_key(data)
-            position = self._sync_net_position(data) if self._is_dual_side_mode() else self.positions[key]
+            position = (
+                self._sync_net_position(data) if self._is_dual_side_mode() else self.positions[key]
+            )
         return position.clone() if clone else position
 
     def submit(self, order):
@@ -266,9 +270,7 @@ class BtApiBroker(BrokerBase):
             external_order_id = None
             if isinstance(response, dict):
                 external_order_id = (
-                    response.get("id")
-                    or response.get("order_id")
-                    or response.get("orderId")
+                    response.get("id") or response.get("order_id") or response.get("orderId")
                 )
 
             if external_order_id is not None:
@@ -396,7 +398,9 @@ class BtApiBroker(BrokerBase):
             transmit=transmit,
             histnotify=histnotify,
         )
-        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         if oco is not None:
             order.addinfo(oco=oco)
         return self.submit(order)
@@ -437,7 +441,9 @@ class BtApiBroker(BrokerBase):
             transmit=transmit,
             histnotify=histnotify,
         )
-        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         if oco is not None:
             order.addinfo(oco=oco)
         return self.submit(order)
@@ -751,7 +757,11 @@ class BtApiBroker(BrokerBase):
                 "data_name": self._position_key(order.data),
                 "side": "buy" if order.isbuy() else "sell",
                 "size": abs(float(order.size or 0.0)),
-                "price": order.price if order.price is not None else getattr(order.created, "price", None),
+                "price": (
+                    order.price
+                    if order.price is not None
+                    else getattr(order.created, "price", None)
+                ),
             },
         )
         return order
@@ -781,7 +791,9 @@ class BtApiBroker(BrokerBase):
             "data_name": self._position_key(order.data),
             "side": "buy" if order.isbuy() else "sell",
             "size": abs(float(order.size or 0.0)),
-            "price": order.price if order.price is not None else getattr(order.created, "price", None),
+            "price": (
+                order.price if order.price is not None else getattr(order.created, "price", None)
+            ),
             "status": order.getstatusname(),
         }
 
@@ -1001,7 +1013,9 @@ class BtApiBroker(BrokerBase):
 
     def _lookup_order(self, update):
         """Resolve a local order object from normalized broker update identifiers."""
-        external_id = self._extract_update_value(update, "external_order_id", "order_id", "OrderSysID")
+        external_id = self._extract_update_value(
+            update, "external_order_id", "order_id", "OrderSysID"
+        )
         if external_id not in (None, ""):
             order = self._orders_by_external_id.get(str(external_id))
             if order is not None:
@@ -1037,7 +1051,9 @@ class BtApiBroker(BrokerBase):
 
     def _cache_order_identifiers(self, order, update):
         """Attach provider identifiers from a remote update to a local order."""
-        external_id = self._extract_update_value(update, "external_order_id", "order_id", "OrderSysID")
+        external_id = self._extract_update_value(
+            update, "external_order_id", "order_id", "OrderSysID"
+        )
         order_ref = self._extract_update_value(update, "order_ref", "ctp_order_ref", "OrderRef")
         if external_id not in (None, ""):
             order.addinfo(external_order_id=external_id)

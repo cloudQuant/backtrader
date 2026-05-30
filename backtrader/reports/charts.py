@@ -174,7 +174,9 @@ class ReportChart:
         curr_values = resampled.reindex(returns.index)
         invalid_mask = (
             ~curr_values.map(lambda value: isinstance(value, (int, float)) and math.isfinite(value))
-            | ~prev_values.map(lambda value: isinstance(value, (int, float)) and math.isfinite(value))
+            | ~prev_values.map(
+                lambda value: isinstance(value, (int, float)) and math.isfinite(value)
+            )
             | prev_values.eq(0)
             | ~returns.map(lambda value: math.isfinite(value))
         )

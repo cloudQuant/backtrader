@@ -18,8 +18,6 @@ Example:
             self.atr = bt.indicators.MT5ATR(self.data, period=14)
 """
 
-import math
-
 from . import Indicator
 
 

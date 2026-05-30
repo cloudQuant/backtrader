@@ -66,7 +66,9 @@ class TickBroker(BrokerBase):
     coc = ParameterDescriptor(default=False, doc="Close-on-Close")
     max_depth_levels = ParameterDescriptor(default=20, doc="Max depth levels to traverse")
     enable_impact = ParameterDescriptor(default=False, doc="Enable market impact model")
-    shortcash = ParameterDescriptor(default=True, doc="Increase cash when shorting stock-like assets")
+    shortcash = ParameterDescriptor(
+        default=True, doc="Increase cash when shorting stock-like assets"
+    )
     int2pnl = ParameterDescriptor(default=True, doc="Assign generated interest to profit and loss")
     position_mode = ParameterDescriptor(default="net", doc="net | dual_side")
 
@@ -125,7 +127,9 @@ class TickBroker(BrokerBase):
         self._tick_count = 0
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
-        BrokerBase.set_param(self, "position_mode", normalize_position_mode(self.get_param("position_mode")))
+        BrokerBase.set_param(
+            self, "position_mode", normalize_position_mode(self.get_param("position_mode"))
+        )
 
     def start(self):
         """Initialize the broker state for a new backtesting run.
@@ -405,7 +409,9 @@ class TickBroker(BrokerBase):
             trailpercent=trailpercent,
             simulated=True,
         )
-        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         return self.submit(order)
 
     def sell(
@@ -457,7 +463,9 @@ class TickBroker(BrokerBase):
             trailpercent=trailpercent,
             simulated=True,
         )
-        self._attach_position_meta(order, position_side=position_side, offset=offset, **order_kwargs)
+        self._attach_position_meta(
+            order, position_side=position_side, offset=offset, **order_kwargs
+        )
         return self.submit(order)
 
     def notify(self, order):
@@ -559,7 +567,12 @@ class TickBroker(BrokerBase):
         for order in active_orders:
             if order in matched or getattr(order, "_fill_role", None) != FillRole.MAKER:
                 continue
-            if float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) <= 1e-12 and float(getattr(order, "_queue_fillable", 0.0)) <= 1e-12 and float(getattr(order, "_queue_trade_qty", 0.0)) > 1e-12:
+            if (
+                float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12
+                and float(getattr(order, "_queue_ahead", 0.0)) <= 1e-12
+                and float(getattr(order, "_queue_fillable", 0.0)) <= 1e-12
+                and float(getattr(order, "_queue_trade_qty", 0.0)) > 1e-12
+            ):
                 order._queue_front_trade_timestamp_ns = event_timestamp_ns
                 order._queue_front_trade_persisted_depth = False
             elif float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
@@ -604,13 +617,18 @@ class TickBroker(BrokerBase):
             if self._order_is_active_for_event(order, ob_event)
         ]
         for order in active_orders:
-            order._queue_trade_qty_before_depth_update = float(getattr(order, "_queue_trade_qty", 0.0))
+            order._queue_trade_qty_before_depth_update = float(
+                getattr(order, "_queue_trade_qty", 0.0)
+            )
 
         matched = []
         if self._exchange_model is not None:
-            for fill_order, fill_price, fill_size, fill_role in self._exchange_model.on_depth_update(
-                ob_event, active_orders
-            ):
+            for (
+                fill_order,
+                fill_price,
+                fill_size,
+                fill_role,
+            ) in self._exchange_model.on_depth_update(ob_event, active_orders):
                 self._execute(fill_order, fill_price, fill_size, ob_event, source=fill_role.value)
                 if not fill_order.alive() or not self.get_param("allow_partial"):
                     matched.append(fill_order)
@@ -639,7 +657,9 @@ class TickBroker(BrokerBase):
                 if exchange_result.action == "FILL":
                     fill_price, fill_size = self._aggregate_exchange_fills(exchange_result.fills)
                     if fill_size > 0:
-                        self._execute(order, fill_price, fill_size, ob_event, source="orderbook_depth")
+                        self._execute(
+                            order, fill_price, fill_size, ob_event, source="orderbook_depth"
+                        )
                     tif = getattr(order, "time_in_force", "GTC")
                     if tif == "IOC" and order.alive():
                         order.addinfo(cancel_reason="IOC_REMAINDER_CANCELLED")
@@ -662,35 +682,114 @@ class TickBroker(BrokerBase):
                     continue
 
                 if getattr(order, "_fill_role", None) == FillRole.MAKER:
-                    if float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
+                    if (
+                        float(getattr(order, "_queue_initial_ahead", 0.0)) > 1e-12
+                        and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12
+                    ):
                         event_timestamp_ns = int(getattr(ob_event, "timestamp_ns", 0) or 0)
                         if order.isbuy():
-                            same_side_moved_away = not ob_event.bids or float(ob_event.bids[0][0]) < float(order.price)
-                            if same_side_moved_away and getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                            same_side_moved_away = not ob_event.bids or float(
+                                ob_event.bids[0][0]
+                            ) < float(order.price)
+                            if (
+                                same_side_moved_away
+                                and getattr(
+                                    order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                )
+                                is not None
+                                and event_timestamp_ns
+                                == int(
+                                    getattr(
+                                        order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                    )
+                                )
+                            ):
                                 fill_size = self._get_remaining_size(order)
                                 if fill_size > 0:
-                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    self._execute(
+                                        order,
+                                        float(order.price),
+                                        fill_size,
+                                        ob_event,
+                                        source="orderbook_depth",
+                                    )
                                     if not order.alive() or not self.get_param("allow_partial"):
                                         matched.append(order)
                                 continue
-                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.bids and float(ob_event.bids[0][0]) == float(order.price) and abs(float(ob_event.bids[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12:
-                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
-                            elif getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                            if (
+                                float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0))
+                                > 1e-12
+                                and ob_event.bids
+                                and float(ob_event.bids[0][0]) == float(order.price)
+                                and abs(
+                                    float(ob_event.bids[0][1])
+                                    - float(getattr(order, "_queue_ahead", 0.0))
+                                )
+                                <= 1e-12
+                            ):
+                                order._queue_trade_remainder_confirmed_timestamp_ns = (
+                                    event_timestamp_ns
+                                )
+                            elif getattr(
+                                order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                            ) is not None and event_timestamp_ns == int(
+                                getattr(
+                                    order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                )
+                            ):
                                 pass
                             else:
                                 order._queue_trade_remainder_confirmed_timestamp_ns = None
                         else:
-                            same_side_moved_away = not ob_event.asks or float(ob_event.asks[0][0]) > float(order.price)
-                            if same_side_moved_away and getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                            same_side_moved_away = not ob_event.asks or float(
+                                ob_event.asks[0][0]
+                            ) > float(order.price)
+                            if (
+                                same_side_moved_away
+                                and getattr(
+                                    order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                )
+                                is not None
+                                and event_timestamp_ns
+                                == int(
+                                    getattr(
+                                        order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                    )
+                                )
+                            ):
                                 fill_size = self._get_remaining_size(order)
                                 if fill_size > 0:
-                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    self._execute(
+                                        order,
+                                        float(order.price),
+                                        fill_size,
+                                        ob_event,
+                                        source="orderbook_depth",
+                                    )
                                     if not order.alive() or not self.get_param("allow_partial"):
                                         matched.append(order)
                                 continue
-                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.asks and float(ob_event.asks[0][0]) == float(order.price) and abs(float(ob_event.asks[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12:
-                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
-                            elif getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None) is not None and event_timestamp_ns == int(getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)):
+                            if (
+                                float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0))
+                                > 1e-12
+                                and ob_event.asks
+                                and float(ob_event.asks[0][0]) == float(order.price)
+                                and abs(
+                                    float(ob_event.asks[0][1])
+                                    - float(getattr(order, "_queue_ahead", 0.0))
+                                )
+                                <= 1e-12
+                            ):
+                                order._queue_trade_remainder_confirmed_timestamp_ns = (
+                                    event_timestamp_ns
+                                )
+                            elif getattr(
+                                order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                            ) is not None and event_timestamp_ns == int(
+                                getattr(
+                                    order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                )
+                            ):
                                 pass
                             else:
                                 order._queue_trade_remainder_confirmed_timestamp_ns = None
@@ -709,130 +808,330 @@ class TickBroker(BrokerBase):
                         fill_price, fill_size = result
                         if fill_size <= 0:
                             continue
-                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                        self._execute(
+                            order, float(order.price), fill_size, ob_event, source="orderbook_depth"
+                        )
                         if not order.alive() or not self.get_param("allow_partial"):
                             matched.append(order)
                         continue
                     same_side_moved_away = False
                     if order.isbuy():
-                        same_side_moved_away = not ob_event.bids or float(ob_event.bids[0][0]) < float(order.price)
-                        front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
-                        if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not same_side_moved_away:
+                        same_side_moved_away = not ob_event.bids or float(
+                            ob_event.bids[0][0]
+                        ) < float(order.price)
+                        front_trade_timestamp_ns = getattr(
+                            order, "_queue_front_trade_timestamp_ns", None
+                        )
+                        if (
+                            front_trade_timestamp_ns is not None
+                            and event_timestamp_ns == int(front_trade_timestamp_ns)
+                            and not same_side_moved_away
+                        ):
                             order._queue_front_trade_persisted_depth = True
-                            if ob_event.bids and float(ob_event.bids[0][0]) == float(order.price) and abs(float(ob_event.bids[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
-                                order._queue_front_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                            if (
+                                ob_event.bids
+                                and float(ob_event.bids[0][0]) == float(order.price)
+                                and abs(
+                                    float(ob_event.bids[0][1])
+                                    - float(getattr(order, "_queue_ahead", 0.0))
+                                )
+                                <= 1e-12
+                                and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12
+                            ):
+                                order._queue_front_trade_remainder_confirmed_timestamp_ns = (
+                                    event_timestamp_ns
+                                )
                         if not same_side_moved_away:
-                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.bids and float(ob_event.bids[0][0]) == float(order.price) and abs(float(ob_event.bids[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
-                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                            if (
+                                float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0))
+                                > 1e-12
+                                and ob_event.bids
+                                and float(ob_event.bids[0][0]) == float(order.price)
+                                and abs(
+                                    float(ob_event.bids[0][1])
+                                    - float(getattr(order, "_queue_ahead", 0.0))
+                                )
+                                <= 1e-12
+                                and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12
+                            ):
+                                order._queue_trade_remainder_confirmed_timestamp_ns = (
+                                    event_timestamp_ns
+                                )
                         if not ob_event.asks or float(ob_event.asks[0][0]) >= float(order.price):
                             if queue_tracked and same_side_moved_away:
-                                moved_away_timestamp_ns = getattr(order, "_queue_depleted_move_away_timestamp_ns", None)
-                                front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
-                                front_trade_persisted_depth = bool(getattr(order, "_queue_front_trade_persisted_depth", False))
-                                remainder_confirmed_timestamp_ns = getattr(order, "_queue_front_trade_remainder_confirmed_timestamp_ns", None)
-                                trade_remainder_confirmed_timestamp_ns = getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)
+                                moved_away_timestamp_ns = getattr(
+                                    order, "_queue_depleted_move_away_timestamp_ns", None
+                                )
+                                front_trade_timestamp_ns = getattr(
+                                    order, "_queue_front_trade_timestamp_ns", None
+                                )
+                                front_trade_persisted_depth = bool(
+                                    getattr(order, "_queue_front_trade_persisted_depth", False)
+                                )
+                                remainder_confirmed_timestamp_ns = getattr(
+                                    order,
+                                    "_queue_front_trade_remainder_confirmed_timestamp_ns",
+                                    None,
+                                )
+                                trade_remainder_confirmed_timestamp_ns = getattr(
+                                    order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                )
                                 result = self._try_match_orderbook(order, ob_event)
-                                if result is not None and moved_away_timestamp_ns is not None and event_timestamp_ns == int(moved_away_timestamp_ns):
+                                if (
+                                    result is not None
+                                    and moved_away_timestamp_ns is not None
+                                    and event_timestamp_ns == int(moved_away_timestamp_ns)
+                                ):
                                     fill_price, fill_size = result
                                     if fill_size > 0:
-                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        self._execute(
+                                            order,
+                                            float(order.price),
+                                            fill_size,
+                                            ob_event,
+                                            source="orderbook_depth",
+                                        )
                                         if not order.alive() or not self.get_param("allow_partial"):
                                             matched.append(order)
                                     continue
-                                if trade_remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(trade_remainder_confirmed_timestamp_ns):
+                                if (
+                                    trade_remainder_confirmed_timestamp_ns is not None
+                                    and event_timestamp_ns
+                                    == int(trade_remainder_confirmed_timestamp_ns)
+                                ):
                                     fill_size = self._get_remaining_size(order)
                                     if fill_size > 0:
-                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        self._execute(
+                                            order,
+                                            float(order.price),
+                                            fill_size,
+                                            ob_event,
+                                            source="orderbook_depth",
+                                        )
                                         if not order.alive() or not self.get_param("allow_partial"):
                                             matched.append(order)
                                     continue
-                                if front_trade_timestamp_ns is not None and front_trade_persisted_depth:
-                                    if remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(remainder_confirmed_timestamp_ns):
+                                if (
+                                    front_trade_timestamp_ns is not None
+                                    and front_trade_persisted_depth
+                                ):
+                                    if (
+                                        remainder_confirmed_timestamp_ns is not None
+                                        and event_timestamp_ns
+                                        == int(remainder_confirmed_timestamp_ns)
+                                    ):
                                         fill_size = self._get_remaining_size(order)
                                         if fill_size > 0:
-                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
-                                            if not order.alive() or not self.get_param("allow_partial"):
+                                            self._execute(
+                                                order,
+                                                float(order.price),
+                                                fill_size,
+                                                ob_event,
+                                                source="orderbook_depth",
+                                            )
+                                            if not order.alive() or not self.get_param(
+                                                "allow_partial"
+                                            ):
                                                 matched.append(order)
                                         continue
                                     order._queue_depleted_move_away_timestamp_ns = None
                                     continue
                                 if moved_away_timestamp_ns is None:
-                                    if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not front_trade_persisted_depth:
+                                    if (
+                                        front_trade_timestamp_ns is not None
+                                        and event_timestamp_ns == int(front_trade_timestamp_ns)
+                                        and not front_trade_persisted_depth
+                                    ):
                                         fill_size = self._get_remaining_size(order)
                                         if fill_size > 0:
-                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
-                                            if not order.alive() or not self.get_param("allow_partial"):
+                                            self._execute(
+                                                order,
+                                                float(order.price),
+                                                fill_size,
+                                                ob_event,
+                                                source="orderbook_depth",
+                                            )
+                                            if not order.alive() or not self.get_param(
+                                                "allow_partial"
+                                            ):
                                                 matched.append(order)
                                         continue
-                                    order._queue_depleted_move_away_timestamp_ns = event_timestamp_ns
+                                    order._queue_depleted_move_away_timestamp_ns = (
+                                        event_timestamp_ns
+                                    )
                                     continue
                                 if event_timestamp_ns <= int(moved_away_timestamp_ns):
                                     continue
                                 fill_size = self._get_remaining_size(order)
                                 if fill_size > 0:
-                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    self._execute(
+                                        order,
+                                        float(order.price),
+                                        fill_size,
+                                        ob_event,
+                                        source="orderbook_depth",
+                                    )
                                     if not order.alive() or not self.get_param("allow_partial"):
                                         matched.append(order)
                                 continue
                             order._queue_depleted_move_away_timestamp_ns = None
                             continue
                     else:
-                        same_side_moved_away = not ob_event.asks or float(ob_event.asks[0][0]) > float(order.price)
-                        front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
-                        if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not same_side_moved_away:
+                        same_side_moved_away = not ob_event.asks or float(
+                            ob_event.asks[0][0]
+                        ) > float(order.price)
+                        front_trade_timestamp_ns = getattr(
+                            order, "_queue_front_trade_timestamp_ns", None
+                        )
+                        if (
+                            front_trade_timestamp_ns is not None
+                            and event_timestamp_ns == int(front_trade_timestamp_ns)
+                            and not same_side_moved_away
+                        ):
                             order._queue_front_trade_persisted_depth = True
-                            if ob_event.asks and float(ob_event.asks[0][0]) == float(order.price) and abs(float(ob_event.asks[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
-                                order._queue_front_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                            if (
+                                ob_event.asks
+                                and float(ob_event.asks[0][0]) == float(order.price)
+                                and abs(
+                                    float(ob_event.asks[0][1])
+                                    - float(getattr(order, "_queue_ahead", 0.0))
+                                )
+                                <= 1e-12
+                                and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12
+                            ):
+                                order._queue_front_trade_remainder_confirmed_timestamp_ns = (
+                                    event_timestamp_ns
+                                )
                         if not same_side_moved_away:
-                            if float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0)) > 1e-12 and ob_event.asks and float(ob_event.asks[0][0]) == float(order.price) and abs(float(ob_event.asks[0][1]) - float(getattr(order, "_queue_ahead", 0.0))) <= 1e-12 and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12:
-                                order._queue_trade_remainder_confirmed_timestamp_ns = event_timestamp_ns
+                            if (
+                                float(getattr(order, "_queue_trade_qty_before_depth_update", 0.0))
+                                > 1e-12
+                                and ob_event.asks
+                                and float(ob_event.asks[0][0]) == float(order.price)
+                                and abs(
+                                    float(ob_event.asks[0][1])
+                                    - float(getattr(order, "_queue_ahead", 0.0))
+                                )
+                                <= 1e-12
+                                and float(getattr(order, "_queue_ahead", 0.0)) > 1e-12
+                            ):
+                                order._queue_trade_remainder_confirmed_timestamp_ns = (
+                                    event_timestamp_ns
+                                )
                         if not ob_event.bids or float(ob_event.bids[0][0]) <= float(order.price):
                             if queue_tracked and same_side_moved_away:
-                                moved_away_timestamp_ns = getattr(order, "_queue_depleted_move_away_timestamp_ns", None)
-                                front_trade_timestamp_ns = getattr(order, "_queue_front_trade_timestamp_ns", None)
-                                front_trade_persisted_depth = bool(getattr(order, "_queue_front_trade_persisted_depth", False))
-                                remainder_confirmed_timestamp_ns = getattr(order, "_queue_front_trade_remainder_confirmed_timestamp_ns", None)
-                                trade_remainder_confirmed_timestamp_ns = getattr(order, "_queue_trade_remainder_confirmed_timestamp_ns", None)
+                                moved_away_timestamp_ns = getattr(
+                                    order, "_queue_depleted_move_away_timestamp_ns", None
+                                )
+                                front_trade_timestamp_ns = getattr(
+                                    order, "_queue_front_trade_timestamp_ns", None
+                                )
+                                front_trade_persisted_depth = bool(
+                                    getattr(order, "_queue_front_trade_persisted_depth", False)
+                                )
+                                remainder_confirmed_timestamp_ns = getattr(
+                                    order,
+                                    "_queue_front_trade_remainder_confirmed_timestamp_ns",
+                                    None,
+                                )
+                                trade_remainder_confirmed_timestamp_ns = getattr(
+                                    order, "_queue_trade_remainder_confirmed_timestamp_ns", None
+                                )
                                 result = self._try_match_orderbook(order, ob_event)
-                                if result is not None and moved_away_timestamp_ns is not None and event_timestamp_ns == int(moved_away_timestamp_ns):
+                                if (
+                                    result is not None
+                                    and moved_away_timestamp_ns is not None
+                                    and event_timestamp_ns == int(moved_away_timestamp_ns)
+                                ):
                                     fill_price, fill_size = result
                                     if fill_size > 0:
-                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        self._execute(
+                                            order,
+                                            float(order.price),
+                                            fill_size,
+                                            ob_event,
+                                            source="orderbook_depth",
+                                        )
                                         if not order.alive() or not self.get_param("allow_partial"):
                                             matched.append(order)
                                     continue
-                                if trade_remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(trade_remainder_confirmed_timestamp_ns):
+                                if (
+                                    trade_remainder_confirmed_timestamp_ns is not None
+                                    and event_timestamp_ns
+                                    == int(trade_remainder_confirmed_timestamp_ns)
+                                ):
                                     fill_size = self._get_remaining_size(order)
                                     if fill_size > 0:
-                                        self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                        self._execute(
+                                            order,
+                                            float(order.price),
+                                            fill_size,
+                                            ob_event,
+                                            source="orderbook_depth",
+                                        )
                                         if not order.alive() or not self.get_param("allow_partial"):
                                             matched.append(order)
                                     continue
-                                if front_trade_timestamp_ns is not None and front_trade_persisted_depth:
-                                    if remainder_confirmed_timestamp_ns is not None and event_timestamp_ns == int(remainder_confirmed_timestamp_ns):
+                                if (
+                                    front_trade_timestamp_ns is not None
+                                    and front_trade_persisted_depth
+                                ):
+                                    if (
+                                        remainder_confirmed_timestamp_ns is not None
+                                        and event_timestamp_ns
+                                        == int(remainder_confirmed_timestamp_ns)
+                                    ):
                                         fill_size = self._get_remaining_size(order)
                                         if fill_size > 0:
-                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
-                                            if not order.alive() or not self.get_param("allow_partial"):
+                                            self._execute(
+                                                order,
+                                                float(order.price),
+                                                fill_size,
+                                                ob_event,
+                                                source="orderbook_depth",
+                                            )
+                                            if not order.alive() or not self.get_param(
+                                                "allow_partial"
+                                            ):
                                                 matched.append(order)
                                         continue
                                     order._queue_depleted_move_away_timestamp_ns = None
                                     continue
                                 if moved_away_timestamp_ns is None:
-                                    if front_trade_timestamp_ns is not None and event_timestamp_ns == int(front_trade_timestamp_ns) and not front_trade_persisted_depth:
+                                    if (
+                                        front_trade_timestamp_ns is not None
+                                        and event_timestamp_ns == int(front_trade_timestamp_ns)
+                                        and not front_trade_persisted_depth
+                                    ):
                                         fill_size = self._get_remaining_size(order)
                                         if fill_size > 0:
-                                            self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
-                                            if not order.alive() or not self.get_param("allow_partial"):
+                                            self._execute(
+                                                order,
+                                                float(order.price),
+                                                fill_size,
+                                                ob_event,
+                                                source="orderbook_depth",
+                                            )
+                                            if not order.alive() or not self.get_param(
+                                                "allow_partial"
+                                            ):
                                                 matched.append(order)
                                         continue
-                                    order._queue_depleted_move_away_timestamp_ns = event_timestamp_ns
+                                    order._queue_depleted_move_away_timestamp_ns = (
+                                        event_timestamp_ns
+                                    )
                                     continue
                                 if event_timestamp_ns <= int(moved_away_timestamp_ns):
                                     continue
                                 fill_size = self._get_remaining_size(order)
                                 if fill_size > 0:
-                                    self._execute(order, float(order.price), fill_size, ob_event, source="orderbook_depth")
+                                    self._execute(
+                                        order,
+                                        float(order.price),
+                                        fill_size,
+                                        ob_event,
+                                        source="orderbook_depth",
+                                    )
                                     if not order.alive() or not self.get_param("allow_partial"):
                                         matched.append(order)
                                 continue
@@ -1162,7 +1461,9 @@ class TickBroker(BrokerBase):
         self._order_history.append(
             {
                 "timestamp": event.timestamp,
-                "timestamp_ns": getattr(event, "timestamp_ns", int(round(float(event.timestamp) * 1_000_000_000.0))),
+                "timestamp_ns": getattr(
+                    event, "timestamp_ns", int(round(float(event.timestamp) * 1_000_000_000.0))
+                ),
                 "symbol": data_name,
                 "side": "buy" if order.isbuy() else "sell",
                 "status": order.getstatusname(),
@@ -1320,7 +1621,11 @@ class TickBroker(BrokerBase):
 
         self._recorder.record(event.timestamp, data_name, self._order_history[-1])
 
-        if offset == "close" and abs(self._get_leg_position(data_name, position_side).size) <= 1e-12 and order.alive():
+        if (
+            offset == "close"
+            and abs(self._get_leg_position(data_name, position_side).size) <= 1e-12
+            and order.alive()
+        ):
             order.cancel()
             order.addinfo(cancel_reason="POSITION_DEPLETED")
             self.notify(order)
@@ -1404,7 +1709,13 @@ class TickBroker(BrokerBase):
 
     @staticmethod
     def _event_timestamp_ns(event):
-        return int(getattr(event, "timestamp_ns", int(round(float(getattr(event, "timestamp", 0.0)) * 1_000_000_000.0))))
+        return int(
+            getattr(
+                event,
+                "timestamp_ns",
+                int(round(float(getattr(event, "timestamp", 0.0)) * 1_000_000_000.0)),
+            )
+        )
 
     def _order_is_active_for_event(self, order, event):
         active_after_ts = getattr(order, "_active_after_timestamp_ns", None)

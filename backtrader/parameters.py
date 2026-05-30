@@ -1056,7 +1056,19 @@ class ParameterAccessor:
         object.__setattr__(self, "_items_cache", None)
 
     def __getattribute__(self, name):
-        if name.startswith("_") or name in {"__class__", "__dict__", "__setattr__", "__getattr__", "__getattribute__", "__getitem__", "__setitem__", "__contains__", "__iter__", "__len__", "__repr__"}:
+        if name.startswith("_") or name in {
+            "__class__",
+            "__dict__",
+            "__setattr__",
+            "__getattr__",
+            "__getattribute__",
+            "__getitem__",
+            "__setitem__",
+            "__contains__",
+            "__iter__",
+            "__len__",
+            "__repr__",
+        }:
             return object.__getattribute__(self, name)
         param_manager = object.__getattribute__(self, "_param_manager")
         return param_manager.get(name)

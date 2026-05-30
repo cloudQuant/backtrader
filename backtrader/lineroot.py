@@ -257,7 +257,9 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                     return bool(value)
                     return False
                 except Exception:
-                    logger.debug("Boolean operation failed in LineRoot._makeoperationown", exc_info=True)
+                    logger.debug(
+                        "Boolean operation failed in LineRoot._makeoperationown", exc_info=True
+                    )
                     return False
             elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
                 # For LineSingle objects, check the current value directly
@@ -295,7 +297,9 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             try:
                 return operation(0)  # Use 0 as default value
             except Exception:
-                logger.debug("Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True)
+                logger.debug(
+                    "Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True
+                )
                 # If operation fails, return 0 for most operations
                 return 0
 
@@ -734,8 +738,7 @@ class LineMultiple(LineRoot):
             pass
 
         has_linebinding_output = any(
-            getattr(line, "_linebinding_assigned", False)
-            for line in getattr(self, "lines", [])
+            getattr(line, "_linebinding_assigned", False) for line in getattr(self, "lines", [])
         )
 
         if has_child_iterators and not has_linebinding_output:
@@ -762,9 +765,8 @@ class LineMultiple(LineRoot):
         # This provides a fallback when operations are needed
         if hasattr(self, "lines") and self.lines:
             # Use the first line for operations
-            from .linebuffer import LinesOperation
+            from .linebuffer import LineActions, LinesOperation
 
-            from .linebuffer import LineActions
             # Only set parent to LineActions instances — never full indicators.
             # Full indicators are processed via _lineiterators ordering in _once().
             parent_a = self if isinstance(self, LineActions) else None
@@ -781,7 +783,9 @@ class LineMultiple(LineRoot):
                 else:
                     return operation(0, other)  # Use 0 as default value
             except Exception:
-                logger.debug("Fallback operation failed in LineMultiple._makeoperation", exc_info=True)
+                logger.debug(
+                    "Fallback operation failed in LineMultiple._makeoperation", exc_info=True
+                )
                 # If operation fails, return False for bool operations
                 if operation is bool:
                     return False
@@ -802,7 +806,9 @@ class LineMultiple(LineRoot):
                         return False
                     return bool(value)
                 except Exception:
-                    logger.debug("Boolean operation failed in LineMultiple._makeoperationown", exc_info=True)
+                    logger.debug(
+                        "Boolean operation failed in LineMultiple._makeoperationown", exc_info=True
+                    )
                     return False
             else:
                 return False
@@ -818,7 +824,10 @@ class LineMultiple(LineRoot):
             try:
                 return operation(0)  # Use 0 as default value
             except Exception:
-                logger.debug("Fallback self-operation failed in LineMultiple._makeoperationown", exc_info=True)
+                logger.debug(
+                    "Fallback self-operation failed in LineMultiple._makeoperationown",
+                    exc_info=True,
+                )
                 # If operation fails, return 0 for most operations
                 return 0
 
@@ -895,7 +904,9 @@ def _apply_strategy_patch():
                     else:
                         clk_len = 1
                 except Exception:
-                    logger.debug("Fallback _clk_update path triggered in safe_clk_update", exc_info=True)
+                    logger.debug(
+                        "Fallback _clk_update path triggered in safe_clk_update", exc_info=True
+                    )
                     clk_len = 1
 
                 # CRITICAL FIX: Only set datetime if we have valid data sources with length

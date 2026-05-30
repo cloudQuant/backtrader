@@ -20,7 +20,12 @@ from scipy import stats as scipy_stats
 
 def _is_integer_like(value):
     try:
-        return not isinstance(value, (bool, np.bool_)) and np.isscalar(value) and np.isfinite(value) and float(value).is_integer()
+        return (
+            not isinstance(value, (bool, np.bool_))
+            and np.isscalar(value)
+            and np.isfinite(value)
+            and float(value).is_integer()
+        )
     except (TypeError, ValueError):
         return False
 
@@ -100,7 +105,9 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
 
     if sr is None:
         if len(returns) <= 1:
-            raise ValueError("ann_estimated_sharpe_ratio requires at least 2 return samples when sr is None")
+            raise ValueError(
+                "ann_estimated_sharpe_ratio requires at least 2 return samples when sr is None"
+            )
         sr = estimated_sharpe_ratio(returns)
     sr = sr * np.sqrt(periods)
     return sr
@@ -145,7 +152,9 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
 
     if returns is None:
         if any(param is None for param in (n, skew, kurtosis, sr)):
-            raise ValueError("estimated_sharpe_ratio_stdev requires n, skew, kurtosis, and sr when returns is None")
+            raise ValueError(
+                "estimated_sharpe_ratio_stdev requires n, skew, kurtosis, and sr when returns is None"
+            )
         _returns = None
     elif isinstance(returns, pd.DataFrame):
         _returns = pd.DataFrame(returns)
@@ -341,7 +350,9 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     int
     """
     if trials_returns is None and any(param is None for param in (m, p)):
-        raise ValueError("num_independent_trials requires trials_returns when m or p is not provided")
+        raise ValueError(
+            "num_independent_trials requires trials_returns when m or p is not provided"
+        )
     if m is not None and not _is_integer_like(m):
         raise ValueError("num_independent_trials requires integer m")
     if m is not None:
@@ -414,14 +425,18 @@ def expected_maximum_sr(
     if independent_trials < 1:
         raise ValueError("expected_maximum_sr requires independent_trials >= 1")
     if trials_returns is not None and independent_trials > trials_returns.shape[1]:
-        raise ValueError("expected_maximum_sr requires independent_trials <= number of trial return columns")
+        raise ValueError(
+            "expected_maximum_sr requires independent_trials <= number of trial return columns"
+        )
 
     if independent_trials <= 1:
         return expected_mean_sr
 
     if trials_sr_std is None:
         if trials_returns is None:
-            raise ValueError("expected_maximum_sr requires trials_returns or trials_sr_std when independent_trials > 1")
+            raise ValueError(
+                "expected_maximum_sr requires trials_returns or trials_sr_std when independent_trials > 1"
+            )
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
     if np.any(np.isfinite(np.asarray(trials_sr_std)) & (np.asarray(trials_sr_std) < 0)):
@@ -479,14 +494,18 @@ def deflated_sharpe_ratio(
     if returns_selected is None:
         raise ValueError("deflated_sharpe_ratio requires returns_selected")
     if expected_max_sr is None and trials_returns is None:
-        raise ValueError("deflated_sharpe_ratio requires trials_returns when expected_max_sr is None")
+        raise ValueError(
+            "deflated_sharpe_ratio requires trials_returns when expected_max_sr is None"
+        )
     if expected_max_sr is not None and not _is_finite_value(expected_max_sr):
         raise ValueError("deflated_sharpe_ratio requires finite expected_max_sr")
 
     if expected_max_sr is None:
         effective_independent_trials = independent_trials
         if trials_returns is not None:
-            effective_independent_trials = min(effective_independent_trials, trials_returns.shape[1])
+            effective_independent_trials = min(
+                effective_independent_trials, trials_returns.shape[1]
+            )
 
         expected_max_sr = expected_maximum_sr(
             trials_returns=trials_returns,

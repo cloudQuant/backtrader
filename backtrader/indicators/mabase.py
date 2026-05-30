@@ -145,4 +145,3 @@ class MovingAverageBase(Indicator):
         # Register any MovingAverage with the placeholder to allow the automatic
         # creation of envelopes and oscillators
         MovingAverage.register(cls)
-

@@ -39,13 +39,10 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import collections
 import copy
-import math
 import datetime
-import inspect
 import itertools
 import logging
-
-logger = logging.getLogger(__name__)
+import math
 
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
@@ -81,6 +78,8 @@ from .trade import Trade
 from .utils import AutoDictList, AutoOrderedDict
 from .utils.log_message import SpdLogManager
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
+
+logger = logging.getLogger(__name__)
 
 
 class Strategy(StrategyBase):
@@ -334,7 +333,6 @@ class Strategy(StrategyBase):
         # Clean up the temporary attribute
         if hasattr(self, "_strategy_init_kwargs"):
             delattr(self, "_strategy_init_kwargs")
-
 
     # Line type is strategy type
     _ltype = LineIterator.StratType
@@ -630,6 +628,7 @@ class Strategy(StrategyBase):
         the strategy's next() method can be called, based on the minimum
         periods of all indicators and data feeds.
         """
+
         def iter_indicator_tree(indicators):
             seen = set()
             stack = list(indicators)
@@ -1227,11 +1226,7 @@ class Strategy(StrategyBase):
             newdlens.append(data_len)
             if data_len:
                 dt_value = data.datetime[0]
-                if (
-                    isinstance(dt_value, (int, float))
-                    and math.isfinite(dt_value)
-                    and dt_value > 0
-                ):
+                if isinstance(dt_value, (int, float)) and math.isfinite(dt_value) and dt_value > 0:
                     if max_datetime is None or dt_value > max_datetime:
                         max_datetime = dt_value
 
@@ -1530,7 +1525,7 @@ class Strategy(StrategyBase):
                     except Exception:
                         logger.debug(
                             "Failed to restore datetime for data %s in _stop",
-                            getattr(data, '_name', data),
+                            getattr(data, "_name", data),
                         )
             except Exception:
                 logger.debug("Failed to restore strategy datetime in _stop", exc_info=True)
@@ -1549,7 +1544,8 @@ class Strategy(StrategyBase):
             except Exception:
                 logger.warning(
                     "Observer %s.stop() raised an exception",
-                    type(observer).__name__, exc_info=True,
+                    type(observer).__name__,
+                    exc_info=True,
                 )
 
         # Change operators back to stage 1 - allows reuse of datas
@@ -2206,7 +2202,9 @@ class Strategy(StrategyBase):
         position_side = kwargs.pop("position_side", None)
         position_side = normalize_position_side(position_side)
         broker_mode = normalize_position_mode(
-            getattr(self.broker, "get_param", lambda *_args, **_kwargs: "net")("position_mode", "net")
+            getattr(self.broker, "get_param", lambda *_args, **_kwargs: "net")(
+                "position_mode", "net"
+            )
         )
 
         if position_side is not None or broker_mode == POSITION_MODE_DUAL_SIDE:

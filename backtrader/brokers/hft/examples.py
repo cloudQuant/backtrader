@@ -1,5 +1,7 @@
-from dataclasses import dataclass, field
+from __future__ import annotations
+
 import math
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
@@ -81,12 +83,25 @@ def _compute_coeff(xi, gamma, delta, intensity_a, intensity_k):
         return math.nan, math.nan
     inv_k = 1.0 / intensity_k
     c1 = 1.0 / (xi * delta) * math.log(1.0 + xi * delta * inv_k)
-    c2 = math.sqrt(gamma / (2.0 * intensity_a * delta * intensity_k) * ((1.0 + xi * delta * inv_k) ** (intensity_k / (xi * delta) + 1.0)))
+    c2 = math.sqrt(
+        gamma
+        / (2.0 * intensity_a * delta * intensity_k)
+        * ((1.0 + xi * delta * inv_k) ** (intensity_k / (xi * delta) + 1.0))
+    )
     return c1, c2
 
 
 class PlainGridQuoteBuilder:
-    def __init__(self, tick_size=1.0, grid_num=20, max_position=5.0, grid_interval=10.0, half_spread=20.0, skew=0.0, order_qty=0.1):
+    def __init__(
+        self,
+        tick_size=1.0,
+        grid_num=20,
+        max_position=5.0,
+        grid_interval=10.0,
+        half_spread=20.0,
+        skew=0.0,
+        order_qty=0.1,
+    ):
         self.tick_size = tick_size
         self.grid_num = int(grid_num)
         self.max_position = float(max_position)
@@ -110,14 +125,27 @@ class PlainGridQuoteBuilder:
 
         quotes = {}
         if position < self.max_position:
-            quotes["buy"] = [float(bid_price - i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["buy"] = [
+                float(bid_price - i * self.grid_interval) for i in range(self.grid_num)
+            ]
         if position > -self.max_position:
-            quotes["sell"] = [float(ask_price + i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["sell"] = [
+                float(ask_price + i * self.grid_interval) for i in range(self.grid_num)
+            ]
         return quotes
 
 
 class QueueMarketMakingQuoteBuilder:
-    def __init__(self, tick_size=1.0, order_qty=1.0, grid_num=10, max_position=10.0, half_spread=0.49, grid_interval=1.0, skew_adj=1.0):
+    def __init__(
+        self,
+        tick_size=1.0,
+        order_qty=1.0,
+        grid_num=10,
+        max_position=10.0,
+        half_spread=0.49,
+        grid_interval=1.0,
+        skew_adj=1.0,
+    ):
         self.tick_size = float(tick_size)
         self.order_qty = float(order_qty)
         self.grid_num = int(grid_num)
@@ -133,7 +161,9 @@ class QueueMarketMakingQuoteBuilder:
         best_ask = snapshot.asks[0][0]
         best_bid_qty = snapshot.bids[0][1]
         best_ask_qty = snapshot.asks[0][1]
-        book_pressure = (best_bid * best_ask_qty + best_ask * best_bid_qty) / (best_bid_qty + best_ask_qty)
+        book_pressure = (best_bid * best_ask_qty + best_ask * best_bid_qty) / (
+            best_bid_qty + best_ask_qty
+        )
         skew = self.half_spread / self.grid_num * self.skew_adj
         normalized_position = 0.0 if self.order_qty == 0.0 else position / self.order_qty
         reservation_price = book_pressure - skew * normalized_position
@@ -144,14 +174,30 @@ class QueueMarketMakingQuoteBuilder:
 
         quotes = {}
         if position < self.max_position:
-            quotes["buy"] = [float(bid_price - i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["buy"] = [
+                float(bid_price - i * self.grid_interval) for i in range(self.grid_num)
+            ]
         if position > -self.max_position:
-            quotes["sell"] = [float(ask_price + i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["sell"] = [
+                float(ask_price + i * self.grid_interval) for i in range(self.grid_num)
+            ]
         return quotes
 
 
 class OBIAlphaQuoteBuilder:
-    def __init__(self, tick_size=1.0, depth_levels=2, half_spread=1.0, skew=0.5, c1=1.0, order_qty=1.0, max_position=1.0, window=3, grid_num=1, grid_interval=None):
+    def __init__(
+        self,
+        tick_size=1.0,
+        depth_levels=2,
+        half_spread=1.0,
+        skew=0.5,
+        c1=1.0,
+        order_qty=1.0,
+        max_position=1.0,
+        window=3,
+        grid_num=1,
+        grid_interval=None,
+    ):
         self.tick_size = float(tick_size)
         self.depth_levels = int(depth_levels)
         self.half_spread = float(half_spread)
@@ -178,7 +224,7 @@ class OBIAlphaQuoteBuilder:
         window_values = self.imbalance_history[-self.window :]
         mean_value = sum(window_values) / len(window_values)
         variance = sum((value - mean_value) ** 2 for value in window_values) / len(window_values)
-        std_value = variance ** 0.5
+        std_value = variance**0.5
         alpha = 0.0 if std_value == 0.0 else (imbalance - mean_value) / std_value
 
         fair_price = mid_price + self.c1 * alpha
@@ -191,14 +237,29 @@ class OBIAlphaQuoteBuilder:
 
         quotes = {}
         if position < self.max_position:
-            quotes["buy"] = [float(bid_price - i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["buy"] = [
+                float(bid_price - i * self.grid_interval) for i in range(self.grid_num)
+            ]
         if position > -self.max_position:
-            quotes["sell"] = [float(ask_price + i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["sell"] = [
+                float(ask_price + i * self.grid_interval) for i in range(self.grid_num)
+            ]
         return quotes
 
 
 class BasisAlphaQuoteBuilder:
-    def __init__(self, tick_size=0.1, lot_size=0.001, half_spread=0.0003, skew=0.000015, order_qty_dollar=50_000.0, max_position_dollar=1_000_000.0, grid_num=1, grid_interval=0.1, precompute_data=None):
+    def __init__(
+        self,
+        tick_size=0.1,
+        lot_size=0.001,
+        half_spread=0.0003,
+        skew=0.000015,
+        order_qty_dollar=50_000.0,
+        max_position_dollar=1_000_000.0,
+        grid_num=1,
+        grid_interval=0.1,
+        precompute_data=None,
+    ):
         self.tick_size = float(tick_size)
         self.lot_size = float(lot_size)
         self.half_spread = float(half_spread)
@@ -232,11 +293,18 @@ class BasisAlphaQuoteBuilder:
         best_bid = float(snapshot.bids[0][0])
         best_ask = float(snapshot.asks[0][0])
         mid_price = (best_bid + best_ask) / 2.0
-        self.current_order_qty = max(round((self.order_qty_dollar / mid_price) / self.lot_size) * self.lot_size, self.lot_size)
+        self.current_order_qty = max(
+            round((self.order_qty_dollar / mid_price) / self.lot_size) * self.lot_size,
+            self.lot_size,
+        )
         self.order_qty = self.current_order_qty
         normalized_position = position / self.current_order_qty if self.current_order_qty else 0.0
         self._advance(_context_value(context, "timestamp_ns"))
-        fair_price = self.last_spot + self.last_basis if math.isfinite(self.last_spot) and math.isfinite(self.last_basis) else mid_price
+        fair_price = (
+            self.last_spot + self.last_basis
+            if math.isfinite(self.last_spot) and math.isfinite(self.last_basis)
+            else mid_price
+        )
         relative_bid_depth = self.half_spread + self.skew * normalized_position
         relative_ask_depth = self.half_spread - self.skew * normalized_position
         bid_price = min(fair_price * (1.0 - relative_bid_depth), best_bid)
@@ -245,14 +313,29 @@ class BasisAlphaQuoteBuilder:
         ask_price = math.ceil(ask_price / self.tick_size) * self.tick_size
         quotes = {}
         if position * mid_price < self.max_position_dollar and math.isfinite(bid_price):
-            quotes["buy"] = [float(bid_price - i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["buy"] = [
+                float(bid_price - i * self.grid_interval) for i in range(self.grid_num)
+            ]
         if position * mid_price > -self.max_position_dollar and math.isfinite(ask_price):
-            quotes["sell"] = [float(ask_price + i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["sell"] = [
+                float(ask_price + i * self.grid_interval) for i in range(self.grid_num)
+            ]
         return quotes
 
 
 class APTQuoteBuilder:
-    def __init__(self, tick_size=0.1, lot_size=0.001, half_spread=0.0003, skew=0.000015, order_qty_dollar=50_000.0, max_position_dollar=1_000_000.0, grid_num=1, grid_interval=0.1, precompute_data=None):
+    def __init__(
+        self,
+        tick_size=0.1,
+        lot_size=0.001,
+        half_spread=0.0003,
+        skew=0.000015,
+        order_qty_dollar=50_000.0,
+        max_position_dollar=1_000_000.0,
+        grid_num=1,
+        grid_interval=0.1,
+        precompute_data=None,
+    ):
         self.tick_size = float(tick_size)
         self.lot_size = float(lot_size)
         self.half_spread = float(half_spread)
@@ -286,31 +369,54 @@ class APTQuoteBuilder:
         best_bid = float(snapshot.bids[0][0])
         best_ask = float(snapshot.asks[0][0])
         mid_price = (best_bid + best_ask) / 2.0
-        self.current_order_qty = max(round((self.order_qty_dollar / mid_price) / self.lot_size) * self.lot_size, self.lot_size)
+        self.current_order_qty = max(
+            round((self.order_qty_dollar / mid_price) / self.lot_size) * self.lot_size,
+            self.lot_size,
+        )
         self.order_qty = self.current_order_qty
         normalized_position = position / self.current_order_qty if self.current_order_qty else 0.0
         self._advance(_context_value(context, "timestamp_ns"))
         return_ = self.spot_return if math.isfinite(self.spot_return) else 0.0
-        fair_price = (1.0 + return_) * self.futures_past_px if math.isfinite(self.futures_past_px) else mid_price
+        fair_price = (
+            (1.0 + return_) * self.futures_past_px
+            if math.isfinite(self.futures_past_px)
+            else mid_price
+        )
         relative_bid_depth = self.half_spread + self.skew * normalized_position
         relative_ask_depth = self.half_spread - self.skew * normalized_position
         bid_price = min(fair_price * (1.0 - relative_bid_depth), best_bid)
         ask_price = max(fair_price * (1.0 + relative_ask_depth), best_ask)
         bid_price = math.floor(bid_price / self.tick_size) * self.tick_size
         ask_price = math.ceil(ask_price / self.tick_size) * self.tick_size
-        dynamic_grid_interval = max(self.tick_size, round(self.grid_interval * fair_price / self.tick_size) * self.tick_size)
+        dynamic_grid_interval = max(
+            self.tick_size, round(self.grid_interval * fair_price / self.tick_size) * self.tick_size
+        )
         bid_price = math.floor(bid_price / dynamic_grid_interval) * dynamic_grid_interval
         ask_price = math.ceil(ask_price / dynamic_grid_interval) * dynamic_grid_interval
         quotes = {}
         if position * mid_price < self.max_position_dollar and math.isfinite(bid_price):
-            quotes["buy"] = [float(bid_price - i * dynamic_grid_interval) for i in range(self.grid_num)]
+            quotes["buy"] = [
+                float(bid_price - i * dynamic_grid_interval) for i in range(self.grid_num)
+            ]
         if position * mid_price > -self.max_position_dollar and math.isfinite(ask_price):
-            quotes["sell"] = [float(ask_price + i * dynamic_grid_interval) for i in range(self.grid_num)]
+            quotes["sell"] = [
+                float(ask_price + i * dynamic_grid_interval) for i in range(self.grid_num)
+            ]
         return quotes
 
 
 class GLFTQuoteBuilder:
-    def __init__(self, tick_size=0.01, lot_size=0.001, gamma=0.05, delta=1.0, order_qty=1.0, max_position=20.0, grid_num=1, grid_interval=None):
+    def __init__(
+        self,
+        tick_size=0.01,
+        lot_size=0.001,
+        gamma=0.05,
+        delta=1.0,
+        order_qty=1.0,
+        max_position=20.0,
+        grid_num=1,
+        grid_interval=None,
+    ):
         self.tick_size = float(tick_size)
         self.lot_size = float(lot_size)
         self.gamma = float(gamma)
@@ -350,7 +456,11 @@ class GLFTQuoteBuilder:
         best_ask_tick = float(snapshot.asks[0][0]) / self.tick_size
         previous_mid_price_tick = self.mid_price_tick
         self.mid_price_tick = (best_bid_tick + best_ask_tick) / 2.0
-        self.mid_price_chg_history.append(self.mid_price_tick - previous_mid_price_tick if math.isfinite(previous_mid_price_tick) else math.nan)
+        self.mid_price_chg_history.append(
+            self.mid_price_tick - previous_mid_price_tick
+            if math.isfinite(previous_mid_price_tick)
+            else math.nan
+        )
 
         if self.step % 50 == 0 and self.step >= 5_999:
             intensity_window = _measure_trading_intensity(self.arrival_depth_history[-6_000:])
@@ -367,15 +477,27 @@ class GLFTQuoteBuilder:
                 if math.isfinite(slope) and math.isfinite(intercept):
                     self.intensity_a = math.exp(intercept)
                     self.intensity_k = -slope
-            window = [value for value in self.mid_price_chg_history[-6_000:] if math.isfinite(value)]
+            window = [
+                value for value in self.mid_price_chg_history[-6_000:] if math.isfinite(value)
+            ]
             if window:
                 mean_value = sum(window) / len(window)
                 variance = sum((value - mean_value) ** 2 for value in window) / len(window)
                 self.volatility = math.sqrt(variance) * math.sqrt(10.0)
 
-        c1, c2 = _compute_coeff(self.gamma, self.gamma, self.delta, self.intensity_a, self.intensity_k)
-        half_spread_tick = c1 + self.delta / 2.0 * c2 * self.volatility if all(math.isfinite(value) for value in (c1, c2, self.volatility)) else 0.0
-        skew = c2 * self.volatility if all(math.isfinite(value) for value in (c2, self.volatility)) else 0.0
+        c1, c2 = _compute_coeff(
+            self.gamma, self.gamma, self.delta, self.intensity_a, self.intensity_k
+        )
+        half_spread_tick = (
+            c1 + self.delta / 2.0 * c2 * self.volatility
+            if all(math.isfinite(value) for value in (c1, c2, self.volatility))
+            else 0.0
+        )
+        skew = (
+            c2 * self.volatility
+            if all(math.isfinite(value) for value in (c2, self.volatility))
+            else 0.0
+        )
         reservation_price_tick = self.mid_price_tick - skew * position
         bid_price_tick = min(round(reservation_price_tick - half_spread_tick), round(best_bid_tick))
         ask_price_tick = max(round(reservation_price_tick + half_spread_tick), round(best_ask_tick))
@@ -384,9 +506,13 @@ class GLFTQuoteBuilder:
         self.step += 1
         quotes = {}
         if position < self.max_position and math.isfinite(bid_price):
-            quotes["buy"] = [float(bid_price - i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["buy"] = [
+                float(bid_price - i * self.grid_interval) for i in range(self.grid_num)
+            ]
         if position > -self.max_position and math.isfinite(ask_price):
-            quotes["sell"] = [float(ask_price + i * self.grid_interval) for i in range(self.grid_num)]
+            quotes["sell"] = [
+                float(ask_price + i * self.grid_interval) for i in range(self.grid_num)
+            ]
         return quotes
 
 
@@ -408,7 +534,9 @@ def get_hftbacktest_example_specs():
                         "data/ethusdt_20221007.npz",
                     ),
                 ),
-                InputRequirement(name="initial_snapshot", patterns=("data/ethusdt_20221002_eod.npz",)),
+                InputRequirement(
+                    name="initial_snapshot", patterns=("data/ethusdt_20221002_eod.npz",)
+                ),
                 InputRequirement(
                     name="latency_data",
                     patterns=(
@@ -455,11 +583,23 @@ def get_hftbacktest_example_specs():
             input_requirements=(
                 InputRequirement(
                     name="market_data",
-                    patterns=_as_tuple([f"data/CRVUSDT_{date}.npz" for date in list(range(20240701, 20240732)) + list(range(20240801, 20240832))]),
+                    patterns=_as_tuple(
+                        [
+                            f"data/CRVUSDT_{date}.npz"
+                            for date in list(range(20240701, 20240732))
+                            + list(range(20240801, 20240832))
+                        ]
+                    ),
                 ),
                 InputRequirement(
                     name="latency_data",
-                    patterns=_as_tuple([f"latency/amp_feed_latency_{date}.npz" for date in list(range(20240701, 20240732)) + list(range(20240801, 20240832))]),
+                    patterns=_as_tuple(
+                        [
+                            f"latency/amp_feed_latency_{date}.npz"
+                            for date in list(range(20240701, 20240732))
+                            + list(range(20240801, 20240832))
+                        ]
+                    ),
                 ),
             ),
             asset_parameters={
@@ -504,12 +644,21 @@ def get_hftbacktest_example_specs():
             input_requirements=(
                 InputRequirement(
                     name="market_data",
-                    patterns=_as_tuple([f"data2/btcusdt_{date}.npz" for date in range(20230501, 20230532)]),
+                    patterns=_as_tuple(
+                        [f"data2/btcusdt_{date}.npz" for date in range(20230501, 20230532)]
+                    ),
                 ),
-                InputRequirement(name="initial_snapshot", patterns=("data2/btcusdt_20230430_eod.npz",)),
+                InputRequirement(
+                    name="initial_snapshot", patterns=("data2/btcusdt_20230430_eod.npz",)
+                ),
                 InputRequirement(
                     name="latency_data",
-                    patterns=_as_tuple([f"latency/live_order_latency_{date}.npz" for date in range(20230501, 20230532)]),
+                    patterns=_as_tuple(
+                        [
+                            f"latency/live_order_latency_{date}.npz"
+                            for date in range(20230501, 20230532)
+                        ]
+                    ),
                 ),
             ),
             asset_parameters={
@@ -556,12 +705,26 @@ def get_hftbacktest_example_specs():
             input_requirements=(
                 InputRequirement(
                     name="market_data",
-                    patterns=_as_tuple([f"data2/btcusdt_{date}.npz" for date in list(range(20240901, 20240931)) + list(range(20241001, 20241032))]),
+                    patterns=_as_tuple(
+                        [
+                            f"data2/btcusdt_{date}.npz"
+                            for date in list(range(20240901, 20240931))
+                            + list(range(20241001, 20241032))
+                        ]
+                    ),
                 ),
-                InputRequirement(name="initial_snapshot", patterns=("data2/btcusdt_20240831_eod.npz",)),
+                InputRequirement(
+                    name="initial_snapshot", patterns=("data2/btcusdt_20240831_eod.npz",)
+                ),
                 InputRequirement(
                     name="latency_data",
-                    patterns=_as_tuple([f"latency/order_latency_{date}.npz" for date in list(range(20240901, 20240931)) + list(range(20241001, 20241032))]),
+                    patterns=_as_tuple(
+                        [
+                            f"latency/order_latency_{date}.npz"
+                            for date in list(range(20240901, 20240931))
+                            + list(range(20241001, 20241032))
+                        ]
+                    ),
                 ),
                 InputRequirement(name="precompute_data", patterns=("px_basis_BTCUSDT_5m.npz",)),
             ),
@@ -601,14 +764,30 @@ def get_hftbacktest_example_specs():
             input_requirements=(
                 InputRequirement(
                     name="market_data",
-                    patterns=_as_tuple([f"data2/btcusdt_{date}.npz" for date in list(range(20240901, 20240931)) + list(range(20241001, 20241032))]),
+                    patterns=_as_tuple(
+                        [
+                            f"data2/btcusdt_{date}.npz"
+                            for date in list(range(20240901, 20240931))
+                            + list(range(20241001, 20241032))
+                        ]
+                    ),
                 ),
-                InputRequirement(name="initial_snapshot", patterns=("data2/btcusdt_20240831_eod.npz",)),
+                InputRequirement(
+                    name="initial_snapshot", patterns=("data2/btcusdt_20240831_eod.npz",)
+                ),
                 InputRequirement(
                     name="latency_data",
-                    patterns=_as_tuple([f"latency/order_latency_{date}.npz" for date in list(range(20240901, 20240931)) + list(range(20241001, 20241032))]),
+                    patterns=_as_tuple(
+                        [
+                            f"latency/order_latency_{date}.npz"
+                            for date in list(range(20240901, 20240931))
+                            + list(range(20241001, 20241032))
+                        ]
+                    ),
                 ),
-                InputRequirement(name="precompute_data", patterns=("precompute_px_return_BTCUSDT_5m.npz",)),
+                InputRequirement(
+                    name="precompute_data", patterns=("precompute_px_return_BTCUSDT_5m.npz",)
+                ),
             ),
             asset_parameters={
                 "asset_type": "linear",
@@ -645,8 +824,12 @@ def get_hftbacktest_example_specs():
             symbol="ETHUSDT",
             input_requirements=(
                 InputRequirement(name="market_data", patterns=("data/ethusdt_20221003.npz",)),
-                InputRequirement(name="initial_snapshot", patterns=("data/ethusdt_20221002_eod.npz",)),
-                InputRequirement(name="latency_data", patterns=("latency/feed_latency_20221003.npz",)),
+                InputRequirement(
+                    name="initial_snapshot", patterns=("data/ethusdt_20221002_eod.npz",)
+                ),
+                InputRequirement(
+                    name="latency_data", patterns=("latency/feed_latency_20221003.npz",)
+                ),
             ),
             asset_parameters={
                 "asset_type": "linear",

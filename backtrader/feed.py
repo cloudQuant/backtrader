@@ -635,7 +635,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     return _inf
             return _inf  # max date else
         except Exception as e:
-            logger.debug("Exception in _gettz for %s: %s", getattr(self, '_name', ''), e)
+            logger.debug("Exception in _gettz for %s: %s", getattr(self, "_name", ""), e)
             return _inf
 
     # Move data forward by size
