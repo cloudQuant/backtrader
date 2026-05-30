@@ -1,3 +1,10 @@
+"""Binance BBO/depth data loading for HFT backtesting.
+
+Parses Binance best-bid/offer and depth/trade dumps (CSV/JSON/zip) into the
+event format consumed by the tick-level matching engine, optionally bridging to
+``hftbacktest``'s ``FuseMarketDepth`` when available.
+"""
+
 from __future__ import annotations
 
 import bisect

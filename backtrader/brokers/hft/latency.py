@@ -1,3 +1,10 @@
+"""Latency models for HFT simulation.
+
+Defines :class:`LatencyModel` and implementations (e.g.
+:class:`ConstantLatencyModel`) that model feed, order-entry and order-response
+delays so the tick matching engine can simulate realistic exchange round-trips.
+"""
+
 import bisect
 import heapq
 

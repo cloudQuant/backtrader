@@ -1,3 +1,10 @@
+"""Example HFT quote-builder strategies and input requirements.
+
+Provides sample market-making/quoting components (e.g. a GLFT-style quote
+builder) and the :class:`InputRequirement` descriptors that document the data
+inputs each example needs. Reference material, not part of the core engine.
+"""
+
 from __future__ import annotations
 
 import math

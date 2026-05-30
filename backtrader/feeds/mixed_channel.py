@@ -1,3 +1,11 @@
+"""Mixed multi-source streaming channel.
+
+Defines :class:`MixedChannel`, a :class:`~backtrader.channel.StreamingEventQueue`
+that merges several event channels (generic, tick, order book, funding) into a
+single time-ordered stream for tick-level backtesting, plus the
+:func:`build_mixed_channel` convenience constructor.
+"""
+
 from backtrader.channel import StreamingEventQueue
 
 __all__ = ["MixedChannel", "build_mixed_channel"]

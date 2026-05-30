@@ -1,3 +1,11 @@
+"""Predefined Cerebro profiles for common live/backtest setups.
+
+Provides :class:`LiveProfile`, a declarative description of a run (mode,
+strategy, data source, broker, frequency) plus :func:`build_cerebro` to turn a
+profile into a wired-up :class:`~backtrader.cerebro.Cerebro` instance. Keeps the
+boilerplate of selecting broker/data classes for backtest vs live in one place.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field

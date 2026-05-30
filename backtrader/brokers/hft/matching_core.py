@@ -1,3 +1,10 @@
+"""Order-matching core for the tick-level broker.
+
+Defines the fill/match data structures (:class:`FillReport`, :class:`MatchResult`)
+and the matching engine that turns tick/depth events plus pending orders into
+fills, applying the configured exchange and queue models.
+"""
+
 from dataclasses import dataclass, field
 
 from backtrader.order import Order

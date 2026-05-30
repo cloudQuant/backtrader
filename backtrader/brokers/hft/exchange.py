@@ -1,3 +1,11 @@
+"""Exchange matching models for HFT simulation.
+
+Defines :class:`ExchangeModel` and concrete variants that decide how an order
+interacts with an order book / trade stream (maker vs taker fills, rejections),
+plus :class:`FillRole` and :class:`OrderResult`. Used by the tick broker's
+matching core.
+"""
+
 from dataclasses import dataclass, field
 from enum import Enum
 

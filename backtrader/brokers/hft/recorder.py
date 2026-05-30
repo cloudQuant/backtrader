@@ -1,3 +1,10 @@
+"""Event recorder for HFT simulation diagnostics.
+
+Defines :class:`Recorder`, a small bounded-history collector of timestamped
+per-symbol events used to capture and replay the matching engine's activity.
+"""
+
+
 class Recorder:
     def __init__(self, maxlen=None):
         self._maxlen = maxlen

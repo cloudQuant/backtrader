@@ -1,3 +1,10 @@
+"""Cross-check backtrader's HFT engine against hftbacktest on Binance BBO data.
+
+Diagnostic/validation script that runs the same Binance BBO/depth dataset
+through both the backtrader tick broker and the reference ``hftbacktest``
+engine and compares fills/snapshots, used to verify matching-engine fidelity.
+"""
+
 from __future__ import annotations
 
 import bisect

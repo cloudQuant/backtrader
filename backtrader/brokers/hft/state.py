@@ -1,3 +1,11 @@
+"""Per-symbol trading state tracking for HFT simulation.
+
+Defines :class:`StateTracker`, which accumulates per-symbol statistics (fees,
+trade count, traded volume/value) updated on each fill, used for reporting and
+fee accounting in the tick broker.
+"""
+
+
 class StateTracker:
     def __init__(self):
         self._states = {}

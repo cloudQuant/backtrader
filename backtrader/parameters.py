@@ -631,9 +631,7 @@ class ParameterManager:
         elif conflict_resolution in ("error", "raise"):
             raise ValueError(f"Parameter '{name}' conflicts between parent and child")
 
-    def _inherit_replace(
-        self, parent: "ParameterManager", selective: Optional[List[str]]
-    ) -> None:
+    def _inherit_replace(self, parent: "ParameterManager", selective: Optional[List[str]]) -> None:
         """Replace strategy: overwrite (selected) params with the parent's."""
         names = selective if selective else list(parent._descriptors)
         for name in names:
@@ -651,9 +649,7 @@ class ParameterManager:
         for name in params_to_process:
             if name in parent._descriptors and name in self._descriptors:
                 parent_has_value = self._parent_has_set(parent, name)
-                child_has_value = (
-                    self.get(name) != self._defaults.get(name) or name in self._values
-                )
+                child_has_value = self.get(name) != self._defaults.get(name) or name in self._values
                 if parent_has_value and child_has_value:
                     self._resolve_conflict(parent, name, conflict_resolution)
                 elif parent_has_value and not child_has_value:
@@ -661,9 +657,7 @@ class ParameterManager:
                     self._copy_param_from(parent, name)
                 # If only child has value, keep child's value
 
-    def _inherit_add_only(
-        self, parent: "ParameterManager", selective: Optional[List[str]]
-    ) -> None:
+    def _inherit_add_only(self, parent: "ParameterManager", selective: Optional[List[str]]) -> None:
         """Add-only strategy: copy params that don't already exist on the child."""
         params_to_process = selective if selective else parent._descriptors.keys()
         for name in params_to_process:

@@ -1,3 +1,12 @@
+"""Queue-position models for maker order fills in HFT simulation.
+
+Defines :class:`NoQueueModel` (and probabilistic variants like
+``ProbQueueModel``) that estimate how much volume sits ahead of a resting limit
+order and how it gets consumed by trades/depth updates, driving realistic maker
+fill timing in the tick matching engine.
+"""
+
+
 class NoQueueModel:
     def estimate_queue_position(self, order, ob_snapshot):
         _ = (order, ob_snapshot)
