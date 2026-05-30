@@ -111,12 +111,12 @@ class Timer(ParameterizedBase):
         super().__init__(**kwargs)
 
         # Initialize internal state variables
-        self._weekmask = None
+        self._weekmask: collections.deque = collections.deque()
         self._dwhen = None
         self._dtwhen = None
         self.lastwhen = None
         self._curweek = None
-        self._monthmask = None
+        self._monthmask: collections.deque = collections.deque()
         self._curmonth = None
         self._curdate = None
         self._nexteos = None
@@ -297,7 +297,8 @@ class Timer(ParameterizedBase):
         # If dtwhen is None
         if dtwhen is None:
             # dwhen represents minimum time of current day
-            dwhen = datetime.combine(ddate, self._when)
+            # _when is the timer's time-of-day (a datetime.time from params).
+            dwhen = datetime.combine(ddate, self._when)  # type: ignore[arg-type]
             # If there is time offset, dwhen is minimum time of current day plus time offset
             if self.get_param("offset"):
                 dwhen += self.get_param("offset")

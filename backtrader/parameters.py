@@ -14,7 +14,7 @@ Key Components:
 """
 
 import time as _time
-from typing import Any, Callable, Dict, List, Optional, Set, Type, Union, cast
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Type, Union, cast
 
 from .utils.log_message import get_logger
 from .utils.py3 import string_types
@@ -39,7 +39,7 @@ class ParameterDescriptor:
     def __init__(
         self,
         default: Any = None,
-        type_: Optional[Type] = None,
+        type_: Optional[Union[Type, Tuple[Type, ...]]] = None,
         validator: Optional[Callable[[Any], bool]] = None,
         doc: Optional[str] = None,
         name: Optional[str] = None,
@@ -95,6 +95,15 @@ class ParameterDescriptor:
         # Type checking
         if self.type_ is not None and value is not None:
             if not isinstance(value, self.type_):
+                # Only a single concrete type can be used to coerce the value;
+                # a tuple of types (used for isinstance checks like
+                # (list, type(None))) is not callable, so skip conversion.
+                if isinstance(self.type_, tuple):
+                    type_names = ", ".join(getattr(t, "__name__", str(t)) for t in self.type_)
+                    raise TypeError(
+                        f"Parameter '{self.name}' expects one of ({type_names}), "
+                        f"got {type(value).__name__}."
+                    )
                 try:
                     # Attempt type conversion
                     value = self.type_(value)
@@ -169,6 +178,10 @@ class ParameterDescriptor:
                     ):
                         return False
                 elif not isinstance(value, type_):
+                    if isinstance(type_, tuple):
+                        # Tuple of accepted types: isinstance already failed,
+                        # and a tuple is not callable for a conversion test.
+                        return False
                     try:
                         type_(value)  # Test conversion for other types
                     except (ValueError, TypeError):
