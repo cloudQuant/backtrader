@@ -69,7 +69,11 @@ jobs:
 
       - name: Type check with mypy (non-blocking trend report)
         continue-on-error: true
-        run: mypy backtrader --config-file=pyproject.toml || true
+        shell: bash
+        run: |
+          mypy backtrader --config-file=pyproject.toml | tee mypy-report.txt || true
+          count="$(grep -cE 'error:' mypy-report.txt || true)"
+          echo "mypy error count: ${count} (Sprint 4 baseline 543, target <150)"
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
