@@ -480,20 +480,64 @@ contains **1,271 inlined regression tests** spanning 22 strategy categories
 (trend following, mean reversion, asset allocation, machine learning, options,
 pairs trading, etc.).
 
-### Run All Tests
+### Test Tiers (Fast / Slow / Full)
+
+The strategy regression suite is large (~10 min for the full run), so tests are
+split into tiers by measured per-file duration. The fastest ~35% of strategy
+tests stay in the fast loop; the slowest ~65% are auto-tagged `slow` (no test
+files are edited — the split is applied dynamically from a committed durations
+file in `conftest.py`).
 
 ```bash
-pytest tests -n 4
+# Fast dev loop (~3.5 min): all non-strategy tests + the fastest ~35% of
+# strategy tests. Best for "did my change break anything" iteration.
+make test-fast            # == pytest tests -m "not slow" -n 8 -q
+
+# Slow tier (~7 min): only the slowest ~65% of strategy tests that test-fast skips
+make test-slow            # == pytest tests -m slow -n 8 -q
+
+# Strategy regression only (all 1,271 strategy tests, ~9 min)
+make test-strategies      # == pytest tests/functional/strategies -n 8 -q
+
+# Full suite — everything in parallel (~10 min)
+make test-all             # == pytest tests -n 8 -q
+```
+
+Tune how many strategy tests stay in the fast loop with `BT_SLOW_PERCENTILE`
+(default `35`, i.e. keep the fastest 35%):
+
+```bash
+# Stricter sub-3-minute loop — keep only the fastest ~25% of strategy tests
+BT_SLOW_PERCENTILE=25 make test-fast
+
+# Broader coverage — keep the fastest ~50%
+BT_SLOW_PERCENTILE=50 make test-fast
+```
+
+Refresh the duration data after adding/removing strategy tests:
+
+```bash
+python scripts/refresh_strategy_durations.py
+```
+
+### Run All Tests Directly
+
+```bash
+pytest tests -n 8
 ```
 
 ### Run a Specific Category
 
 ```bash
-# Run only the strategies suite (1,271 tests, ~7 minutes on a recent laptop)
+# Run only the strategies suite (1,271 tests, ~9 minutes on a recent laptop)
 pytest tests/functional/strategies -n 8
 
 # Run a single strategy file
 pytest tests/functional/strategies/others/test_0019_pattern_detection.py
+
+# Run only the slow / fast tier explicitly
+pytest tests -m slow -n 8
+pytest tests -m "not slow" -n 8
 ```
 
 ### Choosing Which `backtrader` to Test Against
@@ -904,20 +948,62 @@ cerebro.plot(backend='plotly')
 `tests/functional/strategies/` 这一目录就有 **1,271 个内联回归测试**，分布在
 22 个策略类别下（趋势跟踪、均值回归、资产配置、机器学习、期权、配对交易等）。
 
-### 运行全部测试
+### 分级测试（快速 / 慢速 / 全量）
+
+策略回归套件很大（全量约 10 分钟），因此按单测文件的实测耗时做了分级：最快的
+~35% 策略测试留在快速档，其余最慢的 ~65% 自动标记为 `slow`（**不改任何测试文件**
+——拆分由 `conftest.py` 读取已提交的耗时数据动态完成）。
 
 ```bash
-pytest tests -n 4
+# 快速开发回路（约 3.5 分钟）：全部非策略测试 + 最快 ~35% 的策略测试。
+# 最适合「改完代码看有没有引入 bug」的日常迭代。
+make test-fast            # 等价于 pytest tests -m "not slow" -n 8 -q
+
+# 慢速档（约 7 分钟）：test-fast 跳过的那最慢 ~65% 策略测试
+make test-slow            # 等价于 pytest tests -m slow -n 8 -q
+
+# 只跑策略回归（全部 1,271 个策略测试，约 9 分钟）
+make test-strategies      # 等价于 pytest tests/functional/strategies -n 8 -q
+
+# 全量 —— 所有测试并行（约 10 分钟）
+make test-all             # 等价于 pytest tests -n 8 -q
+```
+
+用环境变量 `BT_SLOW_PERCENTILE` 调节快速档里保留多少策略测试（默认 `35`，即保留
+最快 35%）：
+
+```bash
+# 更严格、压进 3 分钟内 —— 只保留最快 ~25% 的策略测试
+BT_SLOW_PERCENTILE=25 make test-fast
+
+# 覆盖更全 —— 保留最快 ~50%
+BT_SLOW_PERCENTILE=50 make test-fast
+```
+
+增删策略测试后刷新耗时数据：
+
+```bash
+python scripts/refresh_strategy_durations.py
+```
+
+### 直接运行全部测试
+
+```bash
+pytest tests -n 8
 ```
 
 ### 只运行某一类
 
 ```bash
-# 只跑策略套件（1,271 个测试，新笔记本上约 7 分钟）
+# 只跑策略套件（1,271 个测试，新笔记本上约 9 分钟）
 pytest tests/functional/strategies -n 8
 
 # 跑单个策略文件
 pytest tests/functional/strategies/others/test_0019_pattern_detection.py
+
+# 显式只跑慢速 / 快速档
+pytest tests -m slow -n 8
+pytest tests -m "not slow" -n 8
 ```
 
 ### 选择测试目标：本地代码 vs 已安装包
