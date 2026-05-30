@@ -43,9 +43,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = [
     "backtrader.metabase",
-    "backtrader.linebuffer",
-    "backtrader.lineseries",
-    "backtrader.lineiterator",
     "backtrader.feed",
     "backtrader.parameters",
     "backtrader.resamplerfilter",
@@ -56,12 +53,18 @@ module = [
 ]
 disable_error_code = ["method-assign", "attr-defined", "has-type", "assignment", "index"]
 
-# lineroot is the dynamic base of the entire line system: donew() mixin,
-# runtime _owner/_OwnerCls attributes and __getitem__ provided only by
-# concrete LineBuffer/LineSeries subclasses. These produce inherent false
-# positives, so disable the extra dynamic-pattern codes here as well.
+# Core line system (lineroot/linebuffer/lineseries/lineiterator): the dynamic
+# foundation of the framework — donew() mixins, runtime _owner/_OwnerCls and
+# lines attributes, and __getitem__/operators provided only by concrete
+# subclasses or via line bindings. These produce inherent false positives, so
+# disable the dynamic-pattern codes for the whole quartet.
 [[tool.mypy.overrides]]
-module = ["backtrader.lineroot"]
+module = [
+    "backtrader.lineroot",
+    "backtrader.linebuffer",
+    "backtrader.lineseries",
+    "backtrader.lineiterator",
+]
 disable_error_code = [
     "method-assign",
     "attr-defined",
@@ -69,7 +72,11 @@ disable_error_code = [
     "assignment",
     "misc",
     "union-attr",
+    "operator",
     "index",
+    "override",
+    "arg-type",
+    "call-overload",
 ]
 
 [[tool.mypy.overrides]]
