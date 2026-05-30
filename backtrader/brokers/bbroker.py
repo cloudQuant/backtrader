@@ -842,6 +842,144 @@ class BackBroker(BrokerBase):
 
     getvalue = get_value
 
+    def _get_value_dual_side(self, datas, lever, shortcash, getcommissioninfo):
+        """Accumulate portfolio value across long+short legs (dual_side mode).
+
+        Returns a 4-tuple ``(direct, pos_value, unrealized, pos_value_unlever)``
+        where ``direct`` is non-None only for a single-data raw-value request
+        (caller returns it immediately); otherwise it is None and the three
+        accumulators are returned. Extracted verbatim from _get_value.
+        """
+        pos_value = 0.0
+        pos_value_unlever = 0.0
+        unrealized = 0.0
+        data_iterable = list(datas) if datas is not None else None
+        single_data_request = data_iterable is not None and len(data_iterable) == 1
+        for data in data_iterable or (
+            set(self.long_positions) | set(self.short_positions) | set(self.positions)
+        ):
+            long_position = self.long_positions[self._position_storage_key(data)]
+            short_position = self.short_positions[self._position_storage_key(data)]
+            if not long_position.size and not short_position.size:
+                if single_data_request:
+                    return 0.0, pos_value, unrealized, pos_value_unlever
+                continue
+
+            comminfo = getcommissioninfo(data)
+            close0 = data.close[0]
+            leverage = comminfo.get_leverage()
+            data_raw_value = 0.0
+            data_value = 0.0
+            data_value_unlever = 0.0
+            data_unrealized = 0.0
+
+            for _position_side, leg_position in (
+                (POSITION_SIDE_LONG, long_position),
+                (POSITION_SIDE_SHORT, short_position),
+            ):
+                if not leg_position.size:
+                    continue
+
+                signed_position = self._make_signed_position(_position_side, leg_position)
+                if not shortcash:
+                    leg_raw_value = comminfo.getvalue(signed_position, close0)
+                    leg_value = abs(leg_raw_value)
+                else:
+                    leg_raw_value = comminfo.getvaluesize(signed_position.size, close0)
+                    leg_value = leg_raw_value
+
+                leg_unrealized = comminfo.profitandloss(
+                    signed_position.size,
+                    signed_position.price,
+                    close0,
+                )
+                data_raw_value += leg_raw_value
+                data_value += leg_value
+                data_unrealized += leg_unrealized
+
+                if leg_value > 0:
+                    leg_value -= leg_unrealized
+                    data_value_unlever += leg_value / leverage
+                    data_value_unlever += leg_unrealized
+                else:
+                    data_value_unlever += leg_value
+
+            if single_data_request:
+                if lever and data_raw_value > 0:
+                    data_raw_value -= data_unrealized
+                    return (
+                        (data_raw_value / leverage) + data_unrealized,
+                        pos_value,
+                        unrealized,
+                        pos_value_unlever,
+                    )
+                return data_raw_value, pos_value, unrealized, pos_value_unlever
+
+            pos_value += data_value
+            unrealized += data_unrealized
+            pos_value_unlever += data_value_unlever
+        return None, pos_value, unrealized, pos_value_unlever
+
+    def _get_value_net(self, datas, lever, shortcash, positions, getcommissioninfo):
+        """Accumulate portfolio value across net positions (net mode).
+
+        Returns a 4-tuple ``(direct, pos_value, unrealized, pos_value_unlever)``
+        with the same single-data early-return convention as
+        _get_value_dual_side. Extracted verbatim from _get_value.
+        """
+        pos_value = 0.0
+        pos_value_unlever = 0.0
+        unrealized = 0.0
+        # If datas is None, loop through self.positions; if datas is not None, loop through datas
+        for data in datas or positions:
+            # Get commission related info
+            comminfo = getcommissioninfo(data)
+            # Get data position
+            position = positions[data]
+            if not position:
+                if datas and len(datas) == 1:
+                    return 0.0, pos_value, unrealized, pos_value_unlever
+                continue
+            close0 = data.close[0]
+            # use valuesize:  returns raw value, rather than negative adj val
+            # If shortcash is False, use comminfo.getvalue to get data value
+            # If shortcash is True, use comminfo.getvaluesize to get data value
+            if not shortcash:
+                dvalue = comminfo.getvalue(position, close0)
+            else:
+                dvalue = comminfo.getvaluesize(position.size, close0)
+            # Get unrealized profit of data
+            dunrealized = comminfo.profitandloss(position.size, position.price, close0)
+            leverage = comminfo.get_leverage()
+            # If datas is not None and datas is a list containing one data
+            if datas and len(datas) == 1:
+                # If lever is True and dvalue is greater than 0, calculate the initial dvalue value, then divide by leverage and add unrealized profit to get data value
+                if lever and dvalue > 0:
+                    dvalue -= dunrealized
+                    return (
+                        (dvalue / leverage) + dunrealized,
+                        pos_value,
+                        unrealized,
+                        pos_value_unlever,
+                    )
+                # If lever is False or dvalue<0 due to shortcash, return dvalue
+                return dvalue, pos_value, unrealized, pos_value_unlever
+            # If shortcash is False
+            if not shortcash:
+                dvalue = abs(dvalue)  # short selling adds value in this case
+            # Position value equals position value plus data value
+            pos_value += dvalue
+            # Unrealized profit equals unrealized profit plus data unrealized profit
+            unrealized += dunrealized
+            # If dvalue is greater than 0, calculate unleveraged position value
+            if dvalue > 0:  # long position - unlever
+                dvalue -= dunrealized
+                pos_value_unlever += dvalue / leverage
+                pos_value_unlever += dunrealized
+            else:
+                pos_value_unlever += dvalue
+        return None, pos_value, unrealized, pos_value_unlever
+
     def _get_value(self, datas=None, lever=False):
         """Calculate portfolio value for given data feeds.
 
@@ -852,13 +990,6 @@ class BackBroker(BrokerBase):
         Returns:
             float: Portfolio value
         """
-        # Position value
-        pos_value = 0.0
-        # Unleveraged position value
-        pos_value_unlever = 0.0
-        # Unrealized profit
-        unrealized = 0.0
-
         shortcash = self.get_param("shortcash")
         positions = self.positions
         getcommissioninfo = self.getcommissioninfo
@@ -871,110 +1002,16 @@ class BackBroker(BrokerBase):
             self._cash += c
 
         if self._is_dual_side_mode():
-            data_iterable = list(datas) if datas is not None else None
-            single_data_request = data_iterable is not None and len(data_iterable) == 1
-            for data in data_iterable or (
-                set(self.long_positions) | set(self.short_positions) | set(self.positions)
-            ):
-                long_position = self.long_positions[self._position_storage_key(data)]
-                short_position = self.short_positions[self._position_storage_key(data)]
-                if not long_position.size and not short_position.size:
-                    if single_data_request:
-                        return 0.0
-                    continue
-
-                comminfo = getcommissioninfo(data)
-                close0 = data.close[0]
-                leverage = comminfo.get_leverage()
-                data_raw_value = 0.0
-                data_value = 0.0
-                data_value_unlever = 0.0
-                data_unrealized = 0.0
-
-                for _position_side, leg_position in (
-                    (POSITION_SIDE_LONG, long_position),
-                    (POSITION_SIDE_SHORT, short_position),
-                ):
-                    if not leg_position.size:
-                        continue
-
-                    signed_position = self._make_signed_position(_position_side, leg_position)
-                    if not shortcash:
-                        leg_raw_value = comminfo.getvalue(signed_position, close0)
-                        leg_value = abs(leg_raw_value)
-                    else:
-                        leg_raw_value = comminfo.getvaluesize(signed_position.size, close0)
-                        leg_value = leg_raw_value
-
-                    leg_unrealized = comminfo.profitandloss(
-                        signed_position.size,
-                        signed_position.price,
-                        close0,
-                    )
-                    data_raw_value += leg_raw_value
-                    data_value += leg_value
-                    data_unrealized += leg_unrealized
-
-                    if leg_value > 0:
-                        leg_value -= leg_unrealized
-                        data_value_unlever += leg_value / leverage
-                        data_value_unlever += leg_unrealized
-                    else:
-                        data_value_unlever += leg_value
-
-                if single_data_request:
-                    if lever and data_raw_value > 0:
-                        data_raw_value -= data_unrealized
-                        return (data_raw_value / leverage) + data_unrealized
-                    return data_raw_value
-
-                pos_value += data_value
-                unrealized += data_unrealized
-                pos_value_unlever += data_value_unlever
+            direct, pos_value, unrealized, pos_value_unlever = self._get_value_dual_side(
+                datas, lever, shortcash, getcommissioninfo
+            )
         else:
-            # If datas is None, loop through self.positions; if datas is not None, loop through datas
-            for data in datas or positions:
-                # Get commission related info
-                comminfo = getcommissioninfo(data)
-                # Get data position
-                position = positions[data]
-                if not position:
-                    if datas and len(datas) == 1:
-                        return 0.0
-                    continue
-                close0 = data.close[0]
-                # use valuesize:  returns raw value, rather than negative adj val
-                # If shortcash is False, use comminfo.getvalue to get data value
-                # If shortcash is True, use comminfo.getvaluesize to get data value
-                if not shortcash:
-                    dvalue = comminfo.getvalue(position, close0)
-                else:
-                    dvalue = comminfo.getvaluesize(position.size, close0)
-                # Get unrealized profit of data
-                dunrealized = comminfo.profitandloss(position.size, position.price, close0)
-                leverage = comminfo.get_leverage()
-                # If datas is not None and datas is a list containing one data
-                if datas and len(datas) == 1:
-                    # If lever is True and dvalue is greater than 0, calculate the initial dvalue value, then divide by leverage and add unrealized profit to get data value
-                    if lever and dvalue > 0:
-                        dvalue -= dunrealized
-                        return (dvalue / leverage) + dunrealized
-                    # If lever is False or dvalue<0 due to shortcash, return dvalue
-                    return dvalue  # raw data value requested, short selling is neg
-                # If shortcash is False
-                if not shortcash:
-                    dvalue = abs(dvalue)  # short selling adds value in this case
-                # Position value equals position value plus data value
-                pos_value += dvalue
-                # Unrealized profit equals unrealized profit plus data unrealized profit
-                unrealized += dunrealized
-                # If dvalue is greater than 0, calculate unleveraged position value
-                if dvalue > 0:  # long position - unlever
-                    dvalue -= dunrealized
-                    pos_value_unlever += dvalue / leverage
-                    pos_value_unlever += dunrealized
-                else:
-                    pos_value_unlever += dvalue
+            direct, pos_value, unrealized, pos_value_unlever = self._get_value_net(
+                datas, lever, shortcash, positions, getcommissioninfo
+            )
+        # Early-return for single-data requests (raw per-data value)
+        if direct is not None:
+            return direct
         # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
             # _cash is a float here (init() ran before any backtest step);
