@@ -331,10 +331,12 @@ Sprint 的地基，且成本极低、风险极低。
 | 63 | strategy.py | `_periodset` | ⏸ 暂缓（含多数据时钟对齐修复，见下注，改动易破回归网） |
 | 59 | cerebro.py | `_runnext` | ⏸ 暂缓（事件驱动主循环，状态高度耦合，热路径） |
 | 57 | cerebro.py | `runstrategies` | ✅ 拆 `_prepare_run` + `_build_optreturn_results`，CC 57→37 |
-| 55 | plot/plot.py | `Plot_OldSync.plotind` | ⏸ 暂缓（绘图，非核心，低优先级） |
+| 55 | plot/plot.py | `Plot_OldSync.plotind` | ⏸ 暂缓（绘图，非核心，测试覆盖弱） |
 | 49 | linebuffer.py | `LineActions._once` | ⏸ 暂缓（核心数值计算，热路径） |
 | 48 | lineiterator.py | `LineIteratorMixin.donew` | ⏸ 暂缓（动态构造，热路径） |
 | 44 | lineseries.py | `_register_line_assignment_child` | ⏸ 暂缓（line 绑定核心） |
+| 41 | cerebro.py | `Cerebro.run` | ✅ 抽出 `_resolve_run_flags`，CC 41→32 |
+| 40 | analyzers/sharpe.py | `SharpeRatio.stop` | ✅ 拆 3 个辅助，CC 40→2 |
 
 **另外完成（非 Top 10 但同属高复杂度、低风险、测试充分）**：
 
@@ -342,6 +344,12 @@ Sprint 的地基，且成本极低、风险极低。
   CC 33→5。
 - `metabase.py::ParameterManager._derive_params`：抽出 `_merge_class_params_into`
   参数归一化，CC 30→14。
+- `analyzers/sharpe.py::SharpeRatio.stop`：拆 `_legacy_annual_ratio` /
+  `_timeframe_ratio` / `_resolve_factor`，CC 40→2。
+- `analyzers/tradeanalyzer.py::TradeAnalyzer.notify_trade`：抽出
+  `_on_trade_closed`，CC 32→3。
+- `cerebro.py::Cerebro.run`：抽出 `_resolve_run_flags`（执行模式标志 + writers），
+  CC 41→32。
 
 > 注：`_periodset` 的复杂度部分来自近期「多数据时钟对齐」修复（见
 > `docs/DEV_REGRESSION_FAILURES.md`）。重构时**务必先跑 `make test-strategies`**，
@@ -359,9 +367,13 @@ Sprint 的地基，且成本极低、风险极低。
 
 ### S5 验收（务实）
 
-已把 4 个高复杂度函数（含 Top 10 的 2 个）降入可维护区间，全程零行为变化、
-全量测试通过。其余 Top 函数因风险/收益比不佳暂缓，待有针对性测试加固后再逐个
-处理。
+已把 **7 个高复杂度函数**（含 Top 10 的 `runstrategies`/`_next_signal`/`run`/
+`SharpeRatio.stop`，外加 `inherit_from`/`_derive_params`/`notify_trade`）降入
+可维护区间，全程零行为变化、全量测试通过（3,001）。其余 Top 函数（撮合状态机
+`process_orderbook`、事件主循环 `_runnext`、多数据时钟 `_periodset`、line 系统
+`__init__`/`donew`/`_once`/`__setitem__`/`__setattr__`/`_register_line_assignment_child`、
+绘图 `plotind`/`plotdata`）因风险/收益比不佳暂缓——它们是热路径/状态机/动态
+line 基座，零破坏约束下为降 CC 而改动得不偿失，待有针对性测试加固后再处理。
 
 ---
 
@@ -446,15 +458,15 @@ Sprint 的地基，且成本极低、风险极低。
 | 泛化异常比例 | 41.2% | <15% (S3) | 39.3%（防御网/边界刻意保留，见 S3） |
 | Mypy 错误 | 543 | <150 (S4) | ✅ 139 |
 | 类型注解覆盖率 | ~9% | >40% (S4) | ~9%（公共 API 已注解；40% 目标务实放弃，见 S4） |
-| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 4 个高 CC 函数（含 Top10 两个）；其余高风险暂缓 |
+| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 7 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
 | 无专属测试核心模块 | 3（实测） | 0 冒烟 (S6) | ✅ 0（补 mathsupport/position_modes/version） |
 | 缺失模块 docstring | 11 | 0 (S6) | ✅ 0 |
 | 长参数列表 (>7) | 52（实测） | 减少 (S7) | ⏸ 评估后暂缓（多为既定公共 API） |
 | 非 `__init__` star import | 0 | 0 | ✅ 0（CI F403 守卫） |
 | **测试通过率** | 100% | 100%（每 Sprint） | ✅ 100%（3,001 passed / 1 skipped） |
 
-> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 4 个高复杂度函数，最高风险的撮合
-> 状态机/事件主循环/多数据时钟函数刻意暂缓）；S7 评估后暂缓；S8 明确不执行。
+> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 7 个高复杂度函数，最高风险的撮合
+> 状态机/事件主循环/多数据时钟/line 基座函数刻意暂缓）；S7 评估后暂缓；S8 明确不执行。
 > 详见各 Sprint 小节的「决策」说明。
 
 ---
