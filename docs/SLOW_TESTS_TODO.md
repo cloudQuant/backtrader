@@ -334,16 +334,34 @@ python -m pytest tests/ \
 
 **为什么不用 `-m "not slow"` 作为快速回路**: 实测 `pytest tests -m "not slow" -n 8` 反而要 **~234s**——因为 `-m` 只是 deselect，pytest 仍会 **collect（import）** 那 1,271 个重型策略文件（仅 collection 就耗时约 52s），并未真正省掉导入开销。`--ignore=tests/functional/strategies` 直接跳过收集，才是真正的 ~98s。
 
-**已落地方案**:
+**已落地方案（按耗时拆分 strategies 子树，而非整体跳过）**:
 
-1. **`conftest.py` 自动打标（不改任何测试用例）**: 新增 `pytest_collection_modifyitems` 钩子，按**路径**给 `tests/functional/strategies/` 下的用例动态加 `slow` 标记。无需逐文件加装饰器，inline 测试重新生成后依然生效。需要只看慢测试时可 `pytest -m slow`。
-2. **`Makefile` 新增目标**:
-   - `make test-fast` → `pytest tests --ignore=tests/functional/strategies -n 8 -q`（**~1.5 min**，日常开发回路）
-   - `make test-strategies` → 仅跑重型策略回归（~9 min，提交前 / CI）
+> 起初把整个 `strategies/` 子树标记为 slow（`make test-fast` 用 `--ignore` 跳过，~1.5 min）。但「完全不跑策略」改完代码心里没底，无法及时发现回归。**因此改为按单测文件实测耗时拆分**：只保留**最快的 ~35%** 在快速档（test-fast 照常跑），其余最慢的 ~65% 标 `slow`（test-fast 跳过），兼顾速度与回归覆盖。
+
+1. **`tests/functional/strategies/.test_durations.json`（已提交）**: 记录每个策略测试文件的实测耗时（1,152 个文件）。由 `scripts/refresh_strategy_durations.py` 生成 / 刷新。
+2. **`conftest.py` 数据驱动自动打标（不改任何测试用例）**: `pytest_collection_modifyitems` 读取 durations 文件，按 **35 分位**算阈值，给耗时 ≥ 阈值的策略文件动态加 `slow`（即只放行最快 ~35%）。
+   - **新增 / 未知文件默认进快速档**（不标 slow），这样新写的或重新生成的策略测试每次 test-fast 都会跑到，最适合「改完看有没有引入 bug」。
+   - durations 文件缺失时回退为「整棵 strategies 标 slow」，保证安全。
+   - 阈值可调：`BT_SLOW_PERCENTILE=50 make test-fast` 放行最快 50%（更慢、覆盖更全）；`=25` 放行最快 25%（更快）。默认 35。
+3. **`Makefile` 目标**:
+   - `make test-fast` → `pytest tests -m "not slow" -n 8 -q`（全部非策略测试 + 最快的 ~35% 策略测试）
+   - `make test-slow` → `pytest tests -m slow -n 8 -q`（test-fast 跳过的那最慢 ~65% 策略）
+   - `make test-strategies` → 仅跑全部策略回归（~9 min）
    - `make test-all` → 全量（~10 min）
-3. `pytest.ini` 的 `slow` marker 本来就已存在，无需新增。
+4. `pytest.ini` 的 `slow` marker 本来就已存在，无需新增。
 
-**收益（实测）**: 日常开发反馈回路从 **~10 min 降至 ~1.5 min**（节省约 84%），且保留全部 unit/integration/indicator 覆盖。重型策略回归交给提交前 / CI 跑。
+**实测拆分结果（默认 p35）**:
+
+| 档位 | 策略用例数 | `make test-fast` 墙钟 (`-n 8`) |
+| --- | --- | --- |
+| 最快 35%（保留在 test-fast，含全部非策略测试） | 461 / 1271 | **~216s (3.6 min)** |
+| 最慢 65%（test-slow，提交前 / CI） | 810 / 1271 | 其余时间 |
+
+**说明 / 取舍**: 同时跑 461 个策略测试 + 1,720 个非策略测试，`test-fast` 实测约 **3.6 分钟**（含约 20s 的 strategies 子树 collection 开销）。已接近 3 分钟目标——若要严格压到 3 分钟内，把环境变量调成 `BT_SLOW_PERCENTILE=25`（只跑最快 ~25% 策略，约 169s）；想要更全覆盖就调高百分位。日常开发按需选择。
+
+**为什么用 `-m "not slow"` 而不是 `--ignore`**: 拆分后必须 collect 整棵 strategies 才能按文件区分快慢，所以这里接受 ~20s 的 collection 开销（换来跑一部分策略的回归价值）。`--ignore` 无法做到「只跑一部分文件」。
+
+**刷新 durations**: 增删策略测试或耗时漂移后，运行 `python scripts/refresh_strategy_durations.py`（重测一次并重写 json），或 `--from-log <pytest --durations 日志>` 从已有日志解析。
 
 **已知噪声**: `tests/unit/brokers/test_broker_refacto.py`、`test_comminfo_refactor.py` 中的几个 `*_performance` 用例在 `-n 8` 高并发下偶发超时失败（与本治理无关，单独跑均通过）。后续应给这类性能基准用例改用更宽松的阈值或迁出并行集。
 

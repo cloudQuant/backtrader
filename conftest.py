@@ -99,34 +99,93 @@ def pytest_addoption(parser):
     )
 
 
-# Subtrees that dominate suite wall-time (measured ~94% of total CPU on
-# 2026-05-30). Tests under these paths are auto-tagged with the ``slow``
-# marker at collection time so a fast dev loop can skip them with
-# ``-m "not slow"`` WITHOUT editing any test file. This survives the
-# auto-generated/inlined regression tests being regenerated. See
+# Heavy strategy regression tests dominate suite wall-time (measured ~94% of
+# total CPU on 2026-05-30). Rather than tag the *entire* subtree as slow, we
+# split it by measured per-file duration: only the fastest ~35% (by count)
+# stay in the fast tier, while the slowest ~65% are tagged ``slow`` so a fast
+# dev loop can skip them with ``-m "not slow"``. The faster tier still runs on
+# every ``make test-fast`` so refactors get real strategy coverage. The split
+# is data-driven from a committed durations file and applied dynamically at
+# collection time, so NO test source is edited and regenerated/new tests keep
+# working (unknown files default to the fast tier). See
 # docs/SLOW_TESTS_TODO.md (TODO-9).
-_SLOW_PATH_PREFIXES = (
-    os.path.join("tests", "functional", "strategies"),
-)
+_STRATEGIES_REL = os.path.join("tests", "functional", "strategies")
+_DURATIONS_FILE = _REPO_ROOT / _STRATEGIES_REL / ".test_durations.json"
+
+
+def _load_slow_threshold():
+    """Return (durations_by_relpath, threshold_seconds) for strategy tests.
+
+    A strategy test file whose recorded duration is >= threshold is treated as
+    ``slow``. The threshold is the Nth-percentile duration of recorded
+    strategy-test durations, where N defaults to 35 (i.e. only the fastest
+    ~35% stay in the fast tier and the slowest ~65% are tagged slow) and can be
+    overridden with the ``BT_SLOW_PERCENTILE`` environment variable (e.g.
+    ``BT_SLOW_PERCENTILE=50`` keeps the fastest ~50% in the fast loop).
+
+    Returns (None, None) when the durations file is missing/unreadable so the
+    caller can fall back to tagging the whole subtree.
+    """
+    import json
+
+    try:
+        with open(_DURATIONS_FILE, encoding="utf-8") as fh:
+            durations = json.load(fh)
+    except (OSError, ValueError):
+        return None, None
+    if not isinstance(durations, dict) or not durations:
+        return None, None
+
+    try:
+        pct = float(os.environ.get("BT_SLOW_PERCENTILE", "35"))
+    except ValueError:
+        pct = 35.0
+    pct = min(max(pct, 0.0), 100.0)
+
+    values = sorted(float(v) for v in durations.values())
+    # Linear-interpolated percentile (numpy-free).
+    if len(values) == 1:
+        threshold = values[0]
+    else:
+        rank = (pct / 100.0) * (len(values) - 1)
+        lo = int(rank)
+        hi = min(lo + 1, len(values) - 1)
+        frac = rank - lo
+        threshold = values[lo] + (values[hi] - values[lo]) * frac
+    # Normalize keys to forward-slash relative paths for robust matching.
+    norm = {str(k).replace("\\", "/"): float(v) for k, v in durations.items()}
+    return norm, threshold
 
 
 def pytest_collection_modifyitems(config, items):
-    """Auto-tag heavy strategy regression tests with the ``slow`` marker.
+    """Auto-tag the slowest strategy regression tests with the ``slow`` marker.
 
     No test source is modified; the marker is applied dynamically based on the
-    test's file path. Run ``pytest -m "not slow"`` (or ``make test-fast``) for
-    a sub-3-minute development loop, and the full ``pytest`` for complete
-    regression coverage.
+    test's file path and its recorded duration. Run ``pytest -m "not slow"``
+    (or ``make test-fast``) for a fast development loop that still exercises
+    the faster half of the strategy suite. Run the full ``pytest`` (or
+    ``make test-all``) for complete regression coverage.
     """
     import pytest
 
     repo_root = str(_REPO_ROOT)
+    durations, threshold = _load_slow_threshold()
+
     for item in items:
         try:
-            rel = os.path.relpath(str(item.fspath), repo_root)
+            rel = os.path.relpath(str(item.fspath), repo_root).replace("\\", "/")
         except Exception:
             continue
-        if any(rel.startswith(prefix) for prefix in _SLOW_PATH_PREFIXES):
+        if not rel.startswith(_STRATEGIES_REL.replace("\\", "/")):
+            continue
+        if durations is None:
+            # No durations data: conservatively tag the whole subtree slow.
+            item.add_marker(pytest.mark.slow)
+            continue
+        recorded = durations.get(rel)
+        # Unknown/new files default to the FAST tier so newly added or
+        # regenerated tests still run on every test-fast (and surface bugs).
+        if recorded is not None and recorded >= threshold:
             item.add_marker(pytest.mark.slow)
 
 

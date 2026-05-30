@@ -1,4 +1,4 @@
-.PHONY: help test test-fast test-strategies test-all test-original lint format type-check security install dev-install clean docs docs-en docs-zh docs-clean docs-offline docs-offline-zh docs-view docs-view-zh
+.PHONY: help test test-fast test-strategies test-slow test-all test-original lint format type-check security install dev-install clean docs docs-en docs-zh docs-clean docs-offline docs-offline-zh docs-view docs-view-zh
 
 DOCS_BUILD_DIR := docs/_build/html
 DOCS_MPLCONFIGDIR ?= $(CURDIR)/docs/.mplconfig
@@ -17,11 +17,14 @@ dev-install:  ## Install development dependencies
 test:  ## Run all tests
 	python -m pytest tests/original_tests/ -v --tb=short
 
-test-fast:  ## Fast dev loop (~1.5 min): all tests except the heavy strategy regression suite
-	python -m pytest tests --ignore=tests/functional/strategies -n 8 -q
+test-fast:  ## Fast dev loop (~3.5 min): all non-strategy tests + the fastest ~35% of strategy tests (skips slowest 65%)
+	python -m pytest tests -m "not slow" -n 8 -q
 
 test-strategies:  ## Run only the heavy strategy regression suite (~9 min)
 	python -m pytest tests/functional/strategies -n 8 -q
+
+test-slow:  ## Run only the slowest ~65% of strategy tests (the ones test-fast skips)
+	python -m pytest tests -m slow -n 8 -q
 
 test-all:  ## Run the entire suite in parallel (~10 min)
 	python -m pytest tests -n 8 -q
