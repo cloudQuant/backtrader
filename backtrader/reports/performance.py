@@ -328,7 +328,7 @@ class PerformanceCalculator:
                                     dt_num = data.datetime[idx]
                                     dates.append(num2date(dt_num))
                                     values.append(value_line[idx])
-                                except Exception as e:
+                                except (AttributeError, IndexError, TypeError, ValueError) as e:
                                     logger.debug("Failed to get equity data at idx %d: %s", idx, e)
                         break
 
@@ -407,9 +407,9 @@ class PerformanceCalculator:
 
                     # Normalize to 100
                     values.append(100 * price / first_price if first_price else 100)
-                except Exception as e:
+                except (AttributeError, IndexError, TypeError, ValueError, ZeroDivisionError) as e:
                     logger.debug("Failed to get benchmark data at idx %d: %s", idx, e)
-        except Exception as e:
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
             logger.debug("Failed to calculate benchmark curve: %s", e)
 
         return dates, values
@@ -464,6 +464,8 @@ class PerformanceCalculator:
         try:
             return getattr(self._broker, "startingcash", None)
         except Exception as e:
+            # Broker is a pluggable object that may raise any error type;
+            # report generation must degrade gracefully (see edge-case tests).
             logger.debug("Failed to get starting cash: %s", e)
         return None
 
@@ -474,6 +476,8 @@ class PerformanceCalculator:
         try:
             return self._broker.getvalue()
         except Exception as e:
+            # Broker is a pluggable object that may raise any error type;
+            # report generation must degrade gracefully (see edge-case tests).
             logger.debug("Failed to get end value: %s", e)
         return None
 
@@ -496,7 +500,7 @@ class PerformanceCalculator:
 
             delta = end_dt - start_dt
             return delta.days
-        except Exception as e:
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
             logger.debug("Failed to calculate backtest days: %s", e)
             return None
 
@@ -523,7 +527,7 @@ class PerformanceCalculator:
             if analyzer_name == name_lower or custom_name == name_lower:
                 try:
                     return analyzer.get_analysis()
-                except Exception as e:
+                except (AttributeError, KeyError, TypeError, ValueError, IndexError) as e:
                     logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
         # Second pass: substring match (less precise, used as fallback)
@@ -534,7 +538,7 @@ class PerformanceCalculator:
             if name_lower in analyzer_name or name_lower in custom_name:
                 try:
                     return analyzer.get_analysis()
-                except Exception as e:
+                except (AttributeError, KeyError, TypeError, ValueError, IndexError) as e:
                     logger.debug("Failed to get analysis from %s: %s", analyzer_name, e)
 
         return None
@@ -559,7 +563,7 @@ class PerformanceCalculator:
                         value = getattr(params, name)
                         if not callable(value):
                             info["params"][name] = value
-                    except Exception as e:
+                    except (AttributeError, TypeError) as e:
                         logger.debug("Failed to get param '%s': %s", name, e)
 
         return info
@@ -595,7 +599,7 @@ class PerformanceCalculator:
                 # Correct indexing: 0 is current (last) bar, 1-length is first bar
                 info["start_date"] = num2date(data.datetime[1 - length])
                 info["end_date"] = num2date(data.datetime[0])
-        except Exception as e:
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
             logger.debug("Failed to get data info: %s", e)
 
         return info

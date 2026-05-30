@@ -24,7 +24,7 @@ import traceback
 try:
     import matplotlib
 except ImportError:
-    raise ImportError("Matplotlib seems to be missing. Needed for plotting support")
+    raise ImportError("Matplotlib seems to be missing. Needed for plotting support") from None
 else:
     touse = "TKAgg" if sys.platform != "darwin" else "MacOSX"
     try:

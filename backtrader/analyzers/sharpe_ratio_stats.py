@@ -371,7 +371,7 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
         try:
             p = float(p)
         except (TypeError, ValueError):
-            raise ValueError("num_independent_trials requires scalar p")
+            raise ValueError("num_independent_trials requires scalar p") from None
         if not np.isfinite(p):
             p = 0.0
         elif not -1 <= p <= 1:

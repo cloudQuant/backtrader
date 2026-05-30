@@ -129,7 +129,7 @@ class AutoDict(dict):
         try:
             return self[key]
         except KeyError:
-            raise AttributeError(key)
+            raise AttributeError(key) from None
 
     def __setattr__(self, key, value):
         if key.startswith("_"):
@@ -187,7 +187,7 @@ class AutoOrderedDict(OrderedDict):
         try:
             return self[key]
         except KeyError:
-            raise AttributeError(key)
+            raise AttributeError(key) from None
 
     def __setattr__(self, key, value):
         if key.startswith("_"):

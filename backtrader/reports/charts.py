@@ -167,7 +167,7 @@ class ReportChart:
         try:
             resampled = series.resample(period_code).last()
             returns = 100 * resampled.pct_change().dropna()
-        except Exception as e:
+        except (AttributeError, KeyError, TypeError, ValueError) as e:
             logger.debug("Failed to resample returns with period %s: %s", period_code, e)
             return None
 
@@ -321,7 +321,7 @@ class ReportChart:
                 return ("Hourly", "H")
             else:
                 return ("Per Minute", "T")
-        except Exception as e:
+        except (AttributeError, IndexError, TypeError, ValueError) as e:
             logger.debug("Failed to determine periodicity: %s", e)
             return ("Daily", "D")
 

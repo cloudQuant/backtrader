@@ -1981,7 +1981,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             if line0 is not None and isinstance(e, IndexError):
                 if hasattr(line0, "_is_data_feed_line") and line0._is_data_feed_line:
                     # This is a data feed line - raise IndexError
-                    raise IndexError(f"Index {key} out of range for data feed")
+                    raise IndexError(f"Index {key} out of range for data feed") from None
 
             # For indicators or other cases, return 0.0 instead of None
             return 0.0

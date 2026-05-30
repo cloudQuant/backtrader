@@ -489,7 +489,9 @@ class OrderBase:
             p = object.__getattribute__(self, "p")
             return getattr(p, name)
         except AttributeError:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            raise AttributeError(
+                f"'{self.__class__.__name__}' object has no attribute '{name}'"
+            ) from None
 
     # Set order attribute - modified to work with OrderParams
     def __setattr__(self, name, value):

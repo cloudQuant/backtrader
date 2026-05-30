@@ -101,7 +101,7 @@ class ParameterDescriptor:
                     raise TypeError(
                         f"Parameter '{self.name}' expects {self.type_.__name__}, "
                         f"got {type(value).__name__}. Conversion failed: {e}"
-                    )
+                    ) from e
 
         # Value validation
         if self.validator is not None:
@@ -1430,7 +1430,9 @@ class ParameterizedBase:
         try:
             param_manager = object.__getattribute__(self, "_param_manager")
         except AttributeError:
-            raise AttributeError(f"Parameter manager not initialized for {self.__class__.__name__}")
+            raise AttributeError(
+                f"Parameter manager not initialized for {self.__class__.__name__}"
+            ) from None
 
         try:
             param_manager.set(name, value, skip_validation=not validate)

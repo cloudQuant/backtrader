@@ -1052,7 +1052,7 @@ class Strategy(StrategyBase):
         try:
             minperiod, data = next(data_iter)
         except StopIteration:
-            raise ValueError("max() arg is an empty sequence")
+            raise ValueError("max() arg is an empty sequence") from None
 
         minperstatus = minperiod - len(data)
         for minperiod, data in data_iter:

@@ -282,7 +282,7 @@ class YahooFinanceData(YahooFinanceCSVData):
                 "module installed. Please use pip install requests or "
                 "the method of your choice"
             )
-            raise Exception(msg)
+            raise ImportError(msg) from None
 
         self.error = None
         url = self.p.urlhist.format(self.p.dataname)
