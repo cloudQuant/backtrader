@@ -104,6 +104,7 @@ module = [
     "backtrader.functions",
     "backtrader.brokers.*",
     "backtrader.feeds.*",
+    "backtrader.stores.*",
 ]
 disable_error_code = ["attr-defined", "union-attr", "assignment"]
 

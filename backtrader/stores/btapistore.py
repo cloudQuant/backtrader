@@ -18,7 +18,7 @@ import time
 import uuid
 import warnings
 from copy import deepcopy
-from typing import Any, Deque, Dict, Iterable, List, Optional
+from typing import Any, Deque, Dict, Iterable, List, Optional, cast
 
 from ..events import TickEvent
 from ..utils.log_message import get_logger
@@ -1731,7 +1731,7 @@ class BtApiStore(LiveStoreBase):
     def poll_live(self, dataname: str) -> Optional[Dict[str, Any]]:
         """Poll a single live bar from cache or the API."""
         if self._live_bars[dataname]:
-            return self._live_bars[dataname].popleft()
+            return cast(Optional[Dict[str, Any]], self._live_bars[dataname].popleft())
 
         api = self._ensure_api_ready()
         if hasattr(api, "poll_bar"):
