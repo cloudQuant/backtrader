@@ -354,27 +354,29 @@ class BackBroker(BrokerBase):
         """
         super().__init__(**kwargs)
         # Used to save order history records
-        self._cash_addition = None
-        self._ocol = None
-        self._fundshares = None
+        self._cash_addition: collections.deque = collections.deque()
+        self._ocol = collections.defaultdict(list)
+        self._fundshares = 0.0
         self._fundval = None
-        self._ocos = None
-        self._pchildren = None
-        self.submitted = None
-        self.notifs = None
-        self.d_credit = None
-        self.positions = None
-        self._toactivate = None
-        self.pending = None
-        self.orders = None
-        self._unrealized = None
-        self._leverage = None
-        self._valuemktlever = None
-        self._valuelever = None
-        self._valuemkt = None
-        self._value = None
+        self._ocos = dict()
+        self._pchildren = collections.defaultdict(collections.deque)
+        self.submitted: collections.deque = collections.deque()
+        self.notifs: collections.deque = collections.deque()
+        self.d_credit = collections.defaultdict(float)
+        self.positions = collections.defaultdict(Position)
+        self._toactivate: collections.deque = collections.deque()
+        self.pending: collections.deque = collections.deque()
+        self.orders = list()
+        self._unrealized = 0.0
+        self._leverage = 1.0
+        self._valuemktlever = 0.0
+        self._valuelever = 0.0
+        self._valuemkt = 0.0
+        self._value = 0.0
         # Comment: Do not directly set self.cash = None, this will override the value in the parameter system
         # Instead use _cash as an internal state variable, initialize it in init()
+        # NOTE: _cash stays None until init(); get_cash() uses that as the
+        # "not yet initialized -> fall back to the cash param" sentinel.
         self._cash = None
         self.startingcash = None
         self._userhist = []
@@ -383,8 +385,8 @@ class BackBroker(BrokerBase):
         # share_value, net asset value
         # Used to save fund shares and net asset value
         self._fhistlast = [float("NaN"), float("NaN")]
-        self.long_positions = None
-        self.short_positions = None
+        self.long_positions = collections.defaultdict(Position)
+        self.short_positions = collections.defaultdict(Position)
         self._position_mode_frozen = False
         self._position_mode_frozen_reason = None
         BrokerBase.set_param(
@@ -975,7 +977,9 @@ class BackBroker(BrokerBase):
                     pos_value_unlever += dvalue
         # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
-            self._value = self._cash + pos_value_unlever
+            # _cash is a float here (init() ran before any backtest step);
+            # None is only the pre-init sentinel used by get_cash().
+            self._value = self._cash + pos_value_unlever  # type: ignore[operator]
             self._fundval = (
                 self._value / self._fundshares
                 if self._fundshares
@@ -1005,7 +1009,7 @@ class BackBroker(BrokerBase):
         # Unleveraged position value
         self._valuemkt = pos_value_unlever
         # Leveraged account value
-        self._valuelever = self._cash + pos_value
+        self._valuelever = self._cash + pos_value  # type: ignore[operator]
         # Leveraged position value
         self._valuemktlever = pos_value
         # Leverage ratio
@@ -2207,7 +2211,7 @@ class BackBroker(BrokerBase):
                     credit += dcredit
                     pos.datetime = dt0  # mark last credit operation
 
-        self._cash -= credit
+        self._cash -= credit  # type: ignore[operator]
         # Process order history
         self._process_order_history()
 
