@@ -1,4 +1,46 @@
-# Dev-Branch Regression Failures (3 Strategies)
+# Dev-Branch Regression Failures (3 Strategies) — RESOLVED
+
+> **STATUS: FIXED** (2026-05-30). All 3 strategies now pass on `dev` and
+> produce metrics identical to `master`. Full suite green:
+> `pytest tests -n 8` → 2990 passed, 1 skipped.
+>
+> ## The fix (3 files, no construction-path changes)
+>
+> The root cause is that indicators which derive from a **secondary feed**
+> (e.g. `SMA((h1.high + h1.low) / 2.0)` or `EMA(EMA(h4.close))` inside an
+> M15 strategy) had their advance clock effectively tied to the strategy's
+> primary (fast) feed in runonce mode, so they warmed up and emitted values
+> on the wrong (fast) clock and drifted out of alignment with the slow feed.
+>
+> 1. `backtrader/strategy.py` — `Strategy._periodset()` gains a pre-pass that,
+>    once the whole indicator tree and all feeds are finalized, resolves each
+>    indicator's data dependency to the concrete feed it follows (walking
+>    LinesOperation operands, indicator output lines via `_owner`/`_owner_ref`,
+>    and `_clock`/`datas` chains). When that feed is a *secondary* feed it
+>    pins `indicator._resolved_secondary_clock`. Crucially it does **not**
+>    change `indicator._clock`, so the existing minperiod-to-feed attribution
+>    (and thus strategy warmup / `bar_num`) is unchanged for every strategy.
+>    Only runs when `len(self.datas) > 1`.
+> 2. `backtrader/strategy.py` — the runonce post-phase advance loop in
+>    `_oncepost()` and `backtrader/indicator.py` — `Indicator.advance()` both
+>    honor `_resolved_secondary_clock` (falling back to `_clock`) so a
+>    secondary-feed indicator advances in lockstep with its slow feed instead
+>    of a clock that never ticks at the right cadence.
+> 3. `backtrader/indicators/wma.py` — `WeightedMovingAverage.next()`/`once()`
+>    now use `math.fsum` over the chronological (oldest-first) window with
+>    `weights[0]=1.0` weighting the oldest value, matching the framework's
+>    `WeightedAverage`. This removes a 1-ULP accumulation difference that
+>    flipped a single strict comparison in `0208_universal_investor`
+>    (`signal_count` 3861 vs 3860).
+>
+> Verified: the 3 target tests, the multi-feed strategies that the first
+> (rejected) wrapping-based attempt regressed (`test_0060`, `test_0147`,
+> `test_0148`, `test_0052`, `test_0071`, `test_31`), and the entire
+> `tests/` suite all pass.
+
+---
+
+## Original diagnosis (kept for reference)
 
 > Captured: 2026-05-29 · branch `dev` · baseline `master`
 >
@@ -6,13 +48,11 @@
 > with `bt.observers.TradeLogger` enabled on both branches. The 3 tests
 > below pass on `master` with the canonical metrics baked into commit
 > `9524f562` ("test(strategies): align 3 regression baselines with master
-> output"). They fail on `dev` because dev's metaclass-removal refactor
-> drops the `LineSeriesMaker` wrapping step that master applies to data
-> arguments inside `Indicator.__init__`. Indicators built on top of a
-> `LinesOperation` (e.g. `(h1.high + h1.low) / 2.0`) end up with a
-> `_clock` pointing at the strategy's primary feed instead of the
-> secondary feed the LinesOperation actually derives from, so runonce
-> emits indicator values too early, on misaligned bars.
+> output"). They fail on `dev` because indicators built on top of a
+> `LinesOperation` (e.g. `(h1.high + h1.low) / 2.0`) or on other indicators
+> that follow a secondary feed end up advancing on the strategy's primary
+> feed instead of the secondary feed the data actually derives from, so
+> runonce emits indicator values too early, on misaligned bars.
 
 ---
 

@@ -653,6 +653,110 @@ class Strategy(StrategyBase):
         _dminperiods = collections.defaultdict(list)
         # Loop through all indicators
         all_indicators = list(iter_indicator_tree(self._lineiterators[LineIterator.IndType]))
+
+        # CRITICAL FIX: bind secondary-feed indicator advance clocks now that
+        # the whole indicator tree is built. During construction, an indicator
+        # built on another indicator or a LinesOperation that follows a
+        # non-primary feed (e.g. SMA((h1.high + h1.low) / 2.0) or
+        # EMA(EMA(h4.close))) often has its clock defaulted to the strategy's
+        # primary feed because the parent clocks were not yet finalized. That
+        # makes the indicator warm up and emit values on the primary (fast)
+        # clock instead of the secondary (slow) feed in runonce mode. Here every
+        # clock is final, so we resolve each indicator's data dependency to the
+        # concrete feed it follows and, when that feed is a *secondary* feed,
+        # pin _resolved_secondary_clock to it (used by the runonce advance
+        # loop and Indicator.advance). See docs/DEV_REGRESSION_FAILURES.md.
+        from .lineiterator import _line_like_source_clock as _llsc
+
+        primary_feed = self.datas[0] if self.datas else None
+
+        # Map each feed's individual lines back to the owning feed so a clock
+        # that resolves to a feed *line* (e.g. data.high) can be attributed to
+        # its feed.
+        _line_to_feed = {}
+        for _data in self.datas:
+            _dlines = getattr(_data, "lines", None)
+            if _dlines is None:
+                continue
+            try:
+                for _ln in _dlines:
+                    _line_to_feed[id(_ln)] = _data
+            except TypeError:
+                pass
+
+        def _feed_of(node, _seen=None):
+            """Resolve a data node to the concrete feed it ultimately follows."""
+            if _seen is None:
+                _seen = set()
+            if node is None or id(node) in _seen:
+                return None
+            _seen.add(id(node))
+            if id(node) in dataids:
+                return node
+            if id(node) in _line_to_feed:
+                return _line_to_feed[id(node)]
+            try:
+                src = _llsc(node)
+            except Exception:
+                src = None
+            if src is not None and src is not node:
+                if id(src) in dataids:
+                    return src
+                if id(src) in _line_to_feed:
+                    return _line_to_feed[id(src)]
+                found = _feed_of(src, _seen)
+                if found is not None:
+                    return found
+            nxt = getattr(node, "_clock", None)
+            if nxt is not None and nxt.__class__.__name__ != "MinimalClock":
+                found = _feed_of(nxt, _seen)
+                if found is not None:
+                    return found
+            ndatas = getattr(node, "datas", None)
+            if ndatas:
+                found = _feed_of(ndatas[0], _seen)
+                if found is not None:
+                    return found
+            # Walk owner references: a node may be an indicator output line
+            # (LineBuffer) whose owning indicator follows the target feed. The
+            # owner can be the indicator directly, or a Lines container whose
+            # _owner_ref points to it.
+            for owner_attr in ("_owner", "_owner_ref"):
+                owner = getattr(node, owner_attr, None)
+                if owner is not None and id(owner) not in _seen:
+                    # A Lines container exposes _owner_ref to the real owner.
+                    ref = getattr(owner, "_owner_ref", None)
+                    if ref is not None and id(ref) not in _seen:
+                        found = _feed_of(ref, _seen)
+                        if found is not None:
+                            return found
+                    found = _feed_of(owner, _seen)
+                    if found is not None:
+                        return found
+            # Operands of a LinesOperation.
+            for op_attr in ("a", "b", "_parent_a", "_parent_b"):
+                operand = getattr(node, op_attr, None)
+                if operand is not None and id(operand) not in _seen:
+                    found = _feed_of(operand, _seen)
+                    if found is not None:
+                        return found
+            return None
+
+        if primary_feed is not None and len(self.datas) > 1:
+            for lineiter in all_indicators:
+                idatas = getattr(lineiter, "datas", None)
+                if not idatas:
+                    continue
+                feed = _feed_of(idatas[0])
+                if feed is not None and feed is not primary_feed and id(feed) in dataids:
+                    # Pin only the advance clock used by the runonce post-phase
+                    # loop and Indicator.advance(); deliberately do NOT change
+                    # lineiter._clock here so the existing minperiod-to-feed
+                    # attribution below (and thus the strategy warmup / bar_num)
+                    # stays identical to the pre-fix behavior. Changing _clock
+                    # perturbed multi-feed warmup for unrelated strategies.
+                    lineiter._resolved_secondary_clock = feed
+
         for lineiter in all_indicators:
             # If multiple datas are used and multiple timeframes, the larger
             # timeframe may place larger time constraints in calling next.
@@ -1013,7 +1117,10 @@ class Strategy(StrategyBase):
 
         # Loop through indicators, advance if indicator clock length exceeds indicator length
         for indicator in self._lineiterators[LineIterator.IndType]:
-            if len(indicator._clock) > len(indicator):
+            # Honor a pinned secondary-feed clock (set in _periodset) so
+            # indicators following a non-primary feed advance in sync with it.
+            adv_clock = getattr(indicator, "_resolved_secondary_clock", None) or indicator._clock
+            if len(adv_clock) > len(indicator):
                 indicator.advance()
         # If using old data sync method, call advance; otherwise call forward
         if self._oldsync:

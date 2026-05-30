@@ -60,21 +60,26 @@ class WeightedMovingAverage(MovingAverageBase):
         """Calculate WMA for the current bar.
 
         Applies arithmetic weighting with newest values having more weight.
+        Uses math.fsum over chronological (oldest-first) order to match the
+        framework's WeightedAverage accumulation exactly and avoid 1-ULP
+        drift between runonce and event modes.
         """
         period = self.p.period
         coef = self.coef
         weights = self.weights
 
-        weighted_sum = 0.0
-        for i in range(period):
-            weighted_sum += weights[period - 1 - i] * self.data[-i]
-
-        self.lines.wma[0] = coef * weighted_sum
+        # data oldest-first: data[-(period-1)] .. data[0]
+        data = [self.data[-(period - 1 - i)] for i in range(period)]
+        self.lines.wma[0] = coef * math.fsum(
+            weights[i] * data[i] for i in range(period)
+        )
 
     def once(self, start, end):
         """Calculate WMA in runonce mode.
 
-        Applies weighted average calculation across all bars.
+        Applies weighted average calculation across all bars. Uses math.fsum
+        over the chronological window (oldest-first) so results match the
+        framework's WeightedAverage and the event-mode next() bit-for-bit.
         """
         darray = self.data.array
         larray = self.lines.wma.array
@@ -90,17 +95,13 @@ class WeightedMovingAverage(MovingAverageBase):
             if i < len(larray):
                 larray[i] = float("nan")
 
-        for i in range(period - 1, min(end, len(darray))):
-            weighted_sum = 0.0
-            for j in range(period):
-                idx = i - j
-                if idx >= 0 and idx < len(darray):
-                    val = darray[idx]
-                    if not (isinstance(val, float) and math.isnan(val)):
-                        weighted_sum += weights[period - 1 - j] * val
-
-            if i < len(larray):
-                larray[i] = coef * weighted_sum
+        darray_len = len(darray)
+        for i in range(period - 1, min(end, darray_len)):
+            window = darray[i - period + 1 : i + 1]
+            # window is oldest-first; weights[0]=1.0 weights the oldest value.
+            larray[i] = coef * math.fsum(
+                weights[j] * window[j] for j in range(period)
+            )
 
 
 WMA = WeightedMovingAverage

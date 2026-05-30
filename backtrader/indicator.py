@@ -309,7 +309,15 @@ class Indicator(IndicatorBase):
         Args:
             size: Number of steps to advance (default: 1)
         """
-        if len(self) < len(self._clock):
+        # Prefer the concrete secondary-feed clock resolved in
+        # Strategy._periodset() for indicators that follow a non-primary feed
+        # (e.g. SMA over an H1 LinesOperation inside an M15 strategy). Their
+        # _clock may point at a feed whose len() is correct, but when an
+        # explicit secondary clock was pinned we use it so the indicator
+        # advances in lockstep with that feed. See
+        # docs/DEV_REGRESSION_FAILURES.md.
+        adv_clock = getattr(self, "_resolved_secondary_clock", None) or self._clock
+        if len(self) < len(adv_clock):
             self.lines.advance(size=size)
             for ind in self._lineiterators.get(LineIterator.IndType, []):
                 ind.advance(size)
