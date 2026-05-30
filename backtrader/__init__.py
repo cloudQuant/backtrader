@@ -93,6 +93,7 @@ from .strategy import *
 from .timer import *
 from .trade import *
 from .utils import date2num, num2date, num2dt, num2time, time2num
+from .utils import configure_logging, get_logger, reset_logging, set_level
 from .version import __btversion__, __version__
 from .writer import *
 from .profiles import LiveProfile, build_cerebro

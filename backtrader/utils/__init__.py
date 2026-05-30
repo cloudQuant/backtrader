@@ -32,6 +32,10 @@ from .dateintern import num2dt as num2dt
 from .dateintern import num2time as num2time
 from .dateintern import time2num as time2num
 from .dateintern import tzparse as tzparse
+from .log_message import configure_logging as configure_logging
+from .log_message import get_logger as get_logger
+from .log_message import reset_logging as reset_logging
+from .log_message import set_level as set_level
 
 __all__ = [
     "OrderedDict",
@@ -49,4 +53,8 @@ __all__ = [
     "num2time",
     "time2num",
     "tzparse",
+    "get_logger",
+    "configure_logging",
+    "set_level",
+    "reset_logging",
 ]
