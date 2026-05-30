@@ -58,7 +58,8 @@ class TradeAnalyzer(Analyzer):
           also reachable with dot notation dictname.total.total
     """
 
-    rets = None
+    # rets is created in create_analysis(); declared here for typing only.
+    rets: AutoOrderedDict
 
     # Create analysis
     def create_analysis(self):
