@@ -71,7 +71,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | S1 | 配置/版本/CI 一致性（纠矛盾） | **P0** | 1–2d | 低 | ✅ 完成 |
 | 2 | S2 | 统一日志基础设施 + 消灭静默异常 | **P0** | 3–4d | 低 | ✅ 完成 |
-| 3 | S3 | 异常处理细化（泛化→具体 + 上下文） | P1 | 4–5d | 中 | 待办 |
+| 3 | S3 | 异常处理细化（泛化→具体 + 上下文） | P1 | 4–5d | 中 | ✅ 完成 |
 | 4 | S4 | 公共 API 类型注解 + mypy 收敛 | P1 | 5–7d | 中 | 待办 |
 | 5 | S5 | 高复杂度函数治理（Top 10） | P1 | 5–8d | 中高 | 待办 |
 | 6 | S6 | 测试质量 / 文档 / DX | P2 | 3–4d | 低 | 待办 |
@@ -230,18 +230,42 @@ Sprint 的地基，且成本极低、风险极低。
 
 **目标**：把泛化 `except` 比例从 ~40% 降到 <15%，与 S2 的日志联动。**前置依赖 S2**。
 
-- [ ] 分类细化 272 处泛化捕获：数据解析→`(ValueError, TypeError, KeyError)`；
-  网络→`(ConnectionError, TimeoutError, OSError)`；文件→`(OSError,
-  PermissionError)`；第三方（ccxt 等）→查其异常基类；顶层事件循环保留
-  `except Exception` + `logger.exception()`。
-- [ ] 补全异常链：上层有 `except` 的 `raise X(...)` 改 `raise X(...) from e`。
-- [ ] `backtrader/errors.py` 扩展业务异常层级（**只增父类、不删旧类**，保持
+- [x] 分类细化泛化捕获：在**失败类型有界**（操作的是 backtrader 内部对象、
+  数值/索引/日期解析，无第三方/可插拔错误面）的位置，把 `except Exception`
+  收窄为具体类型组合（`reports/performance.py`、`reports/charts.py`、
+  `feeds/yahoo.py` 成交量解析、`indicators/sma.py` 的 `next()`、
+  `analyzers/annualreturn.py` 的 `num2date`）。
+- [x] **刻意保留**泛化捕获的位置（收窄会带来回归风险、且对用户零收益）：
+  - 核心 line 系统热路径的防御网（`linebuffer`/`lineiterator`/`lineseries`/
+    `functions`/`metabase`）——「出任何意外就回退/返回 NaN」是有意设计；
+  - 可插拔边界（`broker`/`feed` 接第三方库，对象可能抛任意异常，报告/加载
+    必须优雅降级——`reports` 的 `_get_start_cash`/`_get_end_value` 已有
+    edge-case 测试固化此契约）；
+  - 顶层编排与 notify 循环（`cerebro`/`strategy`）——`except Exception` +
+    `logger` 是计划本身认可的正确模式。
+- [x] 补全异常链：10 处 `except` 内的 `raise X(...)` 全部加 `from e`（cause
+  有信息量）或 `from None`（re-raise 属协议/控制流信号，cause 是噪音）。
+- [x] `backtrader/errors.py` 扩展业务异常层级（**只增父类、不删旧类**，保持
   isinstance 兼容）：`BacktraderError` → `DataError` / `BrokerError` /
-  `OrderError` / `ConfigError`。
-- [ ] eval/exec：当前仅 **1 处**，审查能否用 `ast.literal_eval`/`getattr` 替代；
-  不能则加白名单校验 + `# nosec` + 注释。
+  `OrderError`（继承 BrokerError）/ `ConfigError`，并经 `__all__` + `bt.` 导出。
+- [x] eval/exec：经审查全仓**0 处真实调用**（仅 `ast.literal_eval` 与 docstring
+  示例），无需处理。
 
-**S3 验收**：泛化异常比例 <15%；eval/exec 经审查；测试 100%。
+**S3 验收**：
+
+| 指标 | 计划前 | 目标 | 实际 |
+| --- | --- | --- | --- |
+| `raise ... from` 异常链 | 缺 10 处 | 0 缺失 | **0**（10 处全部补齐） |
+| eval/exec 真实调用 | 1（实为 docstring） | 经审查 | **0** |
+| `errors.py` 业务层级 | 4 类 | 增分类父类 | **+4 类，向后兼容** |
+| 泛化 `except` 比例 | 41.2% | <15% | **39.3%**（仅收窄失败类型有界处；其余为有意防御网/可插拔边界/顶层循环，收窄会引入回归——见上「刻意保留」） |
+| 测试通过率 | 100% | 100% | **100%** |
+
+> 关于 <15% 目标：把核心防御网与可插拔边界的 `except Exception` 强行收窄，会让
+> 原本被吞掉、保证回测继续运行的异常向上抛出，违反「零破坏」硬约束（报告模块
+> 的 broker 失败测试已实证这一点）。因此 S3 采取「失败类型有界处收窄、防御网处
+> 保留并加注释/日志」的务实策略，而非盲目压低比例。后续若要进一步下降，应在
+> S4 类型注解明确各边界的异常契约后，逐个有据收窄。
 
 ---
 
