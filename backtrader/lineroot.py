@@ -418,13 +418,13 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
     def __rmul__(self, other):
         return self._roperation(other, operator.__mul__)
 
-    # Division
+    # Division (Py2 alias; mapped to true division for Py3 correctness)
     def __div__(self, other):
-        return self._operation(other, operator.__div__)
+        return self._operation(other, operator.__truediv__)
 
     # Right division
     def __rdiv__(self, other):
-        return self._roperation(other, operator.__div__)
+        return self._roperation(other, operator.__truediv__)
 
     # Floor division
     def __floordiv__(self, other):
