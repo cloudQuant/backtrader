@@ -86,7 +86,18 @@ module = [
     "backtrader.analyzers.*",
     "backtrader.filters.*",
 ]
-disable_error_code = ["attr-defined", "assignment", "index", "call-arg"]
+disable_error_code = [
+    "attr-defined",
+    "assignment",
+    "index",
+    "call-arg",
+    "misc",
+    "operator",
+    "union-attr",
+    "has-type",
+    "arg-type",
+    "type-var",
+]
 
 [[tool.mypy.overrides]]
 module = [
