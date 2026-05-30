@@ -13,12 +13,12 @@ Example:
 """
 
 import collections
-import logging
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
+from ..utils.log_message import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 __all__ = ["LogReturnsRolling"]
 

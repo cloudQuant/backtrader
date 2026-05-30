@@ -48,14 +48,14 @@ Example:
 """
 
 import functools
-import logging
 import math
 import operator
 
+from ..utils.log_message import get_logger
 from ..utils.py3 import map, range
 from . import Indicator
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PeriodN(Indicator):

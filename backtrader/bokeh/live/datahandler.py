@@ -6,10 +6,11 @@ Handles real-time data updates and pushes.
 """
 
 import importlib.util
-import logging
 import time
 from enum import Enum
 from threading import Lock, Thread
+
+from ...utils.log_message import get_logger
 
 TORNADO_AVAILABLE = importlib.util.find_spec("tornado") is not None
 
@@ -20,7 +21,7 @@ try:
 except ImportError:
     PANDAS_AVAILABLE = False
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class UpdateType(Enum):

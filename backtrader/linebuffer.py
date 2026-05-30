@@ -36,16 +36,16 @@ import array
 import collections
 import datetime
 import itertools
-import logging
 import math
 from itertools import islice, repeat
 
 from . import metabase
 from .lineroot import LineRoot, LineRootMixin, LineSingle
 from .utils import num2date
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 NAN = float("NaN")
 

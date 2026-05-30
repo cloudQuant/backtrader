@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import collections
 import datetime as _dt
-import logging
 import time
 from copy import deepcopy
 
@@ -20,8 +19,9 @@ from ..position_modes import (
     normalize_position_side,
     signed_position_size,
 )
+from ..utils.log_message import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BtApiBroker(BrokerBase):

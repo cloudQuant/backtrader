@@ -18,14 +18,14 @@ Example::
 """
 
 import heapq
-import logging
 import threading
 import time
 from typing import Optional
 
 from ..channel import Event, EventPriority
+from ..utils.log_message import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 __all__ = ["LiveEventQueue"]
 

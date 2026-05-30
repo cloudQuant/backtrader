@@ -7,10 +7,11 @@ Generates static charts for reports, distinct from interactive plotting.
 
 import base64
 import io
-import logging
 import math
 
-logger = logging.getLogger(__name__)
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import matplotlib

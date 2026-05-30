@@ -38,8 +38,9 @@ from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 
 from ..observer import Observer
+from ..utils.log_message import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Shanghai timezone (UTC+8) used for all log timestamps
 _SHANGHAI_TZ = timezone(timedelta(hours=8))

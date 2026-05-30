@@ -26,7 +26,6 @@ Example:
 import collections
 import datetime
 import inspect
-import logging
 import os.path
 
 from . import dataseries, metabase
@@ -35,9 +34,10 @@ from .resamplerfilter import Replayer, Resampler
 from .tradingcal import PandasMarketCalendar
 from .utils import date2num, num2date, time2num, tzparse
 from .utils.date import Localizer
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types, zip
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Refactor: Remove metaclass, use normal class and initialization method

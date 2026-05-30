@@ -5,10 +5,11 @@ Performance metrics calculator.
 Extracts and calculates all performance metrics from strategies and analyzers.
 """
 
-import logging
 import math
 
-logger = logging.getLogger(__name__)
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class PerformanceCalculator:

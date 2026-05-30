@@ -13,13 +13,13 @@ Key Components:
 - Python 3.6+ __set_name__ support
 """
 
-import logging
 import time as _time
 from typing import Any, Callable, Dict, List, Optional, Type, Union
 
+from .utils.log_message import get_logger
 from .utils.py3 import string_types
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ParameterDescriptor:

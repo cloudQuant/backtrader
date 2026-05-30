@@ -41,7 +41,6 @@ import collections
 import copy
 import datetime
 import itertools
-import logging
 import math
 
 from .lineiterator import LineIterator, StrategyBase
@@ -76,10 +75,10 @@ from .signal import (
 from .sizers.fixedsize import FixedSize
 from .trade import Trade
 from .utils import AutoDictList, AutoOrderedDict
-from .utils.log_message import SpdLogManager
+from .utils.log_message import SpdLogManager, get_logger
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class Strategy(StrategyBase):

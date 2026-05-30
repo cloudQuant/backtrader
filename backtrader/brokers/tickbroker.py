@@ -14,7 +14,6 @@ Example:
 """
 
 import collections
-import logging
 
 from backtrader.broker import BrokerBase
 from backtrader.brokers.hft import FillRole, LatencyEngine, MatchingCore, Recorder, StateTracker
@@ -31,7 +30,9 @@ from backtrader.position_modes import (
     signed_position_size,
 )
 
-logger = logging.getLogger(__name__)
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = ["TickBroker"]
 

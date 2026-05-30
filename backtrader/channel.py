@@ -21,13 +21,14 @@ Example:
 """
 
 import heapq
-import logging
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum, IntEnum
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from .utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class EventPriority(IntEnum):

@@ -14,15 +14,15 @@ Example:
     >>> print(results[0].analyzers.annret.get_analysis())
 """
 
-import logging
 import math
 from collections import OrderedDict
 
 from ..analyzer import Analyzer
 from ..utils.date import num2date
+from ..utils.log_message import get_logger
 from ..utils.py3 import range
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Calculate annual returns. The algorithm implementation is somewhat complex, so a pandas-based version MyAnnualReturn was written later with much simpler logic

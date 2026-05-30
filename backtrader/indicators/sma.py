@@ -19,12 +19,12 @@ Example:
                 self.sell()
 """
 
-import logging
 import math
 
+from ..utils.log_message import get_logger
 from .mabase import MovingAverageBase
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 # Moving average indicator

@@ -5,11 +5,10 @@ Configuration tab.
 Displays configuration info for strategy and data.
 """
 
-import logging
-
+from ...utils.log_message import get_logger
 from ..tab import BokehTab
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 try:
     from bokeh.layouts import column

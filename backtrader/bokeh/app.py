@@ -5,10 +5,11 @@ Bokeh Application Core Classes
 Provides integration between Backtrader and Bokeh
 """
 
-import logging
 from collections import OrderedDict
 
-logger = logging.getLogger(__name__)
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 try:
     import pandas as pd
@@ -41,7 +42,7 @@ except ImportError:
 from . import tabs as default_tabs  # noqa: E402
 from .schemes import Tradimo  # noqa: E402
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class FigurePage:

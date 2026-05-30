@@ -20,13 +20,13 @@ Example:
 """
 
 import functools
-import logging
 import math
 
 from .linebuffer import LineActions
+from .utils.log_message import get_logger
 from .utils.py3 import cmp, range
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _sanitize_cmp_value(value):

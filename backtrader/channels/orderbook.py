@@ -18,14 +18,14 @@ Example:
 import csv
 import gzip
 import json
-import logging
 import math
 from typing import Iterator, List, Tuple
 
 from ..channel import DataChannel, DataValidationResult
 from ..events import OrderBookSnapshot
+from ..utils.log_message import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class OrderBookChannel(DataChannel):

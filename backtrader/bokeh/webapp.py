@@ -3,8 +3,9 @@
 
 Provides Bokeh Server wrapper."""
 
-import logging
 import webbrowser
+
+from ..utils.log_message import get_logger
 
 try:
     from bokeh.application import Application
@@ -15,7 +16,7 @@ try:
 except ImportError:
     BOKEH_AVAILABLE = False
 
-_logger = logging.getLogger(__name__)
+_logger = get_logger(__name__)
 
 
 class Webapp:

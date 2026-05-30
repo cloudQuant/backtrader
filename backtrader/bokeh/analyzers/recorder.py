@@ -5,12 +5,13 @@ Data recording analyzer.
 Records data during strategy execution for subsequent plotting or analysis.
 """
 
-import logging
 from collections import OrderedDict
 
 import backtrader as bt
 
-logger = logging.getLogger(__name__)
+from ...utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class RecorderAnalyzer(bt.Analyzer):

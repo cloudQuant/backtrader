@@ -34,7 +34,6 @@ Classes:
 import collections
 import datetime
 import itertools
-import logging
 import multiprocessing
 from datetime import timezone
 
@@ -47,10 +46,11 @@ from .strategy import SignalStrategy, Strategy
 from .timer import Timer
 from .tradingcal import PandasMarketCalendar, TradingCalendarBase
 from .utils import OrderedDict, date2num, num2date, tzparse
+from .utils.log_message import get_logger
 from .utils.py3 import integer_types, map, range, string_types, zip
 from .writer import WriterFile
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable

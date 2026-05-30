@@ -6,11 +6,11 @@ Displays metadata info for strategy and backtest.
 """
 
 import datetime
-import logging
 
+from ...utils.log_message import get_logger
 from ..tab import BokehTab
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 try:
     from bokeh.layouts import column

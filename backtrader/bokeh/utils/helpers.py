@@ -3,11 +3,12 @@
 Helper utility functions.
 """
 
-import logging
 import re
 from typing import List
 
-logger = logging.getLogger(__name__)
+from ...utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 def get_datanames(strategy):

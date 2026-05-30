@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import collections
 import datetime as _dt
-import logging
 
 from ..channel import Event, EventPriority
 from ..dataseries import TimeFrame
@@ -13,9 +12,10 @@ from ..events import BarEvent
 from ..feed import DataBase
 from ..stores.btapistore import _normalize_bar
 from ..utils import date2num
+from ..utils.log_message import get_logger
 from .livefeed import LiveFeedBase
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class BtApiFeed(DataBase, LiveFeedBase):

@@ -33,16 +33,16 @@ Note:
     equivalent functionality using explicit initialization patterns.
 """
 
-import logging
 import math
 import sys
 import threading
 from collections import OrderedDict
 from contextlib import contextmanager
 
+from .utils.log_message import get_logger
 from .utils.py3 import string_types, zip
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # PERFORMANCE OPTIMIZATION: Cache for MRO type checks
 # This avoids repeatedly traversing __mro__ for the same classes

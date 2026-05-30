@@ -14,7 +14,6 @@ The LineIterator manages:
 """
 
 import collections
-import logging
 import sys
 
 from . import metabase
@@ -23,9 +22,10 @@ from .linebuffer import LineActions, LineNum
 from .lineroot import LineSingle
 from .lineseries import LineSeries, LineSeriesMaker
 from .utils import DotDict
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types, zip
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 def _clock_is_replaying(clock, seen=None):

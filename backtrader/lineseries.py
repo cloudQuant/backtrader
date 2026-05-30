@@ -18,15 +18,15 @@ Example:
     >>> obj.lines[0]  # Access the first line
 """
 
-import logging
 import sys
 
 from . import metabase
 from .linebuffer import NAN, LineActions, LineBuffer, LineDelay
 from .lineroot import LineMultiple
+from .utils.log_message import get_logger
 from .utils.py3 import range, string_types
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Performance optimization: use module-level set to track recursion, avoid massive setattr/delattr operations
 _recursion_guards = set()

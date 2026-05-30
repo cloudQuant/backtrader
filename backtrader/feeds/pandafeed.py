@@ -15,13 +15,12 @@ Example:
     >>> cerebro.adddata(data)
 """
 
-import logging
-
 from ..feed import DataBase
 from ..utils import date2num
+from ..utils.log_message import get_logger
 from ..utils.py3 import filter, integer_types, string_types
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class PandasDirectData(DataBase):

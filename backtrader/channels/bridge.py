@@ -11,10 +11,11 @@ Example::
     # Now bridge.lines.price[0] contains the latest tick price
 """
 
-import logging
 from collections import deque
 
-logger = logging.getLogger(__name__)
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 __all__ = ["ChannelBridge"]
 

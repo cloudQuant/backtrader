@@ -9,7 +9,6 @@ which handles large datasets much better than matplotlib.
 import bisect
 import collections
 import datetime
-import logging
 import math
 
 import numpy as np
@@ -18,10 +17,11 @@ from plotly.subplots import make_subplots
 
 from ..parameters import ParameterDescriptor, ParameterizedBase
 from ..utils.date import num2date
+from ..utils.log_message import get_logger
 from ..utils.py3 import range
 from .scheme import PlotScheme
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # Tableau color schemes
 TABLEAU10 = [

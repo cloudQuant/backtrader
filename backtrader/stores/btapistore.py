@@ -11,7 +11,6 @@ from __future__ import annotations
 import collections
 import datetime as _dt
 import importlib
-import logging
 import math
 import os
 import re
@@ -22,9 +21,10 @@ from copy import deepcopy
 from typing import Any, Deque, Dict, Iterable, List, Optional
 
 from ..events import TickEvent
+from ..utils.log_message import get_logger
 from .livestore import LiveStoreBase
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 _PLACEHOLDER_PROVIDERS = frozenset({"futu", "oanda", "vc"})

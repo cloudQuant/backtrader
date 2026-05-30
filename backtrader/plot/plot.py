@@ -23,7 +23,6 @@ import bisect
 import collections
 import copy
 import datetime
-import logging
 import math
 import operator
 import os
@@ -36,6 +35,8 @@ import matplotlib
 import matplotlib.font_manager as mfontmgr
 import matplotlib.ticker as mticker
 import numpy as np  # guaranteed by matplotlib
+
+from ..utils.log_message import get_logger
 
 if not hasattr(np, "unicode_"):
     # Runtime shim for numpy>=2.0 which removed np.unicode_ (used by deps).
@@ -62,7 +63,7 @@ from .multicursor import MultiCursor
 from .scheme import PlotScheme
 from .utils import tag_box_style
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 # from jupyter_plotly_dash import JupyterDash
 

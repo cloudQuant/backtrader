@@ -17,12 +17,12 @@ Example:
                 self.buy()
 """
 
-import logging
 import math
 
+from ..utils.log_message import get_logger
 from . import MovingAverageBase
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class ExponentialMovingAverage(MovingAverageBase):

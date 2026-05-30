@@ -23,13 +23,13 @@ Example:
     >>> obj.updateminperiod(30)  # Update to max(current, 30)
 """
 
-import logging
 import operator
 
 from . import metabase
+from .utils.log_message import get_logger
 from .utils.py3 import range
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class LineRootMixin:
