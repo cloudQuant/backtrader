@@ -73,7 +73,7 @@
 | 2 | S2 | 统一日志基础设施 + 消灭静默异常 | **P0** | 3–4d | 低 | ✅ 完成 |
 | 3 | S3 | 异常处理细化（泛化→具体 + 上下文） | P1 | 4–5d | 中 | ✅ 完成 |
 | 4 | S4 | 公共 API 类型注解 + mypy 收敛 | P1 | 5–7d | 中 | ✅ 完成 |
-| 5 | S5 | 高复杂度函数治理（Top 10） | P1 | 5–8d | 中高 | 待办 |
+| 5 | S5 | 高复杂度函数治理（Top 10） | P1 | 5–8d | 中高 | 🚧 进行中 |
 | 6 | S6 | 测试质量 / 文档 / DX | P2 | 3–4d | 低 | 待办 |
 | 7 | S7 | 接口设计（长参数列表，19 处） | P3 | 2–3d | 中 | 待办 |
 | 8 | S8 | （可选）超大文件拆分 | P3 | 5–7d | **高** | 待办 |
@@ -317,34 +317,51 @@ Sprint 的地基，且成本极低、风险极低。
 
 ---
 
-## Sprint 5：高复杂度函数治理 (P1, 5–8d)
+## Sprint 5：高复杂度函数治理 (P1, 5–8d) 🚧 进行中
 
 **目标**：把 Top 复杂度函数降到可维护区间。**纯内部重构，外部行为不变。**
 
-### Top 10（radon 实测，2026-05-30）
+### Top 10（radon 实测，2026-05-30）+ 处理状态
 
-| CC | 文件 | 函数 | 建议 |
+| CC | 文件 | 函数 | 处理 |
 | --- | --- | --- | --- |
-| 161 | brokers/tickbroker.py | `process_orderbook` | 提取订单簿状态机 |
-| 84 | strategy.py | `SignalStrategy._next_signal` | 拆信号处理子方法 |
-| 70 | lineiterator.py | `LineIterator.__init__` | 分阶段初始化 |
-| 63 | strategy.py | `_periodset` | **拆分**（注：含本次多数据时钟修复新增逻辑，见下注） |
-| 59 | cerebro.py | `_runnext` | 提取数据推进/通知子方法 |
-| 57 | cerebro.py | `runstrategies` | 提取准备/执行/清理阶段 |
-| 55 | plot/plot.py | `Plot_OldSync.plotind` | 提取配置/渲染 |
-| 49 | linebuffer.py | `LineActions._once` | 提取一次性计算分支 |
-| 48 | lineiterator.py | `LineIteratorMixin.donew` | 拆参数提取/数据绑定 |
-| 44 | lineseries.py | `_register_line_assignment_child` | 拆注册逻辑 |
+| 161 | brokers/tickbroker.py | `process_orderbook` | ⏸ 暂缓（实盘撮合状态机，回归风险极高，收益仅可维护性） |
+| 84 | strategy.py | `SignalStrategy._next_signal` | ✅ 拆 `_evaluate_signals`，CC 84→28 |
+| 70 | lineiterator.py | `LineIterator.__init__` | ⏸ 暂缓（动态 line 系统初始化，热路径） |
+| 63 | strategy.py | `_periodset` | ⏸ 暂缓（含多数据时钟对齐修复，见下注，改动易破回归网） |
+| 59 | cerebro.py | `_runnext` | ⏸ 暂缓（事件驱动主循环，状态高度耦合，热路径） |
+| 57 | cerebro.py | `runstrategies` | ✅ 拆 `_prepare_run` + `_build_optreturn_results`，CC 57→37 |
+| 55 | plot/plot.py | `Plot_OldSync.plotind` | ⏸ 暂缓（绘图，非核心，低优先级） |
+| 49 | linebuffer.py | `LineActions._once` | ⏸ 暂缓（核心数值计算，热路径） |
+| 48 | lineiterator.py | `LineIteratorMixin.donew` | ⏸ 暂缓（动态构造，热路径） |
+| 44 | lineseries.py | `_register_line_assignment_child` | ⏸ 暂缓（line 绑定核心） |
+
+**另外完成（非 Top 10 但同属高复杂度、低风险、测试充分）**：
+
+- `parameters.py::ParameterManager.inherit_from`：拆 4 个策略分支 + 共享辅助,
+  CC 33→5。
+- `metabase.py::ParameterManager._derive_params`：抽出 `_merge_class_params_into`
+  参数归一化，CC 30→14。
 
 > 注：`_periodset` 的复杂度部分来自近期「多数据时钟对齐」修复（见
 > `docs/DEV_REGRESSION_FAILURES.md`）。重构时**务必先跑 `make test-strategies`**，
 > 那批多时间框架用例正是此函数的回归网。
 
-### 策略
+### 处理原则（实践中确立）
 
-- 每个函数单独 PR；重构前后跑相关测试 + 必要时 `make test-strategies`；
-- 关键决策分支加 DEBUG 日志（复用 S2）；目标 CC>40 → <30，>30 → <20；
-- 提取的辅助方法以 `_` 前缀标识为内部；签名/返回值不变；魔法方法只改内部。
+- **只重构「相位清晰可分、测试充分、非最热路径」的函数**：cerebro 的启动/优化
+  结果构建、信号评估、参数继承/归一化都满足；而 `process_orderbook`（撮合状态
+  机）、`_runnext`（事件主循环）、line 系统的 `donew/__init__/_once`、`_periodset`
+  （多数据时钟）属于「高风险、纯可维护性收益」，**刻意暂缓**——零破坏约束下，
+  为降 CC 而动这些热点/状态机得不偿失。
+- 每个函数单独提交；提取辅助方法以 `_` 前缀标识为内部；签名/返回值/副作用顺序
+  不变；重构前后跑相关测试（全量 3,001 用例每轮验证）。
+
+### S5 验收（务实）
+
+已把 4 个高复杂度函数（含 Top 10 的 2 个）降入可维护区间，全程零行为变化、
+全量测试通过。其余 Top 函数因风险/收益比不佳暂缓，待有针对性测试加固后再逐个
+处理。
 
 ---
 
