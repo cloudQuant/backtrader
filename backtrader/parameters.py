@@ -600,112 +600,92 @@ class ParameterManager:
             selective: Only inherit specific parameters (list of names)
         """
         if strategy == "replace":
-            # Replace all parameters
-            if selective:
-                for name in selective:
-                    if name in parent._descriptors:
-                        self._descriptors[name] = parent._descriptors[name]
-                        self._defaults[name] = parent._defaults[name]
-                        # Get the actual current value from parent
-                        parent_value = parent.get(name)
-                        self._values[name] = parent_value
-                        self._inheritance_sources[name] = parent
-            else:
-                self._descriptors.update(parent._descriptors)
-                self._defaults.update(parent._defaults)
-                # Copy all current values from parent
-                for name in parent._descriptors:
-                    parent_value = parent.get(name)
-                    self._values[name] = parent_value
-                    self._inheritance_sources[name] = parent
-
+            self._inherit_replace(parent, selective)
         elif strategy == "merge":
-            # Merge parameters, handling conflicts
-            params_to_process = selective if selective else parent._descriptors.keys()
-
-            for name in params_to_process:
-                if name in parent._descriptors and name in self._descriptors:
-                    # Only process parameters that exist in both parent and child
-                    parent_value = parent.get(name)
-                    parent_default = parent._defaults.get(name)
-
-                    # Check if parent has actually set this parameter (has non-default value)
-                    parent_has_value = parent_value != parent_default or name in parent._values
-
-                    # Parameter exists in both parent and child
-                    child_value = self.get(name)
-                    child_default = self._defaults.get(name)
-                    child_has_value = child_value != child_default or name in self._values
-
-                    if parent_has_value and child_has_value:
-                        # Both have values - this is a conflict
-                        if conflict_resolution == "parent":
-                            self._descriptors[name] = parent._descriptors[name]
-                            self._defaults[name] = parent._defaults[name]
-                            self._values[name] = parent_value
-                            self._inheritance_sources[name] = parent
-                        elif conflict_resolution == "child":
-                            # Keep current values
-                            pass
-                        elif conflict_resolution in ("error", "raise"):
-                            raise ValueError(
-                                f"Parameter '{name}' conflicts between parent and child"
-                            )
-                    elif parent_has_value and not child_has_value:
-                        # Parent has value, child has default - inherit from parent
-                        self._descriptors[name] = parent._descriptors[name]
-                        self._defaults[name] = parent._defaults[name]
-                        self._values[name] = parent_value
-                        self._inheritance_sources[name] = parent
-                    # If only child has value, keep child's value
-
+            self._inherit_merge(parent, conflict_resolution, selective)
         elif strategy == "add_only":
-            # Only add parameters that don't exist
-            params_to_process = selective if selective else parent._descriptors.keys()
-
-            for name in params_to_process:
-                if name in parent._descriptors and name not in self._descriptors:
-                    self._descriptors[name] = parent._descriptors[name]
-                    self._defaults[name] = parent._defaults[name]
-                    # Get the actual current value from parent
-                    parent_value = parent.get(name)
-                    self._values[name] = parent_value
-                    self._inheritance_sources[name] = parent
-
+            self._inherit_add_only(parent, selective)
         elif strategy == "selective":
-            # Selective inheritance (same as merge with selective list)
-            if not selective:
-                raise ValueError("Selective strategy requires a list of parameter names")
-
-            for name in selective:
-                if name in parent._descriptors:
-                    if name in self._descriptors:
-                        # Handle conflicts based on conflict_resolution
-                        if conflict_resolution == "parent":
-                            self._descriptors[name] = parent._descriptors[name]
-                            self._defaults[name] = parent._defaults[name]
-                            # Get the actual current value from parent
-                            parent_value = parent.get(name)
-                            self._values[name] = parent_value
-                            self._inheritance_sources[name] = parent
-                        elif conflict_resolution == "child":
-                            # Keep current values
-                            pass
-                        elif conflict_resolution in ("error", "raise"):
-                            raise ValueError(
-                                f"Parameter '{name}' conflicts between parent and child"
-                            )
-                    else:
-                        # No conflict, add parameter
-                        self._descriptors[name] = parent._descriptors[name]
-                        self._defaults[name] = parent._defaults[name]
-                        # Get the actual current value from parent
-                        parent_value = parent.get(name)
-                        self._values[name] = parent_value
-                        self._inheritance_sources[name] = parent
-
+            self._inherit_selective(parent, conflict_resolution, selective)
         else:
             raise ValueError(f"Unknown inheritance strategy: {strategy}")
+
+    def _copy_param_from(self, parent: "ParameterManager", name: str) -> None:
+        """Copy a single parameter's descriptor/default/current value from parent."""
+        self._descriptors[name] = parent._descriptors[name]
+        self._defaults[name] = parent._defaults[name]
+        self._values[name] = parent.get(name)
+        self._inheritance_sources[name] = parent
+
+    def _parent_has_set(self, parent: "ParameterManager", name: str) -> bool:
+        """Whether the parent has a non-default (explicitly set) value for name."""
+        return parent.get(name) != parent._defaults.get(name) or name in parent._values
+
+    def _resolve_conflict(self, parent: "ParameterManager", name: str, conflict_resolution: str):
+        """Apply conflict_resolution for a parameter present in both managers."""
+        if conflict_resolution == "parent":
+            self._copy_param_from(parent, name)
+        elif conflict_resolution == "child":
+            # Keep current values
+            pass
+        elif conflict_resolution in ("error", "raise"):
+            raise ValueError(f"Parameter '{name}' conflicts between parent and child")
+
+    def _inherit_replace(
+        self, parent: "ParameterManager", selective: Optional[List[str]]
+    ) -> None:
+        """Replace strategy: overwrite (selected) params with the parent's."""
+        names = selective if selective else list(parent._descriptors)
+        for name in names:
+            if name in parent._descriptors:
+                self._copy_param_from(parent, name)
+
+    def _inherit_merge(
+        self,
+        parent: "ParameterManager",
+        conflict_resolution: str,
+        selective: Optional[List[str]],
+    ) -> None:
+        """Merge strategy: only touch params present in both, honoring conflicts."""
+        params_to_process = selective if selective else parent._descriptors.keys()
+        for name in params_to_process:
+            if name in parent._descriptors and name in self._descriptors:
+                parent_has_value = self._parent_has_set(parent, name)
+                child_has_value = (
+                    self.get(name) != self._defaults.get(name) or name in self._values
+                )
+                if parent_has_value and child_has_value:
+                    self._resolve_conflict(parent, name, conflict_resolution)
+                elif parent_has_value and not child_has_value:
+                    # Parent has value, child has default - inherit from parent
+                    self._copy_param_from(parent, name)
+                # If only child has value, keep child's value
+
+    def _inherit_add_only(
+        self, parent: "ParameterManager", selective: Optional[List[str]]
+    ) -> None:
+        """Add-only strategy: copy params that don't already exist on the child."""
+        params_to_process = selective if selective else parent._descriptors.keys()
+        for name in params_to_process:
+            if name in parent._descriptors and name not in self._descriptors:
+                self._copy_param_from(parent, name)
+
+    def _inherit_selective(
+        self,
+        parent: "ParameterManager",
+        conflict_resolution: str,
+        selective: Optional[List[str]],
+    ) -> None:
+        """Selective strategy: like merge, but driven by an explicit name list."""
+        if not selective:
+            raise ValueError("Selective strategy requires a list of parameter names")
+        for name in selective:
+            if name in parent._descriptors:
+                if name in self._descriptors:
+                    self._resolve_conflict(parent, name, conflict_resolution)
+                else:
+                    # No conflict, add parameter
+                    self._copy_param_from(parent, name)
 
     def get_inheritance_info(self, name: str) -> Optional[Dict[str, Any]]:
         """
