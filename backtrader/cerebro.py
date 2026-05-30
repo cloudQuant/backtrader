@@ -1686,15 +1686,14 @@ class Cerebro(ParameterizedBase):
     def _next_stid(self):
         return next(self.stcount)
 
-    # Run strategy
-    def runstrategies(self, iterstrat, predata=False):
+    def _prepare_run(self, predata=False):
+        """Start components and (optionally) preload data before strategies run.
+
+        Extracted from runstrategies() to keep that method readable. Starts
+        stores, applies cheat-on-open/fund/order-history settings, starts the
+        broker and feeds, writes CSV writer headers, and resets/preloads each
+        data feed unless ``predata`` is True.
         """
-        Internal method invoked by ``run``` to run a set of strategies
-        """
-        # Initialize count
-        self._init_stcount()
-        # Initialize running strategy as empty list
-        self.runningstrats = runstrats = list()
         # Iterate stores and start
         for store in self.stores:
             store.start()
@@ -1727,8 +1726,6 @@ class Cerebro(ParameterizedBase):
                 if writer.p.csv:
                     writer.addheaders(wheaders)
 
-        # self._plotfillers = [list() for d in self.datas]
-        # self._plotfillers2 = [list() for d in self.datas]
         # If no predata, need to pre-process data, similar to run method preprocessing
         if not predata:
             for data in self.datas:
@@ -1738,6 +1735,18 @@ class Cerebro(ParameterizedBase):
                 data._start()
                 if self._dopreload:
                     data.preload()
+
+    # Run strategy
+    def runstrategies(self, iterstrat, predata=False):
+        """
+        Internal method invoked by ``run``` to run a set of strategies
+        """
+        self._init_stcount()
+        # Initialize running strategy as empty list
+        self.runningstrats = runstrats = list()
+        # Start stores/broker/feeds, apply fund + order history, write headers
+        # and (optionally) preload data. Extracted for readability.
+        self._prepare_run(predata)
         # Loop through strategies
         for stratcls, sargs, skwargs in iterstrat:
             # Add data to strategy parameters
@@ -1873,27 +1882,34 @@ class Cerebro(ParameterizedBase):
         self.stop_writers(runstrats)
         if run_exception is not None:
             raise run_exception
-        # If doing parameter optimization and optreturn is True, get strategy results and add to results
+        # If doing parameter optimization and optreturn is True, build lightweight
+        # OptReturn results (detached from data) instead of full strategy objects.
         if self._dooptimize and self.p.optreturn:
-            # Results can be optimized
-            results = list()
-            for strat in runstrats:
-                for a in strat.analyzers:
-                    a.strategy = None
-                    a._parent = None
-                    # OPTIMIZED: Use __dict__ instead of dir() for better performance
-                    for attrname in list(a.__dict__.keys()):
-                        if attrname.startswith("data"):
-                            setattr(a, attrname, None)
-
-                oreturn = OptReturn(
-                    strat.params, analyzers=strat.analyzers, strategycls=type(strat)
-                )
-                results.append(oreturn)
-
-            return results
+            return self._build_optreturn_results(runstrats)
 
         return runstrats
+
+    def _build_optreturn_results(self, runstrats):
+        """Build OptReturn results for an optimization run.
+
+        Detaches analyzers from their strategy/data references (so the result
+        is lightweight and picklable across process boundaries) and wraps each
+        strategy's params + analyzers in an OptReturn.
+        """
+        results = list()
+        for strat in runstrats:
+            for a in strat.analyzers:
+                a.strategy = None
+                a._parent = None
+                # OPTIMIZED: Use __dict__ instead of dir() for better performance
+                for attrname in list(a.__dict__.keys()):
+                    if attrname.startswith("data"):
+                        setattr(a, attrname, None)
+
+            oreturn = OptReturn(strat.params, analyzers=strat.analyzers, strategycls=type(strat))
+            results.append(oreturn)
+
+        return results
 
     # Stop writer
     def stop_writers(self, runstrats):
