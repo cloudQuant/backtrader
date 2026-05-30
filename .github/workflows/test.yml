@@ -46,7 +46,7 @@ jobs:
       - name: Install linting tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff 'black==26.1.0' isort
+          pip install ruff 'black==26.1.0' isort mypy
 
       - name: Run ruff
         run: ruff check backtrader/
@@ -56,6 +56,20 @@ jobs:
 
       - name: Check imports with isort
         run: isort --check-only backtrader/
+
+      - name: Guard against star imports outside __init__.py (F403)
+        shell: bash
+        run: |
+          violations="$(grep -rEn '^from .* import \*' backtrader --include='*.py' | grep -v '__init__.py' || true)"
+          if [ -n "$violations" ]; then
+            echo "Star imports are only allowed in __init__.py:"
+            echo "$violations"
+            exit 1
+          fi
+
+      - name: Type check with mypy (non-blocking trend report)
+        continue-on-error: true
+        run: mypy backtrader --config-file=pyproject.toml || true
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}

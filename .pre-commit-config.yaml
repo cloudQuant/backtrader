@@ -9,7 +9,7 @@ repos:
     rev: v3.21.2
     hooks:
       - id: pyupgrade
-        args: [--py311-plus]
+        args: [--py38-plus]
         name: pyupgrade
         description: Automatically upgrade Python syntax
 

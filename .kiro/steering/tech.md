@@ -2,7 +2,7 @@
 
 ## Language & Runtime
 
-- Python 3.9+ (tested on 3.9–3.13, 3.11 recommended for performance)
+- Python 3.8+ (tested on 3.8–3.13, 3.11 recommended for performance)
 - Cython extensions for performance-critical calculations
 
 ## Core Dependencies

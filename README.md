@@ -5,7 +5,7 @@
 **Professional Python Algorithmic Trading Backtesting Framework**
 
 [![Version](https://img.shields.io/badge/Version-1.1.0-blue.svg)](https://github.com/cloudQuant/backtrader)
-[![Python](https://img.shields.io/badge/Python-3.9%2B-green.svg)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.8%2B-green.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-GPLv3-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#)
 
@@ -172,7 +172,7 @@ CSV, Pandas, Yahoo Finance, Interactive Brokers, CCXT cryptocurrency, CTP future
 
 ### Requirements
 
-- **Python**: 3.9+ (3.11 recommended for ~15% performance boost)
+- **Python**: 3.8+ (3.11 recommended for ~15% performance boost)
 - **OS**: Windows / macOS / Linux
 - **RAM**: 4GB+ recommended
 

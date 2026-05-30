@@ -58,6 +58,7 @@ setup(
             "pyecharts",
         ],
     },  # List of project dependencies
+    python_requires=">=3.8",
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
