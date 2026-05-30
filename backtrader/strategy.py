@@ -2935,17 +2935,15 @@ class SignalStrategy(Strategy):
         if hasattr(self, "_next_custom"):
             self._next_custom()
 
-    def _next_signal(self):
-        """Process signals and generate orders based on signal values.
+    def _evaluate_signals(self):
+        """Evaluate all signal collections into entry/exit/reversal flags.
 
-        Evaluates all signal types and generates buy/sell orders based on:
-        - Current position status
-        - Signal values (positive/negative)
-        - Accumulation and concurrency settings
+        Pure helper (no order side effects) extracted from _next_signal for
+        readability. Returns a tuple of booleans consumed by the position
+        decision logic:
+            (ls_long, ls_short, l_enter, s_enter, l_exit, s_exit,
+             l_rev, s_rev, l_leave, s_leave)
         """
-        # If concurrent orders are disabled and an order is active, return
-        if self._sentinel is not None and not self.p._concurrent:
-            return  # order active and more than 1 not allowed
         # Get signal collections
         sigs = self._signals
         # Default no-signal value
@@ -3001,6 +2999,45 @@ class SignalStrategy(Strategy):
         # Invalidate short leave if shortexit signals are available
         # If shortexit exists, disable s_leave; otherwise keep s_leave
         s_leave = not self._shortexit and s_leave
+
+        return (
+            ls_long,
+            ls_short,
+            l_enter,
+            s_enter,
+            l_exit,
+            s_exit,
+            l_rev,
+            s_rev,
+            l_leave,
+            s_leave,
+        )
+
+    def _next_signal(self):
+        """Process signals and generate orders based on signal values.
+
+        Evaluates all signal types and generates buy/sell orders based on:
+        - Current position status
+        - Signal values (positive/negative)
+        - Accumulation and concurrency settings
+        """
+        # If concurrent orders are disabled and an order is active, return
+        if self._sentinel is not None and not self.p._concurrent:
+            return  # order active and more than 1 not allowed
+
+        # Evaluate all signal collections into decision flags
+        (
+            ls_long,
+            ls_short,
+            l_enter,
+            s_enter,
+            l_exit,
+            s_exit,
+            l_rev,
+            s_rev,
+            l_leave,
+            s_leave,
+        ) = self._evaluate_signals()
 
         # Take size and start logic
         # Get current position size
