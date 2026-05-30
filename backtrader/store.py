@@ -34,6 +34,7 @@ Example:
 """
 
 import collections
+from typing import Any, Optional
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
@@ -46,6 +47,11 @@ class SingletonMixin:
     This mixin ensures only one instance of the class exists. The instance
     is created on first instantiation and reused on subsequent calls.
     """
+
+    # Dynamic singleton bookkeeping (set in __new__). Declared for typing only;
+    # no default value so `hasattr(cls, "_singleton")` stays False until created.
+    _singleton: "SingletonMixin"
+    _initialized: bool
 
     def __new__(cls, *args, **kwargs):
         """Create and return the singleton instance.
@@ -140,8 +146,8 @@ class Store(SingletonMixin, StoreParams):
         self.broker = None
         self._env = None
         self._cerebro = None
-        self.datas = None
-        self.notifs = None
+        self.datas: Optional[list] = None
+        self.notifs: Optional[collections.deque] = None
 
     def getdata(self, *args, **kwargs):
         """Returns ``DataCls`` with args, kwargs"""
@@ -157,8 +163,8 @@ class Store(SingletonMixin, StoreParams):
         broker._store = cls
         return broker
 
-    BrokerCls = None  # broker class will autoregister
-    DataCls = None  # data class will auto register
+    BrokerCls: Any = None  # broker class will autoregister
+    DataCls: Any = None  # data class will auto register
 
     # Start
     def start(self, data=None, broker=None):
@@ -181,6 +187,8 @@ class Store(SingletonMixin, StoreParams):
         # If data is not None
         if data is not None:
             self._cerebro = self._env = data._env
+            if self.datas is None:  # defensive: start() initializes this
+                self.datas = list()
             self.datas.append(data)
             # If self.broker is not None
             if self.broker is not None:

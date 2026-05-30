@@ -163,8 +163,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         # Original content from __init__
         self._env = None
-        self._barstash = None
-        self._barstack = None
+        self._barstash: collections.deque = collections.deque()
+        self._barstack: collections.deque = collections.deque()
         self._laststatus = None
 
     def _init_preinit(self, *args, **kwargs):
@@ -1281,7 +1281,7 @@ class DataClone(AbstractDataBase):
         """
         # CRITICAL FIX: Initialize these attributes BEFORE calling super().__init__
         # to ensure they exist when parent class methods access them
-        self._dlen = None
+        self._dlen = 0
         self._preloading = None
 
         # Get dataname and set it as self.data

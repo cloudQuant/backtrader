@@ -54,7 +54,7 @@ module = [
     "backtrader.observer",
     "backtrader.order",
 ]
-disable_error_code = ["method-assign", "attr-defined", "has-type", "assignment"]
+disable_error_code = ["method-assign", "attr-defined", "has-type", "assignment", "index"]
 
 # lineroot is the dynamic base of the entire line system: donew() mixin,
 # runtime _owner/_OwnerCls attributes and __getitem__ provided only by
