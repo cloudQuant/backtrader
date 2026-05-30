@@ -318,18 +318,34 @@ python -m pytest tests/ \
 
 ---
 
-### TODO-9: 引入慢测试标记策略（基础设施）
+### TODO-9: 引入慢测试标记策略（基础设施）✅ 已完成 (2026-05-30)
 
-**任务**:
+**可行性结论**: 「每次开发运行控制在 3 分钟内」**可行且已落地**，但实现方式与本条目最初设想不同（详见下方实测复盘）。
 
-- [ ] 在 `pytest.ini` 中扩展 markers：
-  - `@pytest.mark.slow` — 单个用例 > 2s
-  - `@pytest.mark.heavy_data` — 加载 > 10MB 数据
-  - `@pytest.mark.benchmark` — 性能基准（已存在）
-- [ ] 给所有 Top 50 慢用例打 `slow` 标签
-- [ ] 提供 `make test-fast` 跳过 slow 标签
+**实测基线（2026-05-30，与本文档顶部 2026-05-28 的 177s 已严重过时）**:
 
-**收益**: 日常开发反馈循环从 3 分钟降至 ~1 分钟
+| 范围 | 用例数 | 墙钟 (`-n 8`) | 累计 CPU |
+| --- | --- | --- | --- |
+| 全量 `tests` | 2,991 | **~611s (10 min)** | 4,703s |
+| 仅 `tests/functional/strategies/` | 1,271 | ~550s | 4,404s (**94%**) |
+| 其余全部（unit/integration/indicators/...） | 1,720 | **~98s (1.6 min)** | 299s |
+
+**关键发现**: 1,036 个回归用例 inline 进 `strategies/` 之后，慢测试不再是「Top 50 个用例」，而是**整个 strategies 子树**（1,271 个用例、占 94% 的耗时）。按用例逐个打 `@pytest.mark.slow`（原计划给 Top 50 打标签）既治标不治本，又无法覆盖自动生成/会被重新生成的 inline 测试。
+
+**为什么不用 `-m "not slow"` 作为快速回路**: 实测 `pytest tests -m "not slow" -n 8` 反而要 **~234s**——因为 `-m` 只是 deselect，pytest 仍会 **collect（import）** 那 1,271 个重型策略文件（仅 collection 就耗时约 52s），并未真正省掉导入开销。`--ignore=tests/functional/strategies` 直接跳过收集，才是真正的 ~98s。
+
+**已落地方案**:
+
+1. **`conftest.py` 自动打标（不改任何测试用例）**: 新增 `pytest_collection_modifyitems` 钩子，按**路径**给 `tests/functional/strategies/` 下的用例动态加 `slow` 标记。无需逐文件加装饰器，inline 测试重新生成后依然生效。需要只看慢测试时可 `pytest -m slow`。
+2. **`Makefile` 新增目标**:
+   - `make test-fast` → `pytest tests --ignore=tests/functional/strategies -n 8 -q`（**~1.5 min**，日常开发回路）
+   - `make test-strategies` → 仅跑重型策略回归（~9 min，提交前 / CI）
+   - `make test-all` → 全量（~10 min）
+3. `pytest.ini` 的 `slow` marker 本来就已存在，无需新增。
+
+**收益（实测）**: 日常开发反馈回路从 **~10 min 降至 ~1.5 min**（节省约 84%），且保留全部 unit/integration/indicator 覆盖。重型策略回归交给提交前 / CI 跑。
+
+**已知噪声**: `tests/unit/brokers/test_broker_refacto.py`、`test_comminfo_refactor.py` 中的几个 `*_performance` 用例在 `-n 8` 高并发下偶发超时失败（与本治理无关，单独跑均通过）。后续应给这类性能基准用例改用更宽松的阈值或迁出并行集。
 
 ---
 
@@ -365,7 +381,7 @@ python -m pytest tests/ \
 | TODO-5 XAUUSD 缩周期 | 小 | ≈ 12-18s | 🔥 |
 | TODO-6 RB889 fixture 缓存 | 中 | ≈ 15s | 🔥 |
 | TODO-7 benchmark 标记 | 极小 | ≈ 5s | 🔥 |
-| TODO-9 slow 标记基础设施 | 小 | (开发体验) | 🔥🔥 |
+| TODO-9 slow 标记基础设施 | 小 | ✅ 已完成：日常回路 ~10min→~1.5min | 🔥🔥🔥 |
 | TODO-10 指标测试优化 | 中 | ≈ 4s | — |
 
 **保守估计**: 实施 TODO-1 (方案B) + TODO-2/3/4/9 后，墙钟时间可从 **177s → 80-100s**（节省 40-55%）。

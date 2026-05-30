@@ -99,6 +99,37 @@ def pytest_addoption(parser):
     )
 
 
+# Subtrees that dominate suite wall-time (measured ~94% of total CPU on
+# 2026-05-30). Tests under these paths are auto-tagged with the ``slow``
+# marker at collection time so a fast dev loop can skip them with
+# ``-m "not slow"`` WITHOUT editing any test file. This survives the
+# auto-generated/inlined regression tests being regenerated. See
+# docs/SLOW_TESTS_TODO.md (TODO-9).
+_SLOW_PATH_PREFIXES = (
+    os.path.join("tests", "functional", "strategies"),
+)
+
+
+def pytest_collection_modifyitems(config, items):
+    """Auto-tag heavy strategy regression tests with the ``slow`` marker.
+
+    No test source is modified; the marker is applied dynamically based on the
+    test's file path. Run ``pytest -m "not slow"`` (or ``make test-fast``) for
+    a sub-3-minute development loop, and the full ``pytest`` for complete
+    regression coverage.
+    """
+    import pytest
+
+    repo_root = str(_REPO_ROOT)
+    for item in items:
+        try:
+            rel = os.path.relpath(str(item.fspath), repo_root)
+        except Exception:
+            continue
+        if any(rel.startswith(prefix) for prefix in _SLOW_PATH_PREFIXES):
+            item.add_marker(pytest.mark.slow)
+
+
 def pytest_configure(config):
     """Clean up old pytest temp directories and optionally pin backtrader resolution.
 
