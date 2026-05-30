@@ -89,6 +89,7 @@ def _remove_managed_handlers(logger):
             try:
                 handler.close()
             except Exception:
+                # Handler may already be closed; closing is best-effort cleanup.
                 pass
 
 

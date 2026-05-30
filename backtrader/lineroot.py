@@ -735,6 +735,7 @@ class LineMultiple(LineRoot):
         try:
             has_child_iterators = any(self._lineiterators.values())
         except (AttributeError, TypeError):
+            # No sub-iterator registry yet; treat as having no child iterators.
             pass
 
         has_linebinding_output = any(

@@ -45,6 +45,7 @@ class _CashDescriptor(ParameterDescriptor):
             if cash is not None:
                 return cash
         except AttributeError:
+            # _cash not set yet (pre-init); fall back to the descriptor default.
             pass
 
         return super().__get__(obj, objtype)
@@ -601,6 +602,7 @@ class BackBroker(BrokerBase):
         try:
             return self.notifs.popleft()
         except IndexError:
+            # Notification queue is empty; signal "no notification" with None.
             pass
 
         return None

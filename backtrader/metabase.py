@@ -1025,6 +1025,7 @@ class ParameterManager:
                     pmod = getattr(pmod, part)
                 setattr(clsmod, alias, pmod)
             except ImportError:
+                # Optional linked package not installed; skip aliasing it.
                 pass
 
         for packageitems in frompackages:
@@ -1046,6 +1047,7 @@ class ParameterManager:
                     pattr = getattr(pmod, fromitem)
                     setattr(clsmod, alias, pattr)
                 except (ImportError, AttributeError):
+                    # Optional linked symbol unavailable; skip aliasing it.
                     pass
 
 
@@ -1946,6 +1948,7 @@ def _initialize_indicator_aliases():
                 MovingAverageSimple._plotinit = universal_plotinit
                 pass
         except ImportError:
+            # SMA module not importable in this context; nothing to patch.
             pass
 
         # CRITICAL FIX: Search for any loaded indicator classes and ensure they have _plotinit

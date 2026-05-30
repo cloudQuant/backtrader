@@ -510,6 +510,7 @@ class Strategy(StrategyBase):
                 for child in children:
                     mark_registered(child)
         except AttributeError:
+            # No sub-iterator registry yet; nothing to pre-mark as registered.
             pass
 
         def visit(value):
@@ -570,6 +571,7 @@ class Strategy(StrategyBase):
         try:
             return object.__getattribute__(self, "_strategy_next_lineactions_cache")
         except AttributeError:
+            # Cache not built yet; compute and store it below.
             pass
 
         cache = tuple(
@@ -616,6 +618,7 @@ class Strategy(StrategyBase):
                         lineaction.next()
                         continue
                 except Exception:
+                    # Clock/value comparison unavailable; fall back to plain _next().
                     pass
 
             lineaction._next()
@@ -680,6 +683,7 @@ class Strategy(StrategyBase):
                 for _ln in _dlines:
                     _line_to_feed[id(_ln)] = _data
             except TypeError:
+                # Feed lines not iterable; skip mapping this feed's lines.
                 pass
 
         def _feed_of(node, _seen=None):
@@ -876,6 +880,7 @@ class Strategy(StrategyBase):
                     if attr not in self._lineiterators[LineIterator.IndType]:
                         minperiods.append(attr._minperiod)
             except (AttributeError, TypeError):
+                # Attribute access/typecheck failed; skip this attribute.
                 pass
 
         # Set strategy minimum period to max of indicator and data minperiods
@@ -907,6 +912,7 @@ class Strategy(StrategyBase):
                                 self._minperiods[data_idx], attr._minperiod
                             )
                 except (AttributeError, TypeError):
+                    # Attribute access/typecheck failed; skip this attribute.
                     pass
 
     def _addwriter(self, writer):

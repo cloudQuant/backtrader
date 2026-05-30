@@ -332,8 +332,10 @@ class TradeLogger(Observer):
                 return default
             return value
         except AttributeError:
+            # No attribute named `key`; try the dict-style .get() path below.
             pass
         except Exception:
+            # Attribute access raised unexpectedly; fall back to .get() below.
             pass
 
         get_method = getattr(info, "get", None)
@@ -411,7 +413,7 @@ class TradeLogger(Observer):
                 details={"source": str(source)},
             )
         except Exception:
-            logging.getLogger(__name__).error("TradeLogger internal error in %s: %s", source, exc)
+            logger.error("TradeLogger internal error in %s: %s", source, exc)
 
     def _monitor_threshold(self, counter_name, threshold, event_type):
         """Emit a warning event when a monitoring threshold is crossed."""
@@ -514,6 +516,7 @@ class TradeLogger(Observer):
     def _init_mysql(self):
         """Initialize MySQL connection and create tables."""
         if not MYSQL_AVAILABLE:
+            logger.warning("pymysql not installed, MySQL logging disabled")
             print("[TradeLogger] Warning: pymysql not installed, MySQL logging disabled")
             return
 
@@ -529,6 +532,7 @@ class TradeLogger(Observer):
             )
             self._create_mysql_tables()
         except Exception as e:
+            logger.error("MySQL connection failed: %s", e)
             print(f"[TradeLogger] MySQL connection failed: {e}")
             self._mysql_conn = None
 
@@ -696,6 +700,7 @@ class TradeLogger(Observer):
             try:
                 return [data for data in placeholder_data if data is not None]
             except TypeError:
+                # placeholder_data is not iterable; fall through to empty list.
                 pass
 
         return []

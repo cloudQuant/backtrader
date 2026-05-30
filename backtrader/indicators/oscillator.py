@@ -49,6 +49,7 @@ class OscillatorMixIn(Indicator):
             lname = self.lines._getlinealias(0)
             self.plotlines._0._name = lname + "_osc"
         except AttributeError:
+            # No line alias available; keep the default plot label.
             pass
 
     def __init__(self):
@@ -88,6 +89,7 @@ class Oscillator(Indicator):
             lname = self.dataosc._getlinealias(0)
             self.plotlines._0._name = lname + "_osc"
         except AttributeError:
+            # No line alias available; keep the default plot label.
             pass
 
     def __init__(self):

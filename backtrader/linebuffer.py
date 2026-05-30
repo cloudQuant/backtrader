@@ -404,6 +404,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                 return 0.0
             return value
         except IndexError:
+            # Index out of buffer range; fall through to the slow-path handling.
             pass
 
         # Slow path: handle special cases
@@ -1188,6 +1189,7 @@ class LineActionsMixin:
                     first_line = arg.lines[0]
                     _minperiods.append(getattr(first_line, "_minperiod", 1))
                 except (IndexError, TypeError):
+                    # Empty/non-indexable lines container; skip this arg.
                     pass
 
         # Update minperiod with max from args
@@ -1712,6 +1714,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                     try:
                         arg.once(0, end)
                     except Exception:
+                        # Operand may already be computed or not once()-able; continue.
                         pass
         if hasattr(self, "cond"):
             cond = self.cond
@@ -1719,6 +1722,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 try:
                     cond.once(0, end)
                 except Exception:
+                    # Condition may already be computed or not once()-able; continue.
                     pass
 
         # CRITICAL FIX: Process the main once calculation
@@ -2252,6 +2256,7 @@ class LinesOperation(LineActions):
                 if target_len < minperiod:
                     return float("nan")
             except Exception:
+                # Operand without a usable length; skip the warmup guard.
                 pass
 
         if hasattr(operand, "__getitem__"):
@@ -2277,6 +2282,7 @@ class LinesOperation(LineActions):
                 if len(clock) <= len(operand):
                     return
             except Exception:
+                # Clock without a comparable length; advance the operand anyway.
                 pass
 
         operand._next()
@@ -2364,6 +2370,7 @@ class LinesOperation(LineActions):
                 if len(clock) <= len(self):
                     return
             except Exception:
+                # Clock without a comparable length; proceed to advance operands.
                 pass
 
         for operand in self._next_operands:

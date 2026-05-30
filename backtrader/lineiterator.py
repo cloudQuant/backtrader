@@ -45,6 +45,7 @@ def _clock_is_replaying(clock, seen=None):
         if bool(getattr(clock, "replaying", False)):
             return True
     except Exception:
+        # Non-clock object without a usable 'replaying' flag; treat as not replaying.
         pass
 
     try:
@@ -77,6 +78,7 @@ def _lineaction_source_clock(lineaction, seen=None):
         try:
             return lineaction._lineaction_source_clock_cache
         except AttributeError:
+            # Cache not populated yet; resolve below (hot path: no logging).
             pass
         seen = set()
         cache_result = True
@@ -88,6 +90,7 @@ def _lineaction_source_clock(lineaction, seen=None):
             try:
                 lineaction._lineaction_source_clock_cache = result
             except Exception:
+                # Object rejects attribute caching (e.g. __slots__); skip caching.
                 pass
         return result
 
@@ -216,6 +219,7 @@ def _resolve_authoritative_buflen(indicator, fallback):
             try:
                 candidates.append(int(clock.buflen()))
             except (TypeError, ValueError):
+                # buflen() not numeric/usable; ignore this candidate.
                 pass
     datas = getattr(indicator, "datas", None) or []
     for d in datas:
@@ -227,6 +231,7 @@ def _resolve_authoritative_buflen(indicator, fallback):
             try:
                 candidates.append(int(d.buflen()))
             except (TypeError, ValueError):
+                # buflen() not numeric/usable; ignore this candidate.
                 pass
         arr = getattr(d, "array", None)
         if arr is not None:
@@ -393,6 +398,7 @@ class LineIteratorMixin:
                                 ):
                                     is_line_object = True
                             except (AttributeError, TypeError):
+                                # Object has no inspectable MRO; treat as non-line.
                                 pass
 
                 if is_line_object:
@@ -468,8 +474,10 @@ class LineIteratorMixin:
                             ):  # Prevent circular reference
                                 _obj.datas = owner_datas[0 : getattr(_obj, "_mindatas", 1)]
                         except AttributeError:
+                            # owner has no datas; leave _obj.datas as-is.
                             pass
             except (AttributeError, IndexError):
+                # No resolvable owner/datas during construction; skip inheritance.
                 pass
 
         # Create ddatas dictionary
@@ -598,6 +606,7 @@ class LineIteratorMixin:
                 except AttributeError:
                     _obj.ddatas = {}
         except AttributeError:
+            # _mindatas not defined on this object; nothing to adjust.
             pass
 
         # 1st data source is our ticking clock
@@ -675,6 +684,7 @@ class LineIteratorMixin:
                             except (IndexError, TypeError):
                                 break
                     except (TypeError, AttributeError):
+                        # lines object has no usable len/index access; skip.
                         pass
 
             except (AttributeError, Exception):
@@ -714,6 +724,7 @@ class LineIteratorMixin:
                 existing_minperiod = getattr(_obj, "_minperiod", 1)
                 _obj._minperiod = max(existing_minperiod, max(line_minperiods))
         except AttributeError:
+            # _obj has no lines collection yet; keep the existing minperiod.
             pass
 
         # CRITICAL FIX: After indicator's __init__ has set its minperiod,
@@ -726,6 +737,7 @@ class LineIteratorMixin:
                     # Update each line's minperiod to match the indicator's minperiod
                     line.updateminperiod(_obj._minperiod)
         except (AttributeError, TypeError):
+            # Lines not iterable or lack updateminperiod; propagation is best-effort.
             pass
 
         # Recalculate period
@@ -744,6 +756,7 @@ class LineIteratorMixin:
             if owner is not None and not hasattr(owner, "addindicator"):
                 owner = None  # MinimalOwner or invalid owner
         except AttributeError:
+            # _owner not set during this construction phase; resolve below.
             pass
 
         # Prefer the nearest LineIterator owner from OwnerContext. This keeps
@@ -801,7 +814,7 @@ class LineIteratorMixin:
                 if _obj not in ind_list:
                     owner.addindicator(_obj)
             except (AttributeError, Exception):
-                pass
+                logger.debug("Failed to register indicator with owner", exc_info=True)
 
         return _obj, args, kwargs
 
@@ -1713,6 +1726,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 if source_clock is not None:
                     self._clock = source_clock
         except Exception:
+            # Clock resolution is best-effort here; keep the existing clock.
             pass
 
         # Update current time line and return length
@@ -1736,8 +1750,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
                             clock_len = len(owner)
                             self._clock = owner
                         except (TypeError, AttributeError):
+                            # Owner has no usable length either; leave clock_len at 0.
                             pass
             except AttributeError:
+                # No _owner to fall back on; leave clock_len at 0.
                 pass
 
         if clock_len != len(self):
@@ -1866,6 +1882,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     if len(data_clock) <= len(data):
                         continue
                 except Exception:
+                    # Clock/data without comparable length; fall through and advance.
                     pass
 
             data._next()
@@ -2059,6 +2076,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             try:
                 return cached_line.lencount
             except AttributeError:
+                # Cached line lacks lencount; fall through to the slow path.
                 pass
 
         # Slow path: find and cache first_line
@@ -2078,6 +2096,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                         except Exception as e:
                             logger.debug("Failed to get line length: %s", e)
         except (IndexError, TypeError):
+            # No lines available to measure; report length 0.
             pass
 
         return 0
@@ -2273,6 +2292,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "EMA", ExponentialMovingAverage)
             setattr(indicators_module, "ExponentialMovingAverage", ExponentialMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2281,6 +2301,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "SMA", SimpleMovingAverage)
             setattr(indicators_module, "SimpleMovingAverage", SimpleMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2289,6 +2310,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "WMA", WeightedMovingAverage)
             setattr(indicators_module, "WeightedMovingAverage", WeightedMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2297,6 +2319,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "HMA", HullMovingAverage)
             setattr(indicators_module, "HullMovingAverage", HullMovingAverage)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2307,6 +2330,7 @@ class IndicatorBase(DataAccessor):
                 indicators_module, "DoubleExponentialMovingAverage", DoubleExponentialMovingAverage
             )
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2317,6 +2341,7 @@ class IndicatorBase(DataAccessor):
                 indicators_module, "TripleExponentialMovingAverage", TripleExponentialMovingAverage
             )
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2325,6 +2350,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "TSI", TrueStrengthIndicator)
             setattr(indicators_module, "TrueStrengthIndicator", TrueStrengthIndicator)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         # Add other common indicators as needed
@@ -2334,6 +2360,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "BBands", BollingerBands)
             setattr(indicators_module, "BollingerBands", BollingerBands)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
         try:
@@ -2342,6 +2369,7 @@ class IndicatorBase(DataAccessor):
             setattr(indicators_module, "CCI", CommodityChannelIndex)
             setattr(indicators_module, "CommodityChannelIndex", CommodityChannelIndex)
         except ImportError:
+            # Indicator module not importable here; skip registering its alias.
             pass
 
 

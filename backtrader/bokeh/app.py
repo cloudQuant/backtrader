@@ -37,6 +37,7 @@ try:
         except ImportError:
             from bokeh.models import Panel
 except ImportError:
+    # Bokeh is an optional dependency; BOKEH_AVAILABLE stays False when missing.
     pass
 
 from . import tabs as default_tabs  # noqa: E402

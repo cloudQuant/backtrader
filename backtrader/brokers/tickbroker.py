@@ -1745,6 +1745,7 @@ class TickBroker(BrokerBase):
         try:
             self._pending_orders.remove(order)
         except ValueError:
+            # Order already removed from the pending list; idempotent removal.
             pass
 
         data_name = self._get_data_name(order.data)
@@ -1753,6 +1754,7 @@ class TickBroker(BrokerBase):
             try:
                 bucket.remove(order)
             except ValueError:
+                # Order not in this symbol bucket; idempotent removal.
                 pass
             if not bucket:
                 del self._orders_by_symbol[data_name]

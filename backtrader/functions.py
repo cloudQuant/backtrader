@@ -126,6 +126,7 @@ class Logic(LineActions):
                 if len(clock) <= len(self):
                     return
             except Exception:
+                # Clock without a comparable length; proceed to advance below.
                 pass
 
         target_len = len(self) + 1
@@ -519,6 +520,7 @@ class If(Logic):
             try:
                 self.cond.once(start, end)
             except Exception:
+                # Operand already (partially) computed or not once()-able; continue.
                 pass
 
         # The 'a' operand (could be constant or LinesOperation)
@@ -526,6 +528,7 @@ class If(Logic):
             try:
                 self.a.once(start, end)
             except Exception:
+                # Operand already (partially) computed or not once()-able; continue.
                 pass
 
         # The 'b' operand - for self-referencing, this is typically another bt.If
@@ -540,6 +543,7 @@ class If(Logic):
                 try:
                     self.b.once(start, end)
                 except Exception:
+                    # Operand already (partially) computed or not once()-able; continue.
                     pass
 
         # Get arrays for direct access where possible
@@ -555,6 +559,7 @@ class If(Logic):
                 a_constant_val = self.a[0]
                 a_is_constant = True
             except Exception:
+                # 'a' is neither array-backed nor a constant scalar; leave defaults.
                 pass
 
         b_array = getattr(self.b, "array", [])
@@ -667,6 +672,7 @@ class If(Logic):
                     a_constant_val = self.a[0]
                     a_is_constant = True
                 except Exception:
+                    # 'a' has an empty array and no scalar value; not a constant.
                     pass
         except (AttributeError, TypeError):
             srca = []
@@ -675,6 +681,7 @@ class If(Logic):
                 a_constant_val = self.a[0]
                 a_is_constant = True
             except Exception:
+                # 'a' is neither array-backed nor a scalar constant.
                 pass
 
         b_is_constant = False
@@ -687,6 +694,7 @@ class If(Logic):
                     b_constant_val = self.b[0]
                     b_is_constant = True
                 except Exception:
+                    # 'b' has an empty array and no scalar value; not a constant.
                     pass
         except (AttributeError, TypeError):
             srcb = []
@@ -695,6 +703,7 @@ class If(Logic):
                 b_constant_val = self.b[0]
                 b_is_constant = True
             except Exception:
+                # 'b' is neither array-backed nor a scalar constant.
                 pass
 
         try:

@@ -960,6 +960,7 @@ class PlotlyPlot(ParameterizedBase):
                 gray_int = int(gray * 255)
                 return f"rgb({gray_int},{gray_int},{gray_int})"
             except ValueError:
+                # Not a numeric gray string (e.g. a named color); return as-is.
                 pass
             return color
         if isinstance(color, (tuple, list)):

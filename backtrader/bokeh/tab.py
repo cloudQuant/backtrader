@@ -25,6 +25,7 @@ except ImportError:
 
             BOKEH_AVAILABLE = True
         except ImportError:
+            # Bokeh not installed (optional dependency); BOKEH_AVAILABLE stays False.
             pass
 
 

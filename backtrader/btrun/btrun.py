@@ -106,6 +106,7 @@ def _safe_parse_kwargs(kwtext: str) -> dict:
         if isinstance(parsed, dict):
             return parsed
     except (ValueError, SyntaxError, TypeError):
+        # Not a clean dict literal; fall back to manual key=value parsing below.
         pass
 
     # Fall back to manual parsing
@@ -184,6 +185,7 @@ def _convert_value(value: str):
     try:
         return ast.literal_eval(value)
     except (ValueError, SyntaxError):
+        # Not a Python literal; try the explicit conversions below.
         pass
 
     # Handle boolean values (case-insensitive)
@@ -198,12 +200,14 @@ def _convert_value(value: str):
     try:
         return int(value)
     except ValueError:
+        # Not an integer; try float next.
         pass
 
     # Handle floats
     try:
         return float(value)
     except ValueError:
+        # Not a float; treat as a (possibly quoted) string below.
         pass
 
     # Remove surrounding quotes if present

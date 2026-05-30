@@ -141,6 +141,7 @@ class WriterFile(WriterBase):
             try:
                 self.out.close()
             except OSError:
+                # Stream already closed or not closable; nothing more to do.
                 pass
 
     def __enter__(self):

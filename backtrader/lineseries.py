@@ -40,6 +40,7 @@ def _line_assignment_ltype(child):
         try:
             child._ltype = ltype
         except AttributeError:
+            # child rejects attribute assignment (e.g. __slots__); use local ltype.
             pass
     return ltype
 
@@ -67,6 +68,7 @@ def _propagate_assignment_minperiod(owner, child):
                 if ref_mp is not None and ref_mp > child_minperiod:
                     child_minperiod = ref_mp
     except (AttributeError, TypeError):
+        # Owner chain not fully formed; use the child's own minperiod.
         pass
 
     try:
@@ -171,6 +173,7 @@ def _line_assignment_source_clock(owner, source, seen=None):
             if source in data.lines:
                 return data
         except (AttributeError, TypeError):
+            # data has no membership-testable lines; try the next data.
             pass
 
     try:
@@ -299,6 +302,7 @@ def _register_line_assignment_child(owner, child, seen=None):
             _propagate_assignment_minperiod(owner, child)
             return
     except (AttributeError, TypeError):
+        # owner has no iterable lines; proceed to registration below.
         pass
 
     owner_is_strategy = getattr(owner, "_ltype", None) == getattr(owner, "StratType", None)
@@ -314,6 +318,7 @@ def _register_line_assignment_child(owner, child, seen=None):
                 while child in old_list:
                     old_list.remove(child)
         except AttributeError:
+            # Previous owner has no _lineiterators registry; nothing to detach.
             pass
 
     for existing_ltype, child_list in list(owner_lineiterators.items()):
@@ -363,12 +368,14 @@ def _register_line_assignment_child(owner, child, seen=None):
                     child._clock = owner.datas[0]
                     return
             except AttributeError:
+                # owner exposes no datas; try the child's own datas next.
                 pass
 
             try:
                 if child.datas:
                     child._clock = child.datas[0]
             except AttributeError:
+                # child exposes no datas; leave its clock unset.
                 pass
 
 
@@ -1189,6 +1196,7 @@ class Lines:
                     if owner is not None:
                         return owner._clock
                 except AttributeError:
+                    # No owner/clock yet; report None (EAFP hot path, no logging).
                     pass
                 return None
             elif name == "_getlinealias":
@@ -1219,6 +1227,7 @@ class Lines:
                 except AttributeError:
                     pass  # Not a descriptor
         except (AttributeError, TypeError):
+            # No matching class attribute/descriptor; fall through to delegation.
             pass
 
         # "size" special case
@@ -1252,13 +1261,16 @@ class Lines:
                 except AttributeError:
                     return class_attr  # Not a descriptor, return directly
             except AttributeError:
+                # Not found on the lines class; try the instance next.
                 pass
             # Try instance attr on lines
             try:
                 return getattr(lines, name)
             except AttributeError:
+                # Not present on the lines instance either; fall through.
                 pass
         except AttributeError:
+            # No inner lines container; let normal attribute lookup fail.
             pass
 
         # Fallback: raise AttributeError (removed expensive inspect.currentframe stack walk)
@@ -1331,6 +1343,7 @@ class Lines:
                                         if vref._minperiod > effective_mp:
                                             effective_mp = vref._minperiod
                             except (AttributeError, TypeError):
+                                # Owner chain incomplete; keep the line's own minperiod.
                                 pass
 
                             try:
@@ -1398,6 +1411,7 @@ class Lines:
                             _register_line_assignment_child(owner_ref, value)
                             return  # Don't set the attribute directly
                 except (ValueError, IndexError):
+                    # Line lookup/index failed; fall back to direct attribute set.
                     pass
 
             # Default: set attribute directly
@@ -1739,6 +1753,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                         setattr_obj(self, name, result)  # Cache it!
                         return result
                 except AttributeError:
+                    # No own datas; try the owner's datas next.
                     pass
 
                 # Try owner.datas
@@ -1752,8 +1767,10 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                                 setattr_obj(self, name, result)  # Cache it!
                                 return result
                         except AttributeError:
+                            # Owner exposes no datas; fall through to MinimalData.
                             pass
                 except AttributeError:
+                    # No owner available; fall through to MinimalData.
                     pass
 
                 # Fallback: Return minimal data object
@@ -1884,6 +1901,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                     object.__setattr__(self, name, value)
                     return
                 except AttributeError:
+                    # Value is not a data-like object; fall through to default set.
                     pass
 
         # Default: just set the attribute

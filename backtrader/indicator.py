@@ -149,6 +149,7 @@ class Indicator(IndicatorBase):
                                 while self in indicators:
                                     indicators.remove(self)
                         except Exception:
+                            # Best-effort detach from a previous owner; ignore failures.
                             pass
                         self._owner = parent_owner
                         parent_owner.addindicator(self)
@@ -262,6 +263,7 @@ class Indicator(IndicatorBase):
                     if data_max > self._minperiod:
                         self._minperiod = data_max
         except (AttributeError, TypeError):
+            # No usable datas to derive a minperiod from; keep current value.
             pass
 
         # Step 1: Calculate minperiod from lines
@@ -276,6 +278,7 @@ class Indicator(IndicatorBase):
                     if lines_max > self._minperiod:
                         self._minperiod = lines_max
         except (AttributeError, TypeError):
+            # Lines not iterable yet; keep current minperiod.
             pass
 
         # Step 2: Calculate minperiod from sub-indicators
@@ -289,6 +292,7 @@ class Indicator(IndicatorBase):
                         if ind_max > self._minperiod:
                             self._minperiod = ind_max
         except (AttributeError, TypeError):
+            # No sub-indicator registry available; keep current minperiod.
             pass
 
         # Step 3: Update minperiod on all lines
@@ -298,6 +302,7 @@ class Indicator(IndicatorBase):
                     if hasattr(line, "updateminperiod"):
                         line.updateminperiod(self._minperiod)
         except (AttributeError, TypeError):
+            # Lines not iterable; minperiod propagation is best-effort.
             pass
 
     def advance(self, size=1):
