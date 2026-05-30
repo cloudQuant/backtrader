@@ -739,6 +739,46 @@ def _reconstruct_param_class(class_name, all_params, instance_values):
     return instance
 
 
+def _merge_class_params_into(all_params, params):
+    """Merge a class's ``params`` declaration into the ``all_params`` dict.
+
+    ``params`` may be a dict, a tuple/list of (name, value) pairs (or bare
+    string names), a dict-like with ``items()``, an object with ``__dict__``,
+    or an AutoInfoClass-style object exposing ``_getpairs``/``_gettuple``.
+    Extracted from ParameterManager._derive_params for readability; behavior
+    is unchanged.
+    """
+    if isinstance(params, dict):
+        # Direct dictionary
+        all_params.update(params)
+    elif isinstance(params, (tuple, list)):
+        # Convert tuple/list to dict
+        for item in params:
+            if isinstance(item, (tuple, list)) and len(item) >= 2:
+                key, value = item[0], item[1]
+                all_params[key] = value
+            elif isinstance(item, string_types):
+                # Just a key with None value
+                all_params[item] = None
+            elif hasattr(item, "__iter__") and not isinstance(item, string_types):
+                # Try to treat as key-value pair
+                item_list = list(item)
+                if len(item_list) >= 2:
+                    all_params[item_list[0]] = item_list[1]
+    elif hasattr(params, "items"):
+        # Dict-like object
+        all_params.update(params)
+    elif hasattr(params, "__dict__"):
+        # OPTIMIZED: Object with attributes, using __dict__ for performance
+        for attr_name, attr_value in params.__dict__.items():
+            if not attr_name.startswith("_") and not callable(attr_value):
+                all_params[attr_name] = attr_value
+    elif hasattr(params, "_getpairs"):
+        all_params.update(params._getpairs())
+    elif hasattr(params, "_gettuple"):
+        all_params.update(dict(params._gettuple()))
+
+
 class ParameterManager:
     """Manager for handling parameter operations without metaclass.
 
@@ -793,35 +833,7 @@ class ParameterManager:
                             all_params[attr_name] = attr_value
 
         # Handle current class params - could be tuple, dict, or dict-like
-        if isinstance(params, dict):
-            # Direct dictionary
-            all_params.update(params)
-        elif isinstance(params, (tuple, list)):
-            # Convert tuple/list to dict
-            for item in params:
-                if isinstance(item, (tuple, list)) and len(item) >= 2:
-                    key, value = item[0], item[1]
-                    all_params[key] = value
-                elif isinstance(item, string_types):
-                    # Just a key with None value
-                    all_params[item] = None
-                elif hasattr(item, "__iter__") and not isinstance(item, string_types):
-                    # Try to treat as key-value pair
-                    item_list = list(item)
-                    if len(item_list) >= 2:
-                        all_params[item_list[0]] = item_list[1]
-        elif hasattr(params, "items"):
-            # Dict-like object
-            all_params.update(params)
-        elif hasattr(params, "__dict__"):
-            # OPTIMIZED: Object with attributes, using __dict__ for performance
-            for attr_name, attr_value in params.__dict__.items():
-                if not attr_name.startswith("_") and not callable(attr_value):
-                    all_params[attr_name] = attr_value
-        elif hasattr(params, "_getpairs"):
-            all_params.update(params._getpairs())
-        elif hasattr(params, "_gettuple"):
-            all_params.update(dict(params._gettuple()))
+        _merge_class_params_into(all_params, params)
 
         # CRITICAL FIX: Ensure common parameter names are always available
         # Many indicators expect these standard parameters
