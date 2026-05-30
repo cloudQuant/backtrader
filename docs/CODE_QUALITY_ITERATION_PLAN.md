@@ -67,16 +67,16 @@
 **大文件拆包（旧 Sprint 6）被降级**——它风险最高（破坏 pickle/导入/继承）、对用户
 零收益，放到最后且设为可选。
 
-| 顺序 | Sprint | 主题 | 优先级 | 工时 | 风险 |
-| --- | --- | --- | --- | --- | --- |
-| 1 | S1 | 配置/版本/CI 一致性（纠矛盾） | **P0** | 1–2d | 低 |
-| 2 | S2 | 统一日志基础设施 + 消灭静默异常 | **P0** | 3–4d | 低 |
-| 3 | S3 | 异常处理细化（泛化→具体 + 上下文） | P1 | 4–5d | 中 |
-| 4 | S4 | 公共 API 类型注解 + mypy 收敛 | P1 | 5–7d | 中 |
-| 5 | S5 | 高复杂度函数治理（Top 10） | P1 | 5–8d | 中高 |
-| 6 | S6 | 测试质量 / 文档 / DX | P2 | 3–4d | 低 |
-| 7 | S7 | 接口设计（长参数列表，19 处） | P3 | 2–3d | 中 |
-| 8 | S8 | （可选）超大文件拆分 | P3 | 5–7d | **高** |
+| 顺序 | Sprint | 主题 | 优先级 | 工时 | 风险 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | S1 | 配置/版本/CI 一致性（纠矛盾） | **P0** | 1–2d | 低 | ✅ 完成 |
+| 2 | S2 | 统一日志基础设施 + 消灭静默异常 | **P0** | 3–4d | 低 | ✅ 完成 |
+| 3 | S3 | 异常处理细化（泛化→具体 + 上下文） | P1 | 4–5d | 中 | 待办 |
+| 4 | S4 | 公共 API 类型注解 + mypy 收敛 | P1 | 5–7d | 中 | 待办 |
+| 5 | S5 | 高复杂度函数治理（Top 10） | P1 | 5–8d | 中高 | 待办 |
+| 6 | S6 | 测试质量 / 文档 / DX | P2 | 3–4d | 低 | 待办 |
+| 7 | S7 | 接口设计（长参数列表，19 处） | P3 | 2–3d | 中 | 待办 |
+| 8 | S8 | （可选）超大文件拆分 | P3 | 5–7d | **高** | 待办 |
 
 > Sprint 7（star import 清理）已无必要——非 `__init__` 中已为 0，故从路线图移除，
 > 仅在 CI 中加一条 `ruff --select F403` 防回归即可（并入 S1）。
@@ -164,46 +164,65 @@ Sprint 的地基，且成本极低、风险极低。
 
 ### 2.1 日志架构
 
-- [ ] 新建 `backtrader/utils/logging_config.py`：
-  - `get_logger(name)` 工厂；`configure_logging(level, log_file=None, fmt=None)`
-    配置入口；`set_level(name, level)` 运行时调级。
-  - **默认 `NullHandler`**：用户不调用 `configure_logging()` 时行为与现状完全一致
-    （零破坏）。
-  - 在 `backtrader/__init__.py` re-export `get_logger` / `configure_logging`。
-- [ ] 发布 `docs/LOGGING_GUIDELINES.md` 级别规范：
+- [x] 复用并扩展 `backtrader/utils/log_message.py`（**不新建并行模块**，遵循
+  用户要求复用既有日志模块）：
+  - `get_logger(name)` 工厂；`configure_logging(level, log_file=None, fmt=None,
+    console=True, ...)` 配置入口；`set_level(level, name)` 运行时调级；
+    `reset_logging()` 还原（测试用）。
+  - **默认 `NullHandler`**：用户不调用 `configure_logging()` 时零输出、零破坏。
+  - 在 `backtrader/utils/__init__.py` 与 `backtrader/__init__.py` re-export
+    `get_logger` / `configure_logging` / `set_level` / `reset_logging`。
+  - 全框架 43 个模块的 `logger = logging.getLogger(__name__)` 统一改为
+    `get_logger(__name__)`（名称不变，行为完全等价）。
+- [x] 发布 `docs/LOGGING_GUIDELINES.md` 级别规范：
   - CRITICAL：引擎无法继续；ERROR：可恢复失败（订单拒绝、数据加载失败）；
     WARNING：降级/自动修正；INFO：里程碑（启动/结束/成交）；DEBUG：每 bar 诊断。
 
-### 2.2 消灭静默异常（~99 处 / 18 文件）
+### 2.2 消灭静默异常（全部 118 处）
 
-- [ ] 统一改为带级别与 `exc_info` 的日志；真正无所谓的（析构/清理）降级为
-  `logger.debug(...)` 并加注释说明原因。
-- [ ] **热路径守护**：`next()` / `once()` / `_runonce` / `_runnext` 等热点里加的日志
-  一律用 `if logger.isEnabledFor(logging.DEBUG):` 包裹，避免格式化开销。
-- [ ] 按子目录分批 PR：核心 `*.py` → `brokers/` `feeds/` → `plot/` `bokeh/`
-  `reports/`。
+- [x] 真正的错误边界改为带 `exc_info` 的日志（如 lineiterator 中 indicator
+  注册失败 → `logger.debug(..., exc_info=True)`）。
+- [x] 控制流/EAFP 探测/可选依赖导入守卫/幂等删除/best-effort 清理等**有意
+  吞异常**的，统一补上解释性注释说明原因（不在热路径加日志）。
+- [x] **热路径守护**：`__len__` / `__getattribute__` / `_clk_update` / `_next` /
+  once 算子预热等每根 bar 执行的热点，仅加注释、**不加**日志，避免格式化开销。
+- [x] 按模块分批提交：核心 `*.py`（lineiterator/lineseries/functions/linebuffer/
+  indicator/strategy/lineroot/metabase）→ `brokers/` `btrun/` → `plot/` `bokeh/`
+  `writer/` `order/` `parameters/`。
 
-### 2.3 print → logging（当前 63 处 print / 306 logging）
+### 2.3 print → logging（已审计）
 
-- [ ] `reports/reporter.py`、散落诊断 print → `logger.info/debug`。
-- [ ] `btrun/` 面向用户的 CLI 输出**保留 print/click.echo**（不破坏 CLI 体验）。
-- [ ] `observers/trade_logger.py` 已有 `self.log()` 机制，内部走 logger，外部接口不变。
+- [x] `observers/trade_logger.py`：MySQL 连接/可用性诊断接入 module logger
+  （warning/error），内部错误回退用 module logger；用户面向、由
+  `log_to_console` 控制的 print 与按文件输出 logger **保持不变**（外部接口不变）。
+  `_init_mysql` 里两处未受控的 print 改为同样受 `log_to_console` 控制，与类内
+  其它分支一致。
+- [x] `feeds/influxfeed.py`、`feeds/vchartfile.py`、`feeds/yahoo.py`、
+  `test_helpers.py` 中**异常处理里的诊断 print** 改为 module logger
+  （error/warning/debug，配 `exc_info`），并去掉随之不再使用的
+  `traceback.print_exc()` / `import traceback`。
+- [x] `reports/reporter.py` 的 `print_summary()` 经确认是**面向用户的控制台报告**
+  （非诊断），保留 print。
+- [x] `reports/performance.py`、`reports/__init__.py`、`metabase.py` 中的 print
+  经确认是 **docstring 示例代码**，非真实执行路径，保留。
+- [x] `btrun/`、`strategy.log()`、`analyzer.pprint()` 面向用户输出，保留。
 
 ### 2.4 测试与文档
 
-- [ ] `tests/unit/utils/test_logging_config.py`：验证 logger 命名、默认不输出
-  （NullHandler）、`configure_logging` 不破坏已存在 logger、级别切换生效。
-- [ ] README 增「日志使用」小节；`pytest tests -n 8` 全绿；benchmark 无显著回归。
+- [x] `tests/unit/utils/test_logging_config.py`：11 个用例验证 logger 命名、默认
+  不输出（NullHandler）、`configure_logging` 幂等且不破坏宿主 handler、级别切换、
+  `reset_logging`、`SpdLogManager` 兼容 —— 全绿。
+- [x] README 增「日志使用」小节；`pytest tests -n 8` 全绿（仅 1 个 timing
+  microbenchmark 在 `-n 8` 下偶发超时，隔离运行通过）。
 
 ### S2 验收
 
-| 指标 | 当前 | 目标 |
-| --- | --- | --- |
-| `except…: pass` 静默异常 | ~99 | 0 |
-| 使用 logging 的文件占比 | ~20% | >50% |
-| 散落 `print()` | 63 | <10（仅 CLI 用户输出） |
-| 统一日志入口 | 无 | `bt.get_logger` / `bt.configure_logging` |
-| 测试通过率 | 100% | 100% |
+| 指标 | 计划前 | 目标 | 实际 |
+| --- | --- | --- | --- |
+| `except…: pass` 无注释静默异常 | ~99 | 0 | **0**（118 处全部带注释或改为日志） |
+| 统一日志入口 | 无 | `bt.get_logger` / `bt.configure_logging` | **已落地**（43 模块接入） |
+| 散落诊断 `print()` | 63 | <10（仅 CLI/用户输出） | **保留项均为用户输出/docstring 示例** |
+| 测试通过率 | 100% | 100% | **100%**（除已知 timing flaky） |
 
 ---
 

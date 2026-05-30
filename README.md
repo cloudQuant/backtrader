@@ -447,6 +447,37 @@ cerebro.run()
 cerebro.generate_report('report.html', user='Trader', memo='Strategy Report')
 ```
 
+### Logging
+
+Backtrader uses a single logging entry point and is **silent by default** — it
+emits nothing until you opt in, and it never touches the root logger or a host
+application's logging setup.
+
+```python
+import backtrader as bt
+
+# Opt in: console + optional rotating file. Idempotent.
+bt.configure_logging(level="INFO", log_file="run.log")
+
+logger = bt.get_logger(__name__)      # -> "backtrader.<module>"
+logger.info("strategy started")
+
+bt.set_level("DEBUG")                 # raise verbosity at runtime
+bt.reset_logging()                    # back to the silent default (tests)
+```
+
+| Level | When |
+| --- | --- |
+| `CRITICAL` | engine cannot continue |
+| `ERROR` | recoverable failure (order rejected, data load failed) |
+| `WARNING` | degraded / auto-corrected behavior |
+| `INFO` | milestones (start/stop, fills) |
+| `DEBUG` | per-bar diagnostics |
+
+Framework code routes through `backtrader.utils.log_message.get_logger` rather
+than the stdlib `logging` directly. See `docs/LOGGING_GUIDELINES.md` for the
+full conventions (hot-path guard, exception-logging rules, print-vs-logging).
+
 ---
 
 ## 🏗 Project Architecture
@@ -939,6 +970,38 @@ cerebro.broker.setcash(100000)
 results = cerebro.run()
 cerebro.plot(backend='plotly')
 ```
+
+---
+
+## 📝 日志
+
+Backtrader 提供**统一的日志入口**，且**默认完全静默**——不主动调用就没有任何
+输出，也不会修改 root logger 或干扰宿主程序的日志配置。
+
+```python
+import backtrader as bt
+
+# 开启日志：控制台 + 可选滚动文件，幂等
+bt.configure_logging(level="INFO", log_file="run.log")
+
+logger = bt.get_logger(__name__)      # -> "backtrader.<模块名>"
+logger.info("strategy started")
+
+bt.set_level("DEBUG")                 # 运行时调高日志级别
+bt.reset_logging()                    # 还原到默认静默状态（测试用）
+```
+
+| 级别 | 使用场景 |
+| --- | --- |
+| `CRITICAL` | 引擎无法继续 |
+| `ERROR` | 可恢复的失败（订单被拒、数据加载失败） |
+| `WARNING` | 降级 / 自动修正行为 |
+| `INFO` | 里程碑事件（启动/结束、成交） |
+| `DEBUG` | 每根 bar 的诊断信息 |
+
+框架内部统一通过 `backtrader.utils.log_message.get_logger` 获取 logger，而非
+直接 `import logging`。完整规范（热路径守护、异常日志写法、print 取舍）见
+`docs/LOGGING_GUIDELINES.md`。
 
 ---
 

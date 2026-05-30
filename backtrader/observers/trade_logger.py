@@ -517,7 +517,8 @@ class TradeLogger(Observer):
         """Initialize MySQL connection and create tables."""
         if not MYSQL_AVAILABLE:
             logger.warning("pymysql not installed, MySQL logging disabled")
-            print("[TradeLogger] Warning: pymysql not installed, MySQL logging disabled")
+            if self.p.log_to_console:
+                print("[TradeLogger] Warning: pymysql not installed, MySQL logging disabled")
             return
 
         try:
@@ -533,7 +534,8 @@ class TradeLogger(Observer):
             self._create_mysql_tables()
         except Exception as e:
             logger.error("MySQL connection failed: %s", e)
-            print(f"[TradeLogger] MySQL connection failed: {e}")
+            if self.p.log_to_console:
+                print(f"[TradeLogger] MySQL connection failed: {e}")
             self._mysql_conn = None
 
     def _create_mysql_tables(self):

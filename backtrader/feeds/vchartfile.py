@@ -20,6 +20,9 @@ from .. import stores
 from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..utils import date2num  # avoid dict lookups
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class VChartFile(DataBase):
@@ -118,7 +121,7 @@ class VChartFile(DataBase):
         try:
             bdata = unpack(self._barfmt, bardata)
         except Exception as e:
-            print(e)
+            logger.warning("vchart bar unpack failed, stopping feed: %s", e)
             self.f = None
             return False
 

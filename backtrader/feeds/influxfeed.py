@@ -21,6 +21,9 @@ import datetime as dt
 from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..utils import date2num
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 try:
     from influxdb import InfluxDBClient as idbclient
@@ -93,7 +96,7 @@ class InfluxDB(DataBase):
                 self.p.host, self.p.port, self.p.username, self.p.password, self.p.database
             )
         except InfluxDBClientError as err:
-            print("Failed to establish connection to InfluxDB: %s" % err)
+            logger.error("Failed to establish connection to InfluxDB: %s", err)
         # Specific time period
         tf = "{multiple}{timeframe}".format(
             multiple=(self.p.compression if self.p.compression else 1),
@@ -130,7 +133,7 @@ class InfluxDB(DataBase):
         try:
             dbars = list(self.ndb.query(qstr).get_points())
         except InfluxDBClientError as err:
-            print("InfluxDB query failed: %s" % err)
+            logger.error("InfluxDB query failed: %s", err)
         # Iterate data
         self.biter = iter(dbars)
 

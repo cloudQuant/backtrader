@@ -20,6 +20,9 @@ from datetime import date, datetime
 from .. import feed
 from ..dataseries import TimeFrame
 from ..utils import date2num
+from ..utils.log_message import get_logger
+
+logger = get_logger(__name__)
 
 
 class YahooFinanceCSVData(feed.CSVDataBase):
@@ -143,7 +146,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         try:
             v = float(linetokens[next(i)])
         except Exception as e:  # cover the case in which volume is "null"
-            print(e)
+            logger.debug("volume parse failed, defaulting to 0.0: %s", e)
             v = 0.0
         # If swapping close price and adjusted close price, perform swap
         if self.p.swapcloses:  # swap closing prices if requested
@@ -366,7 +369,7 @@ class YahooFinanceData(YahooFinanceCSVData):
                 # r.encoding = 'UTF-8'
                 f = io.StringIO(resp.text, newline=None)
             except Exception as e:
-                print(e)
+                logger.warning("Yahoo response read failed, retrying: %s", e)
                 continue  # try again if possible
 
             break
