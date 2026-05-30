@@ -1493,6 +1493,50 @@ class Cerebro(ParameterizedBase):
 
     # Core method for backtesting. Any passed kwargs affect cerebro standard parameters.
     # If no data added, will stop immediately. Return value differs based on optimization.
+    def _resolve_run_flags(self):
+        """Resolve runonce/preload/exactbars/replay/live flags and build writers.
+
+        Extracted from run() to keep that method readable. Sets the private
+        execution-mode flags on self and populates self.runwriters /
+        self.writers_csv. No behavior change.
+        """
+        # Check if _dorunonce, _dopreload, _exactbars
+        self._dorunonce = self.p.runonce
+        self._dopreload = self.p.preload
+        self._exactbars = int(self.p.exactbars)
+        # If _exactbars is not 0, _dorunonce must be False; if _dopreload is True and _exactbars < 1, set _dopreload to True
+        if self._exactbars:
+            self._dorunonce = False  # something is saving memory, no runonce
+            self._dopreload = self._dopreload and self._exactbars < 1
+        # If _doreplay is True or any data has replaying attribute True, set _doreplay to True
+        self._doreplay = self._doreplay or any(x.replaying for x in self.datas)
+        # If _doreplay, need to set _dopreload to False
+        if self._doreplay:
+            # preloading is not supported with replay. full timeframe bars
+            # are constructed in realtime
+            self._dopreload = False
+        # If _dolive or live, need to set _dorunonce and _dopreload to False
+        if self._dolive or self.p.live:
+            # in this case, both preload and runonce must be off
+            self._dorunonce = False
+            self._dopreload = False
+
+        # Writer list
+        self.runwriters = list()
+
+        # Add the system default writer if requested
+        if self.p.writer is True:
+            wr = WriterFile()
+            self.runwriters.append(wr)
+
+        # Instantiate any other writers
+        for wrcls, wrargs, wrkwargs in self.writers:
+            wr = wrcls(*wrargs, **wrkwargs)
+            self.runwriters.append(wr)
+
+        # Write down if any writer wants the full csv output
+        self.writers_csv = any(map(lambda x: x.p.csv, self.runwriters))
+
     def run(self, **kwargs) -> list:
         """The core method to perform backtesting. Any ``kwargs`` passed to it
         will affect the value of the standard parameters ``Cerebro`` was
@@ -1551,45 +1595,8 @@ class Cerebro(ParameterizedBase):
         linebuffer.LineActions.usecache(self.p.objcache)
         indicator.Indicator.usecache(self.p.objcache)
 
-        # Check if _dorunonce, _dopreload, _exactbars
-        self._dorunonce = self.p.runonce
-        self._dopreload = self.p.preload
-        self._exactbars = int(self.p.exactbars)
-        # If _exactbars is not 0, _dorunonce must be False; if _dopreload is True and _exactbars < 1, set _dopreload to True
-        if self._exactbars:
-            self._dorunonce = False  # something is saving memory, no runonce
-            self._dopreload = self._dopreload and self._exactbars < 1
-        # If _doreplay is True or any data has replaying attribute True, set _doreplay to True
-        self._doreplay = self._doreplay or any(x.replaying for x in self.datas)
-        # If _doreplay, need to set _dopreload to False
-        if self._doreplay:
-            # preloading is not supported with replay. full timeframe bars
-            # are constructed in realtime
-            self._dopreload = False
-        # If _dolive or live, need to set _dorunonce and _dopreload to False
-        if self._dolive or self.p.live:
-            # in this case, both preload and runonce must be off
-            self._dorunonce = False
-            self._dopreload = False
-
-        # Writer list
-        self.runwriters = list()
-
-        # Add the system default writer if requested
-        # If writer parameter is True, add default writer
-        if self.p.writer is True:
-            wr = WriterFile()
-            self.runwriters.append(wr)
-
-        # Instantiate any other writers
-        # If there are other writers, instantiate and add to runwriters
-        for wrcls, wrargs, wrkwargs in self.writers:
-            wr = wrcls(*wrargs, **wrkwargs)
-            self.runwriters.append(wr)
-
-        # Write down if any writer wants the full csv output
-        # If that writer needs full csv output, save results to file
-        self.writers_csv = any(map(lambda x: x.p.csv, self.runwriters))
+        # Resolve runonce/preload/exactbars/replay/live execution flags + writers
+        self._resolve_run_flags()
 
         # Running strategy list
         self.runstrats = list()
