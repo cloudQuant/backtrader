@@ -52,10 +52,8 @@ from .writer import WriterFile
 
 logger = get_logger(__name__)
 
-try:  # For new Python versions
-    collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
-except AttributeError:  # For old Python versions
-    collectionsAbc = collections  # collections.Iterable
+# Python 3 always provides collections.abc (the only supported baseline).
+collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
 
 # Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
 UTC = timezone.utc
@@ -408,13 +406,13 @@ class Cerebro(ParameterizedBase):
         # Internal state flags
         self._timerscheat = None
         self._timers = None
-        self.runningstrats = None
+        self.runningstrats: list = list()
         self.runstrats = None
         self.writers_csv = None
         self.runwriters = None
         self._dopreload = None
         self._dorunonce = None
-        self._exactbars = None
+        self._exactbars = 0
         self._event_stop = None
         self._dolive = False  # Live trading mode flag
         self._doreplay = False  # Data replay mode flag
@@ -697,7 +695,11 @@ class Cerebro(ParameterizedBase):
           - The created timer
 
         """
-        return self._add_timer(
+        # NOTE: *args (extra notify_timer args) are forwarded positionally after
+        # the named timer kwargs. mypy flags a potential owner/when collision,
+        # but _add_timer collects these into its own *args; ignore the false
+        # positive rather than reorder (which would change call semantics).
+        return self._add_timer(  # type: ignore[misc]
             owner=self,
             when=when,
             offset=offset,
@@ -1341,7 +1343,7 @@ class Cerebro(ParameterizedBase):
         self.strats.append([(strategy, args, kwargs)])
         return len(self.strats) - 1
 
-    def setbroker(self, broker) -> None:
+    def setbroker(self, broker):
         """
         Sets a specific ``broker`` instance for this strategy, replacing the
         one inherited from cerebro.
@@ -1529,7 +1531,8 @@ class Cerebro(ParameterizedBase):
         # --- channel mode ---------------------------------------------------
         channel = kwargs.pop("channel", None)
         if channel is not None:
-            return self._run_channel(channel, **kwargs)
+            # _run_channel is dynamically typed; run() advertises -> list.
+            return self._run_channel(channel, **kwargs)  # type: ignore[no-any-return]
 
         # If no data, return empty list immediately
         if not self.datas:
@@ -1609,13 +1612,18 @@ class Cerebro(ParameterizedBase):
                 # Still None, create a default one
                 signalst, sargs, skwargs = SignalStrategy, tuple(), dict()
 
+            # sargs/skwargs always come from a (args, kwargs) pair or the
+            # tuple()/dict() defaults above; normalize for safe unpacking.
+            sargs = sargs or ()
+            skwargs = skwargs or {}
+
             # Add the signal strategy
             self.addstrategy(
                 signalst,
+                *sargs,
                 _accumulate=self._signal_accumulate,
                 _concurrent=self._signal_concurrent,
                 signals=self.signals,
-                *sargs,
                 **skwargs,
             )
         # If strategy list is empty, add strategy
@@ -1666,7 +1674,7 @@ class Cerebro(ParameterizedBase):
         # If not optimization parameters
         if not self._dooptimize:
             # avoid a list of list for regular cases
-            return self.runstrats[0]
+            return self.runstrats[0]  # type: ignore[no-any-return]
 
         return self.runstrats
 
