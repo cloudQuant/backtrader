@@ -66,7 +66,7 @@ class MovingAverageSimple(MovingAverageBase):
             period = self.p.period
             prices = [float(self.data[i]) for i in range(1 - period, 1)]
             self.lines.sma[0] = math.fsum(prices) / period
-        except Exception:
+        except (ValueError, TypeError, IndexError):
             logger.debug("SMA next() failed", exc_info=True)
             self.lines.sma[0] = float("nan")
 

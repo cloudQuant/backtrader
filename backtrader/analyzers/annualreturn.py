@@ -94,7 +94,7 @@ class AnnualReturn(Analyzer):
             # Convert date
             try:
                 dt = num2date(dt_val)
-            except Exception as e:
+            except (ValueError, TypeError, OverflowError) as e:
                 logger.debug("Failed to convert date value %s: %s", dt_val, e)
                 continue
 
