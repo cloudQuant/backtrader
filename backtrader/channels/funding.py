@@ -18,7 +18,7 @@ import csv
 import gzip
 import json
 import math
-from typing import Iterator
+from typing import Iterator, Optional
 
 from ..channel import DataChannel, DataValidationResult
 from ..events import FundingEvent
@@ -126,6 +126,8 @@ class FundingRateChannel(DataChannel):
         Yields:
             FundingEvent instances.
         """
+        if self._dataname is None:
+            raise ValueError("FundingChannel requires a 'dataname' (CSV path) to load from")
         open_func = gzip.open if self._dataname.endswith(".gz") else open
         open_kwargs = (
             {"mode": "rt", "encoding": "utf-8"}
@@ -133,7 +135,9 @@ class FundingRateChannel(DataChannel):
             else {"mode": "r", "encoding": "utf-8", "newline": ""}
         )
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        # open_func is gzip.open or builtin open; the conditionally-built
+        # open_kwargs dict can't be matched to a specific overload by mypy.
+        with open_func(self._dataname, **open_kwargs) as f:  # type: ignore[call-overload]
             reader = csv.DictReader(f)
 
             required = {"timestamp", "rate", "mark_price"}
@@ -172,10 +176,14 @@ class FundingRateChannel(DataChannel):
         Yields:
             FundingEvent instances.
         """
+        if self._dataname is None:
+            raise ValueError("FundingChannel requires a 'dataname' (JSONL path) to load from")
         open_func = gzip.open if self._dataname.endswith(".gz") else open
         open_kwargs = {"mode": "rt", "encoding": "utf-8"}
 
-        with open_func(self._dataname, **open_kwargs) as f:
+        # open_func is gzip.open or builtin open; the kwargs dict can't be
+        # matched to a specific overload by mypy.
+        with open_func(self._dataname, **open_kwargs) as f:  # type: ignore[call-overload]
             for line_num, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:
@@ -212,7 +220,7 @@ class FundingRateChannel(DataChannel):
         )
 
 
-def _parse_optional_float(value) -> float:
+def _parse_optional_float(value) -> Optional[float]:
     """Parse an optional float value, returning None for empty/missing.
 
     Args:
