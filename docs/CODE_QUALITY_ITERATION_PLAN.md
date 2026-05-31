@@ -369,6 +369,29 @@ Sprint 的地基，且成本极低、风险极低。
 - `bokeh/tabs/metadata.py::MetadataTab._get_panel`：抽出 `_collect_metadata`，
   CC 23→11。
 - `btrun/btrun.py::btrun`：抽出 `_add_datas` / `_print_analyzers`，CC 28→15。
+- `profiles.py::LiveProfile.__post_init__`：拆 `_normalize_mode_frequency` /
+  `_validate_store_config` / `_normalize_symbols` / `_validate_data_source`，
+  CC 23→1。
+- `analyzers/tradeanalyzer.py::TradeAnalyzer._on_trade_closed`：按统计类别拆
+  `_update_streak` / `_update_gross_net_pnl` / `_update_won_lost` /
+  `_update_long_short` / `_update_length` / `_update_length_won_lost` /
+  `_update_length_long_short`，CC 30→1。
+- `brokers/btapibroker.py::BtApiBroker._sync_positions`：抽出单条持仓解析
+  `_sync_one_position`，CC 24→12。
+- `cerebro.py::Cerebro._run_channel`：抽出 `_instantiate_channel_strategies` /
+  `_wire_channel_strategies`（仅启动期相位，事件主循环热路径保持原样），
+  CC 33→21。
+- `analyzers/sharpe.py::SharpeRatio._timeframe_ratio`：抽出 rate/returns 时间框
+  换算 `_convert_rate_returns`，CC 26→15。
+- `plot/plot_plotly.py::PlotlyPlot._plot_indicator` / `_plot_indicator_on_ax`：
+  抽出二者共用的「去除预热期前导 0」逻辑 `_trim_prewarmup_zeros`（消除重复），
+  CC 31→20 / 25→14。
+- `parameters.py::ParameterizedBase._compute_parameter_descriptors`：拆
+  `_collect_inherited_descriptors`（STEP 1 继承收集）/ `_collect_own_descriptors`
+  （STEP 2/3 当前类合并），惰性缓存非热路径，CC 22→2。
+- `plot/plot_plotly.py::PlotlyPlot._collect_buysell_signals`：按四种信号来源拆
+  `_buysell_from_transactions` / `_broker_orders` / `_strategy_attr` /
+  `_observer`（保留首个命中即短路），CC 21→4。
 
 > 注：`_periodset` 的复杂度部分来自近期「多数据时钟对齐」修复（见
 > `docs/DEV_REGRESSION_FAILURES.md`）。重构时**务必先跑 `make test-strategies`**，
@@ -379,18 +402,21 @@ Sprint 的地基，且成本极低、风险极低。
 - **只重构「相位清晰可分、测试充分、非最热路径」的函数**：cerebro 的启动/优化
   结果构建、信号评估、参数继承/归一化都满足；而 `process_orderbook`（撮合状态
   机）、`_runnext`（事件主循环）、line 系统的 `donew/__init__/_once`、`_periodset`
-  （多数据时钟）属于「高风险、纯可维护性收益」，**刻意暂缓**——零破坏约束下，
-  为降 CC 而动这些热点/状态机得不偿失。
+  （多数据时钟）、`Replayer.__call__`（逐 bar 重放状态机）属于「高风险、纯可维护
+  性收益」，**刻意暂缓**——零破坏约束下，为降 CC 而动这些热点/状态机得不偿失。
 - 每个函数单独提交；提取辅助方法以 `_` 前缀标识为内部；签名/返回值/副作用顺序
   不变；重构前后跑相关测试（全量 3,001 用例每轮验证）。
 
 ### S5 验收（务实）
 
-已把 **18 个高复杂度函数**降入可维护区间（含 Top 10 的 `runstrategies`/
+已把 **26 个高复杂度函数**降入可维护区间（含 Top 10 的 `runstrategies`/
 `_next_signal`/`run`/`SharpeRatio.stop`），全程零行为变化、全量测试通过。其中
-8 个核心/分析函数 + 10 个非热路径模块函数（reports/analyzers/feeds/bokeh/btrun）。
+8 个核心/分析函数 + 10 个非热路径模块函数（reports/analyzers/feeds/bokeh/btrun）
++ 8 个补充（profiles/tradeanalyzer/btapibroker/cerebro 启动相位/sharpe/plotly×2/
+parameters）。
 其余 Top 函数（撮合状态机 `process_orderbook`、事件主循环 `_runnext`、多数据
-时钟 `_periodset`、订单撮合记账 `_execute`/`_execute_dual_side`、line 系统
+时钟 `_periodset`、逐 bar 重放 `Replayer.__call__`、订单撮合记账 `_execute`/
+`_execute_dual_side`、line 系统
 `__init__`/`donew`/`_once`/`__setitem__`/`__setattr__`/`_register_line_assignment_child`、
 指标向量化 `.once()`、导入期初始化、绘图 `plotind`/`plotdata`）因风险/收益比
 不佳暂缓——它们是热路径/状态机/记账/动态 line 基座/导入期初始化，零破坏约束下
@@ -479,14 +505,14 @@ Sprint 的地基，且成本极低、风险极低。
 | 泛化异常比例 | 41.2% | <15% (S3) | 39.3%（防御网/边界刻意保留，见 S3） |
 | Mypy 错误 | 543 | <150 (S4) | ✅ 139 |
 | 类型注解覆盖率 | ~9% | >40% (S4) | ~9%（公共 API 已注解；40% 目标务实放弃，见 S4） |
-| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 18 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
+| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 26 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
 | 无专属测试核心模块 | 3（实测） | 0 冒烟 (S6) | ✅ 0（补 mathsupport/position_modes/version） |
 | 缺失模块 docstring | 11 | 0 (S6) | ✅ 0 |
 | 长参数列表 (>7) | 52（实测） | 减少 (S7) | ⏸ 评估后暂缓（多为既定公共 API） |
 | 非 `__init__` star import | 0 | 0 | ✅ 0（CI F403 守卫） |
 | **测试通过率** | 100% | 100%（每 Sprint） | ✅ 100%（3,001 passed / 1 skipped） |
 
-> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 18 个高复杂度函数，最高风险的撮合
+> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 26 个高复杂度函数，最高风险的撮合
 > 状态机/事件主循环/多数据时钟/记账/line 基座函数刻意暂缓）；S7 评估后暂缓；S8 明确不执行。
 > 详见各 Sprint 小节的「决策」说明。
 

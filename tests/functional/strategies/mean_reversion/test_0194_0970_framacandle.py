@@ -7,6 +7,42 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) M15 bar data from 2025-12-03 to 2026-03-10, loaded from
+    tests/datas/XAUUSD_M15.csv. The strategy operates on M15 execution bars
+    while the FramaLinesIndicator computes FRAMA values on a synthetic H4
+    timeframe derived from the same M15 bars via resampling. A 15-minute
+    bar-shift is applied to align the data timestamps.
+
+Strategy Principle:
+    The FramaCandleStrategy is a mean-reversion system based on the Fractal
+    Adaptive Moving Average (FRAMA). The core signal is the FRAMA color,
+    derived separately for open, high, low, and close prices. When the
+    smoothed color transitions (e.g., from bullish to bearish or vice versa),
+    the strategy generates entry signals. The system assumes that markets
+    exhibit fractal behavior and that FRAMA color changes precede short-term
+    reversals, making it suitable for XAUUSD's oscillating intraday moves.
+    Risk is managed via fixed stop-loss (1000 points = $10) and take-profit
+    (2000 points = $20) per trade.
+
+Strategy Logic:
+    Initialization: The strategy registers a FramaLinesIndicator on a
+    secondary (H4) signal feed and initializes counters for signals, trades,
+    and orders.
+    Entry: On next() bar, if no position is open and the FRAMA color
+    transitions from bullish (color=2) to neutral/bearish (color<2) with
+    buy_pos_open enabled, a long is submitted. Conversely, a transition
+    from bearish (color=0) to neutral/bullish (color>0) with sell_pos_open
+    enabled triggers a short entry.
+    Exit: Protective stops and take-profit levels are checked every bar.
+    A long position exits when low <= stop_price or high >= take_profit_price.
+    A short position exits when high >= stop_price or low <= take_profit_price.
+    Order notification: notify_order() tracks completed and rejected orders,
+    sets risk levels on entry fills, and handles reverse entries after color
+    changes. notify_trade() logs closed trade P&L and clears risk on exit.
+    Metrics extraction: extract_metrics() captures Sharpe ratio, returns,
+    drawdown, and trade statistics for assertion.
 """
 from __future__ import annotations
 import math
@@ -74,7 +110,11 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Return a deep copy of the inlined configuration with resolved repo paths.
+
+    Returns:
+        dict: Configuration dictionary with strategy, data, params, and backtest settings.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -83,6 +123,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and parse an MT5-exported CSV file into a sorted pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional start datetime for filtering.
+        todate: Optional end datetime for filtering.
+        bar_shift_minutes: Optional minutes to shift the datetime index.
+
+    Returns:
+        pd.DataFrame: DataFrame with datetime index and OHLCV columns plus spread.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -109,6 +160,13 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """MT5 CSV data feed extended with a spread line.
+
+    This feed extends PandasData to include a spread column from MT5-exported
+    CSV files. The spread line is used by the FramaCandleStrategy for
+    optional spread-based filtering.
+    """
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -123,13 +181,26 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FramaSeries(bt.Indicator):
+    """Fractal Adaptive Moving Average indicator.
+
+    FRAMA uses the fractal dimension of price series to adapt its smoothing
+    factor. A higher fractal dimension (more chaotic market) results in a
+    faster alpha, while a lower dimension (more trending) results in slower
+    smoothing.
+
+    Args:
+        period: Lookback window size for computing fractal dimension.
+    """
+
     lines = ('frama',)
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize the FRAMA indicator with the required minimum period."""
         self.addminperiod(max(int(self.p.period), 2))
 
     def next(self):
+        """Compute the next FRAMA value based on fractal dimension."""
         period = max(int(self.p.period), 2)
         half = max(period // 2, 1)
         window = [float(self.data[-i]) for i in range(period - 1, -1, -1)]
@@ -152,10 +223,21 @@ class FramaSeries(bt.Indicator):
 
 
 class FramaLinesIndicator(bt.Indicator):
+    """FRAMA-based OHLC color indicator.
+
+    Computes four separate FRAMA series for open, high, low, and close prices.
+    The color line indicates bullish (2), bearish (0), or neutral (1) state
+    based on the relationship between FRAMA open and FRAMA close.
+
+    Args:
+        period: Lookback period passed to each underlying FramaSeries.
+    """
+
     lines = ('o', 'h', 'l', 'c', 'color')
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize four FramaSeries lines and set minimum period."""
         self.addminperiod(int(self.p.period) + 2)
         self.frama_open = FramaSeries(self.data.open, period=int(self.p.period))
         self.frama_high = FramaSeries(self.data.high, period=int(self.p.period))
@@ -163,6 +245,7 @@ class FramaLinesIndicator(bt.Indicator):
         self.frama_close = FramaSeries(self.data.close, period=int(self.p.period))
 
     def next(self):
+        """Compute FRAMA OHLC values and derive color signal."""
         o = float(self.frama_open[0])
         h = float(self.frama_high[0])
         l = float(self.frama_low[0])
@@ -184,6 +267,29 @@ class FramaLinesIndicator(bt.Indicator):
 
 
 class FramaCandleStrategy(bt.Strategy):
+    """Mean-reversion strategy based on FRAMA color transitions.
+
+    The strategy enters long when the FRAMA color transitions from bullish to
+    bearish (color changes from 2 to lower), and enters short on the reverse
+    transition. Exits are governed by fixed stop-loss and take-profit levels
+    expressed in points.
+
+    Args:
+        fixed_lot: Lot size for fixed-position sizing.
+        risk_percent: Risk percentage for dynamic position sizing (0 disables).
+        point: Point value per tick (0.01 for XAUUSD).
+        stop_loss_points: Stop-loss distance in points.
+        take_profit_points: Take-profit distance in points.
+        buy_pos_open: Enable long entries.
+        sell_pos_open: Enable short entries.
+        buy_pos_close: Enable closing long positions.
+        sell_pos_close: Enable closing short positions.
+        frama_period: Period for FramaLinesIndicator.
+        signal_bar: Lookback bar offset for signal comparison.
+        lot_min, lot_step, lot_max: Lot sizing constraints.
+        contract_multiplier: Multiplier for position value calculation.
+    """
+
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -203,6 +309,7 @@ class FramaCandleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state: feeds, indicator, counters, and risk management fields."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = FramaLinesIndicator(self.signal_feed, period=self.p.frama_period)
@@ -225,6 +332,11 @@ class FramaCandleStrategy(bt.Strategy):
         self.warmup = int(self.p.frama_period) + int(self.p.signal_bar) + 4
 
     def log(self, text):
+        """Print a timestamped log message for the current bar.
+
+        Args:
+            text: The log message text to print.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -312,7 +424,7 @@ class FramaCandleStrategy(bt.Strategy):
         return False
 
     def next(self):
-        self.bar_num += 1
+        """Evaluate FRAMA color transitions and execute entry/exit logic."""
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
             return
@@ -367,6 +479,11 @@ class FramaCandleStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Handle order status changes: track fills, rejections, and set risk levels on entry.
+
+        Args:
+            order: The order object whose status has changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -410,6 +527,11 @@ class FramaCandleStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Log closed trade P&L and clear risk management fields when flat.
+
+        Args:
+            trade: The trade object for the closed trade.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -434,6 +556,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a filename relative to the test file directory.
+
+    Args:
+        filename: Relative path from the strategy test directory.
+
+    Returns:
+        Path: Absolute path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -441,6 +574,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter MT5 CSV data according to the configuration.
+
+    Args:
+        config: Configuration dictionary containing data settings.
+
+    Returns:
+        dict: Dictionary with 'data' (DataFrame), 'fromdate', and 'todate' keys.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -471,6 +615,15 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro engine with data feeds, strategy, and analyzers.
+
+    Args:
+        config: Configuration dictionary with backtest, data, and params sections.
+        frame: Data frame dictionary from load_backtest_frame.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance ready for run().
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -502,6 +655,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract performance metrics from strategy analyzers and broker state.
+
+    Args:
+        strat: Strategy instance after cerebro.run().
+        cerebro: Configured Cerebro instance.
+        frame: Data frame dictionary used for the backtest.
+        config: Configuration dictionary.
+
+    Returns:
+        dict: Dictionary containing trading metrics (bars, trades, Sharpe, drawdown, etc.).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
