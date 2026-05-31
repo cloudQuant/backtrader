@@ -592,35 +592,7 @@ class BtApiBroker(BrokerBase):
             long_synced = collections.defaultdict(Position)
             short_synced = collections.defaultdict(Position)
             for item in self.store.get_positions():
-                key = (
-                    item.get("instrument")
-                    or item.get("symbol")
-                    or item.get("dataname")
-                    or item.get("name")
-                )
-                if not key:
-                    continue
-
-                size = item.get("volume", item.get("size", item.get("position", 0)))
-                size = float(size or 0.0)
-                direction = str(item.get("direction", "")).lower()
-
-                price = item.get("price", item.get("avg_price", item.get("average_price", 0.0)))
-                price = float(price or 0.0)
-
-                if self._is_dual_side_mode():
-                    if size and direction not in {"long", "buy", "short", "sell"}:
-                        raise ValueError(
-                            "dual_side mode requires provider positions with explicit direction"
-                        )
-                    if direction in {"short", "sell"}:
-                        short_synced[key] = Position(size=abs(size), price=price)
-                    else:
-                        long_synced[key] = Position(size=abs(size), price=price)
-                else:
-                    if direction in {"short", "sell"} and size > 0:
-                        size = -size
-                    synced[key] = Position(size=size, price=price)
+                self._sync_one_position(item, synced, long_synced, short_synced)
 
             if self._is_dual_side_mode():
                 self.long_positions = long_synced
@@ -635,6 +607,40 @@ class BtApiBroker(BrokerBase):
             logger.debug("Failed to sync positions: %s", e)
             if raise_errors:
                 raise
+
+    def _sync_one_position(self, item, synced, long_synced, short_synced):
+        """Parse a single provider position dict into the right cache bucket.
+
+        Extracted from ``_sync_positions``' loop body; behavior unchanged.
+        Mutates the supplied ``synced`` / ``long_synced`` / ``short_synced``
+        defaultdicts in place and returns nothing.
+        """
+        key = (
+            item.get("instrument") or item.get("symbol") or item.get("dataname") or item.get("name")
+        )
+        if not key:
+            return
+
+        size = item.get("volume", item.get("size", item.get("position", 0)))
+        size = float(size or 0.0)
+        direction = str(item.get("direction", "")).lower()
+
+        price = item.get("price", item.get("avg_price", item.get("average_price", 0.0)))
+        price = float(price or 0.0)
+
+        if self._is_dual_side_mode():
+            if size and direction not in {"long", "buy", "short", "sell"}:
+                raise ValueError(
+                    "dual_side mode requires provider positions with explicit direction"
+                )
+            if direction in {"short", "sell"}:
+                short_synced[key] = Position(size=abs(size), price=price)
+            else:
+                long_synced[key] = Position(size=abs(size), price=price)
+        else:
+            if direction in {"short", "sell"} and size > 0:
+                size = -size
+            synced[key] = Position(size=size, price=price)
 
     def _sync_remote_open_orders(self, force=False, raise_errors=False):
         """Refresh the cached provider-side open-order snapshot."""

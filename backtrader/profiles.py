@@ -39,20 +39,36 @@ class LiveProfile:
     cerebro_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
+        self._normalize_mode_frequency()
+        self._validate_store_config()
+        self._normalize_symbols()
+        self._validate_data_source()
+
+    def _normalize_mode_frequency(self) -> None:
+        """Lower-case and validate ``mode`` and ``frequency``."""
         self.mode = str(self.mode or "").lower()
         if self.mode not in {"backtest", "live"}:
             raise ValueError("LiveProfile.mode must be 'backtest' or 'live'")
         self.frequency = str(self.frequency or "").lower()
         if self.frequency not in {"lowfreq", "midfreq", "hft"}:
             raise ValueError("LiveProfile.frequency must be 'lowfreq', 'midfreq', or 'hft'")
+
+    def _validate_store_config(self) -> None:
+        """Reject live store configuration on backtest profiles."""
         if self.mode == "backtest" and (
             self.store_factory is not None or self.store_kwargs or self.store_provider != "btapi"
         ):
             raise ValueError("Backtest profiles cannot use live store configuration")
+
+    def _normalize_symbols(self) -> None:
+        """Coerce ``symbols`` into a tuple of non-empty strings."""
         symbols = self.symbols
         if isinstance(symbols, str):
             symbols = (symbols,)
         self.symbols = tuple(str(symbol) for symbol in (symbols or ()) if str(symbol))
+
+    def _validate_data_source(self) -> None:
+        """Ensure exactly one coherent data source is configured."""
         if self.data_factory is not None and (self.dataname not in (None, "") or self.symbols):
             raise ValueError("LiveProfile.data_factory cannot be used with dataname or symbols")
         if self.data_factory is None and self.dataname in (None, "") and not self.symbols:

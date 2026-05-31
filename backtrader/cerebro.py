@@ -1077,44 +1077,8 @@ class Cerebro(ParameterizedBase):
         # Start broker
         self._broker.start()
 
-        # Instantiate each strategy class added via addstrategy()
-        iterstrats = itertools.product(*self.strats)
-        for iterstrat in iterstrats:
-            for stratcls, sargs, skwargs in iterstrat:
-                try:
-                    with OwnerContext.set_owner(self):
-                        if hasattr(stratcls, "_create_strategy_safely"):
-                            strat = stratcls._create_strategy_safely(*sargs, **skwargs)
-                        else:
-                            strat = stratcls(*sargs, **skwargs)
-                except errors.StrategySkipError:
-                    continue  # user requested skip, same as standard run() path
-                if self.p.oldsync:
-                    strat._oldsync = True
-                if self.p.tradehistory:
-                    strat.set_tradehistory()
-                runstrats.append(strat)
-
-        context_getter = getattr(self._broker, "get_context", None)
-        if callable(context_getter):
-            context = context_getter()
-            for strat in runstrats:
-                strat.context = context
-
-        # Channel mode still needs explicit observers/analyzers initialization.
-        defaultsizer = self.sizers.get(None, (None, None, None))
-        for idx, strat in enumerate(runstrats):
-            for multi, obscls, obsargs, obskwargs in self.observers:
-                strat._addobserver(multi, obscls, *obsargs, **obskwargs)
-
-            for ancls, anargs, ankwargs in self.analyzers:
-                strat._addanalyzer(ancls, *anargs, **ankwargs)
-
-            sizer, sargs, skwargs = self.sizers.get(idx, defaultsizer)
-            if sizer is not None:
-                strat._addsizer(sizer, *sargs, **skwargs)
-
-            self._start_channel_strategy(strat)
+        self._instantiate_channel_strategies(runstrats)
+        self._wire_channel_strategies(runstrats)
 
         # If channel is just True, return strategies for external event loops
         if channel is True:
@@ -1166,6 +1130,59 @@ class Cerebro(ParameterizedBase):
         self._broker.stop()
         self.runstrats = [runstrats]
         return runstrats
+
+    def _instantiate_channel_strategies(self, runstrats):
+        """Instantiate strategy classes for channel mode and append to
+        ``runstrats``.
+
+        Extracted from ``_run_channel`` (instantiation phase); behavior
+        unchanged. Honors ``StrategySkipError``, ``oldsync``,
+        ``tradehistory`` and broker-provided context exactly as before.
+        """
+        # Instantiate each strategy class added via addstrategy()
+        iterstrats = itertools.product(*self.strats)
+        for iterstrat in iterstrats:
+            for stratcls, sargs, skwargs in iterstrat:
+                try:
+                    with OwnerContext.set_owner(self):
+                        if hasattr(stratcls, "_create_strategy_safely"):
+                            strat = stratcls._create_strategy_safely(*sargs, **skwargs)
+                        else:
+                            strat = stratcls(*sargs, **skwargs)
+                except errors.StrategySkipError:
+                    continue  # user requested skip, same as standard run() path
+                if self.p.oldsync:
+                    strat._oldsync = True
+                if self.p.tradehistory:
+                    strat.set_tradehistory()
+                runstrats.append(strat)
+
+        context_getter = getattr(self._broker, "get_context", None)
+        if callable(context_getter):
+            context = context_getter()
+            for strat in runstrats:
+                strat.context = context
+
+    def _wire_channel_strategies(self, runstrats):
+        """Attach observers, analyzers and sizers to channel strategies and
+        start them.
+
+        Extracted from ``_run_channel`` (setup phase); behavior unchanged.
+        """
+        # Channel mode still needs explicit observers/analyzers initialization.
+        defaultsizer = self.sizers.get(None, (None, None, None))
+        for idx, strat in enumerate(runstrats):
+            for multi, obscls, obsargs, obskwargs in self.observers:
+                strat._addobserver(multi, obscls, *obsargs, **obskwargs)
+
+            for ancls, anargs, ankwargs in self.analyzers:
+                strat._addanalyzer(ancls, *anargs, **ankwargs)
+
+            sizer, sargs, skwargs = self.sizers.get(idx, defaultsizer)
+            if sizer is not None:
+                strat._addsizer(sizer, *sargs, **skwargs)
+
+            self._start_channel_strategy(strat)
 
     def adddata(self, data, name: str = None):
         """

@@ -103,7 +103,10 @@ class TradeAnalyzer(Analyzer):
         long-short / length) for a single closed trade.
 
         Extracted verbatim from notify_trade's Closed branch to keep that
-        dispatcher trivial; no behavior change.
+        dispatcher trivial; no behavior change. Split into per-category
+        helpers (streak / pnl / won-lost / long-short / length) to reduce
+        complexity; the computation order and shared ``res``/``trades``
+        state are preserved exactly.
         """
         trades = self.rets
 
@@ -122,8 +125,17 @@ class TradeAnalyzer(Analyzer):
         # Closed trade
         trades.total.closed += 1
 
-        # Streak
-        # Calculate consecutive win and loss counts
+        self._update_streak(trades, res)
+        self._update_gross_net_pnl(trades, trade)
+        self._update_won_lost(trades, trade, res)
+        self._update_long_short(trades, trade, res)
+        self._update_length(trades, trade)
+        self._update_length_won_lost(trades, trade, res)
+        self._update_length_long_short(trades, trade, res)
+
+    @staticmethod
+    def _update_streak(trades, res):
+        """Streak: consecutive win and loss counts."""
         for wlname in ["won", "lost"]:
             # Current win/loss status
             wl = res[wlname]
@@ -134,6 +146,10 @@ class TradeAnalyzer(Analyzer):
             ls = trades.streak[wlname].longest or 0
             # Recalculate
             trades.streak[wlname].longest = max(ls, trades.streak[wlname].current)
+
+    @staticmethod
+    def _update_gross_net_pnl(trades, trade):
+        """Aggregate gross/net total and average trade pnl."""
         # Trade profit/loss
         trpnl = trades.pnl
         # Total trade profit/loss
@@ -145,8 +161,9 @@ class TradeAnalyzer(Analyzer):
         # Average net profit/loss
         trpnl.net.average = trades.pnl.net.total / trades.total.closed
 
-        # Won/Lost statistics
-        # Win/loss statistics
+    @staticmethod
+    def _update_won_lost(trades, trade, res):
+        """Won/Lost statistics: counts and pnl per win/loss bucket."""
         for wlname in ["won", "lost"]:
             # Current win/loss
             wl = res[wlname]
@@ -165,8 +182,9 @@ class TradeAnalyzer(Analyzer):
             func = max if wlname == "won" else min
             trwlpnl.max = func(wm, pnlcomm)
 
-        # Long/Short statistics
-        # Long/short statistics
+    @staticmethod
+    def _update_long_short(trades, trade, res):
+        """Long/Short statistics: counts and pnl per direction and win/loss."""
         for tname in ["long", "short"]:
             # Long and short
             trls = trades[tname]
@@ -192,7 +210,9 @@ class TradeAnalyzer(Analyzer):
                 func = max if wlname == "won" else min
                 trls.pnl[wlname].max = func(wm, pnlcomm)
 
-        # Length
+    @staticmethod
+    def _update_length(trades, trade):
+        """Length: total/average/max/min bars across all closed trades."""
         # Number of bars occupied by trade
         trades.len.total += trade.barlen
         # Average number of bars per trade
@@ -204,7 +224,9 @@ class TradeAnalyzer(Analyzer):
         ml = trades.len.min or MAXINT
         trades.len.min = min(ml, trade.barlen)
 
-        # Length Won/Lost
+    @staticmethod
+    def _update_length_won_lost(trades, trade, res):
+        """Length split by win/loss bucket."""
         # Number of bars for winning/losing trades, similar to above but separated by profit and loss
         for wlname in ["won", "lost"]:
             trwl = trades.len[wlname]
@@ -219,7 +241,9 @@ class TradeAnalyzer(Analyzer):
                 m = trwl.min or MAXINT
                 trwl.min = min(m, trade.barlen * wl)
 
-        # Length Long/Short
+    @staticmethod
+    def _update_length_long_short(trades, trade, res):
+        """Length split by direction and win/loss bucket."""
         # Distinguish long and short lengths
         for lsname in ["long", "short"]:
             trls = trades.len[lsname]  # trades.len.long
