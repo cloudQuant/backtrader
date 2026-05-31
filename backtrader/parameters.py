@@ -1178,9 +1178,28 @@ class ParameterizedBase:
         # Each class must have its own independent dictionary
 
         # STEP 1: Collect all parameters from the inheritance hierarchy
-        # Process base classes in reverse MRO order to respect inheritance precedence
         all_params: Dict[str, "ParameterDescriptor"] = {}
+        cls._collect_inherited_descriptors(all_params)
 
+        # STEP 2/3: Add descriptors / legacy params from the current class
+        # (highest precedence): these override inherited parameters by name.
+        cls._collect_own_descriptors(all_params)
+
+        # STEP 4: Set the final descriptors for this class and mark as computed
+        cls._parameter_descriptors = all_params
+        cls._parameter_descriptors_computed = True
+
+        return all_params
+
+    @classmethod
+    def _collect_inherited_descriptors(cls, all_params: Dict[str, "ParameterDescriptor"]) -> None:
+        """STEP 1: gather descriptors / legacy params from base classes.
+
+        Processes base classes from least specific to most specific (reverse
+        MRO) so more specific classes override less specific ones. Mutates
+        ``all_params`` in place. Extracted verbatim from
+        ``_compute_parameter_descriptors``; behavior unchanged.
+        """
         # Process base classes from least specific to most specific
         # This way, more specific classes override less specific ones
         for base_cls in reversed(cls.__mro__[1:-1]):  # Skip cls and object, reverse order
@@ -1205,6 +1224,15 @@ class ParameterizedBase:
                                 default=param_default, name=param_name
                             )
 
+    @classmethod
+    def _collect_own_descriptors(cls, all_params: Dict[str, "ParameterDescriptor"]) -> None:
+        """STEP 2/3: gather descriptors / legacy params from the current class.
+
+        Current-class definitions have highest precedence and override any
+        inherited parameter with the same name. Mutates ``all_params`` in
+        place. Extracted verbatim from ``_compute_parameter_descriptors``;
+        behavior unchanged.
+        """
         # STEP 2: Add descriptors from the current class (highest precedence)
         # These override any inherited parameters with the same name
         if hasattr(cls, "__dict__"):
@@ -1227,12 +1255,6 @@ class ParameterizedBase:
                         all_params[param_name] = ParameterDescriptor(
                             default=param_default, name=param_name
                         )
-
-        # STEP 4: Set the final descriptors for this class and mark as computed
-        cls._parameter_descriptors = all_params
-        cls._parameter_descriptors_computed = True
-
-        return all_params
 
     def __init__(self, **kwargs):
         """Initialize the parameterized object."""

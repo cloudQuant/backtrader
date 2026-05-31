@@ -1097,10 +1097,24 @@ class PlotlyPlot(ParameterizedBase):
             fig.write_image(filename, width=width, height=height, scale=scale)
 
     def _collect_buysell_signals(self, strategy):
-        """Collect buy/sell signals from strategy automatically."""
+        """Collect buy/sell signals from strategy automatically.
+
+        Tries four sources in priority order, stopping at the first that
+        yields markers: Transactions analyzer, broker order history, a
+        user-defined ``_buysell`` attribute, then the BuySell observer.
+        """
         self.buysell_markers = []
 
-        # Method 1: Try to get from Transactions analyzer (most reliable)
+        if self._buysell_from_transactions(strategy):
+            return
+        if self._buysell_from_broker_orders(strategy):
+            return
+        if self._buysell_from_strategy_attr(strategy):
+            return
+        self._buysell_from_observer(strategy)
+
+    def _buysell_from_transactions(self, strategy):
+        """Method 1: Transactions analyzer (most reliable). Returns True if found."""
         if hasattr(strategy, "analyzers"):
             for analyzer in strategy.analyzers:
                 if analyzer.__class__.__name__ == "Transactions":
@@ -1118,9 +1132,11 @@ class PlotlyPlot(ParameterizedBase):
                                 }
                             )
                     if self.buysell_markers:
-                        return
+                        return True
+        return False
 
-        # Method 2: Try to get from broker's order history
+    def _buysell_from_broker_orders(self, strategy):
+        """Method 2: broker order history. Returns True if found."""
         if hasattr(strategy, "broker") and hasattr(strategy.broker, "orders"):
             for order in strategy.broker.orders:
                 if order.status == order.Completed:
@@ -1134,14 +1150,18 @@ class PlotlyPlot(ParameterizedBase):
                         }
                     )
             if self.buysell_markers:
-                return
+                return True
+        return False
 
-        # Method 3: Check if strategy has _buysell attribute (user-defined)
+    def _buysell_from_strategy_attr(self, strategy):
+        """Method 3: user-defined ``_buysell`` attribute. Returns True if found."""
         if hasattr(strategy, "_buysell") and strategy._buysell:
             self.buysell_markers = strategy._buysell
-            return
+            return True
+        return False
 
-        # Method 4: Try to get from BuySell observer
+    def _buysell_from_observer(self, strategy):
+        """Method 4: BuySell observer buy/sell lines."""
         for obs in strategy.observers:
             if obs.__class__.__name__ == "BuySell":
                 buy_line = obs.lines.buy
