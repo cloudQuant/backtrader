@@ -102,23 +102,7 @@ class AnnualReturn(Analyzer):
             # When years are not equal, it indicates current i is a new year
             if dt.year > cur_year:
                 if cur_year >= 0:
-                    try:
-                        valid_values = (
-                            value_start != 0
-                            and math.isfinite(value_start)
-                            and math.isfinite(value_end)
-                        )
-                    except TypeError:
-                        valid_values = False
-                    if not valid_values:
-                        annual_ret = 0.0
-                    else:
-                        try:
-                            annual_ret = (value_end / value_start) - 1.0
-                            if isinstance(annual_ret, complex) or not math.isfinite(annual_ret):
-                                annual_ret = 0.0
-                        except (ZeroDivisionError, TypeError, ValueError):
-                            annual_ret = 0.0
+                    annual_ret = self._safe_annual_return(value_start, value_end)
                     self.rets.append(annual_ret)
                     self.ret[cur_year] = annual_ret
 
@@ -135,23 +119,30 @@ class AnnualReturn(Analyzer):
         # If current year hasn't ended and return hasn't been calculated, calculate at the end even if less than a full year
         if cur_year >= 0 and cur_year not in self.ret:
             # finish calculating pending data
-            try:
-                valid_values = (
-                    value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end)
-                )
-            except TypeError:
-                valid_values = False
-            if not valid_values:
-                annual_ret = 0.0
-            else:
-                try:
-                    annual_ret = (value_end / value_start) - 1.0
-                    if isinstance(annual_ret, complex) or not math.isfinite(annual_ret):
-                        annual_ret = 0.0
-                except (ZeroDivisionError, TypeError, ValueError):
-                    annual_ret = 0.0
+            annual_ret = self._safe_annual_return(value_start, value_end)
             self.rets.append(annual_ret)
             self.ret[cur_year] = annual_ret
+
+    @staticmethod
+    def _safe_annual_return(value_start, value_end):
+        """Compute (value_end/value_start - 1), returning 0.0 for any invalid
+        (zero/NaN/inf/complex) inputs or result. Shared by the year-boundary
+        and final-pending paths in stop()."""
+        try:
+            valid_values = (
+                value_start != 0 and math.isfinite(value_start) and math.isfinite(value_end)
+            )
+        except TypeError:
+            valid_values = False
+        if not valid_values:
+            return 0.0
+        try:
+            annual_ret = (value_end / value_start) - 1.0
+            if isinstance(annual_ret, complex) or not math.isfinite(annual_ret):
+                return 0.0
+            return annual_ret
+        except (ZeroDivisionError, TypeError, ValueError):
+            return 0.0
 
     def get_analysis(self):
         """Return the annual return analysis results.
