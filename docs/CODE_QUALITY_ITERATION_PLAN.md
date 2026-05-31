@@ -352,6 +352,18 @@ Sprint 的地基，且成本极低、风险极低。
   CC 41→32。
 - `brokers/bbroker.py::BackBroker._get_value`：抽出 `_get_value_dual_side` /
   `_get_value_net`（用 4 元组 `(direct, ...)` 保留单数据早返回语义），CC 36→11。
+- `reports/performance.py::PerformanceCalculator.get_pnl_metrics`：抽出
+  `_apply_trade_metrics`，CC 26→12。
+- `analyzers/annualreturn.py::AnnualReturn.stop`：去重抽出 `_safe_annual_return`，
+  CC 21→7。
+- `analyzers/sharpe_ratio_stats.py::estimated_sharpe_ratio_stdev`：抽出
+  `_validate_srstdev_params`，CC 25→15。
+- `feeds/pandafeed.py::PandasData.start`：抽出 `_resolve_colmapping`，CC 22→12。
+- `bokeh/analyzers/recorder.py::RecorderAnalyzer.next`：抽出 `_record_datas` +
+  共享 `_record_lineiterators`（去重指标/观察器记录），CC 21→5。
+- `bokeh/app.py::BacktraderBokeh._add_equity_data`：拆 `_equity_from_broker_observer`
+  / `_equity_from_timereturn` / `_compute_drawdown`，CC 24→3。
+- `feeds/btapifeed.py::BtApiFeed.islive`：抽出 `_api_indicates_live`，CC 22→11。
 
 > 注：`_periodset` 的复杂度部分来自近期「多数据时钟对齐」修复（见
 > `docs/DEV_REGRESSION_FAILURES.md`）。重构时**务必先跑 `make test-strategies`**，
@@ -369,15 +381,15 @@ Sprint 的地基，且成本极低、风险极低。
 
 ### S5 验收（务实）
 
-已把 **8 个高复杂度函数**（含 Top 10 的 `runstrategies`/`_next_signal`/`run`/
-`SharpeRatio.stop`，外加 `inherit_from`/`_derive_params`/`notify_trade`/
-`_get_value`）降入可维护区间，全程零行为变化、全量测试通过（3,001）。其余 Top
-函数（撮合状态机 `process_orderbook`、事件主循环 `_runnext`、多数据时钟
-`_periodset`、订单撮合记账 `_execute`/`_execute_dual_side`、line 系统 `__init__`/
-`donew`/`_once`/`__setitem__`/`__setattr__`/`_register_line_assignment_child`、
-导入期初始化 `_initialize_indicator_aliases`、绘图 `plotind`/`plotdata`）因风险/
-收益比不佳暂缓——它们是热路径/状态机/记账/动态 line 基座/导入期初始化，零破坏
-约束下为降 CC 而改动得不偿失，待有针对性测试加固后再处理。
+已把 **15 个高复杂度函数**降入可维护区间（含 Top 10 的 `runstrategies`/
+`_next_signal`/`run`/`SharpeRatio.stop`），全程零行为变化、全量测试通过。其中
+8 个核心/分析函数 + 7 个非热路径模块函数（reports/analyzers/feeds/bokeh）。
+其余 Top 函数（撮合状态机 `process_orderbook`、事件主循环 `_runnext`、多数据
+时钟 `_periodset`、订单撮合记账 `_execute`/`_execute_dual_side`、line 系统
+`__init__`/`donew`/`_once`/`__setitem__`/`__setattr__`/`_register_line_assignment_child`、
+指标向量化 `.once()`、导入期初始化、绘图 `plotind`/`plotdata`）因风险/收益比
+不佳暂缓——它们是热路径/状态机/记账/动态 line 基座/导入期初始化，零破坏约束下
+为降 CC 而改动得不偿失，待有针对性测试加固后再处理。
 
 ---
 
@@ -462,14 +474,14 @@ Sprint 的地基，且成本极低、风险极低。
 | 泛化异常比例 | 41.2% | <15% (S3) | 39.3%（防御网/边界刻意保留，见 S3） |
 | Mypy 错误 | 543 | <150 (S4) | ✅ 139 |
 | 类型注解覆盖率 | ~9% | >40% (S4) | ~9%（公共 API 已注解；40% 目标务实放弃，见 S4） |
-| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 8 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
+| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 15 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
 | 无专属测试核心模块 | 3（实测） | 0 冒烟 (S6) | ✅ 0（补 mathsupport/position_modes/version） |
 | 缺失模块 docstring | 11 | 0 (S6) | ✅ 0 |
 | 长参数列表 (>7) | 52（实测） | 减少 (S7) | ⏸ 评估后暂缓（多为既定公共 API） |
 | 非 `__init__` star import | 0 | 0 | ✅ 0（CI F403 守卫） |
 | **测试通过率** | 100% | 100%（每 Sprint） | ✅ 100%（3,001 passed / 1 skipped） |
 
-> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 8 个高复杂度函数，最高风险的撮合
+> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 15 个高复杂度函数，最高风险的撮合
 > 状态机/事件主循环/多数据时钟/记账/line 基座函数刻意暂缓）；S7 评估后暂缓；S8 明确不执行。
 > 详见各 Sprint 小节的「决策」说明。
 
