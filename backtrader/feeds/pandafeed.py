@@ -234,16 +234,13 @@ class PandasData(DataBase):
                 # all other cases -- used given index
                 self._colmapping[datafield] = defmapping
 
-    def start(self):
-        """Start the Pandas data feed.
+    def _resolve_colmapping(self):
+        """Resolve textual column names in self._colmapping to integer indices.
 
-        Resets index and converts column names to indices.
+        Extracted from start(). Honors the ``nocase`` param; a missing column
+        falls back to None only when the param default is a negative int,
+        otherwise the original ValueError is propagated.
         """
-        super().start()
-        # Before starting, reset _idx first
-        # reset the length with each start
-        self._idx = -1
-
         # Transform names (valid for .ix) into indices (good for .iloc)
         # If case-insensitive, convert column names to lowercase, if sensitive, keep original
         if self.p.nocase:
@@ -258,10 +255,7 @@ class PandasData(DataBase):
                 continue  # special marker for datetime
             # If column name is string, if case-insensitive, convert to lowercase first,
             # if sensitive, ignore, then get column index based on column name
-
             if isinstance(v, string_types):
-                # Some code below seems ineffective, can be ignored, directly use
-                # self._colmapping[k] = colnames.index(v) as replacement
                 try:
                     if self.p.nocase:
                         v = colnames.index(v.lower())
@@ -275,6 +269,19 @@ class PandasData(DataBase):
                         raise e  # let user now something failed
             # If not string, user defined specific integer, directly use user's definition
             self._colmapping[k] = v
+
+    def start(self):
+        """Start the Pandas data feed.
+
+        Resets index and converts column names to indices.
+        """
+        super().start()
+        # Before starting, reset _idx first
+        # reset the length with each start
+        self._idx = -1
+
+        # Resolve textual column names in the colmapping into integer indices
+        self._resolve_colmapping()
 
         df = self.p.dataname
         self._df_len = len(df)
