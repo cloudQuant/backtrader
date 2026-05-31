@@ -431,7 +431,7 @@ class MinimalData:
             None: Always returns None for missing attributes.
         """
         # Return None for any missing attributes to prevent further errors
-        return None
+        return
 
 
 class MinimalOwner:
@@ -468,7 +468,7 @@ class MinimalOwner:
         Returns:
             None: Always returns None.
         """
-        return None
+        return
 
 
 class MinimalClock:
@@ -515,7 +515,7 @@ class MinimalClock:
             None: Always returns None for missing attributes.
         """
         # Return None for any missing attributes to prevent further errors
-        return None
+        return
 
     def __reduce__(self):
         """Support pickling for multiprocessing."""
@@ -792,9 +792,9 @@ class Lines:
         # CRITICAL FIX: Don't initialize _owner here - let it be set by LineIterator.__new__
         # self._owner = None
 
-        self.lines = list()
+        self.lines = []
         for _ in self._getlines():
-            kwargs: dict = dict()
+            kwargs: dict = {}
             self.lines.append(LineBuffer(**kwargs))
 
         # Add the required extralines
@@ -881,21 +881,20 @@ class Lines:
                 if abs(line) > len(self.lines):
                     return self.lines[-1] if self.lines else None
                 return self.lines[line]
-            else:
-                # Positive index >= len(self.lines)
-                # CRITICAL FIX: Prevent creating absurd numbers of lines
-                if line >= MAX_REASONABLE_LINES:
-                    return None
+            # Positive index >= len(self.lines)
+            # CRITICAL FIX: Prevent creating absurd numbers of lines
+            if line >= MAX_REASONABLE_LINES:
+                return None
 
-                # Create additional lines if needed up to the requested index (with limit)
-                while len(self.lines) <= line and len(self.lines) < MAX_REASONABLE_LINES:
-                    self.lines.append(LineBuffer())
+            # Create additional lines if needed up to the requested index (with limit)
+            while len(self.lines) <= line and len(self.lines) < MAX_REASONABLE_LINES:
+                self.lines.append(LineBuffer())
 
-                # If we've hit the limit, return the last available line
-                if line >= len(self.lines):
-                    return self.lines[-1] if self.lines else None
+            # If we've hit the limit, return the last available line
+            if line >= len(self.lines):
+                return self.lines[-1] if self.lines else None
 
-                return self.lines[line]
+            return self.lines[line]
         except (TypeError, KeyError):
             # Non-integer index (string, etc.)
             try:
@@ -1326,7 +1325,7 @@ class Lines:
 
                         # CRITICAL FIX: Handle LineBuffer subclasses (bt.If, Logic, etc.)
                         # that store computed values in themselves, not in .lines[0]
-                        elif isinstance(value, LineBuffer) and hasattr(value, "_minperiod"):
+                        if isinstance(value, LineBuffer) and hasattr(value, "_minperiod"):
                             # bt.If, Logic subclasses etc. are LineBuffers that compute
                             # values into their own array. Bind value directly.
                             value.addbinding(parent_line)
@@ -1360,7 +1359,7 @@ class Lines:
                             return  # Don't set the attribute directly
 
                         # Handle indicator/line-like objects with binding
-                        elif hasattr(value, "lines") and hasattr(value, "_minperiod"):
+                        if hasattr(value, "lines") and hasattr(value, "_minperiod"):
                             # Get the indicator's output line
                             try:
                                 indicator_line = value.lines[0]
@@ -1575,7 +1574,6 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
         def __init__(self):
             """Initialize plotlines container."""
-            pass
 
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system
@@ -2087,7 +2085,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # CRITICAL FIX: Convert None and NaN to 0.0 to prevent comparison errors
                 if value is None:
                     return 0.0
-                elif isinstance(value, float):
+                if isinstance(value, float):
                     import math
 
                     if not math.isfinite(value):
@@ -2171,10 +2169,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         """
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
-        elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
+        if hasattr(self, "lines") and hasattr(self.lines, "__len__"):
             return len(self.lines)
-        else:
-            return 1  # Default to 1 line if no lines object available
+        return 1  # Default to 1 line if no lines object available
 
     @property
     def chkmin(self):
@@ -2308,7 +2305,6 @@ class LineSeriesStub(LineSeries):
         This method is a no-op in the stub implementation since
         the underlying line manages its own buffering.
         """
-        pass
 
     def minbuffer(self, size):
         """Set minimum buffer size (no-op for stub).
@@ -2319,7 +2315,6 @@ class LineSeriesStub(LineSeries):
         Args:
             size: Minimum buffer size (ignored in stub).
         """
-        pass
 
 
 def LineSeriesMaker(arg, slave=False):

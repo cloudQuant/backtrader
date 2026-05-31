@@ -169,7 +169,7 @@ class CommInfoBase(ParameterizedBase):
         automargin = self.get_param("automargin")
         if not automargin:
             return self.get_param("margin")
-        elif automargin < 0:
+        if automargin < 0:
             return price * self.get_param("mult")
         return price * automargin
 
@@ -361,9 +361,9 @@ class ComminfoDC(CommInfoBase):
         total_value = self.broker.getvalue() if hasattr(self, "broker") else abs(position_value)
         if size > 0 and position_value > total_value:
             return days * self._creditrate * (position_value - total_value)
-        elif size > 0 and position_value <= total_value:
+        if size > 0 and position_value <= total_value:
             return 0
-        elif size < 0:
+        if size < 0:
             return days * self._creditrate * position_value
         return 0
 

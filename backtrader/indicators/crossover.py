@@ -67,7 +67,7 @@ class NonZeroDifference(Indicator):
 class _CrossBase(Indicator):
     _mindatas = 2
     lines = ("cross",)
-    plotinfo = dict(plotymargin=0.05, plotyhlines=[0.0, 1.0])
+    plotinfo = {"plotymargin": 0.05, "plotyhlines": [0.0, 1.0]}
 
     def __init__(self):
         """Initialize the crossover base indicator.
@@ -120,7 +120,7 @@ class CrossOver(Indicator):
 
     _mindatas = 2
     lines = ("crossover",)
-    plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
+    plotinfo = {"plotymargin": 0.05, "plotyhlines": [-1.0, 1.0]}
 
     def __init__(self):
         """Initialize the CrossOver indicator.
@@ -227,9 +227,7 @@ class CrossOver(Indicator):
             # Defer crossover calculation by updating _last_nzd but setting crossover to 0
             if current_idx < current_len - 1:
                 # Still updating current bar - defer crossover calculation
-                if self._last_nzd is None:
-                    self._last_nzd = diff
-                elif diff != 0.0:
+                if self._last_nzd is None or diff != 0.0:
                     self._last_nzd = diff
                 self.lines.crossover[0] = 0.0
                 return
@@ -248,9 +246,7 @@ class CrossOver(Indicator):
             prev_nzd = self._last_nzd if self._last_nzd is not None else diff
 
         # Update _last_nzd for next bar
-        if self._last_nzd is None:
-            self._last_nzd = diff
-        elif diff != 0.0:
+        if self._last_nzd is None or diff != 0.0:
             self._last_nzd = diff
 
         # Check for crossover using STRICT inequalities

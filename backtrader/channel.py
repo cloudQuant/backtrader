@@ -156,7 +156,7 @@ class DataChannel:
         self._last_timestamp = None
         self.sharing_mode = sharing_mode
         self._strategy_states = {}
-        self._dataname = kwargs.get("dataname", None)
+        self._dataname = kwargs.get("dataname")
 
     @property
     def latest(self):

@@ -1404,8 +1404,7 @@ class ParameterizedBase:
         # Re-raise with enhanced message
         if isinstance(error, (ValueError, TypeError)):
             raise type(error)(error_msg) from error
-        else:
-            raise ValueError(error_msg) from error
+        raise ValueError(error_msg) from error
 
     # Parameter access methods for backward compatibility and convenience
     def get_param(self, name: str, default: Any = None) -> Any:
@@ -1580,8 +1579,7 @@ class ParameterizedBase:
         if hasattr(self, "_param_manager") and self._param_manager:
             param_count = len(self._param_manager)
             return f"{class_name}(parameters={param_count})"
-        else:
-            return f"{class_name}(no_parameters)"
+        return f"{class_name}(no_parameters)"
 
 
 # CRITICAL FIX: Picklable validator classes for multiprocessing support

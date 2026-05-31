@@ -101,9 +101,12 @@ class DicksonMovingAverage(MovingAverageBase):
             ec_val = ec_array[i] if i < len(ec_array) else float("nan")
             hull_val = hull_array[i] if i < len(hull_array) else float("nan")
 
-            if isinstance(ec_val, float) and math.isnan(ec_val):
-                larray[i] = float("nan")
-            elif isinstance(hull_val, float) and math.isnan(hull_val):
+            if (
+                isinstance(ec_val, float)
+                and math.isnan(ec_val)
+                or isinstance(hull_val, float)
+                and math.isnan(hull_val)
+            ):
                 larray[i] = float("nan")
             else:
                 larray[i] = (ec_val + hull_val) / 2.0

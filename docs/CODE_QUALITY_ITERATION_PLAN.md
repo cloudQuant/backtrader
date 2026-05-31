@@ -142,13 +142,15 @@ Sprint 的地基，且成本极低、风险极低。
 - [x] 回归验证：`pytest tests/functional/strategies -n 8` 1271 全过；非策略全套
   1719 全过；DM/ADX 指标专项 27 全过。
 
-### 1.5 仍待办（后续增强 CI）
+### 1.5 CI 增强 ✅ 已完成（2026-05-31）
 
-- [ ] 把 CI 触发分支补上 `dev`（当前 `test.yml` 只在 `development`/`master` 触发，
-  而 `dev` 才是日常分支）。
-- [ ] 拆分 job：**PR 门禁**用 `make test-fast`（~3.5 min）；**nightly / push** 跑
-  `pytest tests -n auto`（全量）。
-- [ ] 待 S4 推进后，评估把 mypy 从「非阻塞」升级为「阈值阻塞」。
+- [x] 把 CI 触发分支补上 `dev`（`test.yml` 的 `push`/`pull_request` 现含
+  `dev`/`development`/`master`）。
+- [x] 拆分 job：**PR 门禁**跑快速分层（`pytest -m "not slow"`，~3.5 min）；
+  **push / nightly（02:30 UTC cron）/ 手动**跑 `pytest tests/ -n auto`（全量）。
+  按 `github.event_name` 在测试步骤内分流，矩阵与缓存不变。
+- [x] S4 已收敛到 139，mypy 从「非阻塞趋势」**升级为阈值阻塞**（gate
+  `MYPY_THRESHOLD=160`，留余量吸收第三方 stub 漂移；超阈值即 `exit 1`）。
 
 ### S1 验收 ✅
 
@@ -411,8 +413,8 @@ Sprint 的地基，且成本极低、风险极低。
 
 已把 **26 个高复杂度函数**降入可维护区间（含 Top 10 的 `runstrategies`/
 `_next_signal`/`run`/`SharpeRatio.stop`），全程零行为变化、全量测试通过。其中
-8 个核心/分析函数 + 10 个非热路径模块函数（reports/analyzers/feeds/bokeh/btrun）
-+ 8 个补充（profiles/tradeanalyzer/btapibroker/cerebro 启动相位/sharpe/plotly×2/
+8 个核心/分析函数、10 个非热路径模块函数（reports/analyzers/feeds/bokeh/btrun），
+外加 8 个补充（profiles/tradeanalyzer/btapibroker/cerebro 启动相位/sharpe/plotly×2/
 parameters）。
 其余 Top 函数（撮合状态机 `process_orderbook`、事件主循环 `_runnext`、多数据
 时钟 `_periodset`、逐 bar 重放 `Replayer.__call__`、订单撮合记账 `_execute`/
@@ -496,7 +498,7 @@ parameters）。
 | Python 版本声明一致性 | 矛盾 | 统一 3.8+ (S1) | ✅ 已统一 3.8+ |
 | 行宽配置一致性 | 100/121 不一 | 统一 100 (S1) | ✅ 已统一 100 |
 | Ruff 告警 | 63 | 0 (S1) | ✅ 0 |
-| CI 覆盖 mypy | 无 | 有（非阻塞趋势）(S1/S4) | ✅ 有（打印错误数趋势） |
+| CI 覆盖 mypy | 无 | 有（非阻塞趋势）(S1/S4) | ✅ 有（S4 后升级为阈值阻塞 gate ≤160） |
 | `except…: pass` 无注释 | ~99 | 0 (S2) | ✅ 0（118 处全部带注释或改日志） |
 | 统一日志入口 | 无 | `bt.get_logger` (S2) | ✅ 43 模块接入 |
 | 散落诊断 `print()` | 63 | <10 (S2) | ✅ 仅余用户输出/docstring |
@@ -512,8 +514,9 @@ parameters）。
 | 非 `__init__` star import | 0 | 0 | ✅ 0（CI F403 守卫） |
 | **测试通过率** | 100% | 100%（每 Sprint） | ✅ 100%（3,001 passed / 1 skipped） |
 
-> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 26 个高复杂度函数，最高风险的撮合
-> 状态机/事件主循环/多数据时钟/记账/line 基座函数刻意暂缓）；S7 评估后暂缓；S8 明确不执行。
+> 路线图状态：S1（含 1.5 CI 增强）、S2–S4、S6 完成；S5 进行中（已降 26 个高复杂度
+> 函数，最高风险的撮合状态机/事件主循环/多数据时钟/记账/line 基座函数刻意暂缓）；
+> S7 评估后暂缓；S8 明确不执行。
 > 详见各 Sprint 小节的「决策」说明。
 
 ---

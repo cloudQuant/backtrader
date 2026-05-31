@@ -104,37 +104,37 @@ class TradeLogger(Observer):
     _ltype = 2  # LineIterator.ObsType - ensure observer is registered for next() calls
     lines = ("dummy",)  # Observer requires at least one line
 
-    params = dict(
+    params = {
         # File logging settings
-        log_dir="./logs",
-        log_orders=True,
-        log_trades=True,
-        log_positions=True,
-        log_indicators=True,
-        log_signals=True,
-        log_ticks=True,
-        log_bars=True,
-        log_system=True,
-        log_monitoring=True,
-        log_errors=True,
-        log_value=True,
-        log_position_snapshot=True,
-        snapshot_file="current_position.yaml",
-        log_format="json",
-        log_to_console=False,
-        submit_count_warn_threshold=0,
-        cancel_count_warn_threshold=0,
-        submit_cancel_total_warn_threshold=0,
-        duplicate_order_warn_threshold=0,
-        duplicate_order_window_seconds=60.0,
+        "log_dir": "./logs",
+        "log_orders": True,
+        "log_trades": True,
+        "log_positions": True,
+        "log_indicators": True,
+        "log_signals": True,
+        "log_ticks": True,
+        "log_bars": True,
+        "log_system": True,
+        "log_monitoring": True,
+        "log_errors": True,
+        "log_value": True,
+        "log_position_snapshot": True,
+        "snapshot_file": "current_position.yaml",
+        "log_format": "json",
+        "log_to_console": False,
+        "submit_count_warn_threshold": 0,
+        "cancel_count_warn_threshold": 0,
+        "submit_cancel_total_warn_threshold": 0,
+        "duplicate_order_warn_threshold": 0,
+        "duplicate_order_window_seconds": 60.0,
         # MySQL settings - disabled by default
-        mysql_enabled=False,
-        mysql_host="localhost",
-        mysql_port=3306,
-        mysql_user="root",
-        mysql_password="",
-        mysql_database="backtrader",
-    )
+        "mysql_enabled": False,
+        "mysql_host": "localhost",
+        "mysql_port": 3306,
+        "mysql_user": "root",
+        "mysql_password": "",
+        "mysql_database": "backtrader",
+    }
 
     def __init__(self):
         """Initialize the TradeLogger observer."""
@@ -1039,11 +1039,7 @@ class TradeLogger(Observer):
         category = "system"
         if level in {"ERROR", "CRITICAL"} or event.get("error_code") or event.get("error_msg"):
             category = "error"
-        elif (
-            event_type.startswith("order_")
-            or event_type.startswith("duplicate_")
-            or event_type.startswith("batch_cancel_")
-        ):
+        elif event_type.startswith(("order_", "duplicate_", "batch_cancel_")):
             category = "monitor"
 
         self._log_event(

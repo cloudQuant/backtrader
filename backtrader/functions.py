@@ -420,7 +420,7 @@ class If(Logic):
             return False
 
         # Get the bound line(s)
-        bound_lines = set(id(b) for b in self.bindings)
+        bound_lines = {id(b) for b in self.bindings}
 
         # Check if any operand references a bound line (via _LineDelay)
         def _check_ref(obj, depth=0):
@@ -635,8 +635,7 @@ class If(Logic):
 
             if cond_bool:
                 return self._eval_operand_at(operand.a, i)
-            else:
-                return self._eval_operand_at(operand.b, i)
+            return self._eval_operand_at(operand.b, i)
 
         # For _LineDelay, read from its source array at offset
         if hasattr(operand, "ago") and hasattr(operand, "a"):

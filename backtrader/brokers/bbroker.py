@@ -358,7 +358,7 @@ class BackBroker(BrokerBase):
         self._ocol = collections.defaultdict(list)
         self._fundshares = 0.0
         self._fundval = None
-        self._ocos = dict()
+        self._ocos = {}
         self._pchildren = collections.defaultdict(collections.deque)
         self.submitted: collections.deque = collections.deque()
         self.notifs: collections.deque = collections.deque()
@@ -366,7 +366,7 @@ class BackBroker(BrokerBase):
         self.positions = collections.defaultdict(Position)
         self._toactivate: collections.deque = collections.deque()
         self.pending: collections.deque = collections.deque()
-        self.orders = list()
+        self.orders = []
         self._unrealized = 0.0
         self._leverage = 1.0
         self._valuemktlever = 0.0
@@ -416,7 +416,7 @@ class BackBroker(BrokerBase):
         # Unrealized profit
         self._unrealized = 0.0  # no open position
         # Orders
-        self.orders = list()  # will only be appending
+        self.orders = []  # will only be appending
         # Double-ended queue
         self.pending = collections.deque()  # popleft and append(right)
         self._toactivate = collections.deque()  # to activate in next cycle
@@ -435,7 +435,7 @@ class BackBroker(BrokerBase):
         # If independent orders need to be kept
         self._pchildren = collections.defaultdict(collections.deque)
         # ocos
-        self._ocos = dict()
+        self._ocos = {}
         # ocol
         self._ocol = collections.defaultdict(list)
         # fund value
@@ -745,8 +745,7 @@ class BackBroker(BrokerBase):
         """
         if hasattr(self, "_cash") and self._cash is not None:
             return self._cash
-        else:
-            return self.get_param("cash")
+        return self.get_param("cash")
 
     getcash = get_cash
 
@@ -1076,7 +1075,7 @@ class BackBroker(BrokerBase):
         if safe:
             os = [x.clone() for x in self.pending]
         else:
-            os = [x for x in self.pending]
+            os = list(self.pending)
 
         return os
 
@@ -1199,7 +1198,7 @@ class BackBroker(BrokerBase):
         # Currently available cash
         cash = self._cash
         # Position
-        positions: dict = dict()
+        positions: dict = {}
         # When submitted is not empty
         while self.submitted:
             # Remove leftmost order and get it
@@ -1485,7 +1484,7 @@ class BackBroker(BrokerBase):
         # ago = None is used a flag for pseudo execution
         # If ago is not None and price is None, do nothing and return
         if ago is not None and price is None:
-            return  # no psuedo exec no price - no execution
+            return None  # no psuedo exec no price - no execution
 
         # Get the order size to execute
         if self.get_param("filler") is None or ago is None:
@@ -1682,7 +1681,7 @@ class BackBroker(BrokerBase):
 
     def _execute_dual_side(self, order, ago=None, price=None, cash=None, position=None, dtcoc=None):
         if ago is not None and price is None:
-            return
+            return None
 
         if self.get_param("filler") is None or ago is None:
             size = order.executed.remsize
@@ -1717,7 +1716,7 @@ class BackBroker(BrokerBase):
                 self.notify(order)
                 self._ococheck(order)
                 self._bracketize(order, cancel=True)
-                return
+                return None
 
         if ago is not None:
             pprice_orig = signed_position.price
@@ -2022,7 +2021,7 @@ class BackBroker(BrokerBase):
 
         if pslip <= pmax:  # slipping can return price
             return pslip
-        elif self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
+        if self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
             if not self.get_param("slip_out"):
                 return pmax
 
@@ -2046,7 +2045,7 @@ class BackBroker(BrokerBase):
 
         if pslip >= pmin:  # slipping can return price
             return pslip
-        elif self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
+        if self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
             if not self.get_param("slip_out"):
                 return pmin
 

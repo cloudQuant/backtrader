@@ -406,7 +406,7 @@ class Cerebro(ParameterizedBase):
         # Internal state flags
         self._timerscheat = None
         self._timers = None
-        self.runningstrats: list = list()
+        self.runningstrats: list = []
         self.runstrats = None
         self.writers_csv = None
         self.runwriters = None
@@ -419,20 +419,20 @@ class Cerebro(ParameterizedBase):
         self._dooptimize = False  # Optimization mode flag
 
         # Component containers
-        self.stores = list()  # Data stores
-        self.feeds = list()  # Data feeds
-        self.datas = list()  # Data objects
+        self.stores = []  # Data stores
+        self.feeds = []  # Data feeds
+        self.datas = []  # Data objects
         self.datasbyname = collections.OrderedDict()  # Data lookup by name
-        self.strats = list()  # Strategy classes/instances
-        self.optcbs = list()  # Optimization callbacks
-        self.observers = list()  # Observer classes
-        self.analyzers = list()  # Analyzer classes
-        self.indicators = list()  # Indicator classes
-        self.sizers = dict()  # Position sizers
-        self.writers = list()  # Output writers
-        self.storecbs = list()  # Store callbacks
-        self.datacbs = list()  # Data callbacks
-        self.signals = list()  # Signal definitions
+        self.strats = []  # Strategy classes/instances
+        self.optcbs = []  # Optimization callbacks
+        self.observers = []  # Observer classes
+        self.analyzers = []  # Analyzer classes
+        self.indicators = []  # Indicator classes
+        self.sizers = {}  # Position sizers
+        self.writers = []  # Output writers
+        self.storecbs = []  # Store callbacks
+        self.datacbs = []  # Data callbacks
+        self.signals = []  # Signal definitions
 
         # Signal strategy configuration
         self._signal_strat = (None, None, None)
@@ -444,8 +444,8 @@ class Cerebro(ParameterizedBase):
         self._broker = BackBroker()  # Default broker
         self._broker.cerebro = self  # Back-reference to cerebro
         self._tradingcal = None  # Trading calendar
-        self._pretimers = list()  # Pre-run timers
-        self._ohistory = list()  # Order history
+        self._pretimers = []  # Pre-run timers
+        self._ohistory = []  # Order history
         self._fhistory = None  # Fund history
 
         # Override parameters from kwargs
@@ -464,14 +464,9 @@ class Cerebro(ParameterizedBase):
         Returns:
             list: New list where each element is guaranteed to be iterable.
         """
-        niterable = list()
+        niterable = []
         for elem in iterable:
-            if isinstance(elem, string_types):
-                elem = (elem,)
-            # elif not isinstance(elem, collections.Iterable):
-            elif not isinstance(
-                elem, collectionsAbc.Iterable
-            ):  # Different functions will be called for different Python versions
+            if isinstance(elem, string_types) or not isinstance(elem, collectionsAbc.Iterable):
                 elem = (elem,)
 
             niterable.append(elem)
@@ -552,7 +547,6 @@ class Cerebro(ParameterizedBase):
         able to call the timer before. This value is the timer value and no the
         system time.
         """
-        pass
 
     def _add_timer(
         self,
@@ -560,9 +554,9 @@ class Cerebro(ParameterizedBase):
         when,
         offset=datetime.timedelta(),
         repeat=datetime.timedelta(),
-        weekdays=[],
+        weekdays=None,
         weekcarry=False,
-        monthdays=[],
+        monthdays=None,
         monthcarry=True,
         allow=None,
         tzdata=None,
@@ -575,6 +569,10 @@ class Cerebro(ParameterizedBase):
         can be called by cerebro instances or other objects which can access
         cerebro"""
 
+        # Normalize mutable-default placeholders (B006): Timer treats None as
+        # "all days", identical to the previous empty-list default.
+        weekdays = [] if weekdays is None else weekdays
+        monthdays = [] if monthdays is None else monthdays
         timer = Timer(
             tid=len(self._pretimers),
             owner=owner,
@@ -601,9 +599,9 @@ class Cerebro(ParameterizedBase):
         when,
         offset=datetime.timedelta(),
         repeat=datetime.timedelta(),
-        weekdays=[],
+        weekdays=None,
         weekcarry=False,
-        monthdays=[],
+        monthdays=None,
         monthcarry=True,
         allow=None,
         tzdata=None,
@@ -749,9 +747,7 @@ class Cerebro(ParameterizedBase):
         will be instantiated
         """
         # Handle string or pandas calendar with valid_days attribute
-        if isinstance(cal, string_types):
-            cal = PandasMarketCalendar(calendar=cal)
-        elif hasattr(cal, "valid_days"):
+        if isinstance(cal, string_types) or hasattr(cal, "valid_days"):
             cal = PandasMarketCalendar(calendar=cal)
         # Handle TradingCalendarBase subclass or instance
         else:
@@ -866,7 +862,6 @@ class Cerebro(ParameterizedBase):
         in general one should expect them to be *printable* to allow for
         reception and experimentation.
         """
-        pass
 
     def _storenotify(self):
         """Process and dispatch store notifications to strategies."""
@@ -923,7 +918,6 @@ class Cerebro(ParameterizedBase):
         in general one should expect them to be *printable* to allow for
         reception and experimentation.
         """
-        pass
 
     def dispatch_channel_event(self, event):
         """Dispatch a channel event to all running strategies.
@@ -1072,7 +1066,7 @@ class Cerebro(ParameterizedBase):
 
         # --- strategy instantiation (simplified, no bar-data required) ---
         self._init_stcount()
-        runstrats: list = list()
+        runstrats: list = []
         self.runningstrats = runstrats
 
         # Start broker
@@ -1432,7 +1426,7 @@ class Cerebro(ParameterizedBase):
         ``tight``: only save actual content and not the frame of the figure
         """
         if self._exactbars > 0:
-            return
+            return None
 
         # For plotly backend, ensure Transactions analyzer exists for buy/sell signals
         if backend == "plotly":
@@ -1540,7 +1534,7 @@ class Cerebro(ParameterizedBase):
             self._dopreload = False
 
         # Writer list
-        self.runwriters = list()
+        self.runwriters = []
 
         # Add the system default writer if requested
         if self.p.writer is True:
@@ -1617,7 +1611,7 @@ class Cerebro(ParameterizedBase):
         self._resolve_run_flags()
 
         # Running strategy list
-        self.runstrats = list()
+        self.runstrats = []
         # If signals is not None, handle signalstrategy related issues
         if self.signals:  # allow processing of signals
             signalst, sargs, skwargs = self._signal_strat
@@ -1635,7 +1629,7 @@ class Cerebro(ParameterizedBase):
 
             if signalst is None:  # recheck
                 # Still None, create a default one
-                signalst, sargs, skwargs = SignalStrategy, tuple(), dict()
+                signalst, sargs, skwargs = SignalStrategy, (), {}
 
             # sargs/skwargs always come from a (args, kwargs) pair or the
             # tuple()/dict() defaults above; normalize for safe unpacking.
@@ -1741,7 +1735,7 @@ class Cerebro(ParameterizedBase):
         # If need to save writer data
         if self.writers_csv:
             # headers
-            wheaders = list()
+            wheaders = []
             # Iterate data, if data csv attribute is True, get headers that need saving
             for data in self.datas:
                 if data.csv:
@@ -1768,7 +1762,7 @@ class Cerebro(ParameterizedBase):
         """
         self._init_stcount()
         # Initialize running strategy as empty list
-        self.runningstrats = runstrats = list()
+        self.runningstrats = runstrats = []
         # Start stores/broker/feeds, apply fund + order history, write headers
         # and (optionally) preload data. Extracted for readability.
         self._prepare_run(predata)
@@ -1921,7 +1915,7 @@ class Cerebro(ParameterizedBase):
         is lightweight and picklable across process boundaries) and wraps each
         strategy's params + analyzers in an OptReturn.
         """
-        results = list()
+        results = []
         for strat in runstrats:
             for a in strat.analyzers:
                 a.strategy = None
@@ -1956,7 +1950,7 @@ class Cerebro(ParameterizedBase):
 
         cerebroinfo["Datas"] = datainfos
         # Get strategy info and save to stratinfos and cerebroinfo
-        stratinfos = dict()
+        stratinfos = {}
         for strat in runstrats:
             stname = strat.__class__.__name__
             stratinfos[stname] = strat.getwriterinfo()
@@ -1964,7 +1958,7 @@ class Cerebro(ParameterizedBase):
         cerebroinfo["Strategies"] = stratinfos
         # Write cerebroinfo to file
         for writer in self.runwriters:
-            writer.writedict(dict(Cerebro=cerebroinfo))
+            writer.writedict({"Cerebro": cerebroinfo})
             writer.stop()
 
     # Notify broker info
@@ -2109,7 +2103,7 @@ class Cerebro(ParameterizedBase):
             return
 
         if self.writers_csv:
-            wvalues = list()
+            wvalues = []
             for data in self.datas:
                 if data.csv:
                     wvalues.extend(data.getwritervalues())
@@ -2480,9 +2474,8 @@ class Cerebro(ParameterizedBase):
         format_lower = format.lower()
         if format_lower == "html":
             return report.generate_html(output_path, user=user, memo=memo, **kwargs)
-        elif format_lower == "pdf":
+        if format_lower == "pdf":
             return report.generate_pdf(output_path, user=user, memo=memo, **kwargs)
-        elif format_lower == "json":
+        if format_lower == "json":
             return report.generate_json(output_path, **kwargs)
-        else:
-            raise ValueError(f"Unsupported format: {format}. Use 'html', 'pdf', or 'json'.")
+        raise ValueError(f"Unsupported format: {format}. Use 'html', 'pdf', or 'json'.")

@@ -85,11 +85,9 @@ class StdOutDevNull:
         Args:
             x: Data to discard.
         """
-        pass
 
     def flush(self):
         """No-op flush method for compatibility."""
-        pass
 
     def stop(self):
         """Restore the original sys.stdout."""

@@ -128,7 +128,7 @@ class Strategy(StrategyBase):
     """
 
     # Class-level storage for strategies
-    _indcol: dict = dict()
+    _indcol: dict = {}
 
     @classmethod
     def _create_strategy_safely(cls, *args, **kwargs):
@@ -236,13 +236,13 @@ class Strategy(StrategyBase):
         instance.stats = instance.observers = ItemCollection()
         instance.analyzers = ItemCollection()
         instance._alnames = collections.defaultdict(itertools.count)
-        instance.writers = list()
-        instance._slave_analyzers = list()
+        instance.writers = []
+        instance._slave_analyzers = []
         instance._tradehistoryon = False
-        instance._orders = list()
-        instance._orderspending = list()
+        instance._orders = []
+        instance._orderspending = []
         instance._trades = collections.defaultdict(AutoDictList)
-        instance._tradespending = list()
+        instance._tradespending = []
 
         return instance
 
@@ -839,7 +839,7 @@ class Strategy(StrategyBase):
             _dminperiods[clk].append(lineiter._minperiod)
 
         # Set minimum periods to empty list
-        self._minperiods = list()
+        self._minperiods = []
         # Loop through all data feeds
         for data in self.datas:
             # Do not only consider the data as clock but also its lines, which
@@ -1008,7 +1008,7 @@ class Strategy(StrategyBase):
             self.stats.append(obs, obsname)
             return
 
-        setattr(self.stats, obsname, list())
+        setattr(self.stats, obsname, [])
         obs_list = getattr(self.stats, obsname)
 
         for data in self.datas:
@@ -1070,7 +1070,6 @@ class Strategy(StrategyBase):
         This is a hook for strategies to take action at the open of each bar
         before minimum period is reached.
         """
-        pass
 
     def nextstart_open(self):
         """Called at the open of the first bar where minimum period is satisfied.
@@ -1084,7 +1083,6 @@ class Strategy(StrategyBase):
 
         This is a hook for strategies to take action at the open of each bar.
         """
-        pass
 
     def _oncepost_open(self):
         """Prepare for _oncepost execution based on minimum period status.
@@ -1410,7 +1408,6 @@ class Strategy(StrategyBase):
         This is a hook for strategies to perform initialization before
         the backtesting loop begins.
         """
-        pass
 
     def getwriterheaders(self):
         """Get the CSV headers for writer output.
@@ -1424,7 +1421,7 @@ class Strategy(StrategyBase):
         indobs = itertools.chain(self.getindicators_lines(), self.getobservers())
         self.indobscsv.extend(filter(lambda x: x.csv, indobs))
         # Initialize headers as empty list
-        headers = list()
+        headers = []
 
         # Prepare the indicators/observers data headers
         # Loop through indicators/observers marked for CSV output
@@ -1444,7 +1441,7 @@ class Strategy(StrategyBase):
         Returns:
             list: Current values from indicators and observers
         """
-        values = list()
+        values = []
         # Loop through indicators/observers
         for iocsv in self.indobscsv:
             name = iocsv.plotinfo.plotname or iocsv.__class__.__name__
@@ -1562,7 +1559,6 @@ class Strategy(StrategyBase):
 
         This is a hook for strategies to perform cleanup or final logging.
         """
-        pass
 
     def set_tradehistory(self, onoff=True):
         """Enable or disable trade history tracking.
@@ -1578,8 +1574,8 @@ class Strategy(StrategyBase):
         Moves pending orders to _orders list and clears pending trades.
         """
         self._orders.extend(self._orderspending)
-        self._orderspending = list()
-        self._tradespending = list()
+        self._orderspending = []
+        self._tradespending = []
 
     def _addnotification(self, order, quicknotify=False):
         """Add order notification and process trade updates.
@@ -1746,9 +1742,9 @@ class Strategy(StrategyBase):
         when,
         offset=datetime.timedelta(),
         repeat=datetime.timedelta(),
-        weekdays=[],
+        weekdays=None,
         weekcarry=False,
-        monthdays=[],
+        monthdays=None,
         monthcarry=True,
         allow=None,
         tzdata=None,
@@ -1826,7 +1822,6 @@ class Strategy(StrategyBase):
             *args: Additional positional arguments passed to add_timer
             **kwargs: Additional keyword arguments passed to add_timer
         """
-        pass
 
     def notify_cashvalue(self, cash, value):
         """Notify the current cash and value of the strategy's broker.
@@ -1835,7 +1830,6 @@ class Strategy(StrategyBase):
             cash: Current cash amount
             value: Current portfolio value
         """
-        pass
 
     def notify_fund(self, cash, value, fundvalue, shares):
         """Notify the current cash, value, fund value, and fund shares.
@@ -1846,7 +1840,6 @@ class Strategy(StrategyBase):
             fundvalue: Current fund value
             shares: Current fund shares
         """
-        pass
 
     def notify_order(self, order):
         """Receive notification when an order status changes.
@@ -1854,7 +1847,6 @@ class Strategy(StrategyBase):
         Args:
             order: The order with changed status
         """
-        pass
 
     def notify_trade(self, trade):
         """Receive notification when a trade status changes.
@@ -1862,7 +1854,6 @@ class Strategy(StrategyBase):
         Args:
             trade: The trade with changed status
         """
-        pass
 
     def notify_store(self, msg, *args, **kwargs):
         """Receive notification from a store provider.
@@ -1872,7 +1863,6 @@ class Strategy(StrategyBase):
             *args: Additional positional arguments
             **kwargs: Additional keyword arguments
         """
-        pass
 
     def notify_data(self, data, status, *args, **kwargs):
         """Receive notification from a data feed.
@@ -1883,7 +1873,6 @@ class Strategy(StrategyBase):
             *args: Additional positional arguments
             **kwargs: Additional keyword arguments
         """
-        pass
 
     # ========== Tick/Channel Event Callbacks ==========
 
@@ -1895,7 +1884,6 @@ class Strategy(StrategyBase):
         Args:
             tick: TickEvent instance with price, volume, direction, etc.
         """
-        pass
 
     def notify_orderbook(self, orderbook):
         """Called when a new order book snapshot arrives.
@@ -1905,7 +1893,6 @@ class Strategy(StrategyBase):
         Args:
             orderbook: OrderBookSnapshot instance with bids, asks, spread, etc.
         """
-        pass
 
     def notify_funding(self, funding):
         """Called when a new funding rate event arrives.
@@ -1916,7 +1903,6 @@ class Strategy(StrategyBase):
         Args:
             funding: FundingEvent instance with rate, mark_price, etc.
         """
-        pass
 
     def notify_bar(self, bar):
         """Called when a bar event arrives from the channel system.
@@ -1928,7 +1914,6 @@ class Strategy(StrategyBase):
         Args:
             bar: BarEvent instance with open, high, low, close, volume.
         """
-        pass
 
     def get_last_tick(self, symbol=None):
         """Get the last tick for a symbol.
@@ -2249,7 +2234,7 @@ class Strategy(StrategyBase):
         if possize > 0:
             return self.sell(data=data, size=size, **kwargs)
         # If position is short (negative), buy to close
-        elif possize < 0:
+        if possize < 0:
             return self.buy(data=data, size=size, **kwargs)
 
         return None
@@ -2265,13 +2250,13 @@ class Strategy(StrategyBase):
         tradeid=0,
         trailamount=None,
         trailpercent=None,
-        oargs={},
+        oargs=None,
         stopprice=None,
         stopexec=Order.Stop,
-        stopargs={},
+        stopargs=None,
         limitprice=None,
         limitexec=Order.Limit,
-        limitargs={},
+        limitargs=None,
         **kwargs,
     ):
         """Create a bracket order group (buy order with stop-loss and take-profit).
@@ -2339,18 +2324,23 @@ class Strategy(StrategyBase):
             High/Low side orders can be suppressed by setting limitexec=None or
             stopexec=None.
         """
+        # Normalize mutable-default placeholders (B006); these dicts are only
+        # read via kargs.update(...), never mutated, so None==empty is equivalent.
+        oargs = {} if oargs is None else oargs
+        stopargs = {} if stopargs is None else stopargs
+        limitargs = {} if limitargs is None else limitargs
         # Build parameter dictionary
-        kargs = dict(
-            size=size,
-            data=data,
-            price=price,
-            plimit=plimit,
-            exectype=exectype,
-            valid=valid,
-            tradeid=tradeid,
-            trailamount=trailamount,
-            trailpercent=trailpercent,
-        )
+        kargs = {
+            "size": size,
+            "data": data,
+            "price": price,
+            "plimit": plimit,
+            "exectype": exectype,
+            "valid": valid,
+            "tradeid": tradeid,
+            "trailamount": trailamount,
+            "trailpercent": trailpercent,
+        }
         # Update with main side order specific arguments
         kargs.update(oargs)
         # Update with general keyword arguments
@@ -2363,9 +2353,13 @@ class Strategy(StrategyBase):
         # Create stop-loss order
         if stopexec is not None:
             # low side / stop
-            kargs = dict(
-                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": stopprice,
+                "exectype": stopexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(stopargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2378,9 +2372,13 @@ class Strategy(StrategyBase):
         # Create take-profit order
         if limitexec is not None:
             # high side / limit
-            kargs = dict(
-                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": limitprice,
+                "exectype": limitexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(limitargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2403,13 +2401,13 @@ class Strategy(StrategyBase):
         tradeid=0,
         trailamount=None,
         trailpercent=None,
-        oargs={},
+        oargs=None,
         stopprice=None,
         stopexec=Order.Stop,
-        stopargs={},
+        stopargs=None,
         limitprice=None,
         limitexec=Order.Limit,
-        limitargs={},
+        limitargs=None,
         **kwargs,
     ):
         """Create a sell bracket order group (sell order with stop-loss and take-profit).
@@ -2430,18 +2428,21 @@ class Strategy(StrategyBase):
             High/Low side orders can be suppressed by setting limitexec=None or
             stopexec=None.
         """
-
-        kargs = dict(
-            size=size,
-            data=data,
-            price=price,
-            plimit=plimit,
-            exectype=exectype,
-            valid=valid,
-            tradeid=tradeid,
-            trailamount=trailamount,
-            trailpercent=trailpercent,
-        )
+        # Normalize mutable-default placeholders (B006); read-only via update().
+        oargs = {} if oargs is None else oargs
+        stopargs = {} if stopargs is None else stopargs
+        limitargs = {} if limitargs is None else limitargs
+        kargs = {
+            "size": size,
+            "data": data,
+            "price": price,
+            "plimit": plimit,
+            "exectype": exectype,
+            "valid": valid,
+            "tradeid": tradeid,
+            "trailamount": trailamount,
+            "trailpercent": trailpercent,
+        }
         kargs.update(oargs)
         kargs.update(kwargs)
         kargs["transmit"] = limitexec is None and stopexec is None
@@ -2449,9 +2450,13 @@ class Strategy(StrategyBase):
 
         if stopexec is not None:
             # high side / stop
-            kargs = dict(
-                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": stopprice,
+                "exectype": stopexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(stopargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2463,9 +2468,13 @@ class Strategy(StrategyBase):
 
         if limitexec is not None:
             # low side / limit
-            kargs = dict(
-                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
-            )
+            kargs = {
+                "data": data,
+                "price": limitprice,
+                "exectype": limitexec,
+                "valid": valid,
+                "tradeid": tradeid,
+            }
             kargs.update(limitargs)
             kargs.update(kwargs)
             kargs["parent"] = o
@@ -2505,10 +2514,10 @@ class Strategy(StrategyBase):
         if not target and possize:
             return self.close(data=data, size=possize, **kwargs)
         # If target is greater than current position, buy to increase
-        elif target > possize:
+        if target > possize:
             return self.buy(data=data, size=target - possize, **kwargs)
         # If target is less than current position, sell to decrease
-        elif target < possize:
+        if target < possize:
             return self.sell(data=data, size=possize - target, **kwargs)
 
         return None  # no execution target == possize
@@ -2541,22 +2550,21 @@ class Strategy(StrategyBase):
         if not target and possize:  # closing a position
             return self.close(data=data, size=possize, price=price, **kwargs)
         # Otherwise, rebalance to target value
-        else:
-            # Get the current value of this data
-            value = self.broker.getvalue(datas=[data])
-            # Get commission info for size calculation
-            comminfo = self.broker.getcommissioninfo(data)
-            # Get price: use provided price or default to close price
-            # Make sure a price is there
-            price = price if price is not None else data.close[0]
-            # If target value is greater than current value, buy
-            if target > value:
-                size = comminfo.getsize(price, target - value)
-                return self.buy(data=data, size=size, price=price, **kwargs)
-            # If target value is less than current value, sell
-            elif target < value:
-                size = comminfo.getsize(price, value - target)
-                return self.sell(data=data, size=size, price=price, **kwargs)
+        # Get the current value of this data
+        value = self.broker.getvalue(datas=[data])
+        # Get commission info for size calculation
+        comminfo = self.broker.getcommissioninfo(data)
+        # Get price: use provided price or default to close price
+        # Make sure a price is there
+        price = price if price is not None else data.close[0]
+        # If target value is greater than current value, buy
+        if target > value:
+            size = comminfo.getsize(price, target - value)
+            return self.buy(data=data, size=size, price=price, **kwargs)
+        # If target value is less than current value, sell
+        if target < value:
+            size = comminfo.getsize(price, value - target)
+            return self.sell(data=data, size=size, price=price, **kwargs)
 
         return None  # no execution size == possize
 
@@ -2935,6 +2943,21 @@ class SignalStrategy(Strategy):
         if hasattr(self, "_next_custom"):
             self._next_custom()
 
+    @staticmethod
+    def _all_pos(sig, nosig):
+        """True if every value in ``sig`` (or ``nosig`` when empty) is > 0."""
+        return all(x[0] > 0.0 for x in sig or nosig)
+
+    @staticmethod
+    def _all_neg(sig, nosig):
+        """True if every value in ``sig`` (or ``nosig`` when empty) is < 0."""
+        return all(x[0] < 0.0 for x in sig or nosig)
+
+    @staticmethod
+    def _all_any(sig, nosig):
+        """True if every value in ``sig`` (or ``nosig`` when empty) is truthy."""
+        return all(x[0] for x in sig or nosig)
+
     def _evaluate_signals(self):
         """Evaluate all signal collections into entry/exit/reversal flags.
 
@@ -2948,31 +2971,38 @@ class SignalStrategy(Strategy):
         sigs = self._signals
         # Default no-signal value
         nosig = [[0.0]]
+        pos = self._all_pos
+        neg = self._all_neg
+        anyv = self._all_any
 
         # Calculate current status of the signals
         # If SIGNAL_LONGSHORT is empty, loop through nosig
-        ls_long = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
-        ls_short = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
-        # Long entry signals
-        l_enter0 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG] or nosig)
-        l_enter1 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
-        l_enter2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
-        l_enter = l_enter0 or l_enter1 or l_enter2
-        # Short entry signals
-        s_enter0 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
-        s_enter1 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
-        s_enter2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
-        s_enter = s_enter0 or s_enter1 or s_enter2
-        # Long exit signals
-        l_ex0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGEXIT] or nosig)
-        l_ex1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGEXIT_INV] or nosig)
-        l_ex2 = all(x[0] for x in sigs[SIGNAL_LONGEXIT_ANY] or nosig)
-        l_exit = l_ex0 or l_ex1 or l_ex2
-        # Short exit signals
-        s_ex0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORTEXIT] or nosig)
-        s_ex1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORTEXIT_INV] or nosig)
-        s_ex2 = all(x[0] for x in sigs[SIGNAL_SHORTEXIT_ANY] or nosig)
-        s_exit = s_ex0 or s_ex1 or s_ex2
+        ls_long = pos(sigs[SIGNAL_LONGSHORT], nosig)
+        ls_short = neg(sigs[SIGNAL_LONGSHORT], nosig)
+        # Long entry: direct (>0), inverted (<0) or any (truthy)
+        l_enter = (
+            pos(sigs[SIGNAL_LONG], nosig)
+            or neg(sigs[SIGNAL_LONG_INV], nosig)
+            or anyv(sigs[SIGNAL_LONG_ANY], nosig)
+        )
+        # Short entry: direct (<0), inverted (>0) or any (truthy)
+        s_enter = (
+            neg(sigs[SIGNAL_SHORT], nosig)
+            or pos(sigs[SIGNAL_SHORT_INV], nosig)
+            or anyv(sigs[SIGNAL_SHORT_ANY], nosig)
+        )
+        # Long exit: direct (<0), inverted (>0) or any (truthy)
+        l_exit = (
+            neg(sigs[SIGNAL_LONGEXIT], nosig)
+            or pos(sigs[SIGNAL_LONGEXIT_INV], nosig)
+            or anyv(sigs[SIGNAL_LONGEXIT_ANY], nosig)
+        )
+        # Short exit: direct (>0), inverted (<0) or any (truthy)
+        s_exit = (
+            pos(sigs[SIGNAL_SHORTEXIT], nosig)
+            or neg(sigs[SIGNAL_SHORTEXIT_INV], nosig)
+            or anyv(sigs[SIGNAL_SHORTEXIT_ANY], nosig)
+        )
 
         # Use opposite signals to start reversal (by closing)
         # but only if no "xxxExit" exists
@@ -2981,17 +3011,19 @@ class SignalStrategy(Strategy):
         # Short reversal: no short exit and long entry signal
         s_rev = not self._shortexit and l_enter
 
-        # Opposite of individual long and short
-        # Long leave signals
-        l_leav0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG] or nosig)
-        l_leav1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
-        l_leav2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
-        l_leave = l_leav0 or l_leav1 or l_leav2
-        # Short leave signals
-        s_leav0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
-        s_leav1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
-        s_leav2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
-        s_leave = s_leav0 or s_leav1 or s_leav2
+        # Opposite of individual long and short (leave = exit on opposite signal)
+        # Long leave: direct (<0), inverted (>0) or any (truthy)
+        l_leave = (
+            neg(sigs[SIGNAL_LONG], nosig)
+            or pos(sigs[SIGNAL_LONG_INV], nosig)
+            or anyv(sigs[SIGNAL_LONG_ANY], nosig)
+        )
+        # Short leave: direct (>0), inverted (<0) or any (truthy)
+        s_leave = (
+            pos(sigs[SIGNAL_SHORT], nosig)
+            or neg(sigs[SIGNAL_SHORT_INV], nosig)
+            or anyv(sigs[SIGNAL_SHORT_ANY], nosig)
+        )
 
         # Invalidate long leave if longexit signals are available
         # If longexit exists, disable l_leave; otherwise keep l_leave

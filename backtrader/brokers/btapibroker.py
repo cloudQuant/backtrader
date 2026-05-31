@@ -1130,7 +1130,9 @@ class BtApiBroker(BrokerBase):
                 if fmt == "%H:%M:%S":
                     return _dt.datetime.combine(today, parsed.time())
                 return parsed
-        return _dt.datetime.utcnow()
+        # Naive UTC fallback (consistent with the naive datetimes returned above,
+        # used for backtrader order bookkeeping). utcnow() is deprecated in 3.12+.
+        return _dt.datetime.now(_dt.timezone.utc).replace(tzinfo=None)
 
     @staticmethod
     def _order_execution_dt(order):

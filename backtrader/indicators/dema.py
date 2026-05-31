@@ -85,9 +85,12 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
             ema1_val = ema1_array[i] if i < len(ema1_array) else 0.0
             ema2_val = ema2_array[i] if i < len(ema2_array) else 0.0
 
-            if isinstance(ema1_val, float) and math.isnan(ema1_val):
-                larray[i] = float("nan")
-            elif isinstance(ema2_val, float) and math.isnan(ema2_val):
+            if (
+                isinstance(ema1_val, float)
+                and math.isnan(ema1_val)
+                or isinstance(ema2_val, float)
+                and math.isnan(ema2_val)
+            ):
                 larray[i] = float("nan")
             else:
                 larray[i] = 2.0 * ema1_val - ema2_val
@@ -159,11 +162,14 @@ class TripleExponentialMovingAverage(MovingAverageBase):
             ema2_val = ema2_array[i] if i < len(ema2_array) else 0.0
             ema3_val = ema3_array[i] if i < len(ema3_array) else 0.0
 
-            if isinstance(ema1_val, float) and math.isnan(ema1_val):
-                larray[i] = float("nan")
-            elif isinstance(ema2_val, float) and math.isnan(ema2_val):
-                larray[i] = float("nan")
-            elif isinstance(ema3_val, float) and math.isnan(ema3_val):
+            if (
+                isinstance(ema1_val, float)
+                and math.isnan(ema1_val)
+                or isinstance(ema2_val, float)
+                and math.isnan(ema2_val)
+                or isinstance(ema3_val, float)
+                and math.isnan(ema3_val)
+            ):
                 larray[i] = float("nan")
             else:
                 larray[i] = 3.0 * ema1_val - 3.0 * ema2_val + ema3_val

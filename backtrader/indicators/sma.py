@@ -90,7 +90,7 @@ class MovingAverageSimple(MovingAverageBase):
                 dst.append(float("nan"))
 
             # Pre-fill warmup period with NaN
-            for i in range(0, min(period - 1, len(src))):
+            for i in range(min(period - 1, len(src))):
                 dst[i] = float("nan")
 
             calc_start = max(period - 1, start)

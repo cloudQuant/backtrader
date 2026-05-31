@@ -200,7 +200,7 @@ class PandasData(DataBase):
 
         # Where each datafield find its value
         # Define a dictionary
-        self._colmapping = dict()
+        self._colmapping = {}
 
         # Build the column mappings to internal fields in advance
         # Iterate through each column
@@ -246,7 +246,7 @@ class PandasData(DataBase):
         if self.p.nocase:
             colnames = [x.lower() for x in self.p.dataname.columns.values]
         else:
-            colnames = [x for x in self.p.dataname.columns.values]
+            colnames = list(self.p.dataname.columns.values)
 
         # Iterate through datafield and column names
         for k, v in self._colmapping.items():

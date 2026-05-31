@@ -54,8 +54,7 @@ class FixedSize(Sizer):
     def _getsizing(self, comminfo, cash, data, isbuy):
         if self.get_param("tranches") > 1:
             return abs(int(self.get_param("stake") / self.get_param("tranches")))
-        else:
-            return self.get_param("stake")
+        return self.get_param("stake")
 
     # Set stake size
     def setsizing(self, stake):
@@ -145,8 +144,7 @@ class FixedSizeTarget(Sizer):
         if self.get_param("tranches") > 1:
             size = abs(int(self.get_param("stake") / self.get_param("tranches")))
             return min((self.strategy.position.size + size), self.get_param("stake"))
-        else:
-            return self.get_param("stake")
+        return self.get_param("stake")
 
     def setsizing(self, stake):
         """Set the fixed target stake size for operations.

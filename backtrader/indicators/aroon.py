@@ -48,7 +48,7 @@ class _AroonBase(Indicator):
         ("upperband", 70),
         ("lowerband", 30),
     )
-    plotinfo = dict(plotymargin=0.05, plotyhlines=[0, 100])
+    plotinfo = {"plotymargin": 0.05, "plotyhlines": [0, 100]}
 
     def _plotlabel(self):
         plabels = [self.p.period]
@@ -275,9 +275,12 @@ class AroonOscillator(_AroonBase):
             up_val = up_array[i] if i < len(up_array) else 0.0
             down_val = down_array[i] if i < len(down_array) else 0.0
 
-            if isinstance(up_val, float) and math.isnan(up_val):
-                aroonosc_array[i] = float("nan")
-            elif isinstance(down_val, float) and math.isnan(down_val):
+            if (
+                isinstance(up_val, float)
+                and math.isnan(up_val)
+                or isinstance(down_val, float)
+                and math.isnan(down_val)
+            ):
                 aroonosc_array[i] = float("nan")
             else:
                 aroonosc_array[i] = up_val - down_val

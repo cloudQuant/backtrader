@@ -139,7 +139,7 @@ class Renko(Filter):
             data.openinterest[0] = 0.0
             return False  # length of data stream is unaltered
 
-        elif loprice <= self._bot:
+        if loprice <= self._bot:
             # deliver a renko brick from bot -> bot - size
             self._top = top = self._bot
 

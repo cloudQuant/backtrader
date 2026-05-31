@@ -35,8 +35,6 @@ class WriterBase(ParameterizedBase):
     custom output formatting.
     """
 
-    pass
-
 
 # WriterFile class - refactored to not use metaclass
 class WriterFile(WriterBase):
@@ -87,9 +85,9 @@ class WriterFile(WriterBase):
         # This fixes assertion error in test_writer.py: assert count == 256
         self._len: "itertools.count[int]" = itertools.count(0)
         # headers
-        self.headers: List[str] = list()
+        self.headers: List[str] = []
         # values
-        self.values: List[str] = list()
+        self.values: List[str] = []
         # out and close_out are set in _start_output when start() is called
         self.out: Optional[Union[io.TextIOBase, io.TextIOWrapper]] = None
         self.close_out: bool = True
@@ -163,7 +161,7 @@ class WriterFile(WriterBase):
         """
         if self.p.csv:
             self.writeiterable(self.values, func=str, counter=next(self._len))
-            self.values = list()
+            self.values = []
 
     # If csv is True, add column names
     def addheaders(self, headers):
@@ -358,7 +356,6 @@ class WriterStringIO(WriterFile):
     @out.setter
     def out(self, value):
         """Ignore attempts to set out - we control it."""
-        pass
 
     def stop(self):
         """Seek to beginning for reading."""

@@ -110,15 +110,15 @@ class LiveStoreBase(ABC):
 
     def poll_live(self, dataname: str):
         """Poll the next completed live bar for *dataname* (optional)."""
-        return None
+        return
 
     def poll_tick(self, dataname: str):
         """Poll the next live tick for *dataname* (optional)."""
-        return None
+        return
 
     def poll_orderbook(self, dataname: str):
         """Poll the next live order book snapshot for *dataname* (optional)."""
-        return None
+        return
 
     def has_pending_tick(self, dataname: str) -> bool:
         """Return whether *dataname* has queued live ticks (optional)."""

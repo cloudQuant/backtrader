@@ -143,7 +143,7 @@ class _DirectionalIndicator(Indicator):
 
     params = (("period", 14), ("movav", MovAv.Smoothed))
 
-    plotlines = dict(plusDI=dict(_name="+DI"), minusDI=dict(_name="-DI"))
+    plotlines = {"plusDI": {"_name": "+DI"}, "minusDI": {"_name": "-DI"}}
 
     def _plotlabel(self):
         plabels = [self.p.period]
@@ -377,7 +377,7 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
     alias = (("PlusDI", "+DI"),)
     lines = ("plusDI",)
 
-    plotinfo = dict(plotname="+DirectionalIndicator")
+    plotinfo = {"plotname": "+DirectionalIndicator"}
 
     def __init__(self):
         """Initialize the +DI indicator."""
@@ -485,7 +485,7 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
     alias = (("MinusDI", "-DI"),)
     lines = ("minusDI",)
 
-    plotinfo = dict(plotname="-DirectionalIndicator")
+    plotinfo = {"plotname": "-DirectionalIndicator"}
 
     def __init__(self):
         """Initialize the -DI indicator."""
@@ -584,7 +584,7 @@ class AverageDirectionalMovementIndex(Indicator):
     alias = ("ADX",)
     lines = ("adx",)
     params = (("period", 14), ("movav", MovAv.Smoothed))
-    plotlines = dict(adx=dict(_name="ADX"))
+    plotlines = {"adx": {"_name": "ADX"}}
 
     def __init__(self):
         """Initialize the ADX indicator.
@@ -641,7 +641,6 @@ class AverageDirectionalMovementIndex(Indicator):
 
         Stores high and low values for directional move calculation.
         """
-        pass
 
     def _adx_atr_value(self, atr_array, index):
         import math
@@ -903,7 +902,7 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
     alias = ("ADXR",)
 
     lines = ("adxr",)
-    plotlines = dict(adxr=dict(_name="ADXR"))
+    plotlines = {"adxr": {"_name": "ADXR"}}
 
     def __init__(self):
         """Initialize the ADXR indicator.
@@ -945,9 +944,12 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
                     else 0.0
                 )
 
-                if isinstance(adx_curr, float) and math.isnan(adx_curr):
-                    adxr_array[i] = float("nan")
-                elif isinstance(adx_prev, float) and math.isnan(adx_prev):
+                if (
+                    isinstance(adx_curr, float)
+                    and math.isnan(adx_curr)
+                    or isinstance(adx_prev, float)
+                    and math.isnan(adx_prev)
+                ):
                     adxr_array[i] = float("nan")
                 else:
                     adxr_array[i] = (adx_curr + adx_prev) / 2.0

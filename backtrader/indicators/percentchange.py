@@ -34,7 +34,7 @@ class PercentChange(Indicator):
     lines = ("pctchange",)
 
     # Fancy plotting name
-    plotlines = dict(pctchange=dict(_name="%change"))
+    plotlines = {"pctchange": {"_name": "%change"}}
 
     # update value to the standard for Moving Averages
     params = (("period", 30),)

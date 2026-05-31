@@ -182,13 +182,13 @@ class Store(SingletonMixin, StoreParams):
         if not self._started:
             self._started = True
             self.notifs = collections.deque()
-            self.datas = list()
+            self.datas = []
             self.broker = None
         # If data is not None
         if data is not None:
             self._cerebro = self._env = data._env
             if self.datas is None:  # defensive: start() initializes this
-                self.datas = list()
+                self.datas = []
             self.datas.append(data)
             # If self.broker is not None
             if self.broker is not None:
@@ -225,4 +225,4 @@ class Store(SingletonMixin, StoreParams):
         if self.notifs is None:
             return []
         self.notifs.append(None)  # put a mark / threads could still append
-        return [x for x in iter(self.notifs.popleft, None)]
+        return list(iter(self.notifs.popleft, None))

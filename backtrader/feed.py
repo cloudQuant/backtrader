@@ -229,8 +229,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         self._barstack = collections.deque()  # for filter operations
         self._barstash = collections.deque()  # for filter operations
         # Set _filters and _ffilters as empty lists
-        self._filters: list = list()
-        self._ffilters: list = list()
+        self._filters: list = []
+        self._ffilters: list = []
 
         # Iterate through filters in parameters, first check if it's a class; if class, instantiate first; if instance has last attribute, add filter to _ffilters
         # If not a class, directly add filter to _filters
@@ -443,7 +443,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # mark allows to identify which is the last notification to deliver
         # Add a None, when None is retrieved, it means the queue is empty and all info has been retrieved
         self.notifs.append(None)  # put a mark
-        notifs = list()
+        notifs = []
         while True:
             notif = self.notifs.popleft()
             if notif is None:  # mark is reached
@@ -489,7 +489,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         Override in subclasses for cleanup.
         """
-        pass
 
     # Clone data
     def clone(self, **kwargs):
@@ -712,9 +711,8 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 # can't deliver new bar, too early, go back
                 self.rewind()
                 return False
-            else:
-                if ticks:
-                    self._tick_fill()
+            if ticks:
+                self._tick_fill()
 
         else:
             if ticks:
@@ -954,8 +952,6 @@ class DataBase(AbstractDataBase):
     This is the standard data feed class for most use cases.
     """
 
-    pass
-
 
 # Refactor: Remove MetaParams metaclass, use normal parameter processing
 class FeedBase:
@@ -974,7 +970,7 @@ class FeedBase:
         """
         # Manually set parameters, replacing original metaclass functionality
         self.p = self._create_params(**kwargs)
-        self.datas = list()
+        self.datas = []
 
     def _create_params(self, **kwargs):
         """Manually create parameter object, replacing metaclass parameter processing"""

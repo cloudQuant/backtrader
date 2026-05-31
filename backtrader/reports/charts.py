@@ -311,16 +311,15 @@ class ReportChart:
 
             if time_interval_days > 5 * 365.25:
                 return ("Yearly", "YE")
-            elif time_interval_days > 365.25:
+            if time_interval_days > 365.25:
                 return ("Monthly", "ME")
-            elif time_interval_days > 50:
+            if time_interval_days > 50:
                 return ("Weekly", "W")
-            elif time_interval_days > 5:
+            if time_interval_days > 5:
                 return ("Daily", "D")
-            elif time_interval_days > 0.5:
+            if time_interval_days > 0.5:
                 return ("Hourly", "H")
-            else:
-                return ("Per Minute", "T")
+            return ("Per Minute", "T")
         except (AttributeError, IndexError, TypeError, ValueError) as e:
             logger.debug("Failed to determine periodicity: %s", e)
             return ("Daily", "D")

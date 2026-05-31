@@ -36,24 +36,34 @@ class Trades(Observer):
     # Two lines
     lines = ("pnlplus", "pnlminus")
     # Parameters
-    params = dict(pnlcomm=True)
+    params = {"pnlcomm": True}
     # Plot info when plotting
-    plotinfo = dict(
-        plot=True,
-        subplot=True,
-        plotname="Trades - Net Profit/Loss",
-        plotymargin=0.10,
-        plothlines=[0.0],
-    )
+    plotinfo = {
+        "plot": True,
+        "subplot": True,
+        "plotname": "Trades - Net Profit/Loss",
+        "plotymargin": 0.10,
+        "plothlines": [0.0],
+    }
     # Line settings when plotting
-    plotlines = dict(
-        pnlplus=dict(
-            _name="Positive", ls="", marker="o", color="blue", markersize=8.0, fillstyle="full"
-        ),
-        pnlminus=dict(
-            _name="Negative", ls="", marker="o", color="red", markersize=8.0, fillstyle="full"
-        ),
-    )
+    plotlines = {
+        "pnlplus": {
+            "_name": "Positive",
+            "ls": "",
+            "marker": "o",
+            "color": "blue",
+            "markersize": 8.0,
+            "fillstyle": "full",
+        },
+        "pnlminus": {
+            "_name": "Negative",
+            "ls": "",
+            "marker": "o",
+            "color": "red",
+            "markersize": 8.0,
+            "fillstyle": "full",
+        },
+    }
 
     def __init__(self):
         """Initialize the Trades observer.
@@ -119,9 +129,9 @@ class DataTrades(Observer):
 
     params = (("usenames", True),)
 
-    plotinfo = dict(plot=True, subplot=True, plothlines=[0.0], plotymargin=0.10)
+    plotinfo = {"plot": True, "subplot": True, "plothlines": [0.0], "plotymargin": 0.10}
 
-    plotlines: dict = dict()
+    plotlines: dict = {}
 
     # Define a reasonable number of lines for common use cases
     # This replaces the dynamic line creation from the metaclass
@@ -216,7 +226,7 @@ class DataTrades(Observer):
         ]
 
         # Base style for all markers
-        basedict = dict(ls="", markersize=8.0, fillstyle="full")
+        basedict = {"ls": "", "markersize": 8.0, "fillstyle": "full"}
 
         # Create plotlines configuration using simple dict update
         for i, (lname, marker, color) in enumerate(zip(lnames, markers, colors)):

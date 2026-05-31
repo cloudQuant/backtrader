@@ -102,7 +102,7 @@ class MovAv(MovingAverage):
     Provides a shorter name for accessing moving average types.
     """
 
-    pass  # alias
+    # alias
 
 
 # Base class for moving average, add parameters and plot settings - refactored to remove metaclass
@@ -120,7 +120,7 @@ class MovingAverageBase(Indicator):
     # Parameters
     params = (("period", 30),)
     # Plot on main chart by default
-    plotinfo = dict(subplot=False)
+    plotinfo = {"subplot": False}
 
     def __init__(self):
         """Initialize moving average and set minimum period"""

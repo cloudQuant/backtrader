@@ -725,11 +725,11 @@ def _create_ctp_wrapper_class():
 
         def poll_bar(self, symbol):
             """Poll for next bar (not implemented)."""
-            return None
+            return
 
         def get_next_bar(self, symbol):
             """Get next bar (not implemented)."""
-            return None
+            return
 
         def _get_price_tick(self, instrument):
             """Return the minimum price tick for *instrument*.
@@ -1416,7 +1416,7 @@ class BtApiStore(LiveStoreBase):
         }
         self.session_id = (
             f"{self.provider}-"
-            f"{_dt.datetime.utcnow().strftime('%Y%m%d%H%M%S')}-"
+            f"{_dt.datetime.now(_dt.timezone.utc).strftime('%Y%m%d%H%M%S')}-"
             f"{uuid.uuid4().hex[:8]}"
         )
 
@@ -1959,7 +1959,11 @@ class BtApiStore(LiveStoreBase):
     ) -> Dict[str, Any]:
         """Emit a structured runtime event into the store notification queue."""
         payload = {
-            "timestamp": _dt.datetime.utcnow().isoformat(timespec="milliseconds"),
+            # Naive UTC ISO string (no tz suffix) preserves the prior utcnow()
+            # output format for any downstream consumers. utcnow() is deprecated 3.12+.
+            "timestamp": _dt.datetime.now(_dt.timezone.utc)
+            .replace(tzinfo=None)
+            .isoformat(timespec="milliseconds"),
             "event_type": str(event_type),
             "level": str(level).upper(),
             "status": status,

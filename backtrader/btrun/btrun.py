@@ -52,29 +52,29 @@ except ImportError:
     BtApiFeed = None
 
 
-DATAFORMATS = dict(
-    btcsv=BacktraderCSVData,
-    vchartcsv=VChartCSVData,
-    vcfile=VChartFile,
-    sierracsv=SierraChartCSVData,
-    mt4csv=MT4CSVData,
-    yahoocsv=YahooFinanceCSVData,
-    yahoocsv_unreversed=YahooFinanceCSVDataUnreversed,
-    yahoo=YahooFinanceData,
-)
+DATAFORMATS = {
+    "btcsv": BacktraderCSVData,
+    "vchartcsv": VChartCSVData,
+    "vcfile": VChartFile,
+    "sierracsv": SierraChartCSVData,
+    "mt4csv": MT4CSVData,
+    "yahoocsv": YahooFinanceCSVData,
+    "yahoocsv_unreversed": YahooFinanceCSVDataUnreversed,
+    "yahoo": YahooFinanceData,
+}
 
 if BtApiFeed is not None:
     DATAFORMATS["btapi"] = BtApiFeed
 
-TIMEFRAMES = dict(
-    microseconds=TimeFrame.MicroSeconds,
-    seconds=TimeFrame.Seconds,
-    minutes=TimeFrame.Minutes,
-    days=TimeFrame.Days,
-    weeks=TimeFrame.Weeks,
-    months=TimeFrame.Months,
-    years=TimeFrame.Years,
-)
+TIMEFRAMES = {
+    "microseconds": TimeFrame.MicroSeconds,
+    "seconds": TimeFrame.Seconds,
+    "minutes": TimeFrame.Minutes,
+    "days": TimeFrame.Days,
+    "weeks": TimeFrame.Weeks,
+    "months": TimeFrame.Months,
+    "years": TimeFrame.Years,
+}
 
 
 def _safe_parse_kwargs(kwtext: str) -> dict:
@@ -295,7 +295,7 @@ def btrun(pargs=""):
         _print_analyzers(args, runst)
 
     if args.plot:
-        pkwargs = dict(style="bar")
+        pkwargs = {"style": "bar"}
         if args.plot is not True:
             # evaluates to True but is not "True" - args were passed
             ekwargs = _safe_parse_kwargs(args.plot)
@@ -321,7 +321,7 @@ def _add_datas(args, cerebro):
             tf, cp = tfcp
 
         cp = int(cp)  # convert any value to int
-        tf = TIMEFRAMES.get(tf, None)
+        tf = TIMEFRAMES.get(tf)
 
     for data in getdatas(args):
         if args.resample is not None:
@@ -372,7 +372,7 @@ def setbroker(args, cerebro):
     if args.cash is not None:
         broker.setcash(args.cash)
 
-    commkwargs = dict()
+    commkwargs = {}
     if args.commission is not None:
         commkwargs["commission"] = args.commission
     if args.margin is not None:
@@ -427,7 +427,7 @@ def getdatas(args):
     dfcls = DATAFORMATS[args.format]
 
     # Prepare some args
-    dfkwargs = dict()
+    dfkwargs = {}
     if args.format == "yahoo_unreversed":
         dfkwargs["reverse"] = True
 
@@ -454,7 +454,7 @@ def getdatas(args):
     if args.compression is not None:
         dfkwargs["compression"] = args.compression
 
-    datas = list()
+    datas = []
     for dname in args.data:
         dfkwargs["dataname"] = dname
         data = dfcls(**dfkwargs)
@@ -481,7 +481,7 @@ def getmodclasses(mod, clstype, clsname=None):
     """
     clsmembers = inspect.getmembers(mod, inspect.isclass)
 
-    clslist = list()
+    clslist = []
     for name, cls in clsmembers:
         if not issubclass(cls, clstype):
             continue
@@ -515,7 +515,7 @@ def getmodfunctions(mod, funcname=None):
         mod, inspect.ismethod
     )
 
-    funclist = list()
+    funclist = []
     for name, member in members:
         if funcname:
             if name == funcname:
@@ -610,7 +610,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
 
     The function will call sys.exit(1) if module loading or class finding fails.
     """
-    retobjects: list = list()
+    retobjects: list = []
 
     for item in iterable or []:
         if issignal:
@@ -625,13 +625,13 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
         if len(tokens) == 1:
             modpath = tokens[0]
             name = ""
-            kwargs: dict = dict()
+            kwargs: dict = {}
         else:
             modpath, name = tokens
             kwtokens = name.split(":", 1)
             if len(kwtokens) == 1:
                 # no '(' found
-                kwargs = dict()
+                kwargs = {}
             else:
                 name = kwtokens[0]
                 kwargs = _safe_parse_kwargs(kwtokens[1])
@@ -682,7 +682,7 @@ def getfunctions(iterable, modbase):
 
     The function will call sys.exit(1) if module loading or function finding fails.
     """
-    retfunctions = list()
+    retfunctions = []
 
     for item in iterable or []:
         tokens = item.split(":", 1)
@@ -690,13 +690,13 @@ def getfunctions(iterable, modbase):
         if len(tokens) == 1:
             modpath = tokens[0]
             name = ""
-            kwargs: dict = dict()
+            kwargs: dict = {}
         else:
             modpath, name = tokens
             kwtokens = name.split(":", 1)
             if len(kwtokens) == 1:
                 # no '(' found
-                kwargs = dict()
+                kwargs = {}
             else:
                 name = kwtokens[0]
                 kwargs = _safe_parse_kwargs(kwtokens[1])

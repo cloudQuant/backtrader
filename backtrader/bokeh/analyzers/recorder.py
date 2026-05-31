@@ -71,7 +71,6 @@ class RecorderAnalyzer(bt.Analyzer):
 
     def start(self):
         """Analyzer start."""
-        pass
 
     def next(self):
         """Record data for each bar."""
@@ -128,7 +127,6 @@ class RecorderAnalyzer(bt.Analyzer):
 
     def stop(self):
         """Analyzer stop."""
-        pass
 
     def get_analysis(self):
         """Return recorded data.

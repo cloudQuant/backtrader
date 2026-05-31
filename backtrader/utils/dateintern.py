@@ -268,8 +268,7 @@ class _LocalTimezone(datetime.tzinfo):
         """
         if self._isdst(dt):
             return DSTOFFSET
-        else:
-            return STDOFFSET
+        return STDOFFSET
 
     # DST offset, offset is 0 when not in DST
     def dst(self, dt):
@@ -283,8 +282,7 @@ class _LocalTimezone(datetime.tzinfo):
         """
         if self._isdst(dt):
             return DSTDIFF
-        else:
-            return ZERO
+        return ZERO
 
     # Possibly timezone name
     def tzname(self, dt):

@@ -510,7 +510,7 @@ class OrderBase:
 
     # Content displayed when printing order
     def __str__(self):
-        tojoin = list()
+        tojoin = []
         tojoin.append(f"Ref: {self.ref}")
         tojoin.append(f"OrdType: {self.ordtype}")
         tojoin.append(f"OrdType: {self.ordtypename()}")
@@ -887,7 +887,7 @@ class OrderBase:
         Note:
             Generic interface - override in subclasses for specific behavior.
         """
-        pass  # generic interface
+        # generic interface
 
 
 # Modified Order class to work without metaclass
@@ -1042,9 +1042,12 @@ class Order(OrderBase):
         # For buy orders, if new price is less than created price, use this new price
         # For sell orders, if new price is greater than created price, use this new price
         if price_new != self.created.price:
-            if self.isbuy() and price_new < self.created.price:
-                self.created.price = price_new
-            elif self.issell() and price_new > self.created.price:
+            if (
+                self.isbuy()
+                and price_new < self.created.price
+                or self.issell()
+                and price_new > self.created.price
+            ):
                 self.created.price = price_new
 
         # For both trailing stop types, limitprice also needs adjustment
@@ -1069,8 +1072,6 @@ class StopBuyOrder(BuyOrder):
     Used for buy orders that trigger when price crosses a threshold.
     """
 
-    pass
-
 
 # Create stop limit buy order
 class StopLimitBuyOrder(BuyOrder):
@@ -1078,8 +1079,6 @@ class StopLimitBuyOrder(BuyOrder):
 
     Used for buy orders that become limit orders after stop price is triggered.
     """
-
-    pass
 
 
 # Create sell order
@@ -1099,8 +1098,6 @@ class StopSellOrder(SellOrder):
     Used for sell orders that trigger when price crosses a threshold.
     """
 
-    pass
-
 
 # Create stop limit sell order
 class StopLimitSellOrder(SellOrder):
@@ -1108,5 +1105,3 @@ class StopLimitSellOrder(SellOrder):
 
     Used for sell orders that become limit orders after stop price is triggered.
     """
-
-    pass

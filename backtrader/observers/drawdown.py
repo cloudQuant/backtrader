@@ -43,13 +43,13 @@ class DrawDown(Observer):
         "maxdrawdown",
     )
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
-    plotlines = dict(
-        maxdrawdown=dict(
-            _plotskip=True,
-        )
-    )
+    plotlines = {
+        "maxdrawdown": {
+            "_plotskip": True,
+        }
+    }
 
     def __init__(self):
         """Initialize the DrawDown observer.
@@ -83,13 +83,13 @@ class DrawDownLength(Observer):
         "maxlen",
     )
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
-    plotlines = dict(
-        maxlen=dict(
-            _plotskip=True,
-        )
-    )
+    plotlines = {
+        "maxlen": {
+            "_plotskip": True,
+        }
+    }
 
     def __init__(self):
         """Initialize the DrawDownLength observer.
@@ -122,13 +122,13 @@ class DrawDownOld(Observer):
         "maxdrawdown",
     )
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
-    plotlines = dict(
-        maxdrawdown=dict(
-            _plotskip=True,
-        )
-    )
+    plotlines = {
+        "maxdrawdown": {
+            "_plotskip": True,
+        }
+    }
 
     def __init__(self):
         """Initialize the DrawDownOld observer.

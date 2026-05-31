@@ -261,8 +261,7 @@ class AutoDateLocator(ADLocator):
         else:
             if False:
                 raise ValueError("No sensible date limit could be found in the AutoDateLocator.")
-            else:
-                usemicro = True
+            usemicro = True
 
         if not usemicro and use_rrule_locator[i]:
             _, bymonth, bymonthday, byhour, byminute, bysecond, _ = byranges

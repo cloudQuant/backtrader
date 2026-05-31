@@ -259,7 +259,6 @@ class TickBroker(BrokerBase):
         Called at the end of a backtesting run. Override in subclasses
         to implement custom cleanup logic.
         """
-        pass
 
     def getcash(self):
         """Get current available cash."""
@@ -1176,7 +1175,7 @@ class TickBroker(BrokerBase):
             fill_price = self._apply_slippage(price, order.isbuy())
             return (fill_price, abs(size))
 
-        elif exectype == Order.Limit:
+        if exectype == Order.Limit:
             limit_price = order.price
             if order.isbuy():
                 if price <= limit_price:
@@ -1201,9 +1200,12 @@ class TickBroker(BrokerBase):
             limit_price = order.pricelimit
 
             if not getattr(order, "_stop_triggered", False):
-                if order.isbuy() and price >= stop_price:
-                    order._stop_triggered = True
-                elif not order.isbuy() and price <= stop_price:
+                if (
+                    order.isbuy()
+                    and price >= stop_price
+                    or not order.isbuy()
+                    and price <= stop_price
+                ):
                     order._stop_triggered = True
 
             if getattr(order, "_stop_triggered", False):
@@ -1327,8 +1329,7 @@ class TickBroker(BrokerBase):
         slip = price * perc + fixed
         if is_buy:
             return price + slip
-        else:
-            return price - slip
+        return price - slip
 
     def _apply_market_impact(self, price, size, is_buy):
         """Apply a market impact model if enabled."""
@@ -1430,7 +1431,7 @@ class TickBroker(BrokerBase):
             if popened and not opened:
                 order.margin()
                 self.notify(order)
-            return
+            return None
 
         comminfo.confirmexec(executed_size, fill_price, role=commission_role)
         position.update(executed_size, fill_price, event.timestamp)
@@ -1649,7 +1650,6 @@ class TickBroker(BrokerBase):
         This is a no-op in tick mode since order matching happens via
         process_tick() instead. Provided for compatibility with bar mode.
         """
-        pass
 
     def add_order_history(self, orders, notify=False):
         """Add historical orders to the broker.
@@ -1660,7 +1660,6 @@ class TickBroker(BrokerBase):
             orders: Iterable of Order instances to add.
             notify: Whether to trigger notifications for added orders.
         """
-        pass
 
     def set_fund_history(self, fund):
         """Set historical fund data for replay scenarios.
@@ -1668,7 +1667,6 @@ class TickBroker(BrokerBase):
         Args:
             fund: Historical fund value data.
         """
-        pass
 
     @property
     def pending_orders(self):
@@ -1692,7 +1690,7 @@ class TickBroker(BrokerBase):
             symbol: getattr(self._last_tick.get(symbol), "price", None)
             for symbol in set(self._state_tracker._states) | set(self._positions)
         }
-        balances = {symbol: self._cash for symbol in mid_prices}
+        balances = dict.fromkeys(mid_prices, self._cash)
         return self._state_tracker.snapshot_all(positions, balances, mid_prices)
 
     @property

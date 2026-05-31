@@ -100,9 +100,12 @@ class PrettyGoodOscillator(Indicator):
             ma_val = ma_array[i] if i < len(ma_array) else 0.0
             atr_val = atr_array[i] if i < len(atr_array) else 0.0
 
-            if isinstance(ma_val, float) and math.isnan(ma_val):
-                larray[i] = float("nan")
-            elif isinstance(atr_val, float) and math.isnan(atr_val):
+            if (
+                isinstance(ma_val, float)
+                and math.isnan(ma_val)
+                or isinstance(atr_val, float)
+                and math.isnan(atr_val)
+            ):
                 larray[i] = float("nan")
             elif atr_val != 0:
                 larray[i] = (data_val - ma_val) / atr_val

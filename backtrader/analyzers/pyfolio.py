@@ -93,7 +93,7 @@ class PyFolio(Analyzer):
         """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
-        dtfcomp = dict(timeframe=self.p.timeframe, compression=self.p.compression)
+        dtfcomp = {"timeframe": self.p.timeframe, "compression": self.p.compression}
 
         # Use OwnerContext so child analyzers can find this as their parent
         with OwnerContext.set_owner(self):
@@ -158,7 +158,7 @@ class PyFolio(Analyzer):
         # Transactions
         # Process transactions
         txss = self.rets["transactions"]
-        txs = list()
+        txs = []
         # The transactions have a common key (date) and can potentially happend
         # for several assets. The dictionary has a single key and a list of
         # lists. Each sublist contains the fields of a transaction

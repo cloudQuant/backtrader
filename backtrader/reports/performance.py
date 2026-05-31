@@ -449,18 +449,17 @@ class PerformanceCalculator:
 
         if sqn_score < 1.6:
             return "Poor"
-        elif sqn_score < 1.9:
+        if sqn_score < 1.9:
             return "Below Average"
-        elif sqn_score < 2.4:
+        if sqn_score < 2.4:
             return "Average"
-        elif sqn_score < 2.9:
+        if sqn_score < 2.9:
             return "Good"
-        elif sqn_score < 5.0:
+        if sqn_score < 5.0:
             return "Excellent"
-        elif sqn_score < 6.9:
+        if sqn_score < 6.9:
             return "Superb"
-        else:
-            return "Holy Grail"
+        return "Holy Grail"
 
     def _get_start_cash(self):
         """Get starting cash."""

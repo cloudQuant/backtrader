@@ -83,7 +83,7 @@ class QuandlCSV(feed.CSVDataBase):
 
         if not self.params.reverse:
             return
-        elif self._online:
+        if self._online:
             return  # revers is True but also online, managed with order = asc
 
         # Quandl data can be in reverse order -> reverse

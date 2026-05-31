@@ -29,7 +29,12 @@ class VChartCSVData(feed.CSVDataBase):
       - ``dataname``: The filename to parse or a file-like object
     """
 
-    vctframes = dict(I=TimeFrame.Minutes, D=TimeFrame.Days, W=TimeFrame.Weeks, M=TimeFrame.Months)
+    vctframes = {
+        "I": TimeFrame.Minutes,
+        "D": TimeFrame.Days,
+        "W": TimeFrame.Weeks,
+        "M": TimeFrame.Months,
+    }
 
     def _loadline(self, linetokens):
         itokens = iter(linetokens)

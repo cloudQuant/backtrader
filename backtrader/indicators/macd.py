@@ -60,8 +60,8 @@ class MACD(Indicator):
         ("movav", MovAv.Exponential),
     )
 
-    plotinfo = dict(plothlines=[0.0])
-    plotlines = dict(signal=dict(ls="--"))
+    plotinfo = {"plothlines": [0.0]}
+    plotlines = {"signal": {"ls": "--"}}
 
     def _plotlabel(self):
         plabels = super()._plotlabel()
@@ -264,7 +264,7 @@ class MACDHisto(MACD):
     alias = ("MACDHistogram",)
 
     lines = ("histo",)
-    plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
+    plotlines = {"histo": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     def __init__(self):
         """Initialize the MACD Histogram indicator.
@@ -308,9 +308,12 @@ class MACDHisto(MACD):
             macd_val = macd_array[i] if i < len(macd_array) else 0.0
             signal_val = signal_array[i] if i < len(signal_array) else 0.0
 
-            if isinstance(macd_val, float) and math.isnan(macd_val):
-                histo_array[i] = float("nan")
-            elif isinstance(signal_val, float) and math.isnan(signal_val):
+            if (
+                isinstance(macd_val, float)
+                and math.isnan(macd_val)
+                or isinstance(signal_val, float)
+                and math.isnan(signal_val)
+            ):
                 histo_array[i] = float("nan")
             else:
                 histo_array[i] = macd_val - signal_val

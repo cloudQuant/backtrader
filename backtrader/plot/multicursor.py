@@ -470,7 +470,7 @@ class MultiCursor2(Widget):
             return
         if self.vertOn:
             for line in self.vlines:
-                visible = True or line.axes == event.inaxes
+                visible = True or line.axes == event.inaxes  # noqa: SIM222  # upstream-disabled
                 line.set_xdata((event.xdata, event.xdata))
                 line.set_visible(visible)
         if self.horizOn:

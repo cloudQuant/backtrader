@@ -83,7 +83,7 @@ class AnnualReturn(Analyzer):
         # End value
         value_end = 0.0
         # Save return data
-        setattr(self, "rets", list())
+        setattr(self, "rets", [])
         setattr(self, "ret", OrderedDict())
 
         # Calculate using cached data

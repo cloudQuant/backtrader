@@ -159,9 +159,8 @@ def get_color_from_value(value, up_color="#26a69a", down_color="#ef5350", neutra
         val = float(value)
         if val > 0:
             return up_color
-        elif val < 0:
+        if val < 0:
             return down_color
-        else:
-            return neutral_color
+        return neutral_color
     except (ValueError, TypeError):
         return neutral_color

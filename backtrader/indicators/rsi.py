@@ -340,8 +340,7 @@ class RelativeStrengthIndex(Indicator):
             if madown_val == 0.0:
                 if maup_val == 0.0:
                     return self.p.safelow  # 0/0 case
-                else:
-                    return self.p.safehigh  # x/0 case
+                return self.p.safehigh  # x/0 case
 
         if madown_val == 0.0:
             return 100.0  # Avoid division by zero
@@ -379,9 +378,12 @@ class RelativeStrengthIndex(Indicator):
             maup_val = maup_array[i] if i < len(maup_array) else 0.0
             madown_val = madown_array[i] if i < len(madown_array) else 0.0
 
-            if isinstance(maup_val, float) and math.isnan(maup_val):
-                larray[i] = float("nan")
-            elif isinstance(madown_val, float) and math.isnan(madown_val):
+            if (
+                isinstance(maup_val, float)
+                and math.isnan(maup_val)
+                or isinstance(madown_val, float)
+                and math.isnan(madown_val)
+            ):
                 larray[i] = float("nan")
             else:
                 if safediv:

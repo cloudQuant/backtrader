@@ -50,16 +50,24 @@ class Fractal(PeriodN):
 
     lines = ("fractal_bearish", "fractal_bullish")
 
-    plotinfo = dict(subplot=False, plotlinelabels=False, plot=True)
+    plotinfo = {"subplot": False, "plotlinelabels": False, "plot": True}
 
-    plotlines = dict(
-        fractal_bearish=dict(
-            marker="^", markersize=4.0, color="lightblue", fillstyle="full", ls=""
-        ),
-        fractal_bullish=dict(
-            marker="v", markersize=4.0, color="lightblue", fillstyle="full", ls=""
-        ),
-    )
+    plotlines = {
+        "fractal_bearish": {
+            "marker": "^",
+            "markersize": 4.0,
+            "color": "lightblue",
+            "fillstyle": "full",
+            "ls": "",
+        },
+        "fractal_bullish": {
+            "marker": "v",
+            "markersize": 4.0,
+            "color": "lightblue",
+            "fillstyle": "full",
+            "ls": "",
+        },
+    }
     params = (
         ("period", 5),
         ("bardist", 0.015),  # distance to max/min in absolute perc

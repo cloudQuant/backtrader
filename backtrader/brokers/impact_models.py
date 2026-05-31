@@ -40,7 +40,6 @@ class MarketImpactModel(ABC):
         Returns:
             Absolute price impact (always >= 0).
         """
-        pass
 
 
 class LinearImpactModel(MarketImpactModel):

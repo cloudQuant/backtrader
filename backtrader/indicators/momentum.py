@@ -43,7 +43,7 @@ class Momentum(Indicator):
 
     lines = ("momentum",)
     params = (("period", 12),)
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     def __init__(self):
         """Initialize the Momentum indicator.

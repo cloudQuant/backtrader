@@ -64,7 +64,7 @@ class HeikinAshi(Indicator):
         ),
     )
 
-    plotinfo = dict(subplot=False)
+    plotinfo = {"subplot": False}
 
     _nextforce = True
 

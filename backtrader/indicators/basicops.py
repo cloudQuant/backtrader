@@ -796,7 +796,7 @@ class WeightedAverage(PeriodN):
     lines = ("av",)
     params: tuple = (
         ("coef", 1.0),
-        ("weights", tuple()),
+        ("weights", ()),
     )
 
     def __init__(self):

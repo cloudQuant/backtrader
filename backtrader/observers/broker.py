@@ -26,7 +26,7 @@ class Cash(Observer):
 
     lines = ("cash",)
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
     def next(self):
         """Update the cash value for the current period.
@@ -60,7 +60,7 @@ class Value(Observer):
 
     lines = ("value",)
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
     def __init__(self):
         """Initialize the Value observer.
@@ -105,7 +105,7 @@ class Broker(Observer):
     alias = ("CashValue",)
     lines = ("cash", "value")
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
     def __init__(self):
         """Initialize the Broker observer.
@@ -153,7 +153,7 @@ class FundValue(Observer):
     alias = ("FundShareValue", "FundVal")
     lines = ("fundval",)
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
     def next(self):
         """Update the fund value for the current period.
@@ -174,7 +174,7 @@ class FundShares(Observer):
 
     lines = ("fundshares",)
 
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
 
     def next(self):
         """Update the fund shares for the current period.

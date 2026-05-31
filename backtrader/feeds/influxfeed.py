@@ -34,20 +34,16 @@ except Exception:  # pragma: no cover - optional dependency, handled at runtime
     class InfluxDBClientError(Exception):
         """Exception raised for InfluxDB client errors."""
 
-        pass
-
 
 # Time period mapping
-TIMEFRAMES = dict(
-    (
-        (TimeFrame.Seconds, "s"),
-        (TimeFrame.Minutes, "m"),
-        (TimeFrame.Days, "d"),
-        (TimeFrame.Weeks, "w"),
-        (TimeFrame.Months, "m"),
-        (TimeFrame.Years, "y"),
-    )
-)
+TIMEFRAMES = {
+    TimeFrame.Seconds: "s",
+    TimeFrame.Minutes: "m",
+    TimeFrame.Days: "d",
+    TimeFrame.Weeks: "w",
+    TimeFrame.Months: "m",
+    TimeFrame.Years: "y",
+}
 
 
 # backtrader fetches data from InfluxDB
@@ -111,6 +107,9 @@ class InfluxDB(DataBase):
         # The query could already consider parameters like fromdate and todate
         # to have the database skip them and not the internal code
         # Specific commands needed for database data retrieval
+        # Note: identifiers (field/measurement names) come from this feed's own
+        # configuration params, not external input; InfluxQL has no parameter
+        # binding for identifiers, so .format() is the only option here.
         qstr = (
             'SELECT mean("{open_f}") AS "open", mean("{high_f}") AS "high", '
             'mean("{low_f}") AS "low", mean("{close_f}") AS "close", '
@@ -118,7 +117,7 @@ class InfluxDB(DataBase):
             'FROM "{dataname}" '
             "WHERE time {begin} "
             "GROUP BY time({timeframe}) fill(none)"
-        ).format(
+        ).format(  # nosec B608
             open_f=self.p.open,
             high_f=self.p.high,
             low_f=self.p.low,

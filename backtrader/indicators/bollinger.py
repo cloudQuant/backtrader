@@ -52,12 +52,12 @@ class BollingerBands(Indicator):
         ("movav", MovAv.Simple),
     )
 
-    plotinfo = dict(subplot=False)
-    plotlines = dict(
-        mid=dict(ls="--"),
-        top=dict(_samecolor=True),
-        bot=dict(_samecolor=True),
-    )
+    plotinfo = {"subplot": False}
+    plotlines = {
+        "mid": {"ls": "--"},
+        "top": {"_samecolor": True},
+        "bot": {"_samecolor": True},
+    }
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.devfactor]
@@ -169,7 +169,7 @@ class BollingerBandsPct(BollingerBands):
     """
 
     lines = ("pctb",)
-    plotlines = dict(pctb=dict(_name="%B"))  # display the line as %B on chart
+    plotlines = {"pctb": {"_name": "%B"}}  # display the line as %B on chart
 
     def __init__(self):
         """Initialize the Bollinger Bands %B indicator.
@@ -208,9 +208,12 @@ class BollingerBandsPct(BollingerBands):
             bot = bot_array[i] if i < len(bot_array) else 0.0
             data_val = darray[i] if i < len(darray) else 0.0
 
-            if isinstance(top, float) and math.isnan(top):
-                pctb_array[i] = float("nan")
-            elif isinstance(bot, float) and math.isnan(bot):
+            if (
+                isinstance(top, float)
+                and math.isnan(top)
+                or isinstance(bot, float)
+                and math.isnan(bot)
+            ):
                 pctb_array[i] = float("nan")
             else:
                 diff = top - bot

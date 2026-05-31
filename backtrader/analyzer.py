@@ -113,7 +113,7 @@ class Analyzer(ParameterizedBase):
         Note: __new__ removed - _children initialization moved here.
         """
         # Initialize children list (moved from __new__)
-        self._children = list()
+        self._children = []
 
         # Initialize parent first
         super().__init__(*args, **kwargs)
@@ -250,7 +250,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to react to cash/value changes.
         """
-        pass
 
     # Notify fund
     def notify_fund(self, cash, value, fundvalue, shares):
@@ -265,7 +264,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to react to fund changes.
         """
-        pass
 
     # Notify order, can be overridden in subclasses
     def notify_order(self, order):
@@ -277,7 +275,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to track order status.
         """
-        pass
 
     # Notify trade, can be overridden in subclasses
     def notify_trade(self, trade):
@@ -289,7 +286,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to track trade status.
         """
-        pass
 
     # next, can be overridden in subclasses
     def next(self):
@@ -298,7 +294,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to implement per-bar analysis logic.
         """
-        pass
 
     # prenext, if equal to next, override prenext in subclasses,
     # generally, prenext needs to do the same calculation as next or pass
@@ -330,7 +325,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to initialize analyzer state.
         """
-        pass
 
     # stop, can be overridden in subclasses
     def stop(self):
@@ -339,7 +333,6 @@ class Analyzer(ParameterizedBase):
         Note:
             Override this method to perform final calculations.
         """
-        pass
 
     # Create analysis, override in subclasses
     def create_analysis(self):
@@ -469,7 +462,6 @@ class TimeFrameAnalyzerBase(Analyzer):
         Note:
             Override this method to implement period-based analysis logic.
         """
-        pass
 
     # CRITICAL FIX: Match master branch - return boolean and update dtcmp atomically
     # PERFORMANCE OPTIMIZATION: Cache attribute access, called 1.4M+ times

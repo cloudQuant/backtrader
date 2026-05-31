@@ -53,7 +53,7 @@ class Trix(Indicator):
         ("_movav", EMA),
     )
 
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     def _plotlabel(self):
         plabels = [self.p.period]
@@ -111,9 +111,12 @@ class Trix(Indicator):
                 else 0.0
             )
 
-            if isinstance(ema3_curr, float) and math.isnan(ema3_curr):
-                larray[i] = float("nan")
-            elif isinstance(ema3_prev, float) and math.isnan(ema3_prev):
+            if (
+                isinstance(ema3_curr, float)
+                and math.isnan(ema3_curr)
+                or isinstance(ema3_prev, float)
+                and math.isnan(ema3_prev)
+            ):
                 larray[i] = float("nan")
             elif ema3_prev != 0:
                 larray[i] = 100.0 * (ema3_curr / ema3_prev - 1.0)

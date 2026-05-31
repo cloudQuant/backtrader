@@ -151,7 +151,7 @@ class MetadataTab(BokehTab):
                     ind_data.append(
                         {
                             "name": ind.__class__.__name__,
-                            "lines": ", ".join(getattr(ind.lines, "_getlinealiases", lambda: [])()),
+                            "lines": ", ".join(getattr(ind.lines, "_getlinealiases", list)()),
                         }
                     )
 

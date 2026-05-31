@@ -1145,7 +1145,7 @@ class ParamsMixin(BaseMixin):
                                         for d, data in enumerate(potential_owner.datas):
                                             setattr(self, f"data{d}", data)
                                         break
-                                    elif (
+                                    if (
                                         hasattr(potential_owner, "data")
                                         and potential_owner.data is not None
                                     ):
@@ -1348,9 +1348,8 @@ class ParamsMixin(BaseMixin):
                         # This class needs positional args (like _LineDelay, LinesOperation)
                         # Pass all args - they're needed
                         return original_init(self, *args, **other_kwargs)
-                    else:
-                        # Different error - re-raise it
-                        raise
+                    # Different error - re-raise it
+                    raise
 
             cls.__init__ = patched_init
 
@@ -1627,7 +1626,7 @@ class ItemCollection:
 
     def __init__(self):
         """Initialize the collection with an empty items list."""
-        self.items = list()
+        self.items = []
 
     def __len__(self):
         """Return the number of items in the collection."""
@@ -1905,10 +1904,9 @@ def _initialize_indicator_aliases():
                     def _get_method(key, default=None):
                         if hasattr(self.plotinfo, key):
                             return getattr(self.plotinfo, key)
-                        elif hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
+                        if hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
                             return self.plotinfo._data[key]
-                        else:
-                            return default
+                        return default
 
                     self.plotinfo._get = _get_method
 
@@ -1918,10 +1916,9 @@ def _initialize_indicator_aliases():
                     def get_method(key, default=None):
                         if hasattr(self.plotinfo, key):
                             return getattr(self.plotinfo, key)
-                        elif hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
+                        if hasattr(self.plotinfo, "_data") and key in self.plotinfo._data:
                             return self.plotinfo._data[key]
-                        else:
-                            return default
+                        return default
 
                     self.plotinfo.get = get_method
 
@@ -1942,12 +1939,10 @@ def _initialize_indicator_aliases():
                         # Add _plotinit method if missing
                         if not hasattr(attr, "_plotinit"):
                             attr._plotinit = universal_plotinit
-                            pass
 
                         # CRITICAL FIX: Convert plotlines dict to object with _get method
                         if hasattr(attr, "plotlines") and isinstance(attr.plotlines, dict):
                             _convert_plotlines_dict_to_object(attr)
-                            pass
 
                 except Exception:
                     continue
@@ -1958,7 +1953,6 @@ def _initialize_indicator_aliases():
 
             if not hasattr(MovingAverageSimple, "_plotinit"):
                 MovingAverageSimple._plotinit = universal_plotinit
-                pass
         except ImportError:
             # SMA module not importable in this context; nothing to patch.
             pass
@@ -1976,14 +1970,12 @@ def _initialize_indicator_aliases():
                             # Ensure the class has _plotinit
                             if not hasattr(attr_value, "_plotinit"):
                                 attr_value._plotinit = universal_plotinit
-                                pass
 
                             # CRITICAL FIX: Convert plotlines dict to object with _get method
                             if hasattr(attr_value, "plotlines") and isinstance(
                                 attr_value.plotlines, dict
                             ):
                                 _convert_plotlines_dict_to_object(attr_value)
-                                pass
 
                         # CRITICAL FIX: Also handle Mixin classes that have plotlines
                         elif (
@@ -1992,12 +1984,9 @@ def _initialize_indicator_aliases():
                             and isinstance(attr_value.plotlines, dict)
                         ):
                             _convert_plotlines_dict_to_object(attr_value)
-                            pass
 
                     except Exception:
                         continue
-
-        pass
 
     except Exception as e:
         logger.debug("Failed in _initialize_indicator_aliases: %s", e)

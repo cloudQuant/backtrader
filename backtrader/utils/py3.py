@@ -58,7 +58,8 @@ def urlopen(*args, **kwargs):
     Returns:
         A file-like object representing the URL response.
     """
-    return _urllib_request.urlopen(*args, **kwargs)
+    # Thin py2/3 compat shim; callers supply trusted URLs.
+    return _urllib_request.urlopen(*args, **kwargs)  # nosec B310
 
 
 def ProxyHandler(*args, **kwargs):  # noqa: N802 — keep legacy name

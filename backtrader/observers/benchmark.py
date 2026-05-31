@@ -76,7 +76,7 @@ class Benchmark(TimeReturn):
     _stclock = True
 
     lines = ("benchmark",)
-    plotlines = dict(benchmark=dict(_name="Benchmark"))
+    plotlines = {"benchmark": {"_name": "Benchmark"}}
 
     params = (
         ("data", None),

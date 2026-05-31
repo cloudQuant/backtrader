@@ -50,7 +50,7 @@ class AutoDictList(dict):
     # Inherits dict, when accessing missing key, will automatically generate a key value, corresponding value is an empty list
     # This newly created class is only used in collections.defaultdict(AutoDictList) line
     def __missing__(self, key):
-        value = self[key] = list()
+        value = self[key] = []
         return value
 
 

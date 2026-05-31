@@ -53,9 +53,9 @@ class TimeReturn(Observer):
     # Set lines
     lines = ("timereturn",)
     # Plot info
-    plotinfo = dict(plot=True, subplot=True)
+    plotinfo = {"plot": True, "subplot": True}
     # Set plotlines
-    plotlines = dict(timereturn=dict(_name="Return"))
+    plotlines = {"timereturn": {"_name": "Return"}}
     # Parameters
     params = (
         ("timeframe", None),

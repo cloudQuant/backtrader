@@ -45,19 +45,25 @@
 ## ⚡ Performance Snapshot
 
 The active `dev` branch carries the optimization work originally developed on the
-`development` branch. Internal benchmarks on a 119-strategy suite show roughly **45%**
-lower total execution time than `master`.
+`development` branch. Running the **full 1,271-strategy regression suite**
+(`tests/functional/strategies`, `-n 8`) against the installed engine, `dev`
+completes in **about half the time** of `master`.
 
-### 📊 Benchmark Results
+### 📊 Benchmark Results (full strategy suite)
 
 | Metric | Master Branch | Dev Branch | Improvement |
 | --- | --- | --- | --- |
-| **Total Execution Time** | 553.12s | 305.36s | **-44.8%** |
-| **Strategies Tested** | 119 | 119 | ✓ |
-| **Test Pass Rate** | 100% | 100% | ✓ |
-| **Code Quality** | ✓ | ✓ | ✓ |
+| **Total Execution Time** | 438.96s (7m18s) | 236.36s (3m56s) | **-46.2%** |
+| **Speedup** | 1.00x | **1.86x** | ✓ |
+| **Strategies Tested** | 1,271 | 1,271 | ✓ |
+| **Test Pass Rate** | 100% (1271 passed) | 100% (1271 passed) | ✓ |
 
-> *Benchmark: 119 strategy backtests on identical hardware (Python 3.13, 12 parallel processes).*
+> *Benchmark: `pytest tests/functional/strategies -n 8` on identical hardware
+> (macOS, Python 3.11, 8 parallel xdist workers). Master measured via
+> `--use-installed-backtrader` against the master build.*
+
+An earlier internal benchmark on a smaller 119-strategy sample showed a
+comparable ~45% reduction (553.12s → 305.36s).
 
 ### 📈 Performance by Strategy Type
 
@@ -527,7 +533,7 @@ make test-fast            # == pytest tests -m "not slow" -n 8 -q
 # Slow tier (~7 min): only the slowest ~65% of strategy tests that test-fast skips
 make test-slow            # == pytest tests -m slow -n 8 -q
 
-# Strategy regression only (all 1,271 strategy tests, ~9 min)
+# Strategy regression only (all 1,271 strategy tests, ~4 min on `dev`)
 make test-strategies      # == pytest tests/functional/strategies -n 8 -q
 
 # Full suite — everything in parallel (~10 min)
@@ -560,7 +566,7 @@ pytest tests -n 8
 ### Run a Specific Category
 
 ```bash
-# Run only the strategies suite (1,271 tests, ~9 minutes on a recent laptop)
+# Run only the strategies suite (1,271 tests, ~4 minutes on `dev`, ~7 on `master`)
 pytest tests/functional/strategies -n 8
 
 # Run a single strategy file
@@ -833,19 +839,24 @@ This project is licensed under [GPLv3](LICENSE).
 
 ## ⚡ 性能概览
 
-当前活跃的 `dev` 分支承接了原 `development` 分支上的优化工作。根据历史内部基准，
-在 119 个策略回测样本上，相比 `master` 分支总执行时间约下降 **45%**。
+当前活跃的 `dev` 分支承接了原 `development` 分支上的优化工作。在**完整的 1,271 个策略
+回归套件**（`tests/functional/strategies`，`-n 8`）上，`dev` 分支的总执行时间相比
+`master` 分支**几乎缩短一半**。
 
-### 📊 基准测试结果
+### 📊 基准测试结果（完整策略套件）
 
 | 指标 | Master 分支 | Dev 分支 | 提升幅度 |
 | --- | --- | --- | --- |
-| **总执行时间** | 553.12 秒 | 305.36 秒 | **-44.8%** |
-| **测试策略数** | 119 | 119 | ✓ |
-| **测试通过率** | 100% | 100% | ✓ |
-| **代码质量** | ✓ | ✓ | ✓ |
+| **总执行时间** | 438.96 秒（7分18秒） | 236.36 秒（3分56秒） | **-46.2%** |
+| **加速比** | 1.00x | **1.86x** | ✓ |
+| **测试策略数** | 1,271 | 1,271 | ✓ |
+| **测试通过率** | 100%（1271 passed） | 100%（1271 passed） | ✓ |
 
-> *基准测试：在相同硬件上运行 119 个策略回测（Python 3.13，12 并行进程）。*
+> *基准测试：在相同硬件上运行 `pytest tests/functional/strategies -n 8`（macOS，
+> Python 3.11，8 个并行 xdist 进程）。Master 通过 `--use-installed-backtrader`
+> 指向 master 构建版本测得。*
+
+更早期在 119 个策略小样本上的内部基准也得到了相近的约 45% 降幅（553.12 秒 → 305.36 秒）。
 
 ### 🔧 核心优化项
 
@@ -1025,7 +1036,7 @@ make test-fast            # 等价于 pytest tests -m "not slow" -n 8 -q
 # 慢速档（约 7 分钟）：test-fast 跳过的那最慢 ~65% 策略测试
 make test-slow            # 等价于 pytest tests -m slow -n 8 -q
 
-# 只跑策略回归（全部 1,271 个策略测试，约 9 分钟）
+# 只跑策略回归（全部 1,271 个策略测试，`dev` 约 4 分钟）
 make test-strategies      # 等价于 pytest tests/functional/strategies -n 8 -q
 
 # 全量 —— 所有测试并行（约 10 分钟）
@@ -1058,7 +1069,7 @@ pytest tests -n 8
 ### 只运行某一类
 
 ```bash
-# 只跑策略套件（1,271 个测试，新笔记本上约 9 分钟）
+# 只跑策略套件（1,271 个测试，`dev` 约 4 分钟，`master` 约 7 分钟）
 pytest tests/functional/strategies -n 8
 
 # 跑单个策略文件

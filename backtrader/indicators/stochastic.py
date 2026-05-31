@@ -40,7 +40,7 @@ class _StochasticBase(Indicator):
         ("safezero", 0.0),
     )
 
-    plotlines = dict(percD=dict(_name="%D", ls="--"), percK=dict(_name="%K"))
+    plotlines = {"percD": {"_name": "%D", "ls": "--"}, "percK": {"_name": "%K"}}
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast]
@@ -156,14 +156,12 @@ class StochasticFast(_StochasticBase):
         %K = 100 * (close - lowest) / (highest - lowest)
         %D = SMA(%K, period_dfast)
         """
-        pass
 
     def once(self, start, end):
         """Calculate Fast Stochastic in runonce mode.
 
         Computes %K and %D values across all bars.
         """
-        pass
 
 
 class Stochastic(_StochasticBase):
@@ -205,14 +203,12 @@ class Stochastic(_StochasticBase):
 
         Fast %D becomes Slow %K, then Slow %D is SMA of Slow %K.
         """
-        pass
 
     def once(self, start, end):
         """Calculate Slow Stochastic in runonce mode.
 
         Computes slow %K and %D values across all bars.
         """
-        pass
 
 
 class StochasticFull(_StochasticBase):
@@ -235,7 +231,7 @@ class StochasticFull(_StochasticBase):
     lines = ("percDSlow",)
     params = (("period_dslow", 3),)
 
-    plotlines = dict(percDSlow=dict(_name="%DSlow"))
+    plotlines = {"percDSlow": {"_name": "%DSlow"}}
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast, self.p.period_dslow]
@@ -259,11 +255,9 @@ class StochasticFull(_StochasticBase):
         %D = SMA(%K, period_dfast)
         %DSlow = SMA(%D, period_dslow)
         """
-        pass
 
     def once(self, start, end):
         """Calculate Full Stochastic in runonce mode.
 
         Computes %K, %D, and %DSlow values across all bars.
         """
-        pass

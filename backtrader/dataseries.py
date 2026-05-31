@@ -138,7 +138,7 @@ class DataSeries(LineSeries):
     """
 
     # Set plotinfo related values
-    plotinfo = dict(plot=True, plotind=True, plotylimited=True)
+    plotinfo = {"plot": True, "plotind": True, "plotylimited": True}
 
     # Set dataseries _name attribute, usually can use data._name directly in strategy to get specific data value
     _name = ""
@@ -372,7 +372,7 @@ class _Bar(AutoOrderedDict):
         self.openinterest = data.openinterest[0]
 
         o = self.open
-        if reopen or not o == o:
+        if reopen or o != o:  # noqa: PLR0124  # o != o is a NaN check (NaN != NaN)
             self.open = data.open[0]
             return True  # just opened the bar
 

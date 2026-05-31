@@ -55,7 +55,6 @@ class EventData(ABC):
     @abstractmethod
     def event_type(self) -> str:
         """Return the event type identifier string."""
-        pass
 
     def to_dict(self) -> dict:
         """Convert event data to a dictionary for serialization."""

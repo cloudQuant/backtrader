@@ -121,7 +121,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # Mode and bindings
         self.mode = self.UnBounded  # Default unbounded mode
-        self.bindings = list()  # Binding list
+        self.bindings = []  # Binding list
 
         # Other attributes
         self._tz = None  # Timezone setting
@@ -606,11 +606,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         is_dt = self._is_datetime_line
 
         # Handle None/NaN values using fast detection
-        if value is None:
-            value = self._default_value
-        elif value != value:  # NaN detection (faster than isinstance + math.isnan)
-            value = self._default_value
-        elif isinstance(value, float) and not math.isfinite(value):
+        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
             value = self._default_value
         elif is_dt and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
@@ -663,9 +659,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
-        if value is None or value != value:
-            value = self._default_value
-        elif isinstance(value, float) and not math.isfinite(value):
+        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
             value = self._default_value
 
         # For non-indicators, follow clock synchronization
@@ -786,9 +780,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         The purpose is to allow for lookahead operations or to be able to
         set values in the buffer "future"
         """
-        if value is None or value != value:
-            value = self._default_value
-        elif isinstance(value, float) and not math.isfinite(value):
+        if value is None or value != value or isinstance(value, float) and not math.isfinite(value):
             value = self._default_value
 
         self.extension += size
@@ -1204,7 +1196,6 @@ class LineActionsMixin:
         """Post-initialization processing for LineActions"""
         # NOTE: Indicator registration is now handled in lineiterator.py dopostinit
         # with proper duplicate checking. No registration needed here.
-        pass
 
 
 class PseudoArray:
@@ -1248,18 +1239,16 @@ class PseudoArray:
                     if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
                         # For repeat, all values are the same
                         return next(iter(self.wrapped))
-                    else:
-                        # Convert iterable to list and index
-                        wrapped_list = list(self.wrapped)
-                        return wrapped_list[key]
+                    # Convert iterable to list and index
+                    wrapped_list = list(self.wrapped)
+                    return wrapped_list[key]
                 except (StopIteration, IndexError):
                     return float("nan")
             else:
                 # If not iterable, return the wrapped object itself for index 0
                 if key == 0:
                     return self.wrapped
-                else:
-                    return float("nan")
+                return float("nan")
 
     @property
     def array(self):
@@ -1272,12 +1261,11 @@ class PseudoArray:
         if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
             # For repeat objects, return a list with one element repeated
             return [next(iter(self.wrapped))]
-        elif hasattr(self.wrapped, "array"):
+        if hasattr(self.wrapped, "array"):
             return self.wrapped.array
-        elif not hasattr(self.wrapped, "__iter__"):
+        if not hasattr(self.wrapped, "__iter__"):
             return []
-        else:
-            return self.wrapped
+        return self.wrapped
 
 
 class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
@@ -1586,10 +1574,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 params_str = ", ".join(f"{k}={v}" for k, v in label_dict.items())
                 if params_str:
                     return f"{self.__class__.__name__}({params_str})"
-                else:
-                    return self.__class__.__name__
-            else:
-                return str(label_dict)
+                return self.__class__.__name__
+            return str(label_dict)
         # Fallback: return class name
         return self.__class__.__name__
 
@@ -1903,9 +1889,11 @@ class _LineDelay(LineActions):
             delayed_val = self.a[self.ago]
 
             # Ensure value is never None or NaN
-            if delayed_val is None:
-                delayed_val = 0.0
-            elif isinstance(delayed_val, float) and not math.isfinite(delayed_val):
+            if (
+                delayed_val is None
+                or isinstance(delayed_val, float)
+                and not math.isfinite(delayed_val)
+            ):
                 delayed_val = 0.0
 
             self[0] = delayed_val
@@ -2124,6 +2112,25 @@ class _LineForward(LineActions):
         if len(srca) < end:
             # If source array is shorter than required range, only process available data
             end = min(end, len(srca))
+
+        # Fast path: process the whole range under a single try. The per-element
+        # try/except below is only entered if something raises, preserving the
+        # exact per-element 0.0 fallback semantics while avoiding per-element
+        # exception-handler setup in the common (no-error) case (R2-S4: PERF203).
+        try:
+            for i in range(start, end):
+                a_val = srca[i] if i < len(srca) else 0.0
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+                    a_val = 0.0
+                result = op(a_val)
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
+                    result = 0.0
+                dst[i] = result
+            return
+        except Exception:
+            logger.debug(
+                "LineOwnOperation.once fast path failed; per-element fallback", exc_info=True
+            )
 
         for i in range(start, end):
             try:
@@ -2533,6 +2540,32 @@ class LinesOperation(LineActions):
         # This is needed for indicators like SMA that need historical values for their calculations
         actual_start = 0
 
+        # Fast path under a single try; the per-element try/except below is only
+        # entered on error, preserving NaN-on-failure semantics while removing
+        # per-element exception-handler setup in the common case (R2-S4: PERF203).
+        try:
+            for i in range(actual_start, end):
+                a_val = srca[i]
+                b_val = self.b[i] if use_dynamic_b else srcb[i]
+                if a_val is None or a_val != a_val or b_val is None or b_val != b_val:
+                    dst[i] = float("nan")
+                    continue
+                if isinstance(a_val, float) and not math.isfinite(a_val):
+                    a_val = 0.0
+                if isinstance(b_val, float) and not math.isfinite(b_val):
+                    b_val = 0.0
+                result = op(b_val, a_val) if self.r else op(a_val, b_val)
+                if result is None or result != result:
+                    result = float("nan")
+                elif isinstance(result, float) and not math.isfinite(result):
+                    result = 0.0
+                dst[i] = result
+            return
+        except Exception:
+            logger.debug(
+                "LinesOperation._once_op fast path failed; per-element fallback", exc_info=True
+            )
+
         for i in range(actual_start, end):
             try:
                 a_val = srca[i]
@@ -2807,6 +2840,21 @@ class LineOwnOperation(LineActions):
             # If source array is shorter than required range, only process available data
             end = min(end, len(srca))
 
+        # Fast path under a single try; per-element fallback only on error
+        # (preserves 0.0-on-failure semantics, removes per-element handler setup; R2-S4).
+        try:
+            for i in range(start, end):
+                a_val = srca[i] if i < len(srca) else 0.0
+                if a_val is None or (isinstance(a_val, float) and not math.isfinite(a_val)):
+                    a_val = 0.0
+                result = op(a_val)
+                if result is None or (isinstance(result, float) and not math.isfinite(result)):
+                    result = 0.0
+                dst[i] = result
+            return
+        except Exception:
+            logger.debug("unary once fast path failed; per-element fallback", exc_info=True)
+
         for i in range(start, end):
             try:
                 # CRITICAL FIX: Bounds checking for source array
@@ -2831,7 +2879,6 @@ class LineOwnOperation(LineActions):
         """Return the number of lines in this LineActions object"""
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
-        elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
+        if hasattr(self, "lines") and hasattr(self.lines, "__len__"):
             return len(self.lines)
-        else:
-            return 1  # Default to 1 line if no lines object available
+        return 1  # Default to 1 line if no lines object available

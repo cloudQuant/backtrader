@@ -589,18 +589,17 @@ class ReportGenerator:
 
         if isinstance(obj, dict):
             return {k: self._make_json_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, (list, tuple)):
+        if isinstance(obj, (list, tuple)):
             return [self._make_json_serializable(v) for v in obj]
-        elif isinstance(obj, float):
+        if isinstance(obj, float):
             if math.isnan(obj) or math.isinf(obj):
                 return None
             return obj
-        elif hasattr(obj, "isoformat") and callable(getattr(obj, "isoformat", None)):
+        if hasattr(obj, "isoformat") and callable(getattr(obj, "isoformat", None)):
             return obj.isoformat()
-        elif hasattr(obj, "__dict__"):
+        if hasattr(obj, "__dict__"):
             return str(obj)
-        else:
-            return obj
+        return obj
 
     def get_metrics(self):
         """Get all performance metrics.

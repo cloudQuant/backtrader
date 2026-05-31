@@ -76,7 +76,7 @@ class PivotPoint(Indicator):
         "r1",
         "r2",
     )
-    plotinfo = dict(subplot=False)
+    plotinfo = {"subplot": False}
 
     params = (
         ("open", False),  # add opening price to the pivot point
@@ -218,7 +218,7 @@ class FibonacciPivotPoint(Indicator):
     """
 
     lines = ("p", "s1", "s2", "s3", "r1", "r2", "r3")
-    plotinfo = dict(subplot=False)
+    plotinfo = {"subplot": False}
     params = (
         ("open", False),  # add opening price to the pivot point
         ("close", False),  # use close twice in the calcs
@@ -379,7 +379,7 @@ class DemarkPivotPoint(Indicator):
         "s1",
         "r1",
     )
-    plotinfo = dict(subplot=False)
+    plotinfo = {"subplot": False}
     params = (
         ("open", False),  # add opening price to the pivot point
         ("close", False),  # use close twice in the calcs

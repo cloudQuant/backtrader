@@ -48,7 +48,7 @@ class DetrendedPriceOscillator(Indicator):
     params = (("period", 20), ("movav", MovAv.Simple))
 
     # Emphasize central 0.0 line in plot
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     # Indicator information after the name (in brackets)
     def _plotlabel(self):

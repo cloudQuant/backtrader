@@ -481,7 +481,7 @@ class LineIteratorMixin:
                 pass
 
         # Create ddatas dictionary
-        _obj.ddatas = {x: None for x in _obj.datas}
+        _obj.ddatas = dict.fromkeys(_obj.datas)
 
         # CRITICAL FIX: Set data aliases IMMEDIATELY before any __init__ methods are called
         if _obj.datas:
@@ -664,7 +664,6 @@ class LineIteratorMixin:
                                     "Failed to add minperiod to iterable line in dopreinit",
                                     exc_info=True,
                                 )
-                                pass
                 else:
                     # Try accessing by index if lines_list is not iterable
                     try:
@@ -680,7 +679,6 @@ class LineIteratorMixin:
                                             "Failed to add minperiod to indexed line in dopreinit",
                                             exc_info=True,
                                         )
-                                        pass
                             except (IndexError, TypeError):
                                 break
                     except (TypeError, AttributeError):
@@ -690,7 +688,6 @@ class LineIteratorMixin:
             except (AttributeError, Exception):
                 logger.debug("Minperiod propagation fallback triggered in dopreinit", exc_info=True)
                 # Continue without failing - minperiod setup is not critical for basic functionality
-                pass
         except AttributeError:
             # _obj.lines doesn't exist, skip minperiod setup
             pass
@@ -938,7 +935,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         def __init__(self):
             """Initialize plotlines container."""
-            pass
 
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system"""
@@ -1215,7 +1211,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.data = None
 
             # Create ddatas dictionary
-            self.ddatas = {x: None for x in self.datas}
+            self.ddatas = dict.fromkeys(self.datas)
 
             # Set up dnames
             from .utils import DotDict
@@ -1473,7 +1469,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     return
 
         # If no custom stop method found, this is the default (empty) stop
-        pass
 
     def _periodrecalc(self):
         """Recalculate minimum period based on child indicators.
@@ -1678,17 +1673,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if not owner:
             owner = 0
 
-        if isinstance(owner, string_types):
-            owner = [owner]
-        elif not isinstance(owner, collections.abc.Iterable):
+        if isinstance(owner, string_types) or not isinstance(owner, collections.abc.Iterable):
             owner = [owner]
 
         if not own:
             own = range(len(owner))
 
-        if isinstance(own, string_types):
-            own = [own]
-        elif not isinstance(own, collections.abc.Iterable):
+        if isinstance(own, string_types) or not isinstance(own, collections.abc.Iterable):
             own = [own]
 
         for lineowner, lineown in zip(owner, own):
@@ -1819,7 +1810,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             end: Ending index.
         """
         # Default implementation - do nothing
-        pass
 
     def oncestart(self, start, end):
         """Called once when minimum period is first reached in runonce mode.
@@ -1927,7 +1917,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
         to implement custom logic during this phase.
         """
         # Default implementation - do nothing
-        pass
 
     def nextstart(self):
         """Called once when minimum period is first reached.
@@ -1948,7 +1937,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             *args: Positional arguments.
             **kwargs: Keyword arguments.
         """
-        pass
 
     def _notify(self, *args, **kwargs):
         """Process pending notifications.
@@ -1957,7 +1945,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             *args: Positional arguments.
             **kwargs: Keyword arguments.
         """
-        pass
 
     def _plotinit(self):
         """CRITICAL FIX: Default plot initialization method for all indicators"""
@@ -2500,7 +2487,6 @@ class StrategyBase(DataAccessor):
         by _oncepost() in the cerebro event loop. If we call next() here, it will
         be called twice (once in _once and once in _oncepost).
         """
-        pass
 
     def oncestart(self, start, end):
         """CRITICAL FIX: Override oncestart() for strategies to do nothing.
@@ -2510,7 +2496,6 @@ class StrategyBase(DataAccessor):
         nextstart()->next() here, it will be called twice (once in _once and
         once in _oncepost).
         """
-        pass
 
     def __init__(self, *args, **kwargs):
         """Initialize strategy and handle delayed data assignment from cerebro"""
@@ -2769,8 +2754,6 @@ class StrategyBase(DataAccessor):
 
                 # Clear the pending flag
                 self._data_assignment_pending = False
-
-                pass
 
             else:
                 # Create minimal clock for strategies without data

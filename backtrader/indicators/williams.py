@@ -49,8 +49,8 @@ class WilliamsR(Indicator):
         ("lowerband", -80.0),
     )
 
-    plotinfo = dict(plotname="Williams R%")
-    plotlines = dict(percR=dict(_name="R%"))
+    plotinfo = {"plotname": "Williams R%"}
+    plotlines = {"percR": {"_name": "R%"}}
 
     def _plotinif(self):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
@@ -97,9 +97,7 @@ class WilliamsR(Indicator):
             low = l_array[i] if i < len(l_array) else 0.0
             c = c_array[i] if i < len(c_array) else 0.0
 
-            if isinstance(h, float) and math.isnan(h):
-                larray[i] = float("nan")
-            elif isinstance(low, float) and math.isnan(low):
+            if isinstance(h, float) and math.isnan(h) or isinstance(low, float) and math.isnan(low):
                 larray[i] = float("nan")
             else:
                 den = h - low

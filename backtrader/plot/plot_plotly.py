@@ -399,7 +399,7 @@ class PlotlyPlot(ParameterizedBase):
                 name=name,
                 legendgroup=legendgroup,
                 showlegend=False,
-                line=dict(color=color, width=0),
+                line={"color": color, "width": 0},
             ),
             row=row,
             col=1,
@@ -415,7 +415,7 @@ class PlotlyPlot(ParameterizedBase):
                 legendgroup=legendgroup,
                 fill="tonexty",
                 fillcolor=color,
-                line=dict(color=color, width=0),
+                line={"color": color, "width": 0},
             ),
             row=row,
             col=1,
@@ -689,7 +689,7 @@ class PlotlyPlot(ParameterizedBase):
                     y=closes,
                     mode="lines",
                     name=datalabel,
-                    line=dict(color=self._to_plotly_color(self.p.scheme.loc)),
+                    line={"color": self._to_plotly_color(self.p.scheme.loc)},
                 ),
                 row=row,
                 col=1,
@@ -856,7 +856,7 @@ class PlotlyPlot(ParameterizedBase):
                     y=lplot,
                     mode="lines",
                     name=label,
-                    line=dict(color=self._to_plotly_color(color), dash=linestyle),
+                    line={"color": self._to_plotly_color(color), "dash": linestyle},
                 ),
                 row=row,
                 col=1,
@@ -938,7 +938,7 @@ class PlotlyPlot(ParameterizedBase):
                         y=lplot,
                         mode="lines",
                         name=label,
-                        line=dict(color=self._to_plotly_color(color)),
+                        line={"color": self._to_plotly_color(color)},
                     ),
                     row=row,
                     col=1,
@@ -964,7 +964,7 @@ class PlotlyPlot(ParameterizedBase):
                 if all(0 <= c <= 1 for c in color):
                     return f"rgb({int(r * 255)},{int(g * 255)},{int(b * 255)})"
                 return f"rgb({r},{g},{b})"
-            elif len(color) == 4:
+            if len(color) == 4:
                 r, g, b, a = color
                 if all(0 <= c <= 1 for c in color):
                     return f"rgba({int(r * 255)},{int(g * 255)},{int(b * 255)},{a})"
@@ -984,7 +984,7 @@ class PlotlyPlot(ParameterizedBase):
             template=self.p.scheme.plotly_theme,
             height=800,
             showlegend=True,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            legend={"orientation": "h", "yanchor": "bottom", "y": 1.02, "xanchor": "right", "x": 1},
             hovermode="x unified",
             xaxis_rangeslider_visible=self.p.scheme.rangeslider,
         )
@@ -993,13 +993,13 @@ class PlotlyPlot(ParameterizedBase):
         fig.update_xaxes(rangeslider_visible=False)
 
         if self.p.scheme.rangeslider:
-            rangeslider = dict(visible=True)
+            rangeslider = {"visible": True}
             if not self.p.scheme.rangeslider_preview:
                 rangeslider.update(
                     thickness=0.05,
                     bgcolor="rgba(0,0,0,0)",
                     borderwidth=0,
-                    yaxis=dict(rangemode="fixed", range=[1e12, 1e12 + 1]),
+                    yaxis={"rangemode": "fixed", "range": [1e12, 1e12 + 1]},
                 )
 
             fig.update_xaxes(rangeslider=rangeslider, row=1, col=1)
@@ -1008,17 +1008,15 @@ class PlotlyPlot(ParameterizedBase):
         try:
             bottom_row = fig._get_subplot_rows_columns()[0][-1]
             fig.update_xaxes(
-                rangeselector=dict(
-                    buttons=list(
-                        [
-                            dict(count=1, label="1m", step="month", stepmode="backward"),
-                            dict(count=3, label="3m", step="month", stepmode="backward"),
-                            dict(count=6, label="6m", step="month", stepmode="backward"),
-                            dict(count=1, label="1y", step="year", stepmode="backward"),
-                            dict(step="all", label="All"),
-                        ]
-                    )
-                ),
+                rangeselector={
+                    "buttons": [
+                        {"count": 1, "label": "1m", "step": "month", "stepmode": "backward"},
+                        {"count": 3, "label": "3m", "step": "month", "stepmode": "backward"},
+                        {"count": 6, "label": "6m", "step": "month", "stepmode": "backward"},
+                        {"count": 1, "label": "1y", "step": "year", "stepmode": "backward"},
+                        {"step": "all", "label": "All"},
+                    ]
+                },
                 row=bottom_row,
                 col=1,
             )
@@ -1228,12 +1226,12 @@ class PlotlyPlot(ParameterizedBase):
                     y=buy_y,
                     mode="markers",
                     name="Buy",
-                    marker=dict(
-                        symbol="triangle-up",
-                        size=self.p.scheme.buymarker_size,
-                        color=self.p.scheme.buymarker_color,
-                        line=dict(width=1, color="white"),
-                    ),
+                    marker={
+                        "symbol": "triangle-up",
+                        "size": self.p.scheme.buymarker_size,
+                        "color": self.p.scheme.buymarker_color,
+                        "line": {"width": 1, "color": "white"},
+                    },
                     customdata=buy_prices,
                     hovertemplate="Buy @ %{customdata:.2f}<extra></extra>",
                 ),
@@ -1249,12 +1247,12 @@ class PlotlyPlot(ParameterizedBase):
                     y=sell_y,
                     mode="markers",
                     name="Sell",
-                    marker=dict(
-                        symbol="triangle-down",
-                        size=self.p.scheme.sellmarker_size,
-                        color=self.p.scheme.sellmarker_color,
-                        line=dict(width=1, color="white"),
-                    ),
+                    marker={
+                        "symbol": "triangle-down",
+                        "size": self.p.scheme.sellmarker_size,
+                        "color": self.p.scheme.sellmarker_color,
+                        "line": {"width": 1, "color": "white"},
+                    },
                     customdata=sell_prices,
                     hovertemplate="Sell @ %{customdata:.2f}<extra></extra>",
                 ),
@@ -1324,7 +1322,7 @@ class PlotlyPlot(ParameterizedBase):
                 y=drawdowns,
                 mode="lines",
                 name=f"Drawdown (Max: {max_dd:.2f}%)",
-                line=dict(color="#E74C3C", width=1),
+                line={"color": "#E74C3C", "width": 1},
                 fill="tozeroy",
                 fillcolor="rgba(231, 76, 60, 0.3)",
                 hovertemplate="Drawdown: %{y:.2f}%<extra></extra>",
@@ -1340,7 +1338,7 @@ class PlotlyPlot(ParameterizedBase):
                 y=pct_equity,
                 mode="lines",
                 name="Return %",
-                line=dict(color=self.p.scheme.equity_color, width=2),
+                line={"color": self.p.scheme.equity_color, "width": 2},
                 hovertemplate="Return: %{y:.2f}%<extra></extra>",
             ),
             row=row,

@@ -41,15 +41,11 @@ __all__ = [
 class BacktraderError(Exception):
     """Base exception for all backtrader exceptions."""
 
-    pass
-
 
 # StrategySkipError, only this class is used in cerebro
 class StrategySkipError(BacktraderError):
     """Requests the platform to skip this strategy for backtesting. To be
     raised during the initialization (``__init__``) phase of the instance"""
-
-    pass
 
 
 # ModuleImportError class
@@ -97,22 +93,14 @@ class FromModuleImportError(ModuleImportError):
 class DataError(BacktraderError):
     """Raised for data-feed problems: loading, parsing, or alignment failures."""
 
-    pass
-
 
 class BrokerError(BacktraderError):
     """Raised for broker/execution problems: cash, margin, or matching failures."""
-
-    pass
 
 
 class OrderError(BrokerError):
     """Raised for order-related problems: invalid size/price or rejected orders."""
 
-    pass
-
 
 class ConfigError(BacktraderError):
     """Raised for invalid configuration or parameter values."""
-
-    pass

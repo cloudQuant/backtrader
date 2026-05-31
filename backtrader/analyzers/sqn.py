@@ -68,7 +68,7 @@ class SQN(Analyzer):
         Initializes lists to store trade P&L values for SQN calculation.
         """
         super().start()
-        self.pnl = list()
+        self.pnl = []
         self.count = 0
 
     # Trade notification, if trade is closed, add profit/loss
@@ -99,9 +99,7 @@ class SQN(Analyzer):
             except (TypeError, ValueError, ZeroDivisionError):
                 sqn = None
             else:
-                if not math.isfinite(pnl_av) or not math.isfinite(pnl_stddev):
-                    sqn = None
-                elif pnl_stddev == 0.0:
+                if not math.isfinite(pnl_av) or not math.isfinite(pnl_stddev) or pnl_stddev == 0.0:
                     sqn = None
                 else:
                     sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev

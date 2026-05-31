@@ -40,11 +40,11 @@ class BuySell(Observer):
         "sell",
     )
 
-    plotinfo = dict(plot=True, subplot=False, plotlinelabels=True)
-    plotlines = dict(
-        buy=dict(marker="^", markersize=8.0, color="lime", fillstyle="full", ls=""),
-        sell=dict(marker="v", markersize=8.0, color="red", fillstyle="full", ls=""),
-    )
+    plotinfo = {"plot": True, "subplot": False, "plotlinelabels": True}
+    plotlines = {
+        "buy": {"marker": "^", "markersize": 8.0, "color": "lime", "fillstyle": "full", "ls": ""},
+        "sell": {"marker": "v", "markersize": 8.0, "color": "red", "fillstyle": "full", "ls": ""},
+    }
 
     params = (
         ("barplot", False),  # plot above/below max/min for clarity in bar plot
@@ -78,8 +78,8 @@ class BuySell(Observer):
             self.curselllen = 0
             self._lastbar = barref
 
-        buy = list()
-        sell = list()
+        buy = []
+        sell = []
         # If there are pending orders
         for order in self._owner._orderspending:
             # If no data or size is 0, skip

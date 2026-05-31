@@ -51,12 +51,12 @@ class HaDelta(Indicator):
         ("autoheikin", True),
     )
 
-    plotinfo = dict(subplot=True)
+    plotinfo = {"subplot": True}
 
-    plotlines = dict(
-        haDelta=dict(color="red"),
-        smoothed=dict(color="grey", _fill_gt=(0, "green"), _fill_lt=(0, "red")),
-    )
+    plotlines = {
+        "haDelta": {"color": "red"},
+        "smoothed": {"color": "grey", "_fill_gt": (0, "green"), "_fill_lt": (0, "red")},
+    }
 
     def __init__(self):
         """Initialize the HaDelta indicator.
@@ -94,8 +94,7 @@ class HaDelta(Indicator):
             self._prev_ha_open = ha_open
 
             return ha_close - ha_open
-        else:
-            return self.data.close[0] - self.data.open[0]
+        return self.data.close[0] - self.data.open[0]
 
     def prenext(self):
         """Calculate HaDelta during warmup period.
@@ -166,7 +165,7 @@ class HaDelta(Indicator):
             prev_ha_close = 0.0
             prev_ha_open = 0.0
 
-            for i in range(0, data_end):
+            for i in range(data_end):
                 # ha_close = (open + high + low + close) / 4
                 ha_close = (o_array[i] + h_array[i] + l_array[i] + c_array[i]) / 4.0
 
@@ -181,11 +180,11 @@ class HaDelta(Indicator):
                 prev_ha_close = ha_close
                 prev_ha_open = ha_open
         else:
-            for i in range(0, data_end):
+            for i in range(data_end):
                 hd_array[i] = c_array[i] - o_array[i]
 
         # Calculate smoothed (SMA of haDelta)
-        for i in range(0, min(end, len(hd_array))):
+        for i in range(min(end, len(hd_array))):
             if i < period - 1:
                 sm_array[i] = float("nan")
             else:

@@ -288,7 +288,7 @@ class YahooFinanceData(YahooFinanceCSVData):
         self.error = None
         url = self.p.urlhist.format(self.p.dataname)
 
-        sesskwargs = dict()
+        sesskwargs = {}
         if self.p.proxies:
             sesskwargs["proxies"] = self.p.proxies
 

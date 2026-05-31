@@ -52,7 +52,7 @@ class Observer(ObserverBase):
     # Whether to save to csv and other files
     csv = True
     # Plot settings options
-    plotinfo = dict(plot=False, subplot=True)
+    plotinfo = {"plot": False, "subplot": True}
 
     def __init__(self, *args, **kwargs):
         """
@@ -61,7 +61,7 @@ class Observer(ObserverBase):
         Note: __new__ removed - _analyzers initialization moved here.
         """
         # Initialize _analyzers list (moved from __new__)
-        self._analyzers = list()  # keep children analyzers
+        self._analyzers = []  # keep children analyzers
 
         # Initialize parent first
         super().__init__(*args, **kwargs)

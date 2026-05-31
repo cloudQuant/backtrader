@@ -145,7 +145,6 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         It will be called during the "minperiod" phase of an iteration.
         """
-        pass
 
     # Called once when minimum period iteration ends, about to start next
     def nextstart(self):
@@ -161,14 +160,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         Called to calculate values when the minperiod is over
         """
-        pass
 
     # Call preonce during minimum period iteration
     def preonce(self, start, end):
         """
         It will be called during the "minperiod" phase of a "once" iteration
         """
-        pass
 
     # Run once when minimum period ends, call once
     def oncestart(self, start, end):
@@ -187,7 +184,6 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         Called to calculate values at "once" when the minperiod is over
 
         """
-        pass
 
     def size(self):
         """Return the number of lines in this object"""
@@ -195,10 +191,9 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         # It will be overridden by specific implementations as needed
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
-        elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
+        if hasattr(self, "lines") and hasattr(self.lines, "__len__"):
             return len(self.lines)
-        else:
-            return 1  # Default to 1 line if no lines object available
+        return 1  # Default to 1 line if no lines object available
 
     # Arithmetic operators
     # Some arithmetic operations
@@ -217,19 +212,17 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             return LinesOperation(
                 self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
             )
-        else:
-            # If no lines, return a simple operation result
-            try:
-                if r:
-                    return operation(other, 0)  # Use 0 as default value
-                else:
-                    return operation(0, other)  # Use 0 as default value
-            except Exception:
-                logger.debug("Fallback operation failed in LineRoot._makeoperation", exc_info=True)
-                # If operation fails, return False for bool operations
-                if operation is bool:
-                    return False
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            if r:
+                return operation(other, 0)  # Use 0 as default value
+            return operation(0, other)  # Use 0 as default value
+        except Exception:
+            logger.debug("Fallback operation failed in LineRoot._makeoperation", exc_info=True)
+            # If operation fails, return False for bool operations
+            if operation is bool:
+                return False
+            return 0
 
     # Perform self operation
     def _makeoperationown(self, operation, _ownerskip=None):
@@ -247,14 +240,13 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                 # Return True if value is not None, not NaN and not 0
                                 if value is None:
                                     return False
-                                elif isinstance(value, float):
+                                if isinstance(value, float):
                                     import math
 
                                     if not math.isfinite(value):
                                         return False
                                     return value != 0.0
-                                else:
-                                    return bool(value)
+                                return bool(value)
                     return False
                 except Exception:
                     logger.debug(
@@ -268,14 +260,13 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                         value = self[0]
                         if value is None:
                             return False
-                        elif isinstance(value, float):
+                        if isinstance(value, float):
                             import math
 
                             if not math.isfinite(value):
                                 return False
                             return value != 0.0
-                        else:
-                            return bool(value)
+                        return bool(value)
                     return False
                 except Exception:
                     logger.debug(
@@ -292,16 +283,15 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             from .linebuffer import LineOwnOperation
 
             return LineOwnOperation(self.lines[0], operation)
-        else:
-            # If no lines, return a simple operation result
-            try:
-                return operation(0)  # Use 0 as default value
-            except Exception:
-                logger.debug(
-                    "Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True
-                )
-                # If operation fails, return 0 for most operations
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            return operation(0)  # Use 0 as default value
+        except Exception:
+            logger.debug(
+                "Fallback self-operation failed in LineRoot._makeoperationown", exc_info=True
+            )
+            # If operation fails, return 0 for most operations
+            return 0
 
     # Self operation stage 1
     def _operationown_stage1(self, operation):
@@ -391,8 +381,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 operator.__ne__,
             ]:
                 return False  # For comparison operations, return False on error
-            else:
-                return 0.0  # For arithmetic operations, return 0.0 on error
+            return 0.0  # For arithmetic operations, return 0.0 on error
 
     # Addition
     def __add__(self, other):
@@ -613,33 +602,30 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                             # Return True if value exists and is not 0
                             if value is None:
                                 return False
-                            elif isinstance(value, float):
+                            if isinstance(value, float):
                                 import math
 
                                 if not math.isfinite(value):
                                     return False
                                 return value != 0.0
-                            else:
-                                return bool(value)
+                            return bool(value)
                 return False
-            elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
+            if hasattr(self, "__getitem__") and hasattr(self, "__len__"):
                 # For LineSingle objects, check the current value
                 if len(self) > 0:
                     value = self[0]
                     if value is None:
                         return False
-                    elif isinstance(value, float):
+                    if isinstance(value, float):
                         import math
 
                         if not math.isfinite(value):
                             return False
                         return value != 0.0
-                    else:
-                        return bool(value)
+                    return bool(value)
                 return False
-            else:
-                # Fallback: if no data available, return False
-                return False
+            # Fallback: if no data available, return False
+            return False
         except Exception:
             logger.debug("Boolean evaluation failed in LineRoot.__nonzero__", exc_info=True)
             # If any error occurs during boolean evaluation, return False
@@ -776,21 +762,17 @@ class LineMultiple(LineRoot):
             return LinesOperation(
                 self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
             )
-        else:
-            # If no lines, return a simple operation result
-            try:
-                if r:
-                    return operation(other, 0)  # Use 0 as default value
-                else:
-                    return operation(0, other)  # Use 0 as default value
-            except Exception:
-                logger.debug(
-                    "Fallback operation failed in LineMultiple._makeoperation", exc_info=True
-                )
-                # If operation fails, return False for bool operations
-                if operation is bool:
-                    return False
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            if r:
+                return operation(other, 0)  # Use 0 as default value
+            return operation(0, other)  # Use 0 as default value
+        except Exception:
+            logger.debug("Fallback operation failed in LineMultiple._makeoperation", exc_info=True)
+            # If operation fails, return False for bool operations
+            if operation is bool:
+                return False
+            return 0
 
     def _makeoperationown(self, operation, _ownerskip=None):
         # CRITICAL FIX: For bool operations, return a simple boolean result instead of creating objects
@@ -820,17 +802,16 @@ class LineMultiple(LineRoot):
             from .linebuffer import LineOwnOperation
 
             return LineOwnOperation(self.lines[0], operation)
-        else:
-            # If no lines, return a simple operation result
-            try:
-                return operation(0)  # Use 0 as default value
-            except Exception:
-                logger.debug(
-                    "Fallback self-operation failed in LineMultiple._makeoperationown",
-                    exc_info=True,
-                )
-                # If operation fails, return 0 for most operations
-                return 0
+        # If no lines, return a simple operation result
+        try:
+            return operation(0)  # Use 0 as default value
+        except Exception:
+            logger.debug(
+                "Fallback self-operation failed in LineMultiple._makeoperationown",
+                exc_info=True,
+            )
+            # If operation fails, return 0 for most operations
+            return 0
 
     def qbuffer(self, savemem=0):
         """Apply queued buffering to all managed lines.
@@ -1034,7 +1015,6 @@ def _apply_strategy_patch():
 
             # Monkey patch the Strategy class
             Strategy._clk_update = safe_clk_update
-            pass
         except ImportError:
             # Strategy not imported yet, try to patch later when it's imported
             pass

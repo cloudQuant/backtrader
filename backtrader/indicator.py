@@ -22,8 +22,8 @@ class IndicatorRegistry:
     caching mechanism from the original backtrader implementation.
     """
 
-    _indcol: dict = dict()
-    _icache: dict = dict()
+    _indcol: dict = {}
+    _icache: dict = {}
     _icacheuse = False
 
     @classmethod
@@ -40,7 +40,7 @@ class IndicatorRegistry:
     @classmethod
     def cleancache(cls):
         """Clear the indicator cache."""
-        cls._icache = dict()
+        cls._icache = {}
 
     @classmethod
     def usecache(cls, onoff):
@@ -181,11 +181,9 @@ class Indicator(IndicatorBase):
             from .lineseries import Lines
 
             cls.lines = Lines._derive("lines", lines, extralines, ())
-            pass
 
         # NOTE: __init__ patching for _finalize_minperiod disabled as it's handled elsewhere
         # The minperiod calculation is now done explicitly in indicators that need it (like MACD)
-        pass
 
         # Register subclasses automatically
         if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
@@ -426,8 +424,8 @@ class LinePlotterIndicatorBase(Indicator.__class__):
         cls.lines = lines._derive(name, (lname,), 0, [])
         # Derive plotlines
         plotlines = AutoInfoClass
-        newplotlines: dict = dict()
-        newplotlines.setdefault(lname, dict())
+        newplotlines: dict = {}
+        newplotlines.setdefault(lname, {})
         cls.plotlines = plotlines._derive(name, newplotlines, [], recurse=True)
 
         # Create the object and set the params in place
@@ -445,5 +443,3 @@ class LinePlotterIndicator(Indicator, LinePlotterIndicatorBase):
 
     Note: This class is not currently used in the project.
     """
-
-    pass

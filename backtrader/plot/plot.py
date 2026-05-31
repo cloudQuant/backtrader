@@ -763,11 +763,11 @@ class PInfo:
         self.x = None
         self.xlen = 0
         self.sharex = None
-        self.figs = list()
-        self.cursors = list()
+        self.figs = []
+        self.cursors = []
         self.daxis = collections.OrderedDict()
-        self.vaxis = list()
-        self.zorder = dict()
+        self.vaxis = []
+        self.zorder = {}
         self.coloridx = collections.defaultdict(lambda: -1)
         self.handles = collections.defaultdict(list)
         self.labels = collections.defaultdict(list)
@@ -789,7 +789,7 @@ class PInfo:
         fig = mpyplot.figure(figid + numfig)
         self.figs.append(fig)
         self.daxis = collections.OrderedDict()
-        self.vaxis = list()
+        self.vaxis = []
         self.row = 0
         self.sharex = None
         return fig
@@ -887,9 +887,12 @@ class Plot_OldSync(ParameterizedBase):
             va="center",
             ha="left",
             fontsize=self.pinf.sch.subtxtsize,
-            bbox=dict(
-                boxstyle=tag_box_style, facecolor=facecolor, edgecolor=edgecolor, alpha=alpha
-            ),
+            bbox={
+                "boxstyle": tag_box_style,
+                "facecolor": facecolor,
+                "edgecolor": edgecolor,
+                "alpha": alpha,
+            },
             # 3.0 is the minimum default for text
             zorder=self.pinf.zorder[ax] + 3.0,
             **kwargs,
@@ -915,10 +918,10 @@ class Plot_OldSync(ParameterizedBase):
         """
         # pfillers={}):
         if not strategy.datas:
-            return
+            return None
 
         if not len(strategy):
-            return
+            return None
 
         if iplot:
             if "ipykernel" in sys.modules:
@@ -950,7 +953,7 @@ class Plot_OldSync(ParameterizedBase):
 
         slen = len(st_dtime[start:end])
         d, m = divmod(slen, numfigs)
-        pranges = list()
+        pranges = []
         for i in range(numfigs):
             a = d * i + start
             if i == (numfigs - 1):
@@ -998,7 +1001,7 @@ class Plot_OldSync(ParameterizedBase):
                     self.pinf.xdata = xdata = []
                     xreal = self.pinf.xreal
                     dts = data.datetime.plot()
-                    xtemp = list()
+                    xtemp = []
                     for dt in (x for x in dts if dt0 <= x <= dt1):
                         dtidx = bisect.bisect_left(xreal, dt)
                         xdata.append(dtidx)
@@ -1096,17 +1099,13 @@ class Plot_OldSync(ParameterizedBase):
                 fmtdata = "%Y"
             elif tframe == TimeFrame.Months:
                 fmtdata = "%Y-%m"
-            elif tframe == TimeFrame.Weeks:
-                fmtdata = "%Y-%m-%d"
-            elif tframe == TimeFrame.Days:
+            elif tframe == TimeFrame.Weeks or tframe == TimeFrame.Days:
                 fmtdata = "%Y-%m-%d"
             elif tframe == TimeFrame.Minutes:
                 fmtdata = "%Y-%m-%d %H:%M"
             elif tframe == TimeFrame.Seconds:
                 fmtdata = "%Y-%m-%d %H:%M:%S"
-            elif tframe == TimeFrame.MicroSeconds:
-                fmtdata = "%Y-%m-%d %H:%M:%S.%f"
-            elif tframe == TimeFrame.Ticks:
+            elif tframe == TimeFrame.MicroSeconds or tframe == TimeFrame.Ticks:
                 fmtdata = "%Y-%m-%d %H:%M:%S.%f"
         else:
             fmtdata = self.pinf.sch.fmt_x_data
@@ -1288,7 +1287,7 @@ class Plot_OldSync(ParameterizedBase):
                     if plotlinevalue and not math.isnan(lplot[-1]):
                         label += " %.2f" % lplot[-1]
 
-            plotkwargs = dict()
+            plotkwargs = {}
             linekwargs = lineplotinfo._getkwargs(skip_=True)
 
             if linekwargs.get("color", None) is None:
@@ -1296,7 +1295,7 @@ class Plot_OldSync(ParameterizedBase):
                     self.pinf.nextcolor(ax)
                 plotkwargs["color"] = self.pinf.color(ax)
 
-            plotkwargs.update(dict(aa=True, label=label))
+            plotkwargs.update({"aa": True, "label": label})
             plotkwargs.update(**linekwargs)
 
             if ax in self.pinf.zorder:
@@ -1365,7 +1364,7 @@ class Plot_OldSync(ParameterizedBase):
                         l2 = getattr(ind, fref)
                         prl2 = l2.plotrange(self.pinf.xstart, self.pinf.xend)
                         y2 = np.array(prl2)
-                    kwargs = dict()
+                    kwargs = {}
                     if fop is not None:
                         kwargs["where"] = fop(y1, y2)
 
@@ -1773,7 +1772,7 @@ class Plot_OldSync(ParameterizedBase):
             strategy: Strategy object with indicators and observers
         """
         # These lists/dictionaries hold the subplots that go above each data
-        self.dplotstop = list()
+        self.dplotstop = []
         self.dplotsup = collections.defaultdict(list)
         self.dplotsdown = collections.defaultdict(list)
         self.dplotsover = collections.defaultdict(list)
@@ -1859,14 +1858,14 @@ def plot_results(results, file_name):
     )
     data = [GrossLeverage, log_return, cumsum_return, year_rate, total_position_value]
     layout = go.Layout(
-        xaxis=dict(domain=[0, 0.45]),
-        yaxis=dict(domain=[0, 0.45]),
-        xaxis2=dict(domain=[0.55, 1]),
-        xaxis3=dict(domain=[0, 0.45], anchor="y3"),
-        xaxis4=dict(domain=[0.55, 1], anchor="y4"),
-        yaxis2=dict(domain=[0, 0.45], anchor="x2"),
-        yaxis3=dict(domain=[0.55, 1]),
-        yaxis4=dict(domain=[0.55, 1], anchor="x4"),
+        xaxis={"domain": [0, 0.45]},
+        yaxis={"domain": [0, 0.45]},
+        xaxis2={"domain": [0.55, 1]},
+        xaxis3={"domain": [0, 0.45], "anchor": "y3"},
+        xaxis4={"domain": [0.55, 1], "anchor": "y4"},
+        yaxis2={"domain": [0, 0.45], "anchor": "x2"},
+        yaxis3={"domain": [0.55, 1]},
+        yaxis4={"domain": [0.55, 1], "anchor": "x4"},
     )
     fig = go.Figure(data=data, layout=layout)
     py.offline.plot(fig, filename=file_name, auto_open=False)

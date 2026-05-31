@@ -74,10 +74,10 @@ class Ichimoku(Indicator):
         ("chikou", 26),  # backwards push
     )
 
-    plotinfo = dict(subplot=False)
-    plotlines = dict(
-        senkou_span_a=dict(_fill_gt=("senkou_span_b", "g"), _fill_lt=("senkou_span_b", "r")),
-    )
+    plotinfo = {"subplot": False}
+    plotlines = {
+        "senkou_span_a": {"_fill_gt": ("senkou_span_b", "g"), "_fill_lt": ("senkou_span_b", "r")},
+    }
 
     def __init__(self):
         """Initialize the Ichimoku Cloud indicator.

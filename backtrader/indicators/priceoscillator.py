@@ -34,7 +34,7 @@ class _PriceOscBase(Indicator):
         ("_movav", MovAv.Exponential),
     )
 
-    plotinfo = dict(plothlines=[0.0])
+    plotinfo = {"plothlines": [0.0]}
 
     def __init__(self):
         """Initialize the price oscillator base class.
@@ -62,9 +62,12 @@ class _PriceOscBase(Indicator):
             ma1_val = ma1_array[i] if i < len(ma1_array) else 0.0
             ma2_val = ma2_array[i] if i < len(ma2_array) else 0.0
 
-            if isinstance(ma1_val, float) and math.isnan(ma1_val):
-                larray[i] = float("nan")
-            elif isinstance(ma2_val, float) and math.isnan(ma2_val):
+            if (
+                isinstance(ma1_val, float)
+                and math.isnan(ma1_val)
+                or isinstance(ma2_val, float)
+                and math.isnan(ma2_val)
+            ):
                 larray[i] = float("nan")
             else:
                 larray[i] = ma1_val - ma2_val
@@ -120,7 +123,7 @@ class PercentagePriceOscillator(_PriceOscBase):
     lines = ("ppo", "signal", "histo")
     params = (("period_signal", 9),)
 
-    plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
+    plotlines = {"histo": {"_method": "bar", "alpha": 0.50, "width": 1.0}}
 
     def __init__(self):
         """Initialize the PPO indicator.

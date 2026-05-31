@@ -165,14 +165,13 @@ class _BridgeLine:
             return float("nan")
         if index == 0:
             return self._data[-1]
-        elif index < 0:
+        if index < 0:
             # -1 = previous, -2 = two back, etc.
             pos = len(self._data) + index - 1
             if 0 <= pos < len(self._data):
                 return self._data[pos]
             return float("nan")
-        else:
-            return float("nan")
+        return float("nan")
 
     def __len__(self):
         """Return the number of data points in the line."""
