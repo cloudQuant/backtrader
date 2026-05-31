@@ -752,6 +752,55 @@ class PlotlyPlot(ParameterizedBase):
 
         return row + row_inc
 
+    @staticmethod
+    def _trim_prewarmup_zeros(lplot, plot_xdata):
+        """Trim leading pre-warmup values from an indicator line series.
+
+        Indicators emit ``0.0`` before they have enough data, then jump to
+        real values. This finds the first real (non-NaN, non-leading-zero)
+        sample and trims both the value list and its x-axis to match, then
+        replaces remaining NaNs with ``None`` so Plotly skips them.
+
+        Returns the ``(lplot, plot_xdata)`` pair, or ``(None, None)`` when the
+        trimmed series is empty (caller should skip the line). Extracted
+        verbatim from the duplicated blocks in ``_plot_indicator`` /
+        ``_plot_indicator_on_ax``; behavior unchanged.
+        """
+        # Find first valid (non-NaN and non-zero-before-real-data) value
+        # Indicators output 0.0 before they have enough data, then jump to real values
+        valid_start = 0
+        found_nonzero = False
+        for i, v in enumerate(lplot):
+            if math.isnan(v):
+                continue
+            # If we find a non-zero value, that's where real data starts
+            if v != 0.0:
+                valid_start = i
+                found_nonzero = True
+                break
+            # If all values are 0, we'll check if later values become non-zero
+
+        # If no non-zero found, check if there are any real values
+        if not found_nonzero:
+            # Find first transition from 0 to non-zero
+            for i in range(len(lplot) - 1):
+                if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
+                    valid_start = i + 1
+                    found_nonzero = True
+                    break
+
+        # Skip leading invalid portion (zeros before real data)
+        if valid_start > 0:
+            lplot = lplot[valid_start:]
+            plot_xdata = plot_xdata[valid_start:]
+
+        if not lplot:
+            return None, None
+
+        # Replace NaN with None for Plotly to skip
+        lplot = [None if math.isnan(v) else v for v in lplot]
+        return lplot, plot_xdata
+
     def _plot_indicator(self, fig, ind, xdata, pstart, pend, row, is_observer=False):
         """Plot an indicator in its own subplot."""
         indlabel = ind.plotlabel()
@@ -772,39 +821,9 @@ class PlotlyPlot(ParameterizedBase):
             if len(lplot) != len(xdata):
                 plot_xdata = xdata[: len(lplot)]
 
-            # Find first valid (non-NaN and non-zero-before-real-data) value
-            # Indicators output 0.0 before they have enough data, then jump to real values
-            valid_start = 0
-            found_nonzero = False
-            for i, v in enumerate(lplot):
-                if math.isnan(v):
-                    continue
-                # If we find a non-zero value, that's where real data starts
-                if v != 0.0:
-                    valid_start = i
-                    found_nonzero = True
-                    break
-                # If all values are 0, we'll check if later values become non-zero
-
-            # If no non-zero found, check if there are any real values
-            if not found_nonzero:
-                # Find first transition from 0 to non-zero
-                for i in range(len(lplot) - 1):
-                    if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
-                        valid_start = i + 1
-                        found_nonzero = True
-                        break
-
-            # Skip leading invalid portion (zeros before real data)
-            if valid_start > 0:
-                lplot = lplot[valid_start:]
-                plot_xdata = plot_xdata[valid_start:]
-
-            if not lplot:
+            lplot, plot_xdata = self._trim_prewarmup_zeros(lplot, plot_xdata)
+            if lplot is None:
                 continue
-
-            # Replace NaN with None for Plotly to skip
-            lplot = [None if math.isnan(v) else v for v in lplot]
 
             # Get line plot info
             lineplotinfo = getattr(ind.plotlines, linealias, None)
@@ -888,33 +907,9 @@ class PlotlyPlot(ParameterizedBase):
             if len(lplot) != len(xdata):
                 plot_xdata = xdata[: len(lplot)]
 
-            # Find first valid (non-NaN and non-zero-before-real-data) value
-            valid_start = 0
-            found_nonzero = False
-            for i, v in enumerate(lplot):
-                if math.isnan(v):
-                    continue
-                if v != 0.0:
-                    valid_start = i
-                    found_nonzero = True
-                    break
-
-            if not found_nonzero:
-                for i in range(len(lplot) - 1):
-                    if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
-                        valid_start = i + 1
-                        found_nonzero = True
-                        break
-
-            if valid_start > 0:
-                lplot = lplot[valid_start:]
-                plot_xdata = plot_xdata[valid_start:]
-
-            if not lplot:
+            lplot, plot_xdata = self._trim_prewarmup_zeros(lplot, plot_xdata)
+            if lplot is None:
                 continue
-
-            # Replace NaN with None for Plotly to skip
-            lplot = [None if math.isnan(v) else v for v in lplot]
 
             # Get color
             color = None

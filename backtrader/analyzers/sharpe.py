@@ -208,26 +208,65 @@ class SharpeRatio(Analyzer):
         # Convert either the rate (down to the timeframe) or the returns (up to
         # yearly) depending on convertrate, when a factor is available.
         if factor is not None:
-            try:
-                if not is_finite_real(factor) or factor <= 0 or not is_finite_real(rate):
-                    raise ValueError()
-                if self.p.convertrate:
-                    # Standard: downgrade annual returns to a timeframe factor
-                    if 1.0 + rate < 0:
-                        raise ValueError()
-                    rate = pow(1.0 + rate, 1.0 / factor) - 1.0
-                    if isinstance(rate, complex) or not math.isfinite(rate):
-                        raise ValueError()
-                else:
-                    # Else upgrade returns to yearly returns
-                    returns = [pow(1.0 + x, factor) - 1.0 for x in returns]
-                    if any(isinstance(x, complex) or not math.isfinite(x) for x in returns):
-                        raise ValueError()
-            except (ValueError, TypeError, ZeroDivisionError, OverflowError):
+            converted = self._convert_rate_returns(rate, returns, factor)
+            if converted is None:
                 return None
+            rate, returns = converted
 
         if not is_finite_real(rate) or any(not is_finite_real(ret) for ret in returns):
             return None
+
+        # Number of trading days
+        lrets = len(returns) - self.p.stddev_sample
+        # Check if the ratio can be calculated
+        if not lrets:
+            # no returns or stddev_sample was active and 1 return
+            return None
+
+        # Get the excess returns - arithmetic mean - original sharpe
+        ret_free = [r - rate for r in returns]
+        ret_free_avg = average(ret_free)
+        retdev = standarddev(ret_free, avgx=ret_free_avg, bessel=self.p.stddev_sample)
+
+        if not is_finite_real(ret_free_avg) or not is_finite_real(retdev):
+            return None
+        try:
+            # Calculate Sharpe ratio
+            ratio = ret_free_avg / retdev
+            # Annualize if requested (rate was converted down to the timeframe)
+            if factor is not None and self.p.convertrate and self.p.annualize:
+                ratio = math.sqrt(factor) * ratio
+            return ratio if is_finite_real(ratio) else None
+        except (ValueError, TypeError, ZeroDivisionError):
+            return None
+
+    def _convert_rate_returns(self, rate, returns, factor):
+        """Apply the timeframe ``factor`` to either the risk-free rate or the
+        returns series (per ``convertrate``).
+
+        Returns the ``(rate, returns)`` pair on success, or ``None`` when the
+        conversion is not representable (mirrors the original inline
+        ValueError-guarded behavior). Extracted from ``_timeframe_ratio``;
+        behavior unchanged.
+        """
+        try:
+            if not is_finite_real(factor) or factor <= 0 or not is_finite_real(rate):
+                raise ValueError()
+            if self.p.convertrate:
+                # Standard: downgrade annual returns to a timeframe factor
+                if 1.0 + rate < 0:
+                    raise ValueError()
+                rate = pow(1.0 + rate, 1.0 / factor) - 1.0
+                if isinstance(rate, complex) or not math.isfinite(rate):
+                    raise ValueError()
+            else:
+                # Else upgrade returns to yearly returns
+                returns = [pow(1.0 + x, factor) - 1.0 for x in returns]
+                if any(isinstance(x, complex) or not math.isfinite(x) for x in returns):
+                    raise ValueError()
+        except (ValueError, TypeError, ZeroDivisionError, OverflowError):
+            return None
+        return rate, returns
 
         # Number of trading days
         lrets = len(returns) - self.p.stddev_sample
