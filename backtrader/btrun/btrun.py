@@ -254,28 +254,7 @@ def btrun(pargs=""):
 
     cerebro = Cerebro(**cer_kwargs)
 
-    if args.resample is not None or args.replay is not None:
-        if args.resample is not None:
-            tfcp = args.resample.split(":")
-        elif args.replay is not None:
-            tfcp = args.replay.split(":")
-
-        # compression may be skipped and it will default to 1
-        if len(tfcp) == 1 or tfcp[1] == "":
-            tf, cp = tfcp[0], 1
-        else:
-            tf, cp = tfcp
-
-        cp = int(cp)  # convert any value to int
-        tf = TIMEFRAMES.get(tf, None)
-
-    for data in getdatas(args):
-        if args.resample is not None:
-            cerebro.resampledata(data, timeframe=tf, compression=cp)
-        elif args.replay is not None:
-            cerebro.replaydata(data, timeframe=tf, compression=cp)
-        else:
-            cerebro.adddata(data)
+    _add_datas(args, cerebro)
 
     # get and add signals
     signals = getobjects(args.signals, Indicator, signals_module, issignal=True)
@@ -313,18 +292,7 @@ def btrun(pargs=""):
     runst = runsts[0]  # single strategy and no optimization
 
     if args.pranalyzer or args.ppranalyzer:
-        if runst.analyzers:
-            print("====================")
-            print("== Analyzers")
-            print("====================")
-            for name, analyzer in runst.analyzers.getitems():
-                if args.pranalyzer:
-                    analyzer.print()
-                elif args.ppranalyzer:
-                    print("##########")
-                    print(name)
-                    print("##########")
-                    analyzer.pprint()
+        _print_analyzers(args, runst)
 
     if args.plot:
         pkwargs = dict(style="bar")
@@ -335,6 +303,50 @@ def btrun(pargs=""):
 
         # cerebro.plot(numfigs=args.plotfigs, style=args.plotstyle)
         cerebro.plot(**pkwargs)
+
+
+def _add_datas(args, cerebro):
+    """Add data feeds to cerebro, honoring --resample / --replay options."""
+    tf = cp = None
+    if args.resample is not None or args.replay is not None:
+        if args.resample is not None:
+            tfcp = args.resample.split(":")
+        elif args.replay is not None:
+            tfcp = args.replay.split(":")
+
+        # compression may be skipped and it will default to 1
+        if len(tfcp) == 1 or tfcp[1] == "":
+            tf, cp = tfcp[0], 1
+        else:
+            tf, cp = tfcp
+
+        cp = int(cp)  # convert any value to int
+        tf = TIMEFRAMES.get(tf, None)
+
+    for data in getdatas(args):
+        if args.resample is not None:
+            cerebro.resampledata(data, timeframe=tf, compression=cp)
+        elif args.replay is not None:
+            cerebro.replaydata(data, timeframe=tf, compression=cp)
+        else:
+            cerebro.adddata(data)
+
+
+def _print_analyzers(args, runst):
+    """Print analyzer results for the finished strategy (pranalyzer/ppranalyzer)."""
+    if not runst.analyzers:
+        return
+    print("====================")
+    print("== Analyzers")
+    print("====================")
+    for name, analyzer in runst.analyzers.getitems():
+        if args.pranalyzer:
+            analyzer.print()
+        elif args.ppranalyzer:
+            print("##########")
+            print(name)
+            print("##########")
+            analyzer.pprint()
 
 
 def setbroker(args, cerebro):

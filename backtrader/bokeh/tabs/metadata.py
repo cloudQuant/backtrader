@@ -32,6 +32,64 @@ class MetadataTab(BokehTab):
         """Metadata tab is always useable."""
         return BOKEH_AVAILABLE
 
+    @staticmethod
+    def _collect_metadata(strategy):
+        """Collect the backtest metadata dict (time/strategy/data/indicator/
+        analyzer/broker info) shown in the metadata table. Extracted from
+        _get_panel."""
+        metadata = {}
+
+        # Time info
+        metadata["Generated"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        if strategy is None:
+            return metadata
+
+        # Strategy info
+        metadata["Strategy"] = strategy.__class__.__name__
+
+        # Data info
+        if hasattr(strategy, "datas") and strategy.datas:
+            metadata["Data Feeds"] = len(strategy.datas)
+
+            # Data range
+            data = strategy.datas[0]
+            if hasattr(data, "datetime") and len(data) > 0:
+                try:
+                    # Get start and end dates
+                    start_dt = data.datetime.date(0)
+                    if hasattr(data.datetime, "date"):
+                        end_dt = data.datetime.date(-1) if len(data) > 1 else start_dt
+                    else:
+                        end_dt = start_dt
+                    metadata["Start Date"] = str(start_dt)
+                    metadata["End Date"] = str(end_dt)
+                    metadata["Total Bars"] = len(data)
+                except Exception as e:
+                    logger.debug("Failed to get data range: %s", e)
+
+        # Indicator info
+        if hasattr(strategy, "_lineiterators"):
+            ind_count = len(strategy._lineiterators.get(1, []))  # IndType = 1
+            obs_count = len(strategy._lineiterators.get(2, []))  # ObsType = 2
+            metadata["Indicators"] = ind_count
+            metadata["Observers"] = obs_count
+
+        # Analyzer info
+        if hasattr(strategy, "analyzers"):
+            metadata["Analyzers"] = len(strategy.analyzers)
+
+        # Broker info
+        if hasattr(strategy, "broker"):
+            broker = strategy.broker
+            try:
+                metadata["Final Value"] = f"{broker.getvalue():.2f}"
+                metadata["Final Cash"] = f"{broker.getcash():.2f}"
+            except Exception as e:
+                logger.debug("Failed to get broker info: %s", e)
+
+        return metadata
+
     def _get_panel(self):
         """Get panel content.
 
@@ -52,54 +110,7 @@ class MetadataTab(BokehTab):
             )
         )
 
-        metadata = {}
-
-        # Time info
-        metadata["Generated"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-        if strategy is not None:
-            # Strategy info
-            metadata["Strategy"] = strategy.__class__.__name__
-
-            # Data info
-            if hasattr(strategy, "datas") and strategy.datas:
-                metadata["Data Feeds"] = len(strategy.datas)
-
-                # Data range
-                data = strategy.datas[0]
-                if hasattr(data, "datetime") and len(data) > 0:
-                    try:
-                        # Get start and end dates
-                        start_dt = data.datetime.date(0)
-                        if hasattr(data.datetime, "date"):
-                            end_dt = data.datetime.date(-1) if len(data) > 1 else start_dt
-                        else:
-                            end_dt = start_dt
-                        metadata["Start Date"] = str(start_dt)
-                        metadata["End Date"] = str(end_dt)
-                        metadata["Total Bars"] = len(data)
-                    except Exception as e:
-                        logger.debug("Failed to get data range: %s", e)
-
-            # Indicator info
-            if hasattr(strategy, "_lineiterators"):
-                ind_count = len(strategy._lineiterators.get(1, []))  # IndType = 1
-                obs_count = len(strategy._lineiterators.get(2, []))  # ObsType = 2
-                metadata["Indicators"] = ind_count
-                metadata["Observers"] = obs_count
-
-            # Analyzer info
-            if hasattr(strategy, "analyzers"):
-                metadata["Analyzers"] = len(strategy.analyzers)
-
-            # Broker info
-            if hasattr(strategy, "broker"):
-                broker = strategy.broker
-                try:
-                    metadata["Final Value"] = f"{broker.getvalue():.2f}"
-                    metadata["Final Cash"] = f"{broker.getcash():.2f}"
-                except Exception as e:
-                    logger.debug("Failed to get broker info: %s", e)
+        metadata = self._collect_metadata(strategy)
 
         # Create table
         if metadata:
