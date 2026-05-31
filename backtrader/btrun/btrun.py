@@ -610,7 +610,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
 
     The function will call sys.exit(1) if module loading or class finding fails.
     """
-    retobjects = list()
+    retobjects: list = list()
 
     for item in iterable or []:
         if issignal:
