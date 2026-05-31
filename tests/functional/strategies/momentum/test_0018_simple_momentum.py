@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (ibs, new_high, ibs_low,
+    entry_signal, exit_signal) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    Simple Momentum uses Internal Bar Strength (IBS) and N-day high breakout to
+    generate entry and exit signals. Entry fires when price breaks the N-day high
+    and prior bar IBS is below the trigger threshold. Exit occurs when close
+    exceeds the prior day's high or after a fixed holding period.
+
+Strategy Logic:
+    1. load_config() / load_data() loads and preprocesses the CSV and enriches
+       it with momentum features.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. SimpleMomentumStrategy tracks bar count, broker value series, and pending
+       orders. It checks entry_signal when flat and exit_signal or holding_days
+       when in position.
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_18_0018_simple_momentum() runs the strategy via main() and validates
+       all expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -76,6 +100,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file and return a cleaned pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported CSV file.
+        fromdate: Optional start datetime to filter data.
+        todate: Optional end datetime to filter data.
+
+    Returns:
+        pd.DataFrame with columns datetime, open, high, low, close, volume,
+        openinterest; indexed by datetime and sorted.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,38 +137,51 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_simple_momentum_features(df, params):
-    """准备简单动量策略特征"""
+    """Prepare simple momentum strategy features from raw OHLCV data.
+
+    Args:
+        df: DataFrame with raw OHLCV columns.
+        params: Parameter dict with ndays_high, ibs_trigger, holding_days.
+
+    Returns:
+        DataFrame enriched with ibs, new_high, ibs_low, entry_signal, exit_signal.
+    """
     out = df.copy()
     ndays_high = int(params.get('ndays_high', 5))
     ibs_trigger = float(params.get('ibs_trigger', 0.15))
-    
-    # 计算IBS (Internal Bar Strength)
+
+    # Calculate IBS (Internal Bar Strength).
     # IBS = (High - Close) / (High - Low)
-    # 低IBS表示收盘价接近最高价（强势）
+    # Low IBS means close near high (strength).
     out['ibs'] = (out['high'] - out['close']) / (out['high'] - out['low'])
-    
-    # 计算N日最高价
+
+    # Calculate N-day high.
     out['high_n'] = out['high'].rolling(window=ndays_high).max()
-    
-    # 创N日新高
+
+    # New N-day high breakout.
     out['new_high'] = (out['high'] >= out['high_n']).astype(float)
-    
-    # 前一日IBS低于阈值
+
+    # Prior bar IBS below threshold.
     out['ibs_low'] = (out['ibs'].shift(1) <= ibs_trigger).astype(float)
-    
-    # 入场信号：创N日新高 + 前一日IBS低
-    out['entry_signal'] = ((out['new_high'] > 0.5) & 
+
+    # Entry signal: new N-day high AND prior bar IBS low.
+    out['entry_signal'] = ((out['new_high'] > 0.5) &
                            (out['ibs_low'] > 0.5)).astype(float)
-    
-    # 出场信号：收盘价高于昨日最高价
+
+    # Exit signal: close above prior day's high.
     out['exit_signal'] = (out['close'] > out['high'].shift(1)).astype(float)
-    
-    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
+
+    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest',
                'ibs', 'new_high', 'ibs_low', 'entry_signal', 'exit_signal']].copy()
     return out.dropna()
 
 
 class Mt5SimpleMomentumFeed(bt.feeds.PandasData):
+    """Custom data feed that exposes momentum features as line attributes.
+
+    Extends PandasData with five additional lines: ibs, new_high, ibs_low,
+    entry_signal, and exit_signal.
+    """
     lines = ('ibs', 'new_high', 'ibs_low', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -144,6 +192,13 @@ class Mt5SimpleMomentumFeed(bt.feeds.PandasData):
 
 
 class SimpleMomentumStrategy(bt.Strategy):
+    """Simple momentum strategy based on N-day high breakout and Internal Bar Strength.
+
+    Entry occurs when price breaks the N-day high and prior bar IBS is below the
+    trigger threshold. Exit occurs when close exceeds prior day's high or after
+    a fixed holding period. Tracks trade statistics and broker value series.
+    """
+
     params = dict(
         ndays_high=5,
         ibs_trigger=0.15,
@@ -152,6 +207,7 @@ class SimpleMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state: counters, pending order tracker, and broker value series."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -178,41 +234,44 @@ class SimpleMomentumStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute strategy logic on each bar: entry/exit based on signals or holding days."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
-        
+
         if self.pending_order is not None:
             return
-        
+
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
-        
-        # 无持仓时检查入场
+
+        # Check entry when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
                 self.entry_bar = self.bar_num
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
-        
-        # 有持仓时检查出场
+
+        # Check exit when in position.
         if exit_signal:
             self.sell_count += 1
             self.pending_order = self.close()
             return
-        
-        # 固定持有天数出场
+
+        # Exit after fixed holding days.
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order tracker when order is completed or rejected."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track win/loss statistics when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -224,7 +283,7 @@ class SimpleMomentumStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Simple Momentum 策略回测"""
+"""Simple Momentum strategy backtest."""
 
 
 
@@ -234,6 +293,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build kwargs dict for SharpeRatio analyzer based on data timeframe.
+
+    Args:
+        config: Configuration dict with 'data' key containing timeframe spec.
+
+    Returns:
+        Dict with timeframe, compression, factor, annualize, and riskfreerate.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -246,10 +313,19 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return x if it is a finite number, otherwise return None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index for a series of portfolio values.
+
+    Args:
+        values: List or sequence of numeric values (e.g., broker values).
+
+    Returns:
+        Ulcer Index as a float; returns 0.0 if fewer than 2 values.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -264,6 +340,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and preprocess data from CSV, enriching it with momentum features.
+
+    Args:
+        config: Configuration dict with 'data' and 'params' keys.
+
+    Returns:
+        Dict with 'data' (enriched DataFrame), 'fromdate', and 'todate'.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -276,6 +360,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure a Cerebro instance with data feed, strategy, and analyzers.
+
+    Args:
+        frame: Dict with 'data' DataFrame and date bounds.
+        config: Configuration dict with 'backtest', 'data', and 'params' keys.
+
+    Returns:
+        Configured bt.Cerebro instance ready for run().
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -298,6 +391,18 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract performance metrics from strategy analyzers.
+
+    Args:
+        strat: Strategy instance after cerebro.run().
+        cerebro: Cerebro instance (used to get final broker value).
+        frame: Data frame dict with 'data', 'fromdate', 'todate'.
+        config: Configuration dict with 'backtest' and 'strategy' keys.
+
+    Returns:
+        Dict of scalar metrics: bar_num, trade counts, win/loss counts,
+        cash, returns, Sharpe ratio, drawdown, SQN, ulcer index, etc.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -332,6 +437,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value for JSON serialization.
+
+    Args:
+        v: A value that may be datetime, float (NaN/inf), or other type.
+
+    Returns:
+        ISO-formatted string for datetime, None for NaN/inf, otherwise v unchanged.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -343,6 +456,7 @@ def normalize(v):
 
 
 def main():
+    """Run the Simple Momentum backtest: load data, build cerebro, run, and extract metrics."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

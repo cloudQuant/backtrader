@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A four-asset monthly universe built from daily MT5 CSV exports: XAUUSD
+    (gold) from ``tests/datas/XAUUSD_1d.csv`` and IVV, IEF, GLD from
+    ``tests/datas/mt5_1d_data/``. Daily bars are resampled to month-end, aligned
+    on a common monthly index, over the 2008-01-01 to 2025-12-31 window with no
+    intrabar shift. A signal feed plus one feed per tradable asset are fed to
+    cerebro.
+
+Strategy Principle:
+    Dual (relative plus absolute) momentum rotation. Each month the 12-month
+    return of every asset is computed; the asset with the highest formation
+    return is selected (relative momentum). If that best return is not positive,
+    the portfolio moves to cash instead (absolute momentum), avoiding holdings
+    during broad downturns.
+
+Strategy Logic:
+    1. ``prepare_dual_momentum_data`` resamples each asset to monthly bars,
+       computes 12-month momentum, and records the selected asset code and
+       risk-on flag per month.
+    2. ``load_inputs`` loads and aligns the asset frames; ``build_cerebro`` wires
+       the signal feed, per-asset feeds, broker, strategy, and analyzers.
+    3. ``GoldDualMomentumStrategy.next`` rebalances to 100% of the selected asset
+       (or cash) whenever the selection changes, tracking allocation-month and
+       switch counts.
+    4. ``notify_order`` clears pending order references; ``notify_trade`` tallies
+       closed-trade win/loss counts.
+    5. ``extract_metrics`` collects analyzer output, the equity-curve Ulcer
+       index, and allocation statistics, and
+       ``test_2_0002_gold_dual_momentum`` forces ``runonce=True``, captures the
+       metrics dict, and asserts each value against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -85,6 +116,17 @@ ASSET_NAME_TO_CODE = {value: key for key, value in ASSET_CODE_TO_NAME.items()}
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 style CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -117,6 +159,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_to_monthly(df):
+    """Resample daily OHLCV bars to month-end frequency.
+
+    Args:
+        df: Daily DataFrame indexed by datetime.
+
+    Returns:
+        Monthly pandas.DataFrame with empty months dropped.
+    """
     monthly = pd.DataFrame({
         'open': df['open'].resample('ME').first(),
         'high': df['high'].resample('ME').max(),
@@ -129,6 +179,16 @@ def resample_to_monthly(df):
 
 
 def prepare_dual_momentum_data(asset_daily_frames, params):
+    """Build the dual-momentum signal frame and aligned monthly asset frames.
+
+    Args:
+        asset_daily_frames: Mapping of asset name to daily DataFrame.
+        params: Strategy parameters including the formation period.
+
+    Returns:
+        Tuple of (signal_df, monthly_frames, monthly_summary) holding the signal
+        feed frame, the per-asset monthly frames, and a summary table.
+    """
     monthly_frames = {name: resample_to_monthly(frame) for name, frame in asset_daily_frames.items()}
     common_index = None
     for frame in monthly_frames.values():
@@ -174,6 +234,8 @@ def prepare_dual_momentum_data(asset_daily_frames, params):
 
 
 class DualMomentumSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing per-asset momentum and selection lines."""
+
     lines = (
         'xauusd_return_12m', 'ivv_return_12m', 'ief_return_12m', 'gld_return_12m',
         'best_return_12m', 'selected_asset_code', 'risk_on',
@@ -186,12 +248,15 @@ class DualMomentumSignalFeed(bt.feeds.PandasData):
 
 
 class GoldDualMomentumStrategy(bt.Strategy):
+    """Dual-momentum rotation strategy across gold, equities, bonds, and cash."""
+
     params = dict(
         formation_period_months=12,
         commission_pct=0.0005,
     )
 
     def __init__(self):
+        """Bind the signal and per-asset feeds and reset tracking counters."""
         self.signal = self.datas[0]
         self.asset_feeds = {
             1: self.getdatabyname('XAUUSD'),
@@ -233,6 +298,7 @@ class GoldDualMomentumStrategy(bt.Strategy):
             self.gld_month_count += 1
 
     def next(self):
+        """Rebalance to the selected momentum asset when the choice changes."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         selected_code = self._selected_code()
@@ -261,11 +327,21 @@ class GoldDualMomentumStrategy(bt.Strategy):
                         self.sell_count += 1
 
     def notify_order(self, order):
+        """Discard the pending reference once an order finalizes.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed-trade win/loss counts.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -282,6 +358,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_path(relative_path):
+    """Resolve a data path against this test's directory.
+
+    Args:
+        relative_path: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / relative_path).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -289,6 +376,15 @@ def resolve_path(relative_path):
 
 
 def normalize(value):
+    """Convert a value into a CSV/JSON-serializable scalar.
+
+    Args:
+        value: Any value, possibly a date/datetime or other object.
+
+    Returns:
+        The value unchanged when it is a basic scalar, an ISO string for
+        date-like objects, or its ``str`` representation otherwise.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -301,6 +397,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value unless it is a non-finite float, in which case None.
+
+    Args:
+        value: Any value, typically a float metric.
+
+    Returns:
+        ``value`` when it is None or finite, otherwise None.
+    """
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -309,6 +413,14 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute the Ulcer Index of an equity curve.
+
+    Args:
+        equity_curve: Sequence of portfolio values over time.
+
+    Returns:
+        The Ulcer Index as a float, or 0.0 when no drawdown data is available.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -324,6 +436,18 @@ def calculate_ulcer_index(equity_curve):
 
 
 def load_inputs(config):
+    """Load and align per-asset daily frames and build the signal frame.
+
+    Args:
+        config: Resolved configuration dict with ``data`` and ``params``.
+
+    Returns:
+        Dict with the signal frame, aligned monthly frames, summary table,
+        date bounds, and parameters.
+
+    Raises:
+        ValueError: If the monthly signal dataframe is empty.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -358,6 +482,15 @@ def load_inputs(config):
 
 
 def build_cerebro(config, inputs):
+    """Assemble a cerebro with broker, all feeds, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        inputs: Dict produced by ``load_inputs``.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config.get('params', {}).get('commission_pct', 0.0005)))
@@ -380,6 +513,7 @@ def build_cerebro(config, inputs):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Collect trade and performance metrics across analyzers for regression checks."""
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -446,6 +580,7 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def run(plot=False):
+    """Execute the dual momentum workflow and return backtest outputs."""
     config = load_config()
     inputs = load_inputs(config)
     cerebro = build_cerebro(config, inputs)

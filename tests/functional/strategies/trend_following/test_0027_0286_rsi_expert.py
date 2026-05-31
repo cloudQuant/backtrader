@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single execution feed runs on M15
+    (15-minute) bars compressed at 15 minutes, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes so
+    bars are stamped at their close. The feed also carries the MT5 spread
+    column.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``RSI Expert``. A single RSI
+    oscillator with period ``period_rsi`` drives mean-reversion entries: a
+    cross of RSI back above the oversold level (``level_down_rsi``) flags a long
+    and a cross back below the overbought level (``level_up_rsi``) flags a
+    short. Risk is managed with a fixed-lot size, an optional fixed stop-loss
+    and take-profit in pips, and a trailing stop that ratchets in steps.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_cerebro wires the single
+    execution feed, the RSI indicator, and the default analyzers. Each bar the
+    strategy applies the trailing stop, then on a fresh bar evaluates the RSI
+    crossing signals to open a bracketed position or, when already positioned
+    the opposite way, close and reverse. notify_order tracks the entry, close,
+    stop, and take-profit legs while notify_trade logs closed trades. summarize
+    prints analyzer output, and the test forces runonce=True, invokes main(),
+    derives metrics from the captured analyzers, and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -77,6 +104,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -103,6 +143,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns plus the spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -117,6 +159,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class RSIExpertStrategy(bt.Strategy):
+    """RSI mean-reversion strategy ported from the MT5 RSI Expert advisor.
+
+    Opens longs when RSI crosses back above the oversold level and shorts when
+    RSI crosses back below the overbought level, sized by a fixed lot. Positions
+    are protected by an optional fixed stop-loss/take-profit bracket and a
+    trailing stop, and an opposite signal closes and reverses the position.
+    """
+
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -130,6 +180,7 @@ class RSIExpertStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the RSI indicator and reset order/state tracking attributes."""
         self.data0_feed = self.datas[0]
         self.rsi = bt.indicators.RSI(self.data0_feed.close, period=self.p.period_rsi)
         self.entry_order = None
@@ -142,10 +193,12 @@ class RSIExpertStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current execution bar timestamp."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Delegate to next() so signals are evaluated before the warmup ends."""
         self.next()
 
     def _new_bar(self):
@@ -210,6 +263,7 @@ class RSIExpertStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Apply trailing stops and evaluate RSI crossing entries/reversals."""
         self._apply_trailing()
         if len(self.data0_feed) < self.p.period_rsi + 3:
             return
@@ -239,6 +293,7 @@ class RSIExpertStrategy(bt.Strategy):
                 self._submit_entry('short', 'rsi crossed down up level')
 
     def notify_order(self, order):
+        """Track entry, close, stop, and take-profit order fills and resets."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -281,6 +336,7 @@ class RSIExpertStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log closed trades and clear side/stop state when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -299,6 +355,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this file's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute path.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -306,12 +373,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO-format datetime string, returning None when empty.
+
+    Args:
+        value: ISO-8601 datetime string or a falsy value.
+
+    Returns:
+        A ``datetime.datetime`` instance, or None when ``value`` is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load the configured MT5 frame within the requested date range.
+
+    Args:
+        config: Resolved configuration dictionary with a ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -323,6 +409,12 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register the standard analyzer suite on ``cerebro``.
+
+    Args:
+        cerebro: The Cerebro instance to attach Sharpe, Returns, DrawDown,
+            TradeAnalyzer, and SQN analyzers to.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -331,6 +423,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with broker, feed, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dictionary.
+        frame: Mapping produced by load_backtest_frame holding the data frame.
+
+    Returns:
+        The configured Cerebro instance ready to run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -345,6 +446,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``value`` unless it is a non-finite number, in which case None.
+
+    Args:
+        value: Any value, typically a float metric from an analyzer.
+
+    Returns:
+        The original value, or None when it is NaN or infinite.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -353,6 +462,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a human-readable summary of analyzer output for the run.
+
+    Args:
+        results: The list of strategy instances returned by ``cerebro.run()``.
+        start_value: Portfolio value before the backtest began.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -379,6 +494,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI args, run the RSI Expert backtest, and print the summary."""
     parser = argparse.ArgumentParser(description='Run RSI Expert backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV data from ``tests/datas/XAUUSD_M15.csv`` is loaded and
+    time-shifted by 15 minutes, then merged with precomputed daily Raymond cloud
+    levels (pivot-based support/resistance set: trade_ss, ets/etb, tps/tpb bands) and
+    constrained to ``2025-12-03 01:15:00`` → ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    The strategy looks for intraday close transitions through the daily ``tps1`` level,
+    entering long on a recovery above and short on a break below, with bracketed stop/take
+    orders to express upside/downside continuation logic.
+
+Strategy Logic:
+    The test enriches bars with Raymond levels derived from previous-day pivot calculations,
+    creates a custom Backtrader feed, executes one bracketed entry per signal at each bar,
+    and verifies counts and return/drawdown metrics via analyzers.
 """
 from __future__ import annotations
 import math
@@ -78,6 +94,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv_with_raymond_levels(filepath, fromdate=None, todate=None, bar_shift_minutes=0, raymond_timeframe='D'):
+    """Load MT5 bars and append previous-day Raymond support/resistance levels.
+
+    Args:
+        filepath: Input CSV file path.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Minute offset applied to bar timestamps.
+        raymond_timeframe: Resample rule used for pivot calculation (default daily).
+
+    Returns:
+        OHLCV DataFrame enriched with ``trade_ss``, ``etb``, ``ets``, ``tpb1``,
+        ``tps1``, ``tpb2``, and ``tps2`` fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -126,6 +155,8 @@ def load_mt5_csv_with_raymond_levels(filepath, fromdate=None, todate=None, bar_s
 
 
 class RaymondPandasFeed(bt.feeds.PandasData):
+    """PandasData extension carrying Raymond level columns."""
+
     lines = ('trade_ss', 'etb', 'ets', 'tpb1', 'tps1', 'tpb2', 'tps2')
     params = (
         ('datetime', None),
@@ -146,6 +177,8 @@ class RaymondPandasFeed(bt.feeds.PandasData):
 
 
 class RaymondCloudyDayStrategy(bt.Strategy):
+    """Cloudy-day strategy entering bracket orders when price crosses a support threshold."""
+
     params = dict(
         raymond_timeframe='D1',
         lot_size=0.01,
@@ -159,6 +192,7 @@ class RaymondCloudyDayStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and order-tracking fields."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -170,6 +204,7 @@ class RaymondCloudyDayStrategy(bt.Strategy):
         self.limit_orders = {}
 
     def log(self, text):
+        """Print a timestamped message for tracing strategy events."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -179,6 +214,7 @@ class RaymondCloudyDayStrategy(bt.Strategy):
         return round(max(lot, self.p.lot_min), 4)
 
     def next(self):
+        """Evaluate bracket entry conditions and open conditional orders."""
         self.bar_num += 1
         if len(self.data) < 2:
             return
@@ -210,6 +246,7 @@ class RaymondCloudyDayStrategy(bt.Strategy):
             self.limit_orders[entry.ref] = orders[2]
 
     def notify_order(self, order):
+        """Update entry counters and prune stale bracket order state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         kind = getattr(order.info, 'kind', None)
@@ -227,6 +264,7 @@ class RaymondCloudyDayStrategy(bt.Strategy):
             self.limit_orders.pop(order.ref, None)
 
     def notify_trade(self, trade):
+        """Accumulate win/loss trade counts and log realized PnL."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -247,6 +285,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve relative data path and ensure fixture exists.
+
+    Args:
+        filename: Relative path to the fixture.
+
+    Returns:
+        Absolute path to fixture.
+
+    Raises:
+        FileNotFoundError: If file is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -254,6 +303,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load enriched bars and date bounds for backtest execution.
+
+    Args:
+        config: Strategy configuration mapping.
+
+    Returns:
+        Dict with loaded frame and boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -271,6 +328,14 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register analyzers shared by this regression test.
+
+    Args:
+        cerebro: Backtrader engine to receive analyzers.
+
+    Returns:
+        None.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -279,6 +344,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with feed, strategy and analyzers.
+
+    Args:
+        config: Strategy configuration.
+        frame: Backtest payload produced by :func:`load_backtest_frame`.
+
+    Returns:
+        Configured :class:`backtrader.cerebro.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -299,6 +373,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite numeric values, preserving others."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -307,12 +382,24 @@ def finite_or_none(value):
 
 
 def format_metric(value, fmt='.2f'):
+    """Format numeric metric for human-readable output."""
     if value is None:
         return 'N/A'
     return format(value, fmt)
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract the metrics used by this test's assertions.
+
+    Args:
+        strat: Strategy object after run.
+        cerebro: Executed Cerebro instance.
+        frame: Backtest data payload.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of summary metrics and diagnostics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -354,6 +441,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize_metric(value):
+    """Normalize datetime and non-finite numbers for serialization."""
     if isinstance(value, (datetime.datetime, datetime.date)):
         return value.isoformat()
     if isinstance(value, float) and not math.isfinite(value):
@@ -363,6 +451,7 @@ def normalize_metric(value):
 
 
 def run(plot=False):
+    """Run backtest workflow and return strategy output artifacts."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

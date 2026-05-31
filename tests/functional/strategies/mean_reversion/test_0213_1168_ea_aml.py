@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10).
+
+Strategy Principle:
+    EA_AML (Adaptive Market Level) strategy uses a fractal-range adaptive smoothing
+    indicator (AML) to generate entry signals. The AML adapts its smoothing alpha
+    based on market volatility regime (fractal dimension).
+
+Strategy Logic:
+    1. Compute AML indicator from high/low/open/close prices.
+    2. Enter long when AML >= prior open AND AML <= prior close.
+    3. Enter short when AML <= prior open AND AML >= prior close.
+    4. Exit via stop-loss (SL) and take-profit (TP) levels from entry price.
+    5. Optional: reverse position on opposite signal (use_opposite=True).
+    6. Assert bar_num, signal_count, buy/sell counts, trade counts, win/loss,
+       Sharpe, SQN, drawdown, returns.
 """
 from __future__ import annotations
 import math
@@ -85,6 +102,7 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -110,6 +128,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed for MetaTrader5 CSV data (no extra lines)."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -117,6 +136,12 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AdaptiveMarketLevel(bt.Indicator):
+    """Adaptive Market Level indicator using fractal dimension and adaptive smoothing.
+
+    The AML line adapts its smoothing alpha based on the measured fractal
+    dimension of the price range, providing faster response in trending markets
+    and slower response in mean-reverting regimes.
+    """
     lines = ('aml',)
     params = dict(
         fractal=70,
@@ -126,6 +151,7 @@ class AdaptiveMarketLevel(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize history deques and minimum period for the indicator."""
         self._smooth_history = []
         self._aml_history = []
         self._min_period = max(int(self.p.fractal) * 2 + int(self.p.lag), 1)
@@ -140,6 +166,7 @@ class AdaptiveMarketLevel(bt.Indicator):
         return max(highs) - min(lows)
 
     def next(self):
+        """Compute AML value using fractal-range adaptive smoothing."""
         fractal = int(self.p.fractal)
         lag = int(self.p.lag)
         if len(self.data) < self._min_period:
@@ -171,6 +198,12 @@ class AdaptiveMarketLevel(bt.Indicator):
 
 
 class EaAmlStrategy(bt.Strategy):
+    """EA_AML strategy: AML-based entries with SL/TP exits and optional reversal.
+
+    Enters long when AML >= prior open and AML <= prior close.
+    Enters short when AML <= prior open and AML >= prior close.
+    Exits via SL/TP levels; optionally reverses on opposite signal.
+    """
     params = dict(
         lots=0.1,
         tp=3500.0,
@@ -186,6 +219,7 @@ class EaAmlStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize AML indicator, order state, and trade counters."""
         self.aml = AdaptiveMarketLevel(
             self.data,
             fractal=self.p.fractal,
@@ -206,6 +240,7 @@ class EaAmlStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -274,6 +309,7 @@ class EaAmlStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate AML signal, manage pending orders, enter/exit positions."""
         self.bar_num += 1
         if len(self.data) < max(int(self.p.fractal) * 2 + int(self.p.lag), 3):
             return
@@ -312,6 +348,7 @@ class EaAmlStrategy(bt.Strategy):
             self.order = self.close()
 
     def notify_order(self, order):
+        """Handle order completion: set exit levels or clear on fill/cancel."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -326,6 +363,7 @@ class EaAmlStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track buy/sell counts on open, trade counts and win/loss on close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -347,8 +385,8 @@ class EaAmlStrategy(bt.Strategy):
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -374,6 +412,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed for MetaTrader5 CSV data (no extra lines)."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -381,6 +420,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AmlSignalFeed(btfeeds.PandasData):
+    """PandasData feed carrying an AML indicator line."""
     lines = ('aml',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -390,6 +430,7 @@ class AmlSignalFeed(btfeeds.PandasData):
 
 
 def build_aml_signal_frame(df, fractal, lag, point):
+    """Pre-compute AML values and attach as a column to the DataFrame."""
     fractal = max(1, int(fractal))
     lag = max(1, int(lag))
     point = float(point)
@@ -432,6 +473,11 @@ def build_aml_signal_frame(df, fractal, lag, point):
 
 
 class AmlIndicator(bt.Indicator):
+    """Adaptive Market Level indicator for backtrader (on-chart version).
+
+    Uses the same fractal-range adaptive smoothing logic as AdaptiveMarketLevel
+    but implemented as a Backtrader indicator with minperiod management.
+    """
     lines = ('aml',)
     params = dict(
         fractal=70,
@@ -441,6 +487,7 @@ class AmlIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize smoothing deque and minperiod based on fractal and lag."""
         lag = max(1, int(self.p.lag))
         fractal = max(1, int(self.p.fractal))
         self._smooth = deque(maxlen=lag + 1)
@@ -452,6 +499,7 @@ class AmlIndicator(bt.Indicator):
         return max(highs) - min(lows)
 
     def next(self):
+        """Compute AML value using fractal-range adaptive smoothing."""
         fractal = max(1, int(self.p.fractal))
         lag = max(1, int(self.p.lag))
         price = (
@@ -489,6 +537,12 @@ class AmlIndicator(bt.Indicator):
 
 
 class EaAmlStrategy(bt.Strategy):
+    """EA_AML strategy using dual-data (base + AML signal feed) architecture.
+
+    Enters long when AML >= prior open and AML <= prior close.
+    Enters short when AML <= prior open and AML >= prior close.
+    Exits via SL/TP levels; optionally reverses on opposite signal.
+    """
     params = dict(
         lots=0.1,
         tp=3500.0,
@@ -504,6 +558,7 @@ class EaAmlStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize datas, AML reference, order state, and trade counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.aml = self.signal.aml
@@ -521,6 +576,7 @@ class EaAmlStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log message."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -571,6 +627,7 @@ class EaAmlStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate AML signal on dual feeds, manage pending entries, enter/exit positions."""
         self.bar_num += 1
         warmup = max(int(self.p.fractal) * 2 + 2, int(self.p.lag) + 3)
         if len(self.base) < warmup or len(self.signal) < warmup:
@@ -627,6 +684,7 @@ class EaAmlStrategy(bt.Strategy):
             self.order = self.close()
 
     def notify_order(self, order):
+        """Handle order completion: set exit levels or clear pending entry on fill/cancel."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -641,6 +699,7 @@ class EaAmlStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track buy/sell counts on open, trade counts and win/loss on close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -675,6 +734,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve filename relative to BASE_DIR and verify the file exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -682,6 +742,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate XAUUSD M15 data from CSV into a data frame."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -698,6 +759,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro instance with dual feeds and all analyzers."""
     bt_cfg = config['backtest']
     params = dict(config.get('params', {}))
     signal_frame = build_aml_signal_frame(
@@ -732,6 +794,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract all backtest metrics from strategy analyzers and broker state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

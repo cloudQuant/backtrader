@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("ZigZagEvgeTrofi_ver_1") implements a dynamic swing trading mean reversion system based on custom ZigZag pivot signals.
+    - Market Assumptions: Markets fluctuate between structural swing highs and swing lows (pivots). These local pivot reversals can be identified via depth-based filters, prompting mean reverting swing trades.
+    - Indicators:
+        - ZigZagRecentPivotSignal: Custom indicator tracking local pivot age and pivot price breakout channels over depth (17, `depth`), deviation (7, `deviation`), and backstep (5, `backstep`).
+    - Entry Signals:
+        - Buy Entry: A bullish swing pivot occurs within `urgency` bars (2, `urgency`).
+        - Sell Entry: A bearish swing pivot occurs within `urgency` bars (2, `urgency`).
+    - Exit Signals:
+        - Opposing Signal Exit: Close active position immediately if a fresh opposing swing signal occurs.
 """
 from __future__ import annotations
 import math
@@ -23,7 +40,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'ZigZagEvgeTrofi_ver_1',
-        'source_ea': 'ea/0473_ZigZagEvgeTrofi_版本1/zigzagevgetrofi_ver._1.mq5',
+        'source_ea': 'ea/0473_ZigZagEvgeTrofi_Strategy/zigzagevgetrofi_ver._1.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -69,15 +86,29 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +134,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -115,10 +147,18 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ZigZagRecentPivotSignal(bt.Indicator):
+    """Custom indicator tracking local pivot age and pivot price breakout channels.
+
+    Lines:
+        signal (Line): Pivot direction signal line (1 for high, -1 for low).
+        pivot_age (Line): Age of the confirmed pivot in bars.
+        pivot_price (Line): Confirmed pivot price level.
+    """
     lines = ('signal', 'pivot_age', 'pivot_price')
     params = dict(depth=17, deviation=7, backstep=5, point=0.01)
 
     def __init__(self):
+        """Initialize indicator buffers and establish minimum warmup period."""
         self.addminperiod(self.p.depth + self.p.backstep + 2)
         self._last_pivot_type = 0
         self._last_pivot_price = None
@@ -127,6 +167,7 @@ class ZigZagRecentPivotSignal(bt.Indicator):
         self._latest_pivot_price = 0.0
 
     def next(self):
+        """Calculate local ZigZag pivot high and low levels on each new bar."""
         self.lines.signal[0] = 0
         self.lines.pivot_age[0] = self._latest_age if self._latest_age < 999999 else 999999
         self.lines.pivot_price[0] = self._latest_pivot_price
@@ -176,6 +217,11 @@ class ZigZagRecentPivotSignal(bt.Indicator):
 
 
 class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
+    """Strategy class implementing ZigZag swing pivot trading logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         depth=17,
         deviation=7,
@@ -187,6 +233,7 @@ class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.signal_indicator = ZigZagRecentPivotSignal(
             self.data,
             depth=self.p.depth,
@@ -203,6 +250,7 @@ class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
         self.loss_count = 0
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self.data) <= self.p.depth + self.p.backstep + 2:
             return
@@ -230,6 +278,11 @@ class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
             self.order = self.sell(size=self.p.lot)
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -237,10 +290,15 @@ class ZigZagEvgeTrofiVer1Strategy(bt.Strategy):
                 self.buy_count += 1
             elif order.issell() and order.executed.size < 0:
                 self.sell_count += 1
-        if order.status in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected]:
+        if order.status in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected, bt.Order.Expired]:
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -264,6 +322,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -271,6 +340,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -287,6 +367,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -310,6 +399,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -354,7 +454,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -363,7 +467,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     import inspect
     sig = inspect.signature(build_cerebro)
     params = list(sig.parameters.keys())
@@ -376,7 +488,17 @@ def _build_cerebro_compat(inputs, config):
 
 
 def _extract_metrics_compat(strat, cerebro, inputs, config):
-    """Call extract_metrics with whichever signature the original used."""
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
     for args in (
         (strat, cerebro, inputs, config),
         (strat, cerebro, config, inputs),

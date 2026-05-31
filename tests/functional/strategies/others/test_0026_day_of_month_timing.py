@@ -18,6 +18,7 @@ CASH_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "BIL_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5-formatted daily CSV into a datetime-indexed OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -54,6 +55,7 @@ def _signal_day_for_group(group, signal_day):
 
 
 def prepare_day_of_month_timing_inputs(asset_map, params):
+    """Prepare gold/cash aligned signals for day-of-month timing rebalancing."""
     gold_df = asset_map["gold"][["open", "high", "low", "close", "volume", "openinterest"]].copy().sort_index()
     cash_df = asset_map["cash"][["open", "high", "low", "close", "volume", "openinterest"]].copy().sort_index()
     aligned_index = gold_df.index.intersection(cash_df.index).sort_values()
@@ -102,6 +104,7 @@ def prepare_day_of_month_timing_inputs(asset_map, params):
 
 
 class DayOfMonthTimingStrategy(bt.Strategy):
+    """Rotate between gold and cash based on monthly signal-day target allocations."""
     params = dict(
         signal_lookup=None,
         rebalance_threshold=0.05,
@@ -109,6 +112,7 @@ class DayOfMonthTimingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize rebalance state, order list, and data mapping."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -145,6 +149,7 @@ class DayOfMonthTimingStrategy(bt.Strategy):
         self.rebalance_count += 1
 
     def next(self):
+        """Execute periodic rebalance only when signal day and target drift warrant it."""
         self.bar_num += 1
         current_dt = bt.num2date(self.datas[0].datetime[0]).replace(tzinfo=None)
         if self.pending_orders:
@@ -163,11 +168,13 @@ class DayOfMonthTimingStrategy(bt.Strategy):
             self._rebalance(targets)
 
     def notify_order(self, order):
+        """Clear completed orders from the pending rebalance queue."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [pending for pending in self.pending_orders if pending is not None and pending.ref != order.ref]
 
     def notify_trade(self, trade):
+        """Update trade counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

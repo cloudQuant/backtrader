@@ -5,6 +5,27 @@ Test case: PSAR Parabolic SAR indicator.
 
 Reference: backtrader-master2/samples/psar/psar.py
 Tests the Parabolic SAR indicator.
+
+Data Used:
+    Daily OHLC bars from ``2005-2006-day-001.txt`` (the standard backtrader
+    sample file in BacktraderCSVData format), located via resolve_data_path and
+    consumed in full as a single daily feed.
+
+Strategy Principle:
+    A trend-following system built on Welles Wilder's Parabolic SAR, a stop-and-
+    reverse indicator that plots a trailing dot which accelerates toward price as
+    a trend extends. When price closes above the SAR the trend is up (go long)
+    and when it closes below the SAR the trend is down (exit), so the SAR doubles
+    as both the entry trigger and the trailing stop level.
+
+Strategy Logic:
+    PSARStrategy builds a ParabolicSAR indicator. Each bar it skips while an
+    order is pending, then — while flat — buys when close rises above the SAR,
+    or — while long — closes when close falls below the SAR. notify_order counts
+    completed buys/sells and clears the order reference once it settles; stop
+    prints final counters. The parametrized test runs both runonce=True and
+    runonce=False with a fixed stake sizer, then asserts bar count, final value,
+    Sharpe, annual return, and max drawdown against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a trend-following momentum strategy based on the 52-Week High Effect.
+    - Market Assumptions: Gold prices that are nearing their 52-week rolling high boundaries (within 75% to 98% range) but have not yet fully broken out tend to attract strong consensus buying momentum, particularly if the asset is confirmed to be in a long-term bull trend (price > 200 SMA).
+    - Indicators:
+        - rolling_high: 52-week rolling maximum of daily high prices.
+        - ratio: Today's close price divided by rolling_high.
+        - trend_ma: 200-day Simple Moving Average (trend_ma_days).
+        - near_high: True if ratio falls within `lower_threshold` (0.75) and `upper_threshold` (0.98).
+        - trend_filter: True if close price is above trend_ma.
+    - Entry Signals:
+        - Buy Entry: Both near_high and trend_filter are true.
+    - Exit Signals:
+        - Close Entry: Ratio falls below `exit_threshold` (0.7), close price falls below trend_ma, or maximum holding period `max_holding_days` (63 days) is reached.
 """
 from __future__ import annotations
 import math
@@ -57,7 +77,7 @@ _CONFIG = {
     },
     'outputs': {
         'local_result_json': 'backtest_result.json',
-        'global_summary_csv': '../../strategy_backtest_results.csv',
+        'global_summary_csv': '../strategy_backtest_results.csv',
     },
 }
 
@@ -74,15 +94,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -115,6 +153,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_high_effect_features(df, params):
+    """Prepare and compute indicators for the 52-Week High Effect strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback weeks and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing rolling_high, ratio, and signals.
+    """
     out = df.copy()
     lookback_days = int(params.get('lookback_weeks', 26)) * 5
     lower_threshold = float(params.get('lower_threshold', 0.85))
@@ -137,6 +184,7 @@ def prepare_high_effect_features(df, params):
 
 
 class Mt5HighEffectFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with 52-Week High Effect lines."""
     lines = ('rolling_high', 'ratio', 'trend_ma', 'near_high', 'trend_filter', 'entry_signal',)
     params = (
         ('datetime', None),
@@ -156,6 +204,11 @@ class Mt5HighEffectFeed(bt.feeds.PandasData):
 
 
 class High52WeekEffectStrategy(bt.Strategy):
+    """Strategy class implementing Golden Cross crossover trend-following logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lookback_weeks=26,
         lower_threshold=0.85,
@@ -167,6 +220,7 @@ class High52WeekEffectStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -183,6 +237,15 @@ class High52WeekEffectStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -197,6 +260,7 @@ class High52WeekEffectStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if float(self.data.near_high[0]) > 0.5:
@@ -226,12 +290,22 @@ class High52WeekEffectStrategy(bt.Strategy):
             self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.target_percent)))
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
-        # 无论订单状态如何，都清除挂单引用
+        # Clear pending order references regardless of order status
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -250,6 +324,14 @@ BASE_DIR = Path(__file__).resolve().parent
 TRADING_DAYS_PER_YEAR = 252
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -263,6 +345,17 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -270,6 +363,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 daily bar data and prepare 52-Week High Effect features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        pd.DataFrame: Feature-enriched daily market data.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     raw = load_mt5_csv(
@@ -286,6 +390,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (pd.DataFrame): Loaded and processed DataFrame.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -307,6 +420,14 @@ def build_cerebro(config, frame):
 
 
 def normalize(value):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        value (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if hasattr(value, 'isoformat'):
@@ -318,6 +439,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -326,6 +455,14 @@ def finite_or_none(value):
 
 
 def ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if not values:
         return 0.0
     peak = values[0]
@@ -339,7 +476,17 @@ def ulcer_index(values):
 
 
 def extract_metrics(strat, cerebro, frame, config):
-    """提取回测指标 - 参考 trend_pullback 实现"""
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (pd.DataFrame): Feature-enriched daily market data.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -350,7 +497,7 @@ def extract_metrics(strat, cerebro, frame, config):
     final_value = cerebro.broker.getvalue()
     broker_values = [v for _, v in getattr(strat, 'broker_value_series', [])] or [initial_cash, final_value]
     
-    # 从 TradeAnalyzer 获取交易统计
+    # Extract trade stats from TradeAnalyzer
     total_trades = ta.get('total', {}).get('total', 0)
     won = ta.get('won', {}).get('total', 0)
     lost = ta.get('lost', {}).get('total', 0)
@@ -391,6 +538,12 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def save_outputs(config, metrics):
+    """Save performance metrics to global results and individual backtest files.
+
+    Args:
+        config (dict): Backtest configuration.
+        metrics (dict): Performance metrics dictionary.
+    """
     local_path = (BASE_DIR / config['outputs']['local_result_json']).resolve()
     with open(local_path, 'w', encoding='utf-8') as f:
         json.dump({k: normalize(v) for k, v in metrics.items()}, f, ensure_ascii=False, indent=2)
@@ -418,6 +571,14 @@ def save_outputs(config, metrics):
 
 
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -441,64 +602,16 @@ def _close(actual, expected, *, tol, key):
     )
 
 
-def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    if hasattr(_mod, "main") and callable(_mod.main):
-        return _mod.main()
-    if hasattr(_mod, "run") and callable(_mod.run):
-        return _mod.run()
-    raise RuntimeError("Neither main() nor run() found in inlined module")
-
-
 def test_14_0014_52week_high_effect() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/momentum/0014_52week_high_effect.
     """
-    # Capture metrics by hooking extract_metrics() and invoking the original
-    # main() (or run()). This reuses whatever loader / build_cerebro /
-    # extract_metrics signatures the strategy used internally.
-    captured = {}
-    _orig_extract = extract_metrics
-    def _capture_em(*a, **kw):
-        m = _orig_extract(*a, **kw)
-        if isinstance(m, dict):
-            captured["metrics"] = m
-        return m
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    _mod.extract_metrics = _capture_em
-
-    # Force runonce=True for the run inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so that argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            _invoke_strategy_main()
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        _mod.extract_metrics = _orig_extract
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "extract_metrics() was not called"
+    config = load_config()
+    inputs = load_backtest_frame(config)
+    cerebro = build_cerebro(config, inputs)
+    results = cerebro.run(runonce=True)
+    metrics = extract_metrics(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4439, f"bar_num: expected=4439, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 98, f"buy_count: expected=98, got={metrics.get('buy_count')!r}"

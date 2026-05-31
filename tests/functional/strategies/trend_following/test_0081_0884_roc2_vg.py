@@ -7,6 +7,29 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Instrument: XAUUSD
+    - Timeframe: M15 primary bars and H4 signal aggregation
+    - Data file: tests/datas/XAUUSD_M15.csv
+    - Period: 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+    - Preprocessing: parse MT5 export, shift bar times by 15 minutes, optional
+      resample to 240-minute signal frame, then filter to date bounds.
+
+Strategy Principle:
+    - Build an ROC2-VG indicator with two configurable ROC series on the
+      H4 timeframe.
+    - Generate trade signals from ROC pair crossovers under configurable direction
+      and operation flags.
+    - Apply explicit stop-loss and take-profit points to protect each open trade.
+
+Strategy Logic:
+    - Prepare primary and higher-timeframe signal feeds.
+    - Compute ROC1/ROC2 in the indicator, evaluate crossover with an optional
+      invert flag in ``next``.
+    - Close conditions are checked before new entries.
+    - On order events update counters, trade result counters, and run assertions
+      against expected snapshot metrics.
 """
 from __future__ import annotations
 import math
@@ -89,6 +112,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated bars for backtest input.
+
+    Args:
+        filepath: Path to MT5-style CSV data export.
+        fromdate: Optional inclusive lower datetime.
+        todate: Optional inclusive upper datetime.
+        bar_shift_minutes: Optional minute shift applied to bar timestamps.
+
+    Returns:
+        pd.DataFrame: Standardized OHLCV dataframe indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +144,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping for MT5 OHLCV columns in this script."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -141,6 +176,7 @@ class ROC2VGIndicator(bt.Indicator):
     params = dict(roc_period1=8, roc_type1=1, roc_period2=14, roc_type2=1)
 
     def __init__(self):
+        """Initialize ROC periods and required minimum history window."""
         self._p1 = int(self.p.roc_period1)
         self._p2 = int(self.p.roc_period2)
         self._t1 = int(self.p.roc_type1)
@@ -148,6 +184,7 @@ class ROC2VGIndicator(bt.Indicator):
         self.addminperiod(max(self._p1, self._p2) + 2)
 
     def next(self):
+        """Populate ``roc1`` and ``roc2`` for the current bar."""
         price = float(self.data.close[0])
 
         if self._p1 < len(self.data):
@@ -186,6 +223,7 @@ class ExpROC2VGStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator binding, counters, and internal state flags."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = ROC2VGIndicator(
@@ -204,6 +242,11 @@ class ExpROC2VGStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped strategy log line.
+
+        Args:
+            text: Message text to print.
+        """
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -231,6 +274,7 @@ class ExpROC2VGStrategy(bt.Strategy):
         return 0.0 if math.isnan(v) else v
 
     def next(self):
+        """Evaluate exit conditions and cross-signal entry conditions each bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -285,6 +329,11 @@ class ExpROC2VGStrategy(bt.Strategy):
             if self.position.size >= 0: self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Track position opens and close outcomes.
+
+        Args:
+            trade: Backtrader trade callback object.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -305,11 +354,27 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a relative path under the current test directory.
+
+    Args:
+        fn: Relative file name.
+
+    Returns:
+        pathlib.Path: Absolute path.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Build backtest data frame and carry metadata window bounds.
+
+    Args:
+        cfg: Migration config object.
+
+    Returns:
+        dict: Backtest context containing DataFrame and date range.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -319,6 +384,15 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Resample main bars into a signal timeframe data frame.
+
+    Args:
+        df: Base OHLCV dataframe.
+        mins: Resample minutes for signal generation.
+
+    Returns:
+        pd.DataFrame: Resampled OHLCV dataframe.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -326,6 +400,15 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Configure Cerebro with dual feeds, strategy, and standard analyzers.
+
+    Args:
+        cfg: Migration config with strategy/backtest settings.
+        frame: Loaded frame context from :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured engine.
+    """
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 240)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -345,6 +428,17 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Collect analyzer outputs and runtime counters as regression metrics.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Backtrader engine after execution.
+        frame: Backtest frame context.
+        cfg: Migration config.
+
+    Returns:
+        dict: Normalized metric dictionary for assertion.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -359,6 +453,14 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Execute backtest for this inlined strategy script.
+
+    Args:
+        plot: Whether to render a chart after execution.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)

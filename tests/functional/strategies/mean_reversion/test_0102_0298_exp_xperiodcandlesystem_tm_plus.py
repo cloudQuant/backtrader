@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 data from ``tests/datas/XAUUSD_M15.csv``.
+    Bars are shifted forward by 15 minutes and the backtest window covers
+    2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    Port of ``Exp XPeriodCandleSystem Tm Plus``. A smoothed candle and
+    Bollinger-band logic produces color states and breakout transitions.
+
+Strategy Logic:
+    Data is loaded via ``load_backtest_frame`` and fed to M15 execution data
+    plus a resampled signal data stream in ``build_cerebro``.
+    The strategy handles bracketed entries/exits on color transitions, time-based
+    exits, and tracks order/trade lifecycle in callbacks.
 """
 from __future__ import annotations
 import math
@@ -84,6 +99,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +126,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -124,10 +141,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class XPeriodCandleColor(bt.Indicator):
+    """SMA-smoothed candle color indicator with Bollinger Band breakout detection."""
     lines = ('color_idx', 'upper', 'lower', 'xopen', 'xclose')
     params = dict(period=5, bb_length=20, bands_deviation=1.001)
 
     def __init__(self):
+        """Initialize SMA smoothing of OHLC and Bollinger Band components."""
         self.smooth_open = bt.indicators.SimpleMovingAverage(self.data.open, period=self.p.period)
         self.smooth_high = bt.indicators.SimpleMovingAverage(self.data.high, period=self.p.period)
         self.smooth_low = bt.indicators.SimpleMovingAverage(self.data.low, period=self.p.period)
@@ -136,6 +155,7 @@ class XPeriodCandleColor(bt.Indicator):
         self.std = bt.indicators.StandardDeviation(self.smooth_close, period=self.p.bb_length)
 
     def next(self):
+        """Assign color index based on smoothed candle direction and Bollinger Band position."""
         xopen = float(self.smooth_open[0])
         xclose = float(self.smooth_close[0])
         upper = float(self.mid[0] + self.std[0] * self.p.bands_deviation)
@@ -157,6 +177,7 @@ class XPeriodCandleColor(bt.Indicator):
 
 
 class ExpXPeriodCandleSystemTmPlusStrategy(bt.Strategy):
+    """SMA-smoothed candle color breakout strategy with Bollinger Bands and timed bracket exits."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -175,6 +196,7 @@ class ExpXPeriodCandleSystemTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.channel = XPeriodCandleColor(
@@ -192,6 +214,7 @@ class ExpXPeriodCandleSystemTmPlusStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log message with the current execution bar datetime."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -229,6 +252,7 @@ class ExpXPeriodCandleSystemTmPlusStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse=None')
 
     def next(self):
+        """Evaluate candle color transitions to enter/exit trades with time-based exits."""
         if len(self.signal_feed) < self.p.period + self.p.bb_length + self.p.signal_bar + 2:
             return
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
@@ -265,6 +289,7 @@ class ExpXPeriodCandleSystemTmPlusStrategy(bt.Strategy):
                 self._submit_entry('short', 'xperiod leave bearish breakout color')
 
     def notify_order(self, order):
+        """Track order lifecycle: clear references on fill/cancel, record entry and close state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -303,6 +328,7 @@ class ExpXPeriodCandleSystemTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log trade close events and reset active-side state when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -321,6 +347,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a filename relative to the test file directory.
+
+    Args:
+        filename: Filename configured under data section.
+
+    Returns:
+        Absolute path to file.
+
+    Raises:
+        FileNotFoundError: If file path cannot be resolved.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -328,12 +365,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO date strings used by the config.
+
+    Args:
+        value: Optional ISO-format datetime string.
+
+    Returns:
+        Parsed ``datetime`` object or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and prepare the backtest data frame from the config's path and date range.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        A dict with loaded DataFrame under key ``data``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -345,6 +398,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register standard analyzers used by this regression.
+
+    Args:
+        cerebro: The configured ``bt.Cerebro`` object.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -353,6 +411,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct a configured Cerebro instance with broker and strategy bindings.
+
+    Args:
+        config: Backtest and strategy configuration.
+        frame: Backtest frame dictionary from ``load_backtest_frame``.
+
+    Returns:
+        Ready-to-run ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -369,6 +436,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize metric outputs by filtering out non-finite numeric values.
+
+    Args:
+        value: Input numeric value.
+
+    Returns:
+        ``None`` for ``None``/NaN/inf, otherwise original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -377,6 +452,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact metrics summary after a Backtrader run.
+
+    Args:
+        results: Backtrader results list.
+        start_value: Initial portfolio value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -403,6 +484,13 @@ def summarize(results, start_value):
 
 
 def main():
+    """Execute the inlined strategy backtest from CLI.
+
+    Parses ``--plot`` and runs Backtrader with run-once disabled by default.
+
+    Returns:
+        ``None``.
+    """
     parser = argparse.ArgumentParser(description='Run Exp XPeriod Candle System Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

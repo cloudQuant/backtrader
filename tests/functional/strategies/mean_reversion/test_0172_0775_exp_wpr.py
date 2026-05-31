@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) base timeframe, loaded from
+    the MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each base bar is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at close, and a second feed is built
+    by resampling to 240-minute (H4) bars for the Williams %R signal, so the
+    strategy runs on two synchronized feeds (M15 execution, H4 signal).
+
+Strategy Principle:
+    This is the "Exp_WPR" strategy, which times entries off the Williams %R
+    oscillator computed on H4 bars. When %R crosses its oversold/overbought
+    levels it generates open/close signals; the ``trend`` flag (DIRECT or
+    reverse) decides whether to follow or fade the crossing. Each position is
+    protected by fixed point-based stop-loss and take-profit distances scaled by
+    a digits-adjusted point unit.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame and resamples it to H4;
+    build_cerebro wires the M15 and H4 feeds, a fixed-commission futures broker,
+    the strategy, the analyzers, and an optional TradeLogger observer. The
+    strategy builds the H4 Williams %R in __init__ and, each bar after enough
+    history, first manages stop/take-profit exits, then—once per new H4 signal
+    bar—evaluates the crossing signals to close or open long/short positions with
+    fixed risk prices. notify_order counts entry fills and resets risk state on
+    close, while notify_trade tallies wins/losses. extract_metrics consolidates
+    analyzer output, and the test forces runonce=True, runs the module's run(),
+    and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -90,6 +118,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset added to each timestamp so the
+            bar is stamped at its close.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +152,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser bar size.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        rule: A pandas resample rule string (e.g. ``'240min'``).
+
+    Returns:
+        A resampled OHLCV DataFrame (right label, right closed) with warm-up rows
+        lacking OHLC dropped and openinterest gaps filled with zero.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -125,6 +176,8 @@ def resample_frame(df, rule):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the standard OHLCV columns for both timeframes."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -132,6 +185,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ExpWprStrategy(bt.Strategy):
+    """Trade Williams %R level crossings on H4 with fixed SL/TP on M15."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -153,6 +208,7 @@ class ExpWprStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15/H4 feeds, build the H4 Williams %R, and reset state."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.wpr = bt.indicators.WilliamsR(self.h4, period=self.p.wpr_period)
@@ -171,6 +227,11 @@ class ExpWprStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped strategy log line.
+
+        Args:
+            text: Message to print with the current bar timestamp.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -251,6 +312,7 @@ class ExpWprStrategy(bt.Strategy):
         self.current_side = side
 
     def next(self):
+        """Run per-bar logic: enforce risk, gate duplicated H4 signals, and open/close."""
         self.bar_num += 1
         if not self._enough_history():
             return
@@ -289,6 +351,7 @@ class ExpWprStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Handle order state transitions and reset risk parameters on close."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -309,6 +372,7 @@ class ExpWprStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Accumulate trade outcome counters when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -334,6 +398,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve an input filename relative to the strategy test directory.
+
+    Args:
+        filename: Relative filename from configuration.
+
+    Returns:
+        Path: Absolute filesystem path for the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -341,6 +416,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and resample data into execution and signal frames.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        dict: Bundle with M15 data, H4 signal data, and date bounds.
+
+    Raises:
+        ValueError: If M15 data is empty after filtering.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -353,6 +439,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create a Backtrader engine with dual feeds, strategy, analyzers, and observers.
+
+    Args:
+        config: Test configuration containing strategy/backtest settings.
+        frame: Loaded dataframes and metadata prepared by ``load_backtest_frames``.
+
+    Returns:
+        bt.Cerebro: Configured execution engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -385,6 +480,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect benchmark and trade metrics from a finished backtest.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Engine containing broker state and analyzers.
+        frame: Backtest frame bundle.
+        config: Test configuration.
+
+    Returns:
+        dict: Dictionary used by migration assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -422,6 +528,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run strategy backtest and return results, metrics, and engine.
+
+    Args:
+        plot: Whether to plot after run.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

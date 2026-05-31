@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Minute bars from `tests/datas/XAUUSD_M15.csv`.
+    - Execution timeframe is M15 from 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - Build two configurable moving averages (default EMA 13/34) with shifts.
+    - Detect directional cross with minimum distance and momentum filters.
+    - Enter breakout direction, then apply stop-loss, take-profit, and trailing stop logic.
+
+Strategy Logic:
+    - `load_mt5_csv()` reads raw MT5 data and applies session timestamp shifting.
+    - `build_cerebro()` wires indicators, strategy, and analyzers.
+    - `CrossingMovingAverageStrategy.next()` evaluates MA crossover and momentum states.
+    - Orders are managed via entry/close helpers and lifecycle callbacks.
 """
 from __future__ import annotations
 import math
@@ -23,7 +38,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Crossing Moving Average',
-        'source_ea': 'ea/0300_移动平均线交�?crossing_moving_average.mq5',
+        'source_ea': 'ea/0300_crossing_moving_average.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -82,6 +97,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated CSV and normalize it for Backtrader usage.
+
+    Args:
+        filepath (str | Path): Source csv path.
+        fromdate (datetime | None): Optional starting datetime filter.
+        todate (datetime | None): Optional ending datetime filter.
+        bar_shift_minutes (int): Minutes to shift bar timestamps when required.
+
+    Returns:
+        pandas.DataFrame: Time-indexed dataframe with OHLCV/spread fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -108,6 +134,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom feed exposing spread as additional line for backtest."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -122,6 +149,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class CrossingMovingAverageStrategy(bt.Strategy):
+    """Crossing moving-average trend strategy with momentum gating and exits."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -140,6 +168,7 @@ class CrossingMovingAverageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order state, and position context."""
         self.data0_feed = self.datas[0]
         ma_cls = bt.indicators.ExponentialMovingAverage if str(self.p.ma_method).lower() == 'ema' else bt.indicators.SimpleMovingAverage
         self.ma_first = ma_cls(self.data0_feed.close, period=self.p.ma_first_period)
@@ -154,6 +183,7 @@ class CrossingMovingAverageStrategy(bt.Strategy):
         self.limit_price = None
 
     def log(self, text):
+        """Log a timestamped strategy event."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -250,6 +280,7 @@ class CrossingMovingAverageStrategy(bt.Strategy):
                     self.log(f'UPDATE SHORT TRAIL stop={self.stop_price:.5f}')
 
     def next(self):
+        """Evaluate signal transitions and open/close/reverse positions each bar."""
         if len(self.data0_feed) < self._minimum_bars():
             return
         if self._check_exit_thresholds():
@@ -272,6 +303,7 @@ class CrossingMovingAverageStrategy(bt.Strategy):
             self._submit_entry('short', 'ma bearish cross with momentum filter')
 
     def notify_order(self, order):
+        """Track fill/cancel states and apply pending reversals."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -298,6 +330,7 @@ class CrossingMovingAverageStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Record closed-trade lifecycle events and clear active side."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -317,6 +350,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path relative to the current test file directory.
+
+    Args:
+        filename (str): Relative filename from config.
+
+    Returns:
+        Path: Absolute filesystem path for the data source.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -324,12 +365,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO timestamp strings to datetime.
+
+    Args:
+        value (str | None): ISO datetime or falsy value.
+
+    Returns:
+        datetime.datetime | None: Parsed datetime object.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load backtest data and emit basic data availability diagnostics.
+
+    Args:
+        config (dict): Strategy config containing data bounds.
+
+    Returns:
+        dict: Backtest frame with at least key `data`.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -341,6 +398,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach sharpe, return, drawdown, trade, and SQN analyzers.
+
+    Args:
+        cerebro (bt.Cerebro): Configured engine instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -349,6 +411,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine with strategy and analyzers attached.
+
+    Args:
+        config (dict): Strategy/backtest settings.
+        frame (dict): Prepared bar data frame.
+
+    Returns:
+        bt.Cerebro: Engine ready for run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -363,6 +434,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return a finite scalar value, otherwise ``None``.
+
+    Args:
+        value: Candidate scalar.
+
+    Returns:
+        Optional[float]: Input when finite; otherwise ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -371,6 +450,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Summarize and print key backtest metrics for local inspection.
+
+    Args:
+        results (list): Results from `cerebro.run()`.
+        start_value (float): Starting cash before running the strategy.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -397,6 +482,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run strategy with optional plotting."""
     parser = argparse.ArgumentParser(description='Run Crossing Moving Average backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

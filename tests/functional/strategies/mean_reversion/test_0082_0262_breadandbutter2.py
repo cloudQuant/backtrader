@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest period is ``2025-12-03 01:15:00`` through ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Combines a safe ADX estimator and a safe AMA trend filter to find directional
+    transitions.
+
+Strategy Logic:
+    Load and clean MT5 bars, run custom indicators, place bracketed entries on
+    cross signals, close opposite positions on flips, optionally reverse, and
+    validate regression metrics.
 """
 from __future__ import annotations
 import math
@@ -77,6 +90,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV file and normalize to OHLCV DataFrame.
+
+    Args:
+        filepath: Path to CSV/TSV data.
+        fromdate: Optional datetime lower bound.
+        todate: Optional datetime upper bound.
+        bar_shift_minutes: Optional timestamp shift.
+
+    Returns:
+        Datetime-indexed pandas DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -103,6 +127,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed including spread data."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -117,13 +142,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SafeADX(bt.Indicator):
+    """ADX indicator implementation without division by zero pitfalls."""
     lines = ('adx',)
     params = dict(period=14)
 
     def __init__(self):
+        """Set minimum lookback period."""
         self.addminperiod(self.p.period + 3)
 
     def next(self):
+        """Compute safe directional movement and ADX-like intensity."""
         pdm_vals = []
         mdm_vals = []
         tr_vals = []
@@ -155,14 +183,17 @@ class SafeADX(bt.Indicator):
 
 
 class SafeAMA(bt.Indicator):
+    """Adaptive moving average indicator with safe initialization."""
     lines = ('ama',)
     params = dict(period=9, fast_period=2, slow_period=30)
 
     def __init__(self):
+        """Initialize adaptive moving average state and warm-up window."""
         self._prev = None
         self.addminperiod(self.p.period + 3)
 
     def next(self):
+        """Update AMA based on efficiency ratio and smoothing."""
         if len(self) == 0 or self._prev is None:
             self._prev = float(self.data.close[0])
             self.lines.ama[0] = self._prev
@@ -181,6 +212,7 @@ class SafeAMA(bt.Indicator):
 
 
 class BreadAndButter2Strategy(bt.Strategy):
+    """ADXMAMA strategy with fixed-position entries and bracket exits."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -193,6 +225,7 @@ class BreadAndButter2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order state, and bar tracking."""
         self.data0_feed = self.datas[0]
         self.adx = SafeADX(self.data0_feed, period=self.p.adx_period)
         self.ama = SafeAMA(self.data0_feed, period=self.p.ama_period, fast_period=self.p.ama_fast_period, slow_period=self.p.ama_slow_period)
@@ -206,10 +239,16 @@ class BreadAndButter2Strategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Output a timestamped log line.
+
+        Args:
+            text: Message content.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Reuse next() during startup bar processing."""
         self.next()
 
     def _new_bar(self):
@@ -255,6 +294,7 @@ class BreadAndButter2Strategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate ADX/AMA relationships and trigger entries/exits."""
         if len(self.data0_feed) < max(self.p.adx_period, self.p.ama_period) + 5:
             return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
@@ -286,6 +326,11 @@ class BreadAndButter2Strategy(bt.Strategy):
             self._submit_entry('short', 'adx up and ama down')
 
     def notify_order(self, order):
+        """Track completed/canceled order events."""
+        """
+        Args:
+            order: Order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -324,6 +369,7 @@ class BreadAndButter2Strategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log trade close and clear side state."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.closing_side or self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -342,6 +388,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path relative to this test module.
+
+    Args:
+        filename: Relative data path.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -349,12 +403,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse datetime string from configuration.
+
+    Args:
+        value: String or None.
+
+    Returns:
+        Parsed datetime or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and return cleaned DataFrame for configured period."""
+    """
+    Args:
+        config: Inline strategy configuration.
+
+    Returns:
+        Dict with key ``data``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -366,6 +436,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers for migration assertions."""
+    """
+    Args:
+        cerebro: Backtrader engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -374,6 +449,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Backtrader engine and strategy."""
+    """
+    Args:
+        config: Inline config object.
+        frame: Loaded data bundle.
+
+    Returns:
+        Configured :class:`backtrader.Cerebro`.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -388,6 +472,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert missing or non-finite values to ``None``."""
+    """
+    Args:
+        value: Numeric value.
+
+    Returns:
+        None when invalid, else value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -396,6 +488,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print backtest summary including return and drawdown metrics."""
+    """
+    Args:
+        results: Cerebro run output.
+        start_value: Initial portfolio value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -422,6 +520,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the inlined test backtest and optionally plot."""
     parser = argparse.ArgumentParser(description='Run Breadandbutter2 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

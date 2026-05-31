@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10).
+
+Strategy Principle:
+    Sinewave2 strategy uses Ehlers-style sine wave indicators computed from
+    cycle period detection to generate entry signals based on the relationship
+    between the main sine wave and its leading (signal) component.
+
+Strategy Logic:
+    1. Compute cycle period using a high/low median filter with alpha smoothing.
+    2. Compute dual sine wave components (main_line and signal_line) from cycle phase.
+    3. Enter long when fast signal crosses above fast main while in a bullish slow trend.
+    4. Enter short when fast signal crosses below fast main while in a bearish slow trend.
+    5. Exit via stop-loss and take-profit levels from entry price.
+    6. Assert bar_num, buy/sell counts, trade counts, win/loss, Sharpe, SQN, drawdown.
 """
 from __future__ import annotations
 import math
@@ -85,12 +101,20 @@ def load_config(*args, **kwargs):
 
 
 class RingIndex:
+    """Cyclic ring buffer for indexing a fixed-size window over a series.
+
+    The ring advances one step per bar, wrapping around when it reaches the end,
+    enabling O(1) access to the most recent N values of a series.
+    """
+
     def __init__(self, size):
+        """Initialize the ring buffer with the given size."""
         self.size = size
         self.count = 1
         self.map = [0] * size
 
     def rotate(self):
+        """Advance the ring by one step, wrapping the count and remapping indices."""
         self.count -= 1
         if self.count < 0:
             self.count = self.size - 1
@@ -102,6 +126,7 @@ class RingIndex:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -133,6 +158,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData wrapper adding a spread field for MT5 feed alignment."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -147,6 +173,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SinewaveFeed(bt.feeds.PandasData):
+    """PandasData wrapper exposing sine-wave indicator lines for signal feeds."""
     lines = ('main_line', 'signal_line')
     params = (
         ('datetime', None),
@@ -162,6 +189,7 @@ class SinewaveFeed(bt.feeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample a DataFrame to a higher timeframe using specified minute rule."""
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -177,6 +205,12 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def compute_cycle_period(highs, lows, alpha):
+    """Compute the Ehlers-style cycle period series from high/low prices.
+
+    Uses a median-of-delta-phase filter to estimate the dominant cycle period,
+    then applies a one-pole high-pass filter and super-smoother to produce
+    a smooth cycle period series.
+    """
     k0 = (1.0 - 0.5 * alpha) ** 2
     k1 = 2.0
     k2 = k1 * (1.0 - alpha)
@@ -248,6 +282,11 @@ def compute_cycle_period(highs, lows, alpha):
 
 
 def compute_sinewave2(df, alpha):
+    """Compute the Sinewave2 (Ehlers) indicator: main_line and signal_line.
+
+    Uses the computed cycle period to form a sine wave from the dominant cycle phase,
+    returning both the sine wave and its 45-degree lead (signal line).
+    """
     cycle_period = compute_cycle_period(df['high'], df['low'], alpha)
     max_period = 50
     count = RingIndex(max_period)
@@ -320,6 +359,7 @@ def compute_sinewave2(df, alpha):
 
 
 def build_sinewave_frame(df, indicator_minutes, alpha):
+    """Build a DataFrame with OHLCV and sine wave indicator columns at the given timeframe."""
     signal_df = build_resampled_frame(df, indicator_minutes)
     main_line, signal_line = compute_sinewave2(signal_df, alpha)
     signal_df = signal_df.copy()
@@ -330,6 +370,22 @@ def build_sinewave_frame(df, indicator_minutes, alpha):
 
 
 class ExpSinewave2X2Strategy(bt.Strategy):
+    """Dual-timeframe sinewave strategy with trend confirmation and signal crossovers.
+
+    Args:
+        fixed_lot: Constant lot size for each entry order.
+        point_size: Point increment size used for stop-loss and take-profit distances.
+        stop_loss_points: Distance in points for protective stop placement.
+        take_profit_points: Distance in points for take-profit placement.
+        buy_pos_open: Allow opening new long positions.
+        sell_pos_open: Allow opening new short positions.
+        buy_pos_close_trend: Permit long exit when trend turns bearish.
+        sell_pos_close_trend: Permit short exit when trend turns bullish.
+        buy_pos_close_signal: Permit long exit when fast signal indicates exit condition.
+        sell_pos_close_signal: Permit short exit when fast signal indicates exit condition.
+        alpha_slow: Smoothing parameter for slow sine-wave/ cycle estimation.
+        alpha_fast: Smoothing parameter for fast sine-wave/cycle estimation.
+    """
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -346,6 +402,7 @@ class ExpSinewave2X2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state: data feeds, orders, position tracking, and trade counters."""
         self.data0_feed = self.datas[0]
         self.slow_feed = self.datas[1]
         self.fast_feed = self.datas[2]
@@ -361,16 +418,19 @@ class ExpSinewave2X2Strategy(bt.Strategy):
         self.last_fast_dt = None
 
     def log(self, text):
+        """Print a timestamped log message for order and trade events."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _submit_close(self, reason):
+        """Submit a close (flatten) order if a position exists and no close order is pending."""
         if not self.position or self.close_order is not None:
             return
         self.close_order = self.close()
         self.log(f'CLOSE side={self.active_side} reason={reason}')
 
     def _submit_close_side(self, side, reason):
+        """Close an open position only if its side matches the requested side."""
         if not self.position:
             return
         if side == 'long' and self.position.size <= 0:
@@ -380,6 +440,7 @@ class ExpSinewave2X2Strategy(bt.Strategy):
         self._submit_close(reason)
 
     def _submit_entry(self, side, reason):
+        """Submit an entry order (long or short) with SL/TP price tracking."""
         if self.entry_order is not None or self.close_order is not None:
             self.pending_side = side
             return
@@ -403,6 +464,7 @@ class ExpSinewave2X2Strategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size} reason={reason}')
 
     def _check_protective_exit(self):
+        """Check and trigger SL/TP protective exit on the current bar."""
         if not self.position or self.close_order is not None:
             return
         bar_high = float(self.data0_feed.high[0])
@@ -423,6 +485,7 @@ class ExpSinewave2X2Strategy(bt.Strategy):
                 return
 
     def next(self):
+        """Evaluate trend, generate signal-based entry/exit on each bar."""
         if len(self.data0_feed) < 10 or len(self.slow_feed) < 2 or len(self.fast_feed) < 2:
             return
         self._check_protective_exit()
@@ -468,6 +531,7 @@ class ExpSinewave2X2Strategy(bt.Strategy):
                 self._submit_entry('long', 'slow trend bullish and fast signal crossed below fast main')
 
     def notify_order(self, order):
+        """Handle order status changes: fill, cancellation, margin, rejection."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -502,6 +566,7 @@ class ExpSinewave2X2Strategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Log closed trade PnL and reset position state when trade closes."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -522,6 +587,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to the test directory, raising if not found."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -529,12 +595,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO-format datetime string, returning None for empty/falsy values."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load base and indicator DataFrames from the CSV source per the config dict."""
     data_cfg = config['data']
     params_cfg = config.get('params', {})
     fromdate = parse_dt(data_cfg.get('fromdate'))
@@ -550,6 +618,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach Sharpe, Returns, DrawDown, TradeAnalyzer, and SQN analyzers."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -558,6 +627,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Instantiate Cerebro, configure broker, add feeds/strategy/analyzers, return Cerebro instance."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -579,6 +649,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None if value is None or non-finite; otherwise return the value unchanged."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -587,6 +658,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Extract and print a human-readable backtest summary from strategy analyzers."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -615,6 +687,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI args, load data, run backtest, print summary, optionally plot."""
     parser = argparse.ArgumentParser(description='Run Exp_Sinewave2_X2 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

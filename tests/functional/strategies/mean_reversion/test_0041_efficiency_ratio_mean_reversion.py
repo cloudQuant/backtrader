@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD daily OHLCV in ``tests/datas/XAUUSD_1d.csv`` from 2008-01-01 to
+    2025-12-31.
+
+Strategy Principle:
+    Combines Efficiency Ratio and RSI filters to enter during oversold and low
+    efficiency periods, then exits after holding duration without dynamic exit
+    targets.
+
+Strategy Logic:
+    Calculate ER and RSI features, build entry/exit signals, feed through a
+    custom PandasData stream, execute trades on confirmed entries, and validate
+    analyzer metrics through regression assertions.
 """
 from __future__ import annotations
 import math
@@ -78,6 +92,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV OHLCV data.
+
+    Args:
+        filepath: CSV file path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+
+    Returns:
+        Datetime-indexed dataframe with OHLCV fields.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,7 +128,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(close, period=2):
-    """计算RSI指标"""
+    """Calculate RSI from a close price series.
+
+    Args:
+        close: Close price series.
+        period: RSI period.
+
+    Returns:
+        RSI series.
+    """
     delta = close.diff()
     gain = delta.where(delta > 0, 0)
     loss = (-delta).where(delta < 0, 0)
@@ -116,7 +148,15 @@ def calculate_rsi(close, period=2):
 
 
 def calculate_efficiency_ratio(close, period=10):
-    """计算效率比率"""
+    """Compute efficiency ratio over rolling lookback.
+
+    Args:
+        close: Close price series.
+        period: Lookback period.
+
+    Returns:
+        Efficiency ratio series scaled to 0-100.
+    """
     total_change = abs(close - close.shift(period))
     daily_change = abs(close.diff())
     sum_daily_change = daily_change.rolling(window=period).sum()
@@ -125,30 +165,38 @@ def calculate_efficiency_ratio(close, period=10):
 
 
 def prepare_efficiency_ratio_mean_reversion_features(df, params):
-    """准备效率比率均值回归策略特征"""
+    """Prepare features combining efficiency ratio and RSI states.
+
+    Args:
+        df: Raw OHLCV dataframe.
+        params: Strategy params.
+
+    Returns:
+        Feature dataframe with ER, RSI, and signals.
+    """
     out = df.copy()
     er_period = int(params.get('er_period', 10))
     er_threshold = float(params.get('er_threshold', 50))
     rsi_period = int(params.get('rsi_period', 2))
     rsi_oversold = float(params.get('rsi_oversold', 10))
     
-    # 计算效率比率
+    # Compute efficiency ratio.
     out['er'] = calculate_efficiency_ratio(out['close'], er_period)
     
-    # 计算ER移动平均
+    # Compute ER moving average for context.
     out['er_ma'] = out['er'].rolling(window=er_period).mean()
     
-    # 计算RSI
+    # Compute RSI values.
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
     
-    # 低ER条件（震荡市场）
+    # Low-ER regime indicates choppy market.
     out['low_er'] = (out['er'] < er_threshold).astype(float)
     
-    # 入场信号：RSI超卖 + 低ER
+    # Enter when RSI is oversold and ER is low.
     out['entry_signal'] = ((out['rsi'] < rsi_oversold) & 
                            (out['low_er'] > 0.5)).astype(float)
     
-    # 出场信号：持有N天后
+    # Exit signal is handled by holding duration in this strategy.
     out['exit_signal'] = 0.0
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -157,6 +205,7 @@ def prepare_efficiency_ratio_mean_reversion_features(df, params):
 
 
 class Mt5EfficiencyRatioMeanReversionFeed(bt.feeds.PandasData):
+    """Pandas feed exposing ER, RSI, and signal lines."""
     lines = ('er', 'rsi', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -166,6 +215,7 @@ class Mt5EfficiencyRatioMeanReversionFeed(bt.feeds.PandasData):
 
 
 class EfficiencyRatioMeanReversionStrategy(bt.Strategy):
+    """Mean-reversion strategy filtered by ER and RSI."""
     params = dict(
         er_period=10,
         er_threshold=50,
@@ -176,6 +226,7 @@ class EfficiencyRatioMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and book-keeping fields."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -202,6 +253,7 @@ class EfficiencyRatioMeanReversionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar, check pending orders, and execute entries/exits."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -210,7 +262,7 @@ class EfficiencyRatioMeanReversionStrategy(bt.Strategy):
         
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry only when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -218,18 +270,20 @@ class EfficiencyRatioMeanReversionStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场：固定持有天数
+        # Check fixed-duration exit while in position.
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order state when order completes."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade outcome counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -241,7 +295,7 @@ class EfficiencyRatioMeanReversionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Efficiency Ratio Mean Reversion 策略回测"""
+"""Efficiency ratio mean-reversion backtest helpers."""
 
 
 
@@ -251,6 +305,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe analyzer arguments from timeframe.
+
+    Args:
+        config: Test configuration.
+
+    Returns:
+        Keywords for sharpe analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -263,10 +325,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return finite value as-is, else ``None``.
+
+    Args:
+        x: Candidate value.
+
+    Returns:
+        Finite value or ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from a value sequence.
+
+    Args:
+        values: Sequence of values.
+
+    Returns:
+        Ulcer index.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -281,6 +359,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path from several candidate locations.
+
+    Args:
+        filename: Configured filename.
+
+    Returns:
+        Existing absolute path candidate.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -297,6 +383,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and preprocess strategy inputs.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Prepared data payload for cerebro.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -309,6 +403,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build configured Cerebro engine for this strategy.
+
+    Args:
+        frame: Prepared data payload.
+        config: Test configuration.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -331,6 +434,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract and compute key regression metrics.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Running Cerebro instance.
+        frame: Input payload.
+        config: Test configuration.
+
+    Returns:
+        Metrics dictionary.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -365,6 +479,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for JSON-safe output.
+
+    Args:
+        v: Input value.
+
+    Returns:
+        Serializable value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

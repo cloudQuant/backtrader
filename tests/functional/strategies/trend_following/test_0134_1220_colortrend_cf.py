@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` are loaded and shifted
+    by ``bar_shift_minutes``, then filtered to the configured date range.
+    A resampled signal frame is produced for H4 timeframe and enriched with
+    computed upper/lower ColorTrend_CF bands.
+
+Strategy Principle:
+    The strategy watches the crossover of upper/lower computed bands on the
+    higher timeframe to determine trend reversal points. On a bullish cross it
+    opens/maintains long exposure, and on a bearish cross it opens/maintains
+    short exposure. Fixed stop-loss/take-profit controls exits.
+
+Strategy Logic:
+    The helper functions build a resampled signal frame, derive the custom
+    ColorTrend_CF lines, and then run the strategy over base and signal feeds.
+    Metrics are extracted from analyzers for deterministic regression assertions.
 """
 from __future__ import annotations
 import math
@@ -86,6 +103,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 TSV data into a Backtrader-compatible DataFrame.
+
+    Args:
+        filepath: MT5 export file path.
+        fromdate: Optional datetime lower bound.
+        todate: Optional datetime upper bound.
+        bar_shift_minutes: Optional minute offset for bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,6 +135,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Standard OHLCV Backtrader feed for normalized MT5 data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -114,6 +143,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ColorTrendCfFeed(btfeeds.PandasData):
+    """Pandas feed that adds calculated upper/lower ColorTrend_CF lines."""
     lines = ('upper', 'lower')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -122,6 +152,15 @@ class ColorTrendCfFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV bars to the indicator timeframe.
+
+    Args:
+        df: Base minute-level DataFrame.
+        indicator_minutes: Resample window in minutes.
+
+    Returns:
+        Aggregated OHLCV DataFrame for indicator calculation.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -137,6 +176,17 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def build_colortrend_cf_frame(df, indicator_minutes, cf_period, point):
+    """Build indicator frame with ColorTrend_CF upper and lower lines.
+
+    Args:
+        df: Base frame to resample.
+        indicator_minutes: Minutes for the signal timeframe.
+        cf_period: Lookback period for CF accumulation.
+        point: Price scaling factor.
+
+    Returns:
+        DataFrame with additional ``upper`` and ``lower`` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     prices = signal_df['close'].astype(float).tolist()
     n = len(prices)
@@ -186,6 +236,7 @@ def build_colortrend_cf_frame(df, indicator_minutes, cf_period, point):
 
 
 class ColorTrendCfStrategy(bt.Strategy):
+    """ColorTrend_CF signal strategy with optional direction-based execution rules."""
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -201,6 +252,7 @@ class ColorTrendCfStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy feeds, counters, and order state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -214,6 +266,7 @@ class ColorTrendCfStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Log strategy event text with bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -258,6 +311,7 @@ class ColorTrendCfStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Handle stop-protection and signal-driven entries/closures each bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -311,6 +365,7 @@ class ColorTrendCfStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track order-open and closed trade counts including win/loss."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -344,6 +399,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data file path and fail early if missing.
+
+    Args:
+        filename: Relative filename from the test module directory.
+
+    Returns:
+        Absolute existing path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -351,6 +414,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load base frame and return execution metadata.
+
+    Args:
+        config: Inline test configuration.
+
+    Returns:
+        Dictionary with data and effective test dates.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -367,6 +438,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure the Backtrader engine and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Loaded base frame and metadata.
+
+    Returns:
+        Ready-to-run ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -408,6 +488,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble deterministic metrics for regression validation.
+
+    Args:
+        strat: Strategy instance after run.
+        cerebro: Cerebro instance after execution.
+        frame: Data/metadata for backtest.
+        config: Backtest configuration.
+
+    Returns:
+        Metrics dictionary consumed by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -449,6 +540,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: If true, render Backtrader plot output.
+
+    Returns:
+        Tuple containing results, extracted metrics, and engine.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -1,6 +1,26 @@
 """Inlined regression test for mean_reversion/0259_0811_rsi_slowdown.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+- XAUUSD M15 (primary): 2025-12-03 01:15 to 2026-03-10 09:00
+- XAUUSD H4 (signal): resampled from M15
+
+Strategy Principle:
+RSI Slowdown is a dual-timeframe mean-reversion strategy that detects RSI(2)
+reaching extreme levels with a flattening/slowdown condition. It mirrors the
+WPR Slowdown approach but uses RSI instead of Williams %R as the oscillator,
+making it more sensitive to short-term momentum exhaustion.
+
+Strategy Logic:
+- A custom RSISlowdown indicator computes RSI(2) on H4 data
+- Buy signal: RSI >= level_max (90, overbought) with |rsi[0] - rsi[-1]| < 1.0
+  (slowdown/flattening), suggesting upward momentum is exhausted
+- Sell signal: RSI <= level_min (10, oversold) with the same slowdown condition
+- Signal lines store ATR-scaled price levels (low - 3/8 ATR for buys,
+  high + 3/8 ATR for sells)
+- The strategy fires once per new H4 bar, with stop-loss/take-profit at
+  fixed point distances, configurable buy/sell open/close gating
 """
 from __future__ import annotations
 
@@ -18,6 +38,19 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-format CSV file into a Pandas DataFrame.
+
+    Strips quotes, handles empty lines, and sorts the resulting index.
+
+    Args:
+        filepath: Path to the CSV file.
+        fromdate: Optional start date filter.
+        todate: Optional end date filter.
+        bar_shift_minutes: Minutes to shift the datetime index by.
+
+    Returns:
+        DataFrame with columns [open, high, low, close, volume, openinterest].
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -39,6 +72,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column ordering."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -46,15 +80,27 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class RSISlowdown(bt.Indicator):
+    """RSI Slowdown — detects RSI extreme flattening as reversal signal.
+
+    Fires buy when RSI(2) >= level_max (overbought) and the change between
+    consecutive bars is small (slowdown). Fires sell symmetrically at
+    level_min (oversold). Signal lines store ATR-scaled price levels.
+    """
     lines = ("sell", "buy")
     params = dict(rsi_period=2, level_max=90.0, level_min=10.0, seek_slowdown=True)
 
     def __init__(self):
+        """Create RSI and ATR indicators and set minimum required periods."""
         self.addminperiod(max(int(self.p.rsi_period) + 2, 18))
         self.rsi = bt.indicators.RSI(self.data, period=int(self.p.rsi_period))
         self.atr = bt.indicators.ATR(self.data, period=15)
 
     def next(self):
+        """Compute RSI slowdown signal for the current bar.
+
+        Sets buy/sell lines to ATR-derived price levels when the RSI extreme
+        + slowdown condition is met, or NaN otherwise.
+        """
         self.lines.buy[0] = float("nan")
         self.lines.sell[0] = float("nan")
         r0 = float(self.rsi[0])
@@ -69,6 +115,13 @@ class RSISlowdown(bt.Indicator):
 
 
 class ExpRSISlowdownStrategy(bt.Strategy):
+    """RSI Slowdown strategy — trades RSI extreme + slowdown signals on H4.
+
+    Receives RSISlowdown indicator signals from the H4 signal data and
+    executes M15 entries with fixed stop-loss/take-profit. Tracks signal
+    freshness (one reaction per new H4 bar) and supports configurable
+    buy/sell open and close gating.
+    """
     params = dict(
         rsi_period=2,
         level_max=90.0,
@@ -87,6 +140,7 @@ class ExpRSISlowdownStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize signal handles, counters, and position tracking state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = RSISlowdown(
@@ -127,6 +181,7 @@ class ExpRSISlowdownStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate fresh RSI slowdown signals and run entry/exit management."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -163,6 +218,7 @@ class ExpRSISlowdownStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track open/close trade events and aggregate win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:
@@ -181,6 +237,15 @@ class ExpRSISlowdownStrategy(bt.Strategy):
 
 
 def _build_signal_frame(df, minutes):
+    """Resample a DataFrame to a higher timeframe for signal computation.
+
+    Args:
+        df: Source minute-level DataFrame.
+        minutes: Target bar duration in minutes.
+
+    Returns:
+        Resampled DataFrame with OHLCV aggregation.
+    """
     out = df.resample(
         f"{int(minutes)}min", label="right", closed="right",
     ).agg({

@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. The
+    M15 base data is resampled to H4 (4-hour) bars, which are fed twice (a long
+    system feed and a short system feed) so each side can use its own indicator
+    parameters.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_FineTuningMACandle_Duplex. The
+    FineTuningMACandle indicator smooths OHLC with a fine-tuned weight kernel
+    (built from rank/shift parameters) to form a synthetic candle whose colour
+    (open below close = bullish state 2, above = bearish state 0) signals trend.
+    The "duplex" design runs two independent configurations, one governing long
+    entries/exits and the other shorts, so the long and short books are managed
+    separately with their own fixed point-based stop-loss and take-profit levels.
+
+Strategy Logic:
+    build_signal_frame resamples to H4 and computes the long and short candle
+    states, attaching them as extra feed lines on two copies of the feed.
+    build_cerebro adds both feeds and the duplex strategy. Running cheat-on-open,
+    each open bar the strategy checks stop/take-profit exits, closes positions on
+    an adverse state, and opens longs on a fresh bullish state or shorts on a
+    fresh bearish state, recording bracket levels. notify_order confirms fills
+    and sets levels; notify_trade tallies win/loss. extract_metrics consolidates
+    analyzer output; the test forces runonce=True and asserts each metric against
+    migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -106,6 +134,19 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -131,6 +172,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 def resample_to_h4(df):
+    """Resample an intraday OHLCV frame to 4-hour bars.
+
+    Args:
+        df: The base OHLCV DataFrame with a datetime index.
+
+    Returns:
+        A right-labelled, right-closed 4-hour OHLCV DataFrame with rows missing
+        core prices dropped.
+    """
     agg = {
         'open': 'first',
         'high': 'max',
@@ -145,6 +195,21 @@ def resample_to_h4(df):
 
 
 def build_finetuning_weights(ftma, rank1, rank2, rank3, shift1, shift2, shift3):
+    """Build the normalized fine-tuning weight kernel for the candle smoother.
+
+    Args:
+        ftma: Number of bars (kernel length) to weight.
+        rank1: Exponent shaping the leading edge of the kernel.
+        rank2: Exponent shaping the trailing edge of the kernel.
+        rank3: Exponent shaping the centre emphasis of the kernel.
+        shift1: Baseline offset for the leading-edge term.
+        shift2: Baseline offset for the trailing-edge term.
+        shift3: Baseline offset for the centre term.
+
+    Returns:
+        A numpy array of ``ftma`` weights normalized to sum to one (or the raw
+        zeros array if the total is zero).
+    """
     weights = np.zeros(ftma, dtype=float)
     total = 0.0
     for h in range(ftma):
@@ -163,6 +228,28 @@ def build_finetuning_weights(ftma, rank1, rank2, rank3, shift1, shift2, shift3):
 
 
 def compute_finetuning_state(df, ftma, rank1, rank2, rank3, shift1, shift2, shift3, gap):
+    """Compute the synthetic-candle colour state for each bar.
+
+    Builds the weighted synthetic OHLC from the fine-tuning kernel, optionally
+    anchors the synthetic open to the prior close when the real body is within
+    ``gap``, and classifies the candle colour into a state.
+
+    Args:
+        df: The OHLCV DataFrame to operate on.
+        ftma: Kernel length passed to :func:`build_finetuning_weights`.
+        rank1: Leading-edge exponent for the kernel.
+        rank2: Trailing-edge exponent for the kernel.
+        rank3: Centre exponent for the kernel.
+        shift1: Leading-edge baseline offset.
+        shift2: Trailing-edge baseline offset.
+        shift3: Centre baseline offset.
+        gap: Body threshold below which the synthetic open is anchored to the
+            prior synthetic close.
+
+    Returns:
+        A copy of ``df`` with a ``state`` column (2 = bullish, 0 = bearish,
+        1 = doji), with warm-up rows lacking a state dropped.
+    """
     weights = build_finetuning_weights(ftma, rank1, rank2, rank3, shift1, shift2, shift3)
     opens = df['open'].to_numpy(dtype=float)
     highs = df['high'].to_numpy(dtype=float)
@@ -216,6 +303,20 @@ def build_signal_frame(
     long_params=None,
     short_params=None,
 ):
+    """Load, resample, and annotate the H4 frame with long/short candle states.
+
+    Args:
+        filepath: Path to the MT5 export CSV.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each source timestamp.
+        long_params: Indicator parameters for the long-system candle state.
+        short_params: Indicator parameters for the short-system candle state.
+
+    Returns:
+        An H4 OHLCV DataFrame with ``long_state`` and ``short_state`` columns,
+        with rows missing either state dropped.
+    """
     base = load_mt5_csv(filepath, fromdate=fromdate, todate=todate, bar_shift_minutes=bar_shift_minutes)
     h4 = resample_to_h4(base)
     long_state = compute_finetuning_state(h4, **long_params)[['state']].rename(columns={'state': 'long_state'})
@@ -226,6 +327,8 @@ def build_signal_frame(
 
 
 class FineTuningFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the long_state and short_state candle lines."""
+
     lines = ('long_state', 'short_state',)
     params = (
         ('datetime', None),
@@ -241,6 +344,13 @@ class FineTuningFeed(bt.feeds.PandasData):
 
 
 class ExpFineTuningMACandleDuplexStrategy(bt.Strategy):
+    """Duplex FineTuningMACandle: independent long and short candle-state books.
+
+    Manages a long book on the first feed and a short book on the second, each
+    entering on a fresh bullish/bearish synthetic-candle state and protected by
+    its own fixed point-based stop-loss and take-profit levels.
+    """
+
     params = dict(
         point=0.01,
         long_pos_open=True,
@@ -258,6 +368,7 @@ class ExpFineTuningMACandleDuplexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the long/short feeds and reset order, level, and counter state."""
         self.long_data = self.datas[0]
         self.short_data = self.datas[1]
         self.orders = {self.long_data: None, self.short_data: None}
@@ -271,6 +382,11 @@ class ExpFineTuningMACandleDuplexStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current long-feed bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.long_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -326,9 +442,17 @@ class ExpFineTuningMACandleDuplexStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance the bar counter; trading happens in :meth:`next_open`."""
         self.bar_num += 1
 
     def next_open(self):
+        """Manage exits and open long/short positions at the bar open.
+
+        Skips while any order is pending or during warm-up. It first applies
+        stop/take-profit exits, then closes the long or short book on an adverse
+        candle state, and finally opens a long on a fresh bullish state or a
+        short on a fresh bearish state when the respective book is flat.
+        """
         if self._pending():
             return
         if len(self.long_data) < 3 or len(self.short_data) < 3:
@@ -367,6 +491,14 @@ class ExpFineTuningMACandleDuplexStrategy(bt.Strategy):
             self.orders[self.short_data] = self.sell(data=self.short_data, size=self.p.short_lot)
 
     def notify_order(self, order):
+        """Confirm fills, set bracket levels, and count entries per side.
+
+        Args:
+            order: The order whose status changed. A completed long buy or short
+                sell increments the side's entry counter and records its stop and
+                take-profit levels; a flat position clears them. The order slot
+                for that feed is cleared once it settles.
+        """
         data = order.data
         if order.status in [order.Submitted, order.Accepted]:
             return
@@ -387,6 +519,12 @@ class ExpFineTuningMACandleDuplexStrategy(bt.Strategy):
         self.orders[data] = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count, and
+                the side is logged based on which feed owns the trade.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -413,6 +551,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -420,6 +569,20 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build the H4 duplex signal frame described by the config.
+
+    Args:
+        config: Parsed configuration whose ``data`` and ``params`` sections
+            provide the file path, date bounds, bar shift, and the long/short
+            indicator parameters.
+
+    Returns:
+        A dict with the annotated ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the resulting signal frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -439,6 +602,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with dual feeds, the duplex strategy, analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The signal frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` (cheat-on-open) with a long and
+        short feed, ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -477,6 +651,20 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding long/short entry counts,
+            the trade counter, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The signal frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and long/short entry counts) used by the
+        assertions; the annual return is clamped to drop implausible magnitudes.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

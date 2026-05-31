@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00, with each bar timestamp shifted forward by 15 minutes. The
+    same M15 frame feeds both data lines: one drives execution at M15 while the
+    second is resampled inside Cerebro to a 240-minute (H4) higher timeframe so
+    the strategy can compare a fast current-timeframe MA against a slower
+    higher-timeframe MA.
+
+Strategy Principle:
+    This is the "Diff_TF_MA_EA" strategy. It runs a simple moving average on two
+    timeframes — a higher timeframe (H4) MA and a current timeframe (M15) MA
+    whose period is scaled up by the timeframe ratio so both cover a comparable
+    span. A bullish setup occurs when the higher-timeframe MA crosses from below
+    to above the current-timeframe MA, and a bearish setup on the opposite cross.
+    The reverse_trade flag can invert the signals, and optional point-based stop
+    loss and take profit bound the risk.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro adds it as the base
+    feed and resamples a copy to the higher timeframe, configures a fixed-
+    commission futures broker, the strategy, an optional TradeLogger observer,
+    and the analyzers. Each base bar the strategy waits for MA warm-up, skips
+    while an order is pending, applies stop-loss/take-profit exits, then compares
+    the two MAs across the last two bars to open a long/short (closing any
+    opposing position first) at the configured volume. notify_order updates
+    buy/sell counts and risk prices on fills and clears the working order, while
+    notify_trade tallies wins and losses; an optional semantic log records
+    per-bar reasoning. extract_metrics consolidates analyzer output, and the test
+    forces runonce=True, runs the module loader/build/extract pipeline, and
+    asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -80,6 +112,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 export CSV into a backtrader-ready OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,6 +138,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5 OHLCV bars used by this strategy."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -117,6 +152,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DiffTfMaStrategy(bt.Strategy):
+    """Trade MA crossovers between current and higher timeframes."""
+
     params = dict(
         period_ma=10,
         higher_tf_compression=240,
@@ -129,6 +166,7 @@ class DiffTfMaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data links, indicators, state counters and logger."""
         self.data_current = self.datas[0]
         self.data_senior = self.datas[1]
         ratio = max(int(self.p.higher_tf_compression / self.p.current_tf_compression), 1)
@@ -186,6 +224,7 @@ class DiffTfMaStrategy(bt.Strategy):
         self._semantic_write('bar', **fields)
 
     def stop(self):
+        """Flush and close optional semantic logging resources."""
         if self._semantic_log is not None:
             self._semantic_log.flush()
             self._semantic_log.close()
@@ -230,6 +269,7 @@ class DiffTfMaStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate dual timeframe MA crossover and issue entry/exit orders."""
         self.bar_num += 1
         if len(self.data_current) < self.period_ma_current + 3 or len(self.data_senior) < self.p.period_ma + 3:
             self._semantic_bar('warmup')
@@ -287,6 +327,7 @@ class DiffTfMaStrategy(bt.Strategy):
         self._semantic_bar('signal', **signal_values)
 
     def notify_order(self, order):
+        """Track order lifecycle and size counters for open/close actions."""
         self._semantic_write(
             'order',
             bar_num=self.bar_num,
@@ -316,6 +357,7 @@ class DiffTfMaStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades, win/loss outcomes and risk cleanup."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -352,6 +394,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data path relative to the module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -359,6 +402,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest input frame and date window."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -375,6 +419,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build backtrader engine with feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     params = config.get('params', {})
     cerebro = bt.Cerebro(stdstats=True)
@@ -416,6 +461,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect metrics and analyzer outputs used by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each bar's timestamp is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at its close. A single data feed is
+    used; no resampling.
+
+Strategy Principle:
+    This is the "ProMart" strategy, a dual-MACD entry system with a martingale
+    money-management overlay. A fast MACD (computed on the median price) provides
+    the turning-point entry trigger while a slower MACD confirms the trend
+    direction. After a losing trade the strategy reverses direction and doubles
+    the lot (up to ``doubling_count``), sizing positions from available cash and
+    a margin-per-lot budget. Each position is protected by fixed point-based
+    stop-loss and take-profit distances.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the pandas feed,
+    a fixed-commission futures broker, the strategy, and the analyzers. The
+    strategy builds the entry and trend MACDs in __init__ and, each bar after
+    warm-up, first manages stop/take-profit exits, then—when flat—picks a
+    direction (MACD signal, or a reversal after a loss), sizes the martingale lot,
+    and opens the trade. notify_order sets entry/stop/take prices on fills, while
+    notify_trade tracks direction, win/loss counts, and the loss streak on close.
+    extract_metrics consolidates analyzer output and martingale state, and the
+    test forces runonce=True, runs the module via the loader/build/extract
+    compatibility helpers, and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -90,6 +119,17 @@ if str(BACKTRADER_SRC) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 tab-separated CSV and normalize OHLCV data.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional lower bound for datetime index filtering.
+        todate: Optional upper bound for datetime index filtering.
+        bar_shift_minutes: Minutes to shift all bar timestamps.
+
+    Returns:
+        pd.DataFrame: Time-indexed DataFrame with open/high/low/close/volume.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +151,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData adapter for MT5-exported OHLCV bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -118,6 +159,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ProMartStrategy(bt.Strategy):
+    """ProMart strategy with dual MACD triggers and lot scaling after losses."""
     params = dict(
         dml=1000.0,
         doubling_count=1,
@@ -138,6 +180,7 @@ class ProMartStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and state used across trades."""
         self.median_price = (self.data.high + self.data.low) / 2.0
         self.macd_entry = bt.indicators.MACD(
             self.median_price,
@@ -169,6 +212,7 @@ class ProMartStrategy(bt.Strategy):
         self.last_trade_was_loss = False
 
     def log(self, text):
+        """Print a timestamped textual log message for diagnostics."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -233,6 +277,7 @@ class ProMartStrategy(bt.Strategy):
         return buy_sig, sell_sig, entry2, entry1, entry0, trend1, trend0
 
     def next(self):
+        """Process indicators, risk exits, and possible new entries every bar."""
         self.bar_num += 1
         warmup = max(self.p.macd1_slow, self.p.macd2_slow) + self.p.macd_signal + 5
         if len(self.data) < warmup:
@@ -279,6 +324,7 @@ class ProMartStrategy(bt.Strategy):
         self.order = self.sell(size=lot)
 
     def notify_order(self, order):
+        """Track filled/cancelled orders and clear risk/entry scaffolding."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -305,6 +351,7 @@ class ProMartStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters, streak status, and trade-direction state."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -348,6 +395,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data path in the test directory.
+
+    Args:
+        filename (str): Relative data filename.
+
+    Returns:
+        Path: Absolute path.
+
+    Raises:
+        FileNotFoundError: If the file is not present.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -355,6 +413,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and clip data using configured date boundaries.
+
+    Args:
+        config (dict): Test configuration dictionary.
+
+    Returns:
+        dict: Loaded frame and from/to dates.
+
+    Raises:
+        ValueError: If the loaded dataset is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -371,6 +440,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure cerebro with strategy, data feed and analyzers.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded OHLCV frame and bounds.
+
+    Returns:
+        bt.Cerebro: Prepared backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -394,6 +472,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer and strategy counters for assertion checks.
+
+    Args:
+        strat (bt.Strategy): Completed strategy instance.
+        cerebro (bt.Cerebro): Backtest engine instance.
+        frame (dict): Data frame and metadata used by the test.
+        config (dict): Execution configuration.
+
+    Returns:
+        dict: Strategy and analyzer metrics used by regression checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

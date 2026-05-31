@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    A time-window breakout with a martingale reversal ("Nevalyashka" = roly-poly
+    doll that bounces back). During a configured morning window the strategy
+    records the session high/low range; after the window, a close above the range
+    high opens a long and a close below the low opens a short, with a symmetric
+    stop and take-profit sized to the range width. On a stop-out it reverses
+    direction and multiplies the lot by a martingale factor, and an optional
+    no-loss rule moves the stop to breakeven at the halfway point.
+
+Strategy Logic:
+    ``__init__`` zeroes the trade/order counters and the reversal/lot state.
+    ``_today_range`` scans the current day's window for the high/low band.
+    ``next`` handles the optional time-close exit, breakeven and stop/take exits,
+    a pending martingale reversal, and otherwise arms a breakout entry once the
+    band is set. ``notify_order`` counts orders and the side; ``notify_trade``
+    tallies win/loss and, on a stop-loss, queues the reversal. The module-level
+    helpers load the CSV, build the cerebro with analyzers, and extract a metrics
+    dictionary that the test compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -78,6 +105,25 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 export into a normalized OHLCV DataFrame.
+
+    The helper also strips quote wrappers from each input line, parses date and
+    time columns into a datetime index, and maps MetaTrader column names to the
+    Backtrader-compatible schema.
+
+    Args:
+        filepath: Absolute or relative path to the MT5 CSV file.
+        fromdate: Optional start datetime; rows prior to this timestamp are
+            filtered out.
+        todate: Optional end datetime; rows after this timestamp are filtered
+            out.
+        bar_shift_minutes: Optional minute offset to shift timestamps so rows
+            represent bar closes.
+
+    Returns:
+        A ``pandas.DataFrame`` indexed by datetime containing `open`, `high`,
+        `low`, `close`, `volume`, and `openinterest` columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,12 +147,28 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed that maps MT5 export columns to Backtrader fields.
+
+    The index is expected to be datetime-like, while dataframe columns are
+    positional in this adapter definition.
+    """
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class NevalyashkaBreakdownLevelStrategy(bt.Strategy):
+    """Breakout strategy with session range measurement and martingale reversal.
+
+    The strategy:
+    1. Collects a morning reference range.
+    2. Fires breakout entries once price closes outside that range.
+    3. Tracks take-profit and stop-loss symmetry based on the range width.
+    4. Optionally switches a stop to breakeven and schedules reversals after loss
+       exits with a lot multiplier.
+    """
+
     params = dict(
         time_start='07:26',
         time_end='09:13',
@@ -120,6 +182,12 @@ class NevalyashkaBreakdownLevelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state for daily range, signals, and risk counters.
+
+        Counters include bar and signal progression as well as order/trade
+        outcome statistics. Martingale state (lot and pending direction) is also
+        reset here.
+        """
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -223,6 +291,16 @@ class NevalyashkaBreakdownLevelStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Advance one bar and run the strategy state machine.
+
+        Handles:
+
+        1. Early-bar/active-order bypass.
+        2. Optional session close liquidations.
+        3. Existing-position management (breakeven + explicit exits).
+        4. Pending-reversal arming after stop-loss events.
+        5. New breakout signal generation from the calibrated daily range.
+        """
         self.bar_num += 1
         if len(self) < 10:
             return
@@ -274,6 +352,16 @@ class NevalyashkaBreakdownLevelStrategy(bt.Strategy):
             self._arm('sell', close_price, max_price, close_price - width, float(self.p.lot))
 
     def notify_order(self, order):
+        """Track order lifecycle transitions for backtest diagnostics.
+
+        On completed orders it updates filled order counters and side-specific
+        fill counts. On rejected/cancelled/margin/expired orders it updates
+        rejection counters. The pending `_order` reference is cleared when the
+        emitted order leaves pending status.
+
+        Args:
+            order: The Backtrader order instance reported by the engine.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -292,6 +380,15 @@ class NevalyashkaBreakdownLevelStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Record completed trade outcome and schedule martingale reversal when needed.
+
+        Win/loss counters are updated from `trade.pnlcomm`. After a stop-loss loss
+        with a tracked loss distance, the next cycle stores a reversal request
+        with increased lot size.
+
+        Args:
+            trade: The Backtrader trade object emitted at close.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -324,6 +421,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve regression-data path relative to this test module.
+
+    Args:
+        filename: Path-like string defined in config (for example a csv filename).
+
+    Returns:
+        A resolved absolute `pathlib.Path`.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -331,6 +436,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate the dataframe required by this regression run.
+
+    Args:
+        config: Full inlined strategy configuration dictionary.
+
+    Returns:
+        A dictionary containing the loaded dataframe and the parsed date window.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -342,6 +455,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a Backtrader Cerebro instance for the inlined strategy test.
+
+    Args:
+        config: Inlined strategy/backtest configuration.
+        frame: Data payload returned by ``load_backtest_frame``.
+
+    Returns:
+        A configured ``bt.Cerebro`` containing the data feed, strategy, and
+        analyzers.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -360,6 +483,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect canonical metrics from strategy/analyzer outputs.
+
+    Args:
+        strat: Running strategy instance.
+        cerebro: Cerebro engine after execution.
+        frame: Backtest input frame payload.
+        config: Inlined configuration metadata and numeric backtest context.
+
+    Returns:
+        Dictionary of normalized metrics consumed by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -387,6 +521,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the configured backtest and return raw execution results.
+
+    Args:
+        plot: When True, render the Backtrader chart for local inspection.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` are Cerebro
+        outputs, ``metrics`` is the dictionary returned by ``extract_metrics``,
+        and ``cerebro`` is the engine instance.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

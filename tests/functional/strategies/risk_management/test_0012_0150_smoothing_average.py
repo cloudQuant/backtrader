@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Minute bars from `tests/datas/XAUUSD_M15.csv`.
+    - Execution timeframe is M15 from 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - Feature pipeline adds typical price and a shifted moving average line.
+
+Strategy Principle:
+    - Uses a moving-average trend with a configurable method (`sma`, `ema`,
+      `smma`, `wma`) as the core regime proxy.
+    - Opens long or short when price drifts beyond a configurable band around MA.
+    - Closes when price reverts sufficiently beyond MA and closes band.
+    - Tracks wins/losses and standard analyzers for robust regression checks.
+
+Strategy Logic:
+    - `resolve_data_path`, `load_mt5_csv`, and `load_backtest_frame` build the input
+      dataframe and append `typical` price.
+    - `build_cerebro` constructs Backtrader with custom feed, commission settings,
+      and analyzers.
+    - `SmoothingAverageStrategy.next()` evaluates bar-level MA breakout/reversion logic.
+    - `extract_metrics()` aggregates analyzer values and strategy counters for assertions.
 """
 from __future__ import annotations
 import math
@@ -25,7 +45,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Smoothing Average',
-        'source_ea': 'ea/0150_平滑平均',
+        'source_ea': 'ea/0150_smoothing_average',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -84,6 +104,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load M15 MT5 csv and normalize into a Backtrader-ready pandas frame.
+
+    Args:
+        filepath (str | Path): Raw MT5 csv path.
+        fromdate (datetime | None): Optional lower date bound.
+        todate (datetime | None): Optional upper date bound.
+        bar_shift_minutes (int): Minute shift applied to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame: Sorted dataframe with datetime index and OHLCV-like columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +141,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas feed including spread and computed typical-price proxy."""
     lines = ('spread', 'typical')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -118,13 +150,16 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class TypicalPrice(bt.Indicator):
+    """Indicator producing (high + low + close) / 3 on each bar."""
     lines = ('typical',)
 
     def next(self):
+        """Update `typical` with current bar's H-L-C mean."""
         self.lines.typical[0] = (self.data.high[0] + self.data.low[0] + self.data.close[0]) / 3.0
 
 
 class SmoothingAverageStrategy(bt.Strategy):
+    """Manage orders around shifted MA with band/close thresholds."""
     params = dict(
         fixed_lot=1.0,
         ma_period=60,
@@ -137,6 +172,7 @@ class SmoothingAverageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize MA implementation, counters, and bar-change tracking."""
         typical = TypicalPrice(self.datas[0])
         method = str(self.p.ma_method).lower()
         if method == 'ema':
@@ -156,6 +192,7 @@ class SmoothingAverageStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print timestamped diagnostic information."""
         dt = bt.num2date(self.datas[0].datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -173,6 +210,7 @@ class SmoothingAverageStrategy(bt.Strategy):
         return float(self.ma[-shift]) if shift > 0 else float(self.ma[0])
 
     def next(self):
+        """Run band-based MA crossover/reversion logic and open/close positions."""
         self.bar_num += 1
         if len(self) < self.p.ma_period + max(1, self.p.ma_shift):
             return
@@ -223,6 +261,7 @@ class SmoothingAverageStrategy(bt.Strategy):
                     self.log(f'CLOSE SHORT reverse ma={ma_value:.5f} bid={bid_proxy:.5f}')
 
     def notify_trade(self, trade):
+        """Count closed trades and track win/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -250,6 +289,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve test data file path relative to this script directory.
+
+    Args:
+        filename (str): Data file name from config.
+
+    Returns:
+        Path: Absolute path to the requested data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -257,12 +304,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into :class:`datetime.datetime` or ``None``.
+
+    Args:
+        value (str | None): Datetime string in ISO format.
+
+    Returns:
+        datetime.datetime | None: Parsed datetime.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and enrich the M15 frame used by smoothing-average strategy.
+
+    Args:
+        config (dict): Strategy config with data boundaries and transforms.
+
+    Returns:
+        dict: Frame with dataframe and date metadata.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -275,6 +338,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create configured Backtrader engine and register analyzers.
+
+    Args:
+        config (dict): Backtest and strategy config.
+        frame (dict): Prepared data and bounds.
+
+    Returns:
+        bt.Cerebro: Engine ready for run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -293,6 +365,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return finite numeric values or ``None`` when non-finite.
+
+    Args:
+        value: Candidate scalar value.
+
+    Returns:
+        Optional[float]: Input when finite; otherwise ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -301,6 +381,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Aggregate analyzer and strategy counters after running the test strategy.
+
+    Args:
+        results (list): Return value from `cerebro.run()`.
+        start_value (float): Starting broker value.
+
+    Returns:
+        dict: Metrics dict used by regression assertions.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -338,6 +427,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run the strategy regression workflow.
+
+    Args:
+        plot (bool): Optional flag to invoke Backtrader plotting.
+
+    Returns:
+        tuple: `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -7,12 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a seasonal calendar-effect strategy named "Seasonal Flip".
+    - Market Assumptions: Markets show short-term seasonal price regularities during specific weeks of specific calendar months (e.g. the 4th week of March, month 3). A precise entry on a specific weekday (e.g., Monday, weekday 0) and exit after a fixed holding period can capture these structural anomalies.
+    - Indicators:
+        - month: Calendar month (1-12).
+        - weekday: Day of the week (0 = Monday, 4 = Friday).
+        - week_of_month: The ordinal week number of the month (1-5).
+        - is_target_week: Flag indicating whether today is in the `target_month` (3) and `target_week` (4).
+    - Entry Signals:
+        - Buy Entry: Today is Monday (weekday 0) and we are in the target week of the target month.
+    - Exit Signals:
+        - Close Entry: Position has been held for `holding_days` (5 days).
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
 import json
+import csv
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
@@ -68,7 +88,11 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -76,6 +100,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,30 +136,38 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_seasonal_flip_features(df, params):
-    """准备季节性翻转策略特征"""
+    """Prepare and compute indicators for the Seasonal Flip strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing target month, week, and holding period.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing is_target_week and entry/exit signals.
+    """
     out = df.copy()
     target_month = int(params.get('target_month', 3))
     target_week = int(params.get('target_week', 4))
     holding_days = int(params.get('holding_days', 5))
     
-    # 提取日期特征
+    # Extract date features
     out['year'] = out.index.year
     out['month'] = out.index.month
     out['day'] = out.index.day
     out['weekday'] = out.index.dayofweek  # 0=Monday, 4=Friday
     
-    # 计算该月的第几周
+    # Compute ordinal week of the month
     out['week_of_month'] = (out['day'] - 1) // 7 + 1
     
-    # 判断是否为目标周（目标月的第N周）
+    # Identify whether today is in the target week of the target month
     out['is_target_week'] = ((out['month'] == target_month) & 
                               (out['week_of_month'] == target_week)).astype(float)
     
-    # 入场信号：目标周的周一
+    # Entry signal: Monday of the target week
     out['entry_signal'] = ((out['is_target_week'] > 0.5) & 
                            (out['weekday'] == 0)).astype(float)
     
-    # 出场信号：持有N天后
+    # Exit signal
     out['exit_signal'] = 0.0
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -134,6 +176,7 @@ def prepare_seasonal_flip_features(df, params):
 
 
 class Mt5SeasonalFlipFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Seasonal Flip lines."""
     lines = ('is_target_week', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -143,6 +186,11 @@ class Mt5SeasonalFlipFeed(bt.feeds.PandasData):
 
 
 class SeasonalFlipStrategy(bt.Strategy):
+    """Strategy class implementing the Seasonal Flip calendar-effect logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         target_month=3,
         target_week=4,
@@ -151,6 +199,7 @@ class SeasonalFlipStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -163,6 +212,15 @@ class SeasonalFlipStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -177,6 +235,7 @@ class SeasonalFlipStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -185,7 +244,7 @@ class SeasonalFlipStrategy(bt.Strategy):
         
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -193,18 +252,28 @@ class SeasonalFlipStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场：固定持有天数
+        # Check exit when holding a position: fixed holding days
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -216,7 +285,7 @@ class SeasonalFlipStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Seasonal Flip 策略回测"""
+"""Seasonal Flip strategy backtest."""
 
 
 
@@ -226,6 +295,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -238,10 +315,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -256,6 +349,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Seasonal Flip strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -268,6 +369,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -290,6 +400,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -324,6 +445,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -342,7 +471,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -351,11 +484,44 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     try:
         return build_cerebro(inputs, config)
     except TypeError:
         return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_12_0012_0275_seasonal_flip() -> None:
@@ -367,7 +533,7 @@ def test_12_0012_0275_seasonal_flip() -> None:
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)
     results = cerebro.run(runonce=True)
-    metrics = extract_metrics(results[0], cerebro, inputs, config)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4638, f"bar_num: expected=4638, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 18, f"buy_count: expected=18, got={metrics.get('buy_count')!r}"

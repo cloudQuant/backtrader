@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+ 
+Data Used:
+    Daily/Intraday XAUUSD M15 source bars from ``tests/datas/XAUUSD_M15.csv``.
+    Window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00 with 15-minute bar shift.
+ 
+Strategy Principle:
+    RSI threshold-based position management with optional opposite close filters.
+    Position sizing is fixed, with optional stop/take-profit and trailing protections.
+ 
+Strategy Logic:
+    - Load and filter source bars.
+    - Compute RSI indicator and map cross-level signal flips to entries/exits.
+    - Apply risk controls and track trade/performance metrics through analyzers.
 """
 from __future__ import annotations
 import math
@@ -80,6 +93,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV into a normalized, time-indexed DataFrame.
+
+    Args:
+        filepath: Input MT5 file path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minute shift applied to all bars.
+
+    Returns:
+        Parsed and indexed DataFrame with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,12 +131,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed wrapper mapping MT5 fields for RSI strategy."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class RsiEaStrategy(bt.Strategy):
+    """RSI-based entry/exit strategy using momentum thresholds."""
     params = dict(
         open_buy=True,
         open_sell=True,
@@ -129,6 +155,7 @@ class RsiEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize RSI indicator and state variables."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
 
         self.bar_num = 0
@@ -201,6 +228,7 @@ class RsiEaStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Run trading logic for one bar."""
         self.bar_num += 1
         if len(self) < self.p.rsi_period + 2:
             return
@@ -234,6 +262,7 @@ class RsiEaStrategy(bt.Strategy):
             self.order = self.buy(size=self.p.lots)
 
     def notify_order(self, order):
+        """Update counters on completed/failed orders."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -252,6 +281,7 @@ class RsiEaStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -276,6 +306,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve test data path relative to file location.
+
+    Args:
+        filename: Configured relative file name.
+
+    Returns:
+        Absolute path.
+
+    Raises:
+        FileNotFoundError: If path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -283,6 +324,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return backtest frame dictionary for this strategy."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -299,6 +341,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro with feed, strategy parameters, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -327,6 +370,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs into a single deterministic metrics dict."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

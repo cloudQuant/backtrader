@@ -17,6 +17,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV and return a Pandas DataFrame with standardized columns."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +40,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a DataFrame to a higher timeframe using OHLC aggregation."""
     out = df.resample(rule, label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min", "close": "last",
         "tick_volume": "sum", "openinterest": "last",
@@ -50,12 +52,14 @@ def resample_frame(df, rule):
 
 
 def ideal_ma_smooth(w1, w2, prev_series, curr_series, prev_result):
+    """Apply one step of the Ideal MA smoothing formula."""
     d_series = curr_series - prev_series
     d_series2 = d_series * d_series - 1.0
     return ((w1 * (curr_series - prev_result)) + prev_result + w2 * prev_result * d_series2) / (1.0 + w2 * d_series2)
 
 
 def compute_2pbideal1ma(series, period1=10, period2=10):
+    """Compute a single Ideal MA from the price series using two-period smoothing."""
     values = pd.Series(series).astype(float).to_numpy()
     out = np.full(len(values), np.nan, dtype=float)
     if len(values) == 0:
@@ -69,6 +73,7 @@ def compute_2pbideal1ma(series, period1=10, period2=10):
 
 
 def compute_2pbideal3ma(series, period_x1=10, period_x2=10, period_y1=10, period_y2=10, period_z1=10, period_z2=10):
+    """Compute a triple-stacked Ideal MA (three layers of 2pbideal1ma smoothing)."""
     values = pd.Series(series).astype(float).to_numpy()
     out = np.full(len(values), np.nan, dtype=float)
     if len(values) == 0:
@@ -96,6 +101,7 @@ def compute_2pbideal3ma(series, period_x1=10, period_x2=10, period_y1=10, period
 
 def compute_signal_frame(frame, period1=10, period2=10, period_x1=10, period_x2=10,
                           period_y1=10, period_y2=10, period_z1=10, period_z2=10):
+    """Compute Ideal MA signals (ma1 and ma2) on the given price frame."""
     out = frame.copy()
     out["ma1"] = compute_2pbideal1ma(out["close"], period1=period1, period2=period2)
     out["ma2"] = compute_2pbideal3ma(
@@ -109,6 +115,7 @@ def compute_signal_frame(frame, period1=10, period2=10, period_x1=10, period_x2=
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with standard OHLC column mapping."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -116,6 +123,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class IdealSignalFeed(bt.feeds.PandasData):
+    """PandasData feed extended with Ideal MA signal lines (ma1, ma2)."""
     lines = ("ma1", "ma2")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -125,6 +133,7 @@ class IdealSignalFeed(bt.feeds.PandasData):
 
 
 class Exp2pbIdealMAReOpenStrategy(bt.Strategy):
+    """Trading strategy using 2-period Ideal MA crossovers with layer-based pyramiding."""
     params = dict(
         signal_tf_minutes=240, signal_bar=1,
         stop_loss=1000, take_profit=2000, price_step=300, pos_total=10,
@@ -136,6 +145,7 @@ class Exp2pbIdealMAReOpenStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, counters, and layer tracking."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.ma1 = self.signal.ma1
@@ -233,6 +243,7 @@ class Exp2pbIdealMAReOpenStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Main strategy loop: manage existing layers, check signal crossovers, and reopen positions."""
         self.bar_num += 1
         self._manage_layers()
         if len(self.signal) < 3:
@@ -259,6 +270,7 @@ class Exp2pbIdealMAReOpenStrategy(bt.Strategy):
         self._maybe_reopen()
 
     def notify_trade(self, trade):
+        """Track trade outcomes: increment win/loss counters on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

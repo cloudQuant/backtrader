@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four daily (D1) precious-metal feeds loaded from MT5 exports under
+    ``tests/datas/mt5_1d_data/``: gold (XAUUSD) plus silver (XAGUSD), platinum
+    (XPTUSD), and palladium (XPDUSD), aligned on their common dates from
+    2010-01-01 to 2025-12-31. A derived signal feed carries per-pair hedge
+    ratio, spread z-score, and rolling correlation against gold.
+
+Strategy Principle:
+    This is the "Gold Multi Pair Trading" strategy. It assumes gold mean-reverts
+    against each of the other metals, but only when they are sufficiently
+    correlated. Each pair gets a rolling-regression hedge ratio and a z-score of
+    the log-price spread. Among pairs whose correlation clears ``min_corr`` the
+    strategy trades the one with the most stretched z-score, fading the spread
+    (long the cheap leg, short the rich leg), and exits as it reverts or stops
+    out.
+
+Strategy Logic:
+    load_inputs loads the four daily frames, and prepare_multi_pair_inputs aligns
+    them and computes per-pair hedge ratio, z-score, and correlation;
+    build_cerebro wires the signal feed plus the four price feeds, a percentage
+    futures commission, the strategy, and the analyzers. Each bar the strategy
+    selects the best eligible pair, opens a hedged spread on a threshold breach,
+    and closes when the active pair reverts, decorrelates, or hits the stop.
+    notify_order tracks pending refs and notify_trade logs closed-trade PnL.
+    extract_metrics consolidates analyzer output (plus an Ulcer Index), and the
+    test forces runonce=True, runs the module's run()/main(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -90,6 +118,20 @@ PAIR_SYMBOLS = ('XAGUSD', 'XPTUSD', 'XPDUSD')
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -120,6 +162,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_multi_pair_inputs(gold_df, pair_frames, params):
+    """Align gold and pair frames and compute per-pair pairs-trading signals.
+
+    Args:
+        gold_df: The gold (XAUUSD) daily OHLCV frame.
+        pair_frames: Mapping of pair symbol to its daily OHLCV frame.
+        params: Parameters controlling the hedge, z-score, and correlation
+            windows.
+
+    Returns:
+        A tuple ``(gold, pairs, signal_df)`` aligned on the common index, where
+        signal_df carries per-pair hedge ratio, spread z-score, and correlation
+        columns (warm-up rows dropped).
+    """
     common_index = gold_df.index
     for frame in pair_frames.values():
         common_index = common_index.intersection(frame.index)
@@ -154,6 +209,8 @@ def prepare_multi_pair_inputs(gold_df, pair_frames, params):
 
 
 class MultiPairSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing per-pair hedge ratio, z-score, and corr lines."""
+
     lines = (
         'xagusd_hedge_ratio', 'xagusd_zscore', 'xagusd_corr',
         'xptusd_hedge_ratio', 'xptusd_zscore', 'xptusd_corr',
@@ -168,6 +225,8 @@ class MultiPairSignalFeed(bt.feeds.PandasData):
 
 
 class GoldMultiPairTradingStrategy(bt.Strategy):
+    """Trade gold against the best-correlated, most-stretched metal pair."""
+
     params = dict(
         min_corr=0.6,
         entry_threshold=2.0,
@@ -181,6 +240,7 @@ class GoldMultiPairTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and metal feeds and reset counters and pair state."""
         self.signal = self.datas[0]
         self.gold = self.getdatabyname('XAUUSD')
         self.asset_map = {
@@ -264,6 +324,14 @@ class GoldMultiPairTradingStrategy(bt.Strategy):
         return candidate
 
     def next(self):
+        """Select the best pair and open or close the hedged spread each bar.
+
+        Increments the bar counter and records broker value, skips while orders
+        are pending, then—when flat—opens a hedged spread on the most stretched
+        eligible pair beyond the entry threshold, or—when in a position—closes
+        all legs once the active pair reverts within the exit threshold,
+        decorrelates below ``min_corr``, or blows past the stop threshold.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -290,11 +358,22 @@ class GoldMultiPairTradingStrategy(bt.Strategy):
             self._close_all()
 
     def notify_order(self, order):
+        """Drop completed or dead orders from the pending-order ref set.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Log the commission-adjusted PnL of each closed trade.
+
+        Args:
+            trade: The trade whose status changed; closed trades append their
+                ``pnlcomm`` to the trade log.
+        """
         if trade.isclosed:
             self.trade_log.append({'pnlcomm': trade.pnlcomm})
 
@@ -305,14 +384,33 @@ class GoldMultiPairTradingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 class FuturesCommission(bt.CommInfoBase):
+    """Percentage, stock-like commission scheme for the metal legs."""
+
     params = (('commission', 0.0005), ('commtype', bt.CommInfoBase.COMM_PERC), ('stocklike', True))
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -326,6 +424,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load the four daily frames and build the aligned multi-pair signal.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the aligned ``gold_df``, per-symbol ``pair_frames``, the
+        derived ``signal_df``, and the ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -341,6 +449,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, signal/metal feeds, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the signal feed, the gold
+        and pair price feeds, a percentage commission, the strategy, and the
+        default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.addcommissioninfo(FuturesCommission(commission=float(config['params'].get('commission_pct', 0.0005))))
@@ -361,6 +480,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, SQN, and Ulcer
+        Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -400,6 +532,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -411,6 +552,7 @@ def normalize(value):
 
 
 def main():
+    """Run the full multi-pair backtest end-to-end and compute its metrics."""
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded multi-pair bars: {len(inputs['signal_df'])}")

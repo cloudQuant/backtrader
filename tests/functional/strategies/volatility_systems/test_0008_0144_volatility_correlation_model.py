@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Two daily (D1) MT5 exports loaded from ``tests/datas/mt5_1d_data/`` —
+    XAUUSD (gold) and XAGUSD (silver) — spanning 2008-01-01 to 2025-12-31. The
+    two frames are aligned on their common dates; gold provides the OHLCV feed
+    that carries the derived signal lines, and both gold and silver are added as
+    tradable asset feeds.
+
+Strategy Principle:
+    This is the "Volatility Correlation Model" strategy. Gold and silver are
+    historically correlated; the strategy tracks the rolling correlation of their
+    daily returns and standardizes it into a z-score against a longer rolling
+    mean and standard deviation. An extreme positive z-score (correlation
+    unusually high) opens a long-gold/short-silver pair, an extreme negative
+    z-score opens the opposite, and positions are closed when the z-score
+    reverts toward zero. Position weights are volatility-scaled (inverse-vol
+    weighting) and capped by a gross-exposure budget.
+
+Strategy Logic:
+    load_data loads and date-filters both assets and prepare_vol_corr_inputs
+    aligns them, computes the rolling correlation, its z-score, per-asset
+    annualized volatility, the discrete position signal, rebalance flags, and
+    inverse-volatility target weights; build_cerebro adds the signal feed, both
+    asset feeds, a percentage spot commission, the strategy, and the analyzers.
+    Each bar the strategy records broker value and, when the rebalance flag
+    fires and no orders are pending, issues order_target_percent orders for gold
+    and silver at the precomputed weights. notify_order clears filled orders and
+    notify_trade tallies wins and losses. extract_metrics consolidates analyzer
+    output (plus an Ulcer Index), and the test forces runonce=True, runs the
+    module's main()/run(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -80,6 +111,20 @@ ASSET_ORDER = ['XAUUSD', 'XAGUSD']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,6 +151,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_vol_corr_inputs(asset_frames, params):
+    """Build synchronized signal data from multiple asset close-price series.
+
+    Args:
+        asset_frames: Mapping of symbol -> OHLCV DataFrame aligned to datetime index.
+        params: Strategy parameters controlling correlation/volatility windows and
+            exposure/threshold settings.
+
+    Returns:
+        A dict containing:
+            - ``signal_df``: H12-like signal dataframe with correlation and
+              weight columns.
+            - ``asset_frames``: Input frames aligned to the common timeline.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -178,6 +236,12 @@ def prepare_vol_corr_inputs(asset_frames, params):
 
 
 class VolCorrSignalFeed(bt.feeds.PandasData):
+    """Signal feed exposing correlation and target-weight columns.
+
+    Provides indicator lines used by the strategy rebalance engine:
+    ``correlation``, ``corr_mean``, ``corr_std``, ``corr_zscore``, volatility
+    measures, position signal and rebalancing/weight signals.
+    """
     lines = ('correlation', 'corr_mean', 'corr_std', 'corr_zscore', 'gold_vol', 'silver_vol', 'position_signal', 'rebalance_flag', 'gold_weight', 'silver_weight')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -187,6 +251,16 @@ class VolCorrSignalFeed(bt.feeds.PandasData):
 
 
 class VolatilityCorrelationModelStrategy(bt.Strategy):
+    """Portfolio strategy that rebalances between XAUUSD and XAGUSD on signal shifts.
+
+    Args:
+        corr_window: Rolling window for correlation estimation.
+        mean_window: Window used for mean reversion bands.
+        threshold_sigma: Entry threshold on correlation z-score.
+        vol_window: Volatility lookback for inverse-volatility weight scaling.
+        exit_z: Exit threshold for reversing/sign signal cleanup.
+        gross_exposure: Target gross exposure when entering positions.
+    """
     params = dict(
         corr_window=20,
         mean_window=126,
@@ -197,6 +271,7 @@ class VolatilityCorrelationModelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind signal and asset data and initialize rebalance/trade counters."""
         self.signal_data = self.datas[0]
         self.asset_data = {data._name: data for data in self.datas[1:]}
         self.pending_orders = []
@@ -208,6 +283,7 @@ class VolatilityCorrelationModelStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Append broker value, wait for rebalance signal, and submit targets."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal_data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_orders:
@@ -222,11 +298,13 @@ class VolatilityCorrelationModelStrategy(bt.Strategy):
                 self.pending_orders.append(order)
 
     def notify_order(self, order):
+        """Remove finished orders from the in-flight pending-order list."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [o for o in self.pending_orders if o.ref != order.ref]
 
     def notify_trade(self, trade):
+        """Increment trade counters once a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -244,6 +322,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 class SpotCommissionInfo(CommInfoBase):
+    """Commission model matching the inlined regression configuration."""
     params = (
         ('commission', 0.0002),
         ('stocklike', True),
@@ -253,10 +332,19 @@ class SpotCommissionInfo(CommInfoBase):
 
 
 def finite_or_none(x):
+    """Return ``x`` when finite, otherwise ``None``."""
     return x if x is not None and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index from an equity-value curve.
+
+    Args:
+        values: Sequence of portfolio values.
+
+    Returns:
+        Ulcer Index as a positive float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -271,6 +359,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load configured assets and transform them into a unified signal input pack.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dict containing prepared signal/asset inputs and run boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -283,6 +379,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure the cerebro engine with data feeds and analyzers.
+
+    Args:
+        frame: Prepared frame dictionary from :func:`load_data`.
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -303,6 +408,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect trade, risk and return metrics used by the regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Executed Backtrader engine.
+        frame: Backtest input dictionary.
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary containing tested metrics and health statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -347,6 +463,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize_value(value):
+    """Normalize non-finite float values to ``None`` for safe comparison."""
     if isinstance(value, float) and not math.isfinite(value):
         return None
     return value
@@ -356,6 +473,7 @@ def normalize_value(value):
 
 
 def main():
+    """Load config, run the strategy, and build metrics for migration parity."""
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and return normalized OHLCV dataframe for backtests."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +38,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping for MT5-exported OHLCV data columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +46,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FiboIsarStrategy(bt.Strategy):
+    """Fibonacci + PSAR strategy combining limit entries and dynamic trailing exits."""
     params = dict(
         control_time=False,
         start_time=7, stop_time=17,
@@ -58,6 +61,7 @@ class FiboIsarStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize SAR indicators, session tracking, and outcome counters."""
         self.data0 = self.datas[0]
         self.fast_sar = bt.indicators.ParabolicSAR(self.data0, af=self.p.step_fast, afmax=self.p.maximum_fast)
         self.slow_sar = bt.indicators.ParabolicSAR(self.data0, af=self.p.step_slow, afmax=self.p.maximum_slow)
@@ -219,6 +223,7 @@ class FiboIsarStrategy(bt.Strategy):
                     self.stop_price = round(self.position.price - price_unit, self.p.price_digits)
 
     def next(self):
+        """Update existing position state and place new pending orders when valid."""
         self.bar_num += 1
         if not self._enough_history():
             return
@@ -229,6 +234,7 @@ class FiboIsarStrategy(bt.Strategy):
         self._place_sell_limit()
 
     def notify_order(self, order):
+        """Track pending order lifecycle and reset levels after close/order end states."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -249,6 +255,7 @@ class FiboIsarStrategy(bt.Strategy):
         self._clear_order_ref(order)
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes for statistics and counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1

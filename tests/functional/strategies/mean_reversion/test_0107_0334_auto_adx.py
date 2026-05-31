@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLC CSV from 2025-12-03 to 2026-03-10. Source bars are
+    resampled to H1 (60-min) for signal generation. A single data feed
+    (signal_df) drives both execution and signal computation.
+
+Strategy Principle:
+    Trades on ADX trend strength combined with +DI/-DI crossover direction.
+    A long entry fires when +DI > -DI, ADX rises above 30 and is increasing.
+    A short entry fires when +DI < -DI, ADX drops below 30 and is declining.
+    Optional reverse mode closes a position when the ADX/DI configuration
+    flips, effectively acting as a mean-reversion exit on trend exhaustion.
+
+Strategy Logic:
+    __init__ creates ADX and DI indicators. prenext() delegates to next().
+    next() calls _update_trailing_stop() and _check_exit_levels() for risk
+    management, then checks _reverse_signal() (if enabled) and _entry_signal()
+    for new positions. notify_order tracks fills and sets entry risk levels.
+    notify_trade counts wins/losses. The test function hooks main() via
+    Cerebro.run() and asserts bar_num, buy/sell counts, trade statistics,
+    final_value, drawdown, sharpe, and SQN against migration-time baselines.
 """
 from __future__ import annotations
 import math
@@ -24,7 +45,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Auto ADX',
-        'source_ea': 'ea/0334_自动_ADX/auto_adx.mq5',
+        'source_ea': 'ea/0334_Auto_ADX/auto_adx.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -87,6 +108,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Pandas DataFrame with OHLC+spread columns."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -113,6 +135,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with OHLC+spread column mapping."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -127,6 +150,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AutoAdxStrategy(bt.Strategy):
+    """ADX-based trend-following strategy with trailing stop and optional reverse exit."""
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -145,6 +169,7 @@ class AutoAdxStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize ADX/DI indicators, order tracking fields, and trade counters."""
         self.order = None
         self.entry_side = None
         self.stop_price = None
@@ -160,9 +185,11 @@ class AutoAdxStrategy(bt.Strategy):
         self.di = bt.indicators.DirectionalIndicator(self.data, period=self.p.adx_period)
 
     def prenext(self):
+        """Delegate to next() before the minimum period is reached."""
         self.next()
 
     def log(self, text):
+        """Print a timestamped log message for debugging."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -269,6 +296,7 @@ class AutoAdxStrategy(bt.Strategy):
         return 0
 
     def next(self):
+        """Bar-by-bar logic: increment counter, manage trailing stops/exit levels, evaluate entry signals."""
         self.bar_num += 1
         if not self._signal_ready():
             return
@@ -296,6 +324,7 @@ class AutoAdxStrategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size:.2f}')
 
     def notify_order(self, order):
+        """Track order fills, increment buy/sell counters, set entry risk, clear order reference on completion/failure."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -318,6 +347,7 @@ class AutoAdxStrategy(bt.Strategy):
                 self.entry_side = None
 
     def notify_trade(self, trade):
+        """Update trade win/loss counters and clear risk state when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -345,6 +375,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path relative to the test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -352,12 +383,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO-8601 datetime string, returning None for empty inputs."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def resample_frame(df, minutes):
+    """Resample OHLC data to a higher timeframe using standard aggregation rules."""
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -375,6 +408,7 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config):
+    """Load source CSV, resample to signal timeframe, return a dict with the signal data frame."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -395,6 +429,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers (Sharpe, Returns, DrawDown, TradeAnalyzer, SQN) to the Cerebro instance."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -403,6 +438,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro instance with the signal feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -425,6 +461,15 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for missing or non-finite values.
+
+    Args:
+        value: Candidate scalar metric value.
+
+    Returns:
+        ``None`` when the value is ``None`` or a non-finite number; otherwise
+        the original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -433,6 +478,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print core summary statistics after a completed run.
+
+    Args:
+        results: Backtest result list returned by ``cerebro.run()``.
+        start_value: Initial portfolio value before execution.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -461,6 +512,11 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run backtest from CLI options and output summary/charts.
+
+    Returns:
+        ``None``.
+    """
     parser = argparse.ArgumentParser(description='Run Auto ADX backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

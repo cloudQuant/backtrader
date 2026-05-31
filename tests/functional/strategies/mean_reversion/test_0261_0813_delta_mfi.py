@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data file and return a Pandas DataFrame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +38,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom PandasData feed for MT5-exported CSV data."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -49,9 +51,11 @@ class MoneyFlowIndex(bt.Indicator):
     params = (("period", 14),)
 
     def __init__(self):
+        """Initialize the MFI indicator and set the minimum period."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute the Money Flow Index for the current bar."""
         positive_flow = 0.0
         negative_flow = 0.0
         for i in range(self.p.period):
@@ -70,10 +74,13 @@ class MoneyFlowIndex(bt.Indicator):
 
 
 class DeltaMFI(bt.Indicator):
+    """Delta MFI indicator that computes the difference between two MFI periods and classifies color state."""
+
     lines = ("color", "delta")
     params = dict(mfi_period1=14, mfi_period2=50, level=50)
 
     def __init__(self):
+        """Initialize the DeltaMFI indicator with two MoneyFlowIndex instances and threshold levels."""
         self.addminperiod(max(int(self.p.mfi_period1), int(self.p.mfi_period2)) + 3)
         self.mfi1 = MoneyFlowIndex(self.data, period=int(self.p.mfi_period1))
         self.mfi2 = MoneyFlowIndex(self.data, period=int(self.p.mfi_period2))
@@ -82,6 +89,7 @@ class DeltaMFI(bt.Indicator):
         self.min_level = 100 - lvl
 
     def next(self):
+        """Compute the delta and color state for the current bar."""
         m1 = float(self.mfi1[0])
         m2 = float(self.mfi2[0])
         self.lines.delta[0] = m1 - m2
@@ -94,6 +102,8 @@ class DeltaMFI(bt.Indicator):
 
 
 class ExpDeltaMFIStrategy(bt.Strategy):
+    """Delta MFI strategy: trades based on color transitions of the Delta MFI indicator."""
+
     params = dict(
         mfi_period1=14,
         mfi_period2=50,
@@ -111,6 +121,7 @@ class ExpDeltaMFIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy: set up data references, DeltaMFI indicator, and state tracking counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = DeltaMFI(
@@ -146,6 +157,7 @@ class ExpDeltaMFIStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one bar, process stop levels and transition signals, then place trades."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -173,6 +185,7 @@ class ExpDeltaMFIStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track trade lifecycle and update counters for opens and closed outcomes."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``.
+    H4 signal bars are built by resampling the same feed.
+    Backtest period: ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    XRSI-based color-state transitions trigger directional bracket entries.
+    Position size is controlled by LOT/MM configuration and exits include stop-loss
+    and take-profit orders.
+
+Strategy Logic:
+    Load and normalize data, create execution/signal feeds, detect color flips
+    on the indicator, submit entries and optional reversals, and verify migrated
+    summary metrics after one-bar replay execution.
 """
 from __future__ import annotations
 import math
@@ -86,6 +101,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV source and normalize it into a Backtrader DataFrame.
+
+    Args:
+        filepath: Input CSV/TSV path.
+        fromdate: Inclusive start datetime.
+        todate: Inclusive end datetime.
+        bar_shift_minutes: Minute offset applied to timestamps.
+
+    Returns:
+        Datetime-indexed DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -112,6 +138,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed with additional spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -126,14 +153,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class XRSIHistogramVolDirectIndicator(bt.Indicator):
+    """Simple direct XRSI histogram indicator that emits color state transitions."""
     lines = ('color_state', 'value')
     params = dict(rsi_period=14, ma_length=12)
 
     def __init__(self):
+        """Initialize rolling history for smoothed direct RSI histogram."""
         self._scaled_history = []
         self.addminperiod(max(self.p.rsi_period, self.p.ma_length) + 3)
 
     def next(self):
+        """Update scaled RSI values and binary color direction."""
         gains = []
         losses = []
         for idx in range(self.p.rsi_period):
@@ -159,6 +189,7 @@ class XRSIHistogramVolDirectIndicator(bt.Indicator):
 
 
 class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
+    """Direct XRSI histogram strategy with reversal-friendly bracket execution."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -178,6 +209,7 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, indicator, and order tracking state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = XRSIHistogramVolDirectIndicator(self.signal_data, rsi_period=self.p.rsi_period, ma_length=self.p.ma_length)
@@ -191,10 +223,16 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print timestamped strategy events.
+
+        Args:
+            text: Message payload.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Execute trading logic during warm-up."""
         self.next()
 
     def _new_signal_bar(self):
@@ -255,6 +293,7 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """React to color flips and maintain active/reverse order states."""
         if len(self.signal_data) < max(self.p.rsi_period, self.p.ma_length) + 5:
             return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
@@ -284,6 +323,11 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
             self._submit_entry('short', 'xrsi direct color flip down')
 
     def notify_order(self, order):
+        """Track completed and canceled order state.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -322,6 +366,7 @@ class ExpXRSIHistogramVolDirectStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Clear closing state after each closed trade."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.closing_side or self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -340,6 +385,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module.
+
+    Args:
+        filename: Relative path to data file.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -347,12 +400,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse datetime strings from configuration.
+
+    Args:
+        value: ISO datetime value or None.
+
+    Returns:
+        Parsed datetime or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load a filtered data frame for the configured range.
+
+    Args:
+        config: Inline configuration.
+
+    Returns:
+        Dictionary with key ``"data"``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -364,6 +433,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach shared analyzers for metric validation."""
+    """
+    Args:
+        cerebro: Cerebro engine to configure.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -372,6 +446,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample a DataFrame to a wider period with safe aggregation.
+
+    Args:
+        df: Source DataFrame.
+        minutes: Target minute span.
+
+    Returns:
+        Resampled DataFrame.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -381,6 +464,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build and wire the backtest engine.
+
+    Args:
+        config: Inline configuration.
+        frame: Loaded data bundle.
+
+    Returns:
+        Prepared cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -398,6 +490,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for missing or non-finite values.
+
+    Args:
+        value: Numeric value to normalize.
+
+    Returns:
+        Value or None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -406,6 +506,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print aggregated analysis values."""
+    """
+    Args:
+        results: Backtest result list.
+        start_value: Starting portfolio value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -432,6 +538,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the regression strategy and print the summary."""
     parser = argparse.ArgumentParser(description='Run Exp_XRSI_Histogram_Vol_Direct backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Bitcoin ETF daily bars from ``tests/datas/mt5_1d_data/IBIT_1d.csv`` spanning
+    2024-01-01 to 2025-12-31, used directly as OHLCV input for backtesting.
+
+Strategy Principle:
+    Combines trend regime detection with mean-reversion and RSI/z-score
+    confirmations to adjust position size between long and flat states.
+
+Strategy Logic:
+    Load and filter OHLCV data, compute trend/momentum/RSI/z-score signals each bar,
+    generate order size targets and submit target-size orders, then aggregate
+    analyzers for regression assertions.
 """
 from __future__ import annotations
 import math
@@ -81,6 +94,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5-style CSV data into an indexed OHLCV frame.
+
+    Args:
+        filepath: CSV source file path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+
+    Returns:
+        Datetime-indexed dataframe with required OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -107,10 +130,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_trend_mean_reversion_data(frame):
+    """Prepare a minimal dataframe for this strategy.
+
+    Args:
+        frame: Raw cleaned dataframe.
+
+    Returns:
+        Dataframe with base OHLCV and openinterest fields.
+    """
     return frame[['open', 'high', 'low', 'close', 'volume', 'openinterest']].copy()
 
 
 class BitcoinTrendMeanReversionStrategy(bt.Strategy):
+    """Trend-aware mean-reversion strategy using trend and oscillator regimes."""
     params = dict(
         short_term=5,
         medium_term=60,
@@ -127,6 +159,7 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize order tracking, counters and duration markers."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -139,10 +172,12 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
         self.mean_reversion_days = 0
 
     def _submit(self, order):
+        """Track submitted order reference identifiers."""
         if order is not None:
             self.order_refs.add(order.ref)
 
     def _target_size(self, data, target_pct):
+        """Compute target position size for percentage of broker value."""
         broker_value = float(self.broker.getvalue())
         price = float(data.close[0])
         if broker_value <= 0 or price <= 0:
@@ -156,6 +191,7 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def _rsi(self, values, period):
+        """Compute RSI from a list-like input using rolling average losses/gains."""
         series = pd.Series(values)
         delta = series.diff()
         gain = delta.where(delta > 0, 0.0)
@@ -166,6 +202,7 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
         return float((100 - (100 / (1 + rs))).iloc[-1]) if not rs.empty else 50.0
 
     def _zscore(self, values, period):
+        """Compute z-score of the latest value in a rolling window."""
         series = pd.Series(values)
         window = series.iloc[-period:]
         std = float(window.std())
@@ -174,6 +211,7 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
         return float((window.iloc[-1] - window.mean()) / std)
 
     def next(self):
+        """Evaluate market regime and submit rebalanced target orders."""
         self.bar_num += 1
         data = self.datas[0]
         self.broker_value_series.append((bt.num2date(data.datetime[0]), float(self.broker.getvalue())))
@@ -212,11 +250,13 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
         self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed/cancelled order refs from the tracking set."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update trade outcome counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -236,10 +276,26 @@ class BitcoinTrendMeanReversionStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return finite value or ``None`` otherwise.
+
+    Args:
+        value: Candidate numeric value.
+
+    Returns:
+        Value if finite; otherwise ``None``.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate ulcer index from a sequence of portfolio values.
+
+    Args:
+        values: Value sequence.
+
+    Returns:
+        Ulcer index float.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -253,6 +309,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve configured data filename to an existing absolute filepath.
+
+    Args:
+        filename: Input data filename.
+
+    Returns:
+        Resolved file path candidate.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -269,6 +333,14 @@ def resolve_data_path(filename):
 
 
 def load_inputs(config):
+    """Load and prep input data payload for this strategy.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Prepared payload consumed by build/extract helpers.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -278,6 +350,15 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Build Cerebro, register strategy, feed, and analyzers.
+
+    Args:
+        inputs: Prepared input payload.
+        config: Test configuration.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -293,6 +374,17 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Extract core and risk metrics for this test.
+
+    Args:
+        strat: Strategy instance after run.
+        cerebro: Running cerebro engine.
+        inputs: Input payload.
+        config: Test configuration.
+
+    Returns:
+        Metrics dictionary for assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -334,6 +426,14 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Normalize values for JSON friendly output.
+
+    Args:
+        value: Value to normalize.
+
+    Returns:
+        Serializable representation.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

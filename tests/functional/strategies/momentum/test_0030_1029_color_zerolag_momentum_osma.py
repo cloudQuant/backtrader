@@ -7,6 +7,40 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` execution bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with bar timestamps shifted forward by 15 minutes. A second feed is
+    resampled to 240-minute (``signal_tf_minutes``) bars on which the signal
+    oscillator is computed. The backtest window spans 2025-12-03 01:15 to
+    2026-03-10 09:00.
+
+Strategy Principle:
+    This is a port of the Exp_ColorZerolagMomentumOSMA MetaTrader expert
+    advisor. A zero-lag momentum oscillator blends five momentum series of
+    different lookbacks (weighted by descending factors), double-smooths the
+    result into a histogram (OsMA), and detects turning points: an up-turn of
+    the histogram from a falling state is a buy signal, a down-turn from a
+    rising state is a sell signal. Signals are evaluated on the higher
+    timeframe while orders execute on the M15 feed with fixed point-based stops
+    and targets.
+
+Strategy Logic:
+    1. ``load_backtest_frames`` reads the MT5 CSV, resamples to the signal
+       timeframe, and ``compute_color_zerolag_momentum_osma`` builds the fast,
+       slow, histogram, and buy/sell signal lines.
+    2. ``build_cerebro`` wires the M15 and H4 feeds, broker, strategy, and
+       analyzers.
+    3. ``ColorZerolagMomentumOSMAStrategy.next`` manages stop/target risk, then
+       on each new signal bar opens, closes, or reverses positions from the
+       buy/sell signals.
+    4. ``notify_order`` tracks fills and order counts; ``notify_trade`` tallies
+       win/loss counts.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_30_0030_1029_color_zerolag_momentum_osma`` forces ``runonce=True``,
+       captures the metrics dict, and asserts each value against migration-time
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -97,6 +131,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -122,6 +167,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample bars to the given pandas offset rule with OHLCV aggregation.
+
+    Args:
+        df: Base DataFrame indexed by datetime.
+        rule: Pandas resample rule string (e.g. ``240min``).
+
+    Returns:
+        Resampled pandas.DataFrame with empty buckets dropped.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -136,6 +190,15 @@ def resample_frame(df, rule):
 
 
 def compute_applied_price(frame, mode):
+    """Return the price series selected by an MT5 applied-price mode.
+
+    Args:
+        frame: DataFrame providing OHLC columns.
+        mode: Applied-price mode name (e.g. ``close``, ``median``, ``typical``).
+
+    Returns:
+        pandas.Series for the requested applied price; defaults to close.
+    """
     mode = str(mode).lower()
     if mode in ('price_open', 'open'):
         return frame['open'].astype(float)
@@ -153,11 +216,42 @@ def compute_applied_price(frame, mode):
 
 
 def compute_momentum(price, period):
+    """Compute the percentage momentum of a price series over a lookback.
+
+    Args:
+        price: Price series.
+        period: Lookback period in bars.
+
+    Returns:
+        pandas.Series of ``price / price.shift(period) * 100``.
+    """
     period = int(period)
     return price / price.shift(period) * 100.0
 
 
 def compute_color_zerolag_momentum_osma(frame, smoothing1=15, smoothing2=15, applied_price='close', factor1=0.43, momentum_period1=8, factor2=0.26, momentum_period2=21, factor3=0.16, momentum_period3=34, factor4=0.10, momentum_period4=55, factor5=0.05, momentum_period5=89):
+    """Compute the zero-lag momentum OsMA oscillator and signal lines.
+
+    Args:
+        frame: DataFrame providing OHLC columns.
+        smoothing1: First smoothing length for the slow line.
+        smoothing2: Second smoothing length for the histogram.
+        applied_price: Applied-price mode used as the input series.
+        factor1: Weight for the first momentum component.
+        momentum_period1: Lookback for the first momentum component.
+        factor2: Weight for the second momentum component.
+        momentum_period2: Lookback for the second momentum component.
+        factor3: Weight for the third momentum component.
+        momentum_period3: Lookback for the third momentum component.
+        factor4: Weight for the fourth momentum component.
+        momentum_period4: Lookback for the fourth momentum component.
+        factor5: Weight for the fifth momentum component.
+        momentum_period5: Lookback for the fifth momentum component.
+
+    Returns:
+        Copy of ``frame`` with ``fast``, ``slow``, ``hist``, ``buy_signal``, and
+        ``sell_signal`` columns, dropping rows without a histogram value.
+    """
     price = compute_applied_price(frame, applied_price)
     momentum1 = compute_momentum(price, momentum_period1)
     momentum2 = compute_momentum(price, momentum_period2)
@@ -207,6 +301,8 @@ def compute_color_zerolag_momentum_osma(frame, smoothing1=15, smoothing2=15, app
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column layout."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -219,6 +315,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorZerolagMomentumOSMAFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the OsMA oscillator and signal lines."""
+
     lines = ('fast', 'slow', 'hist', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -237,6 +335,12 @@ class ColorZerolagMomentumOSMAFeed(bt.feeds.PandasData):
 
 
 class ColorZerolagMomentumOSMAStrategy(bt.Strategy):
+    """Zero-lag momentum OsMA strategy ported from the MT5 expert advisor.
+
+    Trades higher-timeframe oscillator turning points on the M15 feed with
+    fixed point-based stop-loss and take-profit risk management.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -268,6 +372,7 @@ class ColorZerolagMomentumOSMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15 and signal feeds and reset order/state counters."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.fast = self.h4.fast
@@ -293,6 +398,11 @@ class ColorZerolagMomentumOSMAStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a log message prefixed with the current M15 timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -347,6 +457,7 @@ class ColorZerolagMomentumOSMAStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Manage risk, then act on new higher-timeframe oscillator signals."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -396,6 +507,11 @@ class ColorZerolagMomentumOSMAStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track fill direction and completed/rejected order counts.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -414,6 +530,11 @@ class ColorZerolagMomentumOSMAStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally closed-trade win/loss counts.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -438,6 +559,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -445,6 +577,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load M15 execution bars and the resampled signal frame from the config.
+
+    Args:
+        config: Resolved configuration dict with ``data`` and ``params``.
+
+    Returns:
+        Dict with ``m15``, ``h4``, ``fromdate``, and ``todate`` keys.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -459,6 +602,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a cerebro with broker, both feeds, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Dict with ``m15`` and ``h4`` DataFrames.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -480,6 +632,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The cerebro instance after the run.
+        frame: Dict with the loaded frames and date bounds.
+        config: Resolved configuration dict.
+
+    Returns:
+        Dict of backtest metrics keyed by metric name.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -525,6 +688,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest end to end and optionally plot the result.
+
+    Args:
+        plot: Whether to render the chart after the run.
+
+    Returns:
+        Tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

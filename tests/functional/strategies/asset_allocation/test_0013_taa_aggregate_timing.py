@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: D1 (Daily).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 00:00:00 to 2025-12-31 00:00:00.
+
+Strategy Principle:
+    - This strategy ("TAA Aggregate Timing") implements a tactical asset allocation system based on a composite momentum and moving average timing signal.
+    - Market Assumptions: Combining momentum (relative strength) and trend-following moving average filters produces a robust trend signal that outperforms single indicators.
+    - Indicators:
+        - Fast SMA: Simple Moving Average (50-period, `ma_fast`, on Daily close).
+        - Slow SMA: Simple Moving Average (200-period, `ma_slow`, on Daily close).
+        - Momentum: Percent change of Close over a lookback window (120-period, `mom_period`).
+    - Entry Signals:
+        - Composite Signal Calculation:
+            - `ma_signal` is 1 if Fast SMA > Slow SMA, else 0.
+            - `mom_signal` is 1 if 120-period momentum is positive (> 0), else 0.
+            - `composite` is the average of `ma_signal` and `mom_signal`.
+        - Long Entry: On rebalance day (every 21 days, `rebalance_days`), if composite signal > 0.5 (i.e. both signals are active, resulting in composite=1.0), place a buy order.
+    - Exit Signals:
+        - Exit Long: On rebalance day, if composite signal < 0.5 (i.e. both signals are inactive, or only one is active), close the position.
 """
 from __future__ import annotations
 import math
@@ -69,7 +91,11 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -77,6 +103,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,8 +138,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
     return df
 
 
-
 def prepare_taa_aggregate_timing_features(df, params):
+    """Calculate moving average crossover and momentum signals, constructing a composite aggregate indicator.
+
+    Args:
+        df (pd.DataFrame): Input raw historical price DataFrame.
+        params (dict): Configured strategy parameters.
+
+    Returns:
+        pd.DataFrame: Processed features DataFrame containing composite trend signals and scheduled rebalance flags.
+    """
     ma_fast = int(params.get('ma_fast', 50))
     ma_slow = int(params.get('ma_slow', 200))
     mom_period = int(params.get('mom_period', 120))
@@ -130,6 +174,7 @@ def prepare_taa_aggregate_timing_features(df, params):
 
 
 class Mt5TaaAggregateTimingFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with supplementary indicator lines."""
     lines = ('ma_signal', 'mom_signal', 'composite', 'rebalance_flag',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -142,6 +187,11 @@ class Mt5TaaAggregateTimingFeed(bt.feeds.PandasData):
 
 
 class TaaAggregateTimingStrategy(bt.Strategy):
+    """Strategy class implementing TAA Aggregate Timing allocation logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         ma_fast=50,
         ma_slow=200,
@@ -151,6 +201,7 @@ class TaaAggregateTimingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize tracking metrics, list series, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -159,6 +210,15 @@ class TaaAggregateTimingStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate the target position size based on target portfolio percentage.
+
+        Args:
+            target_notional_pct (float, optional): Portfolio allocation weight. Defaults to 1.0.
+            price (float, optional): Reference asset price. Defaults to None.
+
+        Returns:
+            float: Calculated position size.
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -174,6 +234,7 @@ class TaaAggregateTimingStrategy(bt.Strategy):
 
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -192,17 +253,25 @@ class TaaAggregateTimingStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle trade status updates.
+
+        Args:
+            trade (bt.Trade): The updated trade instance.
+        """
         pass
 
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""TAA Aggregate Timing 策略回测"""
+"""TAA Aggregate Timing Strategy backtest."""
 
 
 
@@ -213,6 +282,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Construct appropriate annualization arguments for Sharpe ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration.
+
+    Returns:
+        dict: Parameters dictionary for Sharpe ratio analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -225,10 +302,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Filter out infinite or NaN values, returning None instead.
+
+    Args:
+        x (float): Input value to inspect.
+
+    Returns:
+        float or None: Filtered float value or None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index (UI) performance metric for account equity.
+
+    Args:
+        values (list): Chronological list of account equity values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -243,6 +336,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and process daily gold features.
+
+    Args:
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Processed data dictionary containing from/to dates and pandas DataFrame.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -258,6 +359,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, commission rules, and analyzers.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -280,6 +390,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -314,6 +435,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize input values for standardized JSON serialization.
+
+    Args:
+        v (Any): Raw input value.
+
+    Returns:
+        Any: Standardized serializable value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -322,7 +451,14 @@ def normalize(v):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -332,7 +468,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -341,7 +481,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     try:
         return build_cerebro(inputs, config)
     except TypeError:

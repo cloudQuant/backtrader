@@ -86,6 +86,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a tab-separated MT5 export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV export file.
+        fromdate: Optional inclusive lower bound on the bar timestamp.
+        todate: Optional inclusive upper bound on the bar timestamp.
+        bar_shift_minutes: Minutes to add to each bar timestamp so bars are
+            stamped at their close.
+
+    Returns:
+        A datetime-indexed DataFrame with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +124,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Plain pandas feed mapping OHLCV columns by position for both timeframes."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -123,13 +138,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class WPRHistogramIndicator(bt.Indicator):
+    """Williams %R histogram with high/low levels mapped to a color state."""
+
     lines = ('value', 'midline', 'color_state')
     params = dict(wpr_period=14, high_level=-30, low_level=-70)
 
     def __init__(self):
+        """Set the indicator warmup period to the Williams %R lookback."""
         self.addminperiod(self.p.wpr_period)
 
     def next(self):
+        """Compute Williams %R and classify it into a color state."""
         period = int(self.p.wpr_period)
         highest_high = max(float(self.data.high[-i]) for i in range(period))
         lowest_low = min(float(self.data.low[-i]) for i in range(period))
@@ -152,6 +171,8 @@ class WPRHistogramIndicator(bt.Indicator):
 
 
 class ExpWPRHistogramStrategy(bt.Strategy):
+    """Dual-timeframe Williams %R histogram strategy trading H4 color transitions."""
+
     params = dict(
         wpr_period=14,
         high_level=-30,
@@ -169,6 +190,7 @@ class ExpWPRHistogramStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind base/signal feeds, build the WPR indicator, and reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = WPRHistogramIndicator(
@@ -188,6 +210,11 @@ class ExpWPRHistogramStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line using the current base bar datetime.
+
+        Args:
+            text: Message to log alongside the current bar timestamp.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -221,6 +248,7 @@ class ExpWPRHistogramStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage exits and open/close positions on WPR color transitions."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -267,6 +295,11 @@ class ExpWPRHistogramStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count entries on open and tally win/loss on close.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -300,6 +333,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -307,6 +351,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 base OHLCV frame for the backtest.
+
+    Args:
+        config: Resolved configuration dict containing a ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` frame and the ``fromdate``/``todate``.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -323,6 +378,15 @@ def load_backtest_frame(config):
 
 
 def build_signal_frame(df, indicator_minutes):
+    """Resample the base frame to the higher indicator timeframe.
+
+    Args:
+        df: Source M15 OHLCV DataFrame.
+        indicator_minutes: Target bar size in minutes for the signal feed.
+
+    Returns:
+        A resampled OHLCV DataFrame with missing open interest filled with zero.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -339,6 +403,19 @@ def build_signal_frame(df, indicator_minutes):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro engine with the M15/H4 feeds, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict with ``backtest``, ``data``, and
+            ``params`` sections.
+        frame: Frame dict produced by load_backtest_frame.
+
+    Returns:
+        A configured bt.Cerebro instance ready to run.
+
+    Raises:
+        ValueError: If the resampled signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -374,6 +451,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect Sharpe, returns, drawdown, trade, and PnL metrics from analyzers.
+
+    Args:
+        strat: The executed strategy instance with attached analyzers.
+        cerebro: The Cerebro engine, used for final broker value.
+        frame: Frame dict with the loaded data and date range.
+        config: Resolved configuration dict for initial cash.
+
+    Returns:
+        A dict of summary metrics asserted by the regression test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

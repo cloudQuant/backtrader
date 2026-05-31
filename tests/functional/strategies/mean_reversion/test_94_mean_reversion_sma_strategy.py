@@ -8,6 +8,37 @@ specified percentage threshold and sells when the price returns to the SMA.
 
 Reference: backtrader-strategies-compendium/strategies/MeanReversion.py
 
+Data Used:
+    Oracle daily OHLCV history loaded from ``orcl-1995-2014.txt`` through
+    ``bt.feeds.GenericCSVData``. Only the 2010-01-01 to 2014-12-31 window is
+    consumed (single data feed, daily timeframe, no resampling). The test runs
+    the same data set twice via ``runonce=True`` and ``runonce=False`` to
+    confirm the vectorized and event-driven paths produce identical results.
+
+Strategy Principle:
+    The strategy assumes price tends to revert toward its Simple Moving
+    Average. A close that falls a configurable percentage (``dip_size``, 2.5%
+    by default) below the SMA is treated as an oversold deviation and a long
+    entry signal, while a recovery of price back to the SMA is treated as
+    completion of the reversion and an exit signal. No leverage or stop loss is
+    applied; risk is bounded by sizing each entry with a fixed fraction of
+    available cash (``order_percentage``, 95% by default).
+
+Strategy Logic:
+    1. ``__init__`` builds the SMA indicator and resets the order handle and
+       bar/buy/sell counters.
+    2. ``next`` increments the bar counter, skips bars while an order is
+       pending, opens a long position when the close dips at least ``dip_size``
+       below the SMA, and closes the position once the close recovers to or
+       above the SMA.
+    3. ``notify_order`` tracks order status transitions and increments the buy
+       and sell counters on completion; ``notify_trade`` logs realized profit
+       when a trade closes.
+    4. ``test_mean_reversion_sma_strategy`` wires cerebro with cash, commission,
+       and Sharpe/Returns/DrawDown analyzers, then asserts the bar count, final
+       value, Sharpe ratio, annual return, and max drawdown match the recorded
+       expectations.
+
 Example:
     To run the test::
 

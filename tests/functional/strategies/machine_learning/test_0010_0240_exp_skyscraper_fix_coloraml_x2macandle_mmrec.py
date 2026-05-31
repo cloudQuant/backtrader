@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    This test loads a tab-separated MT5 CSV from `tests/datas/XAUUSD_M15.csv`
+    filtered from `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    The execution feed keeps 15-minute bars while the signal feed is
+    resampled to 240-minute bars.
+
+Strategy Principle:
+    The strategy combines three sub-systems: A from SkyscraperFixIndicator,
+    B from ColorAMLIndicator, and C from X2MACandleApprox.
+    Each system emits buy and sell entries plus close conditions, and signals are
+    evaluated in A->B->C priority when no position exists.
+    Risk modulation (`mmrec`) is tracked per (system, side) and tightens lot
+    sizing policy after configurable loss streak thresholds.
+
+Strategy Logic:
+    Indicators are initialized on a resampled signal stream and share execution
+    sizing, stop-loss, and take-profit logic implemented in a single strategy
+    class.
+    On each new signal bar, the script evaluates A/B/C conditions, submits
+    bracket entries, tracks pending entries/exits, and closes or reverses based
+    on matching opposite signals.
+    Order and trade callbacks update system/side state and loss counters for
+    subsequent money-management behavior and metrics reporting.
 """
 from __future__ import annotations
 import math
@@ -124,6 +148,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style export data into a normalized pandas OHLCV frame.
+
+    Args:
+        filepath: Path to the source CSV file.
+        fromdate: Optional start datetime for row filtering.
+        todate: Optional end datetime for row filtering.
+        bar_shift_minutes: Optional timestamp shift applied to each bar.
+
+    Returns:
+        DataFrame indexed by datetime with columns ``open``, ``high``, ``low``,
+        ``close``, ``volume``, ``openinterest``, and ``spread``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -150,6 +186,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom pandas feed carrying an additional ``spread`` line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -164,10 +202,13 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SkyscraperFixIndicator(bt.Indicator):
+    """Channel-like adaptive indicator emitting buy/sell buffers and color state."""
+
     lines = ('up_buffer', 'dn_buffer', 'buy_buffer', 'sell_buffer', 'color_state')
     params = dict(length=10, kv=0.9, percentage=0.0, use_high_low=True, atr_period=15, point_size=0.01)
 
     def __init__(self):
+        """Initialize internal ATR state and channel persistence variables."""
         self.addminperiod(max(self.p.length, self.p.atr_period) + 3)
         self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
         self.atr_high = bt.indicators.Highest(self.atr, period=self.p.length)
@@ -185,6 +226,7 @@ class SkyscraperFixIndicator(bt.Indicator):
         return value is not None and math.isfinite(value)
 
     def next(self):
+        """Calculate up/down channel levels, pending buffers, and current color."""
         up = self._nan()
         dn = self._nan()
         buy = self._nan()
@@ -252,10 +294,13 @@ class SkyscraperFixIndicator(bt.Indicator):
 
 
 class ColorAMLIndicator(bt.Indicator):
+    """Fractal-driven adaptive moving line with trend color transitions."""
+
     lines = ('aml', 'color_state')
     params = dict(fractal=6, lag=7, shift=0, point_size=0.01)
 
     def __init__(self):
+        """Initialize smoothing buffers and state for AML computation."""
         self.addminperiod(2 * self.p.fractal + self.p.lag + 5)
         self._smooth_history = []
         self._prev_aml = None
@@ -272,6 +317,7 @@ class ColorAMLIndicator(bt.Indicator):
         return min(values)
 
     def next(self):
+        """Update AML line value and color state for the current candle."""
         if len(self.data) < 2 * self.p.fractal + self.p.lag + 2:
             self.lines.aml[0] = float('nan')
             self.lines.color_state[0] = self._prev_color
@@ -307,10 +353,13 @@ class ColorAMLIndicator(bt.Indicator):
 
 
 class X2MACandleApprox(bt.Indicator):
+    """Two-stage moving approximation of candle structure and color."""
+
     lines = ('open_value', 'high_value', 'low_value', 'close_value', 'color_state')
     params = dict(length1=12, phase1=15, length2=5, phase2=15, gap=10.0)
 
     def __init__(self):
+        """Initialize rolling queues and two-stage smoothing states."""
         self._length1 = max(1, int(self.p.length1))
         self._length2 = max(2, int(self.p.length2))
         self._phase2 = max(-100, min(100, int(self.p.phase2)))
@@ -359,6 +408,7 @@ class X2MACandleApprox(bt.Indicator):
         return self._smooth(key, sma_value)
 
     def next(self):
+        """Update approximated open/high/low/close and color from historical window."""
         open_value = self._stage_value('open', self.data.open)
         high_value = self._stage_value('high', self.data.high)
         low_value = self._stage_value('low', self.data.low)
@@ -386,6 +436,8 @@ class X2MACandleApprox(bt.Indicator):
 
 
 class ExpSkyscraperFixColorAMLX2MACandleMMRecStrategy(bt.Strategy):
+    """Three-system long/short strategy with bracket execution and mm recovery."""
+
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -440,6 +492,7 @@ class ExpSkyscraperFixColorAMLX2MACandleMMRecStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator instances, order state, and mm recovery counters."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.a_indicator = SkyscraperFixIndicator(
@@ -487,10 +540,12 @@ class ExpSkyscraperFixColorAMLX2MACandleMMRecStrategy(bt.Strategy):
         }
 
     def log(self, text):
+        """Print a debug log line with the current execution timestamp."""
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Reuse normal bar processing when backtest is still in preloaded phase."""
         self.next()
 
     def _normalize_lot(self, lot):
@@ -651,6 +706,12 @@ class ExpSkyscraperFixColorAMLX2MACandleMMRecStrategy(bt.Strategy):
         self.log(f'CLOSE system={self.active_system} side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate new signal bars, open/close/reverse positions, and avoid overlap.
+
+        The method waits for enough bars on signal data, de-duplicates bars using
+        signal timestamp, and then dispatches order actions through internal
+        helper methods.
+        """
         min_bars = max(self.p.a_length + 3, 2 * self.p.b_fractal + self.p.b_lag + 3, self.p.c_length1 + self.p.c_length2 + 3)
         if len(self.signal_data) < min_bars:
             return
@@ -699,6 +760,7 @@ class ExpSkyscraperFixColorAMLX2MACandleMMRecStrategy(bt.Strategy):
             self._submit_entry('C', 'short', 'X2MACandle sell')
 
     def notify_order(self, order):
+        """Track completed/cancelled order events and propagate internal state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -744,6 +806,7 @@ class ExpSkyscraperFixColorAMLX2MACandleMMRecStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Record closed-trade PnL and manage mm recovery counters per system."""
         if not trade.isclosed:
             return
         system = self.closing_system or self.active_system
@@ -772,6 +835,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy-relative data file path.
+
+    Args:
+        filename: Relative filename under the current test module directory.
+
+    Returns:
+        Absolute resolved path as a ``Path`` object.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -779,12 +850,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into ``datetime``.
+
+    Args:
+        value: ISO formatted string or ``None``/empty.
+
+    Returns:
+        Parsed datetime or ``None`` when input is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and validate the primary market frame used for backtesting.
+
+    Args:
+        config: Full test configuration containing `data` settings.
+
+    Returns:
+        Dict with key ``data`` holding the prepared OHLCV DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -796,6 +883,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Add baseline analyzers used by regression metrics.
+
+    Args:
+        cerebro: Initialized Cerebro engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -804,6 +896,11 @@ def add_default_analyzers(cerebro):
 
 
 def add_trade_logger_if_requested(cerebro):
+    """Attach TradeLogger observer when trade log environment variable is set.
+
+    Args:
+        cerebro: Initialized Cerebro engine.
+    """
     log_dir = (
         os.environ.get('BT_TRADE_LOG_DIR')
         or os.environ.get('BT_TRADELOGGER_LOG_DIR')
@@ -830,6 +927,15 @@ def add_trade_logger_if_requested(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV dataframe to fixed minute intervals.
+
+    Args:
+        df: Source DataFrame indexed by datetime.
+        minutes: Target resampling interval in minutes.
+
+    Returns:
+        Resampled DataFrame with cleaned OHLCV columns.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -839,6 +945,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure a Backtrader cerebro instance for this strategy.
+
+    Args:
+        config: Full strategy/backtest configuration.
+        frame: Dictionary containing market dataframe under key ``data``.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -857,6 +972,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for missing or non-finite values.
+
+    Args:
+        value: Input value to normalize.
+
+    Returns:
+        ``None`` if value is invalid/non-finite, else original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -865,6 +988,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print summary statistics and return nothing.
+
+    Args:
+        results: Cerebro execution output.
+        start_value: Initial broker value before backtest.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -891,6 +1020,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the regression test backtest and print formatted metric summary."""
     parser = argparse.ArgumentParser(description='Run Exp_Skyscraper_Fix_ColorAML_X2MACandle_MMRec backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

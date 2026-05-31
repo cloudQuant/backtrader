@@ -87,6 +87,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -113,6 +114,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -127,6 +129,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SlidingRangeColor(bt.Indicator):
+    """Indicator computing sliding-window average range channels with a color index for breakout direction."""
     lines = ('color_idx', 'upper', 'lower')
     params = dict(
         up_calc_period_range=5,
@@ -138,6 +141,7 @@ class SlidingRangeColor(bt.Indicator):
     )
 
     def next(self):
+        """Compute rounded average of recent highs/lows and set color based on close relative to the range."""
         up_end = len(self.data) - 1 - self.p.up_calc_period_shift
         up_start = max(0, up_end - self.p.up_calc_period_range + 1)
         dn_end = len(self.data) - 1 - self.p.dn_calc_period_shift
@@ -162,6 +166,7 @@ class SlidingRangeColor(bt.Indicator):
 
 
 class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
+    """Sliding-range channel breakout strategy with timed exits and bracket order management."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -183,6 +188,7 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.channel = SlidingRangeColor(
@@ -203,6 +209,7 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log message with the current execution bar datetime."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -240,6 +247,7 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse=None')
 
     def next(self):
+        """Run once per signal bar: manage time exits and open/close rules."""
         required = max(self.p.up_calc_period_range + self.p.up_calc_period_shift, self.p.dn_calc_period_range + self.p.dn_calc_period_shift) + self.p.signal_bar + 2
         if len(self.signal_feed) < required:
             return
@@ -277,6 +285,7 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
                 self._submit_entry('short', 'sliding range transition from lower breakout state')
 
     def notify_order(self, order):
+        """Track order lifecycle: clear references on fill/cancel, record entry and close state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -315,6 +324,7 @@ class ExpRjSlidingRangeSystemTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log trade close events and reset active-side state when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -333,6 +343,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a filename relative to the test file directory, raising FileNotFoundError if missing."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -340,12 +351,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO date strings used by the config."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load frame from MT5 CSV and return trading data dictionary."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -357,6 +370,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach common analyzers (Sharpe, Returns, DrawDown, TradeAnalyzer, SQN)."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -365,6 +379,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct cerebro with execution feed, signal feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -381,6 +396,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite or missing metric values."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -389,6 +405,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a concise backtest summary from analyzer statistics."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -415,6 +432,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Optional CLI entrypoint for manual backtest execution."""
     parser = argparse.ArgumentParser(description='Run Exp Rj SlidingRangeRj Digit System Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

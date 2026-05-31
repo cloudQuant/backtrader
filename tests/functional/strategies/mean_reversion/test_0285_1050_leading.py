@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars covering 2025-12-03 01:15 to 2026-03-10 09:00 with each timestamp
+    shifted forward by 15 minutes so bars are stamped at their close. A second
+    signal feed is resampled to H4 (240-minute) bars and carries the precomputed
+    Leading (netlead) line and its EMA reference line.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_Leading``. The Leading
+    indicator is a low-lag smoother computed on the median price using two
+    coefficients (``alpha1``/``alpha2``): ``netlead`` is the leading line and
+    ``ema_line`` is a simple EMA reference. A crossover of netlead above the EMA
+    flags upward momentum and below flags downward momentum. The strategy enters
+    in the crossover direction and exits on the opposite crossover, with fixed
+    point-based stop-loss and take-profit protection.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame, resamples it to H4, and calls
+    compute_leading to precompute the netlead/EMA lines; build_cerebro wires the
+    M15 base feed, the H4 Leading feed, the strategy and analyzers. Each bar the
+    strategy waits for enough indicator history, enforces stop-loss/take-profit
+    exits, then on each new signal bar evaluates the netlead/EMA crossover to
+    close opposing positions and open a long or short sized by ``size`` while
+    setting risk prices. notify_order tracks completed/rejected orders and entry
+    counts, notify_trade tallies win/loss. extract_metrics consolidates analyzer
+    output, and the test hooks extract_metrics, forces runonce=True, runs
+    run()/main(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +115,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,6 +149,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser timeframe via standard aggregation.
+
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        rule: Pandas offset alias for the target bar size (e.g. ``'240min'``).
+
+    Returns:
+        The resampled DataFrame with incomplete bars dropped and openinterest
+        filled with zero.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last',
     })
@@ -116,6 +168,20 @@ def resample_frame(df, rule):
 
 
 def compute_leading(frame, alpha1=0.25, alpha2=0.33):
+    """Compute the Leading (netlead) line and its EMA reference over a frame.
+
+    Applies the low-lag Leading recursion to the median price using ``alpha1``
+    and ``alpha2`` and computes a simple EMA reference line.
+
+    Args:
+        frame: OHLCV DataFrame indexed by datetime.
+        alpha1: Leading-line coefficient applied to the price recursion.
+        alpha2: Smoothing coefficient applied to form netlead.
+
+    Returns:
+        A copy of ``frame`` with ``netlead`` and ``ema_line`` columns, with rows
+        lacking either value dropped.
+    """
     price = ((frame['high'] + frame['low']) / 2.0).to_numpy(dtype=float)
     netlead = np.full(len(frame), np.nan, dtype=float)
     ema = np.full(len(frame), np.nan, dtype=float)
@@ -138,6 +204,8 @@ def compute_leading(frame, alpha1=0.25, alpha2=0.33):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -145,6 +213,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class LeadingFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the precomputed netlead and EMA lines."""
+
     lines = ('netlead', 'ema_line')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -153,6 +223,14 @@ class LeadingFeed(bt.feeds.PandasData):
 
 
 class LeadingStrategy(bt.Strategy):
+    """Trade netlead/EMA crossovers with fixed stop-loss and take-profit.
+
+    Reads the precomputed netlead and EMA lines from the H4 signal feed and
+    enters in the crossover direction sized by ``size``, closing on the opposite
+    crossover and protecting positions with point-based stop-loss and
+    take-profit levels on the M15 feed.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -173,6 +251,7 @@ class LeadingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15 and H4 feeds and reset counters and risk state."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.netlead = self.h4.netlead
@@ -195,6 +274,7 @@ class LeadingStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current M15 bar timestamp."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -263,6 +343,13 @@ class LeadingStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, nl_prev, nl_now, ema_prev, ema_now
 
     def next(self):
+        """Enforce risk exits, then act on each new signal bar's crossover.
+
+        Waits for enough indicator history, skips while an order is pending, and
+        applies stop-loss/take-profit first. On each new signal bar it evaluates
+        the netlead/EMA crossover, closes opposing positions, and opens a long or
+        short sized by ``size`` while setting risk prices.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -300,6 +387,13 @@ class LeadingStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/rejected orders, entry counts, and clear risk on close.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored, completions update buy/sell or reset stop/take-profit,
+                and failures increment the rejected count.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -318,6 +412,11 @@ class LeadingStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss buckets.
+
+        Args:
+            trade: The trade being notified; only closed trades update counts.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -342,6 +441,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Data file path, absolute or relative to this module.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -349,6 +459,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the M15 base frame and the resampled H4 Leading signal frame.
+
+    Args:
+        config: Resolved configuration with ``data`` and ``params`` sections.
+
+    Returns:
+        A dict with the ``m15`` base frame, the ``h4`` Leading signal frame, and
+        the ``fromdate``/``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -363,6 +485,19 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with both feeds, the strategy and analyzers.
+
+    Configures the broker (cash, commission, margin, multiplier), adds the M15
+    base feed and the H4 Leading signal feed, the strategy, and the standard
+    analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Frame dict produced by :func:`load_backtest_frames`.
+
+    Returns:
+        The configured :class:`backtrader.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -382,6 +517,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying trade/order counters.
+        cerebro: The Cerebro instance used to read the final broker value.
+        frame: Frame dict with date range and bar counts.
+        config: Resolved configuration dict for initial cash.
+
+    Returns:
+        A dict of performance metrics (signal/trade/order counts, returns,
+        drawdown, Sharpe, SQN and related statistics) used by the assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -409,6 +556,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Load data, build Cerebro, run the backtest and extract metrics.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        of strategy instances, ``metrics`` is the extracted metrics dict, and
+        ``cerebro`` is the executed engine.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

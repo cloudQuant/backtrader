@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` with
+    ``fromdate=2025-12-03 01:15:00`` to ``todate=2026-03-10 09:00:00`` and
+    a 15-minute bar shift.
+
+Strategy Principle:
+    Builds fast/slow EMAs on close prices and issues buy/sell entries when
+    crossover direction satisfies configured distance and reversing rules.
+    Protective stop-loss, take-profit, and optional trailing-stop logic are
+    applied while a position is open.
+
+Strategy Logic:
+    The script loads config and parsed MT5 data, constructs feed + strategy in
+    Backtrader, executes with analyzers, and validates the resulting metrics
+    against the legacy regression expectations.
 """
 from __future__ import annotations
 import math
@@ -89,6 +105,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 CSV data into a Backtrader-compatible DataFrame.
+
+    Args:
+        filepath: Source MT5 data file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional minute offset applied to the datetime index.
+
+    Returns:
+        pd.DataFrame: Sorted DataFrame indexed by datetime with trade columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -120,6 +147,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom feed that carries MT5 spread data as an extra output line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -134,6 +162,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class UniversalMACrossEAStrategy(bt.Strategy):
+    """EMA crossover strategy with configurable reversal, exit and risk management."""
     params = dict(
         stop_loss_pips=100,
         take_profit_pips=200,
@@ -159,6 +188,7 @@ class UniversalMACrossEAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize moving averages, order state, and trade counters."""
         self.data0 = self.datas[0]
         self.fast_ma = bt.indicators.ExponentialMovingAverage(self.data0.close, period=self.p.fast_ma_period)
         self.slow_ma = bt.indicators.ExponentialMovingAverage(self.data0.close, period=self.p.slow_ma_period)
@@ -177,10 +207,16 @@ class UniversalMACrossEAStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Log strategy messages with the execution bar timestamp.
+
+        Args:
+            text: Text content to print.
+        """
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Evaluate crossover signals and manage entry/exit flow for one bar."""
         if len(self.data0) < max(100, self.p.slow_ma_period + 5):
             return
         if self.order is not None:
@@ -248,6 +284,7 @@ class UniversalMACrossEAStrategy(bt.Strategy):
             self.log(f'OPEN SHORT fast_prev={fast_prev:.5f} fast_cur={fast_cur:.5f} slow_prev={slow_prev:.5f} slow_cur={slow_cur:.5f}')
 
     def notify_order(self, order):
+        """Handle order lifecycle events and update order-related state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -270,6 +307,7 @@ class UniversalMACrossEAStrategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Record closed-trade outcomes and clear risk state on flat position."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -376,6 +414,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and verify the data path for the requested test dataset."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -383,12 +422,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings to ``datetime.datetime``.
+
+    Args:
+        value: ISO datetime string or ``None``.
+
+    Returns:
+        datetime.datetime | None: Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load the MT5 frame and return a backtest-ready structure.
+
+    Args:
+        config: Test configuration dictionary.
+
+    Returns:
+        pd.DataFrame: Prepared frame with datetime index and expected columns.
+    """
     data_cfg = config['data']
     frame = load_mt5_csv(
         resolve_data_path(data_cfg['file']),
@@ -403,6 +458,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used by regression assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -411,6 +467,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with feed, strategy and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -431,6 +488,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite values to ``None`` for stable printing/assertions."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -439,6 +497,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact backtest summary extracted from analyzers.
+
+    Args:
+        results: Backtrader results list.
+        start_value: Starting portfolio value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -467,6 +531,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run a regression-style backtest and print summary output."""
     parser = argparse.ArgumentParser(description='Run UniversalMACrossEA backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

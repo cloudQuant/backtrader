@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest period is ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Uses a simple OHLC directional check over a shifted bar and optional
+    reversed signal mode to trigger long/short transitions.
+    Includes spread filtering and bracket order protection.
+
+Strategy Logic:
+    Parse MT5 bars, feed data into strategy, generate OHLC direction signals and
+    execute controlled entries/exits, then validate metrics from analyzers.
 """
 from __future__ import annotations
 import math
@@ -23,7 +36,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'OHLC Check',
-        'source_ea': 'ea/0277_OHLC_检�?ohlc_check.mq5',
+        'source_ea': 'ea/0277_OHLC_Check/ohlc_check.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -76,6 +89,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and normalize to an indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Source path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Minute shift to apply to timestamps.
+
+    Returns:
+        DataFrame with spread and OHLCV fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -102,6 +126,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed extension providing spread data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -116,6 +141,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class OhlcCheckStrategy(bt.Strategy):
+    """OHLC candle polarity strategy with optional reversed trading mode."""
     params = dict(
         point_size=0.01,
         stoploss_pips=50,
@@ -127,6 +153,7 @@ class OhlcCheckStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state and order tracking attributes."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -137,10 +164,16 @@ class OhlcCheckStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print a timestamped message.
+
+        Args:
+            text: Log text.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run strategy logic while indicators are initializing."""
         self.next()
 
     def _new_bar(self):
@@ -209,6 +242,7 @@ class OhlcCheckStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate spread and OHLC signal, then place entries/exits."""
         if not self._new_bar():
             return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
@@ -235,6 +269,11 @@ class OhlcCheckStrategy(bt.Strategy):
                     self._submit_close('reverse to short', reverse='short')
 
     def notify_order(self, order):
+        """Update strategy state after order transitions.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -274,6 +313,11 @@ class OhlcCheckStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Handle closed trade events and clear active direction.
+
+        Args:
+            trade: Closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -291,6 +335,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a configured data filename under module directory.
+
+    Args:
+        filename: Configured path.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -298,12 +350,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse datetime strings from the config format.
+
+    Args:
+        value: Datetime string or None.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and filter historical data for the configured time window.
+
+    Args:
+        config: Config map with data settings.
+
+    Returns:
+        Mapping with key ``"data"``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -315,6 +383,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers needed for assertions.
+
+    Args:
+        cerebro: Cerebro object.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -323,6 +396,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro for OHLC check backtest.
+
+    Args:
+        config: Full strategy configuration.
+        frame: Prepared DataFrame bundle.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -337,6 +419,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None for undefined or non-finite values.
+
+    Args:
+        value: Any numeric-like value.
+
+    Returns:
+        ``None`` when value is None/non-finite; otherwise value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -345,6 +435,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print backtest summary derived from analyzer outputs.
+
+    Args:
+        results: Results list from backtrader run.
+        start_value: Initial capital.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -371,6 +467,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the OHLC check backtest with optional plotting."""
     parser = argparse.ArgumentParser(description='Run OHLC Check backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

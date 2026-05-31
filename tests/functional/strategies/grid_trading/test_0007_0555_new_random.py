@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("New_Random") is a high-frequency grid-like trading algorithm that uses a pseudo-random number generator (PRNG) or alternating patterns to make entry decisions.
+    - Market Assumptions: Under small timeframes and high frequency, random entries with symmetric tight stop loss and take profit levels (`stop_loss` = `take_profit` = 50 pips) can capture random-walk market noise with zero-bias drift.
+    - Indicators:
+        - None (Decisions are driven entirely by pseudo-random generation or alternating state patterns).
+    - Entry Signals:
+        - PRNG (generator mode): A random boolean decides whether to enter long ('buy') or short ('sell') on each new bar when no position is active.
+        - Alternating mode (buy_sell_buy or sell_buy_sell): The strategy toggles entry directions based on the previous order's direction.
+    - Exit Signals:
+        - Stop Loss & Take Profit: Set at execution price plus/minus 50 pips.
 """
 from __future__ import annotations
 import math
@@ -24,7 +41,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'New_Random',
-        'source_ea': 'ea/0555_新随机数/new_random.mq5',
+        'source_ea': 'ea/0555_New_Random/new_random.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -67,15 +84,29 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -83,10 +114,9 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
     df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
     df = df.rename(columns={
         '<OPEN>': 'open', '<HIGH>': 'high', '<LOW>': 'low', '<CLOSE>': 'close',
-        '<TICKVOL>': 'tick_volume', '<VOL>': 'real_volume',
+        '<TICKVOL>': 'volume', '<VOL>': 'real_volume',
     })
     df['openinterest'] = 0
-    df['volume'] = df['tick_volume']
     df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
     df = df.set_index('datetime')
     if bar_shift_minutes:
@@ -99,12 +129,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class NewRandomStrategy(bt.Strategy):
+    """Strategy class implementing grid/random entry configurations.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         random_mode='generator',
         count_min_lots=1,
@@ -116,6 +152,7 @@ class NewRandomStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator instance, backtest metrics, and pseudo-random seed generator."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -132,15 +169,38 @@ class NewRandomStrategy(bt.Strategy):
         self.rng = random.Random(int(self.p.seed))
 
     def _point(self):
+        """Retrieve floating point unit value.
+
+        Returns:
+            float: Point unit.
+        """
         return float(self.p.point)
 
     def _round(self, value):
+        """Round price value to configured price_digits parameter.
+
+        Args:
+            value (float): Price value.
+
+        Returns:
+            float: Rounded price value.
+        """
         return round(float(value), int(self.p.price_digits))
 
     def _size(self):
+        """Retrieve trade lot size.
+
+        Returns:
+            float: Lot size.
+        """
         return max(1.0, float(self.p.count_min_lots))
 
     def _next_direction(self):
+        """Determine entry direction (buy or sell) based on random_mode parameter.
+
+        Returns:
+            str: Direction label ('buy' or 'sell').
+        """
         mode = str(self.p.random_mode).lower()
         if mode == 'generator':
             return 'buy' if self.rng.randint(0, 1) else 'sell'
@@ -151,6 +211,12 @@ class NewRandomStrategy(bt.Strategy):
         return 'buy'
 
     def _arm(self, direction, price):
+        """Calculate exit target prices and submit buy/sell entry orders.
+
+        Args:
+            direction (str): Direction of order ('buy' or 'sell').
+            price (float): Current candle close price.
+        """
         sl = float(self.p.stop_loss) * self._point()
         tp = float(self.p.take_profit) * self._point()
         self.last_open_type = direction
@@ -166,6 +232,7 @@ class NewRandomStrategy(bt.Strategy):
             self.order = self.sell(size=self._size())
 
     def _check_exit(self):
+        """Monitor open position and close it if high/low prices cross take profit or stop loss limits."""
         if not self.position or self.order is not None:
             return
         high = float(self.data.high[0])
@@ -182,6 +249,7 @@ class NewRandomStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -191,6 +259,11 @@ class NewRandomStrategy(bt.Strategy):
         self._arm(self._next_direction(), float(self.data.close[0]))
 
     def notify_order(self, order):
+        """Handle order life cycle updates and reset order reference pointers.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -209,6 +282,11 @@ class NewRandomStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -232,6 +310,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -239,6 +328,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -250,6 +350,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -268,6 +377,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -294,7 +414,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -304,7 +431,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -313,7 +444,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     import inspect
     sig = inspect.signature(build_cerebro)
     params = list(sig.parameters.keys())
@@ -326,7 +465,17 @@ def _build_cerebro_compat(inputs, config):
 
 
 def _extract_metrics_compat(strat, cerebro, inputs, config):
-    """Call extract_metrics with whichever signature the original used."""
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
     for args in (
         (strat, cerebro, inputs, config),
         (strat, cerebro, config, inputs),

@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M5.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data file and return a Pandas DataFrame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +40,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom PandasData feed for MT5-exported CSV data."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -46,13 +48,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DeMarkerIndicator(bt.Indicator):
+    """Inlined DeMarker indicator (not built into bt.indicators)."""
+
     lines = ("dem",)
     params = (("period", 14),)
 
     def __init__(self):
+        """Initialize the DeMarker indicator and set the minimum period."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute the DeMarker value for the current bar."""
         de_max_sum = 0.0
         de_min_sum = 0.0
         for i in range(self.p.period):
@@ -70,6 +76,8 @@ class DeMarkerIndicator(bt.Indicator):
 
 
 class CashMachine5MinStrategy(bt.Strategy):
+    """CashMachine 5-minute strategy: uses DeMarker and Stochastic for entry signals with hidden SL/TP."""
+
     params = dict(
         hidden_take_profit=60.0, hidden_stop_loss=30.0,
         lots=0.2,
@@ -80,6 +88,7 @@ class CashMachine5MinStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy: create DeMarker/Stochastic indicators and set up state tracking counters."""
         self.demarker = DeMarkerIndicator(self.data, period=self.p.demarker_period)
         self.stochastic = bt.indicators.Stochastic(
             self.data,
@@ -165,6 +174,7 @@ class CashMachine5MinStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Main loop: check entry signals, manage existing positions with hidden SL/TP."""
         self.bar_num += 1
         if len(self) < 100:
             return
@@ -186,6 +196,7 @@ class CashMachine5MinStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Order status callback: track completed/rejected orders and clear risk levels on position close."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -204,6 +215,7 @@ class CashMachine5MinStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Trade callback: count win/loss results on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

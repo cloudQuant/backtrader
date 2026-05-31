@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four daily (D1) FX pairs exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: EURUSD, AUDUSD, NZDUSD, and GBPUSD, plus two
+    macro proxy feeds IVV (US equity, growth proxy) and IEF (Treasuries, rates
+    proxy). The series cover 2008-01-01 to 2025-12-31 and are aligned on their
+    common trading dates. The pairs are tradable; IVV and IEF feed only the
+    macro factor calculations.
+
+Strategy Principle:
+    A port of the "Macro FX" strategy that trades commodity-linked currencies
+    against the US dollar using a macro factor model. It blends a growth factor
+    (equity momentum z-score), a rates factor (inverse bond momentum z-score),
+    and a pair-specific trend factor, scaling each pair's exposure by a beta that
+    reflects its commodity sensitivity. The composite signal is clipped and
+    mapped to a target weight, so risk-on macro regimes lift long exposure to
+    high-beta currencies while risk-off regimes cut or reverse it.
+
+Strategy Logic:
+    prepare_macro_fx_data aligns the feeds, computes the growth/rates/trend
+    factors and per-bar target percentages, and attaches them as extra feed
+    lines. The strategy walks the daily bars, records broker value, and on the
+    rebalance cadence reads each pair's target percentage, tallies long/short/
+    neutral signal days, converts the target into a target size, and issues
+    order_target_size orders while counting buys/sells. extract_metrics gathers
+    returns, drawdown, Sharpe, SQN, win/loss, profit factor, signal-day counts,
+    and an Ulcer index; the test runs with runonce=True and asserts each metric
+    against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -94,6 +122,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -126,6 +165,24 @@ def _zscore(series, lookback):
 
 
 def prepare_macro_fx_data(pair_map, macro_map, params):
+    """Align feeds and compute macro factors and per-pair target weights.
+
+    Aligns the FX pairs and macro proxies on their common dates, builds growth
+    and rates factor z-scores from the macro proxies, adds a pair-specific trend
+    factor, and combines them (weighted by factor weights and pair beta) into a
+    clipped per-bar target percentage attached to each pair's frame.
+
+    Args:
+        pair_map: Mapping of FX pair symbol to its loaded OHLCV DataFrame.
+        macro_map: Mapping of macro proxy symbol (IVV, IEF) to its DataFrame.
+        params: Strategy parameters supplying lookbacks, factor weights, pair
+            betas, the signal threshold, and the max pair weight.
+
+    Returns:
+        A tuple of ``(prepared, score_df)`` where ``prepared`` maps each pair to
+        its frame augmented with factor and target columns, and ``score_df`` is
+        the per-date macro signal matrix with all-NaN rows dropped.
+    """
     aligned_index = None
     prepared = {}
     macro_lookback = int(params.get('macro_lookback', 63))
@@ -167,6 +224,8 @@ def prepare_macro_fx_data(pair_map, macro_map, params):
 
 
 class MacroFXFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the precomputed macro factor and target lines."""
+
     lines = ('growth_factor', 'rates_factor', 'pair_trend', 'macro_signal', 'target_percent')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -175,6 +234,13 @@ class MacroFXFeed(bt.feeds.PandasData):
 
 
 class MacroFXStrategy(bt.Strategy):
+    """Rebalance FX pairs toward macro-factor target weights on a cadence.
+
+    Reads each pair's precomputed target percentage from its feed, converts it
+    into a target size, and issues ``order_target_size`` orders on the rebalance
+    cadence while tracking buy/sell counts and long/short/neutral signal days.
+    """
+
     params = dict(
         rebalance_interval_days=21,
         macro_lookback=63,
@@ -188,6 +254,7 @@ class MacroFXStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, the order-ref set, and signal-day tallies."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -218,6 +285,14 @@ class MacroFXStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rebalance pairs toward their target weights on the rebalance cadence.
+
+        Increments the bar counter, records the current broker value, and skips
+        while orders are pending or off the rebalance cadence. When due, it reads
+        each pair's target percentage, tallies long/short/neutral signal days,
+        converts the target into a target size, and issues order_target_size
+        orders (counting buys and sells) when the holding has drifted enough.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.datas[0].datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -243,11 +318,22 @@ class MacroFXStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed orders from the pending-ref set once they settle.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears its ref.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -267,10 +353,27 @@ class MacroFXStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -284,6 +387,17 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load every FX pair and macro proxy feed and compute the macro signals.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the pair and
+            macro proxy file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the prepared per-pair frames (restricted to valid signal
+        dates), the macro signal DataFrame, and the effective ``fromdate`` and
+        ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -306,6 +420,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the pair feeds, strategy, and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, and strategy
+            parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0002)))
@@ -326,6 +450,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, signal-day tallies, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and the signal frame.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, signal-day counts, and trade counts)
+        used by the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -368,6 +507,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

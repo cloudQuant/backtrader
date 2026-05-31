@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) base timeframe, loaded from
+    the MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each base bar is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at close, and a second feed is built
+    by resampling to 60-minute (H1) bars for the indicator, so the strategy runs
+    on two synchronized feeds (M15 execution, H1 signal).
+
+Strategy Principle:
+    This is the "Exp_StepMA_NRTR" strategy, built on a StepMA_NRTR indicator. The
+    indicator derives a volatility-based step size (from average bar ranges scaled
+    by ``kv``) and tracks a trend-following moving average with an NRTR (Nick
+    Rypock Trailing Reverse) ratchet that flips between up and down regimes. A
+    flip from down to up produces a buy signal and a flip from up to down a sell
+    signal; positions are also closed while the opposing trend line is active.
+    Each position is protected by fixed point-based stop-loss and take-profit
+    distances.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_signal_frame resamples it to
+    H1; build_cerebro wires the M15 and H1 feeds, a fixed-commission futures
+    broker, the strategy, the analyzers, and an optional TradeLogger observer. The
+    strategy computes StepMANRTRIndicator on the H1 feed and, each bar after warm-up,
+    first checks stop/take-profit exits, then—once per new H1 signal bar—reads the
+    buy/sell and trend lines to close or open long/short positions subject to the
+    open/close flags. notify_trade counts opened positions and tallies wins/losses
+    on close. extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -93,6 +123,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 CSV export data into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional start datetime; rows before this are filtered out.
+        todate: Optional end datetime; rows after this are filtered out.
+        bar_shift_minutes: Minutes to add to bar timestamps to mark bar close.
+
+    Returns:
+        A dataframe indexed by datetime with open/high/low/close/volume/openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +155,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 OHLCV fields by positional index."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -130,6 +172,7 @@ class StepMANRTRIndicator(bt.Indicator):
     params = dict(length=10, kv=1.0, step_size=0, percentage=0, switch=1)
 
     def __init__(self):
+        """Initialize rolling state and derived parameters for indicator updates."""
         self._length = int(self.p.length)
         self._kv = float(self.p.kv)
         self._step_size = int(self.p.step_size)
@@ -206,6 +249,7 @@ class StepMANRTRIndicator(bt.Indicator):
         return result, size_p
 
     def next(self):
+        """Compute trend-up/down lines and buy/sell trigger levels for this bar."""
         result, size_p = self._step_ma_calc()
         ratio = self._percentage / 100.0 if self._percentage > 0 else 0
         step = self._step_size_calc(0)
@@ -256,6 +300,7 @@ class ExpStepMANRTRStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data views, StepMA indicator, and strategy counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = StepMANRTRIndicator(
@@ -275,6 +320,11 @@ class ExpStepMANRTRStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line for diagnostic/trade output.
+
+        Args:
+            text: Message to print.
+        """
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -298,6 +348,14 @@ class ExpStepMANRTRStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate exits and signals and submit orders accordingly each bar.
+
+        The method enforces:
+        1) bar readiness checks,
+        2) stop/take-profit management,
+        3) one-time signal processing per signal bar,
+        4) configured open/close rules for longs and shorts.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -354,6 +412,11 @@ class ExpStepMANRTRStrategy(bt.Strategy):
             if self.position.size >= 0: self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Update trade counters when positions open and close.
+
+        Args:
+            trade: Backtrader Trade object.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -374,11 +437,33 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a strategy data filename against module directory.
+
+    Args:
+        fn: Relative path from the test module.
+
+    Returns:
+        Absolute path to the requested file.
+
+    Raises:
+        FileNotFoundError: When file does not exist.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Build the base backtest frame from CSV and configured date bounds.
+
+    Args:
+        cfg: Full strategy config.
+
+    Returns:
+        Dict with keys ``data``, ``fromdate``, and ``todate``.
+
+    Raises:
+        ValueError: If loaded dataframe is empty.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -388,6 +473,15 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Resample base bars to a higher timeframe for indicator generation.
+
+    Args:
+        df: Base-timeframe OHLCV dataframe.
+        mins: Resample period in minutes.
+
+    Returns:
+        Resampled OHLCV dataframe with required columns.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -395,6 +489,7 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Create Cerebro instance with feed, strategy, analyzers, and observers."""
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 60)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -425,6 +520,17 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Collect sharpe/returns/drawdown/trade metrics from a completed run.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Cerebro engine after run.
+        frame: Loaded frame metadata.
+        cfg: Strategy/backtest config.
+
+    Returns:
+        Dict used by assertions for regression checks.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -438,6 +544,14 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Execute full workflow and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: Whether to render Backtrader plot after execution.
+
+    Returns:
+        Tuple containing run results, extracted metrics, and Cerebro instance.
+    """
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)

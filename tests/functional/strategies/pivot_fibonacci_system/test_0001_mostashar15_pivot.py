@@ -18,6 +18,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and return a normalized dataframe for Backtrader."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -51,6 +52,7 @@ def _resample(df, rule):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed that exposes an extra ``spread`` line for MT5 data."""
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -59,6 +61,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MostasHaR15PivotStrategy(bt.Strategy):
+    """Pivot/Fibonacci strategy operating on H1 session levels and M15 execution."""
     params = dict(
         fixed_lot=0.1, point_size=0.01,
         stoploss_pips=20, trailing_stop_pips=5, trailing_step_pips=5,
@@ -66,6 +69,7 @@ class MostasHaR15PivotStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, session state, and counters."""
         self.data0_feed = self.datas[0]
         self.h1_feed = self.datas[1]
         self.order = None
@@ -215,6 +219,7 @@ class MostasHaR15PivotStrategy(bt.Strategy):
         return len(self.h1_feed) > 2 and self.prev_session_ohlc is not None
 
     def next(self):
+        """Update session pivots, manage exits, and open breakout positions when conditions align."""
         self.bar_num += 1
         self._update_session_ohlc()
         if not self._ready():
@@ -255,6 +260,7 @@ class MostasHaR15PivotStrategy(bt.Strategy):
             self._initialize_exit_levels(stop_price, support)
 
     def notify_order(self, order):
+        """Track submitted orders and reset context when entries or closes complete."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -277,6 +283,7 @@ class MostasHaR15PivotStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Aggregate closed-trade counts and reset position state on closure."""
         if not trade.isclosed:
             return
         self.trade_count += 1

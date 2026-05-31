@@ -7,12 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Hammer/Hanging Man + RSI") implements a reversal strategy using Japanese Hammer and Hanging Man candlestick patterns, filtered by the Relative Strength Index (RSI).
+    - Market Assumptions: Hammers and Hanging Men indicate price rejection and trend exhaustion at extreme ranges. These signals are validated by overbought or oversold RSI filters to improve entry precision.
+    - Indicators:
+        - SMA: Simple Moving Average (5-period, `ma_period`) of close prices.
+        - RSI: Relative Strength Index (14-period, `rsi_period`).
+    - Entry Signals:
+        - Buy Entry (Hammer): A Hammer pattern forms below the SMA, and current RSI < 40 (`rsi_entry_long`).
+        - Sell Entry (Hanging Man): A Hanging Man pattern forms above the SMA, and current RSI > 60 (`rsi_entry_short`).
+    - Exit Signals:
+        - Long Exit: RSI crosses down through 30 (`rsi_exit_lower`) or up through 70 (`rsi_exit_upper`).
+        - Short Exit: RSI crosses up through 70 (`rsi_exit_upper`) or down through 30 (`rsi_exit_lower`).
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
-import argparse, datetime
+import argparse
+import datetime
 import backtrader as bt
 import pandas as pd
 import pytest
@@ -22,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Hammer/Hanging Man + RSI',
-        'source_ea': 'ea/1323_MQL5_向导_-_基于_锤头_上吊线形态的交易信号_+_RSI',
+        'source_ea': 'ea/1323_Hammer_Hanging_Man_RSI/expert_abc_ws_rsi.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -66,15 +86,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -96,6 +134,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -103,6 +142,11 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class HammerRsiStrategy(bt.Strategy):
+    """Strategy class implementing Hammer and Hanging Man pattern recognition with RSI filtering.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         rsi_period=14,
         rsi_entry_long=40,
@@ -116,6 +160,7 @@ class HammerRsiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
         self.close_avg = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
@@ -127,6 +172,11 @@ class HammerRsiStrategy(bt.Strategy):
         self._position_was_open = False
 
     def _is_hammer(self):
+        """Check if a bullish Hammer pattern has formed on the previous candle.
+
+        Returns:
+            bool: True if Hammer is recognized, otherwise False.
+        """
         o1, h1, l1, c1 = (float(self.data.open[-1]), float(self.data.high[-1]), float(self.data.low[-1]), float(self.data.close[-1]))
         o2, c2 = float(self.data.open[-2]), float(self.data.close[-2])
         mid1 = (o1 + c1) / 2.0
@@ -138,6 +188,11 @@ class HammerRsiStrategy(bt.Strategy):
         return mid1 < avg2 and body_low > (h1 - rng / 3.0) and c1 < c2 and o1 < o2
 
     def _is_hanging_man(self):
+        """Check if a bearish Hanging Man pattern has formed on the previous candle.
+
+        Returns:
+            bool: True if Hanging Man is recognized, otherwise False.
+        """
         o1, h1, l1, c1 = (float(self.data.open[-1]), float(self.data.high[-1]), float(self.data.low[-1]), float(self.data.close[-1]))
         o2, c2 = float(self.data.open[-2]), float(self.data.close[-2])
         mid1 = (o1 + c1) / 2.0
@@ -149,6 +204,7 @@ class HammerRsiStrategy(bt.Strategy):
         return mid1 > avg2 and body_low > (h1 - rng / 3.0) and c1 > c2 and o1 > o2
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         warmup = max(self.p.rsi_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -175,6 +231,11 @@ class HammerRsiStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -198,12 +259,34 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -215,6 +298,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -231,6 +323,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -253,7 +356,24 @@ def extract_metrics(strat, cerebro, frame, config):
         'annual_return_pct': (returns.get('rnorm') or 0) * 100, 'sqn': sqn.get('sqn')
     }
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -261,6 +381,7 @@ def run(plot=False):
     results = cerebro.run()
     strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config)
+    print_report(metrics)
 
     if plot:
         cerebro.plot()
@@ -268,7 +389,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -277,8 +405,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 OHLCV data is loaded from ``tests/datas/XAUUSD_M15.csv`` and shifted by
+    15 minutes in line with migration settings.
+    A parallel M30-derived indicator feed is built from the same source with Hans
+    cloud upper/lower bands and color states.
+    The configured date window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy uses dual data streams to trigger breakout-style entries and optional
+    timed exits through bracket orders with fixed stop-loss and take-profit distances.
+    Timezone-shifted session partitioning drives signal band levels.
+
+Strategy Logic:
+    Data are normalized from MT5 CSV, resampled for indicator bars, and converted to
+    cloud band + color states.
+    The execution feed makes trading decisions on new signal bars, manages reversals
+    and bracket exits, and records trade performance counters for assertion.
+    Test metrics are asserted from captured strategy/analyzer results.
 """
 from __future__ import annotations
 import math
@@ -93,6 +112,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated OHLCV exports into a DataFrame.
+
+    Args:
+        filepath: Source path of the MT5 CSV file.
+        fromdate: Optional lower-bound timestamp to filter rows.
+        todate: Optional upper-bound timestamp to filter rows.
+        bar_shift_minutes: Optional timezone/bar-shift offset in minutes to add to timestamps.
+
+    Returns:
+        A pandas DataFrame with normalized datetime index and standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -119,6 +149,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Execution-time Pandas feed exposing spread on the base timeframe."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -127,6 +158,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class HansFeed(btfeeds.PandasData):
+    """Signal-time Pandas feed containing cloud bands and color index values."""
     lines = ('upper', 'lower', 'color_idx')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -135,6 +167,15 @@ class HansFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV bars to indicator frequency for cloud signal generation.
+
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Resample interval in minutes.
+
+    Returns:
+        Resampled DataFrame with aggregate OHLCV fields.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -152,6 +193,19 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def build_hans_indicator_frame(df, indicator_minutes, local_timezone, dest_timezone, pips_for_entry, point_size):
+    """Build Hans cloud upper/lower levels and color states by local trading session windows.
+
+    Args:
+        df: Source OHLCV DataFrame.
+        indicator_minutes: Indicator resampling interval in minutes.
+        local_timezone: Local timezone offset for session calculation.
+        dest_timezone: Target timezone offset for session comparison.
+        pips_for_entry: Distance expansion in pips.
+        point_size: Instrument point size.
+
+    Returns:
+        DataFrame enriched with ``upper``, ``lower``, and ``color_idx`` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     upper = []
     lower = []
@@ -205,6 +259,7 @@ def build_hans_indicator_frame(df, indicator_minutes, local_timezone, dest_timez
 
 
 class ExpHansIndicatorCloudSystemStrategy(bt.Strategy):
+    """Hans cloud strategy with dual data feeds and breakout/reversal-based order flow."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -228,6 +283,7 @@ class ExpHansIndicatorCloudSystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state, order handles, position flags, and result counters."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1]
         self.entry_order = None
@@ -247,6 +303,11 @@ class ExpHansIndicatorCloudSystemStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped strategy log line.
+
+        Args:
+            text: Message to print.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -320,6 +381,7 @@ class ExpHansIndicatorCloudSystemStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process one signal bar for time-based exits, reversals, and breakout entries."""
         self.bar_num += 1
         if len(self.signal_data) < max(int(self.p.signal_bar), 1) + 1:
             return
@@ -353,6 +415,11 @@ class ExpHansIndicatorCloudSystemStrategy(bt.Strategy):
             self._submit_entry('short', 'hans bearish breakout')
 
     def notify_order(self, order):
+        """Handle order callbacks for entry, close, stop, and take-profit events.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -400,6 +467,7 @@ class ExpHansIndicatorCloudSystemStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track trade counters after each closed trade and reset transient side state."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -424,6 +492,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to the test module directory.
+
+    Args:
+        filename: Relative filename from configuration.
+
+    Returns:
+        Absolute path object.
+
+    Raises:
+        FileNotFoundError: When the resolved file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -431,12 +510,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO datetime strings from config.
+
+    Args:
+        value: ISO datetime text or None.
+
+    Returns:
+        Parsed ``datetime.datetime`` or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load execution data and derive the indicator frame used by the signal feed.
+
+    Args:
+        config: Test configuration object.
+
+    Returns:
+        A payload with execution and signal DataFrames.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = parse_dt(data_cfg.get('fromdate'))
@@ -457,6 +552,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register sharpe, return, drawdown, trade, and sqn analyzers.
+
+    Args:
+        cerebro: Configured Backtrader engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -465,6 +565,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine with execution and indicator feeds and strategy wiring."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = dict(config.get('params', {}))
@@ -484,6 +585,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numbers to ``None`` for readable summary assertions."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -492,6 +594,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a concise text summary for the run using analyzer values.
+
+    Args:
+        results: Output list returned by ``cerebro.run()``.
+        start_value: Initial cash value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -518,6 +626,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entrypoint used by inlined migration harness."""
     parser = argparse.ArgumentParser(description='Run Exp_Hans_Indicator_Cloud_System_Tm_Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

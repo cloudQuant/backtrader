@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV from ``tests/datas/XAUUSD_M15.csv`` is loaded and shifted
+    by 15 minutes. An H1 feed is derived for secondary signal evaluation and the
+    period is ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    The strategy gates entries by EMA slope and jump filters, then uses emergency
+    and smart exit rules based on stop/take-profit thresholds, end-of-minute
+    filters, and volume conditions.
+
+Strategy Logic:
+    The strategy receives a base M15 feed and an H1 resample, computes entry and
+    exit signals, submits market orders with local stop/limit reference levels, and
+    updates trade counters and PnL metrics for assertion.
 """
 from __future__ import annotations
 import math
@@ -84,6 +99,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 CSV data for backtest.
+
+    Args:
+        filepath: Input MT5 file path.
+        fromdate: Optional inclusive start timestamp.
+        todate: Optional inclusive end timestamp.
+        bar_shift_minutes: Optional minute shift for timestamps.
+
+    Returns:
+        DataFrame with datetime index and normalized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +136,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData extension that includes spread as an additional line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -124,6 +152,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ArttraderV15Strategy(bt.Strategy):
+    """Jump-filtered, slope-aware strategy with manual risk exits."""
+
     params = dict(
         fixed_lot=1.0,
         point_size=0.01,
@@ -144,6 +174,7 @@ class ArttraderV15Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state and EMA indicator."""
         self.data0_feed = self.datas[0]
         self.h1_feed = self.datas[1]
         self.order = None
@@ -156,6 +187,7 @@ class ArttraderV15Strategy(bt.Strategy):
         self.h1_ema = bt.indicators.EMA(self.h1_feed.open, period=self.p.ema_speed)
 
     def log(self, text):
+        """Print a timestamped strategy log message."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -277,6 +309,12 @@ class ArttraderV15Strategy(bt.Strategy):
         return end_buy, end_sell
 
     def next(self):
+        """Evaluate exits and entries on every new bar.
+
+        The method enforces emergency exits first, then smart time/volume exits
+        for open positions, and finally evaluates entry signals only when no
+        open order or position exists.
+        """
         if len(self.h1_feed) < 2 or len(self.data0_feed) < 6:
             return
         if self._check_emergency_exit():
@@ -309,6 +347,11 @@ class ArttraderV15Strategy(bt.Strategy):
             self.log(f'OPEN SHORT signal price={self.entry_price:.5f}')
 
     def notify_order(self, order):
+        """Handle order lifecycle notifications from Backtrader.
+
+        Args:
+            order: Order instance whose status transition is being reported.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -329,6 +372,11 @@ class ArttraderV15Strategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Handle closed trade callbacks and reset internal trade state.
+
+        Args:
+            trade: Trade object supplied by Backtrader when a trade state changes.
+        """
         if not trade.isclosed:
             return
         side = self.active_side or ('long' if trade.long else 'short')
@@ -349,6 +397,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test fixture data path against this strategy directory.
+
+    Args:
+        filename: Relative or absolute path string from configuration.
+
+    Returns:
+        Resolved ``Path`` object for the target data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -356,12 +412,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an optional ISO date-time string into ``datetime``.
+
+    Args:
+        value: Date-time value in ISO format or a falsey value.
+
+    Returns:
+        Parsed ``datetime`` object when ``value`` is provided, otherwise ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and preprocess the primary backtest data frame.
+
+    Args:
+        config: Strategy configuration dict containing the data section.
+
+    Returns:
+        Dictionary with key ``data`` mapping to the loaded OHLCV ``DataFrame``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -373,6 +445,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard analyzer stack used by inline migration tests.
+
+    Args:
+        cerebro: Configured ``bt.Cerebro`` instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -381,6 +458,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and return a fully configured Cerebro instance for this test.
+
+    Args:
+        config: Full test configuration including strategy and backtest sections.
+        frame: Dictionary containing preloaded market data keyed by ``data``.
+
+    Returns:
+        Configured ``bt.Cerebro`` engine with datas, strategy, and analyzers.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -397,6 +483,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize NaN/inf metric values to ``None``.
+
+    Args:
+        value: Metric candidate value.
+
+    Returns:
+        The original value if finite, otherwise ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -405,6 +499,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print common performance summary from backtest results.
+
+    Args:
+        results: Cerebro run result list containing at least one strategy.
+        start_value: Starting account equity for delta calculations.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -431,6 +531,11 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entrypoint for running the inlined Arttrader v1.5 regression.
+
+    Parses plotting flag, executes backtest, and optionally displays a candlestick
+    chart.
+    """
     parser = argparse.ArgumentParser(description='Run Arttrader v1.5 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

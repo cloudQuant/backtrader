@@ -81,6 +81,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV file into a normalized OHLCV dataframe.
+
+    Args:
+        filepath: Path to MT5 CSV export.
+        fromdate: Optional lower bound datetime.
+        todate: Optional upper bound datetime.
+        bar_shift_minutes: Optional minute offset to shift bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +113,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping OHLCV columns for MT5 CSV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -125,6 +137,7 @@ class DarkCloudRsiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize RSI, MA, counters, and position state."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
         self.close_avg = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.sma_body = bt.indicators.SMA(
@@ -138,6 +151,7 @@ class DarkCloudRsiStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log message with current bar datetime."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -168,6 +182,7 @@ class DarkCloudRsiStrategy(bt.Strategy):
                 o1 < l2)
 
     def next(self):
+        """Process candle-pattern and RSI signals for exits and entries."""
         self.bar_num += 1
         warmup = max(self.p.rsi_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -200,6 +215,7 @@ class DarkCloudRsiStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update trade counters for open/closed trade lifecycle."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -232,6 +248,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module.
+
+    Args:
+        filename: Data path token.
+
+    Returns:
+        Resolved absolute Path.
+
+    Raises:
+        FileNotFoundError: If the file is absent.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -239,6 +266,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest data and return frame metadata.
+
+    Args:
+        config: Strategy configuration mapping.
+
+    Returns:
+        Dict containing data dataframe, fromdate, and todate.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -255,6 +290,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro with data, strategy and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Backtest frame containing data frame.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -278,6 +322,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs and strategy counters for assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Completed Cerebro engine.
+        frame: Loaded test data frame container.
+        config: Strategy configuration.
+
+    Returns:
+        Metrics dictionary with returns, risk, and trade statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -318,6 +373,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run strategy backtest and return run outputs with metrics.
+
+    Args:
+        plot: If True, display cerebro plot.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

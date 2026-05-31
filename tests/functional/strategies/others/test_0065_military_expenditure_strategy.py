@@ -1,7 +1,23 @@
-"""Inlined regression test for others/0065_military_expenditure_strategy.
+"""Regression test for geopolitical-defense signal strategy on commodities.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Target: XAUUSD. Defense proxy: ITA. Gold proxy: GLD.
+
+Data Used:
+    Daily OHLCV inputs are loaded from MT5 exports for XAUUSD (target),
+    ITA (defense proxy), and GLD (safe-haven proxy) in
+    ``tests/datas/mt5_1d_data``, covering 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    The strategy combines defense momentum, gold momentum, and safe-haven breakout
+    signals into a geopolitical factor. Positive factor values raise long exposure,
+    negative values raise short exposure, and zero values flatten exposure.
+
+Strategy Logic:
+    ``prepare_military_proxy_features`` builds derived features and a bounded
+    target weight signal. On periodic rebalance intervals, the strategy scales
+    position exposure to that target via ``order_target_percent``. Order and trade
+    notifications maintain a pending-order lock and update trading outcome counters.
 """
 from __future__ import annotations
 
@@ -20,6 +36,16 @@ GOLD_PROXY_FILE = DATA_DIR / "GLD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5 CSV/TSV export and return a backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to MT5 data file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+
+    Returns:
+        Datetime-indexed OHLCV DataFrame.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -44,6 +70,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_military_proxy_features(target_df, defense_df, gold_proxy_df, params):
+    """Construct geopolitical signal features used for trading decisions.
+
+    Args:
+        target_df: Target asset OHLCV frame.
+        defense_df: Defense proxy asset OHLCV frame.
+        gold_proxy_df: Gold proxy OHLCV frame.
+        params: Strategy parameters controlling rolling windows and scaling.
+
+    Returns:
+        A feature-augmented DataFrame containing composite signal and target
+        allocation columns.
+    """
     common_index = target_df.index.intersection(defense_df.index).intersection(gold_proxy_df.index).sort_values()
     target = target_df.loc[common_index].copy()
     defense = defense_df.loc[common_index].copy()
@@ -83,6 +121,7 @@ def prepare_military_proxy_features(target_df, defense_df, gold_proxy_df, params
 
 
 class MilitaryProxyFeed(bt.feeds.PandasData):
+    """Feed exposing military proxy signal components and target exposure."""
     lines = ("defense_momentum", "gold_proxy_momentum", "safe_haven_breakout", "realized_vol",
              "geopolitical_signal_raw", "geopolitical_signal", "signal", "target_percent")
     params = (
@@ -93,11 +132,17 @@ class MilitaryProxyFeed(bt.feeds.PandasData):
 
 
 class MilitaryExpenditureStrategy(bt.Strategy):
+    """Factor-based directional strategy reacting to geopolitical proxy signal.
+
+    It rebalances exposure at fixed intervals based on the sign and strength of the
+    composite target signal.
+    """
     params = dict(
         rebalance_interval_days=21,
     )
 
     def __init__(self):
+        """Initialize state counters and pending-order lock."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -119,6 +164,7 @@ class MilitaryExpenditureStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Track signal regime and rebalance exposure on schedule."""
         self.bar_num += 1
         signal_value = float(self.data.signal[0])
         if signal_value > 0.5:
@@ -142,11 +188,13 @@ class MilitaryExpenditureStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target_percent)
 
     def notify_order(self, order):
+        """Clear the pending-order lock when a non-active status is received."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Count completed trades and classify outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

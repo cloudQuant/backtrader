@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    The "MasterMind 2" dual-oscillator extreme system. A long-period Stochastic
+    and a Williams %R must both reach deep extremes to signal a reversal: a long
+    requires the Stochastic %D below a very low buy level while %R is near its
+    floor, and a short requires the mirror overbought condition. Risk is framed
+    with fixed point-based stop-loss and take-profit, plus a break-even move and
+    a trailing stop with a step threshold. Opposite extreme signals also close
+    the position.
+
+Strategy Logic:
+    ``__init__`` builds the StochasticFull and WilliamsR indicators and zeroes
+    the trade counters and order/risk state. ``next`` waits for a warmup window,
+    updates break-even/trailing stops, exits on an opposite signal or
+    stop/take-profit, and otherwise opens a long/short via the
+    ``_open_long``/``_open_short`` helpers when both oscillators confirm.
+    ``notify_order`` records fills and resets risk prices when flat, and
+    ``notify_trade`` tracks win/loss on close. The module-level helpers load the
+    CSV, build the cerebro with analyzers, and extract a metrics dictionary that
+    the test compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -83,6 +111,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +145,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +154,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MasterMind2Strategy(bt.Strategy):
+    """Stochastic + Williams %R dual-extreme reversal with trailing/break-even risk."""
+
     params = dict(
         lots=0.1,
         stop_loss=500,
@@ -131,6 +176,7 @@ class MasterMind2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the Stochastic and Williams %R indicators and zero counters/state."""
         self.stoch = bt.indicators.StochasticFull(
             self.data,
             period=self.p.stochastic_period,
@@ -152,6 +198,7 @@ class MasterMind2Strategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print ``text`` prefixed with the current bar's ISO timestamp."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -198,6 +245,7 @@ class MasterMind2Strategy(bt.Strategy):
         self.take_profit_price = round(price - self.p.take_profit * self.p.point, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Update trailing risk, manage exits, then open dual-extreme entries."""
         self.bar_num += 1
         warmup = max(self.p.stochastic_period, self.p.wpr_period) + 5
         if len(self.data) < warmup:
@@ -249,6 +297,14 @@ class MasterMind2Strategy(bt.Strategy):
             self._open_short()
 
     def notify_order(self, order):
+        """Record entry fills and reset risk prices when flat, then clear the order.
+
+        Args:
+            order: The order whose status changed; a completed entry records the
+                entry price and bumps the buy/sell counter, a completed close
+                resets the risk prices, and any terminal status clears the
+                pending entry order.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -270,6 +326,13 @@ class MasterMind2Strategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; the first open marks the
+                position open and a close bumps the trade and win/loss counters
+                by sign of PnL.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return
@@ -299,6 +362,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path under the test directory and verify it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -306,6 +370,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 history bars and return the sliced frame with test window metadata."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -322,6 +387,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create Cerebro, attach feed, strategy, and analyzers for this regression."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -345,6 +411,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer results and strategy counters as deterministic metrics."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

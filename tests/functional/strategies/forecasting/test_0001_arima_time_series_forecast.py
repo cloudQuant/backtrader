@@ -1,7 +1,35 @@
-"""Inlined regression test for forecasting/0001_arima_time_series_forecast.
+"""Inlined regression test for the ARIMA time-series forecast gold strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 ARIMA(1,0,1) directional forecast on XAUUSD daily returns.
+
+Data Used:
+    XAUUSD (gold) daily ``D1`` bars loaded from
+    ``tests/datas/XAUUSD_1d.csv`` through the MetaTrader-5 style CSV reader.
+    The backtest window runs from 2022-01-01 to 2025-12-31. Daily returns are
+    computed offline, an ARIMA model produces a one-step return forecast per
+    bar, and the derived signal and target-position columns are exposed to the
+    engine through a single :class:`Mt5ArimaFeed` data source on the daily
+    timeframe.
+
+Strategy Principle:
+    Uses an ARIMA(1,0,1) model fitted on a rolling window of daily returns to
+    forecast the next day's return. A forecast above the threshold is read as a
+    bullish signal warranting a long allocation, otherwise the strategy stays
+    flat. The market assumption is that short-term autocorrelation in gold
+    returns is exploitable by a linear time-series model, and the model is
+    refit periodically to adapt to changing dynamics.
+
+Strategy Logic:
+    Feature preparation refits the ARIMA model every ``refit_interval`` bars
+    after an initial ``train_window``, storing the forecast, a binary signal
+    and a target percentage. ``__init__`` initialises bar, rebalance and signal
+    counters. ``next`` reads the target percentage, counts long vs flat
+    signals and target switches, and rebalances toward the target notional with
+    ``order_target_size`` when current exposure drifts beyond a tolerance.
+    ``notify_order`` clears the pending order and ``notify_trade`` tallies
+    closed-trade wins and losses. The test asserts bar, signal, trade and
+    final-value counts against the captured baseline.
 """
 from __future__ import annotations
 
@@ -20,6 +48,18 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV export to read.
+        fromdate: Optional inclusive lower bound used to trim the index.
+        todate: Optional inclusive upper bound used to trim the index.
+        bar_shift_minutes: Minutes to shift the datetime index forward.
+
+    Returns:
+        A datetime-indexed DataFrame with open, high, low, close, volume and
+        openinterest columns sorted in ascending time order.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -46,6 +86,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_arima_features(df, params):
+    """Compute rolling ARIMA return forecasts and derive trading signals.
+
+    Args:
+        df: Daily OHLCV DataFrame indexed by datetime.
+        params: Mapping providing ``train_window``, ``ar_order``,
+            ``diff_order``, ``ma_order``, ``refit_interval``,
+            ``forecast_threshold`` and ``target_percent`` values.
+
+    Returns:
+        The input frame extended with ``return_1d``, ``forecast_return``,
+        ``signal`` and ``target_pct`` columns used by the data feed.
+    """
     out = df.copy()
     returns = out["close"].pct_change().fillna(0.0)
     train_window = int(params.get("train_window", 252))
@@ -87,6 +139,13 @@ def prepare_arima_features(df, params):
 
 
 class Mt5ArimaFeed(bt.feeds.PandasData):
+    """PandasData feed exposing ARIMA forecast columns to the strategy.
+
+    Extends the standard OHLCV lines with ``return_1d``, ``forecast_return``,
+    ``signal`` and ``target_pct`` so the strategy can read the precomputed
+    forecast outputs directly from the data feed.
+    """
+
     lines = ("return_1d", "forecast_return", "signal", "target_pct",)
     params = (
         ("datetime", None),
@@ -96,9 +155,11 @@ class Mt5ArimaFeed(bt.feeds.PandasData):
 
 
 class ArimaForecastStrategy(bt.Strategy):
+    """ARIMA-based directional strategy with target-position rebalance and trade tracking."""
     params = dict()
 
     def __init__(self):
+        """Initialize counters, target-tracking fields, and order state."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.buy_count = 0
@@ -140,6 +201,7 @@ class ArimaForecastStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Run daily rebalance logic from target_pct and signal columns."""
         self.bar_num += 1
         target_pct = float(self.data.target_pct[0])
         signal = int(round(float(self.data.signal[0])))
@@ -164,11 +226,13 @@ class ArimaForecastStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Clear pending order reference after terminal order status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counts for closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

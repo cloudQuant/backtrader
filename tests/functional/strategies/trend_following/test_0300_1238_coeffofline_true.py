@@ -7,6 +7,40 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Source: `tests/datas/XAUUSD_M15.csv` loaded through `load_mt5_csv`.
+    - Symbol: `XAUUSD`, base timeframe: `M15`.
+    - Sampling window:
+        - start: `2025-12-03 01:15:00`
+        - end: `2026-03-10 09:00:00`
+    - Bar shift:
+        - 15 minutes applied to imported bars via `fromdate`/`todate` filtering.
+    - Derived signal feed:
+        - Resamples to 240 minutes for indicator computation.
+        - Uses a second data feed with custom line `value`.
+
+Strategy Principle:
+    - The script evaluates a CoeffOfLine true indicator built from mirrored
+      high/low medians aligned to H4 bars.
+    - A signal is generated when the filtered line crosses zero:
+        - from negative to positive for long entries
+        - from positive to negative for short entries.
+    - Trade lifecycle is controlled by:
+        - `buy_pos_open` and `sell_pos_open` for new entries
+        - `buy_pos_close` and `sell_pos_close` for opposite-side exits
+        - fixed stop-loss / take-profit distances derived from `point`.
+
+Strategy Logic:
+    - Load configuration constants from `_CONFIG`, then build the market data frame.
+    - Preprocess base OHLCV data and build a secondary resampled signal frame.
+    - Initialize `CoeffOfLineTrueStrategy` with two data feeds:
+        - the base M15 feed for execution price
+        - the indicator feed for signal line values.
+    - On each bar, the strategy checks risk exits first, then detects fresh signal
+      changes, and executes opposite close/entry actions.
+    - On each trade close, trade statistics are collected and later asserted in
+      `extract_metrics`.
 """
 from __future__ import annotations
 import math
@@ -91,6 +125,17 @@ INVERTED_SYMBOLS = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a mt5 style TSV file and transform it into a Backtrader compatible DataFrame.
+
+    Args:
+        filepath: Path to a MetaTrader 5-exported tab-delimited CSV/TSV file.
+        fromdate: Optional lower bound datetime filter.
+        todate: Optional upper bound datetime filter.
+        bar_shift_minutes: Optional minute offset applied to the timestamp index.
+
+    Returns:
+        A DataFrame indexed by datetime with columns required by backtrader feeds.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -112,6 +157,11 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Default pandas feed mapping for base OHLCV data used by the strategy.
+
+    The generated strategy keeps the MT5 field order compatible with Backtrader's
+    built-in `PandasData` implementation.
+    """
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -119,6 +169,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class CoeffOfLineTrueFeed(btfeeds.PandasData):
+    """Extended data feed exposing an additional `value` line for signal values."""
     lines = ('value',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -127,6 +178,15 @@ class CoeffOfLineTrueFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV data into aggregated H4 blocks for the indicator context.
+
+    Args:
+        df: Base minute-level DataFrame indexed by datetime.
+        indicator_minutes: Resample granularity in minutes.
+
+    Returns:
+        Aggregated DataFrame with open/high/low/close/volume/openinterest fields.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -142,11 +202,35 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def smma_series(series, period):
+    """Build a smoothed moving average (SMMA) using exponential weights.
+
+    Args:
+        series: Numeric pandas Series to smooth.
+        period: Lookback length.
+
+    Returns:
+        A pandas Series of SMMA values with at least `period` points available.
+    """
     period = int(period)
     return series.ewm(alpha=1.0 / period, adjust=False, min_periods=period).mean()
 
 
 def build_coeffofline_true_frame(df, indicator_minutes, smma_period, symbol):
+    """Compute the custom CoeffOfLine_true indicator signal frame.
+
+    The function rebuilds a higher-timeframe frame, applies an SMMA-based
+    denominator, then emits a transformed log-ratio value with sign inverted for
+    configured inverse symbols.
+
+    Args:
+        df: Base minute bar DataFrame.
+        indicator_minutes: Indicator bar interval in minutes.
+        smma_period: Smoothing period for SMMA.
+        symbol: Trading symbol for sign normalization.
+
+    Returns:
+        A DataFrame containing the standard OHLCV columns plus a `value` line.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     smma_period = int(smma_period)
 
@@ -199,6 +283,12 @@ def build_coeffofline_true_frame(df, indicator_minutes, smma_period, symbol):
 
 
 class CoeffOfLineTrueStrategy(bt.Strategy):
+    """Backtrader strategy for CoeffOfLine true signal cross trading.
+
+    The strategy combines a dedicated signal feed with base OHLCV execution data,
+    then executes long/short actions based on zero-crossings of the smoothed
+    coefficient line.
+    """
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -214,6 +304,7 @@ class CoeffOfLineTrueStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data bindings, counters, and trade state for one run."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -227,6 +318,7 @@ class CoeffOfLineTrueStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a strategy log message with local bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -271,6 +363,7 @@ class CoeffOfLineTrueStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process each new bar and apply exit then entry signal logic."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -322,6 +415,7 @@ class CoeffOfLineTrueStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track open/close trade statistics from Backtrader trade notifications."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -355,6 +449,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test module directory.
+
+    Args:
+        filename: Relative data filename configured in `_CONFIG`.
+
+    Returns:
+        Absolute path to the existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -362,6 +464,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and slice backtest market data using config date boundaries.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary with the filtered DataFrame and the resolved start/end datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -378,6 +488,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Backtrader engine for the test strategy.
+
+    Args:
+        config: Strategy and backtest configuration from `_CONFIG`.
+        frame: Dictionary returned by `load_backtest_frame`.
+
+    Returns:
+        A prepared `bt.Cerebro` instance with feeds, strategy and analyzers.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -420,6 +539,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract and normalize strategy metrics for regression assertions.
+
+    Args:
+        strat: Strategy instance returned by `cerebro.run()`.
+        cerebro: Running cerebro instance.
+        frame: Market context dictionary from `load_backtest_frame`.
+        config: Test configuration used for the run.
+
+    Returns:
+        Dictionary containing all metric values asserted by the integration test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -461,6 +591,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the regression workflow end-to-end and return backtest results.
+
+    Args:
+        plot: Whether to render the Cerebro plot after execution.
+
+    Returns:
+        A tuple of `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

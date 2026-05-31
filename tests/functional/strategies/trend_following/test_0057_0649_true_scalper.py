@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: H1 (1 Hour).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("TrueScalperProfitLock") implements a trend-following scalper strategy using dual Exponential Moving Averages (EMA) and a very fast Relative Strength Index (RSI) momentum filter.
+    - Market Assumptions: Scalping trends is highly effective when short-term EMAs (3-period and 7-period) confirm trend direction, while a fast 2-period RSI indicates extreme oversold/overbought pullbacks to enter on.
+    - Indicators:
+        - Fast EMA: 3-period (`ema3`) EMA of close prices.
+        - Slow EMA: 7-period (`ema7`) EMA of close prices.
+        - Filter RSI: 2-period (`rsi`) RSI of close prices.
+    - Entry Signals:
+        - Buy Entry: Fast EMA crosses or is above Slow EMA (`ema3 > ema7`), and the 2-period RSI drops below 50 (`rsi_value`) to signal a temporary bearish pullback.
+        - Sell Entry: Fast EMA crosses or is below Slow EMA (`ema3 < ema7`), and the 2-period RSI rises above 50 (`rsi_value`) to signal a temporary bullish pullback.
+    - Exit Signals:
+        - Symmetrical Stop Loss and Take Profit: Symmetrical levels are set relative to entry execution price (90 pips SL, 44 pips TP).
+        - Profit Lock (Breakeven): Shifts stop price to `break_even` (3 pips) above entry price once price moves in favor by `break_even_trigger` (25 pips).
+        - Abandon Expiry: Force-closes active positions if trade duration reaches `abandon` (101 bars), with optional reverse reentry sides.
 """
 from __future__ import annotations
 import math
@@ -23,7 +44,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'TrueScalperProfitLock',
-        'source_ea': 'ea/0649_真实锁定剥头皮利�?true_scalper_profit_lock.mq5',
+        'source_ea': 'ea/0649_True_Scalper_Profit_Lock/true_scalper_profit_lock.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -73,15 +94,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,6 +144,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -135,6 +175,7 @@ class TrueScalperStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator instances, backtest tracking metrics, and state variables."""
         self.ema3 = bt.indicators.EMA(self.data.close, period=3)
         self.ema7 = bt.indicators.EMA(self.data.close, period=7)
         self.rsi = bt.indicators.RSI(self.data.close, period=2)
@@ -155,12 +196,31 @@ class TrueScalperStrategy(bt.Strategy):
         self.pending_reentry_side = None
 
     def _point(self):
+        """Retrieve floating point unit value.
+
+        Returns:
+            float: Point unit.
+        """
         return float(self.p.point)
 
     def _round(self, value):
+        """Round price value to configured price_digits parameter.
+
+        Args:
+            value (float): Price value.
+
+        Returns:
+            float: Rounded price value.
+        """
         return round(float(value), int(self.p.price_digits))
 
     def _set_risk(self, side, price):
+        """Calculate and set absolute stop loss and take profit price levels.
+
+        Args:
+            side (str): Position side ('buy' or 'sell').
+            price (float): Order execution price.
+        """
         sl = float(self.p.stop_loss) * self._point()
         tp = float(self.p.take_profit) * self._point()
         if side == 'buy':
@@ -171,6 +231,12 @@ class TrueScalperStrategy(bt.Strategy):
             self.take_profit_price = self._round(price - tp) if tp > 0 else None
 
     def _enter_side(self, side, price):
+        """Submit buy/sell market orders and initialize trade protective limits.
+
+        Args:
+            side (str): Side of order ('buy' or 'sell').
+            price (float): Execution price.
+        """
         self.signal_count += 1
         self._set_risk(side, price)
         if side == 'buy':
@@ -179,6 +245,11 @@ class TrueScalperStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def _handle_abandon(self):
+        """Check if active position duration crosses abandon threshold, and close position with optional reentries.
+
+        Returns:
+            bool: True if an exit was triggered, otherwise False.
+        """
         abandon_bars = int(self.p.abandon)
         if abandon_bars <= 0 or self.bars_in_trade != abandon_bars:
             return False
@@ -193,6 +264,7 @@ class TrueScalperStrategy(bt.Strategy):
         return False
 
     def _profit_lock(self):
+        """Move stop loss target to break_even offset once price moves past break_even_trigger limit."""
         if not self.p.use_profit_lock or not self.position:
             return
         price = float(self.data.close[0])
@@ -208,6 +280,7 @@ class TrueScalperStrategy(bt.Strategy):
                 self.stop_price = self._round(entry - be_offset)
 
     def _manage_position(self):
+        """Monitor active open positions and submit close orders if stop loss or take profit levels are hit."""
         if not self.position or self.order is not None:
             return
         high = float(self.data.high[0])
@@ -224,6 +297,7 @@ class TrueScalperStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self) < 8:
             return
@@ -270,6 +344,11 @@ class TrueScalperStrategy(bt.Strategy):
             self._enter_side('sell', price)
 
     def notify_order(self, order):
+        """Handle order life cycle updates and reset order reference pointers.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -287,6 +366,11 @@ class TrueScalperStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -306,11 +390,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -320,6 +426,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -336,6 +451,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -354,6 +480,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)
@@ -362,7 +496,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -371,8 +512,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

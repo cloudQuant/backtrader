@@ -77,6 +77,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data from tab-separated export format.
+
+    Args:
+        filepath: MT5 export file path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute shift for timestamps.
+
+    Returns:
+        Parsed OHLCV dataframe indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -98,6 +109,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping OHLCV columns from MT5 CSV source."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -126,6 +138,7 @@ class WprBbAtrStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and trade-state flags."""
         self.wpr = bt.indicators.WilliamsR(
             self.data, period=self.p.wpr_period)
         self.bb = bt.indicators.BollingerBands(
@@ -140,10 +153,12 @@ class WprBbAtrStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log strategy messages with current bar timestamp."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Compute WPR/BB/ATR transitions and manage entries/exits."""
         self.bar_num += 1
         warmup = max(self.p.wpr_period, self.p.bb_period, self.p.atr_period) + 5
         if len(self.data) < warmup:
@@ -186,6 +201,7 @@ class WprBbAtrStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track trade open/close events and update counters."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -210,11 +226,30 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve configured data filename against the test file directory.
+
+    Args:
+        filename: Relative data file path token.
+
+    Returns:
+        The resolved absolute path.
+
+    Raises:
+        FileNotFoundError: If data file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load strategy input frame from configured MT5 data and date window.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dict containing data and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -225,6 +260,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro engine with feed, strategy, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Prepared data frame dictionary.
+
+    Returns:
+        A configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -242,6 +286,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and strategy counters for regression assertions.
+
+    Args:
+        strat: Strategy instance after running backtest.
+        cerebro: Cerebro engine after execution.
+        frame: Backtest data frame dictionary.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of metrics and statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -262,6 +317,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Run backtest and return execution outputs and metrics.
+
+    Args:
+        plot: If True, show cerebro plot.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

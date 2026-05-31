@@ -6,6 +6,36 @@ This module tests the multi-data source functionality where a strategy
 can use signals from one data source to trade on another.
 
 Reference: backtrader-master2/samples/multidata-strategy/multidata-strategy.py
+
+Data Used:
+    Yahoo-format OHLCV bars from ``yhoo-1996-2014.txt`` loaded twice via
+    ``bt.feeds.YahooFinanceCSVData`` as ``Data0`` and ``Data1`` (both restricted
+    to 2005-01-01 to 2006-12-31, daily timeframe, no resampling). Using the same
+    file for both feeds keeps the example self-contained while still exercising
+    the two-data wiring. The test is parametrized over ``runonce=True`` and
+    ``runonce=False``.
+
+Strategy Principle:
+    The strategy separates the signal source from the traded instrument: an
+    SMA crossover computed on ``data1`` decides when to enter and exit, while
+    orders are placed on ``data0``. This mirrors pairs-style or lead/lag setups
+    where one series is treated as a leading indicator for another. A bullish
+    crossover (price crossing above the SMA) is the entry signal and a bearish
+    crossover is the exit signal; risk is bounded by fixed sizing and the
+    opposing crossover rather than an explicit stop.
+
+Strategy Logic:
+    1. ``__init__`` builds the SMA and crossover on ``data1`` and resets
+       bar/buy/sell counters.
+    2. ``next`` increments the bar counter, skips while an order is pending,
+       opens a long on a positive crossover when flat, and closes on a negative
+       crossover when in the market.
+    3. ``notify_order`` counts completed buys and sells; ``stop`` prints a
+       summary of bar count and starting/ending values.
+    4. ``test_multidata_strategy`` runs cerebro with $100,000 cash, 0.5%
+       commission, a 15-period SMA, stake 10, and Sharpe/Returns/DrawDown
+       analyzers, then asserts bar count, final value, Sharpe ratio, annual
+       return, and max drawdown match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``.
+    Data range is from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Uses short/long moving-average alignment with a Parabolic SAR and a simplified
+    zigzag context to filter entries and flips.
+    The strategy applies bracket exits with stop-loss, take-profit, and trailing-stop
+    maintenance for risk control.
+
+Strategy Logic:
+    The script loads MT5-formatted bars, builds a Backtrader data feed with spread,
+    runs the strategy through a configured Cerebro engine with analyzers, and
+    validates migrated backtest metrics.
 """
 from __future__ import annotations
 import math
@@ -85,6 +100,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted bars from disk and normalize them as an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 TSV data file.
+        fromdate: Optional start time filter.
+        todate: Optional end time filter.
+        bar_shift_minutes: Optional minute shift applied to all timestamps.
+
+    Returns:
+        A DataFrame indexed by datetime with spread included.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +137,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed extension that carries spread as a custom line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -125,13 +152,20 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class PivotZigZagProxy(bt.Indicator):
+    """Compact pivot and zigzag proxy indicator used by the strategy.
+
+    It tracks the nearest recent high/low pivot pairs over a configurable depth
+    and emits them as four separate output lines.
+    """
     lines = ('high0', 'low0', 'high1', 'low1')
     params = dict(depth=12)
 
     def __init__(self):
+        """Initialize minimum required bars for pivot calculation."""
         self.addminperiod(self.p.depth * 3)
 
     def next(self):
+        """Compute and expose the most recent two high and two low pivot levels."""
         pivots = []
         lookback = min(len(self.data) - 1, self.p.depth * 8)
         for idx in range(2, lookback):
@@ -152,6 +186,7 @@ class PivotZigZagProxy(bt.Indicator):
 
 
 class JSMASARTradesStrategy(bt.Strategy):
+    """MA/SAR trend strategy with zigzag confirmation and bracketed execution."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -172,6 +207,7 @@ class JSMASARTradesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate indicators, flags, and order-tracking attributes."""
         self.data0_feed = self.datas[0]
         self.fast_ma = bt.indicators.SmoothedMovingAverage(self.data0_feed.close, period=self.p.ma_fast_period)
         self.slow_ma = bt.indicators.SmoothedMovingAverage(self.data0_feed.close, period=self.p.ma_slow_period)
@@ -187,10 +223,16 @@ class JSMASARTradesStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print a UTC-timestamped strategy log message.
+
+        Args:
+            text: Log message to print.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run primary logic during startup bars before indicator min period."""
         self.next()
 
     def _new_bar(self):
@@ -262,6 +304,7 @@ class JSMASARTradesStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate time window, trailing stop, and breakout/flip signals."""
         self._apply_trailing()
         if len(self.data0_feed) < self.p.ma_slow_period + 10:
             return
@@ -300,6 +343,11 @@ class JSMASARTradesStrategy(bt.Strategy):
                 return
 
     def notify_order(self, order):
+        """Handle order lifecycle transitions and maintain strategy state.
+
+        Args:
+            order: The Backtrader order object transitioning state.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -342,6 +390,11 @@ class JSMASARTradesStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Reset directional state after a trade closes.
+
+        Args:
+            trade: The Backtrader trade instance.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -360,6 +413,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset path relative to the module directory.
+
+    Args:
+        filename: File path configured in strategy data section.
+
+    Returns:
+        Absolute path object.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -367,12 +428,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO8601-like datetime string into a datetime object.
+
+    Args:
+        value: Timestamp text from config or a falsy value.
+
+    Returns:
+        Parsed datetime instance or ``None`` if input is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and filter historical bars based on migration configuration.
+
+    Args:
+        config: Loaded configuration dictionary.
+
+    Returns:
+        Dictionary containing the backtest DataFrame under key ``"data"``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -384,6 +461,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach default analyzers used in migration metric assertions.
+
+    Args:
+        cerebro: Backtrader engine instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -392,6 +474,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro for this regression.
+
+    Args:
+        config: Loaded configuration object.
+        frame: Dictionary with prepared market data.
+
+    Returns:
+        Configured Backtrader ``Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -406,6 +497,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite numeric values.
+
+    Args:
+        value: Input value to sanitize.
+
+    Returns:
+        ``None`` if value is missing or non-finite float, else value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -414,6 +513,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print key performance summary extracted from analyzers.
+
+    Args:
+        results: Backtrader results list.
+        start_value: Initial account value before backtest.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -440,6 +545,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the regression backtest and optionally plot the result."""
     parser = argparse.ArgumentParser(description='Run JS_MA_SAR_Trades backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

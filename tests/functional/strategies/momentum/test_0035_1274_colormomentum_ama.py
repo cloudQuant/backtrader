@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with bar timestamps shifted forward by 15 minutes and a 15-minute
+    feed compression. The backtest window spans 2025-12-03 01:15 to
+    2026-03-10 09:00.
+
+Strategy Principle:
+    This is a port of the Exp_ColorMomentum_AMA MetaTrader expert advisor. A
+    momentum series (price minus price ``alength`` bars ago) is smoothed by a
+    Kaufman Adaptive Moving Average (KAMA) whose smoothing constant adapts to
+    the efficiency ratio. Turning points in the smoothed momentum line indicate
+    momentum acceleration or deceleration: an up-turn from a falling line opens
+    longs and a down-turn from a rising line opens shorts, reversing the
+    position when the opposite signal appears.
+
+Strategy Logic:
+    1. ``load_backtest_frame`` reads the MT5 CSV; ``build_cerebro`` wires the
+       feed, broker, strategy, and analyzers.
+    2. ``ColorMomentumAMAIndicator`` builds the EMA-smoothed momentum line, with
+       ``KAMAIndicator`` providing the adaptive moving-average primitive.
+    3. ``ColorMomentumAMAStrategy._signals`` reads three recent values to detect
+       turning points; ``next`` opens, closes, or reverses positions
+       accordingly after a warmup period.
+    4. ``notify_trade`` counts opened and closed trades into win/loss tallies.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_35_0035_1274_colormomentum_ama`` forces ``runonce=True``, captures
+       the metrics dict, and asserts each value against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -80,6 +109,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,6 +141,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column layout."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -108,6 +150,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_price_line(data, mode):
+    """Return the price line selected by an MT5 applied-price mode.
+
+    Args:
+        data: The data feed providing OHLC lines.
+        mode: Applied-price mode name (e.g. ``price_close``, ``price_median``).
+
+    Returns:
+        The line or line expression for the requested applied price; defaults
+        to the close line for unrecognized modes.
+    """
     price_mode = str(mode).lower()
     if price_mode in {'price_open', 'open'}:
         return data.open
@@ -129,13 +181,17 @@ def resolve_price_line(data, mode):
 
 
 class KAMAIndicator(bt.Indicator):
+    """Kaufman Adaptive Moving Average with both event and vectorized modes."""
+
     lines = ('ama',)
     params = dict(period=9, fast_period=2, slow_period=30, power=2.0)
 
     def __init__(self):
+        """Set the minimum period required before emitting values."""
         self.addminperiod(max(self.p.period, self.p.slow_period) + 2)
 
     def next(self):
+        """Compute the adaptive moving average for the current bar."""
         period = int(self.p.period)
         current = float(self.data[0])
         prev = float(self.lines.ama[-1]) if len(self) > 0 else current
@@ -161,6 +217,12 @@ class KAMAIndicator(bt.Indicator):
         self.lines.ama[0] = prev + sc * (current - prev)
 
     def once(self, start, end):
+        """Vectorized KAMA computation over the array index range.
+
+        Args:
+            start: Start index (inclusive) of the range to compute.
+            end: End index (exclusive) of the range to compute.
+        """
         period = int(self.p.period)
         src = self.data.array
         dst = self.lines.ama.array
@@ -191,6 +253,8 @@ class KAMAIndicator(bt.Indicator):
 
 
 class ColorMomentumAMAIndicator(bt.Indicator):
+    """EMA-smoothed momentum line used by the ColorMomentum_AMA strategy."""
+
     lines = ('value',)
     params = dict(
         alength=8,
@@ -202,6 +266,7 @@ class ColorMomentumAMAIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Build the EMA-smoothed momentum line and set the minimum period."""
         price_line = resolve_price_line(self.data, self.p.ipc)
         momentum = price_line - price_line(-int(self.p.alength))
         self.lines.value = bt.indicators.ExponentialMovingAverage(
@@ -212,6 +277,12 @@ class ColorMomentumAMAIndicator(bt.Indicator):
 
 
 class ColorMomentumAMAStrategy(bt.Strategy):
+    """Momentum-turning strategy ported from the Exp_ColorMomentum_AMA EA.
+
+    Opens, closes, or reverses positions based on turning points in the
+    EMA-smoothed adaptive momentum line.
+    """
+
     params = dict(
         alength=8,
         ama_period=9,
@@ -224,6 +295,7 @@ class ColorMomentumAMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate the momentum indicator and reset tracking counters."""
         self.indicator = ColorMomentumAMAIndicator(
             self.data,
             alength=self.p.alength,
@@ -242,6 +314,11 @@ class ColorMomentumAMAStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a log message prefixed with the current bar timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -265,6 +342,7 @@ class ColorMomentumAMAStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse positions on momentum-line turning points."""
         self.bar_num += 1
         warmup = int(self.p.alength) + int(self.p.ama_period) + int(self.p.signal_bar) + 10
         if len(self.data) < warmup:
@@ -303,6 +381,11 @@ class ColorMomentumAMAStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Tally opened and closed trades into win/loss counts.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -335,6 +418,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -342,6 +436,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter the market data frame described by the config.
+
+    Args:
+        config: Resolved configuration dict with a ``data`` section.
+
+    Returns:
+        Dict with ``data``, ``fromdate``, and ``todate`` keys.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -358,6 +463,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a cerebro with broker, data feed, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Dict containing the loaded ``data`` DataFrame.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -381,6 +495,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The cerebro instance after the run.
+        frame: Dict with the loaded ``data`` frame and date bounds.
+        config: Resolved configuration dict.
+
+    Returns:
+        Dict of backtest metrics keyed by metric name.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -421,6 +546,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest end to end and optionally plot the result.
+
+    Args:
+        plot: Whether to render the chart after the run.
+
+    Returns:
+        Tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

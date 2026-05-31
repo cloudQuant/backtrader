@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the daily (D1) timeframe, loaded from the MT5
+    export ``tests/datas/XAUUSD_1d.csv`` and spanning 2008-01-01 to 2025-12-31. A
+    derived signal feed adds the NR7 flag, prior-bar breakout triggers, ATR, a
+    trend moving average, and breakout-up/down signal columns.
+
+Strategy Principle:
+    This is the "NR7 Price Breakout Entry" strategy. NR7 marks a "narrowest range
+    in 7 bars" day, which often precedes an expansion in volatility. The strategy
+    waits for an NR7 bar, then enters on the next bar's break of that bar's high
+    (long) or low (short), optionally filtered by a trend moving average. Risk is
+    framed in ATR multiples: an ATR stop loss and ATR take profit, plus a
+    time-based exit after a fixed number of bars.
+
+Strategy Logic:
+    load_data loads the daily frame and prepare_nr7_price_breakout_features adds
+    the NR7, ATR, trend, and breakout columns; build_cerebro wires the signal
+    feed, a percentage futures commission, the strategy, and the analyzers. Each
+    bar the strategy manages an open position (ATR stop, ATR take-profit, or time
+    exit) or, while flat, enters long/short on a breakout signal with ATR-based
+    risk prices and notional-percentage sizing. notify_order clears the pending
+    order and notify_trade tallies wins and losses. extract_metrics consolidates
+    analyzer output (plus an Ulcer Index), and the test forces runonce=True, runs
+    the module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -81,6 +107,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -107,6 +147,17 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_nr7_price_breakout_features(df, params):
+    """Add NR7, ATR, trend, and breakout signal columns to the daily frame.
+
+    Args:
+        df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters controlling the NR7 lookback, ATR period, trend MA
+            period, and whether the trend filter applies.
+
+    Returns:
+        A frame with the NR7 flag, prior-bar breakout triggers, ATR, trend MA,
+        and breakout-up/down columns (warm-up rows dropped).
+    """
     out = df.copy()
     lookback = int(params.get('lookback', 7))
     atr_period = int(params.get('atr_period', 14))
@@ -137,6 +188,8 @@ def prepare_nr7_price_breakout_features(df, params):
 
 
 class Mt5NR7PriceBreakoutFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the NR7, ATR, trend, and breakout lines."""
+
     lines = ('nr7', 'nr7_high_trigger', 'nr7_low_trigger', 'atr', 'trend_ma', 'breakout_up', 'breakout_down')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -145,6 +198,8 @@ class Mt5NR7PriceBreakoutFeed(bt.feeds.PandasData):
 
 
 class NR7PriceBreakoutEntryStrategy(bt.Strategy):
+    """Enter on a breakout of an NR7 bar with ATR stops and a time exit."""
+
     params = dict(
         stop_loss_atr=2.5,
         take_profit_atr=4.0,
@@ -157,6 +212,7 @@ class NR7PriceBreakoutEntryStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order/risk state, and the broker value series."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -186,6 +242,14 @@ class NR7PriceBreakoutEntryStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Manage an open NR7 trade or open a new one on a breakout signal.
+
+        Increments the bar counter and records broker value, skips while an order
+        is pending, then—when in a position—exits on the ATR stop, ATR take
+        profit, or after ``time_exit`` bars, or—when flat—enters long/short on a
+        breakout-up/down signal with ATR-based stop and take-profit prices and
+        notional-percentage sizing.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -233,11 +297,22 @@ class NR7PriceBreakoutEntryStrategy(bt.Strategy):
             self.pending_order = self.sell(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
 
     def notify_order(self, order):
+        """Clear the pending order once it is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -255,6 +330,15 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build SharpeRatio analyzer kwargs for the config's timeframe.
+
+    Args:
+        config: Parsed configuration whose ``data.timeframe`` sets the bar size.
+
+    Returns:
+        A dict of timeframe/compression/factor kwargs annualizing Sharpe for the
+        daily, hourly, or minute timeframe (defaulting to daily).
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -267,10 +351,27 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is truthy and finite, otherwise None.
+
+    Args:
+        x: A numeric value or None.
+
+    Returns:
+        The value when it is truthy and finite, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -285,6 +386,16 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load the daily frame and add the NR7 breakout feature columns.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -294,6 +405,16 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the Cerebro engine, NR7 feed, strategy, and analyzers.
+
+    Args:
+        frame: The loaded data dict returned by :func:`load_data`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the NR7 signal feed, a
+        percentage futures commission, the strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -316,6 +437,19 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded data dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, SQN, and Ulcer
+        Index).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -362,6 +496,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Run the full NR7 breakout backtest end-to-end and compute its metrics."""
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

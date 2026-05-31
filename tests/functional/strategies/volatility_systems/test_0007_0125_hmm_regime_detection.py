@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the daily (D1) timeframe, loaded from the
+    MetaTrader 5 export ``tests/datas/mt5_1d_data/XAUUSD_1d.csv`` and clipped to
+    the window 2024-01-01 through 2025-12-31. A derived feature frame augments
+    the OHLCV columns with the Hidden Markov Model regime outputs: predicted
+    state, regime score, state confidence, transition-persistence probability,
+    target exposure, retrain markers, bull/bear/neutral signal flags, and a
+    signal-change flag. Data is delivered through a single PandasData feed and
+    priced as a spot instrument with a percentage commission.
+
+Strategy Principle:
+    Treats the market as switching between unobservable volatility/return
+    regimes that a Gaussian Hidden Markov Model can infer from log returns,
+    annualized volatility, and momentum. States are relabeled BULL, BEAR, or
+    NEUTRAL by their mean standardized return, and the model is periodically
+    retrained on a rolling window. A regime only drives exposure when the
+    model's state confidence clears a threshold and the same state persists over
+    a short smoothing window, so noisy flips are ignored. BULL states allocate
+    long, BEAR states allocate a smaller short, and NEUTRAL states stay flat.
+
+Strategy Logic:
+    ``prepare_hmm_regime_features`` walks the history bar by bar, retraining the
+    HMM at the configured interval, predicting the current state, and writing the
+    target exposure and signal columns into the feature frame. ``__init__``
+    zeroes the bar, trade, retrain, and signal-change counters. ``next`` records
+    broker value, counts retrain points, and—on a signal change—issues an
+    ``order_target_percent`` to the feed's target exposure. ``notify_order``
+    clears the pending order and ``notify_trade`` tallies wins and losses. The
+    module-level helpers load the CSV, build the cerebro with analyzers, and
+    extract a metrics dictionary (including an Ulcer Index) that the test
+    compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -83,6 +115,20 @@ warnings.filterwarnings('ignore')
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM:SS`` or
+    ``HH:MM`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -142,6 +188,24 @@ def _label_states(model, features_std):
 
 
 def prepare_hmm_regime_features(df, params):
+    """Walk the history and add HMM regime-detection signal columns.
+
+    For each bar past the training window, periodically retrains a Gaussian HMM
+    on standardized log return, volatility, and momentum features, predicts the
+    current hidden state, relabels it BULL/BEAR/NEUTRAL, and derives a target
+    exposure gated by state confidence and short-window persistence.
+
+    Args:
+        df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters controlling the state count, training/retrain windows,
+            feature windows, smoothing window, HMM iterations, covariance type,
+            and confidence threshold.
+
+    Returns:
+        A frame with the predicted state, regime score, confidence, persistence,
+        target exposure, retrain marker, bull/bear/neutral signals, and a
+        signal-change flag (warm-up rows dropped).
+    """
     out = df.copy()
     train_window = int(params.get('train_window', 252))
     retrain_interval = int(params.get('retrain_interval', 63))
@@ -267,6 +331,8 @@ def prepare_hmm_regime_features(df, params):
 
 
 class HMMRegimeFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the HMM regime, signal, and exposure lines."""
+
     lines = (
         'predicted_state', 'regime_score', 'state_confidence', 'persistence_prob',
         'target_exposure', 'retrain_point', 'bull_signal', 'bear_signal', 'neutral_signal', 'signal_change',
@@ -279,6 +345,7 @@ class HMMRegimeFeed(bt.feeds.PandasData):
 
 
 class HMMRegimeStrategy(bt.Strategy):
+    """Apply regime-driven target exposure produced by hidden Markov model features."""
     params = dict(
         n_states=3,
         train_window=252,
@@ -292,6 +359,7 @@ class HMMRegimeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, order state, and broker-value trace."""
         self.bar_num = 0
         self.pending_order = None
         self.trade_count = 0
@@ -302,6 +370,7 @@ class HMMRegimeStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Advance the strategy each bar and execute target-based rebalance orders."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if float(self.data.retrain_point[0]) > 0.5:
@@ -314,11 +383,13 @@ class HMMRegimeStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_exposure[0]))
 
     def notify_order(self, order):
+        """Clear ``pending_order`` after an order leaves submitted/accepted states."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increment trade outcome counters when positions close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -336,6 +407,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 class SpotCommissionInfo(CommInfoBase):
+    """Commission configuration for percentage-based spot pricing."""
     params = (
         ('commission', 0.0002),
         ('stocklike', True),
@@ -345,10 +417,19 @@ class SpotCommissionInfo(CommInfoBase):
 
 
 def finite_or_none(x):
+    """Return finite numeric values as-is, otherwise ``None``."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index from an equity-value series.
+
+    Args:
+        values: Iteration of equity levels.
+
+    Returns:
+        The Ulcer Index, a non-negative volatility-like drawdown metric.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -362,11 +443,27 @@ def calculate_ulcer_index(values):
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Get standard sharpe analyzer keyword arguments for daily data.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Sharpe analyzer kwargs for ``bt.Cerebro.addanalyzer``.
+    """
     return dict(timeframe=bt.TimeFrame.Days, compression=1, factor=252, annualize=True, riskfreerate=0)
 
 
 
 def load_data(config):
+    """Load and enrich market data into a HMM regime feature frame.
+
+    Args:
+        config: Strategy config with data path and date range.
+
+    Returns:
+        Dictionary containing feature frame and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -376,6 +473,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and wire the Cerebro engine for the HMM strategy.
+
+    Args:
+        frame: Dictionary output of :func:`load_data`.
+        config: Strategy and broker configuration.
+
+    Returns:
+        A configured ``bt.Cerebro`` object.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -393,6 +499,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzers and strategy counters into regression metric fields.
+
+    Args:
+        strat: Strategy instance returned from ``cerebro.run``.
+        cerebro: The executing Cerebro instance.
+        frame: Loaded input frame with market data.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary of metrics asserted by regression test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -441,6 +558,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Load data, run backtest once, and compute metrics."""
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

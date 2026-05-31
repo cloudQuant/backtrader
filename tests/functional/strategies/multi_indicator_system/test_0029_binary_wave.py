@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV from ``tests/datas/XAUUSD_M15.csv`` with a 15-minute
+    bar shift, spanning ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    The strategy composes weighted directional scores from MA trend, MACD slope and
+    OSMA, CCI, momentum ratio, RSI, and ADX, then smooths these scores into a
+    binary-style wave to generate breakout/reversal signals.
+
+Strategy Logic:
+    A custom indicator produces raw and smoothed wave lines from weighted
+    indicators. The strategy executes long/short entries on wave flips and closes
+    existing exposure on opposite flips, while tracking counts for assertions.
 """
 from __future__ import annotations
 import math
@@ -94,6 +108,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and return normalized OHLCV frame.
+
+    Args:
+        filepath: Source MT5 file path.
+        fromdate: Optional inclusive start timestamp.
+        todate: Optional inclusive end timestamp.
+        bar_shift_minutes: Optional minute shift to apply to index timestamps.
+
+    Returns:
+        Normalized pandas ``DataFrame`` indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -115,6 +140,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData specialization used by the Backtrader test harness."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -122,6 +149,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BinaryWaveIndicator(bt.Indicator):
+    """Weighted indicator that builds a smoothed wave signal from multiple sub-indicators."""
+
     lines = ('wave', 'raw',)
     params = dict(
         weight_ma=1.0,
@@ -144,6 +173,7 @@ class BinaryWaveIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Instantiate sub-indicators and configure required minimum periods."""
         ma_type = str(self.p.ma_type).lower()
         ma_cls = bt.indicators.EMA if ma_type == 'ema' else bt.indicators.SMA
         self.ma = ma_cls(self.data.close, period=self.p.ma_period)
@@ -222,6 +252,7 @@ class BinaryWaveIndicator(bt.Indicator):
         return score
 
     def next(self):
+        """Update raw and smoothed wave values for a single bar."""
         raw = self._score()
         self.lines.raw[0] = raw
         if len(self) == 1:
@@ -234,6 +265,12 @@ class BinaryWaveIndicator(bt.Indicator):
         self.lines.wave[0] = prev_wave + alpha * (raw - prev_wave)
 
     def once(self, start, end):
+        """Calculate raw and smoothed wave arrays for a range of bars.
+
+        Args:
+            start: Start index for batch evaluation.
+            end: End index (exclusive) for batch evaluation.
+        """
         close_array = self.data.close.array
         ma_array = self.ma.array
         macd_array = self.macd.macd.array
@@ -318,6 +355,8 @@ class BinaryWaveIndicator(bt.Indicator):
 
 
 class BinaryWaveStrategy(bt.Strategy):
+    """Wave signal strategy combining weighted indicator components for entries and flips."""
+
     params = dict(
         mode='breakdown',
         signal_bar=1,
@@ -344,6 +383,7 @@ class BinaryWaveStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate wave indicator and initialize trade accounting counters."""
         self.wave = BinaryWaveIndicator(
             self.data,
             weight_ma=self.p.weight_ma,
@@ -373,6 +413,7 @@ class BinaryWaveStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Emit timestamped strategy diagnostics."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -396,6 +437,7 @@ class BinaryWaveStrategy(bt.Strategy):
         return buy_signal, sell_signal, newer, latest
 
     def next(self):
+        """Process each new bar and place/flip positions by wave signal."""
         self.bar_num += 1
         if len(self.data) < max(
             self.p.ma_period,
@@ -432,6 +474,7 @@ class BinaryWaveStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update position counters when trades open and close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -464,6 +507,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative data path to an absolute file path in test directory.
+
+    Args:
+        filename: Relative path from configuration.
+
+    Returns:
+        ``Path`` of the existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -471,6 +522,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load historical data and attach runtime date boundaries.
+
+    Args:
+        config: Configuration object with data section.
+
+    Returns:
+        Dictionary containing bars and from/to dates.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -487,6 +546,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro engine, add feed, strategy, and analyzers.
+
+    Args:
+        config: Active strategy configuration.
+        frame: Loaded data frame dictionary.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -510,6 +578,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analysis outputs into a regression metric dictionary.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Backtrader engine after run.
+        frame: Backtest frame containing bar data.
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary of metrics for test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -550,6 +629,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the configured backtest and return execution artifacts.
+
+    Args:
+        plot: Whether to render a chart after run.
+
+    Returns:
+        A tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -76,6 +76,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 export to DataFrame.
+
+    Args:
+        filepath: MT5 TSV path.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute shift for each bar timestamp.
+
+    Returns:
+        DataFrame indexed by datetime with standard columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +110,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter for MT5 M15 OHLCV feed."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -123,6 +136,7 @@ class BrakeoutTraderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state and risk/trade counters."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -178,6 +192,7 @@ class BrakeoutTraderStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Evaluate breakout signals and manage re-entry/exit logic."""
         self.bar_num += 1
         if len(self) < 3:
             return
@@ -219,6 +234,11 @@ class BrakeoutTraderStrategy(bt.Strategy):
             self._enter_side('sell', price)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and reset working order state.
+
+        Args:
+            order: Broker-updated order.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -234,6 +254,11 @@ class BrakeoutTraderStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters after each closed trade.
+
+        Args:
+            trade: Trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -253,11 +278,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve and validate the data file path.
+
+    Args:
+        filename: Relative data filename.
+
+    Returns:
+        Absolute path.
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load and return the backtest data frame payload.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary with loaded data and date window.
+
+    Raises:
+        ValueError: If loaded data is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -267,6 +314,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Create and configure a Cerebro instance for this strategy.
+
+    Args:
+        config: Strategy/backtest config.
+        frame: Loaded frame dict from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured :class:`backtrader.Cerebro` engine.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -283,6 +339,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate sharpe/return/trade metrics for assertions.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Cerebro engine after run.
+        frame: Data payload.
+        config: Backtest configuration.
+
+    Returns:
+        Metrics dictionary.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -301,6 +368,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the brakeout backtest end-to-end.
+
+    Args:
+        plot: Whether to plot chart.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

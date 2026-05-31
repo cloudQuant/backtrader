@@ -1,6 +1,22 @@
-"""Inlined regression test for others/0016_january_opex_weak.
+"""Inlined regression test for the January OpEx Weak Gold strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD daily OHLCV data from ``tests/datas/XAUUSD_1d.csv``.
+
+Strategy Principle:
+    The strategy targets an early-January seasonal pattern around option-expiry
+    week. It records a January entry on the first trading day, a corresponding
+    exit at or before the January third Friday, and optionally scales targets when
+    the prior December is negative.
+
+Strategy Logic:
+    ``prepare_january_opex_gold_features`` marks ``entry_signal`` and
+    ``exit_signal`` dates and stores target allocation percentages. The strategy
+    opens long positions on entry signals, applies fixed percentage stop-loss and
+    take-profit exits plus time exits on exit signals, and then records
+    trade outcomes through callbacks for metric validation.
 """
 from __future__ import annotations
 
@@ -17,6 +33,16 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader-5 CSV export into a normalized OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV file.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+
+    Returns:
+        Datetime-indexed DataFrame with standard OHLCV columns and openinterest.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -41,12 +67,30 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def get_third_friday(year, month):
+    """Return the third Friday for a given year and month.
+
+    Args:
+        year: Gregorian year integer.
+        month: Month number 1-12.
+
+    Returns:
+        A pandas ``Timestamp`` for the third Friday date.
+    """
     cal = calendar.Calendar()
     fridays = [day for day, weekday in cal.itermonthdays2(year, month) if day != 0 and weekday == 4]
     return pd.Timestamp(year=year, month=month, day=fridays[2])
 
 
 def prepare_january_opex_gold_features(price_df, params):
+    """Generate January OpEx calendar features and signal rows.
+
+    Args:
+        price_df: Daily OHLCV DataFrame indexed by datetime.
+        params: Strategy parameters controlling target sizing and December filter.
+
+    Returns:
+        DataFrame containing signal flags, target percentages, and metadata columns.
+    """
     out = price_df.copy()
     require_negative_december = bool(params.get("require_negative_december", False))
     base_target_pct = float(params.get("base_target_pct", 0.20))
@@ -88,6 +132,7 @@ def prepare_january_opex_gold_features(price_df, params):
 
 
 class Mt5JanuaryOpExGoldFeed(bt.feeds.PandasData):
+    """PandasData feed exposing January OpEx entry/exit signal lines."""
     lines = ("entry_signal", "exit_signal", "target_pct", "negative_december", "signal_year")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -98,6 +143,7 @@ class Mt5JanuaryOpExGoldFeed(bt.feeds.PandasData):
 
 
 class JanuaryOpExGoldStrategy(bt.Strategy):
+    """Long-only seasonal-opportunity strategy driven by January OpEx signals."""
     params = dict(
         stop_loss_pct=0.03,
         take_profit_pct=0.05,
@@ -107,6 +153,7 @@ class JanuaryOpExGoldStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy counters and execution state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -132,6 +179,7 @@ class JanuaryOpExGoldStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance trading logic, apply risk exits, and open entries."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -157,6 +205,11 @@ class JanuaryOpExGoldStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=size)
 
     def notify_order(self, order):
+        """Handle order lifecycle and clear pending state on completion or terminal status.
+
+        Args:
+            order: The order object whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -171,6 +224,11 @@ class JanuaryOpExGoldStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_trade(self, trade):
+        """Record closed-trade statistics by PnL sign.
+
+        Args:
+            trade: Closed trade object provided by Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

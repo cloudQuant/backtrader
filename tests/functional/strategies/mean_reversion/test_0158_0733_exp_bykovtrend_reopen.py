@@ -90,6 +90,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 export TSV and produce a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to source data file.
+        fromdate: Optional lower bound datetime.
+        todate: Optional upper bound datetime.
+        bar_shift_minutes: Optional timestamp shift to apply.
+
+    Returns:
+        DataFrame indexed by parsed datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -117,6 +128,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Aggregate base bars by the selected rule for indicator calculation.
+
+    Args:
+        df: Base bar DataFrame indexed by datetime.
+        rule: Pandas resampling rule.
+
+    Returns:
+        Resampled DataFrame.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -131,6 +151,17 @@ def resample_frame(df, rule):
 
 
 def compute_bykovtrend(frame, risk=3, ssp=9, atr_period=15):
+    """Compute BykovTrend arrow signals from WPR and ATR.
+
+    Args:
+        frame: Input frame with OHLCV.
+        risk: Risk threshold for WPR flip zones.
+        ssp: Signal smoothing span.
+        atr_period: ATR window for channel width.
+
+    Returns:
+        Frame with `buy_arrow` and `sell_arrow` added.
+    """
     work = frame.copy()
     wpr = bt.talib.WILLR if False else None
     highest = work['high'].rolling(ssp, min_periods=ssp).max()
@@ -176,12 +207,14 @@ def compute_bykovtrend(frame, risk=3, ssp=9, atr_period=15):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Execution feed for M15 OHLCV bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class BykovTrendFeed(bt.feeds.PandasData):
+    """Indicator feed that carries computed buy/sell arrow levels."""
     lines = ('buy_arrow', 'sell_arrow')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('buy_arrow', 6), ('sell_arrow', 7),
@@ -189,6 +222,7 @@ class BykovTrendFeed(bt.feeds.PandasData):
 
 
 class ExpBykovTrendReOpenStrategy(bt.Strategy):
+    """Re-open variant strategy using BykovTrend directional arrows."""
     params = dict(
         stop_loss=1000,
         take_profit=2000,
@@ -205,6 +239,7 @@ class ExpBykovTrendReOpenStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind feeds and initialize counters and control state."""
         self.base = self.datas[0]
         self.ind = self.datas[1]
 
@@ -291,6 +326,7 @@ class ExpBykovTrendReOpenStrategy(bt.Strategy):
         return None
 
     def next(self):
+        """Execute close/reopen logic and open signals per bar."""
         self.bar_num += 1
         if len(self.ind) < 1:
             return
@@ -336,6 +372,7 @@ class ExpBykovTrendReOpenStrategy(bt.Strategy):
             self.last_add_price = float(self.base.close[0])
 
     def notify_order(self, order):
+        """Update counters and clear temporary order state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -357,6 +394,7 @@ class ExpBykovTrendReOpenStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade result counters once positions are closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -381,6 +419,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve the test data file path.
+
+    Args:
+        filename: Relative data filename.
+
+    Returns:
+        Absolute filesystem path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -388,6 +434,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load base and BykovTrend indicator frames for the backtest.
+
+    Args:
+        config: Strategy config dict.
+
+    Returns:
+        Dict containing loaded frames and date bounds.
+    """
     data_cfg = config['data']
     ind_cfg = config['indicator']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -402,6 +456,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with the two feeds and strategy/analyzers.
+
+    Args:
+        config: Execution/backtest config.
+        frame: Prepared market frames.
+
+    Returns:
+        Ready-to-run `bt.Cerebro`.
+    """
     bt_cfg = config['backtest']
     indicator_tf = config['data'].get('indicator_timeframe_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -437,6 +500,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Combine analyzer outputs and counters into regression metrics.
+
+    Args:
+        strat: Strategy instance from cerebro run.
+        cerebro: Executed engine.
+        frame: Input frame dictionary.
+        config: Config object.
+
+    Returns:
+        Metric dict for test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -476,6 +550,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest workflow and return metrics.
+
+    Args:
+        plot: If True, plot the strategy chart.
+
+    Returns:
+        Tuple `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

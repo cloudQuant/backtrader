@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    Reshetov's simplified MACD system. The MACD fast/slow periods are derived
+    from the signal period plus small ``df``/``ds`` offsets. An entry requires the
+    MACD main and signal lines to share the same sign (both above or both below
+    zero) and the main to lead the signal: main above signal in positive
+    territory opens a long, main below signal in negative territory opens a short.
+    Positions are closed when the MACD main line crosses back through zero.
+
+Strategy Logic:
+    ``__init__`` builds the MACD indicator from the derived periods and zeroes the
+    trade counters. ``next`` waits for the MACD warmup, closes an open position on
+    a zero-line cross of the main line, and otherwise opens a long/short when the
+    same-sign main/signal alignment holds. ``notify_order`` counts completed
+    buys/sells and clears the working order, and ``notify_trade`` tallies
+    win/loss. The module-level helpers load the CSV, build the cerebro with
+    analyzers, and extract a metrics dictionary that the test compares against
+    migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -72,6 +98,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -97,6 +136,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -109,6 +150,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MacdSimpleReshetovStrategy(bt.Strategy):
+    """Reshetov MACD same-sign main/signal entries with zero-line exit."""
+
     params = dict(
         lot=2.0,
         df=1,
@@ -117,6 +160,7 @@ class MacdSimpleReshetovStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the MACD indicator from the derived periods and zero counters."""
         fast_period = self.p.signal_period + self.p.df
         slow_period = self.p.signal_period + self.p.df + self.p.ds
         self.macd = bt.ind.MACD(
@@ -134,6 +178,7 @@ class MacdSimpleReshetovStrategy(bt.Strategy):
         self.loss_count = 0
 
     def next(self):
+        """Close on a MACD zero-line cross, else open on same-sign main/signal alignment."""
         self.bar_num += 1
         if len(self.data) < self.p.signal_period + self.p.df + self.p.ds + 2:
             return
@@ -162,6 +207,11 @@ class MacdSimpleReshetovStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lot)
 
     def notify_order(self, order):
+        """Count completed buys/sells, then clear the working order.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -173,6 +223,12 @@ class MacdSimpleReshetovStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -196,6 +252,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -203,6 +270,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and slice the MT5 dataset into the configured backtest date window.
+
+    Args:
+        config: Strategy configuration containing the ``data`` section.
+
+    Returns:
+        Dictionary with parsed DataFrame and backtest date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -219,6 +294,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a ``bt.Cerebro`` engine with feed, strategy and analyzers.
+
+    Args:
+        config: Strategy and broker configuration.
+        frame: Backtest frame produced by :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance ready for execution.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -242,6 +326,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and summarize backtest metrics used by regression assertions.
+
+    Args:
+        strat: Strategy instance after Cerebro execution.
+        cerebro: Finished Cerebro engine.
+        frame: Input backtest frame containing source data and boundaries.
+        config: Backtest configuration, used for initial cash context.
+
+    Returns:
+        Dictionary containing trading counts, risk metrics, and PnL statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -280,6 +375,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the backtest and return execution outputs.
+
+    Args:
+        plot: If True, render the cerebro plot.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)`` for inspection.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

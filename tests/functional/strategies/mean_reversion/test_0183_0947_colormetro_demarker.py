@@ -1,6 +1,25 @@
 """Inlined regression test for mean_reversion/0183_0947_colormetro_demarker.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD_M15.csv (Gold, M15, 2025-12-03 01:15 to 2026-03-10 09:00).
+    A second H8 feed (480 min) is resampled from the base M15 data for signal
+    computation, implementing a dual-timeframe structure.
+
+Strategy Principle:
+    DeMarker (DeM) oscillator computes the ratio of upward price pressure to
+    total price pressure over a lookback window. The ColorMetroDeMarker
+    indicator derives fast and slow adaptive trend lines from the DeM value,
+    using step-based channel logic. Trend direction is determined by DeM
+    exceeding or falling below channel bounds.
+
+Strategy Logic:
+    The ColorMetroDeMarkerStrategy compares fast_line relative to slow_line
+    on the H8 signal bar: a bullish crossover triggers a buy, a bearish one a
+    sell. Positions are managed with fixed stop-loss and take-profit levels,
+    and a direction-based reversal mechanism. Assertions verify trade counts,
+    win/loss totals, bar count, and final portfolio value.
 """
 from __future__ import annotations
 
@@ -16,6 +35,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Pandas DataFrame with standard OHLC columns."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +57,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_h8(df):
+    """Resample a DataFrame from M15 to H8 (480 min) using OHLCV aggregation."""
     out = df.resample("480min", label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min", "close": "last",
         "volume": "sum", "openinterest": "last", "spread": "last",
@@ -48,6 +69,7 @@ def resample_h8(df):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with an extra spread line."""
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -61,9 +83,11 @@ class DeMarkerIndicator(bt.Indicator):
     params = (("period", 14),)
 
     def __init__(self):
+        """Set minimum period to period + 1 for valid DeM computation."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute DeM = sum(max(high-high_prev,0)) / (sum(max(high-high_prev,0)) + sum(max(low_prev-low,0)))."""
         de_max_sum = 0.0
         de_min_sum = 0.0
         for i in range(self.p.period):
@@ -81,10 +105,12 @@ class DeMarkerIndicator(bt.Indicator):
 
 
 class ColorMetroDeMarkerIndicator(bt.Indicator):
+    """Colour Metro DeMarker indicator: derives fast/slow adaptive trend lines from the DeM oscillator."""
     lines = ("fast_line", "slow_line", "demarker")
     params = dict(period_demarker=7, step_size_fast=5, step_size_slow=15)
 
     def __init__(self):
+        """Initialize DeMarker instance, set minperiod, reset channel tracking vars."""
         self.dem = DeMarkerIndicator(self.data, period=int(self.p.period_demarker))
         self.addminperiod(int(self.p.period_demarker) + 3)
         self._fmin1 = 999999.0
@@ -95,6 +121,7 @@ class ColorMetroDeMarkerIndicator(bt.Indicator):
         self._strend = 0
 
     def next(self):
+        """Compute fast_line, slow_line and demarker from DeM value using step-based channel logic."""
         dem0 = float(self.dem[0]) * 100.0
         fmax0 = dem0 + 2.0 * float(self.p.step_size_fast)
         fmin0 = dem0 - 2.0 * float(self.p.step_size_fast)
@@ -128,6 +155,7 @@ class ColorMetroDeMarkerIndicator(bt.Indicator):
 
 
 class ColorMetroDeMarkerStrategy(bt.Strategy):
+    """Trading strategy that enters positions on ColorMetroDeMarker fast/slow line crossovers with SL/TP."""
     params = dict(
         fixed_lot=0.1, risk_percent=0.0, point=0.01,
         stop_loss_points=1000, take_profit_points=2000,
@@ -139,6 +167,7 @@ class ColorMetroDeMarkerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, indicator, counters, and entry/risk state variables."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = ColorMetroDeMarkerIndicator(
@@ -237,6 +266,7 @@ class ColorMetroDeMarkerStrategy(bt.Strategy):
         return float(line[-idx] if idx else line[0])
 
     def next(self):
+        """Bar-by-bar logic: detect fast/slow crossovers on signal bar, enter/exit positions with SL/TP."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -283,6 +313,7 @@ class ColorMetroDeMarkerStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track order lifecycle: count completions/rejections, set entry risk, handle reversals."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -322,6 +353,7 @@ class ColorMetroDeMarkerStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track trade outcomes: win/loss count and clear risk on close."""
         if not trade.isclosed:
             return
         self.trade_count += 1

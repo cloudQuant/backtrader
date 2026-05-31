@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily XAUUSD OHLCV in ``tests/datas/XAUUSD_1d.csv`` from 2008-01-01 to
+    2025-12-31. The strategy derives rolling z-score features from this input.
+
+Strategy Principle:
+    Uses sparse long-only mean-reversion signals from extreme z-score deviations
+    and exits when reversion crosses an exit threshold or holding window expires.
+
+Strategy Logic:
+    Calculates z-score and signal in preprocess functions, runs the strategy on a
+    custom PandasData feed, and validates broker, trade, and analyzer metrics
+    in regression assertions.
 """
 from __future__ import annotations
 import math
@@ -77,6 +90,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV OHLCV data.
+
+    Args:
+        filepath: Source csv path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+
+    Returns:
+        Datetime-indexed OHLCV dataframe with openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,6 +127,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_sparse_mean_reversion_portfolio_features(df, params):
+    """Build sparse mean-reversion indicator features.
+
+    Args:
+        df: Raw OHLCV dataframe.
+        params: Strategy parameters including lookback and entry threshold.
+
+    Returns:
+        Dataframe with rolling z-score and signal columns.
+    """
     lookback = int(params.get('lookback', 60))
     entry_z = float(params.get('entry_z', 2.0))
 
@@ -121,6 +153,7 @@ def prepare_sparse_mean_reversion_portfolio_features(df, params):
 
 
 class Mt5SparseMeanReversionPortfolioFeed(bt.feeds.PandasData):
+    """Pandas feed exposing sparse z-score and directional signal lines."""
     lines = ('z_score', 'signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -131,6 +164,7 @@ class Mt5SparseMeanReversionPortfolioFeed(bt.feeds.PandasData):
 
 
 class SparseMeanReversionPortfolioStrategy(bt.Strategy):
+    """Sparse mean-reversion portfolio strategy driven by z-score extremes."""
     params = dict(
         lookback=60,
         entry_z=2.0,
@@ -140,6 +174,7 @@ class SparseMeanReversionPortfolioStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and execution state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -163,6 +198,7 @@ class SparseMeanReversionPortfolioStrategy(bt.Strategy):
 
 
     def next(self):
+        """Advance one bar and execute long/exit rules."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -180,17 +216,19 @@ class SparseMeanReversionPortfolioStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order state after an order settles."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track completed trade outcomes."""
         pass
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Sparse Mean Reversion Portfolio 策略回测"""
+"""Sparse mean-reversion portfolio backtest helpers."""
 
 
 
@@ -201,6 +239,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe-ratio analyzer kwargs for the configured timeframe.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Parameters used for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -213,10 +259,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return a finite value or ``None``.
+
+    Args:
+        x: Candidate numeric value.
+
+    Returns:
+        Input value when finite; otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index for a value series.
+
+    Args:
+        values: Ordered sequence of values.
+
+    Returns:
+        Ulcer index float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -231,6 +293,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data path from config to an existing file.
+
+    Args:
+        filename: Configured data filename.
+
+    Returns:
+        Existing absolute path candidate.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -247,6 +317,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and preprocess data for backtest execution.
+
+    Args:
+        config: Test configuration.
+
+    Returns:
+        Prepared payload dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -259,6 +337,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure ``bt.Cerebro`` for this regression test.
+
+    Args:
+        frame: Prepared input payload.
+        config: Test configuration.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -281,6 +368,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy and analyzer metrics for assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Running Cerebro instance.
+        frame: Prepared payload.
+        config: Test configuration.
+
+    Returns:
+        Dictionary of computed performance metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -315,6 +413,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for JSON-compatible serialization.
+
+    Args:
+        v: Input value.
+
+    Returns:
+        Serialized-friendly value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

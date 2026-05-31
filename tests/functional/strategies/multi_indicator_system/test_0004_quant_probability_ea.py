@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV bars from ``tests/datas/XAUUSD_M15.csv`` are loaded and
+    filtered from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``. No external
+    indicators are loaded from data files; all strategy signals are computed from
+    in-memory bars in this test.
+
+Strategy Principle:
+    The strategy scans clustered historical bars to estimate the percentage of bullish
+    and bearish directional clusters above a pip threshold. Positioning is driven by
+    whether bullish probability is above 51% or below 49%, with one-position-at-a-time
+    execution and optional bar-gated entries.
+
+Strategy Logic:
+    The test builds a Backtrader feed from the preprocessed MT5 CSV data, then runs
+    the strategy with Sharpe, Returns, DrawDown, TradeAnalyzer, and SQN analyzers.
+    The strategy enters one-sided positions based on computed probability signals and
+    tracks order/trade counters for assertions.
 """
 from __future__ import annotations
 import math
@@ -24,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Quant Probability EA',
-        'source_ea': 'ea/0037_外汇概率论智能交易系�?quant_ea.mq5',
+        'source_ea': 'ea/0037_forex_probability_quant_ea.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -82,6 +100,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a tab separated MT5 CSV export and normalize it into a datetime-indexed frame.
+
+    Args:
+        filepath: Input CSV file path.
+        fromdate: Optional start timestamp for filtering rows.
+        todate: Optional end timestamp for filtering rows.
+        bar_shift_minutes: Optional minute shift applied to the parsed bar timestamps.
+
+    Returns:
+        DataFrame with columns ``datetime``, ``open``, ``high``, ``low``, ``close``,
+        ``volume``, and ``openinterest``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,6 +137,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed that maps MT5 OHLCV columns from the prepared DataFrame."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -119,6 +151,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class QuantProbabilityStrategy(bt.Strategy):
+    """Cluster-probability driven long/short strategy with optional protective orders."""
+
     params = dict(
         history_bars=1000,
         lots=0.1,
@@ -137,6 +171,7 @@ class QuantProbabilityStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize statistics counters and order-tracking state."""
         self.bullcount = 0
         self.bearcount = 0
         self.bull = 0.0
@@ -154,6 +189,7 @@ class QuantProbabilityStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped message from strategy execution."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -163,12 +199,14 @@ class QuantProbabilityStrategy(bt.Strategy):
         return round(max(lot, self.p.lot_min), 2)
 
     def lot_size(self):
+        """Compute the effective lot size from risk settings and clamp to broker bounds."""
         lot = self.p.lots
         if self.p.risk > 0:
             lot = self.broker.getcash() * self.p.risk / 100000.0
         return self._normalize_lot(lot)
 
     def count_trades(self):
+        """Return whether there is currently an open position."""
         return 1 if self.position else 0
 
     def _cancel_protective_orders(self):
@@ -180,6 +218,7 @@ class QuantProbabilityStrategy(bt.Strategy):
         self.limit_order = None
 
     def close_all(self, side=None):
+        """Close open position conditionally by side and cancel protective orders first."""
         if not self.position:
             return
         if side == 'buy' and self.position.size <= 0:
@@ -190,6 +229,7 @@ class QuantProbabilityStrategy(bt.Strategy):
         self.close()
 
     def check_bars(self):
+        """Refresh bullish/bearish probabilities from recent clustered bars."""
         self.bullcount = 0
         self.bearcount = 0
         self.delta_min = 1000.0
@@ -233,6 +273,7 @@ class QuantProbabilityStrategy(bt.Strategy):
                 self.limit_order = self.buy(size=size, exectype=bt.Order.Limit, price=limit_price, oco=self.stop_order)
 
     def next(self):
+        """Evaluate bar gate, update probabilities, and submit/close orders."""
         self.bar_num += 1
         required = self.p.history_bars + self.p.claster_bars
         if len(self.data) <= required:
@@ -258,6 +299,7 @@ class QuantProbabilityStrategy(bt.Strategy):
             self.entry_order.addinfo(kind='entry_short')
 
     def notify_order(self, order):
+        """Handle completed or stale order lifecycle events."""
         if order.status in (order.Submitted, order.Accepted):
             return
         kind = getattr(order.info, 'kind', None)
@@ -287,6 +329,7 @@ class QuantProbabilityStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track completed trade outcomes and clear protective orders."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -308,6 +351,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve fixture path and validate test data file existence.
+
+    Args:
+        filename: Relative file name under this strategy directory.
+
+    Returns:
+        Absolute Path object for the fixture.
+
+    Raises:
+        FileNotFoundError: If the fixture does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -315,6 +369,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the signal input frame used by the backtest.
+
+    Args:
+        config: Strategy config dictionary.
+
+    Returns:
+        Dict including filtered OHLCV data and timeframe bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -331,6 +393,14 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register default analyzers used by this migration.
+
+    Args:
+        cerebro: Backtrader Cerebro instance.
+
+    Returns:
+        None.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -339,6 +409,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and return a configured Cerebro engine.
+
+    Args:
+        config: Strategy config dictionary.
+        frame: Data payload from :func:`load_backtest_frame`.
+
+    Returns:
+        A configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -359,6 +438,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize finite numeric values, converting invalid values to ``None``."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -367,6 +447,17 @@ def finite_or_none(value):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Build a metric dictionary used by regression assertions.
+
+    Args:
+        strat: Strategy instance.
+        cerebro: Backtrader Cerebro instance.
+        frame: Backtest payload with data and date bounds.
+        config: Strategy config dictionary.
+
+    Returns:
+        Dict of derived trade, risk, and return metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -410,6 +501,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def format_metric(value, fmt='.2f'):
+    """Format metric value for optional display.
+
+    Args:
+        value: Input value.
+        fmt: Python format specifier for float values.
+
+    Returns:
+        String representation suitable for logs.
+    """
     if value is None:
         return 'N/A'
     return format(value, fmt)
@@ -417,6 +517,7 @@ def format_metric(value, fmt='.2f'):
 
 
 def normalize_metric(value):
+    """Convert datetime objects to ISO strings and sanitize non-finite floats."""
     if isinstance(value, (datetime.datetime, datetime.date)):
         return value.isoformat()
     if isinstance(value, float) and not math.isfinite(value):
@@ -426,6 +527,14 @@ def normalize_metric(value):
 
 
 def run(plot=False):
+    """Run the strategy and return raw backtest artifacts.
+
+    Args:
+        plot: If True, render the Cerebro plot.
+
+    Returns:
+        ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

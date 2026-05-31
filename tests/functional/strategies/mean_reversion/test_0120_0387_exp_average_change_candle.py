@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes), resampled to H4 (240 minutes) for signals.
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This is a mean-reversion strategy based on the Average Change Candle indicator.
+    - Market Assumptions: Price deviations from a smoothed moving average form high-probability reversal conditions. The Average Change Candle indicator normalizes price candles using power transformations and multi-layer smoothing constants (such as LWMA or Jurik/JJMA equivalents) to detect overextended candles.
+    - Indicators:
+        - AverageChangeCandle: Generates custom candle levels (Open, High, Low, Close) and color states:
+            - color = 2.0 (bullish state)
+            - color = 0.0 (bearish state)
+            - color = 1.0 (flat state)
+    - Entry Signals:
+        - Buy Entry: Previous color is bullish (2.0) and current color transitions to a different state (color != 2.0).
+        - Sell Entry: Previous color is bearish (0.0) and current color transitions to a different state (color != 0.0).
+    - Exit Signals:
+        - Stop Loss: Triggered when base prices cross `stop_loss_points` from the entry price.
+        - Take Profit: Triggered when base prices reach `take_profit_points` from the entry price.
+        - Reversal Exit: Exit long on buy_close indicator flip, exit short on sell_close indicator flip.
 """
 from __future__ import annotations
 import math
@@ -84,7 +106,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -92,6 +122,15 @@ def load_config(*args, **kwargs):
 
 
 class AverageChangeCandle(bt.Indicator):
+    """Custom Average Change Candle indicator that computes power-scaled smoothed lines.
+
+    Lines:
+        open_line (bt.LineSeries): Smoothed open line.
+        high_line (bt.LineSeries): Smoothed high line.
+        low_line (bt.LineSeries): Smoothed low line.
+        close_line (bt.LineSeries): Smoothed close line.
+        color (bt.LineSeries): Candle color state (0 = bearish, 1 = flat, 2 = bullish).
+    """
     lines = ('open_line', 'high_line', 'low_line', 'close_line', 'color',)
 
     params = dict(
@@ -106,6 +145,7 @@ class AverageChangeCandle(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize indicator variables, buffer lists, and min periods."""
         self.addminperiod(max(int(self.p.length1), int(self.p.length2)) + 10)
         self._base_buf = []
         self._o_buf = []
@@ -156,7 +196,6 @@ class AverageChangeCandle(bt.Indicator):
             values = buf[-length:]
             denom = float(sum(weights))
             return sum(v * w for v, w in zip(values, weights)) / denom
-
         prev = getattr(self, prev_value_attr)
         phase = max(-100, min(100, int(phase)))
         alpha = 2.0 / (length + 1.0)
@@ -170,6 +209,7 @@ class AverageChangeCandle(bt.Indicator):
         return smooth
 
     def next(self):
+        """Compute smoothed and power-scaled candle lines on each bar."""
         base_price = self._price_series()
         self._base_buf.append(base_price)
         xma = self._smooth(
@@ -218,6 +258,11 @@ class AverageChangeCandle(bt.Indicator):
 
 
 class ExpAverageChangeCandleStrategy(bt.Strategy):
+    """Strategy class implementing the Average Change Candle indicator logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -242,6 +287,7 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, feeds, backtest tracking metrics, and state variables."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.ind = AverageChangeCandle(
@@ -268,6 +314,12 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, txt, dt=None):
+        """Log the given message with a timestamp prefix.
+
+        Args:
+            txt (str): Message to log.
+            dt (datetime.datetime, optional): Optional timestamp. Defaults to None.
+        """
         dt = dt or bt.num2date(self.data0.datetime[0])
         print(f'[{dt:%Y-%m-%d %H:%M}] {txt}')
 
@@ -312,6 +364,7 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         if self.order is not None:
             return
         sb = int(self.p.signal_bar)
@@ -376,6 +429,11 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -391,6 +449,11 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -403,17 +466,19 @@ class ExpAverageChangeCandleStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def stop(self):
+        """Print backtest performance summary on strategy completion."""
         total = self.trade_count
         wr = (self.win_count / total * 100.0) if total else 0.0
-        print('========== Exp_AverageChangeCandle 策略结束 ==========')
-        print(f'  买入次数: {self.buy_count}')
-        print(f'  卖出次数: {self.sell_count}')
-        print(f'  总交易数: {self.trade_count}')
-        print(f'  盈利次数: {self.win_count}')
-        print(f'  亏损次数: {self.loss_count}')
-        print(f'  胜率:     {wr:.1f}%')
-        print(f'  最终权益: {self.broker.getvalue():.2f}')
+        print('========== Exp_AverageChangeCandle Strategy Finished ==========')
+        print(f'  Buy orders: {self.buy_count}')
+        print(f'  Sell orders: {self.sell_count}')
+        print(f'  Total trades: {self.trade_count}')
+        print(f'  Winning trades: {self.win_count}')
+        print(f'  Losing trades: {self.loss_count}')
+        print(f'  Win rate:     {wr:.1f}%')
+        print(f'  Final equity: {self.broker.getvalue():.2f}')
         print('=====================================================')
+
 
 
 
@@ -428,6 +493,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with extra spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -442,6 +508,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -468,6 +545,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, minutes):
+    """Resample raw M15 data into higher-timeframe signals.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data.
+        minutes (int): Target resampling timeframe in minutes.
+
+    Returns:
+        pd.DataFrame: Resampled higher-timeframe market data.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -486,6 +572,17 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config: dict) -> dict:
+    """Load historical market data and prepare resampled signal frames.
+
+    Args:
+        config (dict): Backtest configuration containing data paths and compressions.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing execution and resampled signals.
+    """
     data_cfg = config['data']
     data_file = data_cfg['file']
     if not os.path.isabs(data_file):
@@ -505,6 +602,11 @@ def load_backtest_frame(config: dict) -> dict:
 
 
 def add_default_analyzers(cerebro):
+    """Register default performance and statistics analyzers to Cerebro.
+
+    Args:
+        cerebro (bt.Cerebro): Cerebro engine instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -513,6 +615,14 @@ def add_default_analyzers(cerebro):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -521,6 +631,16 @@ def finite_or_none(value):
 
 
 def extract_metrics(strat, start_value, frame):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        start_value (float): Initial portfolio cash.
+        frame (dict): Loaded data frame dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -549,6 +669,18 @@ def extract_metrics(strat, start_value, frame):
 
 
 def run(cfg_path: str | None = None):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        cfg_path (str, optional): Config yaml path. Defaults to None.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        tuple: (results, metrics) backtest output.
+    """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
     cfg = load_config(cfg_path)
@@ -596,16 +728,16 @@ def run(cfg_path: str | None = None):
         stocklike=bt_cfg.get('stocklike', False),
     )
 
-    print(f'数据文件:  {os.path.normpath(os.path.join(SCRIPT_DIR, data_cfg["file"]))}')
-    print(f'信号周期:  {signal_tf}')
-    print(f'回测区间:  {data_cfg["fromdate"]} ~ {data_cfg["todate"]}')
-    print(f'初始资金:  {cerebro.broker.getvalue():.2f}')
+    print(f'Data file:  {os.path.normpath(os.path.join(SCRIPT_DIR, data_cfg["file"]))}')
+    print(f'Signal timeframe:  {signal_tf}')
+    print(f'Backtest period:  {data_cfg["fromdate"]} ~ {data_cfg["todate"]}')
+    print(f'Initial cash:  {cerebro.broker.getvalue():.2f}')
     print('-' * 50)
 
     start_value = cerebro.broker.getvalue()
     results = cerebro.run()
     final_value = cerebro.broker.getvalue()
-    print(f'\n最终权益: {final_value:.2f}')
+    print(f'\nFinal equity: {final_value:.2f}')
     metrics = extract_metrics(results[0], start_value, frame)
     return results, metrics
 

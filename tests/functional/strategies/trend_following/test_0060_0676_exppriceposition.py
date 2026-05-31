@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) base timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The base M15 feed
+    is resampled in the engine to H1 and D1 feeds that drive the higher-timeframe
+    signals. All feeds are priced as a futures-like instrument (multiplier 100,
+    margin 0.01).
+
+Strategy Principle:
+    ExpPricePosition combines a price-position cross on H1 (price relative to the
+    average of a smoothed and simple median moving average) with a "step up/down"
+    momentum read of fast/slow MA divergence, and a daily-relative power filter.
+    A long requires a bullish price-position cross, an up step, a bullish H1
+    candle pulling back to the fast MA, and rising relative power; a short is the
+    mirror. Risk uses a money-based stop distance with a take-profit multiple, an
+    optional trailing stop, and reversal on opposite signals.
+
+Strategy Logic:
+    ``__init__`` binds the M15/H1/D1 feeds, builds the smoothed/simple median and
+    fast/slow MAs, and zeroes the counters and order/risk state.
+    ``_get_recent_cross_direction`` and ``_step_up_down`` derive the H1 signals,
+    combined in ``_trade_signal``. ``next`` manages open-position risk/trailing,
+    closes profitable trades on a step flip, and—once per new H1 bar—opens or
+    reverses on a signal. ``notify_order`` counts orders, records the close time,
+    and fires queued reversals; ``notify_trade`` tallies win/loss. The
+    module-level helpers load the CSV, build the cerebro with analyzers, and
+    extract a metrics dictionary that the test compares against migration-time
+    expected values.
 """
 from __future__ import annotations
 import math
@@ -87,6 +117,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,12 +157,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ExpPricePositionStrategy(bt.Strategy):
+    """H1 price-position + step-momentum + daily-power system with money-based risk."""
+
     params = dict(
         risk_percentage=0.10,
         tp_vs_sl_ratio=3.0,
@@ -141,6 +188,7 @@ class ExpPricePositionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15/H1/D1 feeds, build the MAs, and zero counters and risk state."""
         self.base = self.datas[0]
         self.h1 = self.datas[1]
         self.d1 = self.datas[2]
@@ -365,6 +413,14 @@ class ExpPricePositionStrategy(bt.Strategy):
             self.order = self.sell(size=lots)
 
     def next(self):
+        """Advance the strategy by one base bar.
+
+        Manages risk exits and position tracking, then evaluates and executes new
+        entries when a fresh H1 signal is available.
+
+        Returns:
+            None.
+        """
         self.bar_num += 1
         self._manage_open_position()
         self._close_profitable_on_step_flip()
@@ -396,6 +452,18 @@ class ExpPricePositionStrategy(bt.Strategy):
             self._open_side('sell')
 
     def notify_order(self, order):
+        """Track order lifecycle updates from the broker.
+
+        Increments completion/rejection counters and, upon filled close orders,
+        updates side counters, closes timestamps and risk levels, and optionally
+        opens a pending reverse order.
+
+        Args:
+            order: The order whose status changed.
+
+        Returns:
+            None.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -420,6 +488,14 @@ class ExpPricePositionStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count finished trades and update win/loss statistics.
+
+        Args:
+            trade: The trade object emitted by Backtrader at close.
+
+        Returns:
+            None.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -444,6 +520,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve the configured data filename against the test module directory.
+
+    Args:
+        filename: Relative file path from configuration.
+
+    Returns:
+        Absolute path for loading the dataset.
+
+    Raises:
+        FileNotFoundError: If the target CSV file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -451,6 +538,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the MT5 CSV into a cleaned and date-bounded DataFrame payload.
+
+    Args:
+        config: Strategy configuration containing data source settings.
+
+    Returns:
+        Dictionary with keys ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -467,6 +562,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Backtrader ``Cerebro`` instance for the regression case.
+
+    Args:
+        config: Strategy/backtest configuration dictionary.
+        frame: Data payload returned by :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` object with analyzers attached.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -509,6 +613,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and normalize strategy metrics for regression assertions.
+
+    Args:
+        strat: Strategy instance produced by ``cerebro.run()``.
+        cerebro: Backtest engine after execution.
+        frame: Input data dictionary used for the run.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Metrics dictionary consumed by the generated test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -550,6 +665,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the testback and return raw results.
+
+    Args:
+        plot: Whether to render the equity and indicators after backtest.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

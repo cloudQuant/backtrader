@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD M15 OHLCV data loaded from ``tests/datas/XAUUSD_M15.csv``.
+    - Symbol is XAUUSD with ``fromdate=2025-12-03 01:15:00`` to ``todate=2026-03-10 09:00:00``.
+    - Base timeframe is M15; signal timeframe is resampled to 240 minutes.
+    - Two in-memory feeds are created from the same source: base M15 bars and
+      a signal feed carrying the computed ``fractal_rsi`` series.
+
+Strategy Principle:
+    - Compute an adaptive RSI-like oscillator (Fractal RSI) from price range
+      geometry and dynamic volatility scaling.
+    - For each signal bar, detect threshold crossings of low/high levels.
+    - In DIRECT mode, crossing below the low level opens buys and closes shorts,
+      crossing above the high level opens shorts and closes longs.
+    - Positions are protected by optional stop-loss and take-profit levels computed
+      from point size and user-defined offsets.
+
+Strategy Logic:
+    - Resolve strategy configuration and load data from CSV, including bar shift.
+    - Resample base data for signal generation and compute ``fractal_rsi``.
+    - Build a Cerebro instance with both feeds and attach analyzers/trade logger.
+    - Strategy ``next()`` processes risk exits, history readiness, signal deduplication
+      by timestamp, signal evaluation, and order submission.
+    - ``notify_order`` and ``notify_trade`` track execution counts and outcome stats.
+    - ``extract_metrics`` aggregates analyzer output and test invariants are asserted
+      against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -92,6 +118,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a tab-separated MT5 CSV export and normalize it to a datetime-indexed OHLC frame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -118,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLC frame to ``rule`` and align OHLC aggregator behavior."""
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -133,6 +161,7 @@ def resample_frame(df, rule):
 
 
 def price_series(frame, applied_price='PRICE_CLOSE_'):
+    """Return a NumPy-friendly series for the requested MT5 price field."""
     if applied_price == 'PRICE_OPEN_':
         return frame['open']
     if applied_price == 'PRICE_HIGH_':
@@ -149,6 +178,11 @@ def price_series(frame, applied_price='PRICE_CLOSE_'):
 
 
 def compute_fractal_rsi(frame, e_period=30, normal_speed=30, applied_price='PRICE_CLOSE_'):
+    """Compute Fractal RSI values from normalized price, then append ``fractal_rsi``.
+
+    The implementation mirrors the inline migration logic used by the generated
+    regression fixture and returns rows with finite oscillator values only.
+    """
     src = price_series(frame, applied_price).astype(float).reset_index(drop=True)
     values = src.to_numpy(dtype=float)
     n = len(values)
@@ -205,12 +239,16 @@ def compute_fractal_rsi(frame, e_period=30, normal_speed=30, applied_price='PRIC
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed for generic OHLCV pandas data used as base bars."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class FractalRsiFeed(bt.feeds.PandasData):
+    """Backtrader data feed that extends ``PandasData`` with a custom ``fractal_rsi`` line."""
+
     lines = ('fractal_rsi',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('fractal_rsi', 6),
@@ -218,6 +256,8 @@ class FractalRsiFeed(bt.feeds.PandasData):
 
 
 class ExpFractalRsiStrategy(bt.Strategy):
+    """Mean-reversion-style strategy driven by fractal RSI threshold crossings."""
+
     params = dict(
         signal_tf_minutes=240,
         trend='DIRECT',
@@ -240,6 +280,7 @@ class ExpFractalRsiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, signal line, and runtime counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.frsi = self.signal.fractal_rsi
@@ -260,6 +301,7 @@ class ExpFractalRsiStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def log(self, text):
+        """Print a timestamped debug line for on-bar execution events."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -337,6 +379,14 @@ class ExpFractalRsiStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, prev, curr
 
     def next(self):
+        """Run one bar:
+
+        1) skip when an order is already pending;
+        2) apply stop-loss/take-profit checks;
+        3) confirm signal history depth;
+        4) avoid duplicated signal evaluation on the same bar timestamp;
+        5) evaluate and emit close/open orders.
+        """
         self.bar_num += 1
         if self.order is not None:
             return
@@ -374,6 +424,7 @@ class ExpFractalRsiStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed and rejected orders and clear pending references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -392,6 +443,7 @@ class ExpFractalRsiStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update closed trade counters for win/loss accounting."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -416,6 +468,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data filename to an absolute existing file path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -423,6 +476,13 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and transform input data into base and signal dataframes.
+
+    Returns a dict containing:
+    - ``base``: raw M15 OHLCV bars (possibly shifted and date-filtered).
+    - ``signal``: resampled bar set with ``fractal_rsi`` feature.
+    - ``fromdate`` / ``todate`` parsed from config strings.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -443,6 +503,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a Cerebro instance with strategy and analyzers."""
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -479,6 +540,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect all backtest metrics used by the generated regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -516,6 +578,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the backtest and return ``(results, metrics, cerebro)``."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

@@ -77,6 +77,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars into normalized OHLCV dataframe for testing.
+
+    Args:
+        filepath: Path to MT5-exported file.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute offset adjustment.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -100,6 +111,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping OHLCV fields from MT5 CSV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -128,6 +140,7 @@ class RSITraderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize RSI trend filters, moving averages, and state counters."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
         self.rsi_sma_short = bt.indicators.SMA(self.rsi, period=self.p.short_rsi_ma)
         self.rsi_sma_long = bt.indicators.SMA(self.rsi, period=self.p.long_rsi_ma)
@@ -146,6 +159,7 @@ class RSITraderStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Evaluate MA/RSI alignment and open/close positions accordingly."""
         self.bar_num += 1
         warmup = max(self.p.rsi_period + self.p.long_rsi_ma, self.p.ma_long_period) + 2
         if len(self) < warmup:
@@ -179,6 +193,7 @@ class RSITraderStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and clear order references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -192,6 +207,7 @@ class RSITraderStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track realized trades and increment win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -211,11 +227,30 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module.
+
+    Args:
+        filename: Relative or absolute file path.
+
+    Returns:
+        Resolved absolute path.
+
+    Raises:
+        FileNotFoundError: If file is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load full test dataframe and backtest date range from config.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dict containing loaded dataframe, fromdate, and todate.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -225,6 +260,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro for RSI strategy execution.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Prepared frame data and metadata.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -241,6 +285,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer, trade, and order counters for assertions.
+
+    Args:
+        strat: Strategy instance from completed backtest.
+        cerebro: The Cerebro engine instance.
+        frame: Backtest frame.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of metrics for validation.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -259,6 +314,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Run strategy backtest and return results with extracted metrics.
+
+    Args:
+        plot: If True, render chart after backtest.
+
+    Returns:
+        Tuple of (results, metrics, cerebro).
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

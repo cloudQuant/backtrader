@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    MT5 tab-separated data file:
+        `tests/datas/XAUUSD_M15.csv`
+    Symbol: `XAUUSD`
+    Primary timeframe: `M15`
+    Data shift: `bar_shift_minutes: 15`
+    Backtest period:
+        2025-12-03 01:15:00 -> 2026-03-10 09:00:00
+
+Strategy Principle:
+    The strategy implements an asymmetric stochastic oscillator with adaptive window
+    swapping when signal conditions exceed overbought/oversold thresholds.
+    It generates trade intent from stochastic cross direction changes and executes
+    long/short entries with automatic reversals by closing opposite positions.
+
+Strategy Logic:
+    The inlined run loads a single XAUUSD series, builds a custom indicator to
+    compute `stoch` and `signal`, then runs a Backtrader `bt.Strategy`.
+    The strategy evaluates crossover conditions each bar, places/closes orders,
+    and tracks signal/trade counters. Metrics are extracted from analyzers and
+    asserted in the regression test body.
 """
 from __future__ import annotations
 import math
@@ -83,6 +105,18 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated market data into a backtest-ready DataFrame.
+
+    Args:
+        filepath: Path to MT5-exported `.csv`/TSV text.
+        fromdate: Optional lower bound datetime filter.
+        todate: Optional upper bound datetime filter.
+        bar_shift_minutes: Minutes to shift bars if needed.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with open/high/low/close/volume/
+        openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +138,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Minimal pandas data feed for the standardized MT5 column layout."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +146,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Resolve an MA mode string to the corresponding Backtrader MA class."""
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SMA
@@ -122,6 +158,7 @@ def resolve_ma_class(name):
 
 
 class AsimmetricStochNRIndicator(bt.Indicator):
+    """Asymmetric stochastic oscillator indicator with dynamic MA smoothing."""
     lines = ('stoch', 'signal',)
     params = dict(
         kperiod_short=5,
@@ -137,6 +174,7 @@ class AsimmetricStochNRIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize period state and minimum bar requirements."""
         self._kperiod0 = int(self.p.kperiod_short)
         self._kperiod1 = int(self.p.kperiod_short)
         self.addminperiod(max(self.p.kperiod_short, self.p.kperiod_long) + self.p.slowing + self.p.dperiod + 5)
@@ -166,6 +204,7 @@ class AsimmetricStochNRIndicator(bt.Indicator):
         return -2.0
 
     def next(self):
+        """Compute current `stoch` and `signal` values using the active periods."""
         prev_signal = float(self.lines.signal[-1]) if len(self) > 1 else float('nan')
         self.lines.stoch[0] = self._stoch_value(0)
         values = [float(self.lines.stoch[-idx]) for idx in range(min(len(self), int(self.p.dperiod)) - 1, -1, -1)]
@@ -237,6 +276,7 @@ class AsimmetricStochNRIndicator(bt.Indicator):
         return self._ma_window_value(window, mode, previous)
 
     def once(self, start, end):
+        """Batch compute indicator lines for historical range in one pass."""
         high_array = self.data.high.array
         low_array = self.data.low.array
         close_array = self.data.close.array
@@ -268,6 +308,7 @@ class AsimmetricStochNRIndicator(bt.Indicator):
 
 
 class AsimmetricStochNRStrategy(bt.Strategy):
+    """Mean-reversion crossover strategy driven by asymmetric stochastic signals."""
     params = dict(
         kperiod_short=5,
         kperiod_long=12,
@@ -284,6 +325,7 @@ class AsimmetricStochNRStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach indicator and initialize runtime trade counters."""
         self.indicator = AsimmetricStochNRIndicator(
             self.data,
             kperiod_short=self.p.kperiod_short,
@@ -306,6 +348,7 @@ class AsimmetricStochNRStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print timestamped strategy log messages."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -330,6 +373,7 @@ class AsimmetricStochNRStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Evaluate signal transitions and execute open/close/reversal logic."""
         self.bar_num += 1
         warmup = max(int(self.p.kperiod_short), int(self.p.kperiod_long)) + int(self.p.slowing) + int(self.p.dperiod) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -369,6 +413,7 @@ class AsimmetricStochNRStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Record trade lifecycle counters for metrics validation."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -401,6 +446,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path relative to the test module and validate existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -408,6 +454,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest input dataframe and date range from config."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -424,6 +471,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro with analyzers and strategy."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -447,6 +495,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect structured strategy and risk/performance metrics from analyzers."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

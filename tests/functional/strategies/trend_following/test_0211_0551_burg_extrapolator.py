@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Data file: tests/datas/XAUUSD_M15.csv
+    - Symbol: XAUUSD
+    - Timeframe: M15
+    - Compression: 15 minutes
+    - Date range: 2026-03-01 00:00:00 to 2026-03-10 09:00:00
+    - Data handling: parse MT5-style columns, normalize OHLCV fields, optional
+      bar time shift by 15 minutes, then filter between fromdate and todate.
+
+Strategy Principle:
+    - Use a Burg autoregression workflow to forecast short-term price evolution
+      from recent opens.
+    - Generate directional open/close signals from forecast highs/lows and
+      thresholded profit/loss distances.
+    - Use risk controls with stop-loss, optional take-profit, and trailing stop,
+      while avoiding overlapping orders.
+
+Strategy Logic:
+    - Initialize counters and order-state trackers, then compute transformed series
+      (momentum/ROC/centered-difference mode) each bar.
+    - Build model forecast, derive entry/exit intents, open and close positions,
+      and apply trailing exits.
+    - Track order/trade lifecycle events in callbacks and accumulate metrics.
+    - Backtest through Backtrader, collect analyzer outputs, and validate all
+      expected regression assertions with tolerances.
 """
 from __future__ import annotations
 import math
@@ -83,6 +109,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV text and transform it into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to the raw MT5 data export.
+        fromdate: Optional minimum datetime for filtering rows.
+        todate: Optional maximum datetime for filtering rows.
+        bar_shift_minutes: Optional minute offset applied to timestamps.
+
+    Returns:
+        pd.DataFrame: DataFrame with datetime index and OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -106,12 +143,23 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed adapter for MT5-formatted OHLCV DataFrames."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 def burg_reflection_coeffs(series, order):
+    """Compute Burg reflection coefficients for time-series forecasting.
+
+    Args:
+        series: Numeric input series.
+        order: Target model order.
+
+    Returns:
+        list[float]: Reflection coefficients ``k`` for the fitted model.
+    """
     if order <= 0 or len(series) <= order + 1:
         return []
     ef = list(series[1:])
@@ -136,6 +184,14 @@ def burg_reflection_coeffs(series, order):
 
 
 def reflection_to_ar(refs):
+    """Convert Burg reflection coefficients into autoregressive coefficients.
+
+    Args:
+        refs: Reflection coefficients from Burg estimation.
+
+    Returns:
+        list[float]: AR coefficients used by recursive forecast step.
+    """
     ar = []
     for k in refs:
         if not ar:
@@ -151,6 +207,16 @@ def reflection_to_ar(refs):
 
 
 def burg_forecast(series, order, horizon):
+    """Forecast future values by combining Burg coefficients and AR recursion.
+
+    Args:
+        series: Historical values used as initial state.
+        order: Burg model order.
+        horizon: Number of forward steps.
+
+    Returns:
+        list[float]: Predicted values for each step.
+    """
     refs = burg_reflection_coeffs(series, order)
     ar = reflection_to_ar(refs)
     if not ar:
@@ -166,6 +232,8 @@ def burg_forecast(series, order, horizon):
 
 
 class BurgExtrapolatorStrategy(bt.Strategy):
+    """Signal-and-exit strategy using Burg extrapolation forecasts."""
+
     params = dict(
         risk=5.0,
         ntmax=5,
@@ -184,6 +252,7 @@ class BurgExtrapolatorStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and internal state used by strategy metrics."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -327,6 +396,7 @@ class BurgExtrapolatorStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Evaluate forecast signal each bar and run order/trade state transitions."""
         self.bar_num += 1
         if len(self) < int(self.p.past_bars) + 5 or self.order is not None:
             return
@@ -350,6 +420,11 @@ class BurgExtrapolatorStrategy(bt.Strategy):
             self._arm('sell', float(self.data.close[0]))
 
     def notify_order(self, order):
+        """Capture completed and failed order lifecycle counts.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -368,6 +443,11 @@ class BurgExtrapolatorStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Capture win/loss counters when a trade closes.
+
+        Args:
+            trade: Backtrader trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -391,6 +471,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset path relative to the test module directory.
+
+    Args:
+        filename: Relative filename for test input data.
+
+    Returns:
+        Path: Absolute path to the requested file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -398,6 +486,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load OHLCV frame used in regression and return range metadata.
+
+    Args:
+        config: Full inlined config containing data block.
+
+    Returns:
+        dict: Parsed frame, fromdate, and todate.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -409,6 +505,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Backtrader engine and analyzers for this test.
+
+    Args:
+        config: Full inlined config for strategy/backtest settings.
+        frame: Loaded backtest frame.
+
+    Returns:
+        bt.Cerebro: Configured engine with data feed and strategy.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -427,6 +532,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs and strategy counters into a metrics record.
+
+    Args:
+        strat: Finished strategy object.
+        cerebro: Backtrader engine after execution.
+        frame: Backtest data frame metadata.
+        config: Inlined strategy config.
+
+    Returns:
+        dict: Deterministic backtest metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -454,6 +570,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the inlined regression pipeline and return results + metrics.
+
+    Args:
+        plot: Whether to show the Backtrader chart after run.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

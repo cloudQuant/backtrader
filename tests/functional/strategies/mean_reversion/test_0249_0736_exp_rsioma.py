@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars covering 2025-12-03 01:15 to 2026-03-10 09:00 with each timestamp
+    shifted forward by 15 minutes so bars are stamped at their close. A second
+    indicator feed is resampled to H4 (240-minute) bars and carries the
+    precomputed RSIOMA and its trigger (MARSIOMA) lines.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_RSIOMA``. RSIOMA is an RSI
+    computed on a moving-averaged price (a smoothed momentum oscillator centered
+    around zero), and MARSIOMA is a moving average of RSIOMA used as a trigger.
+    The EA supports four signal modes — ``breakdown`` (crossing fixed high/low
+    levels), ``histtwist`` (RSIOMA slope turn), ``signaltwist`` (trigger slope
+    turn), and the default histogram disposition (RSIOMA vs trigger crossover) —
+    entering in the breakout/turn direction and protecting positions with fixed
+    point-based stop-loss and take-profit distances.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame, resamples it to H4 and calls
+    compute_rsioma to precompute the RSIOMA/trigger lines; build_cerebro wires
+    the M15 base feed, the H4 RSIOMA feed, the strategy and analyzers. Each new
+    indicator bar the strategy evaluates the mode signal, manages any open
+    position (signal exit or stop/take-profit), and otherwise opens a long or
+    short sized by ``lots`` while setting risk levels. notify_order tracks
+    completed/rejected orders and entry counts, notify_trade tallies win/loss.
+    extract_metrics consolidates analyzer output, and the test hooks
+    extract_metrics, forces runonce=True, runs run()/main(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -105,6 +135,19 @@ PRICE_MAP = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, tick and
+        real volume, and openinterest columns, filtered to the date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -131,6 +174,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser timeframe via standard aggregation.
+
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        rule: Pandas offset alias for the target bar size (e.g. ``'240min'``).
+
+    Returns:
+        The resampled DataFrame with a ``volume`` column copied from tick volume
+        and incomplete bars dropped.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -174,6 +227,16 @@ def _lwma(values):
 
 
 def smooth(values, period, method='ema'):
+    """Smooth the tail of a value series with the requested moving average.
+
+    Args:
+        values: Sequence of values; only the last ``period`` are used.
+        period: Smoothing window length; values <= 1 return the last value.
+        method: One of ``'sma'``, ``'smma'``, ``'lwma'`` or ``'ema'`` (default).
+
+    Returns:
+        The smoothed value as a float.
+    """
     if period <= 1:
         return float(values[-1])
     window = values[-period:]
@@ -188,6 +251,25 @@ def smooth(values, period, method='ema'):
 
 
 def compute_rsioma(frame, rsioma_method='ema', rsioma=14, marsioma_method='ema', marsioma=21, mom_period=1, price_type='close'):
+    """Compute the RSIOMA oscillator and its MARSIOMA trigger over a frame.
+
+    Smooths the selected price, takes its momentum, derives RSI-style positive
+    and negative averages to form RSIOMA (centered around zero), then smooths
+    RSIOMA into the trigger line.
+
+    Args:
+        frame: OHLCV DataFrame indexed by datetime.
+        rsioma_method: Moving-average method used to smooth the price.
+        rsioma: RSIOMA lookback length.
+        marsioma_method: Moving-average method used for the trigger.
+        marsioma: Trigger (MARSIOMA) lookback length.
+        mom_period: Momentum lag in bars applied to the smoothed price.
+        price_type: Key into ``PRICE_MAP`` selecting the applied price.
+
+    Returns:
+        A copy of ``frame`` with ``rsioma`` and ``trigger`` columns, with rows
+        lacking either value dropped.
+    """
     work = frame.copy()
     price_getter = PRICE_MAP.get(price_type, PRICE_MAP['close'])
     prices = work.apply(price_getter, axis=1).to_numpy(dtype=float)
@@ -232,12 +314,16 @@ def compute_rsioma(frame, rsioma_method='ema', rsioma=14, marsioma_method='ema',
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class RSIOMAFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the precomputed RSIOMA and trigger lines."""
+
     lines = ('rsioma', 'trigger')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('rsioma', 6), ('trigger', 7),
@@ -245,6 +331,14 @@ class RSIOMAFeed(bt.feeds.PandasData):
 
 
 class ExpRSIOMAStrategy(bt.Strategy):
+    """Trade RSIOMA/MARSIOMA signals with fixed stop-loss and take-profit.
+
+    Reads the precomputed RSIOMA and trigger lines from the H4 indicator feed,
+    derives buy/sell open and close flags from the configured signal mode, and
+    enters in the signal direction sized by ``lots`` while protecting positions
+    with point-based stop-loss and take-profit levels on the M15 feed.
+    """
+
     params = dict(
         stop_loss=1000,
         take_profit=2000,
@@ -263,6 +357,7 @@ class ExpRSIOMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base and indicator feeds and reset counters and risk state."""
         self.base = self.datas[0]
         self.ind = self.datas[1]
 
@@ -377,6 +472,13 @@ class ExpRSIOMAStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate the mode signal once per indicator bar and act on it.
+
+        Skips while an order is pending or the indicator history is too short.
+        Manages an open position first (signal exit or stop/take-profit), and
+        otherwise opens a long or short sized by ``lots`` when a new buy/sell
+        signal fires, recording the signal and setting risk levels.
+        """
         self.bar_num += 1
         if len(self.ind) < 3:
             return
@@ -402,6 +504,13 @@ class ExpRSIOMAStrategy(bt.Strategy):
             self.last_signal_dt = signal_dt
 
     def notify_order(self, order):
+        """Track completed/rejected orders, entry counts, and clear risk on close.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored, completions update buy/sell or reset stop/take-profit,
+                and failures increment the rejected count.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -420,6 +529,11 @@ class ExpRSIOMAStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss buckets.
+
+        Args:
+            trade: The trade being notified; only closed trades update counts.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -444,6 +558,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Data file path, absolute or relative to this module.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -451,6 +576,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the M15 base frame and the resampled H4 RSIOMA indicator frame.
+
+    Args:
+        config: Resolved configuration with ``data`` and ``indicator`` sections.
+
+    Returns:
+        A dict with the ``base`` M15 frame, the ``rsioma`` indicator frame, and
+        the ``fromdate``/``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     ind_cfg = config['indicator']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -473,6 +610,19 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with both feeds, the strategy and analyzers.
+
+    Configures the broker (cash, commission, margin, multiplier), adds the M15
+    base feed and the H4 RSIOMA indicator feed, the strategy, and the standard
+    analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Frame dict produced by :func:`load_backtest_frames`.
+
+    Returns:
+        The configured :class:`backtrader.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     indicator_tf = config['data'].get('indicator_timeframe_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -494,6 +644,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying trade/order counters.
+        cerebro: The Cerebro instance used to read the final broker value.
+        frame: Frame dict with date range and bar counts.
+        config: Resolved configuration dict for initial cash.
+
+    Returns:
+        A dict of performance metrics (trade/order counts, returns, drawdown,
+        Sharpe, SQN and related statistics) used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -536,6 +698,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Load data, build Cerebro, run the backtest and extract metrics.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        of strategy instances, ``metrics`` is the extracted metrics dict, and
+        ``cerebro`` is the executed engine.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10),
+    loaded via load_mt5_csv with 15-minute bar shift, served through Mt5PandasFeed.
+
+Strategy Principle:
+    Larry Connors RSI 2 strategy uses a 2-period RSI to detect extreme
+    overbought/oversold conditions combined with SMA trend filters. BUY when
+    RSI(2) < 6 and close > 200-period SMA. SELL when RSI(2) > 95 and close <
+    200-period SMA. Exit when close crosses back above/below the 5-period SMA.
+    Optional fixed stop-loss and take-profit in pips.
+
+Strategy Logic:
+    __init__ creates short (5) and long (200) SMAs plus 2-period RSI. next()
+    ticks bar_num, waits for long SMA warmup, sets initial SL/TP protection on
+    entry, checks protection levels, and exits on short-SMA cross. Entry on
+    RSI-extreme + price-above/below long SMA. notify_order clears order state
+    and sets initial protection. notify_trade counts win/loss and tracks
+    position_was_open. extract_metrics collects full stats from analyzers.
 """
 from __future__ import annotations
 import math
@@ -83,6 +102,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a pandas DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +124,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5 CSV exports without an extra spread line."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +132,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class LarryConnersRsi2Strategy(bt.Strategy):
+    """Larry Connors RSI 2 — 2-period RSI with SMA trend filters and fixed SL/TP."""
+
     params = dict(
         lot=1.0,
         short_sma_periods=5,
@@ -127,6 +150,7 @@ class LarryConnersRsi2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise SMAs, RSI, trade counters, and SL/TP state variables."""
         self.short_sma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.short_sma_periods)
         self.long_sma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.long_sma_periods)
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_periods)
@@ -144,10 +168,12 @@ class LarryConnersRsi2Strategy(bt.Strategy):
         self._last_position_size = 0.0
 
     def _pip_size(self):
+        """Return pip size adjusted for price digits (3/5/1 → ×10, else ×1)."""
         digits_adjust = 10 if self.p.price_digits in (3, 5, 1) else 1
         return self.p.point * digits_adjust
 
     def _clear_position_state(self):
+        """Reset all position-tracking variables to None/default."""
         self._entry_price = None
         self._stop_price = None
         self._take_profit_price = None
@@ -155,6 +181,7 @@ class LarryConnersRsi2Strategy(bt.Strategy):
         self._position_was_open = False
 
     def _set_initial_protection(self):
+        """Set SL/TP prices based on entry price and pips config (once per position)."""
         if not self.position:
             self._clear_position_state()
             return
@@ -173,6 +200,7 @@ class LarryConnersRsi2Strategy(bt.Strategy):
             self._take_profit_price = self._entry_price - take_distance if self.p.use_take_profit else None
 
     def _maybe_hit_protection(self):
+        """Check if current bar triggers SL or TP; close position if hit."""
         if not self.position:
             return False
         high = float(self.data.high[0])
@@ -194,6 +222,7 @@ class LarryConnersRsi2Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate RSI + SMA trend filter and manage entry/exit logic."""
         self.bar_num += 1
         warmup = self.p.long_sma_periods + 5
         if len(self.data) < warmup:
@@ -228,6 +257,7 @@ class LarryConnersRsi2Strategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track order lifecycle: clear pending order and set initial protection on fill."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed and self.position:
@@ -238,6 +268,7 @@ class LarryConnersRsi2Strategy(bt.Strategy):
             self._clear_position_state()
 
     def notify_trade(self, trade):
+        """Count buy/sell entries and track win/loss on trade close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -269,6 +300,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve `filename` relative to this file's directory and verify existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -276,6 +308,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return a backtest data frame from the 'data' section of `config`."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -292,6 +325,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and return a Cerebro instance configured from `config` and `frame`."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -315,6 +349,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and return backtest metrics from analyzers and broker state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

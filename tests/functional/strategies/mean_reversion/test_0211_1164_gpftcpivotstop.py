@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The M15 frame is
+    also resampled to a daily (D1) feed in the engine to compute pivot levels.
+    Both feeds are priced as a futures-like instrument (multiplier 100, margin
+    0.01).
+
+Strategy Principle:
+    A daily pivot-point momentum (stop) system. Daily high/low/close build the
+    pivot and three resistance/support levels. Unlike the limit variant that
+    fades rejections, this stop variant trades the pivot crossover: a close
+    crossing above the pivot triggers a long and a close crossing below triggers
+    a short, with stop and take-profit pinned to the selected support/resistance
+    pair. An optional breakeven stop move and intraday time exit manage risk, and
+    lot sizing supports a fixed lot or a risk-based size with martingale-style
+    reduction after losing streaks.
+
+Strategy Logic:
+    ``__init__`` binds the intraday and daily feeds, zeroes the counters, and
+    sets the minimum period. ``_pivot_levels`` computes the pivot, resistances,
+    supports, and the buy/sell level pairs. ``next`` handles the intraday close
+    rule, breakeven stop move, and stop/take exits, then opens a long or short on
+    a pivot crossover with the chosen stop/take/first-target prices.
+    ``notify_order`` clears the working order and resets risk prices on failure;
+    ``notify_trade`` tracks buy/sell on open and win/loss (and per-trade PnL) on
+    close. The module-level helpers load the CSV, build the cerebro with
+    analyzers, and extract a metrics dictionary that the test compares against
+    migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -77,6 +108,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +146,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Backtrader data feed wrapper for MT5 CSV-derived pandas frames."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,6 +155,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class GpfTcpivotstopStrategy(bt.Strategy):
+    """Trades pivot-point crossings with configurable stop and take-profit levels."""
+
     params = dict(
         lots=0.1,
         max_risk=0.02,
@@ -121,6 +169,7 @@ class GpfTcpivotstopStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize intraday/daily references, risk counters, and open-trade state."""
         self.data_intraday = self.datas[0]
         self.data_daily = self.datas[1]
 
@@ -142,6 +191,7 @@ class GpfTcpivotstopStrategy(bt.Strategy):
         self.addminperiod(3)
 
     def log(self, text):
+        """Print timestamped strategy events."""
         dt = bt.num2date(self.data_intraday.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -259,6 +309,7 @@ class GpfTcpivotstopStrategy(bt.Strategy):
                     self.stop_price = new_stop
 
     def next(self):
+        """Evaluate exits, manage intraday stop logic, then submit pivot crossover signals."""
         if len(self.data_daily) < 2:
             return
         self.bar_num += 1
@@ -308,6 +359,7 @@ class GpfTcpivotstopStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Reset active-order and risk-level caches when an order leaves pending state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -319,6 +371,7 @@ class GpfTcpivotstopStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track open/closed trade counters and aggregate performance statistics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -356,6 +409,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path relative to this test module and verify it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -363,6 +417,11 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 CSV data and return frame plus resolved date boundaries.
+
+    Args:
+        config: Strategy/backtest configuration containing data parameters.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -379,6 +438,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure backtrader Cerebro with feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -404,6 +464,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract KPI metrics used by regression assertions from finished backtest state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

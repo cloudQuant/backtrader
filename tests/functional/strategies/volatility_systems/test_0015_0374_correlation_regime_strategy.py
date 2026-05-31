@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four daily (D1) ETF proxies loaded from MetaTrader 5 exports under
+    ``tests/datas/mt5_1d_data/``: IVV (equity), IEF (bond), GLD (gold), and DBC
+    (commodity), each clipped to 2008-01-01 through 2025-12-31 and aligned to a
+    common trading-day index. A rolling 60-day correlation frame derives the
+    equity/bond, equity/gold, and equity/commodity correlations. Data is
+    delivered through four PandasData feeds priced with a percentage commission.
+
+Strategy Principle:
+    Correlation-regime asset allocation. The equity/bond correlation acts as a
+    risk barometer: strongly negative correlation signals a healthy risk-on
+    regime (favor equity), positive correlation signals a risk-off regime (favor
+    bonds), and the middle band is treated as neutral (a balanced mix). The
+    portfolio rotates among predefined risk-on, risk-off, and neutral allocation
+    weights and rebalances on a fixed day interval.
+
+Strategy Logic:
+    ``prepare_regime_inputs`` aligns the asset frames and computes the rolling
+    correlation frame, and ``load_inputs`` builds a date-keyed correlation
+    lookup. ``__init__`` zeroes the bar, trade, and regime-day counters and the
+    pending-order set. ``next`` records broker value, classifies the regime from
+    the equity/bond correlation, and—on rebalance days—issues
+    ``order_target_size`` orders toward the regime's allocation weights for each
+    feed. ``notify_order`` discards completed order refs and ``notify_trade``
+    tallies wins and losses. ``extract_metrics`` consolidates analyzer output
+    (plus an Ulcer Index) into a metrics dict that the test compares against
+    migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -98,6 +126,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -124,6 +166,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_regime_inputs(asset_map, params):
+    """Align asset frames and compute the rolling cross-asset correlation frame.
+
+    Args:
+        asset_map: Mapping of asset name (equity/bond/gold/commodity) to its
+            OHLCV DataFrame.
+        params: Parameters providing the correlation window.
+
+    Returns:
+        A tuple ``(prepared_map, corr_df)`` where ``prepared_map`` holds the
+        per-asset frames restricted to the common valid index and ``corr_df``
+        holds the equity/bond, equity/gold, and equity/commodity correlations.
+    """
     aligned_index = None
     prepared = {}
     for symbol, frame in asset_map.items():
@@ -145,6 +199,8 @@ def prepare_regime_inputs(asset_map, params):
 
 
 class CorrelationRegimeStrategy(bt.Strategy):
+    """Rotate allocation among risk-on/risk-off/neutral by equity-bond correlation."""
+
     params = dict(
         risk_on_threshold=-0.3,
         risk_off_threshold=0.0,
@@ -156,6 +212,7 @@ class CorrelationRegimeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Zero the bar/trade/regime-day counters and the pending-order set."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -186,6 +243,13 @@ class CorrelationRegimeStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Classify the correlation regime and rebalance to its allocation weights.
+
+        Increments the bar counter, records broker value, skips while orders are
+        pending, classifies the regime from the equity/bond correlation, and—on
+        rebalance days—issues ``order_target_size`` orders toward the regime's
+        allocation weights for each feed.
+        """
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         self.broker_value_series.append((bt.num2date(self.datas[0].datetime[0]), float(self.broker.getvalue())))
@@ -220,11 +284,22 @@ class CorrelationRegimeStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Discard the order ref once it is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -244,10 +319,27 @@ class CorrelationRegimeStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is non-None and finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is not None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -261,6 +353,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load the four asset frames and build the correlation lookup.
+
+    Args:
+        config: Parsed configuration providing the ``data`` assets and ``params``
+            sections.
+
+    Returns:
+        A dict with the prepared per-asset frames, the correlation frame, a
+        date-keyed correlation lookup, and the ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -278,6 +380,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, four asset feeds, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with one feed per asset, a
+        percentage commission, the strategy seeded with the correlation lookup,
+        and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -296,6 +409,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, regime days, PnL, return,
+        win rate, profit factor, drawdown, Sharpe, annualized return, SQN, and
+        Ulcer Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -338,6 +464,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes to ISO strings and non-finite floats to None.
+
+    Args:
+        value: Any value to normalize for JSON-friendly output.
+
+    Returns:
+        An ISO string for datetimes, None for NaN/inf floats, else the value
+        unchanged.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -349,6 +484,12 @@ def normalize(value):
 
 
 def main():
+    """Run the correlation-regime backtest end to end and extract its metrics.
+
+    Loads the config and asset inputs, builds the Cerebro engine, runs the
+    backtest, and passes the executed strategy through :func:`extract_metrics`
+    so the regression test can capture the resulting metrics dict.
+    """
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded correlation-regime bars: {len(inputs['corr_df'])}")

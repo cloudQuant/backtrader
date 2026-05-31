@@ -7,6 +7,39 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Three MT5 daily CSV feeds defined in ``_CONFIG['data']``: ``GLD_1d.csv``,
+    ``IVV_1d.csv`` and ``IEF_1d.csv`` under ``tests/datas/mt5_1d_data`` (gold,
+    US equity and US Treasury proxies). All feeds are daily (D1) and clipped to
+    the 2008-01-01 to 2025-12-31 window, then aligned to their common dates so
+    every asset shares one timeline. No resampling is applied.
+
+Strategy Principle:
+    Implements Harry Browne's Permanent Portfolio: capital is split into four
+    equal 25% buckets across gold, stocks, bonds and cash so the portfolio
+    stays balanced across economic regimes (growth, recession, inflation,
+    deflation). The thesis is that holding uncorrelated assets at fixed weights
+    smooths returns and limits drawdowns. Allocations are corrected back toward
+    target either on a yearly schedule or whenever an asset drifts past its
+    threshold (a tighter 2% band for gold, 5% for the others).
+
+Strategy Logic:
+    1. ``load_config`` resolves the inlined config and ``load_inputs`` loads and
+       date-aligns the three asset frames via ``load_mt5_csv`` and
+       ``align_asset_frames``.
+    2. ``PermanentPortfolioStrategy.__init__`` maps the named feeds and resets
+       bar, order, and rebalance counters; ``next`` records equity, forces a
+       rebalance on the first bar and at each year boundary, and otherwise
+       rebalances when ``_needs_threshold_rebalance`` reports drift past the
+       band.
+    3. ``_rebalance`` issues ``order_target_size`` orders toward the 25% weights
+       and tallies buy/sell counts; ``notify_order`` clears settled order refs.
+    4. ``build_cerebro`` wires the feeds, futures-percent commission, and
+       Sharpe/Trade/DrawDown/Returns/SQN analyzers; ``extract_metrics`` (with
+       helpers ``finite_or_none`` and ``calculate_ulcer_index``) compiles the
+       result dictionary; ``test_7_0007_permanent_portfolio`` runs the backtest
+       and asserts the captured expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +119,23 @@ ASSET_ORDER = ['GLD', 'IVV', 'IEF']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -112,6 +162,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def align_asset_frames(asset_frames):
+    """Align multiple asset DataFrames onto their shared date index.
+
+    Computes the intersection of every frame's index so that all assets cover
+    exactly the same trading dates, then reindexes each frame to that common
+    timeline.
+
+    Args:
+        asset_frames: Mapping of asset name to its OHLCV DataFrame.
+
+    Returns:
+        dict: Mapping of asset name to a DataFrame restricted to the shared,
+        sorted index.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -120,6 +183,21 @@ def align_asset_frames(asset_frames):
 
 
 class PermanentPortfolioStrategy(bt.Strategy):
+    """Fixed-weight Permanent Portfolio with scheduled and threshold rebalancing.
+
+    Holds gold, stocks and bonds at equal target weights (with the remainder
+    treated as cash) and restores those weights yearly or whenever an asset
+    drifts past its rebalance band. Tracks bar, order and rebalance counters
+    plus an equity-value series for downstream metrics.
+
+    Args:
+        target_weights: Mapping of asset name to target portfolio weight.
+        cash_weight: Fraction of capital held as cash (default 0.25).
+        rebalance_threshold: Drift band for non-gold assets (default 0.05).
+        gold_rebalance_threshold: Tighter drift band for gold (default 0.02).
+        lot_size: Multiplier applied when sizing target positions (default 1.0).
+    """
+
     params = dict(
         target_weights=None,
         cash_weight=0.25,
@@ -129,6 +207,12 @@ class PermanentPortfolioStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Map the named asset feeds and initialize tracking state.
+
+        Resolves each asset feed by name, then resets the order-reference set
+        and the bar, buy, sell, rebalance, threshold-rebalance, last-rebalance
+        year and equity-series trackers.
+        """
         self.asset_map = {name: self.getdatabyname(name) for name in ASSET_ORDER}
         self.order_refs = set()
         self.bar_num = 0
@@ -191,6 +275,12 @@ class PermanentPortfolioStrategy(bt.Strategy):
         self.last_rebalance_year = bt.num2date(self.datas[0].datetime[0]).year
 
     def next(self):
+        """Advance one bar and rebalance on schedule or on drift.
+
+        Records the current equity value, then skips while orders are pending.
+        Forces a rebalance on the first bar and at every calendar-year change,
+        and otherwise rebalances only when threshold drift is detected.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.datas[0].datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -208,6 +298,15 @@ class PermanentPortfolioStrategy(bt.Strategy):
             self._rebalance()
 
     def notify_order(self, order):
+        """Drop settled orders from the pending-reference set.
+
+        Ignores intermediate Submitted/Accepted states and discards the order
+        reference once it reaches a terminal status so ``next`` can resume
+        trading.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
@@ -221,10 +320,30 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def finite_or_none(x):
+    """Return ``x`` when it is a finite, truthy number, else ``None``.
+
+    Args:
+        x: The numeric value to validate.
+
+    Returns:
+        The original value if it is truthy and finite, otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-value series.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, giving more weight to deep, prolonged declines.
+
+    Args:
+        values: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when fewer than two values are
+        supplied.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -239,6 +358,18 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load and align the asset frames declared in the config.
+
+    Parses the ``fromdate``/``todate`` bounds, loads each configured MT5 CSV via
+    ``load_mt5_csv``, and aligns the resulting frames to a shared date index.
+
+    Args:
+        config: Resolved configuration dictionary (see ``load_config``).
+
+    Returns:
+        dict: Contains ``asset_frames`` (name to aligned DataFrame), plus the
+        parsed ``fromdate`` and ``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -251,6 +382,20 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the cerebro engine, data feeds, commission and analyzers.
+
+    Creates a cerebro instance with the configured starting cash, attaches a
+    futures-percent commission scheme to each asset feed, adds the
+    Permanent Portfolio strategy with the configured parameters, and registers
+    the Sharpe, Trade, DrawDown, Returns and SQN analyzers.
+
+    Args:
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        bt.Cerebro: The fully configured engine ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -273,6 +418,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Compile the performance metrics dictionary from a finished run.
+
+    Pulls Sharpe, drawdown, trade, returns and SQN analyzer output, derives
+    win rate, profit factor, total/annual return, net PnL and the Ulcer Index,
+    and combines them with the strategy's own counters.
+
+    Args:
+        strat: The executed strategy instance carrying counters and analyzers.
+        cerebro: The cerebro engine used for the run (for final broker value).
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        dict: Metric name to value mapping asserted by the test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()

@@ -6,6 +6,37 @@ This module tests the multi-trade ID functionality which allows managing
 multiple concurrent trades with different trade IDs.
 
 Reference: backtrader-master2/samples/multitrades/multitrades.py
+
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData``. Only the 2006-01-01 to 2006-12-31 window is
+    used (single data feed named ``DATA``, daily timeframe, no resampling). The
+    test is parametrized over ``runonce=True`` and ``runonce=False`` to exercise
+    both the vectorized and event-driven engines on the same data.
+
+Strategy Principle:
+    The strategy is a simple SMA crossover system whose distinguishing feature
+    is the use of independent trade IDs. An SMA(period) is compared with close
+    via ``CrossOver``; a bullish cross opens a long and a bearish cross opens a
+    short (unless ``onlylong`` is set). When ``mtrade`` is enabled the strategy
+    cycles trade IDs through [0, 1, 2] so concurrent trades can be tracked and
+    closed independently, demonstrating backtrader's multi-trade bookkeeping.
+    Risk is bounded only by the crossover flipping positions; no stop loss is
+    used.
+
+Strategy Logic:
+    1. ``__init__`` builds the SMA and crossover signal, sets up the trade-ID
+       cycle, and resets bar/buy/sell/win/loss/profit counters.
+    2. ``next`` increments the bar counter, skips while an order is pending, and
+       on each crossover closes the current trade ID and opens a new long or
+       short under the next trade ID.
+    3. ``notify_order`` counts completed buys and sells; ``notify_trade``
+       accumulates realized profit and win/loss counts on close; ``stop`` prints
+       a performance summary.
+    4. ``test_multitrades_strategy`` runs cerebro with $100,000 cash, a
+       15-period SMA, stake 10, and Sharpe/Returns/DrawDown/Trade analyzers,
+       then asserts bar count, final value, Sharpe ratio, annual return, and max
+       drawdown match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

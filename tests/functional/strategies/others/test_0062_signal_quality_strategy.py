@@ -1,8 +1,25 @@
-"""Inlined regression test for others/0062_signal_quality_strategy.
+"""Regression test for quality-gated relative-value signal strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Uses XAUUSD as the trade asset, with GLD and IVV as auxiliary proxies for the
 relative-value signal.
+
+Data Used:
+    Daily XAUUSD OHLCV bars are loaded from ``tests/datas/mt5_1d_data/XAUUSD_1d.csv``
+    and aligned with gold and equity proxies from ``GLD_1d.csv`` and ``IVV_1d.csv``,
+    covering 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    The strategy generates three candidate alpha signals (momentum, mean reversion,
+    and gold/equity ratio reversion), estimates each signal quality via rolling
+    information-coefficient stability and IC/ICIR metrics, then dynamically selects
+    the best-quality signal each bar for position sizing.
+
+Strategy Logic:
+    Features are prepared from aligned price series and stored in an extended feed.
+    On a periodic rebalance schedule, the strategy adjusts target exposure to the
+    selected signal's target percent. Order notifications gate the pending-order
+    lock, and trade notifications track closed-trade outcomes for assertions.
 """
 from __future__ import annotations
 
@@ -21,6 +38,16 @@ EQUITY_PROXY_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "IVV_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 export and return a datetime-indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the exported MT5 CSV/TSV file.
+        fromdate: Optional inclusive start datetime for filtering.
+        todate: Optional inclusive end datetime for filtering.
+
+    Returns:
+        A DataFrame sorted by datetime with columns required by ``bt.feeds.PandasData``.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -45,6 +72,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_signal_quality_features(price_df, gold_proxy_df, equity_proxy_df, params):
+    """Build candidate signals and quality-weighted target-exposure features.
+
+    Args:
+        price_df: Trade-asset OHLCV frame indexed by datetime.
+        gold_proxy_df: Proxy gold series indexed by datetime.
+        equity_proxy_df: Proxy equity series indexed by datetime.
+        params: Parameter map controlling signal lookbacks, quality thresholds, and
+            target sizing limits.
+
+    Returns:
+        A frame with base OHLCV columns plus candidate signals, per-signal quality
+        diagnostics, selected signal value, and ``target_percent`` allocation.
+    """
     common_index = price_df.index.intersection(gold_proxy_df.index).intersection(equity_proxy_df.index).sort_values()
     price = price_df.loc[common_index].copy()
     gold_proxy = gold_proxy_df.loc[common_index].copy()
@@ -107,6 +147,7 @@ def prepare_signal_quality_features(price_df, gold_proxy_df, equity_proxy_df, pa
 
 
 class SignalQualityFeed(bt.feeds.PandasData):
+    """Backtrader data feed carrying additional signal quality features."""
     lines = (
         "signal_momentum", "signal_mean_reversion", "signal_ratio",
         "signal_momentum_quality", "signal_mean_reversion_quality", "signal_ratio_quality",
@@ -121,6 +162,7 @@ class SignalQualityFeed(bt.feeds.PandasData):
 
 
 class SignalQualityStrategy(bt.Strategy):
+    """Signal-quality-aware strategy that rotates between ranked factor signals."""
     params = dict(
         rebalance_interval_days=21,
         quality_lookback=252,
@@ -137,6 +179,7 @@ class SignalQualityStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and pending-order tracking state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -155,6 +198,7 @@ class SignalQualityStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Rebalance at the configured interval toward the target exposure."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -171,11 +215,13 @@ class SignalQualityStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target_percent)
 
     def notify_order(self, order):
+        """Clear local lock once an order is fully processed."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters for each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1

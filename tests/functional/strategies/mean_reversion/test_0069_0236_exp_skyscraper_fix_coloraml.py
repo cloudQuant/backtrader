@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+This document captures execution details for the generated inlined strategy test
+while leaving test logic and numeric behavior unchanged.
+
+Data Used:
+    Uses XAUUSD M15 bars from `tests/datas/XAUUSD_M15.csv` and a resampled
+    H4 (`240` minute) signal stream.
+
+Strategy Principle:
+    The strategy combines a skyscraper-fix channel indicator with a Color AML
+    volatility filter to gate long/short entries, exits, and optional reversal
+    behavior across two subsystems.
+
+Strategy Logic:
+    It parses MT5-style input, constructs execution/signal feeds, runs analyzer
+    instrumentation, then verifies migrated expected metrics from the extracted
+    analyzer summary.
 """
 from __future__ import annotations
 import math
@@ -99,6 +116,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Parse an MT5 CSV file to a normalized Backtrader-friendly DataFrame.
+
+    Args:
+        filepath: Path to the MT5 source file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute shift applied to timestamp index.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV/spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -125,6 +153,10 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom feed mapping MT5 columns including spread.
+
+    Adds spread as an extra data line for order and analysis compatibility.
+    """
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -139,10 +171,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SkyscraperFixIndicator(bt.Indicator):
+    """Skyscraper fix channel indicator producing buy/sell buffers and color state."""
     lines = ('up_buffer', 'dn_buffer', 'buy_buffer', 'sell_buffer', 'color_state')
     params = dict(length=10, kv=0.9, percentage=0.0, use_high_low=True, atr_period=15, point_size=0.01)
 
     def __init__(self):
+        """Initialize ATR-derived channel state and lookback counters."""
         self.addminperiod(max(self.p.length, self.p.atr_period) + 3)
         self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
         self.atr_high = bt.indicators.Highest(self.atr, period=self.p.length)
@@ -160,6 +194,7 @@ class SkyscraperFixIndicator(bt.Indicator):
         return value is not None and math.isfinite(value)
 
     def next(self):
+        """Compute current channel extrema and potential reversal buffers."""
         up = self._nan()
         dn = self._nan()
         buy = self._nan()
@@ -226,10 +261,12 @@ class SkyscraperFixIndicator(bt.Indicator):
 
 
 class ColorAMLIndicator(bt.Indicator):
+    """Adaptive moving-lowpass indicator for color-state trend capture."""
     lines = ('aml', 'color_state')
     params = dict(fractal=6, lag=7, shift=0, point_size=0.01)
 
     def __init__(self):
+        """Prepare smoothing buffers and history for AML color-state generation."""
         self.addminperiod(2 * self.p.fractal + self.p.lag + 5)
         self._smooth_history = []
         self._prev_aml = None
@@ -246,6 +283,7 @@ class ColorAMLIndicator(bt.Indicator):
         return min(values)
 
     def next(self):
+        """Update smooth and color values for the active bar."""
         if len(self.data) < 2 * self.p.fractal + self.p.lag + 2:
             self.lines.aml[0] = float('nan')
             self.lines.color_state[0] = self._prev_color
@@ -278,6 +316,7 @@ class ColorAMLIndicator(bt.Indicator):
 
 
 class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
+    """Dual-system strategy combining skyscraper fix and color AML conditions."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -310,6 +349,7 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data feeds, indicators, and order tracking state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.a_indicator = SkyscraperFixIndicator(self.signal_data, length=self.p.a_length, kv=self.p.a_kv, percentage=self.p.a_percentage, use_high_low=self.p.a_use_high_low, point_size=self.p.point_size)
@@ -326,10 +366,16 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Log execution messages with bar datetime.
+
+        Args:
+            text: Text payload to print.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Proxy preloading period updates to full next-step logic."""
         self.next()
 
     def _normalize_lot(self, lot):
@@ -427,6 +473,7 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
         self.log(f'CLOSE system={self.active_system} side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Coordinate signal arbitration between System A and B and manage reversals."""
         if len(self.signal_data) < max(self.p.a_length + 3, 2 * self.p.b_fractal + self.p.b_lag + 3):
             return
         if not self._new_signal_bar():
@@ -461,6 +508,11 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
             self._submit_entry('B', 'short', 'ColorAML sell')
 
     def notify_order(self, order):
+        """Process completed or failed orders and clear pending states.
+
+        Args:
+            order: Order instance that changed status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -504,6 +556,11 @@ class ExpSkyscraperFixColorAMLStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Emit trade close summary and reset active strategy state.
+
+        Args:
+            trade: Closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED system={self.active_system} side={self.active_side} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -522,6 +579,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Return absolute test data path from repository-local directory.
+
+    Args:
+        filename: Relative filename from configuration.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -529,12 +594,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Convert ISO timestamp text to datetime, allowing None values.
+
+    Args:
+        value: Timestamp string.
+
+    Returns:
+        Parsed datetime or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load filtered historical data according to the inlined configuration.
+
+    Args:
+        config: Test configuration dict.
+
+    Returns:
+        A mapping containing the prepared DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -546,6 +627,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach analyzer modules that feed the expected metrics assertions.
+
+    Args:
+        cerebro: Configured Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -554,6 +640,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample and fill OHLCV columns for the secondary signal feed.
+
+    Args:
+        df: Input DataFrame indexed by datetime.
+        minutes: Minute interval for aggregation.
+
+    Returns:
+        Aggregated and cleaned DataFrame.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -563,6 +658,8 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with execution and signal feeds and strategy configuration."""
+
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -580,6 +677,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite values to None for safe metric formatting.
+
+    Args:
+        value: Value potentially containing inf/nan.
+
+    Returns:
+        None when value is invalid, otherwise original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -588,6 +693,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print full metric summary used by migration-oriented regression checks."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -614,6 +720,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the inlined backtest entrypoint and print summary output."""
     parser = argparse.ArgumentParser(description='Run Exp_Skyscraper_Fix_ColorAML backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
@@ -640,7 +747,7 @@ def _close(actual, expected, *, tol, key):
 def test_69_0069_0236_exp_skyscraper_fix_coloraml() -> None:
     """Migrated regression test (runonce=True only).
 
-    Originally located at tests/functional/strategies_regression/mean_reversion/0069_0236_exp_skyscraper_fix_coloraml.
+    Regression artifact source: tests/functional/strategies_regression/mean_reversion/0069_0236_exp_skyscraper_fix_coloraml.
     """
     captured = {}
 

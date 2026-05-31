@@ -1,6 +1,21 @@
-"""Inlined regression test for others/0010_intraday_momentum.
+"""Manual single-file regression test for ``test_0010_intraday_momentum``.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
+Runs with ``runonce=True`` only.
+
+Data Used:
+    XAUUSD 5-minute bars from ``tests/datas/XAUUSD_M5.csv`` within the test date
+    window (2025-10-01 to 2025-12-31).
+
+Strategy Principle:
+    A simple intraday momentum regime: the morning return at a configured bar
+    index establishes whether to hold long, short, or flat exposure for the rest
+    of that trading session.
+
+Strategy Logic:
+    ``prepare_intraday_momentum_features`` calculates ``target_pct`` and
+    ``signal_change`` flags. ``GoldIntradayMomentumStrategy`` applies
+    rebalancing on signal changes and enforces fixed stop-loss / take-profit
+    exits while order/trade lifecycle hooks keep execution counters.
 """
 from __future__ import annotations
 
@@ -16,6 +31,16 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M5.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5-style CSV data into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to the data file.
+        fromdate: Optional inclusive lower date bound.
+        todate: Optional inclusive upper date bound.
+
+    Returns:
+        pandas.DataFrame: OHLCV frame sorted by datetime.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -42,6 +67,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_intraday_momentum_features(df, params):
+    """Build intraday momentum flags used by the strategy feed.
+
+    Args:
+        df: Minute-level OHLCV DataFrame indexed by datetime.
+        params: Parameters controlling session signal generation.
+
+    Returns:
+        pandas.DataFrame: DataFrame with ``target_pct`` and ``signal_change``.
+    """
     signal_bar_index = int(params.get("signal_bar_index", 11))
     signal_threshold = float(params.get("signal_threshold", 0.0015))
     gross_exposure = float(params.get("gross_exposure", 0.95))
@@ -86,6 +120,7 @@ def prepare_intraday_momentum_features(df, params):
 
 
 class IntradayMomentumFeed(bt.feeds.PandasData):
+    """PandasData extension carrying precomputed intraday momentum fields."""
     lines = ("morning_return", "target_pct", "signal_change", "is_eod")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -95,6 +130,7 @@ class IntradayMomentumFeed(bt.feeds.PandasData):
 
 
 class GoldIntradayMomentumStrategy(bt.Strategy):
+    """Intraday momentum strategy that targets position size to regime direction."""
     params = dict(
         stop_loss_pct=0.004,
         take_profit_pct=0.008,
@@ -105,6 +141,7 @@ class GoldIntradayMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and entry-price tracking state."""
         self.pending_order = None
         self.bar_num = 0
         self.signal_change_count = 0
@@ -116,6 +153,7 @@ class GoldIntradayMomentumStrategy(bt.Strategy):
         self.entry_price = None
 
     def next(self):
+        """Evaluate exit conditions and rebalance on signal-change bars."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -133,6 +171,11 @@ class GoldIntradayMomentumStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_pct[0]))
 
     def notify_order(self, order):
+        """Process completed, rejected, and cancelled order transitions.
+
+        Args:
+            order: Order object whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -147,6 +190,11 @@ class GoldIntradayMomentumStrategy(bt.Strategy):
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters after each closed trade.
+
+        Args:
+            trade: Trade object reporting realized trade outcome.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

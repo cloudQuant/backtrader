@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Input source is `XAUUSD_M15.csv` under `tests/datas`, with 15-minute bars.
+    The strategy uses `fromdate` and `todate` bounds from `_CONFIG`, applies an
+    optional timestamp shift, and performs single-data backtesting.
+
+Strategy Principle:
+    The strategy computes RMACD as the difference between RSI (fast component)
+    and smoothed TRVI, then compares it to a secondary moving-average signal.
+    Signals are determined by mode-specific crossover rules and can reverse or
+    close positions when trend/signal behavior changes.
+
+Strategy Logic:
+    `run()` loads config and market data, builds Cerebro and feeds, executes the
+    strategy once, and captures metrics through helper extraction functions.
+    Strategy logic in `RMACDStrategy` handles indicator warm-up, entry, reversal,
+    exit logging, and trade accounting, while assertions validate the expected
+    performance metrics at the end of the run.
 """
 from __future__ import annotations
 import math
@@ -82,6 +100,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-delimited CSV bars into a normalized DataFrame.
+
+    Args:
+        filepath: File path of the raw MT5 CSV export.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute offset applied to the parsed index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +132,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Standard Backtrader feed mapping MT5 OHLCV column positions."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -110,6 +140,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Return a Backtrader moving-average class by symbolic name.
+
+    Args:
+        name: Indicator name alias like ``sma``, ``ema``, or ``smma``.
+
+    Returns:
+        class: A Backtrader indicator class object.
+    """
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SMA
@@ -121,24 +159,55 @@ def resolve_ma_class(name):
 
 
 class RollingWeightedAverage:
+    """Weighted moving-average helper with recency-biased linear weights."""
+
     def __init__(self, period):
+        """Create deque state for the rolling weighted average window.
+
+        Args:
+            period: Number of bars included in each weighted average.
+        """
         self.period = max(1, int(period))
         self.values = deque(maxlen=self.period)
 
     def update(self, value):
+        """Push a value and return the weighted mean of the window.
+
+        Args:
+            value: Incoming numeric sample.
+
+        Returns:
+            float: Linear recency-weighted average of buffered values.
+        """
         self.values.append(float(value))
         weights = list(range(len(self.values), 0, -1))
         return sum(v * w for v, w in zip(self.values, weights)) / sum(weights)
 
 
 class CountSmoother:
+    """Signal smoother supporting SMA/LWMA/SMMA/EMA-like state updates."""
+
     def __init__(self, method, period):
+        """Initialize smoothing mode and rolling state.
+
+        Args:
+            method: Smoothing mode name, e.g. ``sma``, ``lwma``, ``smma``.
+            period: Window length for the smoother.
+        """
         self.method = str(method).lower()
         self.period = max(1, int(period))
         self.state = None
         self.values = deque(maxlen=self.period)
 
     def update(self, value):
+        """Update and return the smoothed value using the configured method.
+
+        Args:
+            value: Next raw sample.
+
+        Returns:
+            float: Smoothed result.
+        """
         value = float(value)
         if self.method in {'sma', 'mode_sma'}:
             self.values.append(value)
@@ -162,10 +231,12 @@ class CountSmoother:
 
 
 class TRVIIndicator(bt.Indicator):
+    """TRVI indicator combining price-range velocity with volume-weighted smoothing."""
     lines = ('trvi', 'signal',)
     params = dict(period=26, volume_type='tick')
 
     def __init__(self):
+        """Create helper averages and internal signal buffer."""
         self._num_avg = RollingWeightedAverage(self.p.period)
         self._den_avg = RollingWeightedAverage(self.p.period)
         self._signal_window = deque(maxlen=4)
@@ -185,6 +256,7 @@ class TRVIIndicator(bt.Indicator):
         )
 
     def next(self):
+        """Compute TRVI and smoothed signal for the current bar."""
         volume_now = self._volume()
         volume_prev1 = float(self.data.volume[-1])
         volume_prev2 = float(self.data.volume[-2])
@@ -220,6 +292,7 @@ class TRVIIndicator(bt.Indicator):
 
 
 class ColorRMACDIndicator(bt.Indicator):
+    """Custom RMACD composite indicator with configurable signal MA."""
     lines = ('rmacd', 'signal',)
     params = dict(
         fast_rvi=12,
@@ -230,6 +303,7 @@ class ColorRMACDIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Build RMACD components and required minimum period."""
         ma_cls = resolve_ma_class(self.p.signal_method)
         self.rvi = bt.indicators.RSI(self.data.close, period=self.p.fast_rvi, safediv=True)
         self.trvi = TRVIIndicator(self.data, period=self.p.slow_trvi, volume_type=self.p.volume_type)
@@ -239,6 +313,7 @@ class ColorRMACDIndicator(bt.Indicator):
 
 
 class RMACDStrategy(bt.Strategy):
+    """Backtrader strategy implementing RMACD signal-based reversals."""
     params = dict(
         mode='macddisposition',
         fast_rvi=12,
@@ -252,6 +327,7 @@ class RMACDStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator, counters, and position state tracking."""
         self.indicator = ColorRMACDIndicator(
             self.data,
             fast_rvi=self.p.fast_rvi,
@@ -269,6 +345,7 @@ class RMACDStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print timestamped strategy message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -336,6 +413,7 @@ class RMACDStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Execute one bar of strategy logic and manage opens/closes."""
         self.bar_num += 1
         min_bars = max(int(self.p.fast_rvi), int(self.p.slow_trvi) + 8, int(self.p.signal_xma)) + int(self.p.signal_bar) + 5
         if len(self.data) < min_bars:
@@ -377,6 +455,7 @@ class RMACDStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update trade accounting counters when positions open or close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -409,6 +488,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Return an absolute existing path for a local test data file.
+
+    Args:
+        filename: Relative filename from the strategy directory.
+
+    Returns:
+        pathlib.Path: Absolute path to the file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -416,6 +503,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and crop configured bars into a backtest-ready frame.
+
+    Args:
+        config: Inlined configuration dict.
+
+    Returns:
+        dict: Wrapped frame data with `fromdate` and `todate` fields.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -432,6 +527,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with data feed, strategy instance, and analyzers.
+
+    Args:
+        config: Inlined configuration dict.
+        frame: Dict produced by `load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Prepared engine instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -455,6 +559,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect standardized backtest metrics and counters for assertions.
+
+    Args:
+        strat: Strategy instance after backtest run.
+        cerebro: Cerebro engine used to run the strategy.
+        frame: Backtest frame holding loaded market data.
+        config: Inlined configuration dict.
+
+    Returns:
+        dict: Metrics used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -495,6 +610,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return execution outputs.
+
+    Args:
+        plot: If True, open a Backtrader plot after execution.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)`` from the backtest run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

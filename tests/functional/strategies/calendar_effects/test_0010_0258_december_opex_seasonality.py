@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily ``D1`` bars loaded from ``tests/datas/XAUUSD_1d.csv``
+    via the MetaTrader-5 style CSV reader. The backtest window spans 2008-01-01
+    to 2025-12-31. December options-expiration (OpEx) seasonality features are
+    precomputed and fed through a custom ``PandasData`` subclass.
+
+Strategy Principle:
+    The strategy exploits the December options-expiration seasonality effect.
+    Each year it enters a long in the week of December's third-Friday OpEx,
+    holding for a base window (extended when enabled). When November closed
+    negative (an oversold condition), the target exposure is boosted on the
+    assumption of a stronger year-end rebound. Each trade carries fixed
+    stop-loss and take-profit levels alongside the time-based exit.
+
+Strategy Logic:
+    1. ``prepare_december_opex_features`` locates each year's third-Friday OpEx
+       week, evaluates the November-return oversold condition, and marks the
+       entry signal, target percentage, and extended-window flag.
+    2. ``load_data`` builds the feature frame; ``build_cerebro`` wires the
+       percent-futures broker, feed, strategy, and analyzers.
+    3. ``DecemberOpExSeasonalityStrategy.next`` opens a sized long on the entry
+       signal and exits on stop-loss, take-profit, or the hold-bar time limit.
+    4. ``notify_order`` records entry price/bar and classifies the exit reason;
+       ``notify_trade`` tallies win/loss counts.
+    5. ``extract_metrics`` collects analyzer output, the equity-curve Ulcer
+       index, and entry/exit statistics, and
+       ``test_10_0010_0258_december_opex_seasonality`` forces ``runonce=True``
+       and asserts each value against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -81,6 +110,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MetaTrader-5 style CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -111,22 +150,59 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def get_third_friday(year, month):
+    """Return the third Friday of the given month as a Timestamp.
+
+    Args:
+        year: Calendar year.
+        month: Calendar month (1-12).
+
+    Returns:
+        pandas.Timestamp for the month's third Friday.
+    """
     cal = calendar.Calendar()
     fridays = [day for day, weekday in cal.itermonthdays2(year, month) if day != 0 and weekday == 4]
     return pd.Timestamp(year=year, month=month, day=fridays[2])
 
 
 def get_previous_trading_day(index, target_date):
+    """Return the latest index date strictly before ``target_date``.
+
+    Args:
+        index: DatetimeIndex of available trading days.
+        target_date: Reference date.
+
+    Returns:
+        The previous trading day, or None if none exists.
+    """
     candidates = index[index < target_date]
     return candidates[-1] if len(candidates) else None
 
 
 def get_next_trading_day(index, target_date):
+    """Return the earliest index date strictly after ``target_date``.
+
+    Args:
+        index: DatetimeIndex of available trading days.
+        target_date: Reference date.
+
+    Returns:
+        The next trading day, or None if none exists.
+    """
     candidates = index[index > target_date]
     return candidates[0] if len(candidates) else None
 
 
 def prepare_december_opex_features(price_df, params):
+    """Mark December OpEx entry signals and target exposure per year.
+
+    Args:
+        price_df: Daily OHLCV DataFrame.
+        params: Strategy parameters controlling the oversold boost and window.
+
+    Returns:
+        Copy of the frame with entry/window/oversold/target/year columns,
+        dropping incomplete rows.
+    """
     out = price_df.copy()
     require_negative_november = bool(params.get('require_negative_november', False))
     use_extended_window = bool(params.get('use_extended_window', True))
@@ -167,6 +243,8 @@ def prepare_december_opex_features(price_df, params):
 
 
 class Mt5DecemberOpExFeed(bt.feeds.PandasData):
+    """PandasData feed exposing December OpEx signal and target lines."""
+
     lines = ('entry_signal', 'extended_window', 'oversold_boost', 'target_pct', 'opex_year')
     params = (
         ('datetime', None),
@@ -185,6 +263,8 @@ class Mt5DecemberOpExFeed(bt.feeds.PandasData):
 
 
 class DecemberOpExSeasonalityStrategy(bt.Strategy):
+    """December OpEx seasonality long strategy with oversold boost and exits."""
+
     params = dict(
         use_extended_window=True,
         base_hold_bars=5,
@@ -197,6 +277,7 @@ class DecemberOpExSeasonalityStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset bar, trade, entry/exit, and equity-tracking counters."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -230,6 +311,7 @@ class DecemberOpExSeasonalityStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Enter on the OpEx signal and exit on stop/target/time conditions."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -266,6 +348,11 @@ class DecemberOpExSeasonalityStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=size)
 
     def notify_order(self, order):
+        """Record entry price/bar and classify the exit reason on fills.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -288,6 +375,11 @@ class DecemberOpExSeasonalityStrategy(bt.Strategy):
             self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally closed-trade win/loss counts.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -309,6 +401,15 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build SharpeRatio analyzer kwargs matched to the data timeframe.
+
+    Args:
+        config: Resolved configuration dict (or any object) with a ``data``
+            section providing the timeframe.
+
+    Returns:
+        Dict of keyword arguments for the SharpeRatio analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -321,10 +422,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return ``x`` when it is a finite truthy number, else None.
+
+    Args:
+        x: Any value, typically a float metric.
+
+    Returns:
+        ``x`` when truthy and finite, otherwise None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity curve.
+
+    Args:
+        values: Sequence of portfolio values over time.
+
+    Returns:
+        The Ulcer Index as a float, or 0.0 when fewer than two values exist.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -339,6 +456,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load the data and build the December OpEx feature frame.
+
+    Args:
+        config: Resolved configuration dict with a ``data`` section.
+
+    Returns:
+        Dict with ``data``, ``fromdate``, and ``todate`` keys.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -351,6 +476,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble a cerebro with broker, feed, strategy, and analyzers.
+
+    Args:
+        frame: Dict containing the loaded ``data`` DataFrame.
+        config: Resolved configuration dict.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -373,6 +507,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The cerebro instance after the run.
+        frame: Dict with the loaded ``data`` frame and date bounds.
+        config: Resolved configuration dict.
+
+    Returns:
+        Dict of backtest metrics keyed by metric name.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -421,6 +566,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Convert a value into a JSON-serializable scalar.
+
+    Args:
+        v: Any value, possibly a datetime or non-finite float.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, else ``v``.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

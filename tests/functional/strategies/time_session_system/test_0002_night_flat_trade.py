@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M1 (1 Minute), resampled to H1 (60 minutes) for signals.
+    - Data Path: '{repo}/tests/datas/XAUUSD_M1.csv'.
+    - Date Range: 2026-03-05 00:00:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This is a time-session based trading strategy that operates during night-time hours (configured by open_hour).
+    - Market Assumptions: Markets exhibit flat/range-bound consolidation patterns during quiet night sessions (specifically within configured open_hour). Range bounds of the previous 3 hours can be used as support and resistance channels; breakouts are traded as mean reversion entries or breakout transitions.
+    - Indicators:
+        - Range consolidation size (highest - lowest of previous 3 H1 candles).
+        - Trailing stop-loss and trailing step in points to protect gains.
+    - Entry Signals:
+        - Long Entry: Market price sits in the lower quadrant of the support channel and consolidation range is within configured pip bounds.
+        - Short Entry: Market price sits in the upper quadrant of the resistance channel and consolidation range is within configured pip bounds.
+    - Exit Signals:
+        - Stop Loss: Triggered when prices cross support/resistance boundaries or trailing SL triggers.
+        - Take Profit: Fixed take profit target in pips.
 """
 from __future__ import annotations
 import math
@@ -23,8 +42,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '夜间横盘交易',
-        'source_ea': 'ea/0381_夜间横盘交易/night_flat_trade.mq5',
+        'name': 'Night Flat Trade',
+        'source_ea': 'ea/0381_Night_Flat_Trade/night_flat_trade.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -69,7 +88,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -77,6 +104,11 @@ def load_config(*args, **kwargs):
 
 
 class NightFlatTradeStrategy(bt.Strategy):
+    """Strategy class implementing the Night Flat Trade session logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         take_profit_pips=50,
         trailing_stop_pips=15,
@@ -91,6 +123,7 @@ class NightFlatTradeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.order = None
@@ -106,6 +139,12 @@ class NightFlatTradeStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, txt, dt=None):
+        """Log message with timestamp prefix.
+
+        Args:
+            txt (str): Log message.
+            dt (datetime.datetime, optional): Bar timestamp. Defaults to None.
+        """
         dt = dt or bt.num2date(self.data0.datetime[0])
         print(f'[{dt:%Y-%m-%d %H:%M}] {txt}')
 
@@ -173,6 +212,7 @@ class NightFlatTradeStrategy(bt.Strategy):
                     self.log(f'TRAIL SHORT stop={self.stop_price:.5f}')
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         if self.order is not None:
             return
         if len(self.data1) < 4:
@@ -235,6 +275,11 @@ class NightFlatTradeStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -250,6 +295,11 @@ class NightFlatTradeStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -262,16 +312,17 @@ class NightFlatTradeStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def stop(self):
+        """Print backtest performance summary on strategy completion."""
         total = self.trade_count
         wr = (self.win_count / total * 100.0) if total else 0.0
-        print('========== Night Flat Trade 策略结束 ==========')
-        print(f'  买入次数: {self.buy_count}')
-        print(f'  卖出次数: {self.sell_count}')
-        print(f'  总交易数: {self.trade_count}')
-        print(f'  盈利次数: {self.win_count}')
-        print(f'  亏损次数: {self.loss_count}')
-        print(f'  胜率:     {wr:.1f}%')
-        print(f'  最终权益: {self.broker.getvalue():.2f}')
+        print('========== Night Flat Trade Strategy Finished ==========')
+        print(f'  Buy orders: {self.buy_count}')
+        print(f'  Sell orders: {self.sell_count}')
+        print(f'  Total trades: {self.trade_count}')
+        print(f'  Winning trades: {self.win_count}')
+        print(f'  Losing trades: {self.loss_count}')
+        print(f'  Win rate:     {wr:.1f}%')
+        print(f'  Final equity: {self.broker.getvalue():.2f}')
         print('==============================================')
 
 
@@ -287,6 +338,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with extra spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -301,6 +353,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def load_mt5_csv(filepath: str, fromdate=None, todate=None, bar_shift_minutes: int = 0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -328,6 +391,14 @@ def load_mt5_csv(filepath: str, fromdate=None, todate=None, bar_shift_minutes: i
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -336,6 +407,17 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, cerebro, frame, initial_cash):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        results (list): Strategy backtest run results.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (pd.DataFrame): Data frame of historical data.
+        initial_cash (float): Starting broker cash.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     strat = results[0]
     end_value = cerebro.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -372,6 +454,14 @@ def extract_metrics(results, cerebro, frame, initial_cash):
 
 
 def run(cfg_path: str | None = None):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        cfg_path (str, optional): Config yaml path. Defaults to None.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
     cfg = load_config(cfg_path)
@@ -438,17 +528,17 @@ def run(cfg_path: str | None = None):
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
     cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
 
-    print(f'数据文件:  {data_file}')
-    print(f'信号周期:  {data_cfg.get("signal_timeframe", "H1")}')
-    print(f'回测区间:  {fromdate} ~ {todate}')
-    print(f'初始资金:  {cerebro.broker.getvalue():.2f}')
+    print(f'Data file:  {data_file}')
+    print(f'Signal timeframe:  {data_cfg.get("signal_timeframe", "H1")}')
+    print(f'Backtest period:  {fromdate} ~ {todate}')
+    print(f'Initial cash:  {cerebro.broker.getvalue():.2f}')
     print('-' * 50)
 
     initial_cash = cerebro.broker.getvalue()
     results = cerebro.run()
     final_value = cerebro.broker.getvalue()
     metrics = extract_metrics(results, cerebro, frame, initial_cash)
-    print(f'\n最终权益: {final_value:.2f}')
+    print(f'\nFinal equity: {final_value:.2f}')
     return results, metrics, cerebro
 
 

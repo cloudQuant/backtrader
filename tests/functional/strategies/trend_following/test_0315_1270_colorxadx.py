@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The smoothed ADX/DI lines
+    are computed directly on the M15 feed; no separate signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_ColorXADX``. A smoothed ADX
+    system computes +DI, -DI and ADX over ``adx_period`` and smooths each with a
+    configurable moving average. Directional crossovers drive the signals: when
+    +DI crosses below -DI while ADX confirms trend strength above
+    ``extra_high_level`` it is a long signal, and the symmetric +DI-over--DI
+    cross is a short signal. Positions reverse on the opposite cross; the ADX
+    filter suppresses entries in weak-trend conditions, and risk is bounded by
+    the reversing signal rather than fixed stops.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers, building the SmoothedADXIndicator
+    (helper resolve_ma_class selects the smoothing MA). Each bar the strategy
+    reads the smoothed +DI/-DI and ADX at the configured signal bar to derive
+    open/close signals, then opens, closes, or reverses a fixed-lot position.
+    notify_trade counts entries on open and win/loss on close. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -78,6 +106,19 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +140,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -106,6 +149,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Map a moving-average name to its backtrader indicator class.
+
+    Args:
+        name: MA type name (e.g. ``t3``, ``ema``, ``sma``, ``smma`` or MT5-style
+            ``mode_*`` variants); several smoothing variants map to EMA.
+
+    Returns:
+        The matching backtrader moving-average indicator class, defaulting to
+        the weighted moving average for unrecognized names.
+    """
     mode = str(name).lower()
     if mode in {'mode_t3', 't3', 'mode_ema', 'ema', 'mode_ama', 'ama', 'mode_jjma', 'jjma', 'mode_jurx', 'jurx', 'mode_vidya', 'vidya', 'mode_parma', 'parma'}:
         return bt.indicators.ExponentialMovingAverage
@@ -117,10 +170,17 @@ def resolve_ma_class(name):
 
 
 class SmoothedADXIndicator(bt.Indicator):
+    """ADX/DI system with each line smoothed by a configurable moving average.
+
+    Computes raw +DI, -DI and ADX over ``adx_period`` and exposes moving-average
+    smoothed versions on the ``plus_di``, ``minus_di`` and ``adx`` lines.
+    """
+
     lines = ('plus_di', 'minus_di', 'adx')
     params = dict(xma_method='t3', adx_period=14, adx_phase=100)
 
     def __init__(self):
+        """Build the raw +DI/-DI/ADX indicators and their smoothed lines."""
         ma_cls = resolve_ma_class(self.p.xma_method)
         self._plus = bt.indicators.PlusDirectionalIndicator(self.data, period=max(1, int(self.p.adx_period)))
         self._minus = bt.indicators.MinusDirectionalIndicator(self.data, period=max(1, int(self.p.adx_period)))
@@ -135,6 +195,22 @@ class SmoothedADXIndicator(bt.Indicator):
 
 
 class ColorXADXStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_ColorXADX`` smoothed-ADX crossover strategy.
+
+    Trades +DI/-DI crossovers confirmed by an ADX strength filter: a +DI cross
+    below -DI with strong ADX is a long signal and the opposite cross is a short
+    signal, entering on the cross and reversing on the opposite signal with a
+    fixed lot.
+
+    Args:
+        xma_method: Smoothing moving-average type for the DI/ADX lines.
+        adx_period: Period for the ADX/DI computation.
+        adx_phase: Phase parameter retained from the source EA (unused here).
+        extra_high_level: ADX threshold that must be exceeded to allow entries.
+        signal_bar: Which completed bar to evaluate signals on.
+        lot: Fixed order size in lots.
+    """
+
     params = dict(
         xma_method='t3',
         adx_period=14,
@@ -145,6 +221,7 @@ class ColorXADXStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the SmoothedADXIndicator and reset bar/trade counters."""
         self.indicator = SmoothedADXIndicator(
             self.data,
             xma_method=self.p.xma_method,
@@ -160,6 +237,11 @@ class ColorXADXStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -185,6 +267,14 @@ class ColorXADXStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse on smoothed DI-cross signals each bar.
+
+        Increments the bar counter, skips during warm-up, derives open/close
+        signals from the smoothed +DI/-DI crossover with the ADX strength filter
+        at the configured signal bar, and acts: when flat it opens a long or
+        short; when in a position it closes on the close signal or closes and
+        reverses on the opposite open signal.
+        """
         self.bar_num += 1
         warmup = int(self.p.adx_period) * 3 + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -223,6 +313,12 @@ class ColorXADXStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -255,6 +351,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -262,6 +369,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -278,6 +397,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy and analyzers.
+
+    Args:
+        config: Resolved configuration dict with data, params and backtest.
+        frame: Dict containing the loaded OHLCV frame under ``data``.
+
+    Returns:
+        A configured Cerebro instance ready to run the strategy.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -301,6 +429,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run completes.
+        frame: Dict of prepared frames from load_backtest_frame.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A dict of summary metrics (returns, drawdown, Sharpe, trade statistics,
+        SQN) keyed for the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -341,6 +481,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the ColorXADX backtest and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

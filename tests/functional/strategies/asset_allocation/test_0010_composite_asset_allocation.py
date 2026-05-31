@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Five daily (D1) ETF feeds exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: IVV (US equity), EFA (developed ex-US equity),
+    BIL (T-bills / cash proxy), IEF (7-10y Treasuries), and GTIP (inflation-
+    protected bonds). The series cover 2008-01-01 to 2025-12-31 and are aligned
+    on their common trading dates. IVV, EFA, and IEF are the tradable sleeve;
+    BIL and GTIP feed only the signal calculations.
+
+Strategy Principle:
+    A port of the "Composite Asset Allocation" strategy that blends four equal-
+    weight sleeves: a trend-following sleeve (cross-sectional momentum that picks
+    the strongest of IVV/EFA, falling back to IEF when even cash momentum beats
+    it), a macro-economic sleeve (a 0-3 score on equity, inflation, and bond
+    trends that tilts toward equity or bonds), and two passive sleeves (fixed
+    equity and bond allocations). Diversifying across complementary return
+    drivers aims to smooth the equity curve relative to any single sleeve.
+
+Strategy Logic:
+    prepare_composite_allocation_inputs aligns the feeds, builds multi-horizon
+    momentum and macro scores, and precomputes per-date target weights for IVV,
+    EFA, and IEF. The strategy walks the daily bars, records broker value, and on
+    a fixed rebalance cadence looks up the target weights for the current date;
+    if any holding drifts beyond the threshold it issues order_target_percent
+    rebalances and tallies buy/sell/rebalance counts. extract_metrics gathers
+    returns, drawdown, Sharpe, SQN, win/loss, profit factor, and an Ulcer index;
+    the test runs with runonce=True and asserts each metric against migration-
+    time expected values.
 """
 from __future__ import annotations
 import math
@@ -91,6 +119,17 @@ TRADED_NAMES = ['ivv', 'efa', 'ief']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -121,6 +160,26 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_composite_allocation_inputs(asset_map, params):
+    """Align the feeds and precompute per-date composite target weights.
+
+    Aligns all asset frames on their common dates, builds multi-horizon momentum
+    and a macro-economic score, derives the trend and macro sleeve picks, and
+    combines them with the passive sleeves into IVV/EFA/IEF target weights.
+
+    Args:
+        asset_map: Mapping of asset name to its loaded OHLCV DataFrame.
+        params: Strategy parameters supplying sleeve weights, momentum horizons,
+            and the macro lookback.
+
+    Returns:
+        A tuple of ``(prepared_map, signal_df, aligned_index)`` where
+        ``prepared_map`` holds the aligned per-asset frames, ``signal_df`` holds
+        the per-date targets and intermediate signals, and ``aligned_index`` is
+        the shared datetime index.
+
+    Raises:
+        ValueError: If the assets share no overlapping dates.
+    """
     aligned_index = None
     prepared = {}
     for symbol, df in asset_map.items():
@@ -190,6 +249,13 @@ def prepare_composite_allocation_inputs(asset_map, params):
 
 
 class CompositeAssetAllocationStrategy(bt.Strategy):
+    """Periodically rebalance IVV/EFA/IEF toward precomputed composite targets.
+
+    Reads per-date target weights from ``signal_lookup`` and, on a fixed
+    rebalance cadence, issues ``order_target_percent`` orders whenever a holding
+    drifts beyond the rebalance threshold, tracking buy/sell/rebalance counts.
+    """
+
     params = dict(
         signal_lookup=None,
         rebalance_interval_days=21,
@@ -204,6 +270,7 @@ class CompositeAssetAllocationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, the signal lookup, and the data-by-name map."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -240,6 +307,13 @@ class CompositeAssetAllocationStrategy(bt.Strategy):
         self.rebalance_count += 1
 
     def next(self):
+        """Record broker value and rebalance toward target weights on cadence.
+
+        Increments the bar counter, appends the current portfolio value, and
+        skips while orders are pending or off the rebalance cadence. When due, it
+        looks up the current date's target weights and rebalances only if any
+        tradable holding has drifted past the rebalance threshold.
+        """
         self.bar_num += 1
         current_dt = bt.num2date(self.datas[0].datetime[0]).replace(tzinfo=None)
         self.broker_value_series.append((current_dt, float(self.broker.getvalue())))
@@ -262,6 +336,13 @@ class CompositeAssetAllocationStrategy(bt.Strategy):
             self._rebalance(targets)
 
     def notify_order(self, order):
+        """Drop completed orders from the pending list once they leave flight.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears it from the pending
+                list.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [pending for pending in self.pending_orders if pending is not None and pending.ref != order.ref]
@@ -273,10 +354,27 @@ class CompositeAssetAllocationStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -290,11 +388,31 @@ def calculate_ulcer_index(values):
 
 
 def resolve_config_path(path_value):
+    """Resolve a config path relative to this test module's directory.
+
+    Args:
+        path_value: An absolute or relative path string from the config.
+
+    Returns:
+        The path unchanged when absolute, otherwise resolved against
+        ``BASE_DIR``.
+    """
     path = Path(path_value)
     return path if path.is_absolute() else (BASE_DIR / path).resolve()
 
 
 def load_inputs(config):
+    """Load and prepare every feed and the composite signals from config.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the asset
+            file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the prepared per-asset frames, the signal DataFrame, the
+        aligned index, the per-date signal lookup, and the effective
+        ``fromdate``/``todate`` of the aligned data.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -316,6 +434,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the five feeds, strategy, and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, and strategy
+            parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -335,6 +463,22 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds, bar count, and the
+            last signal row.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and trade/rebalance counts) used by
+        the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -378,6 +522,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

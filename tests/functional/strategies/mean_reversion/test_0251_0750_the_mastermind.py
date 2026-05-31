@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("The Mastermind") implements a mean reversion system combining Stochastic and Williams %R indicators.
+    - Market Assumptions: Markets establish short-term momentum extremes which are prone to sharp retracements. By combining two complementary oscillators (Stochastic %D for trend location and Williams %R for overbought/oversold levels), we can filter and identify high probability reverse entry points.
+    - Indicators:
+        - Stochastic: Stochastic Oscillator (5-period %K, 3-period %D, 3-period slow).
+        - Williams %R: Williams Percent Range (5-period).
+    - Entry Signals:
+        - Buy Entry: Stochastic %D falls below oversold `stoch_buy_level` (3.0) and Williams %R falls below oversold `wpr_buy_level` (-99.9).
+        - Sell Entry: Stochastic %D rises above overbought `stoch_sell_level` (97.0) and Williams %R rises above overbought `wpr_sell_level` (-0.1).
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (15 pips) and Take Profit (45 pips).
+        - Break-even Adjust: Once profit exceeds `break_even` parameter, adjust Stop Loss price to execution entry price.
+        - Trailing stop exit manages active open profit using `trailing_stop` and `trailing_step` parameters.
+        - Opposing Signal Exit: Close active long position immediately when a Sell signal occurs; close active short position when a Buy signal occurs.
 """
 from __future__ import annotations
 import math
@@ -22,8 +43,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '大师观念',
-        'source_ea': 'ea/0750_大师观念',
+        'name': 'The_Mastermind',
+        'source_ea': 'ea/0750_The_Mastermind',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -72,15 +93,29 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -108,12 +143,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class TheMastermindStrategy(bt.Strategy):
+    """Strategy class implementing Stochastic and Williams %R mean reversion.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lots=20.0,
         stop_loss=15,
@@ -132,7 +173,8 @@ class TheMastermindStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        self.stoch = bt.indicators.Stochastic(self.data, period=5, period_dfast=3, period_dslow=3)
+        """Initialize indicators, backtest tracking metrics, and state variables."""
+        self.stoch = bt.indicators.Page_252 = bt.indicators.Stochastic(self.data, period=5, period_dfast=3, period_dslow=3)
         self.wpr = bt.indicators.WilliamsR(self.data, period=5)
 
         self.bar_num = 0
@@ -151,23 +193,48 @@ class TheMastermindStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _unit(self):
+        """Calculate the price unit value based on point size and digit adjustments.
+
+        Returns:
+            float: Calculated price step unit.
+        """
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _buy_signal(self):
+        """Check for Stochastic and Williams %R oversold buy signals.
+
+        Returns:
+            bool: True if buy signals are triggered, otherwise False.
+        """
         sig_buy = float(self.stoch.percD[0])
         sig_high = float(self.wpr[-1]) if len(self) > 1 else float(self.wpr[0])
         return sig_buy < float(self.p.stoch_buy_level) and sig_high < float(self.p.wpr_buy_level)
 
     def _sell_signal(self):
+        """Check for Stochastic and Williams %R overbought sell signals.
+
+        Returns:
+            bool: True if sell signals are triggered, otherwise False.
+        """
         sig_sell = float(self.stoch.percD[0])
         sig_low = float(self.wpr[-1]) if len(self) > 1 else float(self.wpr[0])
         return sig_sell > float(self.p.stoch_sell_level) and sig_low > float(self.p.wpr_sell_level)
 
     def _set_risk(self, side):
+        """Calculate and establish fixed target stop-loss and take-profit exit prices.
+
+        Args:
+            side (str): Direction of trade ('buy' or 'sell').
+        """
         unit = self._unit()
         price = float(self.data.close[0])
         if side == 'buy':
@@ -178,6 +245,7 @@ class TheMastermindStrategy(bt.Strategy):
             self.stop_price = None if self.p.stop_loss == 0 else round(price + float(self.p.stop_loss) * unit, int(self.p.price_digits))
 
     def _maybe_break_even(self):
+        """Check and adjust the stop loss price to execution price if break-even conditions are met."""
         if not self.position or self.p.break_even <= 0 or self.stop_price is None:
             return
         unit = self._unit()
@@ -188,6 +256,7 @@ class TheMastermindStrategy(bt.Strategy):
             self.stop_price = round(self.position.price, int(self.p.price_digits))
 
     def _maybe_trail(self):
+        """Calculate and update dynamic trailing stop levels based on trailing_stop and trailing_step."""
         if not self.position or self.p.trailing_stop <= 0:
             return
         unit = self._unit()
@@ -204,6 +273,11 @@ class TheMastermindStrategy(bt.Strategy):
                 self.stop_price = new_stop
 
     def _manage_position(self):
+        """Manage active trade risk, checking trailing stop, break-even limits, and opposing signals.
+
+        Returns:
+            bool: True if an exit order was successfully placed, otherwise False.
+        """
         if not self.position or self.order is not None:
             return False
         high = float(self.data.high[0])
@@ -235,6 +309,7 @@ class TheMastermindStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self) < 6:
             return
@@ -259,6 +334,11 @@ class TheMastermindStrategy(bt.Strategy):
             self.last_trade_side = 1
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -277,6 +357,11 @@ class TheMastermindStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -301,6 +386,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -308,6 +404,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -319,6 +426,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -336,6 +452,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -386,7 +513,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -395,7 +526,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     import inspect
     sig = inspect.signature(build_cerebro)
     params = list(sig.parameters.keys())
@@ -408,7 +547,17 @@ def _build_cerebro_compat(inputs, config):
 
 
 def _extract_metrics_compat(strat, cerebro, inputs, config):
-    """Call extract_metrics with whichever signature the original used."""
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
     for args in (
         (strat, cerebro, inputs, config),
         (strat, cerebro, config, inputs),

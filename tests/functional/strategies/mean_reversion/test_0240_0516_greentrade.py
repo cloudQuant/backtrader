@@ -84,6 +84,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data file and return a Pandas DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,12 +108,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column layout."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class GreenTradeStrategy(bt.Strategy):
+    """GreenTrade strategy based on MA trend alignment and RSI overbought/oversold levels."""
     params = dict(
         ma_period=67,
         shift_bar=1,
@@ -133,6 +136,7 @@ class GreenTradeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and order tracking."""
         median = (self.data.high + self.data.low) / 2.0
         self.ma = bt.ind.SmoothedMovingAverage(median, period=int(self.p.ma_period))
         self.rsi = bt.ind.RSI(self.data.close, period=int(self.p.rsi_period))
@@ -212,6 +216,7 @@ class GreenTradeStrategy(bt.Strategy):
         return float(self.ma[-s0]), float(self.ma[-s1]), float(self.ma[-s2]), float(self.ma[-s3]), float(self.rsi[-s0])
 
     def next(self):
+        """Main strategy loop: update trailing stops, manage exits, and evaluate entry signals."""
         self.bar_num += 1
         warmup = int(self.p.ma_period) + int(self.p.shift_bar) + int(self.p.shift_bar_1) + int(self.p.shift_bar_2) + int(self.p.shift_bar_3) + 5
         if len(self) < warmup:
@@ -257,6 +262,7 @@ class GreenTradeStrategy(bt.Strategy):
             self.signal_count += 1
 
     def notify_order(self, order):
+        """Track order lifecycle: record filled entries and clean up completed exits."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         meta = self.open_orders.pop(order.ref, None)
@@ -278,6 +284,7 @@ class GreenTradeStrategy(bt.Strategy):
             self.rejected_order_count += 1
 
     def notify_trade(self, trade):
+        """Track trade outcomes: increment win/loss counters on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -301,6 +308,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to the test directory and validate existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -308,6 +316,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load historical data for backtesting from the configured CSV file."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -319,6 +328,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Configure and return a Cerebro instance with data, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -337,6 +347,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract performance metrics from analyzers and strategy counters for regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

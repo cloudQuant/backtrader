@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with each bar timestamp shifted forward by 15 minutes. The backtest
+    window spans 2025-12-03 01:15 to 2026-03-10 09:00. Indicators are computed
+    on the single 15-minute feed.
+
+Strategy Principle:
+    This is a port of the Bobsley_EA MetaTrader expert advisor. It blends a
+    moving-average trend slope with a close/close EMA-smoothed Stochastic
+    oscillator. A long is taken when the MA is sloping down but price reclaims it
+    while the Stochastic turns up from oversold; a short mirrors that with a
+    rising-then-failing MA and an overbought Stochastic turning down. A fallback
+    momentum rule (price crossing the MA with Stochastic above/below 50) catches
+    additional entries. Each trade carries fixed take-profit and stop-loss
+    distances.
+
+Strategy Logic:
+    1. ``RawCloseCloseStochastic`` and ``CloseCloseEmaStochastic`` reproduce the
+       EA's close-based Stochastic; ``SimpleMovingAverage`` provides the trend.
+    2. ``load_backtest_frame`` loads the data and ``build_cerebro`` wires the
+       feed, broker, strategy, and analyzers.
+    3. ``BobsleyEaStrategy.next`` first checks take-profit/stop-loss exits, then
+       evaluates the primary and fallback entry conditions with a cash-scaled lot
+       size.
+    4. ``notify_order`` clears the working order; ``notify_trade`` counts opened
+       and closed trades into win/loss tallies and resets exit levels.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_203_0202_1134_bobsley_ea`` forces ``runonce=True`` via compat
+       helpers, captures the metrics dict, and asserts each value against
+       migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -74,6 +106,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +142,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column layout."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -106,13 +151,17 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class RawCloseCloseStochastic(bt.Indicator):
+    """Raw close-based Stochastic (%K numerator) over a close-only window."""
+
     lines = ('raw',)
     params = dict(period=5)
 
     def __init__(self):
+        """Set the minimum period required before emitting values."""
         self.addminperiod(int(self.p.period))
 
     def next(self):
+        """Compute the raw close-based Stochastic value for the current bar."""
         period = int(self.p.period)
         closes = [float(self.data.close[-i]) for i in range(period)]
         highest = max(closes)
@@ -124,6 +173,12 @@ class RawCloseCloseStochastic(bt.Indicator):
         self.lines.raw[0] = 100.0 * (float(self.data.close[0]) - lowest) / denom
 
     def once(self, start, end):
+        """Vectorized raw close-based Stochastic over the array index range.
+
+        Args:
+            start: Start index (inclusive) of the range to compute.
+            end: End index (exclusive) of the range to compute.
+        """
         period = int(self.p.period)
         closes = self.data.close.array
         raw = self.lines.raw.array
@@ -137,16 +192,25 @@ class RawCloseCloseStochastic(bt.Indicator):
 
 
 class CloseCloseEmaStochastic(bt.Indicator):
+    """EMA-smoothed close-based Stochastic exposing ``percK`` and ``percD``."""
+
     lines = ('percK', 'percD')
     params = dict(period=5, slowing=3, dperiod=3)
 
     def __init__(self):
+        """Build the EMA-smoothed %K and %D lines from the raw Stochastic."""
         raw = RawCloseCloseStochastic(self.data, period=int(self.p.period))
         self.lines.percK = bt.indicators.ExponentialMovingAverage(raw, period=int(self.p.slowing))
         self.lines.percD = bt.indicators.ExponentialMovingAverage(self.lines.percK, period=int(self.p.dperiod))
 
 
 class BobsleyEaStrategy(bt.Strategy):
+    """MA-slope + close-based Stochastic strategy ported from Bobsley_EA.
+
+    Enters on trend/oscillator confluence (with a price-cross fallback) and
+    exits via fixed take-profit and stop-loss levels.
+    """
+
     params = dict(
         take_profit=0.007,
         stop_loss=0.0035,
@@ -157,6 +221,7 @@ class BobsleyEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, position/stop state, and statistic counters."""
         self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_period)
         self.order = None
         self.stop_price = None
@@ -176,6 +241,7 @@ class BobsleyEaStrategy(bt.Strategy):
         self.addminperiod(self.p.ma_period + 5)
 
     def log(self, text):
+        """Log message with current bar datetime."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -227,6 +293,7 @@ class BobsleyEaStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate moving-average and stochastic signals and place entry/exit orders."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -269,6 +336,7 @@ class BobsleyEaStrategy(bt.Strategy):
             self.order = self.sell(size=lot)
 
     def notify_order(self, order):
+        """Reset order reference and record rejected order statuses."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -276,6 +344,7 @@ class BobsleyEaStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Count filled/closed trades and update win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -311,6 +380,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path relative to this test module.
+
+    Args:
+        filename: Relative data filename.
+
+    Returns:
+        Absolute path for MT5 input data.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -318,6 +395,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest dataframe for the configured period.
+
+    Args:
+        config: Strategy configuration mapping.
+
+    Returns:
+        Dict with data frame and date range.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -334,6 +419,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a fully configured Cerebro instance for this strategy.
+
+    Args:
+        config: Strategy/backtest config mapping.
+        frame: Backtest frame containing loaded data.
+
+    Returns:
+        Configured Cerebro object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -357,6 +451,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Gather analyzer and counters into regression metric dictionary.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro engine after completion.
+        frame: Backtest frame with data bounds.
+        config: Strategy configuration mapping.
+
+    Returns:
+        Dictionary used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M1 (1 Minute).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M1.csv'.
+    - Date Range: 2026-03-05 00:00:00 to 2026-03-10 09:03:00.
+
+Strategy Principle:
+    - This strategy ("Simple Pending Orders Time") implements a breakout strategy based on daily market openings at specific time sessions.
+    - Market Assumptions: Markets often experience strong trends or breakouts immediately following specific session opens (e.g. at 15:00, `trading_start`). By placing pending breakout buy/sell stop orders at a set offset (`indent`), we can capture early momentum.
+    - Indicators:
+        - None (Driven by session start timestamps and direct price offsets).
+    - Entry Signals:
+        - At exactly `trading_start` hour (e.g. 15:00) on each new day, we cancel all outstanding pendings and set two new breakout stop orders:
+            - Buy Stop Order: Placed at current price plus `indent` * `point`.
+            - Sell Stop Order: Placed at current price minus `indent` * `point`.
+    - Exit Signals:
+        - Out of Window: When the time leaves the trading window (i.e. reaches `end_of_trade`), all active positions are closed and pending stop orders are cancelled.
+        - Stop Loss: Symmetrical protective stop loss orders set at `stop_loss` distance.
 """
 from __future__ import annotations
 import math
@@ -23,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Simple Pending Orders Time',
-        'source_ea': 'ea/0013_简单待处理订单时间/simple_pending_orders_time.mq5',
+        'source_ea': 'ea/0013_Simple_Pending_Orders_Time/simple_pending_orders_time.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -66,15 +85,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -100,6 +137,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -112,6 +150,11 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SimplePendingOrdersTimeStrategy(bt.Strategy):
+    """Strategy class implementing session breakout setups using pending stop orders.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         trading_start=15,
         end_of_trade=16,
@@ -124,6 +167,7 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.buy_stop = None
         self.sell_stop = None
         self.last_setup_day = None
@@ -136,18 +180,40 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _round_price(self, value):
+        """Round price value to configured price_digits parameter.
+
+        Args:
+            value (float): Price value.
+
+        Returns:
+            float: Rounded price value.
+        """
         return round(value, self.p.price_digits)
 
     def _can_trade(self, dt):
+        """Check if the provided datetime falls within the active trading session window.
+
+        Args:
+            dt (datetime.datetime): Current candle timestamp.
+
+        Returns:
+            bool: True if inside the window, otherwise False.
+        """
         if self.p.trading_start > self.p.end_of_trade:
             return dt.hour >= self.p.trading_start or dt.hour < self.p.end_of_trade
         return self.p.trading_start <= dt.hour < self.p.end_of_trade
 
     def _cancel_pending_orders(self):
+        """Cancel both active buy_stop and sell_stop pending breakout orders."""
         for order in (self.buy_stop, self.sell_stop):
             if order is not None and order.alive():
                 self.cancel(order)
@@ -155,11 +221,13 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
         self.sell_stop = None
 
     def _close_all_positions(self):
+        """Perform market closing on any active open position."""
         if self.position:
             self.close()
             self.log('forced close outside trade window')
 
     def _set_pending_orders(self):
+        """Place buy stop and sell stop breakout pending orders at indent distance from current price."""
         ask = float(self.data.close[0])
         bid = float(self.data.close[0])
         buy_price = self._round_price(ask + self.p.indent * self.p.point)
@@ -171,6 +239,7 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
         self.log(f'set pending buy_stop={buy_price:.2f} sl={buy_sl:.2f} sell_stop={sell_price:.2f} sl={sell_sl:.2f}')
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         dt = bt.num2date(self.data.datetime[0])
         in_window = self._can_trade(dt)
@@ -184,6 +253,11 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
                 self.last_setup_day = dt.date()
 
     def notify_order(self, order):
+        """Handle order life cycle updates and manage protective stop loss linkages.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order is self.buy_stop:
@@ -212,6 +286,11 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
             return
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -233,8 +312,6 @@ class SimplePendingOrdersTimeStrategy(bt.Strategy):
 
 
 
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -242,6 +319,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -249,6 +337,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -265,6 +364,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Add standard performance analyzers to the backtest cerebro engine.
+
+    Args:
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=1, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -273,6 +377,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -292,6 +405,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -330,8 +454,25 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -339,6 +480,7 @@ def run(plot=False):
     results = cerebro.run()
     strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config)
+    print_report(metrics)
 
     if plot:
         cerebro.plot()
@@ -346,7 +488,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -355,8 +504,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each bar's timestamp is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at its close. A single data feed is
+    used; no resampling.
+
+Strategy Principle:
+    This is the "RockTraderNeuro" strategy, a single-neuron classifier driven by
+    Bollinger Band geometry. It normalizes the band width relative to the middle
+    band over the last seven bars, feeds those values through a fixed set of
+    weights, and squashes the weighted sum with a hyperbolic tangent. The sign of
+    the neuron output decides direction (negative goes long, positive goes
+    short), expressing a contrarian volatility-mean-reversion view. Each position
+    is bracketed by fixed point-based stop-loss and take-profit distances.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the pandas feed,
+    a fixed-commission futures broker, the strategy, and the analyzers. The
+    strategy computes Bollinger Bands in __init__ and, each bar, first checks
+    fixed stop/take-profit exits, then evaluates the neuron output and uses
+    order_target_size to flip to the target long/short exposure when it changes.
+    notify_order derives stop/take-profit prices on fills and clears pending
+    state, while notify_trade tallies wins/losses on close. extract_metrics
+    consolidates analyzer output plus position and last-output diagnostics, and
+    the test forces runonce=True, runs the module's run(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -89,6 +117,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset added to each timestamp so the
+            bar is stamped at its close.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,6 +155,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed exposing the standard M15 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -121,6 +164,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class RockTraderNeuroStrategy(bt.Strategy):
+    """Trade the sign of a Bollinger-Band single-neuron output with ATR-like stops."""
+
     params = dict(
         stop_loss=30,
         take_profit=100,
@@ -145,6 +190,7 @@ class RockTraderNeuroStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build Bollinger Bands, load neuron weights, and reset counters/state."""
         self.bb = bt.indicators.BollingerBands(
             self.data.close,
             period=self.p.bb_period,
@@ -171,6 +217,7 @@ class RockTraderNeuroStrategy(bt.Strategy):
         self.addminperiod(60)
 
     def log(self, text):
+        """Print a timestamped strategy message for traceability."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -226,6 +273,14 @@ class RockTraderNeuroStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Check fixed exits then flip exposure to match the neuron output sign.
+
+        Increments the bar counter, skips while an order is pending, and exits an
+        open position on the fixed stop or take-profit. Otherwise it computes the
+        neuron output: negative targets a long, positive targets a short, and
+        zero does nothing. When the target differs from the current position it
+        records the signal and submits an order_target_size to that exposure.
+        """
         self.bar_num += 1
         if self.order is not None:
             return
@@ -258,6 +313,12 @@ class RockTraderNeuroStrategy(bt.Strategy):
         self.order = self.order_target_size(target=target)
 
     def notify_order(self, order):
+        """Derive stop/take-profit prices on fills and clear pending order state.
+
+        Args:
+            order: The order whose status changed; a completed entry sets the
+                bracket exit prices for the pending side.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed and self.pending_side is not None:
@@ -276,6 +337,12 @@ class RockTraderNeuroStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts and clear exit levels when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         pnl = float(trade.pnlcomm)
@@ -304,6 +371,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an absolute path under the test directory.
+
+    Args:
+        filename: Absolute or repo-relative path to the data file.
+
+    Returns:
+        The resolved absolute Path.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -311,6 +389,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the configured date range into a backtest frame bundle.
+
+    Args:
+        config: Parsed configuration providing the ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate``/``todate``
+        bounds.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -327,6 +417,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest and commission settings.
+        frame: The loaded data dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the M15 feed, a
+        fixed-commission futures broker, the strategy, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -350,6 +450,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect regression metrics from analyzers and strategy counters.
+
+    Args:
+        strat: Strategy instance from ``cerebro.run()``.
+        cerebro: Completed Backtrader engine.
+        frame: Backtest payload with data frame and date boundaries.
+        config: Full configuration (used for initial cash).
+
+    Returns:
+        A flattened metrics dict (counts, returns, drawdown, Sharpe, SQN, and
+        open-position/last-output diagnostics) used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -395,6 +507,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest end-to-end and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: When True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of the raw ``cerebro.run()`` results, the extracted metrics dict,
+        and the Cerebro engine.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` with
+    ``fromdate=2025-12-03 01:15:00`` and ``todate=2026-03-10 09:00:00``.
+    The dataset is shifted by 15 minutes and also supports an H4 signal frame.
+
+Strategy Principle:
+    Computes an Instantaneous Trend Filter (trend and trigger lines) and generates
+    reversals on trigger/trend cross conditions. It enforces fixed-distance stop-loss
+    and take-profit controls for each open trade.
+
+Strategy Logic:
+    The module reads MT5-style CSV data, builds one or more feeds depending on
+    timeframe settings, runs the strategy in Backtrader, then collects analyzer and
+    trade counters in ``extract_metrics`` for deterministic assertions.
 """
 from __future__ import annotations
 import math
@@ -85,6 +100,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MT5 exported tab-separated CSV file as a normalized dataframe.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Minute offset to apply to timestamps.
+
+    Returns:
+        pd.DataFrame: Datetime-indexed dataframe with OHLCV fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -110,6 +136,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom MT5 pandas feed using default column mapping for OHLCV bars."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -122,10 +149,12 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class InstantaneousTrendFilterIndicator(Indicator):
+    """Indicator computing trend and trigger values from a low-lag trend filter."""
     lines = ('trend', 'trigger')
     params = dict(alpha=0.07)
 
     def __init__(self):
+        """Initialize coefficients and warm-up requirements."""
         alpha = float(self.p.alpha)
         a2 = alpha * alpha
         self.k0 = alpha - a2 / 4.0
@@ -136,6 +165,7 @@ class InstantaneousTrendFilterIndicator(Indicator):
         self.addminperiod(1)
 
     def next(self):
+        """Compute the current trend/trigger outputs."""
         price0 = float(self.data.close[0])
         if len(self) <= 4:
             trend = price0
@@ -157,6 +187,7 @@ class InstantaneousTrendFilterIndicator(Indicator):
 
 
 class InstantaneousTrendFilterStrategy(Strategy):
+    """Trend-following strategy based on Instantaneous Trend Filter cross events."""
     params = dict(
         signal_bar=1,
         alpha=0.07,
@@ -171,6 +202,7 @@ class InstantaneousTrendFilterStrategy(Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator, order state, and strategy counters."""
         self.indicator = InstantaneousTrendFilterIndicator(self.data, alpha=self.p.alpha)
         self.bar_num = 0
         self.buy_signal_count = 0
@@ -189,6 +221,11 @@ class InstantaneousTrendFilterStrategy(Strategy):
         self.warmup = max(int(self.p.signal_bar), 1) + 5
 
     def log(self, text):
+        """Log one status line with the current bar timestamp.
+
+        Args:
+            text: Human-readable message.
+        """
         dt = num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -249,6 +286,7 @@ class InstantaneousTrendFilterStrategy(Strategy):
         return False
 
     def next(self):
+        """Process signals and manage close/reverse/order actions for one bar."""
         self.bar_num += 1
         if len(self.data) < self.warmup:
             return
@@ -283,6 +321,7 @@ class InstantaneousTrendFilterStrategy(Strategy):
                 return
 
     def notify_order(self, order):
+        """Track filled and failed orders, including entry risk levels."""
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.rejected_order_count += 1
             self.pending_entry_direction = 0
@@ -309,6 +348,7 @@ class InstantaneousTrendFilterStrategy(Strategy):
             self._reset_levels()
 
     def notify_trade(self, trade):
+        """Update trade counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -334,6 +374,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate data file path against test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -341,6 +382,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 data and return backtest metadata bundle.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        dict: Contains raw dataframe and backtest date range.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -371,6 +420,15 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Build a Backtrader Cerebro configured for this strategy test.
+
+    Args:
+        config: Test configuration dict.
+        frame: Loaded frame payload from :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Fully configured backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -400,6 +458,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Build strategy summary metrics used by regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro object after run.
+        frame: Loaded frame payload.
+        config: Test configuration with backtest metadata.
+
+    Returns:
+        dict: Metrics snapshot for deterministic test checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -442,6 +511,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the inlined regression backtest and return results, metrics, and engine.
+
+    Args:
+        plot: Whether to render the backtest chart.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

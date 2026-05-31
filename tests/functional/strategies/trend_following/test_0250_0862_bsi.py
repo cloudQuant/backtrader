@@ -16,6 +16,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported M15 bars into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV data file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        Datetime-indexed DataFrame with open/high/low/close/volume/openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +48,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed mapping standard OHLCV fields to positional columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,10 +56,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BSIIndicator(bt.Indicator):
+    """Balance of power-style indicator returning BSI value and trend color."""
     lines = ("bsi", "color")
     params = dict(range_period=20, slowing=3, avg_period=3, volume_mode="TICK")
 
     def __init__(self):
+        """Set minimum period and initialize smoothing configuration."""
         self.addminperiod(int(self.p.range_period) + int(self.p.slowing) + int(self.p.avg_period) + 3)
 
     def _component(self, ago):
@@ -87,6 +101,7 @@ class BSIIndicator(bt.Indicator):
         return (sumpos / sumhigh * 100.0) + (sumneg / sumhigh * 100.0)
 
     def next(self):
+        """Compute BSI and derive color from directional BSI movement."""
         vals = [self._component(i) for i in range(int(self.p.avg_period))]
         bsi = sum(vals) / float(int(self.p.avg_period))
         self.lines.bsi[0] = bsi
@@ -103,6 +118,7 @@ class BSIIndicator(bt.Indicator):
 
 
 class ExpBSIStrategy(bt.Strategy):
+    """BSI-based trend strategy with stop/take-profit and entry/exit counters."""
     params = dict(
         range_period=20, slowing=3, avg_period=3, volume_mode="TICK",
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -113,6 +129,7 @@ class ExpBSIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach indicator and initialize all run-time counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = BSIIndicator(
@@ -147,6 +164,7 @@ class ExpBSIStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process exit checks and open/close conditions each signal bar."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -174,6 +192,7 @@ class ExpBSIStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track new entries and update win/loss statistics when trades close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

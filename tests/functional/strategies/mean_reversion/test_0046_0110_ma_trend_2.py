@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    The strategy backtests from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Trades in the direction of weighted-price trend relative to a lagged weighted
+    moving average, with optional trade direction filters, reversal mode, and
+    one-position-at-time control.
+
+Strategy Logic:
+    Computes weighted price and MA reference, emits buy/sell signals on MA cross
+    style checks, applies bracket exits and adaptive trailing stop, and verifies
+    strategy outputs through analyzer metrics.
 """
 from __future__ import annotations
 import math
@@ -25,7 +39,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'MA Trend 2',
-        'source_ea': 'ea/0110_MA_趋势_2',
+        'source_ea': 'ea/0110_MA_Trend_2',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -88,6 +102,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and produce a normalized Backtrader dataframe.
+
+    Args:
+        filepath: Data file path.
+        fromdate: Optional start datetime boundary.
+        todate: Optional end datetime boundary.
+        bar_shift_minutes: Optional minute offset for timestamps.
+
+    Returns:
+        Normalized dataframe indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas feed extension that exposes spread as a custom line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -122,15 +148,18 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class WeightedPrice(bt.Indicator):
+    """Indicator for weighted price ((H + L + 2*C)/4) style averaging."""
     lines = ('weighted',)
 
     def next(self):
+        """Calculate weighted price for the current bar."""
         self.lines.weighted[0] = (
             self.data.high[0] + self.data.low[0] + self.data.close[0] + self.data.close[0]
         ) / 4.0
 
 
 class MATrend2Strategy(bt.Strategy):
+    """MA-trend strategy with configurable direction and trailing stop logic."""
     params = dict(
         fixed_lot=3.0,
         stop_loss_pips=50,
@@ -148,6 +177,7 @@ class MATrend2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and trading state for trend-follow entry/exit."""
         self.weighted_price = WeightedPrice(self.data)
         self.ma = bt.indicators.WeightedMovingAverage(self.weighted_price, period=self.p.ma_period)
         self.last_bar_dt = None
@@ -164,6 +194,11 @@ class MATrend2Strategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Log strategy events with timestamp.
+
+        Args:
+            text: Message body.
+        """
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data.datetime[0])
@@ -261,6 +296,7 @@ class MATrend2Strategy(bt.Strategy):
         return None
 
     def next(self):
+        """Execute one-bar logic: update trailing stop and evaluate MA signal."""
         self.bar_num += 1
         if not self._new_bar():
             return
@@ -297,6 +333,7 @@ class MATrend2Strategy(bt.Strategy):
             self.log('OPEN SELL')
 
     def notify_order(self, order):
+        """Clear references after entry/exit orders finish or fail."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.entry_order:
@@ -328,6 +365,7 @@ class MATrend2Strategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track closed trade results and reset exit order handles."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -354,6 +392,14 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path against the test module directory.
+
+    Args:
+        filename: Configured dataset path.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -362,6 +408,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings from config to ``datetime`` objects.
+
+    Args:
+        value: Datetime string or ``None``.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -369,6 +423,14 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Load and slice bars from configured data and dates.
+
+    Args:
+        config: Full config dictionary.
+
+    Returns:
+        Dictionary containing ``data`` DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -386,6 +448,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure the Backtrader engine for this strategy.
+
+    Args:
+        config: Backtest and strategy config.
+        frame: Data payload returned by :func:`load_backtest_frame`.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -419,6 +490,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for invalid floating-point values.
+
+    Args:
+        value: Numeric candidate.
+
+    Returns:
+        ``None`` or original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -428,6 +507,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Aggregate key metrics for regression assertions.
+
+    Args:
+        results: Strategy run output list.
+        start_value: Initial equity prior to execution.
+
+    Returns:
+        Dictionary with returns, drawdown, sharpe and trade counts.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -465,6 +553,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run strategy once and return results, metric summary, and engine.
+
+    Args:
+        plot: Whether to render candlestick plot.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

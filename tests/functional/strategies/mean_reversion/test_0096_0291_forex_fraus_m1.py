@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 OHLCV+spread data from ``tests/datas/XAUUSD_M15.csv``.
+    Test window is from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    Bars are shifted by 15 minutes for execution alignment.
+
+Strategy Principle:
+    The strategy uses Williams %R to detect overbought/oversold conditions on a
+    360-bar lookback window.
+    It opens long/short when WPR breaches configured levels and supports optional
+    reversal and time-gating controls.
+
+Strategy Logic:
+    Load MT5 OHLCV data, generate WPR values, manage entries with bracket orders,
+    apply optional trailing stops, and validate the captured analyzer metrics.
 """
 from __future__ import annotations
 import math
@@ -23,7 +38,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Forex Fraus M1',
-        'source_ea': 'ea/0291_外汇_Fraus_M1/forex_fraus_m1.mq5',
+        'source_ea': 'ea/0291_forex_fraus_m1/forex_fraus_m1.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -82,6 +97,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5-exported data.
+
+    Args:
+        filepath: Source export file path.
+        fromdate: Optional lower datetime filter.
+        todate: Optional upper datetime filter.
+        bar_shift_minutes: Optional minute offset for datetime index.
+
+    Returns:
+        OHLCV DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -108,6 +134,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed wrapper exposing spread from MT5 files."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -122,15 +149,18 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class WilliamsPercentR(bt.Indicator):
+    """Williams %R indicator implementation."""
     lines = ('wpr',)
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize highest/lowest lookbacks for WPR."""
         self.highest = bt.indicators.Highest(self.data.high, period=self.p.period)
         self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.period)
         self.addminperiod(self.p.period)
 
     def next(self):
+        """Compute and publish the current WPR value."""
         highest = float(self.highest[0])
         lowest = float(self.lowest[0])
         denom = highest - lowest
@@ -141,6 +171,7 @@ class WilliamsPercentR(bt.Indicator):
 
 
 class ForexFrausM1Strategy(bt.Strategy):
+    """Fraus strategy using WPR signals with optional time and trailing controls."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -158,6 +189,7 @@ class ForexFrausM1Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order state, and lifecycle helpers."""
         self.data0_feed = self.datas[0]
         self.wpr = WilliamsPercentR(self.data0_feed, period=self.p.wpr_calc_period)
         self.entry_order = None
@@ -170,10 +202,16 @@ class ForexFrausM1Strategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print timestamped strategy logs.
+
+        Args:
+            text: Message body.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Execute next logic during pre-live warm-up."""
         self.next()
 
     def _new_bar(self):
@@ -238,6 +276,7 @@ class ForexFrausM1Strategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Apply trailing stop updates and WPR-based entry/exit rules."""
         self._apply_trailing()
         if len(self.data0_feed) < self.p.wpr_calc_period + 2:
             return
@@ -269,6 +308,11 @@ class ForexFrausM1Strategy(bt.Strategy):
                 self._submit_entry('short', 'wpr overbought')
 
     def notify_order(self, order):
+        """Track entry/close/stop/profit status and manage reverse orders.
+
+        Args:
+            order: Order object from broker.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -311,6 +355,7 @@ class ForexFrausM1Strategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Clear side state after each closed trade."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -329,6 +374,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate the configured data path.
+
+    Args:
+        filename: Relative data path.
+
+    Returns:
+        Absolute resolved data path.
+
+    Raises:
+        FileNotFoundError: If data file is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -336,12 +392,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse datetime values from config.
+
+    Args:
+        value: Datetime string or falsy value.
+
+    Returns:
+        datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load MT5 data and return it as backtest frame payload.
+
+    Args:
+        config: Inlined configuration dictionary.
+
+    Returns:
+        Dict with key ``data`` containing loaded DataFrame.
+
+    Raises:
+        ValueError: If no rows are loaded after filtering.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -353,6 +428,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach analyzer suite used for downstream regression assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -361,6 +437,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro instance for this strategy.
+
+    Args:
+        config: Runtime configuration.
+        frame: Prepared market data dictionary.
+
+    Returns:
+        Configured Cerebro object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -375,6 +460,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numeric values to ``None``."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -383,6 +469,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print key performance summary from analyzer output.
+
+    Args:
+        results: Cerebro run outputs.
+        start_value: Starting account value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -409,6 +501,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the Forex Fraus M1 backtest with optional plotting."""
     parser = argparse.ArgumentParser(description='Run Forex Fraus M1 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

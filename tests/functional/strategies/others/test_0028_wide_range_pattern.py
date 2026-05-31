@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and normalize to a minute-level OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -40,6 +41,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_wide_range_pattern_features(df, params):
+    """Build wide-range breakout features including direction, days-since and signal flags."""
     range_period = int(params.get("range_period", 14))
     wide_threshold = float(params.get("wide_threshold", 1.8))
     wait_days_min = int(params.get("wait_days_min", 1))
@@ -121,6 +123,7 @@ def prepare_wide_range_pattern_features(df, params):
 
 
 class Mt5WideRangePatternFeed(bt.feeds.PandasData):
+    """PandasData feed with custom wide-range pattern feature columns."""
     lines = (
         "range", "avg_range", "is_wide_range", "wide_direction",
         "wide_high", "wide_low", "days_since_wide", "breakout_signal", "breakout_direction",
@@ -133,6 +136,7 @@ class Mt5WideRangePatternFeed(bt.feeds.PandasData):
 
 
 class WideRangePatternStrategy(bt.Strategy):
+    """Simple wide-range breakout strategy with directional entries and fixed risk targets."""
     params = dict(
         take_profit_ratio=2.5,
         max_holding_days=10,
@@ -145,6 +149,7 @@ class WideRangePatternStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize signal counters, risk state, and running position metadata."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -172,6 +177,7 @@ class WideRangePatternStrategy(bt.Strategy):
         return direction * round(size, 2)
 
     def next(self):
+        """Evaluate stop/target exits, holding duration, and open/close orders each bar."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -229,6 +235,7 @@ class WideRangePatternStrategy(bt.Strategy):
             self.pending_order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Clear pending order state and reset entry metadata when orders are finalized."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -239,6 +246,7 @@ class WideRangePatternStrategy(bt.Strategy):
             self.trade_direction = 0
 
     def notify_trade(self, trade):
+        """Update trade counters when a position is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1

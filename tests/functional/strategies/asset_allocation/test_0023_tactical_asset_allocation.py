@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Three daily (D1) ETF feeds exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: IVV (US equity), GLD (gold), and IEF (7-10y
+    Treasuries). The series cover 2008-01-01 to 2025-12-31 and are resampled to
+    month-end (MONTHLY) bars; IVV's daily series also drives the regime model
+    before resampling, with a synthetic cash sleeve held implicitly.
+
+Strategy Principle:
+    A port of the "Tactical Asset Allocation" strategy that switches between
+    three preset allocations based on a market regime read from IVV. A trend
+    filter (fast vs slow moving average) and a realized-volatility filter
+    classify each month as offensive (uptrend, calm), defensive (downtrend,
+    volatile), or neutral. Each regime maps to a fixed equity/gold/bond/cash
+    weight mix, so exposure rotates toward equities in benign regimes and toward
+    bonds and gold in stressed ones.
+
+Strategy Logic:
+    build_regime_frame computes the trend/volatility regime on daily IVV;
+    prepare_taa_data resamples everything to month-end, aligns the assets, and
+    precomputes per-month target weights and a rebalance flag stored on a signal
+    feed. The strategy walks the monthly bars, records broker value and regime
+    month counts, and on each rebalance month issues order_target_percent orders
+    toward the regime weights when drift exceeds the tolerance, counting
+    buys/sells/rebalances. extract_metrics gathers returns, drawdown, Sharpe,
+    SQN, regime month counts, and an Ulcer index; the test runs with
+    runonce=True and asserts each metric against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -92,6 +119,17 @@ ASSET_NAMES = ('IVV', 'GLD', 'IEF')
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -118,6 +156,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def resample_to_monthly(df):
+    """Resample a daily OHLCV frame to month-end bars.
+
+    Args:
+        df: The daily OHLCV DataFrame with a datetime index.
+
+    Returns:
+        A month-end OHLCV DataFrame with rows missing core prices dropped.
+    """
     monthly = pd.DataFrame({
         'open': df['open'].resample('ME').first(),
         'high': df['high'].resample('ME').max(),
@@ -130,6 +176,20 @@ def resample_to_monthly(df):
 
 
 def build_regime_frame(ivv_daily, params):
+    """Classify each daily bar into an offensive/defensive/neutral regime.
+
+    Uses a fast/slow moving-average trend filter and a realized-volatility filter
+    to label the regime and encode it numerically.
+
+    Args:
+        ivv_daily: The daily IVV OHLCV DataFrame.
+        params: Strategy parameters supplying the MA windows, volatility window,
+            and volatility threshold.
+
+    Returns:
+        A copy of ``ivv_daily`` augmented with MA, volatility, ``regime``, and
+        ``regime_code`` columns, with warm-up rows dropped.
+    """
     out = ivv_daily.copy()
     ma_fast = int(params.get('ma_fast', 50))
     ma_slow = int(params.get('ma_slow', 200))
@@ -151,6 +211,16 @@ def build_regime_frame(ivv_daily, params):
 
 
 def get_allocation_map(params):
+    """Build the per-regime target weight map for the four sleeves.
+
+    Args:
+        params: Strategy parameters supplying the equity/gold/bond/cash weights
+            for each regime.
+
+    Returns:
+        A dict mapping ``'offensive'``/``'defensive'``/``'neutral'`` to a dict of
+        IVV/GLD/IEF/cash target weights.
+    """
     return {
         'offensive': {
             'IVV': float(params.get('offensive_equity', 0.65)),
@@ -174,6 +244,21 @@ def get_allocation_map(params):
 
 
 def prepare_taa_data(asset_daily_frames, params):
+    """Build the monthly signal feed and aligned asset frames for the backtest.
+
+    Computes the daily regime, resamples it and the assets to month-end, aligns
+    them on common dates, and precomputes per-month target weights from the
+    regime allocation map.
+
+    Args:
+        asset_daily_frames: Mapping of asset name to its daily OHLCV DataFrame.
+        params: Strategy parameters supplying the regime and allocation settings.
+
+    Returns:
+        A tuple of ``(signal_df, monthly_frames, summary_df)`` where ``signal_df``
+        carries the regime/weight/rebalance columns, ``monthly_frames`` holds the
+        aligned monthly OHLCV per asset, and ``summary_df`` is a combined view.
+    """
     regime_daily = build_regime_frame(asset_daily_frames['IVV'], params)
     monthly_regime = regime_daily.resample('ME').last().dropna(subset=['regime'])
     monthly_frames = {name: resample_to_monthly(frame) for name, frame in asset_daily_frames.items()}
@@ -220,6 +305,8 @@ def prepare_taa_data(asset_daily_frames, params):
 
 
 class TacticalAssetAllocationSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the regime, per-asset weight, and rebalance lines."""
+
     lines = ('regime_code', 'realized_vol', 'ivv_weight', 'gld_weight', 'ief_weight', 'cash_weight', 'rebalance_flag')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -228,6 +315,14 @@ class TacticalAssetAllocationSignalFeed(bt.feeds.PandasData):
 
 
 class TacticalAssetAllocationStrategy(bt.Strategy):
+    """Rotate IVV/GLD/IEF toward regime-based target weights each month.
+
+    Reads the regime and precomputed target weights from the signal feed and, on
+    each rebalance month, issues order_target_percent orders toward those weights
+    when a holding drifts beyond the tolerance, tracking buy/sell/rebalance
+    counts and per-regime month counts.
+    """
+
     params = dict(
         rebalance_tolerance=0.02,
         ma_fast=50,
@@ -250,6 +345,7 @@ class TacticalAssetAllocationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset counters and order state."""
         self.signal = self.datas[0]
         self.asset_feeds = {'IVV': self.getdatabyname('IVV'), 'GLD': self.getdatabyname('GLD'), 'IEF': self.getdatabyname('IEF')}
         self.bar_num = 0
@@ -266,6 +362,14 @@ class TacticalAssetAllocationStrategy(bt.Strategy):
         self.neutral_months = 0
 
     def next(self):
+        """Record state and rebalance toward regime target weights each month.
+
+        Increments the bar counter, appends broker value, tallies the regime
+        month, and skips while orders are pending or on a non-rebalance month.
+        When rebalancing it reads the per-asset target weights and issues
+        order_target_percent orders for any holding that has drifted beyond the
+        tolerance, counting buys and sells.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         regime_code = float(self.signal.regime_code[0])
@@ -302,11 +406,22 @@ class TacticalAssetAllocationStrategy(bt.Strategy):
                     self.sell_count += 1
 
     def notify_order(self, order):
+        """Drop completed orders from the pending-ref set once they settle.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears its ref.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -326,10 +441,27 @@ class TacticalAssetAllocationStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -343,6 +475,20 @@ def calculate_ulcer_index(values):
 
 
 def load_backtest_frame(config):
+    """Load the daily asset feeds and prepare the monthly TAA signal data.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the asset
+            file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the monthly ``signal_df``, the aligned ``monthly_frames``,
+        the combined ``monthly_summary``, and the effective ``fromdate`` and
+        ``todate``.
+
+    Raises:
+        ValueError: If the prepared signal frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -358,6 +504,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the signal and asset feeds and analyzers.
+
+    Args:
+        config: Parsed configuration providing cash, commission, and strategy
+            parameters.
+        frame: The prepared frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -377,6 +533,21 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, regime month counts, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The prepared frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, regime month counts, and trade/
+        rebalance counts) used by the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -420,6 +591,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

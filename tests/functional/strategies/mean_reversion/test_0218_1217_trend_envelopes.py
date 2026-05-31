@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00, with each bar timestamp shifted forward by 15 minutes to
+    align close-of-bar with the bar's label. The base M15 feed drives execution
+    while a second feed is resampled to a 240-minute (H4) timeframe and carries
+    the Trend Envelopes signal lines (upper/lower envelope, up/down trend levels,
+    up/down crossover signals, ATR, and moving average).
+
+Strategy Principle:
+    This is the "Trend Envelopes" strategy (MT5 Exp_TrendEnvelopes). A moving
+    average is offset up and down by a fixed deviation percentage to form an
+    envelope. Price closing above the prior upper band flips the trend up; closing
+    below the prior lower band flips it down. While trending the relevant band
+    becomes a trailing level (latching to the more favourable of the new and prior
+    band), and the bar a trend flips generates an ATR-offset entry signal. Risk is
+    bounded by point-based stop loss and take profit distances.
+
+Strategy Logic:
+    build_trend_envelopes_frame resamples the M15 data to the indicator timeframe
+    and computes the Wilder ATR, the chosen moving average, the latching envelope
+    trend levels, and the up/down signals; build_cerebro wires the base feed, the
+    signal feed, a fixed-commission futures broker, the strategy, and the
+    analyzers. Each base bar the strategy first checks stop-loss/take-profit
+    exits, then—only when a new signal bar has formed—reads the envelope signal
+    lines to open longs/shorts or close opposing positions, with size driven by
+    the money-management parameter. notify_trade counts opened buys/sells and
+    tallies wins and losses on close. extract_metrics consolidates analyzer
+    output, and the test forces runonce=True, runs the module loader/build/extract
+    pipeline, and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -88,6 +119,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +153,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the base M15 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +162,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class TrendEnvelopesFeed(btfeeds.PandasData):
+    """PandasData feed exposing the resampled Trend Envelopes signal lines."""
+
     lines = ('up_trend', 'down_trend', 'up_signal', 'down_signal', 'atr', 'ma')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -125,6 +173,16 @@ class TrendEnvelopesFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample the base frame to the indicator timeframe via OHLCV aggregation.
+
+    Args:
+        df: The base M15 OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target bar size in minutes for the signal timeframe.
+
+    Returns:
+        A right-labelled, right-closed resampled OHLCV DataFrame with empty
+        OHLC bars dropped and openinterest gaps filled with zero.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -140,6 +198,18 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def atr_wilder(high_series, low_series, close_series, period):
+    """Compute the Wilder-smoothed Average True Range.
+
+    Args:
+        high_series: Sequence of bar highs.
+        low_series: Sequence of bar lows.
+        close_series: Sequence of bar closes.
+        period: Lookback period for the ATR seed and smoothing.
+
+    Returns:
+        A Series of ATR values aligned to the input bars, with leading warm-up
+        positions left as NaN.
+    """
     period = int(period)
     high = pd.Series(high_series, dtype=float).reset_index(drop=True)
     low = pd.Series(low_series, dtype=float).reset_index(drop=True)
@@ -163,6 +233,17 @@ def atr_wilder(high_series, low_series, close_series, period):
 
 
 def moving_average(series, period, method='ema'):
+    """Compute a moving average using the requested method.
+
+    Args:
+        series: Sequence of prices to average.
+        period: Lookback period for the average.
+        method: One of ``'sma'``, ``'smma'``, ``'lwma'``, or ``'ema'`` (the
+            default for any unrecognised value).
+
+    Returns:
+        A Series of moving-average values aligned to the input series.
+    """
     period = int(period)
     s = pd.Series(series, dtype=float)
     if method == 'sma':
@@ -190,6 +271,23 @@ def moving_average(series, period, method='ema'):
 
 
 def build_trend_envelopes_frame(df, indicator_minutes, ma_period, ma_method, deviation_pct, atr_period, atr_sensitivity):
+    """Build the resampled signal frame with Trend Envelopes lines.
+
+    Args:
+        df: The base M15 OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Bar size in minutes for the signal timeframe.
+        ma_period: Moving-average lookback period.
+        ma_method: Moving-average method passed to ``moving_average``.
+        deviation_pct: Percentage offset applied to the moving average to form
+            the upper and lower envelope bands.
+        atr_period: Lookback period for the Wilder ATR.
+        atr_sensitivity: ATR multiplier used to offset the entry signal levels.
+
+    Returns:
+        The resampled OHLCV DataFrame augmented with the latching ``up_trend``/
+        ``down_trend`` levels, the ATR-offset ``up_signal``/``down_signal``
+        triggers, and the raw ``atr`` and ``ma`` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     close = signal_df['close'].astype(float).reset_index(drop=True)
     atr = atr_wilder(signal_df['high'], signal_df['low'], signal_df['close'], atr_period)
@@ -247,6 +345,8 @@ def build_trend_envelopes_frame(df, indicator_minutes, ma_period, ma_method, dev
 
 
 class TrendEnvelopesStrategy(bt.Strategy):
+    """Trend Envelopes strategy with signal-based entries and risk guardrails."""
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -266,6 +366,7 @@ class TrendEnvelopesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base and signal feeds and reset counters and trade state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -279,6 +380,11 @@ class TrendEnvelopesStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped message using the base feed's current datetime.
+
+        Args:
+            text: The message to log.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -326,6 +432,7 @@ class TrendEnvelopesStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Run per-bar signal processing and open/close position logic."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -382,6 +489,7 @@ class TrendEnvelopesStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count newly opened and closed trades for summary metrics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -415,6 +523,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a module-relative path to the expected data file.
+
+    Args:
+        filename: Relative filename under the module directory.
+
+    Returns:
+        The resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -422,6 +538,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load filtered market data for the configured backtest window.
+
+    Args:
+        config: Strategy configuration containing data source and date bounds.
+
+    Returns:
+        A dictionary with keys ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -438,6 +562,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with feeds, strategy, and analyzers.
+
+    Args:
+        config: Strategy and backtest configuration.
+        frame: Loaded data and metadata dictionary.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready for ``run``.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -482,6 +615,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and strategy counters into one metrics dict."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

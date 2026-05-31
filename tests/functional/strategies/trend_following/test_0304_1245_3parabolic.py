@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` from `tests/datas/` as the primary source and creates
+    resampled TF1/TF2/TF3 series for the three Parabolic SAR layers.
+    Data window is `2026-03-01 00:00:00` to `2026-03-10 09:00:00`.
+    Symbol is `XAUUSD`, base timeframe `M15`.
+
+Strategy Principle:
+    Combines three-timeframe ParabolicSAR trend polarity to detect turning
+    conditions for entries and exits.
+    Position size is derived from account value (`mm`) and price.
+    Positions are stopped/taken out by fixed point distances.
+
+Strategy Logic:
+    `load_mt5_csv()` parses source data and filters bar range.
+    `build_cerebro()` builds one base feed + three resampled feeds and registers
+    strategy/analyzers.
+    `next()` tracks SAR trend alignment changes, closes oppositions first, then
+    opens new long/short when TF alignment confirms momentum shift.
+    `extract_metrics()` merges backtest analyzers and strategy counters.
 """
 from __future__ import annotations
 import math
@@ -87,6 +107,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted data and return a standardized DataFrame.
+
+    Args:
+        filepath: MT5 CSV path.
+        fromdate: Start timestamp.
+        todate: End timestamp.
+        bar_shift_minutes: Optional timestamp shift.
+
+    Returns:
+        pd.DataFrame: OHLCV columns with datetime index.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -108,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Feed adapter for MT5-style pandas data used across multiple timeframes."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -115,6 +147,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ThreeParabolicStrategy(bt.Strategy):
+    """Three-timeframe ParabolicSAR trend strategy with configurable risk controls."""
     params = dict(
         sar_step=0.02,
         sar_maximum=0.2,
@@ -132,6 +165,7 @@ class ThreeParabolicStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dataseries, indicators, and state counters."""
         self.base = self.datas[0]
         self.tf1 = self.datas[1]
         self.tf2 = self.datas[2]
@@ -152,6 +186,7 @@ class ThreeParabolicStrategy(bt.Strategy):
         self._last_tf3_len = 0
 
     def log(self, text):
+        """Print timestamped event messages for tracing in test outputs."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -202,6 +237,12 @@ class ThreeParabolicStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance multi-timeframe trend logic and handle entry/exit decisions.
+
+        Ensures a new TF3 bar has formed before recalculating signals, checks
+        take-profit / stop-loss levels on open positions, and then evaluates
+        SAR trend cross conditions for open/close switches.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -263,6 +304,7 @@ class ThreeParabolicStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Update signal execution counters as buys/sells and wins/losses close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -296,6 +338,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data path.
+
+    Args:
+        filename: Relative data filename.
+
+    Returns:
+        Path: Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -303,6 +353,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load frame for configured date range from MT5 normalized CSV.
+
+    Args:
+        config: Test config block.
+
+    Returns:
+        dict: Data and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -319,6 +377,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with one base and three resampled feeds.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Loaded market data.
+
+    Returns:
+        bt.Cerebro: Engine with strategy and analyzers attached.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     cerebro = bt.Cerebro(stdstats=True)
@@ -356,6 +423,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy and analyzer metrics for regression comparison.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Engine after run.
+        frame: Dataframe context.
+        config: Configuration dictionary.
+
+    Returns:
+        dict: Comprehensive backtest metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -397,6 +475,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the inlined three-parabolic strategy and return backtest outputs.
+
+    Args:
+        plot: Whether to render plots.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

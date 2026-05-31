@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 minutes) from '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Derived Timeframe: H6 (360 minutes) is derived by resampling M15 data.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - Bar Handling: Source datetime is built from `<DATE>` and `<TIME>` fields and then shifted by `bar_shift_minutes` when configured.
+
+Strategy Principle:
+    - This strategy applies a custom DiNapoli-style stochastic oscillator with a fast K,
+      smoothing of slow K and slow D lines, then derives directional cross-over signals:
+      stochastic crossing below signal for long entries, and stochastic crossing above signal for short entries.
+    - It only trades on confirmed signal bars from the higher timeframe feed (`signal_bar`),
+      while all fills, risk parameters, and position checks are managed on the base M15 feed.
+    - Risk control is realized by optional fixed stop-loss and take-profit price levels
+      computed at entry time for each position.
+
+Strategy Logic:
+    - Load and normalize MT5 tab-delimited data, then build H6 indicator bars via resample and compute
+      stochastic/signal/buy-signal/sell-signal columns.
+    - Initialize `DiNapoliStochasticStrategy` with both M15 and H6 feeds, bind signal lines, and reset accounting counters.
+    - In `next()`, skip until required indicator history is available, then evaluate crossover flags and apply:
+      (1) optional close of opposite exposure, (2) optional close of same-side exposure, and (3) new entries.
+    - `notify_order()` tracks completed/rejected orders and clears pending entry references;
+      `notify_trade()` increments win/loss counters for closed trades.
+    - `run()` builds Cerebro, executes the backtest, extracts metrics, and optionally plots.
 """
 from __future__ import annotations
 import math
@@ -88,6 +114,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-formatted CSV file and normalize it into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath (str | Path): Data file path.
+        fromdate (datetime.datetime | None): Optional start filter; keeps rows at or after this timestamp.
+        todate (datetime.datetime | None): Optional end filter; keeps rows at or before this timestamp.
+        bar_shift_minutes (int): Optional minute offset added to each bar timestamp.
+
+    Returns:
+        pd.DataFrame: Parsed DataFrame indexed by `datetime` with canonical OHLCV/openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -113,6 +150,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a DataFrame to a new interval and rebuild OHLCV-style bars.
+
+    Args:
+        df (pd.DataFrame): Source DataFrame with datetime index and OHLCV/OI fields.
+        rule (str): Pandas resample rule such as `"360min"`.
+
+    Returns:
+        pd.DataFrame: Resampled frame with complete OHLCV/openinterest columns.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -127,6 +173,18 @@ def resample_frame(df, rule):
 
 
 def compute_dinapoli_stochastic(frame, fast_k=8, slow_k=3, slow_d=3):
+    """Compute smoothed DiNapoli stochastic lines and directional crossover flags.
+
+    Args:
+        frame (pd.DataFrame): HLCV frame used to compute the indicator.
+        fast_k (int): Fast stochastic look-back length.
+        slow_k (int): Smoothing period for stochastic line.
+        slow_d (int): Signal-line smoothing period.
+
+    Returns:
+        pd.DataFrame: Source DataFrame with added `stochastic`, `signal`,
+        `buy_signal`, and `sell_signal` columns.
+    """
     highest = frame['high'].rolling(int(fast_k), min_periods=int(fast_k)).max()
     lowest = frame['low'].rolling(int(fast_k), min_periods=int(fast_k)).min()
     raw_range = (highest - lowest).replace(0.0, np.nan)
@@ -161,6 +219,8 @@ def compute_dinapoli_stochastic(frame, fast_k=8, slow_k=3, slow_d=3):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base data feed adapter for standard MT5 OHLCV/openinterest columns."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -173,6 +233,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DiNapoliStochasticFeed(bt.feeds.PandasData):
+    """Data feed adapter that adds DiNapoli stochastic and crossover signal lines."""
+
     lines = ('stochastic', 'signal', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -190,6 +252,12 @@ class DiNapoliStochasticFeed(bt.feeds.PandasData):
 
 
 class DiNapoliStochasticStrategy(bt.Strategy):
+    """Trend-reversion hybrid strategy using H6 DiNapoli stochastic crossovers.
+
+    The strategy enters when the derived H6 crossover indicates momentum change and
+    can optionally close opposite-side exposure before opening a new one.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -212,6 +280,7 @@ class DiNapoliStochasticStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, indicators, and execution tracking counters."""
         self.m15 = self.datas[0]
         self.h6 = self.datas[1]
         self.stochastic = self.h6.stochastic
@@ -236,6 +305,7 @@ class DiNapoliStochasticStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log line from the current base-timeframe bar."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -290,6 +360,14 @@ class DiNapoliStochasticStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Execute one backtest step with signal filtering and order routing.
+
+        The method:
+            1. Skips until history is sufficient.
+            2. Applies emergency risk exits when stop/target is hit.
+            3. Deduplicates signals per higher-timeframe bar.
+            4. Opens or closes positions based on crossover flags and enabled switches.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -339,6 +417,11 @@ class DiNapoliStochasticStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Update execution counters and clear temporary order state on completion.
+
+        Args:
+            order (bt.Order): Order instance reported by Backtrader.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -357,6 +440,11 @@ class DiNapoliStochasticStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade is closed.
+
+        Args:
+            trade (bt.Trade): Completed trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -381,6 +469,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to the test file directory and validate existence.
+
+    Args:
+        filename (str): Relative path to the data file.
+
+    Returns:
+        Path: Absolute existing file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -388,6 +484,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and prepare base and signal-grade frames for backtest execution.
+
+    Args:
+        config (dict): Loaded test configuration containing data and parameter sections.
+
+    Returns:
+        dict: Dictionary with `m15`, `h6`, `fromdate`, and `todate` entries.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -402,6 +506,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Backtrader Cerebro, feeds, and analyzers.
+
+    Args:
+        config (dict): Full test configuration.
+        frame (dict): Prepared M15 and H6 signal frames.
+
+    Returns:
+        bt.Cerebro: Configured backtest engine ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -423,6 +536,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and normalize performance and execution metrics from analyzers and counters.
+
+    Args:
+        strat (DiNapoliStochasticStrategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Engine used for the backtest.
+        frame (dict): Input frame metadata dictionary from `load_backtest_frames`.
+        config (dict): Full test configuration.
+
+    Returns:
+        dict: Metric map used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -468,6 +592,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the DiNapoli stochastic backtest and return execution outputs.
+
+    Args:
+        plot (bool): Whether to call `cerebro.plot()` after running the backtest.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

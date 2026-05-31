@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) daily data from 2008-01-01 to 2025-12-31.
+    Derived features: RSI, 100-day moving-average trend filter, entry/exit signals.
+
+Strategy Principle:
+    A mean-reversion approach that buys after RSI oversold signals in an uptrend
+    and exits once RSI returns to overbought conditions or holding period expires.
+
+Strategy Logic:
+    __init__: Track execution counters, order state, entry bar, and broker value
+        series for ulcer index.
+    next(): Skip while an order is pending, enter on entry signal, exit on exit
+        signal or holding-timeout.
+    notify_order(): Reset the pending-order guard when order status is terminal.
+    notify_trade(): Count completed trades and update win/loss stats.
+    test_11_0011_mean_reversion_stops_scale(): Backtest and assert all expected
+        migration metrics.
 """
 from __future__ import annotations
 import math
@@ -78,6 +96,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,7 +123,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(close, period=2):
-    """计算RSI指标"""
+    """Compute a simple RSI-style momentum oscillator."""
     delta = close.diff()
     gain = delta.where(delta > 0, 0)
     loss = (-delta).where(delta < 0, 0)
@@ -116,27 +135,27 @@ def calculate_rsi(close, period=2):
 
 
 def prepare_mean_reversion_stops_scale_features(df, params):
-    """准备均值回归止损分批出场策略特征"""
+    """Prepare RSI and trend-filtered signals for the stops-scale strategy."""
     out = df.copy()
     rsi_period = int(params.get('rsi_period', 2))
     rsi_entry = float(params.get('rsi_entry', 5))
     rsi_exit = float(params.get('rsi_exit', 30))
     ma_period = int(params.get('ma_period', 100))
     
-    # 计算RSI
+    # Compute RSI values.
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
     
-    # 计算MA趋势过滤
+    # Compute moving-average trend filter.
     out['ma'] = out['close'].rolling(window=ma_period).mean()
     out['trend_filter'] = (out['close'] > out['ma']).astype(float)
     
-    # 入场信号：RSI低于入场阈值且趋势向上
+    # Generate entry when RSI is oversold and trend is up.
     out['entry_signal'] = (
         (out['rsi'] < rsi_entry) & 
         (out['trend_filter'] > 0.5)
     ).astype(float)
     
-    # 出场信号：RSI高于出场阈值
+    # Generate exit when RSI recovers above exit threshold.
     out['exit_signal'] = (out['rsi'] > rsi_exit).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -145,6 +164,7 @@ def prepare_mean_reversion_stops_scale_features(df, params):
 
 
 class Mt5MeanReversionStopsScaleFeed(bt.feeds.PandasData):
+    """Backtrader feed exposing RSI and signal lines."""
     lines = ('rsi', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -154,6 +174,7 @@ class Mt5MeanReversionStopsScaleFeed(bt.feeds.PandasData):
 
 
 class MeanReversionStopsScaleStrategy(bt.Strategy):
+    """Mean-reversion strategy with RSI stop/scale style exit logic."""
     params = dict(
         rsi_period=2,
         rsi_entry=5,
@@ -164,6 +185,7 @@ class MeanReversionStopsScaleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize tracking counters and broker value history."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -190,6 +212,7 @@ class MeanReversionStopsScaleStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar and execute the strategy's enter/exit rules."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -199,7 +222,7 @@ class MeanReversionStopsScaleStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -207,18 +230,20 @@ class MeanReversionStopsScaleStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear the pending-order guard when the order reaches a final state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -230,7 +255,7 @@ class MeanReversionStopsScaleStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Mean Reversion Stops Scale 策略回测"""
+"""Mean Reversion Stops Scale strategy backtest."""
 
 
 
@@ -240,6 +265,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build Sharpe analyzer kwargs based on timeframe settings.
+
+    Args:
+        config: Strategy configuration containing data timeframe.
+
+    Returns:
+        Mapping accepted by ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -252,10 +285,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return a finite analyzer value or ``None``.
+
+    Args:
+        x: Analyzer metric candidate.
+
+    Returns:
+        ``x`` if it is finite, else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from broker value drawdowns.
+
+    Args:
+        values: Sequence of broker values.
+
+    Returns:
+        Ulcer index as float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -270,6 +319,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and precompute strategy-specific feature columns."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -283,6 +333,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Configure Cerebro engine with feed, strategy and analyzers.
+
+    Args:
+        frame: Prepared input payload from ``load_data``.
+        config: Strategy and backtest settings.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -305,6 +364,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate metrics from analyzers and strategy counters.
+
+    Args:
+        strat: Strategy instance after execution.
+        cerebro: Cerebro instance with broker state.
+        frame: Input payload.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary of metrics for regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -339,6 +409,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize output values for serialization.
+
+    Args:
+        v: Value to normalize.
+
+    Returns:
+        ISO datetime string for datetime input; ``None`` for non-finite floats;
+        original value otherwise.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

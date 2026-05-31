@@ -18,6 +18,16 @@ GOLD_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "GLD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV file into a normalized Backtrader dataframe.
+
+    Args:
+        filepath: Input CSV file path.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+
+    Returns:
+        Clean OHLCV dataframe indexed by ``datetime``.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -42,6 +52,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_asset_data(asset_map):
+    """Align multi-symbol frames on a common datetime index for synchronized feeds."""
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -53,6 +64,7 @@ def prepare_asset_data(asset_map):
 
 
 class AvoidBearMarketsStrategy(bt.Strategy):
+    """Bear-market filter strategy that switches between invest/exit regimes."""
     params = dict(
         sma_period=200,
         momentum_period=252,
@@ -65,6 +77,7 @@ class AvoidBearMarketsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize regime counters and order tracking structures."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -119,6 +132,7 @@ class AvoidBearMarketsStrategy(bt.Strategy):
         return combined
 
     def next(self):
+        """Evaluate regime, apply rebalancing on interval, and submit target sizes."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -146,11 +160,13 @@ class AvoidBearMarketsStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Clear local order references when orders leave submitted/accepted states."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count closed trades and classify profit/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

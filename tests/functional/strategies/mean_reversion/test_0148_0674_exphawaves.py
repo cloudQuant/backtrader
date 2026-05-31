@@ -84,6 +84,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted tab data into a Backtrader DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,12 +112,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Map MT5 OHLCV columns onto Backtrader feed fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ExpHAWavesStrategy(bt.Strategy):
+    """MA-slope based wave strategy with trailing and directional reversals."""
     params = dict(
         risk_percentage=0.10,
         tp_vs_sl_ratio=3.0,
@@ -135,6 +138,7 @@ class ExpHAWavesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, indicators, logs, and lifecycle state."""
         self.base = self.datas[0]
         self.h1 = self.datas[1]
 
@@ -374,6 +378,7 @@ class ExpHAWavesStrategy(bt.Strategy):
             self.order = self.sell(size=lots)
 
     def next(self):
+        """Run per bar: manage exits, reverse checks, and open new positions."""
         self.bar_num += 1
         self._manage_position()
         self._close_profitable_on_step_flip()
@@ -408,6 +413,7 @@ class ExpHAWavesStrategy(bt.Strategy):
             self._open_side('sell')
 
     def notify_order(self, order):
+        """Track completed/failed orders and apply reverse entry workflow."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -432,6 +438,7 @@ class ExpHAWavesStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades by win/loss and update trade metrics."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -456,6 +463,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path relative to the current strategy test folder."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -463,6 +471,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate data range specified by config into a frame."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -479,6 +488,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Backtrader engine with feeds, optional logger, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -530,6 +540,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy metrics and analyzer outputs for regression checks."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

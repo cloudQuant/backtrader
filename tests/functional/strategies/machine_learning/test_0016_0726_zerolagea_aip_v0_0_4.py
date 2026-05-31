@@ -76,6 +76,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-separated market data and normalize OHLCV columns."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,16 +104,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed adapter for MT5 OHLCV series."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ZeroLagMacd(bt.Indicator):
+    """Zero-lag MACD indicator using double-smoothed EMA differences."""
     lines = ('macd', 'signal')
     params = dict(fast=12, slow=26)
 
     def __init__(self):
+        """Build fast/slow ZLEMA components and signal line."""
         ema_fast = bt.indicators.ExponentialMovingAverage(self.data, period=self.p.fast)
         ema_fast2 = bt.indicators.ExponentialMovingAverage(ema_fast, period=self.p.fast)
         zlema_fast = 2.0 * ema_fast - ema_fast2
@@ -124,6 +128,7 @@ class ZeroLagMacd(bt.Indicator):
 
 
 class ZeroLagEAAIPStrategy(bt.Strategy):
+    """Simple timing strategy using a zero-lag MACD crossover and session filter."""
     params = dict(
         fast_ema=2,
         slow_ema=34,
@@ -136,6 +141,7 @@ class ZeroLagEAAIPStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and working order reference."""
         self.zlmacd = ZeroLagMacd(self.data.close, fast=self.p.fast_ema, slow=self.p.slow_ema)
 
         self.bar_num = 0
@@ -170,6 +176,7 @@ class ZeroLagEAAIPStrategy(bt.Strategy):
         return (signal_prev > main_prev and signal_curr < main_curr) or (signal_prev < main_prev and signal_curr > main_curr)
 
     def next(self):
+        """Evaluate session rules and submit/reverse positions."""
         self.bar_num += 1
         if len(self) < max(self.p.fast_ema, self.p.slow_ema) + 5:
             return
@@ -205,6 +212,7 @@ class ZeroLagEAAIPStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completion/rejection metrics and clear pending order references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -220,6 +228,7 @@ class ZeroLagEAAIPStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -244,6 +253,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -251,6 +261,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and date-filter data according to test configuration."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -262,6 +273,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro, data feed, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -279,6 +291,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzer outputs and strategy counters for regression checks."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

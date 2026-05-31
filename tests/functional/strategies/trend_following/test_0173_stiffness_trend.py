@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a trend-following strategy based on the Stiffness Index.
+    - Market Assumptions: Markets tend to establish strong, persistent trends after a period of stable consolidation. The Stiffness Index measures trend quality and stability by counting how many times the close price sits above a custom volatility band (e.g. MA - 0.2 * Std) over a historical lookback window (60 days).
+    - Indicators:
+        - Moving Average (ma): 100-day rolling mean of close prices.
+        - Volatility Band: ma - `std_coeff` (0.2) * rolling std.
+        - Percentage Above: Percentage of lookback days where close > Volatility Band.
+        - Stiffness: 3-day EMA smoothed percentage.
+    - Entry Signals:
+        - Buy Entry: Stiffness crosses up above `entry_threshold` (95).
+    - Exit Signals:
+        - Close Entry: Stiffness crosses down below `exit_threshold` (50), or maximum holding period `max_holding` (84 days) is reached.
 """
 from __future__ import annotations
 import math
@@ -71,7 +90,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -79,6 +106,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -105,7 +142,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_stiffness_features(df, params):
-    """准备刚度指标策略特征"""
+    """Prepare and compute indicators for the Stiffness Trend strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing periods and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing stiffness, entry_signal, and exit_signal.
+    """
     out = df.copy()
     ma_period = int(params.get('ma_period', 100))
     lookback = int(params.get('lookback', 60))
@@ -113,27 +158,27 @@ def prepare_stiffness_features(df, params):
     entry_threshold = float(params.get('entry_threshold', 95))
     exit_threshold = float(params.get('exit_threshold', 50))
     
-    # 计算移动平均线
+    # Calculate moving average
     out['ma'] = out['close'].rolling(window=ma_period).mean()
     
-    # 计算标准差
+    # Calculate standard deviation
     out['std'] = out['close'].rolling(window=ma_period).std()
     
-    # 计算波动率带：MA - 0.2 * Std
+    # Calculate Volatility Band: MA - 0.2 * Std
     out['stiffness_band'] = out['ma'] - std_coeff * out['std']
     
-    # 统计过去lookback日内价格高于波动率带的天数
+    # Count how many lookback days price sat above the volatility band
     out['above_band'] = (out['close'] > out['stiffness_band']).astype(float)
     out['percent_above'] = out['above_band'].rolling(window=lookback).sum() / lookback * 100
     
-    # 使用3日EMA平滑
+    # Smooth with a 3-day EMA
     out['stiffness'] = out['percent_above'].ewm(span=3).mean()
     
-    # 入场信号：Stiffness向上穿越entry_threshold
+    # Entry signal: Stiffness crosses up above entry_threshold
     out['entry_signal'] = ((out['stiffness'] > entry_threshold) & 
                            (out['stiffness'].shift(1) <= entry_threshold)).astype(float)
     
-    # 出场信号：Stiffness向下穿越exit_threshold
+    # Exit signal: Stiffness crosses down below exit_threshold
     out['exit_signal'] = ((out['stiffness'] < exit_threshold) & 
                           (out['stiffness'].shift(1) >= exit_threshold)).astype(float)
     
@@ -143,6 +188,7 @@ def prepare_stiffness_features(df, params):
 
 
 class Mt5StiffnessFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Stiffness Trend lines."""
     lines = ('stiffness', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -152,6 +198,11 @@ class Mt5StiffnessFeed(bt.feeds.PandasData):
 
 
 class StiffnessTrendStrategy(bt.Strategy):
+    """Strategy class implementing the Stiffness Trend following logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         ma_period=100,
         lookback=60,
@@ -163,6 +214,7 @@ class StiffnessTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -175,6 +227,15 @@ class StiffnessTrendStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -189,6 +250,7 @@ class StiffnessTrendStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -198,7 +260,7 @@ class StiffnessTrendStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -206,24 +268,34 @@ class StiffnessTrendStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if exit_signal:
             self.sell_count += 1
             self.pending_order = self.close()
             return
         
-        # 最大持有天数出场
+        # Maximum holding period exit
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.max_holding:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -235,7 +307,7 @@ class StiffnessTrendStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Stiffness Trend 策略回测"""
+"""Stiffness Trend strategy backtest."""
 
 
 
@@ -245,6 +317,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -257,10 +337,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -275,6 +371,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Stiffness strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -288,6 +392,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -310,6 +423,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -344,6 +468,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -351,10 +483,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -375,7 +505,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        any: Result of executing main() or run().
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):
@@ -389,6 +523,12 @@ def test_172_0173_stiffness_trend() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/trend_following/0173_stiffness_trend.
+
+    Raises:
+        Exception: If the metrics capture or execution fails.
+
+    Returns:
+        None
     """
     # Capture metrics by hooking extract_metrics() and invoking the original
     # main() (or run()). This reuses whatever loader / build_cerebro /

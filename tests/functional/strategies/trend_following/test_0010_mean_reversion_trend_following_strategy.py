@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the daily (D1) timeframe, loaded from the MT5
+    export ``tests/datas/XAUUSD_1d.csv`` and spanning 2008-01-01 to 2025-12-31. A
+    derived signal feed adds a z-score, mean-reversion and trend-following
+    sub-signals, the two moving averages, and a combined target-exposure column.
+
+Strategy Principle:
+    This is the "Mean Reversion Trend Following Strategy" — a blend of two
+    sleeves. The mean-reversion sleeve fades z-score extremes (short when price
+    is far above its rolling mean, long when far below) and the trend-following
+    sleeve goes with the fast-vs-slow moving-average regime. The two signals are
+    combined with fixed weights into a single target exposure clamped to
+    ``max_target_percent``, so the book tilts long or short by how strongly the
+    sleeves agree.
+
+Strategy Logic:
+    load_inputs loads the daily frame and prepare_combined_features computes the
+    z-score, the MR and TF sub-signals, and the weighted combined target
+    exposure; build_cerebro wires the signal feed, a percentage commission, the
+    strategy, and the analyzers. Each bar the strategy reads the target exposure,
+    tracks long/short/flat bias days, and—when the gap to current exposure
+    exceeds the rebalance tolerance—issues an order_target_percent toward the
+    target. notify_order clears the pending order and notify_trade tallies wins
+    and losses. extract_metrics consolidates analyzer output (plus bias-day
+    counts and an Ulcer Index), and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -78,6 +106,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,6 +146,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_combined_features(df, params):
+    """Compute the mean-reversion and trend signals and the combined target.
+
+    Args:
+        df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters controlling the MR lookback/thresholds, fast/slow MA
+            periods, sleeve weights, and the max target percent.
+
+    Returns:
+        A frame with z-score, MR and TF sub-signals, the two moving averages, the
+        combined signal, and the clamped target-exposure column (warm-up rows
+        dropped).
+    """
     out = df.copy()
     mr_lookback = int(params.get('mr_lookback', 15))
     mr_entry_threshold = float(params.get('mr_entry_threshold', 1.5))
@@ -142,6 +196,8 @@ def prepare_combined_features(df, params):
 
 
 class CombinedSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the z-score, sub-signals, and target lines."""
+
     lines = ('zscore', 'mr_signal', 'ma_fast', 'ma_slow', 'tf_signal', 'combined_signal', 'target_percent')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -150,6 +206,8 @@ class CombinedSignalFeed(bt.feeds.PandasData):
 
 
 class MeanReversionTrendFollowingStrategy(bt.Strategy):
+    """Blend mean-reversion and trend signals into a target-exposure book."""
+
     params = dict(
         rebalance_tolerance=0.05,
         mr_lookback=15,
@@ -164,6 +222,7 @@ class MeanReversionTrendFollowingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order state, and long/short/flat bias trackers."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -186,6 +245,13 @@ class MeanReversionTrendFollowingStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Rebalance toward the combined target exposure each bar.
+
+        Increments the bar counter, records broker value, tracks long/short/flat
+        bias days from the target, and—while no order is pending and the gap to
+        current exposure exceeds the rebalance tolerance—issues an
+        order_target_percent toward the target, updating buy/sell counts.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         target_percent = float(self.data.target_percent[0])
@@ -207,11 +273,22 @@ class MeanReversionTrendFollowingStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target_percent)
 
     def notify_order(self, order):
+        """Clear the pending order once it is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -231,10 +308,27 @@ class MeanReversionTrendFollowingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -248,6 +342,18 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_file(file_value):
+    """Resolve a configured data file path against several candidate locations.
+
+    Args:
+        file_value: The configured file path (absolute or relative).
+
+    Returns:
+        The first existing candidate :class:`~pathlib.Path` (as-is, relative to
+        this directory, or under the repo ``tests/datas`` folder).
+
+    Raises:
+        FileNotFoundError: If none of the candidate paths exist.
+    """
     path_value = Path(str(file_value))
     candidates = []
     if path_value.is_absolute():
@@ -261,6 +367,16 @@ def resolve_data_file(file_value):
 
 
 def load_inputs(config):
+    """Load the daily frame and add the combined-signal feature columns.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -270,6 +386,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, signal feed, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest, commission, and symbol
+            settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the combined-signal feed, a
+        percentage commission, the strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -285,6 +412,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, bias-day counts, PnL,
+        return, win rate, profit factor, drawdown, Sharpe, annualized return,
+        SQN, and Ulcer Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -327,6 +467,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -338,6 +487,7 @@ def normalize(value):
 
 
 def main():
+    """Run the full combined MR/TF backtest end-to-end and compute its metrics."""
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded combined-signal bars: {len(inputs['data'])}")

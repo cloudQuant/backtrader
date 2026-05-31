@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD
+    - Data file: tests/datas/XAUUSD_M15.csv
+    - Timeframe: M15 execution bars, with a 15-minute date window
+    - From/To: 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+    - Spread is included in the feed as a custom line.
+
+Strategy Principle:
+    The strategy computes Bulls Power and Bears Power from a configurable EMA period.
+    Long entries are opened when average bulls/bears momentum improves from negative to
+    less negative, while short entries are opened when it worsens from positive to less
+    positive. Each entry uses bracket orders for risk control.
+
+Strategy Logic:
+    1) Load MT5 M15 bars and normalize timestamps.
+    2) Build a custom data feed with spread and strategy indicators.
+    3) In `next`, detect new bars, gate by minimum history, and submit bracket
+       orders when no position/active entry exists.
+    4) Reset active state on order/trade notifications.
+    5) Configure sharpe/returns/drawdown/trade/SQN analyzers and execute backtest.
+    6) Validate migrated metric assertions in the test function.
 """
 from __future__ import annotations
 import math
@@ -74,6 +96,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 export file into a sorted indexed DataFrame.
+
+    Args:
+        filepath: Path to source CSV file.
+        fromdate: Optional lower date filter.
+        todate: Optional upper date filter.
+        bar_shift_minutes: Optional minute shift for each bar timestamp.
+
+    Returns:
+        DataFrame with datetime index and OHLCV/spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -100,6 +133,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed including spread and standard OHLCV fields."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -114,30 +148,45 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BullsPower(bt.Indicator):
+    """Indicator for Bulls Power built from high price minus EMA."""
     lines = ('value',)
     params = dict(period=5)
 
     def __init__(self):
+        """Initialize EMA and minimum period.
+
+        Args:
+            self: Instance reference.
+        """
         self.ema = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.period)
         self.addminperiod(self.p.period + 3)
 
     def next(self):
+        """Update current Bulls Power value."""
         self.lines.value[0] = float(self.data.high[0]) - float(self.ema[0])
 
 
 class BearsPower(bt.Indicator):
+    """Indicator for Bears Power built from low price minus EMA."""
     lines = ('value',)
     params = dict(period=5)
 
     def __init__(self):
+        """Initialize EMA and minimum period.
+
+        Args:
+            self: Instance reference.
+        """
         self.ema = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.period)
         self.addminperiod(self.p.period + 3)
 
     def next(self):
+        """Update current Bears Power value."""
         self.lines.value[0] = float(self.data.low[0]) - float(self.ema[0])
 
 
 class MySystemStrategy(bt.Strategy):
+    """Strategy engine driving bracketed entries from Bulls/Bears Power signals."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -148,6 +197,7 @@ class MySystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and state trackers."""
         self.data0_feed = self.datas[0]
         self.bulls = BullsPower(self.data0_feed, period=self.p.ma_period)
         self.bears = BearsPower(self.data0_feed, period=self.p.ma_period)
@@ -158,10 +208,12 @@ class MySystemStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print a timestamped log line for strategy debugging."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Allow next-step execution during pre-history warmup."""
         self.next()
 
     def _new_bar(self):
@@ -172,6 +224,7 @@ class MySystemStrategy(bt.Strategy):
         return True
 
     def next(self):
+        """Main trading logic executed on each qualifying new bar."""
         if len(self.data0_feed) < self.p.ma_period + self.p.bar_current + 3:
             return
         if not self._new_bar():
@@ -197,6 +250,7 @@ class MySystemStrategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size} reason=prev>curr and curr>0')
 
     def notify_order(self, order):
+        """Track order lifecycle and update active order references."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -223,6 +277,7 @@ class MySystemStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Clear active side when a trade is fully closed."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -240,6 +295,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data path relative to the test directory.
+
+    Args:
+        filename: File path string from config.
+
+    Returns:
+        Absolute path of the resolved file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -247,12 +310,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings to datetime objects.
+
+    Args:
+        value: String datetime in ISO format, or any falsey value.
+
+    Returns:
+        Parsed datetime or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and validate data frame used for this backtest.
+
+    Args:
+        config: Strategy configuration dict.
+
+    Returns:
+        Dictionary containing prepared frame under key ``data``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -264,6 +343,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used in metric assertions.
+
+    Args:
+        cerebro: Backtrader Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -272,6 +356,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build a configured `bt.Cerebro` with feed, strategy, and analyzers.
+
+    Args:
+        config: Strategy configuration.
+        frame: Prepared backtest frame from ``load_backtest_frame``.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -286,6 +379,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None for non-finite numeric values.
+
+    Args:
+        value: Numeric value to normalize.
+
+    Returns:
+        Finite value or None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -294,6 +395,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a backtest summary.
+
+    Args:
+        results: Results returned by ``cerebro.run()``.
+        start_value: Starting portfolio value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -320,6 +427,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run backtest entry point used by migration compatibility harness."""
     parser = argparse.ArgumentParser(description='Run MySystem backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

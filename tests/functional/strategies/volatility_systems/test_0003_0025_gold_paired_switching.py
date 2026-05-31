@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Two daily (D1) precious-metal symbols, gold (XAUUSD) and silver (XAGUSD),
+    loaded from the MT5 exports ``tests/datas/mt5_1d_data/XAUUSD_1d.csv`` and
+    ``tests/datas/mt5_1d_data/XAGUSD_1d.csv`` over 2008-01-01 to 2025-12-31. The
+    two frames are aligned on their common dates and a derived signal feed adds
+    the selected-asset code, a month-end rebalance flag, and per-asset
+    risk-adjusted scores, so the backtest runs on three feeds (a signal feed plus
+    the gold and silver price feeds).
+
+Strategy Principle:
+    This is the "Gold Paired Switching" strategy, a volatility-regime rotation
+    between gold and silver. Each asset is scored by its risk-adjusted momentum
+    (rolling mean return divided by rolling volatility). At month end the
+    strategy switches fully into whichever metal has the higher positive score,
+    provided the score gap exceeds a threshold, and moves to cash when both
+    scores are negative.
+
+Strategy Logic:
+    load_inputs loads and aligns both metals and prepare_paired_switching_data
+    computes the scores, month-end flags, and selected-asset code; build_cerebro
+    wires the signal, gold, and silver feeds, a percentage commission, the
+    strategy, and the analyzers. Each bar the strategy records broker value and,
+    on a month-end rebalance flag, switches the full allocation to the selected
+    asset (or cash) via order_target_percent, updating rebalance/switch and
+    buy/sell counters. notify_order clears completed order references.
+    extract_metrics consolidates analyzer output (plus an Ulcer Index), and the
+    test forces runonce=True, runs the module's main(), and asserts each metric
+    against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -76,6 +105,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,6 +149,22 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_paired_switching_data(asset_frames, params):
+    """Align the metal frames and build the paired-switching signal frame.
+
+    Scores each metal by risk-adjusted momentum (rolling mean return over rolling
+    volatility) and selects the month-end target asset when the score gap clears
+    the threshold, falling back to cash when both scores are negative.
+
+    Args:
+        asset_frames: Mapping of asset name to its daily OHLCV DataFrame.
+        params: Parameters providing the momentum/volatility windows and the
+            minimum score gap.
+
+    Returns:
+        A tuple ``(signal_df, asset_frames, summary)`` aligned on the common date
+        index, where ``signal_df`` carries the selected-asset code, rebalance
+        flag, and per-asset scores.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -162,6 +221,8 @@ def prepare_paired_switching_data(asset_frames, params):
 
 
 class GoldPairedSwitchingSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the selected-asset, rebalance, and score lines."""
+
     lines = ('selected_asset_code', 'rebalance_flag', 'xau_score', 'xag_score')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -170,6 +231,8 @@ class GoldPairedSwitchingSignalFeed(bt.feeds.PandasData):
 
 
 class GoldPairedSwitchingStrategy(bt.Strategy):
+    """Switch the full allocation between gold, silver, or cash at month end."""
+
     params = dict(
         momentum_window=63,
         volatility_window=63,
@@ -179,6 +242,7 @@ class GoldPairedSwitchingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset counters and switch state."""
         self.signal = self.datas[0]
         self.asset_map = {'XAUUSD': self.getdatabyname('XAUUSD'), 'XAGUSD': self.getdatabyname('XAGUSD')}
         self.code_to_asset = {0: 'CASH', 1: 'XAUUSD', 2: 'XAGUSD'}
@@ -192,6 +256,14 @@ class GoldPairedSwitchingStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Record value and, on a month-end flag, switch to the selected asset.
+
+        Increments the bar counter and appends broker value. While orders are
+        pending or outside a rebalance flag it waits. On a rebalance it reads the
+        selected-asset code and, when it differs from the current holding, moves
+        the full allocation to that asset (or cash) via order_target_percent,
+        updating the rebalance, switch, and buy/sell counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order_refs:
@@ -218,6 +290,12 @@ class GoldPairedSwitchingStrategy(bt.Strategy):
                     self.sell_count += 1
 
     def notify_order(self, order):
+        """Discard the order reference once it is no longer live.
+
+        Args:
+            order: The order whose status changed; completed/cancelled orders are
+                removed from the pending-order reference set.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order_refs.discard(order.ref)
@@ -229,10 +307,27 @@ class GoldPairedSwitchingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is truthy and finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is not None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -246,6 +341,17 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load and align the metal frames and build the switching signal frame.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the ``signal_df`` switching frame, the aligned
+        ``asset_frames``, the ``summary`` frame, and the ``fromdate``/``todate``
+        bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -257,6 +363,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, three feeds, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the signal, gold, and
+        silver feeds, a percentage commission, the strategy, and the default
+        analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -275,6 +392,18 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Collect regression metrics from analyzers and strategy counters.
+
+    Args:
+        strat: Strategy instance from ``cerebro.run()``.
+        cerebro: Completed Backtrader engine.
+        inputs: The loaded inputs dict (provides bars and date bounds).
+        config: Full configuration (used for initial cash and strategy name).
+
+    Returns:
+        A flattened metrics dict (rebalance/switch counts, returns, drawdown,
+        Sharpe, SQN, and an Ulcer Index) used by the regression assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -316,6 +445,16 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert a value to a JSON-friendly scalar.
+
+    Args:
+        value: Any value; datetimes are ISO-formatted and non-finite floats map
+            to None.
+
+    Returns:
+        The ISO string for datetimes, None for NaN/inf floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -327,6 +466,7 @@ def normalize(value):
 
 
 def main():
+    """Run the strategy end-to-end: load inputs, build Cerebro, run, extract metrics."""
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded switching bars: {len(inputs['signal_df'])}")

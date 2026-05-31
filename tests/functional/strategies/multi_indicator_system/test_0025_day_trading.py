@@ -1,6 +1,22 @@
 """Inlined regression test for multi_indicator_system/0025_day_trading.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    - Symbol: XAUUSD
+    - Source data: tests/datas/XAUUSD_M5.csv
+    - Sampling: 5-minute bars from 2025-12-03 00:05 to 2026-03-10 09:00
+
+Strategy Principle:
+    The strategy combines MACD, Stochastic, ParabolicSAR, and Momentum to detect
+    short-term reversals. It manages risk with optional trailing stop and take-profit/stop-loss rules.
+
+Strategy Logic:
+    1. Load MT5 tick data and build a 5-minute indexed data frame.
+    2. Generate indicator values and evaluate long/short conditions each bar.
+    3. Open one-way entries only when no opposite signal is active.
+    4. Enforce take-profit/stop-loss and trailing-stop exits on open positions.
+    5. Count trades and wins/losses, then assert expected migration metrics.
 """
 from __future__ import annotations
 
@@ -16,6 +32,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M5.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to the source MT5 CSV.
+        fromdate: Optional lower timestamp.
+        todate: Optional upper timestamp.
+        bar_shift_minutes: Optional minute shift for each bar.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +64,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Feed mapping DataFrame OHLCV columns into backtrader line fields."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,9 +72,11 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DayTradingStrategy(bt.Strategy):
+    """Day-trading strategy using MACD, stochastic, SAR, and momentum filters."""
     params = dict(fixed_lot=0.1, trailing_stop_points=25, take_profit_points=50, stop_loss_points=0, point=0.01)
 
     def __init__(self):
+        """Initialize indicators and trade counters."""
         self.macd = bt.indicators.MACD(self.data.open, period_me1=12, period_me2=26, period_signal=9)
         self.stoch = bt.indicators.Stochastic(self.data, period=5, period_dfast=3, period_dslow=3)
         self.sar = bt.indicators.ParabolicSAR(self.data, af=0.02, afmax=0.2)
@@ -100,6 +130,7 @@ class DayTradingStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute one-bar decision cycle and manage entries/exits."""
         self.bar_num += 1
         if len(self.data) < 200:
             return
@@ -138,6 +169,7 @@ class DayTradingStrategy(bt.Strategy):
                 self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Update counters for opened and closed trades."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

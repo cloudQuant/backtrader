@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 OHLCV data from `tests/datas/XAUUSD_M15.csv` with a 15-minute
+    bar shift. The dataset is resampled to H4 bars for signal computation.
+
+Strategy Principle:
+    Combines a fast/slow RSI cross and fast/slow MA cross into a discrete
+    directional signal. Consecutive positive/negative transitions are mapped to
+    buy/sell trigger booleans and traded with fixed stop-loss / take-profit
+    protection.
+
+Strategy Logic:
+    `load_backtest_frames()` prepares the M15 execution feed and H4 signal feed,
+    `build_cerebro()` registers analyzers and feeds, and the strategy tracks entry,
+    risk exits, and order/trade lifecycle. Assertions verify extracted metrics
+    against migration snapshots.
 """
 from __future__ import annotations
 import math
@@ -94,6 +110,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-export text data and normalize to Backtrader-compatible OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the source MT5 TSV file.
+        fromdate: Optional inclusive lower bound filter.
+        todate: Optional inclusive upper bound filter.
+        bar_shift_minutes: Minute offset applied to all bar timestamps.
+
+    Returns:
+        DataFrame indexed by ``datetime`` with standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -119,6 +146,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a DataFrame into a higher timeframe using OHLCV aggregation.
+    
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        rule: Resample rule string such as ``'240min'``.
+
+    Returns:
+        Resampled and cleaned OHLCV DataFrame.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -133,6 +169,15 @@ def resample_frame(df, rule):
 
 
 def compute_applied_price(frame, mode):
+    """Resolve a source price series according to configured applied-price mode.
+    
+    Args:
+        frame: Source data frame with OHLC columns.
+        mode: Applied-price selector string.
+
+    Returns:
+        Float series for indicator calculations.
+    """
     mode = str(mode).lower()
     if mode in ('price_open', 'open'):
         return frame['open'].astype(float)
@@ -150,6 +195,15 @@ def compute_applied_price(frame, mode):
 
 
 def compute_rsi(price, period):
+    """Compute Wilder-style RSI-like values using EMA smoothing.
+
+    Args:
+        price: Price series.
+        period: RSI look-back window.
+
+    Returns:
+        RSI series in [0, 100], with flat-loss periods filled as 100.
+    """
     period = int(period)
     delta = price.diff()
     gain = delta.clip(lower=0.0)
@@ -162,6 +216,16 @@ def compute_rsi(price, period):
 
 
 def apply_ma(series, period, method):
+    """Apply selected moving-average kernel by identifier.
+
+    Args:
+        series: Source numeric series.
+        period: Look-back window size.
+        method: MA variant code or name.
+
+    Returns:
+        Smoothed series produced by the selected method.
+    """
     period = int(period)
     name = str(method).lower()
     if name in ('mode_sma', 'sma', '0'):
@@ -178,6 +242,25 @@ def apply_ma(series, period, method):
 
 
 def compute_color_marsi_trigger(frame, n_period_rsi=3, n_rsi_price='weighted', n_period_rsi_long=13, n_rsi_price_long='median', n_period_ma=5, n_ma_type='ema', n_ma_price='close', n_period_ma_long=10, n_ma_type_long='ema', n_ma_price_long='close'):
+    """Build combined RSI/MA signals and explicit buy/sell crossover flags.
+
+    Args:
+        frame: Price frame used for indicators.
+        n_period_rsi: RSI lookback for the fast momentum leg.
+        n_rsi_price: Price source for fast RSI.
+        n_period_rsi_long: RSI lookback for the slow momentum leg.
+        n_rsi_price_long: Price source for slow RSI.
+        n_period_ma: Fast MA lookback.
+        n_ma_type: Fast MA type code.
+        n_ma_price: Fast MA price source.
+        n_period_ma_long: Slow MA lookback.
+        n_ma_type_long: Slow MA type code.
+        n_ma_price_long: Slow MA price source.
+
+    Returns:
+        Source frame with additional ``signal_value``, ``buy_signal`` and
+        ``sell_signal`` columns.
+    """
     rsi_fast = compute_rsi(compute_applied_price(frame, n_rsi_price), n_period_rsi)
     rsi_long = compute_rsi(compute_applied_price(frame, n_rsi_price_long), n_period_rsi_long)
     ma_fast = apply_ma(compute_applied_price(frame, n_ma_price), n_period_ma, n_ma_type)
@@ -199,6 +282,8 @@ def compute_color_marsi_trigger(frame, n_period_rsi=3, n_rsi_price='weighted', n
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping XAUUSD OHLCV columns from a normalized frame."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -211,6 +296,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorMaRsiTriggerFeed(bt.feeds.PandasData):
+    """Signal feed exposing derived helper lines for the strategy."""
+
     lines = ('signal_value', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -227,6 +314,8 @@ class ColorMaRsiTriggerFeed(bt.feeds.PandasData):
 
 
 class ColorMaRsiTriggerStrategy(bt.Strategy):
+    """Backtrader strategy combining trend signals from RSI and MA crosses."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -255,6 +344,7 @@ class ColorMaRsiTriggerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind feed lines and initialize state/counter bookkeeping."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.signal_value = self.h4.signal_value
@@ -278,6 +368,7 @@ class ColorMaRsiTriggerStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print execution log prefixed with the current M15 timestamp."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -331,6 +422,7 @@ class ColorMaRsiTriggerStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Process one bar: gate signal frequency, manage risk exits, and submit entries."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -380,6 +472,7 @@ class ColorMaRsiTriggerStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and clear active entry tracking."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -398,6 +491,7 @@ class ColorMaRsiTriggerStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade is fully closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -422,6 +516,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data file path and validate its presence.
+
+    Args:
+        filename: Relative path against the strategy directory.
+
+    Returns:
+        Absolute path to the existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -429,6 +531,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and transform raw bars into strategy execution and signal frames.
+
+    Args:
+        config: Inlined strategy configuration dict.
+
+    Returns:
+        Dict with raw M15 bars, resampled H4 bars, and effective boundaries.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -443,6 +553,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro with feeds, strategy, broker settings, and analyzers.
+
+    Args:
+        config: Inlined strategy configuration dict.
+        frame: Loaded backtest frames from ``load_backtest_frames``.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -464,6 +583,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract normalized metrics for regression assertion.
+    
+    Args:
+        strat: Strategy instance after backtest run.
+        cerebro: Running Cerebro instance.
+        frame: Frame context with timeframe boundaries.
+        config: Inlined strategy configuration.
+
+    Returns:
+        Dictionary of counters, analyzers, and PnL-based performance values.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -509,6 +639,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the regression backtest and return results, metrics, and cerebro."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)
@@ -544,10 +675,7 @@ def _invoke_strategy_main():
 
 
 def test_279_0278_1025_color_marsi_trigger() -> None:
-    """Migrated regression test (runonce=True only).
-
-    Originally located at tests/functional/strategies_regression/mean_reversion/0278_1025_color_marsi_trigger.
-    """
+    """Migrated regression test (runonce=True only). Originally located at tests/functional/strategies_regression/mean_reversion/0278_1025_color_marsi_trigger."""
     # Capture metrics by hooking extract_metrics() and invoking the original
     # main() (or run()). This reuses whatever loader / build_cerebro /
     # extract_metrics signatures the strategy used internally.

@@ -7,6 +7,18 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+Data Used:
+    XAUUSD M15 OHLCV from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    Elder Impulse coloring from EMA and MACD histogram momentum.
+    Green indicates bullish continuation, red indicates bearish continuation,
+    blue means neutral.
+
+Strategy Logic:
+    Build EMA/MACD, derive color each bar, then long/short/reversal logic
+    based on color transitions and active position state.
 """
 from __future__ import annotations
 import math
@@ -73,6 +85,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV into normalized OHLCV DataFrame.
+
+    Args:
+        filepath: Input CSV file path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute offset for timestamps.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -94,6 +117,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 bar columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -118,6 +142,7 @@ class ElderImpulseStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and position state."""
         self.ema = bt.indicators.EMA(self.data.close, period=self.p.ema_period)
         self.macd = bt.indicators.MACD(
             self.data.close,
@@ -134,6 +159,7 @@ class ElderImpulseStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log message with current timestamp."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -156,6 +182,7 @@ class ElderImpulseStrategy(bt.Strategy):
             return 'blue'
 
     def next(self):
+        """Evaluate impulse color and place/cancel orders."""
         self.bar_num += 1
         warmup = max(self.p.ema_period, self.p.macd_slow + self.p.macd_signal) + 5
         if len(self.data) < warmup:
@@ -195,6 +222,7 @@ class ElderImpulseStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update counters on open/close trade transitions."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -219,21 +247,26 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test directory."""
     path = (BASE_DIR / filename).resolve()
-    if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
+    if not path.exists():
+        raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load and validate the test frame for this strategy."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
     df = load_mt5_csv(resolve_data_path(data_cfg['file']), fromdate=fromdate, todate=todate,
                       bar_shift_minutes=data_cfg.get('bar_shift_minutes', 0))
-    if df.empty: raise ValueError('Loaded data frame is empty')
+    if df.empty:
+        raise ValueError('Loaded data frame is empty')
     print(f"Loaded {len(df)} bars: {df.index[0]} -> {df.index[-1]}")
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -251,6 +284,7 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy and analyzer outputs for assertion."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -271,11 +305,18 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
-    config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
-    print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
-    metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)
-    if plot: cerebro.plot()
-    return results,metrics,cerebro
+    """Execute backtest and return results, metrics, and cerebro."""
+    config = load_config()
+    frame = load_backtest_frame(config)
+    cerebro = build_cerebro(config, frame)
+    print('\nStarting backtest...')
+    results = cerebro.run()
+    strat = results[0]
+    metrics = extract_metrics(strat, cerebro, frame, config)
+    print_report(metrics)
+    if plot:
+        cerebro.plot()
+    return results, metrics, cerebro
 
 
 

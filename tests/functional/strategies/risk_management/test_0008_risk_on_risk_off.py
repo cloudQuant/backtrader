@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Historical XAUUSD daily bars from `tests/datas/XAUUSD_1d.csv`.
+    - Timeframe: D1 spanning 2008-01-01 to 2025-12-31.
+    - Feature pipeline adds realized volatility, moving-average trend, and a
+      binary risk-on signal.
+
+Strategy Principle:
+    - Uses realized volatility regime and trend alignment to define risk-on/risk-off.
+    - Enters long when volatility is below threshold and trend is above its average.
+    - Exits when either realized risk rises above threshold or trend support weakens.
+    - Maintains deterministic metrics (returns, drawdown, sharpe, SQN, trade stats)
+      for migration-time regression checks.
+
+Strategy Logic:
+    - `load_config` resolves repository placeholders and returns embedded test config.
+    - `load_data` reads MT5 csv, applies date filtering, and runs feature preparation.
+    - `build_cerebro` wires feed, strategy, and analyzers.
+    - Strategy `next()` submits long entries on risk-on state and closes on risk-off.
+    - `extract_metrics` flattens analyzer outputs into assertions-ready values.
 """
 from __future__ import annotations
 import math
@@ -76,6 +96,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize an MT5 CSV export into Backtrader-ready OHLCV data.
+
+    Args:
+        filepath (str | Path): Source MT5 csv file path.
+        fromdate (datetime | None): Optional lower bound for date filtering.
+        todate (datetime | None): Optional upper bound for date filtering.
+
+    Returns:
+        pandas.DataFrame: DataFrame indexed by datetime with OHLCV/open interest data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,6 +133,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_risk_on_risk_off_features(df, params):
+    """Build realized volatility, trend, and risk-on boolean features.
+
+    Args:
+        df (pandas.DataFrame): Raw price frame.
+        params (dict): Strategy parameters including `vol_period`, `vol_threshold`,
+            and `ma_period`.
+
+    Returns:
+        pandas.DataFrame: Frame with engineered columns ready for the pandas feed.
+    """
     vol_period = int(params.get('vol_period', 60))
     vol_threshold = float(params.get('vol_threshold', 0.20))
     ma_period = int(params.get('ma_period', 100))
@@ -119,6 +159,7 @@ def prepare_risk_on_risk_off_features(df, params):
 
 
 class Mt5RiskOnRiskOffFeed(bt.feeds.PandasData):
+    """Pandas feed carrying additional volatility and risk regime indicators."""
     lines = ('realized_vol', 'trend', 'risk_on',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -130,6 +171,7 @@ class Mt5RiskOnRiskOffFeed(bt.feeds.PandasData):
 
 
 class RiskOnRiskOffStrategy(bt.Strategy):
+    """Risk on/off managed strategy driven by volatility regime and trend state."""
     params = dict(
         vol_period=60,
         vol_threshold=0.2,
@@ -138,6 +180,7 @@ class RiskOnRiskOffStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and order state for deterministic execution tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -161,6 +204,7 @@ class RiskOnRiskOffStrategy(bt.Strategy):
 
 
     def next(self):
+        """Evaluate risk regime and submit/reverse orders while preventing overlap."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -176,17 +220,19 @@ class RiskOnRiskOffStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear `pending_order` once order status is terminal."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """No-op trade callback required for strategy lifecycle compatibility."""
         pass
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Risk On Risk Off 策略回测"""
+"""Risk On Risk Off strategy backtest."""
 
 
 
@@ -197,6 +243,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe-analyzer parameters from configured timeframe granularity.
+
+    Args:
+        config (dict): Test configuration with data-timeframe information.
+
+    Returns:
+        dict: Analyzer kwargs passed to `bt.analyzers.SharpeRatio`.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -209,10 +263,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return `x` if finite, otherwise ``None``.
+
+    Args:
+        x: Candidate value.
+
+    Returns:
+        Optional[float]: `x` when finite; otherwise None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute an ulcer-index style drawdown metric from broker value history.
+
+    Args:
+        values (Sequence[float]): Broker value sequence.
+
+    Returns:
+        float: RMS of drawdown percentages versus running peak.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -227,6 +297,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and prepare backtest data using regression parameters.
+
+    Args:
+        config (dict): Resolved strategy/backtest configuration.
+
+    Returns:
+        dict: Prepared dataframe and date bounds for test execution.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -239,6 +317,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct Backtrader engine with the strategy, feed, and analyzers.
+
+    Args:
+        frame (dict): Data bundle returned from `load_data`.
+        config (dict): Full regression configuration.
+
+    Returns:
+        bt.Cerebro: Configured backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -261,6 +348,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and normalize regression metrics after strategy run.
+
+    Args:
+        strat: Strategy instance from `cerebro.run()`.
+        cerebro: Completed Cerebro instance.
+        frame (dict): Data frame and date meta information.
+        config (dict): Runtime config.
+
+    Returns:
+        dict: Metrics map asserted by this regression test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -295,6 +393,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize runtime values for JSON-friendly serialization."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -306,6 +405,7 @@ def normalize(v):
 
 
 def main():
+    """Execute backtest and print minimal load diagnostics."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

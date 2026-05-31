@@ -7,6 +7,42 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four MT5 daily CSV feeds defined in ``_CONFIG['data']``: ``GLD_1d.csv``
+    (gold), ``IVV_1d.csv`` (US equity), ``IEF_1d.csv`` (US Treasuries) and
+    ``DBC_1d.csv`` (broad commodities) under ``tests/datas/mt5_1d_data``. Daily
+    bars are clipped to 2008-01-01 through 2025-12-31 and aligned to a shared
+    date index, then resampled to month-end for the signal calculation. A
+    derived signal feed carries per-asset weights and a cash weight at each
+    monthly rebalance alongside the gold OHLCV bars.
+
+Strategy Principle:
+    A tactical asset-allocation sleeve combining risk parity with trend
+    following. Each month the assets are weighted inversely to their trailing
+    12-month volatility (risk parity), but an asset only receives its weight if
+    its price sits above its 10-month moving average (trend filter); otherwise
+    that capital stays in cash. Weights are scaled to respect a cash floor and a
+    per-asset cap, then renormalized. The thesis is that equal-risk
+    diversification plus a trend gate captures upside while sidestepping
+    sustained downtrends.
+
+Strategy Logic:
+    1. ``load_inputs`` loads and aligns the four asset CSVs, resamples to
+       monthly, and ``prepare_taa_inputs`` walks each rebalance date calling
+       ``_compute_final_weights`` to derive risk-parity-with-trend weights and
+       the residual cash weight.
+    2. ``TAASignalFeed`` exposes the per-asset weights and cash weight as extra
+       data lines; ``TAARiskParityTrendStrategy.__init__`` binds the signal and
+       asset feeds and resets counters.
+    3. ``next`` rebalances when target weights change, sizing each asset with
+       ``order_target_size`` and updating buy/sell/switch counts;
+       ``notify_order`` clears settled order refs.
+    4. ``build_cerebro`` wires the feeds, commission and
+       Sharpe/Returns/DrawDown/Trade/SQN analyzers; ``extract_metrics`` (with
+       ``finite_or_none`` and ``calculate_ulcer_index``) builds the metrics dict
+       and ``test_8_0008_taa_risk_parity_trend`` asserts the captured
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +122,23 @@ ASSET_ORDER = ['GLD', 'IVV', 'IEF', 'DBC']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -144,6 +197,22 @@ def _compute_final_weights(monthly_prices, params):
 
 
 def prepare_taa_inputs(asset_frames, params):
+    """Align assets and compute monthly risk-parity-with-trend weights.
+
+    Intersects the asset indices, resamples closes to month-end, and for each
+    rebalance date calls ``_compute_final_weights`` on the available history to
+    derive per-asset weights, then records the residual cash weight.
+
+    Args:
+        asset_frames: Mapping of asset name to daily OHLCV DataFrame.
+        params: Strategy parameter dictionary controlling lookbacks, cash floor
+            and per-asset cap.
+
+    Returns:
+        tuple: ``(aligned, signal_df)`` where ``aligned`` maps each asset to its
+        index-aligned OHLCV frame and ``signal_df`` carries gold OHLCV plus the
+        per-asset weight columns and the cash weight at each rebalance date.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -169,6 +238,12 @@ def prepare_taa_inputs(asset_frames, params):
 
 
 class TAASignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing TAA target weights as extra lines.
+
+    Extends the standard OHLCV feed with the four per-asset target weights and
+    the residual cash weight so the strategy can read them directly.
+    """
+
     lines = ('weight_gld', 'weight_ivv', 'weight_ief', 'weight_dbc', 'cash_weight')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -177,6 +252,22 @@ class TAASignalFeed(bt.feeds.PandasData):
 
 
 class TAARiskParityTrendStrategy(bt.Strategy):
+    """Risk-parity-with-trend TAA strategy rebalanced to monthly weights.
+
+    Reads precomputed per-asset target weights from the feed and resizes the
+    four asset positions toward those weights whenever the targets change.
+    Tracks bar, rebalance, order and switch statistics for the regression
+    assertions.
+
+    Args:
+        lot_size: Multiplier applied when sizing target positions.
+        ma_months: Lookback (months) for the trend moving average.
+        vol_months: Lookback (months) for the volatility estimate.
+        rebalance_freq: Rebalance frequency code (monthly).
+        cash_floor: Minimum fraction of capital kept in cash.
+        max_asset_weight: Upper bound on each asset weight.
+    """
+
     params = dict(
         lot_size=1.0,
         ma_months=10,
@@ -187,6 +278,12 @@ class TAARiskParityTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset tracking counters.
+
+        Captures the signal feed and the four traded asset feeds, then
+        initializes the order-reference set, bar/buy/sell/rebalance/switch
+        counters, the last-weights tracker and the equity-value series.
+        """
         self.signal = self.datas[0]
         self.asset_map = {name: self.getdatabyname(name) for name in ASSET_ORDER}
         self.order_refs = set()
@@ -222,6 +319,12 @@ class TAARiskParityTrendStrategy(bt.Strategy):
         }
 
     def next(self):
+        """Rebalance toward target weights when they change.
+
+        Records equity, skips while orders are pending, and when the target
+        weights differ from the last applied set sizes each asset with
+        ``order_target_size`` while updating buy/sell/switch counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -244,6 +347,7 @@ class TAARiskParityTrendStrategy(bt.Strategy):
                     self.sell_count += 1
 
     def notify_order(self, order):
+        """Drop completed or rejected orders from active-order tracking."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
@@ -257,10 +361,12 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def finite_or_none(x):
+    """Normalize optional float-like values to ``None`` when non-finite."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the ulcer index from a sequence of equity values."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -275,6 +381,7 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load aligned asset frames and signal frame according to strategy config."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -289,6 +396,7 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Build and configure a Cerebro instance for the regression run."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -314,6 +422,7 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Collect all metrics asserted by this test from analyzers and strategy state."""
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()

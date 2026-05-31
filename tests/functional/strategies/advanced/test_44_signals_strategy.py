@@ -48,6 +48,34 @@ Signal vs Strategy:
 Reference:
     backtrader-master2/samples/signals-strategy/signals-strategy.py
 
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData``. Only the 2005-01-01 to 2006-12-31 window
+    is used (single data feed named ``DATA``, daily timeframe, no resampling).
+    The test is parametrized over ``runonce=True`` and ``runonce=False`` so the
+    vectorized and event-driven engines are both exercised on the same data.
+
+Strategy Principle:
+    This is a declarative, signal-driven trend-following setup rather than a
+    full ``Strategy`` subclass. The ``SMACloseSignal`` indicator emits
+    ``price - SMA(period)``; a positive value means price trades above its
+    moving average (bullish) and a negative value means below (bearish). Wired
+    through ``cerebro.add_signal(bt.SIGNAL_LONG, ...)``, a positive signal opens
+    a long position and a non-positive signal exits it, with position size
+    driven by the signal magnitude. Risk control relies solely on the signal
+    sign flipping; no explicit stop loss is used.
+
+Strategy Logic:
+    1. ``resolve_data_path`` locates the CSV data file across candidate
+       directories.
+    2. ``SMACloseSignal.__init__`` defines the single ``signal`` line as the
+       price minus its ``period``-length SMA.
+    3. ``test_signals_strategy`` builds cerebro with $50,000 cash, adds the long
+       signal with a 30-period SMA, attaches Sharpe/Returns/DrawDown/Trade
+       analyzers, runs the backtest, and extracts the metrics.
+    4. The test asserts that total trades, final value, Sharpe ratio, annual
+       return, and max drawdown match the recorded expectations.
+
 Example:
     Run the test directly::
 

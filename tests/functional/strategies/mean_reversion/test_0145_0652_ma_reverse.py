@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD_M15.csv (Gold, M15, 2025-12-03 to 2026-03-10), downsampled to M30
+    via compression=30.
+
+Strategy Principle:
+    MA-Reverse (MA_Reverse) counts consecutive bars where price is above or
+    below the SMA. When the count exceeds a threshold (count_threshold=150),
+    the strategy reverses into the opposite direction targeting a fixed
+    take-profit in points. The concept exploits mean reversion after prolonged
+    trending moves.
+
+Strategy Logic:
+    The strategy tracks bar_num, signal_count, buy/sell/trade/win/loss counters.
+    On every bar, the cumulative sign count (positive when price > SMA, negative
+    when price < SMA) is updated; a zero-crossing resets the count. Once the
+    count passes the threshold, a market order is placed opposite to the
+    current SMA position. The test invokes extract_metrics() through a capture
+    hook and validates all metrics against baseline values.
 """
 from __future__ import annotations
 import math
@@ -74,6 +93,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Pandas DataFrame with OHLC columns."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -97,12 +117,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with standard OHLC column mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class MaReverseStrategy(bt.Strategy):
+    """Mean-reversion strategy that enters counter-trend positions after a streak of unidirectional bars vs SMA."""
     params = dict(
         ma_period=14,
         count_threshold=150,
@@ -113,6 +135,7 @@ class MaReverseStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize SMA indicator, bar counter, and order/risk state variables."""
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
         self.signal_count = 0
@@ -145,6 +168,7 @@ class MaReverseStrategy(bt.Strategy):
             self.order = self.close()
 
     def next(self):
+        """Bar-by-bar logic: update streak count, check threshold, place reversal order with TP."""
         self.bar_num += 1
         if len(self) < self.p.ma_period + 2:
             return
@@ -180,6 +204,7 @@ class MaReverseStrategy(bt.Strategy):
             self.order = self.buy(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track order lifecycle: count completions/rejections, track buy/sell counts."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -197,6 +222,7 @@ class MaReverseStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track trade outcomes: win/loss count based on closed trade P&L."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -218,12 +244,14 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a relative data filename against the test file's directory, raising if missing."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load and return the OHLCV DataFrame with fromdate/todate from the config."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -234,6 +262,7 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with data, strategy, broker, and analyzers."""
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -250,6 +279,7 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect key performance and trade statistics from analyzers and broker state."""
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -268,6 +298,7 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the migration test flow and return (results, metrics, cerebro)."""
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

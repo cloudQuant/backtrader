@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the daily (D1) timeframe loaded from the MT5 export
+    ``tests/datas/mt5_1d_data/XAUUSD_1d.csv``, covering 2008-01-01 to
+    2025-12-31. A single daily feed carries the OHLCV lines plus precomputed
+    momentum, trend, volatility, crash-flag, and target-exposure lines.
+
+Strategy Principle:
+    A port of the "Momentum Strategy Insights" approach combining several
+    refinements to plain momentum: a long-horizon momentum sign, a 200-day trend
+    filter (halving conflicting longs), volatility targeting that scales exposure
+    to a target annualized volatility, and a crash filter that cuts exposure when
+    recent volatility spikes or a sharp drawdown occurs. The net target exposure
+    is clipped to a base investment cap.
+
+Strategy Logic:
+    prepare_momentum_strategy_data computes the momentum/trend/volatility/crash
+    features and the resulting target exposure plus a signal-change flag, storing
+    them as extra feed lines. Each bar the strategy records broker value and,
+    only when the target exposure changes, issues order_target_percent toward the
+    new exposure (counting signal changes). notify_order clears the pending order
+    and notify_trade tallies win/loss. extract_metrics consolidates analyzer
+    output plus an Ulcer Index (falling back to the signal-change count when no
+    trades closed); the test hooks the metric extractor, forces runonce=True via
+    main(), and asserts each metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -77,6 +102,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -107,6 +143,22 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_momentum_strategy_data(df, params):
+    """Compute momentum, trend, volatility, crash, and target-exposure lines.
+
+    Derives the momentum sign, a trend filter, volatility-targeted scaling, and
+    a crash filter, combining them into a clipped target exposure plus a flag
+    marking when that exposure changes.
+
+    Args:
+        df: The daily OHLCV DataFrame to operate on.
+        params: Strategy parameters supplying the momentum lookback, trend MA,
+            target volatility, volatility/crash windows, crash thresholds, and
+            the base investment percentage.
+
+    Returns:
+        A copy of ``df`` augmented with the feature, ``target_exposure``, and
+        ``signal_change`` columns, with warm-up rows dropped.
+    """
     out = df.copy()
     momentum_lookback = int(params.get('momentum_lookback', 252))
     trend_ma_period = int(params.get('trend_ma_period', 200))
@@ -147,6 +199,8 @@ def prepare_momentum_strategy_data(df, params):
 
 
 class MomentumInsightsFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the momentum, trend, volatility, and target lines."""
+
     lines = ('momentum_return', 'momentum_signal', 'trend_ma', 'trend_filter', 'realized_vol', 'recent_vol', 'long_term_vol', 'recent_return', 'crash_flag', 'target_exposure', 'signal_change')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -155,6 +209,13 @@ class MomentumInsightsFeed(bt.feeds.PandasData):
 
 
 class MomentumStrategyInsightsStrategy(bt.Strategy):
+    """Hold the precomputed volatility-targeted, crash-aware momentum exposure.
+
+    Each time the target exposure changes it rebalances toward it via
+    order_target_percent, tracking the number of signal changes and win/loss
+    counts.
+    """
+
     params = dict(
         momentum_lookback=252,
         trend_ma_period=200,
@@ -168,6 +229,7 @@ class MomentumStrategyInsightsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, the pending order slot, and the signal-change count."""
         self.bar_num = 0
         self.pending_order = None
         self.signal_change_count = 0
@@ -177,6 +239,13 @@ class MomentumStrategyInsightsStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Rebalance toward the target exposure whenever it changes.
+
+        Increments the bar counter, records broker value, and skips while an
+        order is pending or the target exposure is unchanged. On a change it
+        counts the signal and issues order_target_percent toward the new
+        exposure.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -187,11 +256,22 @@ class MomentumStrategyInsightsStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_exposure[0]))
 
     def notify_order(self, order):
+        """Clear the pending order slot once an order leaves flight.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears the pending slot.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -207,10 +287,27 @@ class MomentumStrategyInsightsStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -224,6 +321,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load the XAUUSD feed and compute the momentum-insights features.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path and inclusive date bounds.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -233,6 +340,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the feed, strategy, and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, symbol, and
+            strategy parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -248,6 +365,22 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, the signal-change count, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and bar count.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and signal-change/trade counts) used
+        by the assertions; total trades falls back to the signal-change count
+        when no trades closed.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -288,6 +421,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -299,6 +441,11 @@ def normalize(value):
 
 
 def main():
+    """Run the momentum-insights backtest end to end.
+
+    Loads the config and inputs, builds the engine, runs the backtest, and
+    extracts the metrics (used by the test harness via its hooks).
+    """
     config = load_config()
     inputs = load_inputs(config)
     cerebro = build_cerebro(inputs, config)

@@ -1,6 +1,23 @@
 """Inlined regression test for trend_following/0063_0686_ma2cci.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
+Self-contained single-file test (manually authored). Runs with runonce=True
+only and validates the migrated strategy behavior against baseline metrics.
+
+Data Used:
+- XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` shifted by 15 minutes.
+- Backtest window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+MA2CCI uses EMA trend direction and CCI sign changes to trigger directional
+entries, with ATR-based and fixed minimum stop distances to control per-trade
+risk.
+
+Strategy Logic:
+- Build MA-fast, MA-slow, CCI, and ATR indicators on the data feed.
+- Enter long when fast MA crosses above slow MA with CCI rising through zero.
+- Enter short when fast MA crosses below slow MA with CCI falling through zero.
+- On each bar, sync open position state, apply MA cross and stop-loss exits,
+  then update win/loss and order counters for regression assertions.
 """
 from __future__ import annotations
 
@@ -16,6 +33,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data into an indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV export.
+        fromdate: Optional lower bound for timestamp filtering.
+        todate: Optional upper bound for timestamp filtering.
+        bar_shift_minutes: Optional minutes to shift timestamps.
+
+    Returns:
+        pandas.DataFrame: OHLCV frame indexed by parsed datetime.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -42,6 +70,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader PandasData feed mapping MT5-exported columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -49,6 +78,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MA2CCIStrategy(bt.Strategy):
+    """Two-line MA plus CCI signal strategy with ATR/minimum-risk sizing."""
     params = dict(
         ma_period_fast=10,
         ma_period_slow=37,
@@ -64,6 +94,7 @@ class MA2CCIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order state, and execution counters."""
         self.ma_fast = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.ma_period_fast)
         self.ma_slow = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.ma_period_slow)
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.ma_period_cci)
@@ -136,6 +167,7 @@ class MA2CCIStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Check exits and issue entries based on MA/CCI/ATR conditions."""
         self.bar_num += 1
         warmup = max(self.p.ma_period_slow, self.p.ma_period_cci, self.p.ma_period_atr) + 3
         if len(self.data) < warmup:
@@ -174,6 +206,11 @@ class MA2CCIStrategy(bt.Strategy):
                 self.order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Track order outcome states and synchronize entry/stop tracking.
+
+        Args:
+            order: Backtrader order instance being processed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -192,6 +229,11 @@ class MA2CCIStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track trade close events and update win/loss counters.
+
+        Args:
+            trade: Backtrader trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return

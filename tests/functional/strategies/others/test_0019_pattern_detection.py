@@ -1,6 +1,21 @@
-"""Inlined regression test for others/0019_pattern_detection.
+"""Manual single-file regression test for ``test_0019_pattern_detection``.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
+Runs with ``runonce=True`` only.
+
+Data Used:
+    Daily XAUUSD bars from ``tests/datas/XAUUSD_1d.csv`` between
+    2008-01-01 and 2025-12-31. The test adds pattern features (ATR, entry,
+    stop, and target levels) to the base OHLCV columns.
+
+Strategy Principle:
+    Detects head-and-shoulders-like formations in smoothed price series, scores
+    candidate patterns, and trades breakouts from neckline support/resistance
+    levels with fixed stop and take-profit targets.
+
+Strategy Logic:
+    ``prepare_pattern_features`` derives ``entry_signal`` and risk lines,
+    ``PatternDetectionStrategy`` executes one breakout trade at a time with max
+    holding constraints, and `notify_*` hooks keep execution/trade counters.
 """
 from __future__ import annotations
 
@@ -16,6 +31,16 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5 CSV export into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to the MT5 data file.
+        fromdate: Optional inclusive lower date bound.
+        todate: Optional inclusive upper date bound.
+
+    Returns:
+        pandas.DataFrame: OHLCV frame indexed by datetime.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -47,6 +72,16 @@ def _calc_quality(neckline_diff, shoulder_symmetry, head_depth, threshold):
 
 
 def prepare_pattern_features(df, params):
+    """Build pattern-quality features and breakout levels used by the strategy.
+
+    Args:
+        df: OHLCV price frame.
+        params: Pattern parameters for smoothing, neckline checks, and lookahead.
+
+    Returns:
+        pandas.DataFrame: Feature frame with atr, entry signal, direction,
+            neckline, stop and target levels, and quality metadata.
+    """
     smoothing = int(params.get("smoothing", 10))
     window_range = int(params.get("window_range", 10))
     neckline_threshold = float(params.get("neckline_threshold", 0.03))
@@ -140,6 +175,7 @@ def prepare_pattern_features(df, params):
 
 
 class PatternDetectionFeed(bt.feeds.PandasData):
+    """PandasData extension exposing pattern detection-derived lines."""
     lines = ("atr", "entry_signal", "direction", "neckline", "stop_level", "target_level", "pattern_quality", "pattern_type",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -150,6 +186,7 @@ class PatternDetectionFeed(bt.feeds.PandasData):
 
 
 class PatternDetectionStrategy(bt.Strategy):
+    """Single-trade pattern breakout strategy with simple directional risk control."""
     params = dict(
         position_size=0.90, max_holding_bars=20,
         smoothing=10, window_range=10,
@@ -160,6 +197,7 @@ class PatternDetectionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and breakout/trade state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -187,6 +225,7 @@ class PatternDetectionStrategy(bt.Strategy):
         return direction * round(size, 2)
 
     def next(self):
+        """Advance holding logic and submit entries/exits based on pattern signals."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -235,6 +274,11 @@ class PatternDetectionStrategy(bt.Strategy):
             self.pending_order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Clear pending order state and reset trade context when flat.
+
+        Args:
+            order: The order that just transitioned.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -245,6 +289,7 @@ class PatternDetectionStrategy(bt.Strategy):
             self.trade_direction = 0
 
     def notify_trade(self, trade):
+        """Record closed-trade win/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

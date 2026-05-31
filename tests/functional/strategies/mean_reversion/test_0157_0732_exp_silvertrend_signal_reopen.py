@@ -90,6 +90,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated data to a Backtrader-style DataFrame.
+
+    Args:
+        filepath: MT5 export file path.
+        fromdate: Optional inclusive start datetime filter.
+        todate: Optional inclusive end datetime filter.
+        bar_shift_minutes: Optional shift applied to all bar timestamps.
+
+    Returns:
+        Parsed DataFrame indexed by `datetime`.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -117,6 +128,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Aggregate base bars into a higher timeframe signal frame.
+
+    Args:
+        df: Base frame indexed by datetime.
+        rule: Resample rule string, e.g. `"240min"`.
+
+    Returns:
+        Resampled OHLCV frame with cleaned edge bars.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -131,6 +151,16 @@ def resample_frame(df, rule):
 
 
 def compute_silvertrend_signal(frame, ssp=9, risk=3):
+    """Compute SilverTrend buy/sell signal levels.
+
+    Args:
+        frame: OHLCV frame to compute signals on.
+        ssp: Sensitivity window length.
+        risk: Risk percentage used for envelope thresholds.
+
+    Returns:
+        Frame with `buy_arrow` and `sell_arrow` columns.
+    """
     work = frame.copy()
     k = int(risk)
     start_bars = ssp + 1
@@ -172,12 +202,14 @@ def compute_silvertrend_signal(frame, ssp=9, risk=3):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base OHLCV feed for execution bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class SilverTrendFeed(bt.feeds.PandasData):
+    """Indicator feed carrying SilverTrend buy/sell arrow levels."""
     lines = ('buy_arrow', 'sell_arrow')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('buy_arrow', 6), ('sell_arrow', 7),
@@ -185,6 +217,7 @@ class SilverTrendFeed(bt.feeds.PandasData):
 
 
 class ExpSilverTrendSignalReOpenStrategy(bt.Strategy):
+    """Mean-reversion strategy with optional re-open pyramid positions."""
     params = dict(
         stop_loss=1000,
         take_profit=2000,
@@ -201,6 +234,7 @@ class ExpSilverTrendSignalReOpenStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counter/state variables and references to base/indicator feeds."""
         self.base = self.datas[0]
         self.ind = self.datas[1]
 
@@ -287,6 +321,7 @@ class ExpSilverTrendSignalReOpenStrategy(bt.Strategy):
         return None
 
     def next(self):
+        """Process signals, manage existing positions, and open/re-open orders."""
         self.bar_num += 1
         if len(self.ind) < 1:
             return
@@ -332,6 +367,7 @@ class ExpSilverTrendSignalReOpenStrategy(bt.Strategy):
             self.last_add_price = float(self.base.close[0])
 
     def notify_order(self, order):
+        """Track completion/rejection and synchronize order/risk state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -353,6 +389,7 @@ class ExpSilverTrendSignalReOpenStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters on close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -377,6 +414,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve an expected data filename against the test file directory.
+
+    Args:
+        filename: Relative filename from config.
+
+    Returns:
+        Absolute existing path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -384,6 +429,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load execution and indicator frames for the configured simulation period.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        Dict containing base and SilverTrend frames and date bounds.
+    """
     data_cfg = config['data']
     ind_cfg = config['indicator']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -398,6 +451,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build backtrader engine with dual feeds and analyzers.
+
+    Args:
+        config: Global test config.
+        frame: Preloaded backtest data.
+
+    Returns:
+        Configured `bt.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     indicator_tf = config['data'].get('indicator_timeframe_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -433,6 +495,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate strategy and analyzer metrics for regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Completed cerebro engine.
+        frame: Data and date range dictionary.
+        config: Test configuration.
+
+    Returns:
+        Dictionary of metrics asserted by the test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -472,6 +545,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute backtest once and return results and metrics.
+
+    Args:
+        plot: Whether to open a plot after execution.
+
+    Returns:
+        Tuple `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

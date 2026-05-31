@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Data file:
+        `tests/datas/XAUUSD_M15.csv` loaded from MT5 TSV source.
+    Symbol:
+        `XAUUSD`.
+    Timeframe:
+        `M15`, no additional resampling in this strategy harness.
+    Time range:
+        `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    Multi-data:
+        Single feed only.
+    Extra processing:
+        Shift all bar timestamps by 15 minutes using `bar_shift_minutes`.
+
+Strategy Principle:
+    The strategy combines engulfing candlestick confirmation with MFI/EMA context.
+    Long entries require a bullish engulfing pattern with MFI oversold confirmation.
+    Short entries require a bearish engulfing pattern with MFI overbought
+    confirmation.
+
+Strategy Logic:
+    `load_mt5_csv()` converts MT5 raw fields into normalized OHLCV bars.
+    `load_config()` and `_resolve_repo_paths()` provide deterministic test config.
+    `load_backtest_frame()` resolves file paths and applies date filtering.
+    `build_cerebro()` binds feed, strategy, and analyzers.
+    `MFI` computes interval-level money flow.
+    `EngulfingMFIStrategy.__init__()` initializes indicators and counters.
+    `EngulfingMFIStrategy.next()` evaluates candlestick + MFI conditions for
+    entry, reversal, and exit.
+    `extract_metrics()` consolidates performance and trade statistics.
+    `run()` executes the backtest and returns artifacts.
 """
 from __future__ import annotations
 import math
@@ -22,7 +54,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Engulfing + MFI',
-        'source_ea': 'ea/1340_MQL5_向导_-_基于_牛市_熊市_吞噬形态的交易信号_+_MFI',
+        'source_ea': 'ea/1340_MQL5_guide_bullish_bearish_engulfing_with_mfi',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -71,6 +103,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-format TSV data and normalize columns for Backtrader.
+
+    Args:
+        filepath (str | os.PathLike): Input file path.
+        fromdate (datetime.datetime | None): Optional inclusive start date filter.
+        todate (datetime.datetime | None): Optional inclusive end date filter.
+        bar_shift_minutes (int): Minutes to shift each bar timestamp.
+
+    Returns:
+        pandas.DataFrame: Normalized OHLCV dataframe indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -92,6 +135,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping for MT5 TSV-derived OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -104,9 +148,11 @@ class MFI(bt.Indicator):
     params = (('period', 14),)
 
     def __init__(self):
+        """Set minimum period before indicator outputs are valid."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Update money flow index from rolling period of raw price/volume."""
         period = self.p.period
         pos_flow = 0.0
         neg_flow = 0.0
@@ -141,6 +187,7 @@ class EngulfingMFIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize MFI/SMA indicators and strategy counters."""
         self.mfi = MFI(self.data, period=self.p.mfi_period)
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
@@ -152,6 +199,7 @@ class EngulfingMFIStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print timestamped messages for diagnostics."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -190,6 +238,7 @@ class EngulfingMFIStrategy(bt.Strategy):
                 o1 > c2)
 
     def next(self):
+        """Run engulfing/MFI evaluation and emit entry or exit/reversal orders."""
         self.bar_num += 1
         if len(self.data) < self.p.mfi_period + 5:
             return
@@ -228,6 +277,7 @@ class EngulfingMFIStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track trade counters at open and close events."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -252,11 +302,33 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data file path under this test module directory.
+
+    Args:
+        filename (str): Configured relative path.
+
+    Returns:
+        pathlib.Path: Absolute existing path.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load data and apply configured from/to date boundaries.
+
+    Args:
+        config (dict): Backtest/test configuration.
+
+    Returns:
+        dict: Contains `data`, `fromdate`, and `todate`.
+
+    Raises:
+        ValueError: If no data remains after filtering.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -267,6 +339,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build Cerebro and attach feed, strategy, and all analyzers.
+
+    Args:
+        config (dict): Configuration dict.
+        frame (dict): Filtered data frame context.
+
+    Returns:
+        bt.Cerebro: Prepared backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -284,6 +365,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract and normalize metrics for regression comparison.
+
+    Args:
+        strat (bt.Strategy): Finished strategy instance.
+        cerebro (bt.Cerebro): Backtest engine instance.
+        frame (dict): Backtest context.
+        config (dict): Test configuration.
+
+    Returns:
+        dict: Metric payload used by generated assertion block.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -304,6 +396,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Execute the regression run and return artifacts.
+
+    Args:
+        plot (bool): Render chart when True.
+
+    Returns:
+        tuple: `(results, metrics, cerebro)`.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

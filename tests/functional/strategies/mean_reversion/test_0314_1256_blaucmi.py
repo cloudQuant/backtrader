@@ -82,6 +82,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV export into an indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 data file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute shift for each bar timestamp.
+
+    Returns:
+        DataFrame indexed by datetime with normalized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +114,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping MT5 OHLCV columns from pandas frames."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -110,6 +123,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Resolve a moving-average name string to a Backtrader indicator class.
+
+    Args:
+        name: Method token from strategy config.
+
+    Returns:
+        Backtrader moving average class.
+    """
     mode = str(name).lower()
     if mode in {'mode_sma', 'sma'}:
         return bt.indicators.SimpleMovingAverage
@@ -121,6 +142,15 @@ def resolve_ma_class(name):
 
 
 def resolve_price_line(data, mode):
+    """Resolve a price selector token into a Backtrader line for arithmetic usage.
+
+    Args:
+        data: Backtrader data feed.
+        mode: Price selector string.
+
+    Returns:
+        Data feed line for the selected price.
+    """
     price_mode = str(mode).lower()
     if price_mode in {'price_close', 'close'}:
         return data.close
@@ -144,6 +174,8 @@ def resolve_price_line(data, mode):
 
 
 class BlauCMIIndicator(bt.Indicator):
+    """Compute the CMI oscillator from nested moving averages of momentum."""
+
     lines = ('value',)
     params = dict(
         xma_method='ema',
@@ -157,6 +189,7 @@ class BlauCMIIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Set up numerator/denominator moving averages for oscillator output."""
         ma_cls = resolve_ma_class(self.p.xma_method)
         price1 = resolve_price_line(self.data, self.p.ipc1)
         price2 = resolve_price_line(self.data, self.p.ipc2)
@@ -173,10 +206,12 @@ class BlauCMIIndicator(bt.Indicator):
         self.addminperiod(int(self.p.xlength1) + int(self.p.xlength2) + int(self.p.xlength3) + int(self.p.xlength) + 5)
 
     def next(self):
+        """Populate the indicator value on a per-bar basis."""
         den = float(self._denominator[0])
         self.lines.value[0] = 100.0 * float(self._numerator[0]) / den if den else 0.0
 
     def once(self, start, end):
+        """Compute indicator values in a vectorized range for Backtrader backfills."""
         numerator = self._numerator.array
         denominator = self._denominator.array
         value_line = self.lines.value.array
@@ -190,6 +225,8 @@ class BlauCMIIndicator(bt.Indicator):
 
 
 class BlauCMIStrategy(bt.Strategy):
+    """Trade indicator turning points with directional reversal handling."""
+
     params = dict(
         xma_method='ema',
         xlength=1,
@@ -204,6 +241,7 @@ class BlauCMIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach CMI indicator and initialize all counters/flags."""
         self.indicator = BlauCMIIndicator(
             self.data,
             xma_method=self.p.xma_method,
@@ -224,6 +262,7 @@ class BlauCMIStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Emit a timestamped diagnostic line."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -247,6 +286,7 @@ class BlauCMIStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Detect buy/sell transitions and manage open/close/reverse trades."""
         self.bar_num += 1
         warmup = int(self.p.xlength) + int(self.p.xlength1) + int(self.p.xlength2) + int(self.p.xlength3) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup + 2:
@@ -285,6 +325,7 @@ class BlauCMIStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update position counters on trade open and closed events."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -317,6 +358,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file relative to this file's parent directory.
+
+    Args:
+        filename: Relative filename from config.
+
+    Returns:
+        Absolute path to data file.
+
+    Raises:
+        FileNotFoundError: If resolved file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -324,6 +376,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and trim backtest bars according to the configured date range."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -340,6 +393,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create the execution engine with feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -363,6 +417,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect sharpe/returns/drawdown/trade metrics for assertion checks."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -403,6 +458,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the strategy and return results, metrics, and the Cerebro object."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

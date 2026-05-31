@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) base timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The base frame is
+    resampled to a 240-minute (H4) signal timeframe that drives the Extrem_N
+    indicator. Two feeds are delivered (M15 for execution, H4 for signals), both
+    priced as a futures-like instrument (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    The Extrem_N indicator flags higher-timeframe extremes by comparing the
+    current high/low against the high/low N bars back: a current high above the
+    reference high is an up-extreme, a current low below the reference low is a
+    down-extreme. A reversal entry triggers when a prior up-extreme is followed
+    by a current down-extreme (long) or the mirror (short). Risk is framed with
+    fixed point-based stop-loss and take-profit distances.
+
+Strategy Logic:
+    ``__init__`` binds the base and signal feeds and zeroes the trade counters.
+    ``_indicator_state`` derives the up/down extreme flags at a given bar offset.
+    ``next`` checks stop/take exits, then—once per new H4 bar—compares the prior
+    and current extreme states to open or close longs/shorts. ``notify_trade``
+    tracks buy/sell on open and win/loss on close. The module-level helpers load
+    the CSV, resample the signal frame, build the cerebro with analyzers, and
+    extract a metrics dictionary that the test compares against migration-time
+    expected values.
 """
 from __future__ import annotations
 import math
@@ -84,6 +111,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +149,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15/H4 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -121,6 +163,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ExtremNStrategy(bt.Strategy):
+    """Trade H4 Extrem_N extreme reversals on M15 with fixed stop/take-profit."""
+
     params = dict(
         period=9,
         signal_bar=1,
@@ -136,6 +180,7 @@ class ExtremNStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base and signal feeds and zero the trade/signal counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.bar_num = 0
@@ -149,6 +194,7 @@ class ExtremNStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print ``text`` prefixed with the current base bar's ISO timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -194,6 +240,7 @@ class ExtremNStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Check stop/take exits, then trade H4 extreme-reversal signals."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -239,6 +286,13 @@ class ExtremNStrategy(bt.Strategy):
                     self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track buy/sell on open and win/loss on close for each trade.
+
+        Args:
+            trade: The trade whose status changed; the first open bumps the
+                buy or sell counter and a close bumps the trade and win/loss
+                counters by sign of PnL.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -272,6 +326,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -279,6 +344,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and date-clip the OHLCV frame described by ``config['data']``.
+
+    Args:
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict with the loaded ``data`` frame plus ``fromdate`` and ``todate``.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -295,6 +371,16 @@ def load_backtest_frame(config):
 
 
 def build_signal_frame(df, indicator_minutes):
+    """Resample the base frame to the indicator timeframe for signal generation.
+
+    Args:
+        df: The base M15 OHLCV DataFrame indexed by datetime.
+        indicator_minutes: The target signal bar size in minutes.
+
+    Returns:
+        The resampled OHLCV frame with rows missing price data dropped and
+        openinterest gaps filled with zero.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -311,6 +397,18 @@ def build_signal_frame(df, indicator_minutes):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro with broker, base + resampled signal feeds, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dictionary.
+        frame: Output of :func:`load_backtest_frame`.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready to run.
+
+    Raises:
+        ValueError: If the resampled signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -346,6 +444,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro that ran the backtest.
+        frame: Output of :func:`load_backtest_frame`.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict of trade counts, returns, drawdown, Sharpe, SQN, and related
+        performance metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

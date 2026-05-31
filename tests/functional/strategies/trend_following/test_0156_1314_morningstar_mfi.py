@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD_M15 tick data loaded from tests/datas/XAUUSD_M15.csv.
+    - Timeframe is M15, sampled from 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - A 15-minute bar shift is applied when loading data (bar_shift_minutes).
+    - No secondary feeds or resampling steps are configured.
+
+Strategy Principle:
+    - Detects Morning Star / Evening Star price patterns and their doji variants.
+    - Requires Money Flow Index (MFI) confirmation before signaling entries.
+    - Long entries trigger when a bullish reversal pattern appears with MFI below an
+      oversold threshold; short entries trigger on bearish pattern with MFI above
+      an overbought threshold.
+    - Exits occur when MFI crosses back across configured overbought/oversold
+      boundaries, using position direction to avoid premature close.
+
+Strategy Logic:
+    - build_backtest_frame loads and filters M15 OHLCV bars within the configured
+      date window, then prepares parameters from the merged inlined config.
+    - build_cerebro wires broker settings, custom data feed, strategy class, and
+      backtest analyzers.
+    - Strategy next() updates per-bar state, checks warm-up, evaluates pattern signals
+      plus MFI levels, and submits market entries/exits.
+    - notify_trade() records buy/sell counts, closed-trade outcomes, and aggregate
+      counters for metrics.
+    - extract_metrics() reads analyzer outputs and serializes all expected metrics for
+      assertions in the inline regression test.
 """
 from __future__ import annotations
 import math
@@ -81,6 +108,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style data exported as tab-separated values into a backtrader-ready frame.
+
+    Args:
+        filepath: Input data file path.
+        fromdate: Optional earliest timestamp (inclusive) to include.
+        todate: Optional latest timestamp (inclusive) to include.
+        bar_shift_minutes: Optional minute offset applied to each bar timestamp.
+
+    Returns:
+        DataFrame indexed by ``datetime`` with standardized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +140,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Minimal pandas feed mapping for the normalized MT5 OHLCV dataframe."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,13 +149,20 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MoneyFlowIndex(bt.Indicator):
+    """Simple Money Flow Index indicator using an internal rolling money-flow calculation.
+
+    Args:
+        period: Lookback window used to aggregate positive and negative money flow.
+    """
     lines = ('mfi',)
     params = (('period', 14),)
 
     def __init__(self):
+        """Initialize minimum period required by the configured Money Flow Index window."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute positive and negative money flow for the window and output MFI 0..100."""
         positive_flow = 0.0
         negative_flow = 0.0
         for i in range(self.p.period):
@@ -153,6 +200,7 @@ class MorningStarMfiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create strategy indicators and initialize trade tracking counters."""
         self.mfi = MoneyFlowIndex(self.data, period=self.p.mfi_period)
         self.sma_body = bt.indicators.SMA(abs(self.data.close - self.data.open), period=self.p.ma_period)
         self.bar_num = 0
@@ -164,6 +212,7 @@ class MorningStarMfiStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Write a timestamped log line for runtime tracing."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -222,6 +271,7 @@ class MorningStarMfiStrategy(bt.Strategy):
                 o1 < c2 and c1 < c2)
 
     def next(self):
+        """Evaluate warm-up state, signal generation, and position close conditions each bar."""
         self.bar_num += 1
         warmup = max(self.p.mfi_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -254,6 +304,7 @@ class MorningStarMfiStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Capture per-trade lifecycle counters for regression metrics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -286,6 +337,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module directory.
+
+    Args:
+        filename: Relative path for a data source.
+
+    Returns:
+        Absolute path object for the resolved file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -293,6 +352,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build and validate the backtest dataframe range from inline config.
+
+    Args:
+        config: Inline merged strategy/backtest configuration.
+
+    Returns:
+        A dictionary containing dataframe and resolved date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -309,6 +376,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a Backtrader Cerebro engine.
+
+    Args:
+        config: Inline merged strategy/backtest configuration.
+        frame: Backtest frame data from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured Cerebro object ready to execute the strategy.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -332,6 +408,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect all strategy and analyzer statistics used by regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Backtrader engine used for the run.
+        frame: Loaded backtest data context.
+        config: Inline merged strategy/backtest configuration.
+
+    Returns:
+        Dictionary with deterministic metrics consumed by the test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -372,6 +459,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the strategy with the built config and return execution artifacts.
+
+    Args:
+        plot: Whether to show backtrader plot after execution.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

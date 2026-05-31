@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single MT5 daily CSV feed, ``XAUUSD_1d.csv`` (gold), referenced via
+    ``_CONFIG['data']`` and resolved under the repo's ``tests/datas`` tree.
+    Daily bars are clipped to 2008-01-01 through 2025-12-31. No resampling is
+    applied; a 200-period SMA and a binary trend signal are precomputed onto the
+    daily series before it is fed to the strategy.
+
+Strategy Principle:
+    A classic long-only SMA trend filter. The strategy assumes price trades in
+    persistent trends, so it holds gold only while the close is above its
+    200-day simple moving average and steps aside (flat) once price drops below
+    it. There is no shorting or stop loss; risk is controlled purely by exiting
+    to cash during downtrends.
+
+Strategy Logic:
+    1. ``load_data`` loads the gold CSV and ``prepare_sma_features`` adds the SMA
+       and the ``trend_signal`` (1 when close is above the SMA, else 0).
+    2. ``Mt5SMAFeed`` exposes the SMA and trend signal as extra data lines;
+       ``SMATrendFollowingStrategy.__init__`` resets the bar/trade counters.
+    3. ``next`` buys a notional-sized position when the trend signal turns
+       positive while flat and closes the position when it turns negative;
+       ``notify_order`` clears the pending order and ``notify_trade`` tallies
+       win/loss counts.
+    4. ``build_cerebro`` wires the feed, a futures-percent commission and the
+       Sharpe/Trade/DrawDown/Returns/SQN analyzers (Sharpe configured via
+       ``get_sharpe_analyzer_kwargs``); ``extract_metrics`` (with
+       ``finite_or_none`` and ``calculate_ulcer_index``) builds the metrics dict
+       and ``test_1_0001_sma_trend_following`` runs ``main`` under forced
+       ``runonce=True`` and asserts the captured expectations.
 """
 from __future__ import annotations
 import math
@@ -73,6 +103,23 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -99,6 +146,20 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_sma_features(df, params):
+    """Add the SMA and binary trend signal to a daily OHLCV frame.
+
+    Computes the rolling simple moving average over ``sma_period`` bars and a
+    ``trend_signal`` flag that is 1.0 when the close is above the SMA and 0.0
+    otherwise, then drops the moving-average warm-up rows.
+
+    Args:
+        df: Daily OHLCV DataFrame for gold.
+        params: Strategy parameter dictionary providing ``sma_period``.
+
+    Returns:
+        pandas.DataFrame: OHLCV plus ``sma`` and ``trend_signal`` columns with
+        warm-up NaNs removed.
+    """
     out = df.copy()
     sma_period = int(params.get('sma_period', 200))
     out['sma'] = out['close'].rolling(sma_period).mean()
@@ -108,6 +169,12 @@ def prepare_sma_features(df, params):
 
 
 class Mt5SMAFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the SMA and trend signal as extra lines.
+
+    Extends the standard OHLCV feed with the precomputed ``sma`` and
+    ``trend_signal`` columns so the strategy can read them directly.
+    """
+
     lines = ('sma', 'trend_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -117,9 +184,25 @@ class Mt5SMAFeed(bt.feeds.PandasData):
 
 
 class SMATrendFollowingStrategy(bt.Strategy):
+    """Long-only SMA trend-following strategy on a single asset.
+
+    Holds the asset while its close is above the precomputed SMA (``trend_signal``
+    is 1) and exits to cash when it falls below. Tracks bar and trade statistics
+    for the regression assertions.
+
+    Args:
+        sma_period: Period of the trend simple moving average.
+        lot_size: Notional fraction of broker value used to size the long.
+    """
+
     params = dict(sma_period=200, lot_size=1.0)
 
     def __init__(self):
+        """Reset bar, order and trade trackers for the run.
+
+        Initializes the bar/trade/win/loss counters, the pending-order handle
+        and the equity-value series.
+        """
         self.bar_num = 0
         self.trade_count = 0
         self.win_count = 0
@@ -143,6 +226,12 @@ class SMATrendFollowingStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Enter on a positive trend signal and exit when it turns negative.
+
+        Records equity, skips while an order is pending, then buys a
+        notional-sized long when flat and the trend signal is positive, or
+        closes the position when the trend signal drops below the threshold.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -159,11 +248,25 @@ class SMATrendFollowingStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
 
     def notify_order(self, order):
+        """Clear the pending-order handle once the order settles.
+
+        Ignores intermediate Submitted/Accepted states and resets the pending
+        order to ``None`` on any terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win and loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are
+                counted.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -175,7 +278,7 @@ class SMATrendFollowingStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""SMA Trend Following 策略回测"""
+"""SMA Trend Following strategy backtest."""
 
 
 
@@ -185,6 +288,19 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build SharpeRatio analyzer kwargs matching the data timeframe.
+
+    Inspects the configured timeframe string and returns the analyzer keyword
+    arguments (timeframe, compression, annualization factor) so the Sharpe ratio
+    is annualized consistently for minute, hourly or daily data.
+
+    Args:
+        config: Resolved configuration dictionary; its ``data.timeframe`` drives
+            the choice.
+
+    Returns:
+        dict: Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -197,10 +313,29 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return ``x`` when it is a finite, truthy number, else ``None``.
+
+    Args:
+        x: The numeric value to validate.
+
+    Returns:
+        The original value if it is truthy and finite, otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-value series.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, emphasizing deep and sustained declines.
+
+    Args:
+        values: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when fewer than two values exist.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -215,6 +350,18 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load gold daily data and derive the SMA feature frame.
+
+    Reads the configured date bounds, loads the gold CSV, and runs
+    ``prepare_sma_features`` to produce the enriched daily frame.
+
+    Args:
+        config: Resolved configuration dictionary (see ``load_config``).
+
+    Returns:
+        dict: Contains ``data`` (the feature DataFrame) and the parsed
+        ``fromdate`` and ``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -227,6 +374,20 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the cerebro engine, feed, commission and analyzers.
+
+    Creates a cerebro instance with the configured starting cash, attaches a
+    futures-percent commission, adds the SMA feed, registers the strategy with
+    its parameters, and attaches the Sharpe/Trade/DrawDown/Returns/SQN analyzers
+    (Sharpe configured via ``get_sharpe_analyzer_kwargs``).
+
+    Args:
+        frame: Loaded inputs dictionary from ``load_data``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        bt.Cerebro: The fully configured engine ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -249,6 +410,21 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Compile the performance metrics dictionary from a finished run.
+
+    Reads the Sharpe, returns, drawdown, trade and SQN analyzers, derives win
+    rate, profit factor, total/annual return, net PnL and the Ulcer Index, and
+    combines them with the strategy's own counters.
+
+    Args:
+        strat: The executed strategy instance carrying counters and analyzers.
+        cerebro: The cerebro engine used for the run (for final broker value).
+        frame: Loaded inputs dictionary from ``load_data``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        dict: Metric name to value mapping asserted by the test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -282,6 +458,17 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Convert a value into a JSON-serializable form.
+
+    Datetimes become ISO strings and non-finite floats become ``None``; all
+    other values pass through unchanged.
+
+    Args:
+        v: The value to normalize.
+
+    Returns:
+        A JSON-friendly representation of ``v``.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -293,6 +480,12 @@ def normalize(v):
 
 
 def main():
+    """Run the strategy end-to-end and compute its metrics.
+
+    Loads the config and data, builds the cerebro engine, runs the backtest, and
+    calls ``extract_metrics`` on the result. Used both as a script entry point
+    and as the hook the regression test invokes to capture metrics.
+    """
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

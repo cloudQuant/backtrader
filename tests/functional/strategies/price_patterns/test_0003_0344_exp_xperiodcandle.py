@@ -17,6 +17,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV export into DataFrame with spread for two-timeframe strategy.
+
+    Args:
+        filepath: MT5 CSV/TSV file path.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        Datetime-indexed DataFrame with OHLCV/spread columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -50,6 +61,7 @@ def _build_signal_frame(df, minutes):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed with spread line used by the signal/equity feeds."""
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -58,10 +70,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class XPeriodCandleColor(bt.Indicator):
+    """Smoothing-based period-candle indicator producing color index."""
     lines = ("color_idx", "xopen", "xclose", "xhigh", "xlow")
     params = dict(cperiod=5, ma_length=3)
 
     def __init__(self):
+        """Build smoothed OHLC components and set minimum bars."""
         self.smooth_open = bt.indicators.SimpleMovingAverage(self.data.open, period=self.p.ma_length)
         self.smooth_high = bt.indicators.SimpleMovingAverage(self.data.high, period=self.p.ma_length)
         self.smooth_low = bt.indicators.SimpleMovingAverage(self.data.low, period=self.p.ma_length)
@@ -69,6 +83,7 @@ class XPeriodCandleColor(bt.Indicator):
         self.addminperiod(self.p.ma_length + self.p.cperiod)
 
     def next(self):
+        """Compute synthetic candle and color value for the current bar."""
         lookback = max(1, int(self.p.cperiod))
         start = -(lookback - 1)
         xopen = float(self.smooth_open[start])
@@ -83,6 +98,7 @@ class XPeriodCandleColor(bt.Indicator):
 
 
 class ExpXPeriodCandleStrategy(bt.Strategy):
+    """Single signal-timeframe X-period candle strategy with stop and target exits."""
     params = dict(
         fixed_lot=0.1, risk_percent=0.0, point_size=0.01,
         stoploss_pips=1000, takeprofit_pips=2000,
@@ -94,6 +110,7 @@ class ExpXPeriodCandleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind execution/signal feeds and initialize risk/entry counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.channel = XPeriodCandleColor(self.signal_feed, cperiod=self.p.cperiod, ma_length=self.p.ma_length)
@@ -164,6 +181,7 @@ class ExpXPeriodCandleStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process one signal bar, enforce exit rules, and submit new orders."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -201,6 +219,7 @@ class ExpXPeriodCandleStrategy(bt.Strategy):
             self.order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Track entry fills and clear pending state on finalized orders."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -218,6 +237,7 @@ class ExpXPeriodCandleStrategy(bt.Strategy):
                 self.entry_side = None
 
     def notify_trade(self, trade):
+        """Update statistics when trades close and reset risk state."""
         if not trade.isclosed:
             return
         self.trade_count += 1

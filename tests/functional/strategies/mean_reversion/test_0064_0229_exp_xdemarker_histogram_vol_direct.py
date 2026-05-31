@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Loads XAUUSD M15 data from `tests/datas/XAUUSD_M15.csv`, resamples a
+    signal-specific copy to H2 while keeping a separate execution feed.
+    Backtest range is from 2025-12-03 01:15:00 to 2026-03-10 09:00:00 with
+    a 15-minute timestamp shift.
+
+Strategy Principle:
+    A custom indicator computes volume-adjusted DeMarker-based histogram values and
+    maps them into directional zones and direct colors.
+    Long/short actions are driven by direct color flips and optional reverse-close
+    behavior. Bracket orders manage risk when entries are accepted.
+
+Strategy Logic:
+    `XDeMarkerHistogramVolDirectIndicator` derives color/value lines from raw price
+    data. `ExpXDeMarkerHistogramVolDirectStrategy` consumes these flags to submit
+    entries and close/reverse operations.
+    `build_cerebro()` creates execution and signal feeds, registers analyzers, and
+    test assertions validate final metrics.
 """
 from __future__ import annotations
 import math
@@ -94,6 +113,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5-style CSV data.
+
+    Args:
+        filepath: CSV path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional shift applied to datetime index.
+
+    Returns:
+        Sorted DataFrame containing `datetime`, OHLC, volume, spread, and open interest.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -120,6 +150,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter including spread for migrated MT5 bar series."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -134,6 +165,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class XDeMarkerHistogramVolDirectIndicator(bt.Indicator):
+    """Indicator that calculates DeMarker histogram zone and direct trend color."""
     lines = ('value', 'color_zone', 'color_direct', 'upper2', 'upper1', 'lower1', 'lower2')
     params = dict(
         de_marker_period=14,
@@ -148,6 +180,7 @@ class XDeMarkerHistogramVolDirectIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize de_marker state deques and warm-up period."""
         self._demax = deque(maxlen=max(1, int(self.p.de_marker_period)))
         self._demin = deque(maxlen=max(1, int(self.p.de_marker_period)))
         self._raw = deque(maxlen=max(1, int(self.p.ma_length)))
@@ -172,6 +205,7 @@ class XDeMarkerHistogramVolDirectIndicator(bt.Indicator):
         return raw if math.isfinite(raw) else 0.0
 
     def next(self):
+        """Compute de_marker-derived raw value, smoothing, and colors."""
         if len(self.data) < 2:
             for line in self.lines:
                 line[0] = self._nan()
@@ -244,6 +278,7 @@ class XDeMarkerHistogramVolDirectIndicator(bt.Indicator):
 
 
 class ExpXDeMarkerHistogramVolDirectStrategy(bt.Strategy):
+    """Dual-feed strategy using DeMarker histogram and bracket-style risk orders."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -270,6 +305,7 @@ class ExpXDeMarkerHistogramVolDirectStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, indicator, orders, and performance counters."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = XDeMarkerHistogramVolDirectIndicator(
@@ -295,6 +331,11 @@ class ExpXDeMarkerHistogramVolDirectStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print timestamped strategy log message.
+
+        Args:
+            text: Message string.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -368,6 +409,7 @@ class ExpXDeMarkerHistogramVolDirectStrategy(bt.Strategy):
         self.log(f'CLOSE size={self.position.size} reason={reason}')
 
     def next(self):
+        """Evaluate signals and submit/reverse orders on each signal bar."""
         min_bars = max(int(self.p.de_marker_period), int(self.p.ma_length)) + 5
         if len(self.signal_data) < min_bars:
             return
@@ -400,6 +442,7 @@ class ExpXDeMarkerHistogramVolDirectStrategy(bt.Strategy):
             self._submit_entry('short', 'falling direct color')
 
     def notify_order(self, order):
+        """Track order lifecycle and clear/refresh dependent bracket orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -434,6 +477,7 @@ class ExpXDeMarkerHistogramVolDirectStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Record closed trade outcome into win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -455,6 +499,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path under the current test directory.
+
+    Args:
+        filename: Relative file path string.
+
+    Returns:
+        Existing absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -462,12 +514,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime string safely.
+
+    Args:
+        value: Datetime string or falsy value.
+
+    Returns:
+        datetime object or None when input is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load base data frame from config dates for backtest.
+
+    Args:
+        config: Inlined configuration dictionary.
+
+    Returns:
+        Dict containing loaded bars.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -479,6 +547,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach default analyzers used by all migrated strategy checks.
+
+    Args:
+        cerebro: Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -487,6 +560,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample bars using fixed aggregation rules.
+
+    Args:
+        df: Base frame with datetime index.
+        minutes: Resampling interval in minutes.
+
+    Returns:
+        Resampled DataFrame with normalized columns.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -496,6 +578,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with execution and signal feeds plus analyzers.
+
+    Args:
+        config: Full config object.
+        frame: Loaded market frame.
+
+    Returns:
+        Prepared Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -513,6 +604,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numeric values to None.
+
+    Args:
+        value: Numeric value candidate.
+
+    Returns:
+        Float value if finite, otherwise None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -521,6 +620,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print summary of backtest metrics.
+
+    Args:
+        results: Cerebro run results.
+        start_value: Initial account value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -547,6 +652,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the strategy in standalone mode and optionally plot."""
     parser = argparse.ArgumentParser(description='Run Exp_XDeMarker_Histogram_Vol_Direct backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

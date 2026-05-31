@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` with
+    ``fromdate=2025-12-03 01:15:00`` and ``todate=2026-03-10 09:00:00``.
+    A resampled H4-style signal frame is derived for MBK trend-arrow extraction.
+
+Strategy Principle:
+    Precomputes a weighted Williams %R composite and detects swing-based buy/sell
+    arrows on the signal frame. Signals drive crossover-style entries/exits on the
+    execution feed with fixed stop-loss and take-profit levels.
+
+Strategy Logic:
+    The module loads MT5 data, builds an additional signal dataframe with resampled
+    arrow levels, injects both feeds into Backtrader, then runs strategy and collects
+    analyzer metrics for deterministic assertion checks.
 """
 from __future__ import annotations
 import math
@@ -92,6 +107,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars and return a normalized OHLCV dataframe.
+
+    Args:
+        filepath: Source CSV path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Timestamp shift in minutes.
+
+    Returns:
+        pd.DataFrame: Datetime-indexed OHLCV data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -113,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Execution feed mapping MT5 columns to Backtrader OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -120,6 +147,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class MbkAsctrend3Feed(btfeeds.PandasData):
+    """Signal feed that carries computed buy/sell arrow levels."""
     lines = ('sell_arrow', 'buy_arrow')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -128,6 +156,15 @@ class MbkAsctrend3Feed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV data to a coarser signal timeframe.
+
+    Args:
+        df: Source dataframe with datetime index.
+        indicator_minutes: Target resample interval in minutes.
+
+    Returns:
+        pd.DataFrame: Resampled dataframe with standard OHLCV columns.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -143,6 +180,8 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def wpr_series(high_series, low_series, close_series, period):
+    """Compute Williams %R series for the provided rolling period."""
+    # Note: this is a plain pandas implementation used by the offline preprocessor.
     period = int(period)
     high = pd.Series(high_series, dtype=float).reset_index(drop=True)
     low = pd.Series(low_series, dtype=float).reset_index(drop=True)
@@ -155,6 +194,23 @@ def wpr_series(high_series, low_series, close_series, period):
 
 
 def build_mbkasctrend3_frame(df, indicator_minutes, wpr1_len, wpr2_len, wpr3_len, swing, aver_swing, w1, w2, w3):
+    """Build the two-arrow signal frame used by :class:`MbkAsctrend3Strategy`.
+
+    Args:
+        df: Source OHLCV dataframe.
+        indicator_minutes: Signal resample interval.
+        wpr1_len: Shortest Williams %R period.
+        wpr2_len: Medium Williams %R period.
+        wpr3_len: Longest Williams %R period.
+        swing: Arrow swing threshold offset.
+        aver_swing: Average swing offset for trend confirmation.
+        w1: Weight for shortest WPR component.
+        w2: Weight for medium WPR component.
+        w3: Weight for longest WPR component.
+
+    Returns:
+        pd.DataFrame: Data enriched with ``sell_arrow`` and ``buy_arrow`` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     high = signal_df['high'].astype(float).reset_index(drop=True)
     low = signal_df['low'].astype(float).reset_index(drop=True)
@@ -211,6 +267,7 @@ def build_mbkasctrend3_frame(df, indicator_minutes, wpr1_len, wpr2_len, wpr3_len
 
 
 class MbkAsctrend3Strategy(bt.Strategy):
+    """Signal-driven strategy using precomputed buy/sell arrows from MBK preprocessing."""
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -233,6 +290,7 @@ class MbkAsctrend3Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, size state, and all running counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -246,6 +304,11 @@ class MbkAsctrend3Strategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Log strategy events with base timeframe timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -293,6 +356,7 @@ class MbkAsctrend3Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Handle signal/bar transitions and open/close logic for each execution bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -358,6 +422,7 @@ class MbkAsctrend3Strategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track open/close trade states and outcome counters."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -391,6 +456,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path from test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -398,6 +464,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the backtest dataframe and provide common metadata.
+
+    Args:
+        config: Test configuration dictionary.
+
+    Returns:
+        dict: Backtest payload containing dataframe and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -414,6 +488,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Backtrader Cerebro for MBK strategy run."""
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -461,6 +536,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer results and strategy counters into test metrics."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -502,6 +578,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the strategy once and return results with metrics."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

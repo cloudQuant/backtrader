@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` (MT5 TSV export),
+    shifted by ``bar_shift_minutes`` and clipped to configured from/to dates.
+
+Strategy Principle:
+    Precipice is a probabilistic entry strategy that randomly opens long/short
+    positions when flat and uses symmetric fixed stop-loss/take-profit exits.
+
+Strategy Logic:
+    Each new bar, if no position is open, it draws one random decision and
+    opens a position based on configured direction flags. On entry fills it
+    immediately places paired protective OCO stop/limit exits, then updates trade
+    counters on close.
 """
 from __future__ import annotations
 import math
@@ -83,6 +97,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 TSV data as Backtrader OHLCV input.
+
+    Args:
+        filepath: Path to MT5 CSV export.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute offset for bar times.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -109,6 +134,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Standard Backtrader feed with an extra spread line for MT5 data."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -117,6 +143,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class PrecipiceStrategy(bt.Strategy):
+    """Randomized baseline strategy with fixed stop-loss/take-profit exits."""
     params = dict(
         fixed_lot=1.0,
         point_size=0.01,
@@ -127,6 +154,7 @@ class PrecipiceStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Set up deterministic random generator and state counters."""
         self.rng = random.Random(int(self.p.random_seed))
         self.last_bar_dt = None
         self.stop_order = None
@@ -139,6 +167,7 @@ class PrecipiceStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Log event text with current bar timestamp."""
         dt = bt.num2date(self.datas[0].datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -170,6 +199,7 @@ class PrecipiceStrategy(bt.Strategy):
             self.limit_order = self.buy(size=size, exectype=bt.Order.Limit, price=self.position.price - distance, oco=self.stop_order)
 
     def next(self):
+        """Open positions on new bars and route random directional logic."""
         self.bar_num += 1
         if not self._new_bar():
             return
@@ -197,6 +227,7 @@ class PrecipiceStrategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size} roll={roll:.5f} forced=sell_only')
 
     def notify_order(self, order):
+        """Track filled/cancelled exit and entry orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -221,6 +252,7 @@ class PrecipiceStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update counters once each trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -249,6 +281,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a path within the test module and validate existence.
+
+    Args:
+        filename: Relative file name.
+
+    Returns:
+        Absolute path to the file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -256,12 +296,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime string, allowing empty/null values.
+
+    Args:
+        value: ISO datetime string or falsy value.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load backtest frame and date boundaries from config.
+
+    Args:
+        config: Inline strategy configuration.
+
+    Returns:
+        Dictionary with frame data and from/to datetimes.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -273,6 +329,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro engine with strategy/analyzers.
+
+    Args:
+        config: Inline configuration.
+        frame: Backtest frame from ``load_backtest_frame``.
+
+    Returns:
+        Prepared ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -291,6 +356,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numeric values to ``None`` for metric safety."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -299,6 +365,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Extract regression metrics from strategy and analyzers.
+
+    Args:
+        results: Cerebro results tuple/list.
+        start_value: Initial cash before run.
+
+    Returns:
+        Dictionary of deterministic metric values.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -336,6 +411,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Execute the strategy once and return run outputs.
+
+    Args:
+        plot: Whether to render candlestick chart after run.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

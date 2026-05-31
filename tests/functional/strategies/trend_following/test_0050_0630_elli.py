@@ -80,6 +80,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 TSV file into a standard OHLCV DataFrame.
+
+    Args:
+        filepath: MT5 export filepath.
+        fromdate: Optional inclusive start datetime filter.
+        todate: Optional inclusive end datetime filter.
+        bar_shift_minutes: Optional minute offset applied to each bar timestamp.
+
+    Returns:
+        A DataFrame indexed by datetime with OHLCV/openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +114,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter for inlined MT5 CSV OHLCV frames."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -131,6 +144,7 @@ class ElliStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build indicators and initialize state counters."""
         self.ichimoku = bt.indicators.Ichimoku(
             self.data,
             tenkan=self.p.tenkan,
@@ -206,6 +220,7 @@ class ElliStrategy(bt.Strategy):
         return None
 
     def next(self):
+        """Advance strategy by one bar and execute signal generation/management."""
         self.bar_num += 1
         if len(self) < max(self.p.tenkan, self.p.kijun, self.p.senkou_b, self.p.adx_period) + 30:
             return
@@ -228,6 +243,11 @@ class ElliStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and clear active working order.
+
+        Args:
+            order: Order object updated by the broker.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -243,6 +263,11 @@ class ElliStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades into win/loss statistics.
+
+        Args:
+            trade: Trade object from Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -262,11 +287,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve and validate the configured data file path.
+
+    Args:
+        filename: Relative filename from configuration.
+
+    Returns:
+        Absolute path to existing file.
+
+    Raises:
+        FileNotFoundError: If file cannot be found.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load backtest dataframe and return metadata boundaries.
+
+    Args:
+        config: Configuration dictionary containing data section.
+
+    Returns:
+        Mapping with ``data``, ``fromdate`` and ``todate``.
+
+    Raises:
+        ValueError: If loaded data is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -276,6 +323,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Construct a configured Cerebro instance with feed, strategy, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Loaded payload from :func:`load_backtest_frame`.
+
+    Returns:
+        A ready-to-run :class:`backtrader.Cerebro` instance.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -292,6 +348,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and normalize metrics for regression assertions.
+
+    Args:
+        strat: Strategy instance returned by Cerebro.
+        cerebro: Completed Cerebro object.
+        frame: Backtest payload with data and date bounds.
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary of aggregate metrics for test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -310,6 +377,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Execute the backtest and return results, metrics, and cerebro.
+
+    Args:
+        plot: Whether to render cerebro.plot().
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

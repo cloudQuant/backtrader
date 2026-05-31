@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 1-minute OHLCV data from ``tests/datas/XAUUSD_M1.csv`` and
+    resamples it to a 60-minute frame for trading logic.
+    The strategy runs from ``2025-12-03 00:00:00`` to ``2026-03-17 23:59:59``.
+
+Strategy Principle:
+    Trades stochastic cross events using %K and %D line crosses on H1 candles,
+    entering long when a bullish cross occurs and short when a bearish cross occurs.
+    It applies fixed stop-loss/take-profit brackets, reversals on opposite signals,
+    and a cooldown interval between successive entries.
+
+Strategy Logic:
+    Build an H1 feed by resampling 1-minute input bars, initialize stochastic
+    and crossover signals, place bracket entries when crossover conditions and
+    cooldown checks pass, handle reversal and exit order bookkeeping in callbacks,
+    then collect analyzer metrics for assertion checks.
 """
 from __future__ import annotations
 import math
@@ -22,7 +39,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Stoch Cross EA H1',
-        'source_ea': 'scripts/0060_Stoch_Cross_EA_-_在_20_点以下买入，在_80_点以上卖出（H1�?stochasticfrizt1810update.mq5',
+        'source_ea': 'scripts/0060_Stoch_Cross_EA_-_Buy_below_20_sell_above_80_H1_stochasticfrizt1810update.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -81,6 +98,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 CSV data into a Backtrader-friendly dataframe.
+
+    Args:
+        filepath: Path to the source MT5 CSV.
+        fromdate: Optional lower bound datetime.
+        todate: Optional upper bound datetime.
+        bar_shift_minutes: Optional minute offset for datetime index.
+
+    Returns:
+        DataFrame indexed by datetime containing OHLCV + openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -106,6 +134,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Data feed extension for MT5-formatted OHLCV fields."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -118,6 +147,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class StochCrossEAH1Strategy(bt.Strategy):
+    """Stochastic cross strategy with H1 crossover entries and bracket exits."""
     params = dict(
         risk_percent=5.0,
         stoch_k_period=14,
@@ -134,6 +164,7 @@ class StochCrossEAH1Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order handles, and trading counters."""
         self.data_feed = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.stoch = bt.indicators.Stochastic(
             self.data_feed,
@@ -156,6 +187,11 @@ class StochCrossEAH1Strategy(bt.Strategy):
         self.pending_reentry_direction = None
 
     def log(self, text):
+        """Print timestamped diagnostic logs.
+
+        Args:
+            text: Message to print.
+        """
         dt = bt.num2date(self.data_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -209,6 +245,7 @@ class StochCrossEAH1Strategy(bt.Strategy):
             self.close_order.addinfo(kind='close_long')
 
     def next(self):
+        """Handle entry, reversal, and cooldown gating for each bar."""
         self.bar_num += 1
         min_bars = self.p.stoch_k_period + self.p.slowing + self.p.stoch_d_period
         if len(self.data_feed) < min_bars:
@@ -234,6 +271,7 @@ class StochCrossEAH1Strategy(bt.Strategy):
             self._submit_short_bracket()
 
     def notify_order(self, order):
+        """Update state and counters when orders complete, fail, or close."""
         if order.status in (order.Submitted, order.Accepted):
             return
         kind = getattr(order.info, 'kind', None)
@@ -270,6 +308,7 @@ class StochCrossEAH1Strategy(bt.Strategy):
             self.close_order = None
 
     def notify_trade(self, trade):
+        """Track closed trades and maintain win/loss statistics."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -290,6 +329,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path for a configured file path.
+
+    Args:
+        filename: Configured file reference.
+
+    Returns:
+        Absolute path to the data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -297,6 +344,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter source bars for the configured test date window.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary containing filtered dataframe and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -313,6 +368,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach performance analyzers used by assertion checks.
+
+    Args:
+        cerebro: Cerebro instance to register analyzers on.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -321,6 +381,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample intraday bars to a larger timeframe.
+
+    Args:
+        df: Base-timeframe DataFrame.
+        minutes: Target resample window in minutes.
+
+    Returns:
+        Aggregated and cleaned dataframe.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -336,6 +405,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with broker settings, resampled feed, strategy, and analyzers.
+
+    Args:
+        config: Full strategy/backtest config.
+        frame: Output of :func:`load_backtest_frame`.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -361,6 +439,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None for non-finite numeric values.
+
+    Args:
+        value: Candidate value.
+
+    Returns:
+        ``None`` if non-finite, otherwise original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -370,6 +456,17 @@ def finite_or_none(value):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble standardized test metrics from strategy and analyzers.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Backtest engine used for execution.
+        frame: Input frame metadata.
+        config: Test configuration.
+
+    Returns:
+        Dictionary of key backtest KPIs and trade counters.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -410,12 +507,21 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def print_metrics(metrics):
+    """Print a flat key/value representation of metric values."""
     print('Backtest metrics:')
     for key, value in metrics.items():
         print(f'  {key}: {value}')
 
 
 def run_backtest(config):
+    """Run the full backtest flow and return extracted metrics.
+
+    Args:
+        config: Strategy and backtest configuration.
+
+    Returns:
+        Metrics dictionary produced by :func:`extract_metrics`.
+    """
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
     strategies = cerebro.run()
@@ -426,6 +532,11 @@ def run_backtest(config):
 
 
 def parse_args():
+    """Parse command-line arguments (compatibility helper).
+
+    Returns:
+        Parsed arguments namespace with default placeholders.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='config.yaml')
     return parser.parse_args()

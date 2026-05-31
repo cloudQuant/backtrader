@@ -7,6 +7,18 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 data from ``tests/datas/XAUUSD_M15.csv``.
+    The backtest period is from ``2025-12-03 01:15:00`` through ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Uses a custom CCI-style momentum oscillator and enforces bracketed entries on
+    threshold breaches with stop-loss/take-profit controls.
+
+Strategy Logic:
+    Load MT5 bars, build a Pandas feed with spread, run safe CCI and strategy logic,
+    process order/trade events, then check analyzer-derived regression metrics.
 """
 from __future__ import annotations
 import math
@@ -76,6 +88,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted bars and normalize to OHLCV format.
+
+    Args:
+        filepath: Path to MT5 TSV file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional shift in minutes for bar timestamps.
+
+    Returns:
+        A DataFrame indexed by datetime with OHLCV fields and spread.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -102,6 +125,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed extension that includes a spread data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -116,13 +140,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SafeCCI(bt.Indicator):
+    """Safe Commodity Channel Index indicator with guarded zero-variance handling."""
     lines = ('cci',)
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize CCI period warm-up requirement."""
         self.addminperiod(self.p.period + 3)
 
     def next(self):
+        """Compute CCI value for the current bar with mean deviation protection."""
         typical_prices = []
         for idx in range(self.p.period):
             typical_prices.append((float(self.data.high[-idx]) + float(self.data.low[-idx]) + float(self.data.close[-idx])) / 3.0)
@@ -136,6 +163,7 @@ class SafeCCI(bt.Indicator):
 
 
 class FTCCIStrategy(bt.Strategy):
+    """CCI-driven mean-reversion strategy with bracket orders and reversals."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -147,6 +175,7 @@ class FTCCIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, positions, and order tracking state."""
         self.data0_feed = self.datas[0]
         self.cci = SafeCCI(self.data0_feed, period=self.p.cci_period)
         self.entry_order = None
@@ -158,10 +187,16 @@ class FTCCIStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Emit timestamped log text.
+
+        Args:
+            text: Message text to output.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run primary bar logic while backtrader is still in warm-up."""
         self.next()
 
     def _new_bar(self):
@@ -206,6 +241,7 @@ class FTCCIStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate CCI thresholds and schedule entry, close, and reversals."""
         if len(self.data0_feed) < self.p.cci_period + 3:
             return
         if not self._new_bar():
@@ -230,6 +266,11 @@ class FTCCIStrategy(bt.Strategy):
                 self._submit_entry('short', 'cci above upper level')
 
     def notify_order(self, order):
+        """Handle completed or canceled orders and clear related state.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -269,6 +310,11 @@ class FTCCIStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log closed trades and clear active side when flat.
+
+        Args:
+            trade: Closed trade object.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -286,6 +332,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path relative to this test file.
+
+    Args:
+        filename: Configured data path token.
+
+    Returns:
+        Absolute path of the requested file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -293,12 +347,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse date-time config strings from YAML-style settings.
+
+    Args:
+        value: Datetime string or empty value.
+
+    Returns:
+        Parsed datetime instance or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest frame from config input.
+
+    Args:
+        config: Migrated configuration dictionary.
+
+    Returns:
+        Dict containing one key, ``data``, mapped to a DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -310,6 +380,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach analyzer components required by downstream metric assertions.
+
+    Args:
+        cerebro: The Cerebro instance to enrich.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -318,6 +393,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build a prepared Cerebro test environment for strategy execution.
+
+    Args:
+        config: Backtest and strategy configuration.
+        frame: Dictionary containing normalized data frame.
+
+    Returns:
+        Configured Cerebro object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -332,6 +416,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numeric values to ``None``.
+
+    Args:
+        value: Metric value candidate.
+
+    Returns:
+        ``None`` for None/non-finite values, else original input.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -340,6 +432,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print aggregated backtest metrics from analyzer output.
+
+    Args:
+        results: Output of ``cerebro.run``.
+        start_value: Starting portfolio value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -366,6 +464,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Execute the FT_CCI backtest and optional plotting."""
     parser = argparse.ArgumentParser(description='Run FT_CCI backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

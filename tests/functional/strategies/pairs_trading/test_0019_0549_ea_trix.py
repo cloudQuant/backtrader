@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the M15 (15-minute) timeframe loaded from the MT5
+    export ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. A
+    single M15 feed drives both TRIX indicators.
+
+Strategy Principle:
+    A port of the MT5 expert advisor EA_Trix. TRIX is the rate of change of a
+    triple-smoothed EMA, a momentum oscillator that filters out short-term
+    noise. The strategy runs two TRIX lines — a slower main line and a faster
+    signal line — and trades their crossovers: a signal-over-main cross is a buy
+    and the reverse is a sell. Positions are protected with fixed point stop-loss
+    and take-profit levels plus break-even and trailing-stop management, and
+    reverse on the opposite crossover.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_cerebro wires the feed,
+    commission, the two-TRIX strategy, and analyzers. Each bar (after warm-up)
+    the strategy reads the crossover at the configured bar, reverses on an
+    opposite signal (closing then arming the new direction), manages stop/
+    take-profit/break-even/trailing protection while in a position, and opens a
+    new long/short on a fresh crossover when flat. notify_order counts fills and
+    clears protection on close; notify_trade tallies win/loss. extract_metrics
+    consolidates analyzer output; the test hooks the metric extractor, forces
+    runonce=True via run(), and asserts each metric against migration-time
+    values.
 """
 from __future__ import annotations
 import math
@@ -80,6 +107,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,27 +143,41 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class TripleEmaRate(bt.Indicator):
+    """TRIX: the bar-over-bar rate of change of a triple-smoothed EMA."""
+
     lines = ('value',)
     params = (('period', 14),)
 
     def __init__(self):
+        """Build the three chained EMAs and set the minimum warm-up period."""
         self.ema1 = bt.ind.EMA(self.data, period=self.p.period)
         self.ema2 = bt.ind.EMA(self.ema1, period=self.p.period)
         self.ema3 = bt.ind.EMA(self.ema2, period=self.p.period)
         self.addminperiod(self.p.period * 3 + 2)
 
     def next(self):
+        """Emit the fractional change of the triple EMA versus the prior bar."""
         prev = float(self.ema3[-1])
         self.lines.value[0] = (float(self.ema3[0]) - prev) / prev if prev else 0.0
 
 
 class EATrixStrategy(bt.Strategy):
+    """Trade TRIX signal/main crossovers with brackets and trailing stops.
+
+    Runs a slower main TRIX and a faster signal TRIX, entering long when the
+    signal crosses above the main (short on the reverse), protecting positions
+    with fixed point stop-loss/take-profit plus break-even and trailing logic,
+    and reversing on the opposite crossover.
+    """
+
     params = dict(
         period_ema=14,
         signal_period=8,
@@ -139,6 +193,7 @@ class EATrixStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the main and signal TRIX indicators and reset order state."""
         self.trix = TripleEmaRate(self.data.close, period=int(self.p.period_ema))
         self.signal = TripleEmaRate(self.data.close, period=int(self.p.signal_period))
         self.bar_num = 0
@@ -218,6 +273,14 @@ class EATrixStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Act on TRIX crossovers and manage protection each bar.
+
+        Increments the bar counter and skips during warm-up or while an order is
+        pending. It arms a pending reversal once flat, reverses an open position
+        on an opposite crossover, manages stop/take-profit/break-even/trailing
+        protection while in a position, and opens a new long/short on a fresh
+        crossover when flat.
+        """
         self.bar_num += 1
         if len(self) < max(int(self.p.period_ema), int(self.p.signal_period)) * 3 + 5:
             return
@@ -250,6 +313,15 @@ class EATrixStrategy(bt.Strategy):
             self._arm('sell', float(self.data.close[0]))
 
     def notify_order(self, order):
+        """Track fills and clear protection state on order completion.
+
+        Args:
+            order: The order whose status changed.
+
+        Counts completed orders and buy/sell fills, resets stop/take-profit
+        levels when a close flattens the position, tallies rejected orders, and
+        clears the pending-order reference once the tracked order settles.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -268,6 +340,14 @@ class EATrixStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Tally winning and losing trades as they close.
+
+        Args:
+            trade: The trade reported by the broker; only closed trades count.
+
+        Increments the trade counter and routes the result to the win or loss
+        tally based on the sign of commission-adjusted PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -291,6 +371,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an existing absolute path.
+
+    Args:
+        filename: Path or filename to resolve relative to this test file.
+
+    Returns:
+        The resolved absolute Path.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -298,6 +389,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 OHLCV frame for the configured date range.
+
+    Args:
+        config: Parsed configuration dict providing the ``data`` section.
+
+    Returns:
+        A dict with the loaded DataFrame plus the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded frame contains no rows.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -309,6 +412,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro engine with the feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration dict with ``backtest``, ``data``, and
+            ``params`` sections.
+        frame: The frame dict produced by load_backtest_frame.
+
+    Returns:
+        A configured Cerebro instance ready to run the EA_Trix backtest.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -327,6 +440,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding signal/trade counters.
+        cerebro: The Cerebro engine used to read final portfolio value.
+        frame: The frame dict providing bar count and date range.
+        config: Parsed configuration dict supplying the initial cash.
+
+    Returns:
+        A dict of summary metrics (counts, PnL, return, win rate, Sharpe,
+        drawdown, SQN) used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -354,6 +479,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full EA_Trix backtest and return its results.
+
+    Args:
+        plot: If True, render the Cerebro chart after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro): the strategy result list, the
+        extracted metrics dict, and the Cerebro instance.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

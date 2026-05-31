@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) daily data from 2008-01-01 to 2025-12-31.
+    Derived features: daily returns, consecutive down day count, and entry signals.
+
+Strategy Principle:
+    A mean-reversion strategy that looks for short clusters of consecutive down
+    days and buys after sustained short-term decline, with a forced exit after a
+    fixed holding period.
+
+Strategy Logic:
+    __init__: Track bars, counters, pending order state, entry timestamp, and
+        broker value history for ulcer-index calculation.
+    next(): While flat, open a position when consecutive down-day count enters the
+        configured [min, max] band. While in position, exit at the end of the
+        holding period.
+    notify_order(): Clear the pending-order guard when an order is finalised.
+    notify_trade(): Increment trade counters based on closed-trade PnL.
+    test_8_0008_consecutive_down_days(): Run a single backtest pass and assert
+        all regression metrics against expected values.
 """
 from __future__ import annotations
 import math
@@ -76,6 +96,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,17 +123,17 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_consecutive_down_features(df, params):
-    """准备连续下跌日均值回归策略特征"""
+    """Prepare feature series for the consecutive-down-days strategy."""
     out = df.copy()
     threshold = float(params.get('down_day_threshold', -0.001))
     
-    # 计算日收益率
+    # Calculate daily returns.
     out['daily_return'] = out['close'].pct_change()
     
-    # 判断是否为下跌日
+    # Flag potential down days.
     out['is_down_day'] = (out['daily_return'] < threshold).astype(float)
     
-    # 计算连续下跌天数
+    # Count consecutive down days.
     out['consecutive_down'] = 0
     count = 0
     for i in range(len(out)):
@@ -122,7 +143,7 @@ def prepare_consecutive_down_features(df, params):
             count = 0
         out.loc[out.index[i], 'consecutive_down'] = count
     
-    # 入场信号：连续下跌天数在[min, max]范围内
+    # Generate entry signal when consecutive down days are in the configured band.
     min_days = int(params.get('min_consecutive_days', 3))
     max_days = int(params.get('max_consecutive_days', 5))
     out['entry_signal'] = ((out['consecutive_down'] >= min_days) & 
@@ -134,6 +155,7 @@ def prepare_consecutive_down_features(df, params):
 
 
 class Mt5ConsecutiveDownFeed(bt.feeds.PandasData):
+    """Backtrader feed that exposes consecutive down-day strategy feature lines."""
     lines = ('daily_return', 'consecutive_down', 'entry_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -143,6 +165,7 @@ class Mt5ConsecutiveDownFeed(bt.feeds.PandasData):
 
 
 class ConsecutiveDownDaysStrategy(bt.Strategy):
+    """Mean-reversion strategy driven by consecutive-down-day entry criteria."""
     params = dict(
         down_day_threshold=-0.001,
         min_consecutive_days=3,
@@ -152,6 +175,7 @@ class ConsecutiveDownDaysStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, order state and broker value history."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -178,13 +202,14 @@ class ConsecutiveDownDaysStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar, apply exit-on-hold-timeout then entry-on-signal logic."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
         if self.pending_order is not None:
             return
         
-        # 有持仓时检查出场
+        # Check exits first when in position.
         if self.position:
             bars_held = self.bar_num - self.entry_bar
             if bars_held >= self.p.holding_period:
@@ -192,18 +217,20 @@ class ConsecutiveDownDaysStrategy(bt.Strategy):
                 self.pending_order = self.close()
             return
         
-        # 无持仓时检查入场
+        # Check entry when flat.
         if float(self.data.entry_signal[0]) > 0.5:
             self.buy_count += 1
             self.entry_bar = self.bar_num
             self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
 
     def notify_order(self, order):
+        """Clear pending-order flag when order is no longer active."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Count a completed trade as win or loss."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -215,7 +242,7 @@ class ConsecutiveDownDaysStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Consecutive Down Days Mean Reversion 策略回测"""
+"""Consecutive Down Days Mean Reversion strategy backtest."""
 
 
 
@@ -225,6 +252,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build Sharpe analyzer kwargs derived from the configured timeframe.
+
+    Args:
+        config: Strategy configuration including ``data.timeframe``.
+
+    Returns:
+        Keyword argument mapping for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -237,10 +272,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return a finite value or ``None`` for empty/non-finite analyzer output.
+
+    Args:
+        x: Input from Backtrader analyzer metrics.
+
+    Returns:
+        The value when finite and truthy; otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the ulcer index from a broker-value time series.
+
+    Args:
+        values: Ordered iterable of broker values.
+
+    Returns:
+        Ulcer index value as float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -255,6 +306,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and prepare the strategy feature frame from historical data."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -268,6 +320,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Configure Cerebro with feed, strategy, and analyzers for this strategy.
+
+    Args:
+        frame: Prepared input payload with keys ``data``, ``fromdate`` and ``todate``.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Fully configured ``bt.Cerebro`` instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -290,6 +351,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer and strategy counters for regression assertions.
+
+    Args:
+        strat: Strategy object returned by ``cerebro.run``.
+        cerebro: Cerebro engine after execution.
+        frame: Input payload used for backtest execution.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary containing all test assertion fields.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -324,6 +396,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Serialize values used in exported outputs.
+
+    Args:
+        v: Value to normalize.
+
+    Returns:
+        ISO timestamp for datetime values, ``None`` for non-finite floats,
+        otherwise unchanged value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

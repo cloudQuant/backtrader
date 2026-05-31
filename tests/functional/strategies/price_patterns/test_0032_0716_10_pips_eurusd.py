@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes), resampled to Daily (D1) for signals.
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 00:00:00 to 2026-03-10 23:59:00.
+
+Strategy Principle:
+    - This strategy implements a breakout logic based on the previous day's high and low boundaries (originally optimized for EURUSD as "10 Pips").
+    - Market Assumptions: Breaking through the previous day's extreme levels (high or low) with a small buffer pad represents high-velocity breakout continuation, which can be captured with tight fixed stop-loss and take-profit targets.
+    - Indicators:
+        - prev_high: High price of the previous resampled Daily bar.
+        - prev_low: Low price of the previous resampled Daily bar.
+        - pending_buy_level: Target buy breakout trigger (prev_high + 2.0 * spread_pad).
+        - pending_sell_level: Target sell breakout trigger (prev_low - 1.0 * unit).
+    - Entry Signals:
+        - Buy Entry: High price of current M15 bar reaches or exceeds pending_buy_level.
+        - Sell Entry: Low price of current M15 bar reaches or falls below pending_sell_level.
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (50 pips) and Take Profit (150 pips), with optional trailing stop configuration.
 """
 from __future__ import annotations
 import math
@@ -23,8 +43,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '10_点值_EURUSD',
-        'source_ea': 'ea/0716_10_点值_EURUSD',
+        'name': '10_Pips_EURUSD',
+        'source_ea': 'ea/0716_10_Pips_EURUSD',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -68,15 +88,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +142,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_daily(df):
+    """Resample high-frequency M15 data into daily bars to extract highs/lows.
+
+    Args:
+        df (pd.DataFrame): High-frequency market data.
+
+    Returns:
+        pd.DataFrame: Resampled daily market data containing daily high/low boundaries.
+    """
     out = df.resample('1D', label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -118,12 +164,18 @@ def resample_daily(df):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class TenPipsEURUSDStrategy(bt.Strategy):
+    """Strategy class implementing the previous day high/low breakout pattern.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lot=0.01,
         stop_loss=50,
@@ -137,6 +189,7 @@ class TenPipsEURUSDStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.base = self.datas[0]
         self.daily = self.datas[1]
 
@@ -159,14 +212,21 @@ class TenPipsEURUSDStrategy(bt.Strategy):
         self.last_session_date = None
 
     def _unit(self):
+        """Calculate the price unit value based on point size and digit adjustments.
+
+        Returns:
+            float: Calculated price step unit.
+        """
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _reset_day(self):
+        """Reset intraday re-entry limits and trading flags upon a new session start."""
         self.pending_buy_level = None
         self.pending_sell_level = None
         self.day_has_traded = False
 
     def _prepare_orders(self):
+        """Analyze previous daily bar and establish pending breakout trigger levels."""
         if len(self.daily) < 2:
             return
         session_date = bt.num2date(self.base.datetime[0]).date()
@@ -183,6 +243,12 @@ class TenPipsEURUSDStrategy(bt.Strategy):
             self.pending_sell_level = round(prev_low - self._unit(), int(self.p.price_digits))
 
     def _apply_risk(self, side, entry):
+        """Calculate and establish fixed target stop-loss and take-profit exit prices.
+
+        Args:
+            side (str): Direction of trade ('buy' or 'sell').
+            entry (float): Execution entry price level.
+        """
         unit = self._unit()
         if side == 'buy':
             self.stop_price = round(entry - float(self.p.stop_loss) * unit, int(self.p.price_digits))
@@ -192,6 +258,11 @@ class TenPipsEURUSDStrategy(bt.Strategy):
             self.take_profit_price = round(entry - float(self.p.take_profit) * unit, int(self.p.price_digits)) if not self.p.use_trailing else None
 
     def _manage_position(self):
+        """Manage active trade risk, checking trailing step limits and target exit triggers.
+
+        Returns:
+            bool: True if an exit order was successfully placed, otherwise False.
+        """
         if not self.position or self.order is not None:
             return False
         high = float(self.base.high[0])
@@ -223,6 +294,7 @@ class TenPipsEURUSDStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self._prepare_orders()
         if self.order is not None:
@@ -249,6 +321,11 @@ class TenPipsEURUSDStrategy(bt.Strategy):
             self.pending_buy_level = None
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -267,6 +344,11 @@ class TenPipsEURUSDStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -291,6 +373,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -298,6 +391,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load high-frequency M15 gold data and prepare resampled daily frames.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base and resampled daily.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -310,6 +414,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -329,6 +442,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -369,8 +493,15 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

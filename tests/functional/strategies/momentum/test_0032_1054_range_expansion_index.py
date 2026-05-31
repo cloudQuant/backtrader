@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. A second H8 (480-minute)
+    feed is resampled from the same M15 data and carries the precomputed Range
+    Expansion Index and its colour; orders execute on the M15 feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_RangeExpansionIndex``. The
+    Range Expansion Index (REI) is a bounded oscillator measuring how strongly
+    the recent range is expanding versus contracting. The strategy reads the REI
+    on the higher H8 timeframe and treats crosses of the lower level as bullish
+    (buy when REI drops to the down level) and crosses of the upper level as
+    bearish, with each position protected by fixed point-based stop loss and
+    take profit.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame and resamples it to H8, where
+    compute_range_expansion_index derives the REI and its colour; build_cerebro
+    wires both feeds, the strategy, and the default analyzers. Each new H8 signal
+    bar the strategy checks protective exits, evaluates the REI crossing signals,
+    and opens, closes, or reverses on the M15 feed. notify_order tracks fills,
+    buy/sell counts, and risk reset; notify_trade tallies wins and losses.
+    extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -87,6 +115,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -112,6 +153,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a base OHLCV frame to a coarser bar size.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        rule: A pandas offset alias for the target bar size (e.g. ``'480min'``).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, and openinterest filled with zeros.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -126,6 +177,16 @@ def resample_frame(df, rule):
 
 
 def compute_range_expansion_index(frame, rei_period=8):
+    """Compute the Range Expansion Index and its colour for a frame.
+
+    Args:
+        frame: OHLC DataFrame to compute the indicator on.
+        rei_period: Averaging length for the REI summation window.
+
+    Returns:
+        A copy of ``frame`` with ``rei`` and ``rei_color`` columns added and
+        warm-up rows (NaN REI) dropped.
+    """
     rei_period = max(int(rei_period), 1)
     high = frame['high'].to_numpy(dtype=float)
     low = frame['low'].to_numpy(dtype=float)
@@ -173,6 +234,8 @@ def compute_range_expansion_index(frame, rei_period=8):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column positions."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -180,6 +243,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class RangeExpansionIndexFeed(bt.feeds.PandasData):
+    """PandasData feed adding rei and rei_color signal lines."""
+
     lines = ('rei', 'rei_color')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -188,6 +253,8 @@ class RangeExpansionIndexFeed(bt.feeds.PandasData):
 
 
 class RangeExpansionIndexStrategy(bt.Strategy):
+    """Trade Range Expansion Index level crossings on H8 with M15 execution."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -209,6 +276,7 @@ class RangeExpansionIndexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15/H8 feeds and REI line and reset counters and state."""
         self.m15 = self.datas[0]
         self.h8 = self.datas[1]
         self.rei = self.h8.rei
@@ -230,6 +298,11 @@ class RangeExpansionIndexStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log line for the current M15 bar.
+
+        Args:
+            text: Message to emit alongside the current M15 bar datetime.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -302,6 +375,14 @@ class RangeExpansionIndexStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, rei_prev, rei_now
 
     def next(self):
+        """Act on REI level crossings once per new H8 signal bar.
+
+        Increments the bar counter, skips while an order is pending or before
+        enough history, manages protective exits, and runs only on a new H8
+        signal timestamp. It evaluates the REI crossing signals and closes,
+        reverses, or opens a long/short position on the M15 feed with fresh
+        stop/take-profit prices on entry.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -339,6 +420,16 @@ class RangeExpansionIndexStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/failed orders and update fill counters and risk.
+
+        On a completed fill, increments the completed-order count and the
+        buy/sell counter when a position is open, or clears risk prices when the
+        position is flat. Failed orders increment the rejected count. Clears the
+        tracked entry order once it is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -357,6 +448,12 @@ class RangeExpansionIndexStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -381,6 +478,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -388,6 +496,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the M15 base frame and build the H8 REI signal frame.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections used for loading and indicator computation.
+
+    Returns:
+        A dict with the ``m15`` base frame, the ``h8`` REI frame, and the
+        ``fromdate``/``todate`` bounds.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -402,6 +523,17 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, M15 and H8 feeds, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frames dict returned by :func:`load_backtest_frames`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the M15 execution feed, the
+        H8 REI signal feed, the strategy, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -421,6 +553,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying signal/order/trade counts.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frames dict providing the date range and bar counts.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/signal/order/trade counts, PnL, return,
+        win rate, profit factor, drawdown, Sharpe, annualized return, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -466,6 +610,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

@@ -1,6 +1,19 @@
-"""Inlined regression test for price_patterns/0013_0843_candlesticksbw.
+"""Inlined regression test for the CandlesticksBW strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD 15-minute MT5 data from ``tests/datas/XAUUSD_M15.csv``.
+
+Strategy Principle:
+    Uses Awesome Oscillator / AC color shifts on resampled 4H bars to generate
+    candle-color transition entries for trend continuation and uses stop-loss /
+    take-profit for exits.
+
+Strategy Logic:
+    ``CandlesticksBW`` computes color codes from AO/AC momentum.
+    ``ExpCandlesticksBWStrategy`` aligns signal bars with the configured shift and
+    issues buy/sell orders on bullish-to-bearish or bearish-to-bullish transitions.
 """
 from __future__ import annotations
 
@@ -16,6 +29,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 CSV file into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV file.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+        bar_shift_minutes: Minutes to shift bar timestamps forward.
+
+    Returns:
+        Datetime-indexed DataFrame with open/high/low/close/volume/openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +61,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for M15/4H OHLCV input bars."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,15 +69,18 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class CandlesticksBW(bt.Indicator):
+    """Indicator that encodes AO/AC state into a numeric candle color code."""
     lines = ("color",)
     params = dict()
 
     def __init__(self):
+        """Set up AO and AC dependencies and minimum period."""
         self.addminperiod(40)
         self.ao = bt.indicators.AwesomeOscillator(self.data)
         self.ac = self.ao - bt.indicators.SMA(self.ao, period=5)
 
     def next(self):
+        """Compute the color code for the current bar."""
         ao0 = float(self.ao[0])
         ao1 = float(self.ao[-1])
         ac0 = float(self.ac[0])
@@ -69,6 +97,7 @@ class CandlesticksBW(bt.Indicator):
 
 
 class ExpCandlesticksBWStrategy(bt.Strategy):
+    """Execution strategy for CandlesticksBW signal transitions."""
     params = dict(
         length=2,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -79,6 +108,7 @@ class ExpCandlesticksBWStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, data references, and accounting counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = CandlesticksBW(self.signal_data)
@@ -109,6 +139,7 @@ class ExpCandlesticksBWStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate transitions and issue entry/exit orders on signal changes."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -136,6 +167,11 @@ class ExpCandlesticksBWStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track trade lifecycle state and win/loss statistics.
+
+        Args:
+            trade: Closed or opened trade notification.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

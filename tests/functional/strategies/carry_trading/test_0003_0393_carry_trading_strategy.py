@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four daily (D1) FX pairs exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: AUDUSD, NZDUSD, GBPUSD, and EURUSD. The series
+    cover 2008-01-01 to 2025-12-31 and are aligned on their common trading
+    dates; all four are tradable against the US dollar.
+
+Strategy Principle:
+    A port of the "Carry Trading" strategy that ranks currencies by a carry
+    proxy. Because MT5 history lacks interest rates, the carry proxy combines a
+    per-pair baseline carry score with a long-horizon price trend and subtracts
+    recent volatility, rewarding high-yield, trending, calm currencies. The
+    strategy goes long the highest-carry pairs and short the lowest, harvesting
+    the cross-sectional carry spread while staying roughly dollar-neutral.
+
+Strategy Logic:
+    prepare_carry_proxy_data aligns the feeds and computes each pair's carry
+    proxy, attaching it as an extra feed line. The strategy walks the daily bars,
+    records broker value, and on the rebalance cadence ranks the pairs by carry,
+    forming an equal-weight long book of the top names and a short book of the
+    bottom names capped by max_leg_notional_pct. It converts each target into a
+    target size, issues order_target_size orders (counting buys/sells and
+    long/short rebalances). extract_metrics gathers returns, drawdown, Sharpe,
+    SQN, win/loss, profit factor, book counts, and an Ulcer index; the test runs
+    with runonce=True and asserts each metric against migration-time expected
+    values.
 """
 from __future__ import annotations
 import math
@@ -84,6 +110,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -110,6 +147,22 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_carry_proxy_data(price_map, params):
+    """Align the pair feeds and compute each pair's carry proxy.
+
+    Aligns all price frames on their common dates and derives a carry proxy as a
+    per-pair baseline score plus the long-horizon price trend minus recent
+    volatility.
+
+    Args:
+        price_map: Mapping of pair symbol to its loaded OHLCV DataFrame.
+        params: Strategy parameters supplying the baseline carry scores, trend
+            window, and volatility window.
+
+    Returns:
+        A tuple of ``(prepared, score_df)`` where ``prepared`` maps each pair to
+        its frame augmented with a ``carry_proxy`` column, and ``score_df`` is
+        the per-date carry matrix with all-NaN rows dropped.
+    """
     aligned_index = None
     prepared = {}
     trend_window = int(params.get('trend_window', 126))
@@ -131,6 +184,8 @@ def prepare_carry_proxy_data(price_map, params):
 
 
 class CarryProxyFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the precomputed carry proxy line."""
+
     lines = ('carry_proxy',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -139,6 +194,14 @@ class CarryProxyFeed(bt.feeds.PandasData):
 
 
 class CarryTradingStrategy(bt.Strategy):
+    """Long top-carry and short bottom-carry pairs on a rebalance cadence.
+
+    Ranks the pairs by their carry proxy each rebalance, forms an equal-weight
+    long book of the highest scorers and a short book of the lowest, and issues
+    ``order_target_size`` orders toward those weights while tracking buy/sell
+    counts and long/short book counts.
+    """
+
     params = dict(
         n_long=2,
         n_short=2,
@@ -151,6 +214,7 @@ class CarryTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, the order-ref set, and long/short book tallies."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -180,6 +244,15 @@ class CarryTradingStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rank pairs by carry and rebalance the long/short books on the cadence.
+
+        Increments the bar counter, records broker value, and skips while orders
+        are pending or off the rebalance cadence. When due, it ranks the pairs by
+        carry proxy, assigns equal long weights to the top names and short
+        weights to the bottom names, converts each to a target size, and issues
+        order_target_size orders (counting buys/sells and incrementing the
+        long/short book counters).
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.datas[0].datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -219,11 +292,22 @@ class CarryTradingStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed orders from the pending-ref set once they settle.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears its ref.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -243,10 +327,27 @@ class CarryTradingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -260,6 +361,17 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load every pair feed and compute the carry proxies.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the pair
+            file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the prepared per-pair frames (restricted to valid score
+        dates), the score DataFrame, and the effective ``fromdate`` and
+        ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -273,6 +385,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the pair feeds, strategy, and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, and strategy
+            parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0002)))
@@ -293,6 +415,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, book counts, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and the score frame.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, long/short book counts, and trade
+        counts) used by the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -334,6 +471,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD_M15.csv as base M15 bars and a derived H4 indicator frame.
+    Data window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    Combines MA/RSI trend direction into a color-like score, opens long on bullish
+    confirmation and short on bearish confirmation, with fixed stop/take-profit
+    distance management.
+
+Strategy Logic:
+    Build trading signals from resampled indicator data, detect signal changes each
+    new H4 bar, then let strategy callbacks handle rebalancing, order lifecycle,
+    and trade accounting before assertion on final metrics.
 """
 from __future__ import annotations
 import math
@@ -99,6 +113,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV into datetime-indexed DataFrame.
+
+    Args:
+        filepath: Source file path.
+        fromdate: Start datetime filter.
+        todate: End datetime filter.
+        bar_shift_minutes: Optional timestamp shift.
+
+    Returns:
+        Parsed OHLCV DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -120,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Base OHLCV feed for MT5 imported bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -127,6 +153,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class MaRsiTriggerFeed(btfeeds.PandasData):
+    """Signal feed containing trend/MA/RSI features generated for MA RSI duplex."""
     lines = ('trend', 'last_trend', 'ma_fast', 'ma_slow', 'rsi_fast', 'rsi_slow')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -136,6 +163,15 @@ class MaRsiTriggerFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample frame into a wider timeframe for indicator calculation.
+
+    Args:
+        df: Base OHLCV DataFrame.
+        indicator_minutes: Target compression in minutes.
+
+    Returns:
+        Resampled DataFrame.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -151,6 +187,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def applied_price(df, code):
+    """Map integer price code to concrete source price series.
+
+    Args:
+        df: OHLCV data frame.
+        code: Code identifying source price.
+
+    Returns:
+        Corresponding price series.
+    """
     open_ = df['open'].astype(float)
     high = df['high'].astype(float)
     low = df['low'].astype(float)
@@ -174,6 +219,16 @@ def applied_price(df, code):
 
 
 def moving_average(series, period, method):
+    """Compute a moving average using one of several methods.
+
+    Args:
+        series: Input series.
+        period: Window length.
+        method: 0 mean, 1 exponential, 2 EMA alpha, 3 weighted.
+
+    Returns:
+        Smoothed series.
+    """
     period = int(period)
     method = int(method)
     if method == 0:
@@ -189,6 +244,7 @@ def moving_average(series, period, method):
 
 
 def rsi_wilder(series, period):
+    """Compute Wilder RSI from a price series."""
     delta = series.diff()
     gain = delta.clip(lower=0.0)
     loss = (-delta).clip(lower=0.0)
@@ -215,6 +271,25 @@ def build_marsi_trigger_frame(
     n_ma_type_long,
     n_ma_price_long,
 ):
+    """Create MA/RSI-derived signal frame for duplex strategy inputs.
+
+    Args:
+        df: Base frame.
+        indicator_minutes: Indicator timeframe.
+        n_period_rsi: Short RSI period.
+        n_rsi_price: Short RSI price selector.
+        n_period_rsi_long: Long RSI period.
+        n_rsi_price_long: Long RSI price selector.
+        n_period_ma: Short MA period.
+        n_ma_type: Short MA method.
+        n_ma_price: Short MA price selector.
+        n_period_ma_long: Long MA period.
+        n_ma_type_long: Long MA method.
+        n_ma_price_long: Long MA price selector.
+
+    Returns:
+        Frame including trend and indicator columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     ma_fast = moving_average(applied_price(signal_df, n_ma_price), n_period_ma, n_ma_type)
     ma_slow = moving_average(applied_price(signal_df, n_ma_price_long), n_period_ma_long, n_ma_type_long)
@@ -257,6 +332,7 @@ def build_marsi_trigger_frame(
 
 
 class ExpColorMaRsiTriggerDuplexStrategy(bt.Strategy):
+    """Mean-reversion strategy driven by MA/RSI trend-duplex signals."""
     params = dict(
         l_signal_bar=1,
         s_signal_bar=1,
@@ -285,6 +361,7 @@ class ExpColorMaRsiTriggerDuplexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize datasource references and runtime counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -301,6 +378,7 @@ class ExpColorMaRsiTriggerDuplexStrategy(bt.Strategy):
         self._current_take_profit = None
 
     def log(self, text):
+        """Log a timestamped message."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -358,6 +436,7 @@ class ExpColorMaRsiTriggerDuplexStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """On each bar, apply risk checks, detect signal flips, and place/close orders."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -406,6 +485,7 @@ class ExpColorMaRsiTriggerDuplexStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_order(self, order):
+        """Track order completion and pending-side/risk-state transitions."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -419,6 +499,7 @@ class ExpColorMaRsiTriggerDuplexStrategy(bt.Strategy):
             self._pending_side = None
 
     def notify_trade(self, trade):
+        """Update trade result counters on entry/close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -453,6 +534,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module and ensure it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -460,6 +542,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load raw data and return backtest frame with interval metadata."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -476,6 +559,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro with base and signal feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -528,6 +612,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzer/statistics payload required by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

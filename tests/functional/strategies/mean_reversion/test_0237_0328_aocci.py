@@ -17,6 +17,8 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data file and return a Pandas DataFrame."""
+
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +40,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_h1(df):
+    """Resample an M15 DataFrame to H1 frequency."""
     out = df.resample("60min", label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min", "close": "last",
         "volume": "sum", "openinterest": "last", "spread": "last",
@@ -49,6 +52,7 @@ def resample_h1(df):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom PandasData feed that adds a spread line for MT5 export format."""
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -57,6 +61,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AOCCIStrategy(bt.Strategy):
+    """AO+CCI signal strategy: combines Awesome Oscillator and CCI for trade entry signals."""
+
     params = dict(
         fixed_lot=0.1,
         stop_loss_pips=50.0, take_profit_pips=50.0,
@@ -68,6 +74,7 @@ class AOCCIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy: set up data references, state variables, and CCI/AO indicators."""
         self.exec_data = self.datas[0]
         self.h1_data = self.datas[1]
         self.order = None
@@ -84,6 +91,7 @@ class AOCCIStrategy(bt.Strategy):
         self.ao = bt.indicators.AwesomeOscillator(self.exec_data)
 
     def prenext(self):
+        """Pre-next phase: delegate to next() before the minimum period is reached."""
         self.next()
 
     def _set_entry_risk(self, price, direction):
@@ -178,6 +186,7 @@ class AOCCIStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Main loop: check signals and execute entry / exit / trailing stop logic."""
         self.bar_num += 1
         if not self._signal_ready():
             return
@@ -208,6 +217,7 @@ class AOCCIStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.fixed_lot)
 
     def notify_order(self, order):
+        """Order status callback: set stop-loss/take-profit on fill and release pending order slot."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -226,6 +236,7 @@ class AOCCIStrategy(bt.Strategy):
                 self.entry_side = None
 
     def notify_trade(self, trade):
+        """Trade callback: count win/loss results on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

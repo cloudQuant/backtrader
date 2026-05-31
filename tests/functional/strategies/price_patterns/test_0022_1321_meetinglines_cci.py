@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated bars into a datetime-indexed backtest frame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +38,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data adapter for MT5 OHLCV export columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +46,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MeetingLinesCciStrategy(bt.Strategy):
+    """Detect meeting-line candlestick reversals and filter with CCI."""
     params = dict(
         cci_period=18,
         cci_entry_long=-50, cci_entry_short=50,
@@ -54,6 +57,7 @@ class MeetingLinesCciStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize CCI/body-SMA indicators and trade counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.cci_period)
         self.body_sma = bt.indicators.SMA(abs(self.data.close - self.data.open), period=self.p.ma_period)
         self.bar_num = 0
@@ -88,6 +92,7 @@ class MeetingLinesCciStrategy(bt.Strategy):
                 abs(c1 - c2) < float(self.p.close_tolerance_multiplier) * avg)
 
     def next(self):
+        """Increment bar counter and execute entry/exit logic from signals."""
         self.bar_num += 1
         warmup = max(self.p.cci_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -116,6 +121,7 @@ class MeetingLinesCciStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update trade-open and close statistics by direction/PnL."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

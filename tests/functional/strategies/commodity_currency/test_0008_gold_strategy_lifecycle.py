@@ -1,7 +1,25 @@
-"""Inlined regression test for commodity_currency/0008_gold_strategy_lifecycle.
+"""Pandas-only regression test for the commodity-currency lifecycle strategy migration.
 
-Self-contained pandas-based test (no Cerebro). Implements the SMA-200 trend baseline,
-a Sharpe-decay monitor, and a drawdown-based circuit breaker for XAUUSD daily data.
+Self-contained implementation (no Cerebro). It evaluates a simple SMA-200 trend
+strategy and validates Sharpe decay and drawdown behaviour on XAUUSD daily data.
+
+Data Used:
+    Loads ``tests/datas/mt5_1d_data/XAUUSD_1d.csv`` (D1), filtered from
+    ``2010-01-01 00:00:00`` to ``2025-12-31 00:00:00``.
+
+Strategy Principle:
+    The test computes a moving-average trend signal, applies a transaction-cost
+    penalty for turnover, and derives a baseline equity curve used to assess
+    realized Sharpe, expected Sharpe decay, and drawdown health.
+
+Strategy Logic:
+    1. Load and clean MT5 OHLCV bars from CSV.
+    2. Build strategy returns via SMA trend signal and turnover-adjusted
+       strategy returns.
+    3. Compute realized Sharpe, annualized expected Sharpe decay, and drawdown
+       duration/depth from the return series.
+    4. Print captured metrics and assert key thresholds/references for
+       regression stability.
 """
 from __future__ import annotations
 
@@ -19,6 +37,17 @@ TRADING_DAYS = 252
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a datetime-indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the exported MT5 text/CSV file.
+        fromdate: Optional start datetime for filtering rows.
+        todate: Optional end datetime for filtering rows.
+
+    Returns:
+        DataFrame with columns ``open``, ``high``, ``low``, ``close``, ``volume``,
+        and ``openinterest``, indexed by datetime.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -43,6 +72,17 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_baseline_returns(df, params):
+    """Build baseline strategy return components from raw OHLCV history.
+
+    Args:
+        df: Input DataFrame with close prices and datetime index.
+        params: Strategy parameters, including ``sma_window`` and
+            ``commission_pct``.
+
+    Returns:
+        DataFrame with computed return, signal, turnover, strategy-return, and
+        equity-curve columns.
+    """
     out = df.copy()
     sma_window = int(params.get("sma_window", 200))
     commission_pct = float(params.get("commission_pct", 0.0002))
@@ -57,6 +97,15 @@ def prepare_baseline_returns(df, params):
 
 
 def calculate_sharpe(returns, risk_free=0.0):
+    """Compute annualized Sharpe ratio from a returns series.
+
+    Args:
+        returns: Iterable of return values.
+        risk_free: Annual risk-free rate used to compute excess returns.
+
+    Returns:
+        Annualized Sharpe ratio, or 0.0 if not enough data or zero volatility.
+    """
     series = pd.Series(returns).dropna()
     if len(series) < 2:
         return 0.0
@@ -68,10 +117,19 @@ def calculate_sharpe(returns, risk_free=0.0):
 
 
 def expected_sharpe(initial_sharpe, annual_decay_rate, years_since_inception):
+    """Apply exponential annual decay to an initial Sharpe estimate."""
     return initial_sharpe * (1.0 - annual_decay_rate) ** max(years_since_inception, 0.0)
 
 
 def calculate_drawdown_stats(returns):
+    """Calculate current drawdown, max drawdown, and maximum drawdown duration.
+
+    Args:
+        returns: Iterable of return values.
+
+    Returns:
+        Tuple ``(current_drawdown, max_drawdown, max_duration)``.
+    """
     cumulative = (1.0 + pd.Series(returns).fillna(0.0)).cumprod()
     peak = cumulative.cummax()
     drawdown = cumulative / peak - 1.0

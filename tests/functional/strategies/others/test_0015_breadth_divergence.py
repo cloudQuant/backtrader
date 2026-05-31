@@ -7,12 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a bearish breadth divergence strategy.
+    - Market Assumptions: Healthy trend advances require broad participation ("breadth"). When price advances (rises) but volume or price volatility falls dramatically, a bearish divergence occurs, indicating trend exhaustion and preceding significant downmoves.
+    - Indicators:
+        - price_up: Close price is higher than previous close.
+        - volume_ma: 20-day rolling mean of volume.
+        - volume_breadth_weak: Volume falls below `breadth_threshold` (0.5) of volume_ma.
+        - volatility: 20-day rolling return standard deviation.
+        - volatility_ma: 50-day rolling mean of volatility.
+        - volatility_weak: Volatility falls below volatility_ma.
+        - divergence_signal: Today's price rises, but volume OR volatility is weak (confluence divergence).
+    - Entry Signals:
+        - Short Entry: Divergence signal is triggered (is_trending <= 0.5).
+    - Exit Signals:
+        - Time based exit: Close position unconditionally after holding for `holding_period` (4 days).
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
 import json
+import csv
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
@@ -67,19 +90,32 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
-
-
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""背离广度看跌信号策略 - 价格上涨但广度疲弱时看跌"""
 
 
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -112,36 +148,44 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_breadth_divergence_features(df, params):
-    """准备背离广度策略特征"""
+    """Prepare and compute indicators for the Breadth Divergence strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback windows and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing price_up, volume_breadth_weak, and signals.
+    """
     out = df.copy()
     breadth_threshold = float(params.get("breadth_threshold", 0.5))
     holding_period = int(params.get("holding_period", 4))
 
-    # 价格上涨
+    # Price up
     out["price_up"] = (out["close"] > out["close"].shift(1)).astype(float)
 
-    # 使用成交量作为广度代理（简化版本）
+    # Use volume as breadth proxy (simplified version)
     out["volume_ma"] = out["volume"].rolling(window=20).mean()
     out["volume_breadth_weak"] = (
         out["volume"] < out["volume_ma"] * breadth_threshold
     ).astype(float)
 
-    # 使用波动率作为广度代理
+    # Use volatility as breadth proxy
     out["returns"] = out["close"].pct_change()
     out["volatility"] = out["returns"].rolling(window=20).std()
     out["volatility_ma"] = out["volatility"].rolling(window=50).mean()
     out["volatility_weak"] = (out["volatility"] < out["volatility_ma"]).astype(float)
 
-    # 背离信号：价格上涨但广度疲弱
+    # Divergence signal: price up but breadth is weak
     out["divergence_signal"] = (
         (out["price_up"] > 0.5)
         & ((out["volume_breadth_weak"] > 0.5) | (out["volatility_weak"] > 0.5))
     ).astype(float)
 
-    # 入场信号（看空）
+    # Entry signal (bearish view)
     out["entry_signal"] = out["divergence_signal"]
 
-    # 出场信号（持有N天后）
+    # Exit signal (after holding N days)
     out["exit_signal"] = 0.0
 
     out = out[
@@ -163,6 +207,8 @@ def prepare_breadth_divergence_features(df, params):
 
 
 class Mt5BreadthDivergenceFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Breadth Divergence lines."""
+
     lines = (
         "price_up",
         "volume_breadth_weak",
@@ -187,6 +233,11 @@ class Mt5BreadthDivergenceFeed(bt.feeds.PandasData):
 
 
 class BreadthDivergenceStrategy(bt.Strategy):
+    """Strategy class implementing the bearish Breadth Divergence logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         breadth_threshold=0.5,
         holding_period=4,
@@ -194,6 +245,7 @@ class BreadthDivergenceStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -221,6 +273,7 @@ class BreadthDivergenceStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append(
             (bt.num2date(self.data.datetime[0]), float(self.broker.getvalue()))
@@ -231,7 +284,7 @@ class BreadthDivergenceStrategy(bt.Strategy):
 
         entry_signal = float(self.data.entry_signal[0]) > 0.5
 
-        # 无持仓时检查入场（做空）
+        # Check entry when flat (short entry)
         if not self.position:
             if entry_signal:
                 self.sell_count += 1
@@ -243,7 +296,7 @@ class BreadthDivergenceStrategy(bt.Strategy):
                 )
             return
 
-        # 有持仓时检查出场（时间止损）
+        # Check exit when holding a position (time-based stop loss)
         if self.position and self.entry_bar is not None:
             holding_days = self.bar_num - self.entry_bar
             if holding_days >= self.p.holding_period:
@@ -252,11 +305,21 @@ class BreadthDivergenceStrategy(bt.Strategy):
                 self.entry_bar = None
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -268,8 +331,6 @@ class BreadthDivergenceStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Breadth Divergence Strategy 回测"""
-
 
 
 
@@ -279,6 +340,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get("data", {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get("timeframe", "D1")).upper()
     if timeframe_value.startswith("M") and timeframe_value[1:].isdigit():
@@ -309,10 +378,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -327,6 +412,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Breadth Divergence strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config["data"]
     fromdate = datetime.fromisoformat(data_cfg["fromdate"])
     todate = datetime.fromisoformat(data_cfg["todate"])
@@ -341,6 +434,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config["backtest"]
     cerebro.broker.setcash(float(bt_cfg["initial_cash"]))
@@ -367,6 +469,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -412,13 +525,19 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
         return None
     return v
-
-
 
     summary_path = (BASE_DIR / config["outputs"]["global_summary_csv"]).resolve()
     fieldnames = [
@@ -485,8 +604,8 @@ def normalize(v):
         writer.writerows(rows)
 
 
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -506,78 +625,76 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_15_0015_breadth_divergence() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/others/0015_breadth_divergence.
+
+    Raises:
+        Exception: If the metrics capture or execution fails.
+
+    Returns:
+        None
     """
-    # Capture metrics by hooking extract_metrics() (or similar) and invoking the
-    # original main()/run(). This reuses whatever loader / build_cerebro /
-    # metrics-extraction signatures the strategy used internally.
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function.
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "summarize", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "metrics" not in captured:
-                        captured["metrics"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Force runonce=True for the cerebro.run() call inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "metrics" not in captured:
-                    captured["metrics"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "metrics" not in captured:
-                            captured["metrics"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "no metrics captured during run"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4638, f"bar_num: expected=4638, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 494, f"buy_count: expected=494, got={metrics.get('buy_count')!r}"

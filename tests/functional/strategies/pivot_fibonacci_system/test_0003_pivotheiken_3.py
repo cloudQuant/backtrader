@@ -1,7 +1,33 @@
-"""Inlined regression test for pivot_fibonacci_system/0003_pivotheiken_3.
+"""Inlined regression test for the PivotHeiken 3 multi-timeframe strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Uses M15 + D1 multi-timeframe.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` through the MetaTrader-5 style CSV reader.
+    The window runs from 2025-12-03 01:15 to 2026-03-10 09:00 with a 15-minute
+    bar shift. The M15 series is added as the base execution feed and resampled
+    to daily ``D1`` bars to supply the daily pivot, giving a two-feed
+    multi-timeframe setup.
+
+Strategy Principle:
+    Combines a smoothed Heikin-Ashi momentum line with a classic daily pivot
+    filter. The Heikin-Ashi candles are pre-smoothed and the midline change is
+    compared to its signal average to gauge momentum direction. The previous
+    day's pivot ((H + L + C) / 3) acts as a mean-reversion reference: longs are
+    taken when momentum turns up while price is still below the pivot, and
+    shorts when momentum turns down while price is above the pivot.
+
+Strategy Logic:
+    ``StatefulMovingAverage`` provides incremental SMA/EMA/SMMA/LWMA smoothing.
+    ``PivotHeiken3Strategy.__init__`` wires the base and daily feeds and the
+    moving-average state. ``next`` advances once per base bar, updates the
+    Heikin-Ashi/pivot state, exits on stop/take/opposite-momentum conditions
+    with optional trailing, and otherwise opens a long or short on the
+    momentum-vs-pivot entry condition. ``notify_order`` sets protective levels
+    on fills, and ``notify_trade`` tallies wins and losses. The test asserts
+    bar, trade and final-value counts against the captured baseline.
 """
 from __future__ import annotations
 
@@ -18,6 +44,18 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 CSV export to read.
+        fromdate: Optional inclusive lower bound used to trim the index.
+        todate: Optional inclusive upper bound used to trim the index.
+        bar_shift_minutes: Minutes to shift the datetime index forward.
+
+    Returns:
+        A datetime-indexed DataFrame with OHLCV, openinterest and spread
+        columns in ascending time order.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -56,6 +94,13 @@ def _resample_d(df):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed wrapper that exposes MT5 spread as an extra data line.
+
+    `pandas` exports used by this suite typically include a spread column. This
+    subclass maps that column into a dedicated `spread` line so the strategy can
+    consume it using the existing Cerebro feed chain.
+    """
+
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -64,13 +109,34 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class StatefulMovingAverage:
+    """Compact moving-average state machine for short rolling calculations.
+
+    Keeps only the most recent values needed for the configured period and
+    supports SMA, EMA, SMMA, and LWMA behavior used by this regression script.
+    """
+
     def __init__(self, mode, period):
+        """Initialize averaging mode and rolling state.
+
+        Args:
+            mode: Average calculation mode. Supported values are `sma`, `ema`,
+                `smma`, and `lwma`; other values default to passthrough.
+            period: Window length for rolling computation.
+        """
         self.mode = str(mode).lower()
         self.period = max(int(period), 1)
         self.values = deque(maxlen=self.period)
         self.last = None
 
     def update(self, value):
+        """Append a new sample and return the current filtered value.
+
+        Args:
+            value: Numeric input to incorporate into the moving average.
+
+        Returns:
+            The updated moving-average value.
+        """
         value = float(value)
         self.values.append(value)
         if self.mode == "sma":
@@ -96,6 +162,14 @@ class StatefulMovingAverage:
 
 
 class PivotHeiken3Strategy(bt.Strategy):
+    """Test strategy combining smoothed Heiken-Ashi momentum with a pivot filter.
+
+    The strategy uses M15 bars as execution input and an aligned daily feed for
+    pivot reference. Entries happen when directional Heiken-Ashi momentum and
+    pivot-relative price conditions align; exits are driven by stop/take profit,
+    momentum reversals, and optional trailing control.
+    """
+
     params = dict(
         lot=0.10,
         stop_loss_pips=50, take_profit_pips=350,
@@ -110,6 +184,7 @@ class PivotHeiken3Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, indicators, and trade-tracking counters."""
         self.base_feed = self.datas[0]
         self.daily_feed = self.datas[1] if len(self.datas) > 1 else None
         self.order = None
@@ -219,6 +294,13 @@ class PivotHeiken3Strategy(bt.Strategy):
         self.position_side = None
 
     def next(self):
+        """Handle one bar of execution logic.
+
+        Updates indicator and pivot state, then:
+        - submits close orders when exit conditions are met,
+        - updates trailing stop on open positions,
+        - or submits an entry order when entry conditions are met.
+        """
         dt = bt.num2date(self.base_feed.datetime[0])
         if self.last_base_dt == dt:
             return
@@ -246,6 +328,11 @@ class PivotHeiken3Strategy(bt.Strategy):
             self.order = self.sell(size=float(self.p.lot))
 
     def notify_order(self, order):
+        """React to order updates and maintain per-position book-keeping.
+
+        Args:
+            order: The order object sent by Backtrader.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -268,6 +355,11 @@ class PivotHeiken3Strategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Record closed-trade outcomes and increment outcome statistics.
+
+        Args:
+            trade: Closed trade object passed by Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

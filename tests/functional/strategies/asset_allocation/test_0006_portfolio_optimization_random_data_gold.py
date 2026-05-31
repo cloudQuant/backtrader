@@ -7,6 +7,44 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Three MT5 daily CSV feeds defined in ``_CONFIG['data']``: ``XAUUSD_1d.csv``
+    (gold), ``XAGUSD_1d.csv`` (silver) and ``GDX_1d.csv`` (gold-miners ETF)
+    under ``tests/datas/mt5_1d_data``. Daily bars are clipped to 2008-01-01
+    through 2025-12-31 and aligned to a shared date index. No resampling is
+    applied; a derived signal feed carries per-day optimizer weights and a
+    quarterly rebalance flag alongside the gold OHLCV bars.
+
+Strategy Principle:
+    A mean-variance portfolio optimizer applied to a precious-metals basket.
+    Over a rolling multi-year window the optimizer estimates per-asset Sharpe
+    ratios and a covariance matrix, then solves for Markowitz-style weights;
+    the default ``shrinkage`` method blends the sample estimates toward neutral
+    priors (a common Sharpe and a 0.5 correlation) to stabilize the solution,
+    with ``equal``, ``handcraft`` and ``naive`` alternatives available. Weights
+    are clipped to a min/max band and renormalized. The thesis is that
+    diversifying across correlated metals with risk-aware weights beats a naive
+    single-asset hold while taming estimation error.
+
+Strategy Logic:
+    1. ``load_inputs`` loads and aligns the three asset CSVs, then
+       ``prepare_portfolio_optimization_data`` walks a rolling window computing
+       weights (via ``_compute_weights`` and its optimizer helpers) and a
+       quarterly rebalance flag.
+    2. ``PortfolioOptimizationSignalFeed`` exposes the per-asset weights and
+       rebalance flag as extra data lines;
+       ``PortfolioOptimizationRandomDataGoldStrategy.__init__`` binds the signal
+       and asset feeds and resets counters.
+    3. ``next`` rebalances on flagged bars when target weights change, sizing
+       each asset with ``order_target_size`` and updating buy/sell/switch
+       counts; ``notify_order`` clears settled order refs.
+    4. ``build_cerebro`` wires the feeds, per-asset ``AssetCommissionInfo`` and
+       the Sharpe/Returns/DrawDown/Trade/SQN analyzers; ``extract_metrics``
+       (with ``normalize``, ``finite_or_none`` and ``calculate_ulcer_index``)
+       builds the metrics dict and
+       ``test_6_0006_portfolio_optimization_random_data_gold`` asserts the
+       captured expectations.
 """
 from __future__ import annotations
 import math
@@ -89,6 +127,23 @@ ASSETS = ['XAUUSD', 'XAGUSD', 'GDX']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -176,6 +231,24 @@ def _compute_weights(window_returns, params):
 
 
 def prepare_portfolio_optimization_data(asset_frames, params):
+    """Align assets and compute rolling optimizer weights per rebalance bar.
+
+    Intersects the asset indices, builds the close-price table, marks
+    monthly/quarterly rebalance bars, and walks a rolling return window calling
+    ``_compute_weights`` to produce per-asset target weights (plus the average
+    pairwise correlation and method code) on each valid date.
+
+    Args:
+        asset_frames: Mapping of asset name to daily OHLCV DataFrame.
+        params: Strategy parameter dictionary controlling the window, method and
+            weight bounds.
+
+    Returns:
+        tuple: ``(aligned, signal_df)`` where ``aligned`` maps each asset to its
+        index-aligned OHLCV frame and ``signal_df`` carries gold OHLCV plus the
+        per-asset weight columns, average correlation, method code and rebalance
+        signal.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -221,6 +294,13 @@ def prepare_portfolio_optimization_data(asset_frames, params):
 
 
 class PortfolioOptimizationSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing optimizer weights and flags as extra lines.
+
+    Extends the standard OHLCV feed with the month/quarter markers, the
+    rebalance signal, the three per-asset target weights, the average pairwise
+    correlation and the method code so the strategy can read them directly.
+    """
+
     lines = ('month', 'quarter', 'rebalance_signal', 'weight_xauusd', 'weight_xagusd', 'weight_gdx', 'avg_pair_corr', 'method_code')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -229,6 +309,23 @@ class PortfolioOptimizationSignalFeed(bt.feeds.PandasData):
 
 
 class PortfolioOptimizationRandomDataGoldStrategy(bt.Strategy):
+    """Multi-asset strategy that rebalances to rolling optimizer weights.
+
+    Reads precomputed per-asset target weights and the rebalance signal from the
+    feed and resizes the three metal positions toward those weights on flagged
+    bars when the targets change. Tracks bar, rebalance, order and switch
+    statistics for the regression assertions.
+
+    Args:
+        method: Weight-estimation method (shrinkage, equal, handcraft, naive).
+        rebalance_frequency: Rebalance cadence (quarterly by default).
+        window_days: Rolling lookback window used to estimate weights.
+        shrink_mean: Shrinkage applied to the mean/Sharpe estimates.
+        shrink_corr: Shrinkage applied to the correlation matrix.
+        max_weight: Upper bound on each asset weight.
+        min_weight: Lower bound on each asset weight.
+    """
+
     params = dict(
         method="shrinkage",
         rebalance_frequency="quarterly",
@@ -240,6 +337,12 @@ class PortfolioOptimizationRandomDataGoldStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset tracking counters.
+
+        Captures the signal feed and the three traded asset feeds, then
+        initializes the order-reference set, bar/rebalance/buy/sell/switch
+        counters, the last-weights tracker and the equity-value series.
+        """
         self.signal = self.datas[0]
         self.asset_map = {name: self.getdatabyname(name) for name in ASSETS}
         self.order_refs = set()
@@ -274,6 +377,12 @@ class PortfolioOptimizationRandomDataGoldStrategy(bt.Strategy):
         }
 
     def next(self):
+        """Rebalance toward optimizer weights on flagged bars.
+
+        Records equity, skips while orders are pending or the rebalance signal
+        is unset, and when the target weights change sizes each asset with
+        ``order_target_size`` while updating buy/sell/switch counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -298,6 +407,14 @@ class PortfolioOptimizationRandomDataGoldStrategy(bt.Strategy):
                     self.sell_count += 1
 
     def notify_order(self, order):
+        """Drop settled orders from the pending-reference set.
+
+        Ignores intermediate Submitted/Accepted states and discards the order
+        reference once it reaches a terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
@@ -312,6 +429,13 @@ TRADING_DAYS_PER_YEAR = 252
 
 
 class AssetCommissionInfo(bt.CommInfoBase):
+    """Percentage commission scheme with a configurable contract multiplier.
+
+    Charges a percentage commission on notional value (size times price times
+    multiplier) and supports both futures-like and stock-like assets via the
+    ``stocklike`` parameter.
+    """
+
     params = (
         ('commission', 0.0002),
         ('margin', 1.0),
@@ -321,11 +445,34 @@ class AssetCommissionInfo(bt.CommInfoBase):
     )
 
     def _getcommission(self, size, price, pseudoexec, role=None):
+        """Return the commission charged for a fill of ``size`` at ``price``.
+
+        Args:
+            size: Number of units traded (sign ignored).
+            price: Fill price per unit.
+            pseudoexec: Whether this is a hypothetical pre-trade estimate.
+            role: Optional order role passed through by the broker.
+
+        Returns:
+            float: The commission as ``|size| * price * mult * commission``.
+        """
         return abs(size) * price * self.p.mult * self.p.commission
 
 
 
 def normalize(value):
+    """Convert a value into a JSON-serializable form.
+
+    Primitives pass through unchanged; objects exposing ``isoformat`` (such as
+    datetimes) are converted to ISO strings; anything else falls back to
+    ``str``.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        A JSON-friendly representation of ``value``.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -338,6 +485,15 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return ``value`` when it is a finite number, else ``None``.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value, or ``None`` when it is ``None`` or a NaN/infinite
+        float.
+    """
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -346,6 +502,17 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute the Ulcer Index of an equity curve.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, emphasizing deep and sustained declines.
+
+    Args:
+        equity_curve: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when no valid drawdowns are present.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -361,6 +528,7 @@ def calculate_ulcer_index(equity_curve):
 
 
 def load_inputs(config):
+    """Load and align all asset inputs for the portfolio optimization backtest."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -388,6 +556,7 @@ def _commission_kwargs(asset_name, bt_cfg):
 
 
 def build_cerebro(inputs, config):
+    """Build Cerebro with signal/asset feeds, per-asset commissions, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -408,6 +577,7 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Collect benchmark metrics and strategy counters from analyzers and signal state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

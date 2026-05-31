@@ -7,6 +7,42 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single XAUUSD (spot gold) 15-minute (M15) series exported from
+    MetaTrader 5 and read from ``tests/datas/XAUUSD_M15.csv``. Every bar
+    timestamp is shifted forward by 15 minutes (``bar_shift_minutes``) so the
+    stamp marks the bar close. The M15 frame is resampled to a 240-minute (H4)
+    signal timeframe and the Karpenko indicator is computed on it; both the
+    M15 execution feed and the H4 signal feed are clipped to
+    2025-12-03 01:15:00 .. 2026-03-10 09:00:00.
+
+Strategy Principle:
+    A port of the ``Exp_Karpenko`` MetaTrader expert. The Karpenko indicator
+    builds an adaptive channel around a moving-average baseline by expanding an
+    average-range distance geometrically (by the golden ratio PHI) until it
+    contains the bar's high or low, producing an ``ind`` line and a baseline
+    ``sign`` line on the H4 signal series. Crossings of ``ind`` against ``sign``
+    define trend turns: a long is signalled when ``ind`` drops to or below
+    ``sign`` after being above it, a short when ``ind`` rises to or above
+    ``sign`` after being below. Fixed point-based stop-loss and take-profit
+    levels bound each position's risk.
+
+Strategy Logic:
+    ``load_config`` materialises the inlined configuration and
+    ``load_backtest_frames`` loads the M15 CSV via ``load_mt5_csv``, resamples
+    it to H4 with ``resample_frame`` and derives the Karpenko lines with
+    ``compute_karpenko`` before clipping both feeds to the requested window.
+    ``build_cerebro`` wires the M15 ``Mt5PandasFeed``, the H4 ``KarpenkoFeed``,
+    the ``KarpenkoStrategy`` and the analyzer stack (Sharpe, Returns, DrawDown,
+    TradeAnalyzer, SQN). On each M15 bar the strategy enforces stop/target
+    exits (``_manage_risk``), waits for fresh signal bars, evaluates the
+    crossing signals (``_evaluate_signals``) and opens/closes the fixed-size
+    position; ``notify_order`` and ``notify_trade`` update the order, trade and
+    win/loss counters. ``extract_metrics`` (or ``build_empty_metrics`` when no
+    signal bars exist) builds the metrics dict that
+    ``test_262_0263_1067_karpenko`` captures and asserts against the migration
+    baseline.
 """
 from __future__ import annotations
 import math
@@ -89,6 +125,22 @@ PHI = 1.618
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV frame.
+
+    Parses the ``<DATE> <TIME>`` columns into a datetime index, renames the
+    bracketed MT5 columns to backtrader names, optionally shifts every bar
+    timestamp forward and clips the frame to the requested date range.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each bar timestamp (0 disables).
+
+    Returns:
+        A pandas DataFrame indexed by datetime with ``open``, ``high``, ``low``,
+        ``close``, ``tick_volume``, ``real_volume`` and ``openinterest`` columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -115,6 +167,19 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser timeframe.
+
+    Aggregates open/high/low/close and the volume columns under the given
+    pandas offset rule (right-labelled, right-closed), dropping bars with no
+    price data.
+
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        rule: A pandas resample rule string (e.g. ``'240min'``).
+
+    Returns:
+        The resampled OHLCV DataFrame with ``openinterest`` filled with zeros.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -144,6 +209,21 @@ def _expand_distance(distance, base, price, direction):
 
 
 def compute_karpenko(frame, basic_ma=144, history=500):
+    """Compute the Karpenko adaptive-channel lines on an OHLCV frame.
+
+    For each bar, expands the average-range distance geometrically around the
+    moving-average baseline until it brackets the bar's high and low, then
+    emits an indicator line (``ind``) and the baseline line (``sign``).
+
+    Args:
+        frame: Source OHLCV DataFrame (typically the resampled signal frame).
+        basic_ma: Lookback for the close moving-average baseline.
+        history: Lookback for the average high-low range.
+
+    Returns:
+        A copy of ``frame`` with ``ind`` and ``sign`` columns, warm-up rows
+        dropped.
+    """
     out = frame.copy()
     base = out['close'].rolling(int(basic_ma), min_periods=int(basic_ma)).mean()
     avg_range = (out['high'] - out['low']).rolling(int(history), min_periods=int(history)).mean()
@@ -173,6 +253,12 @@ def compute_karpenko(frame, basic_ma=144, history=500):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Standard OHLCV pandas feed for the M15 execution data.
+
+    Maps the open/high/low/close/volume/openinterest columns to the default
+    backtrader line positions.
+    """
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
         ('volume', 4), ('openinterest', 5),
@@ -180,6 +266,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class KarpenkoFeed(bt.feeds.PandasData):
+    """Signal-timeframe feed exposing the Karpenko ``ind`` and ``sign`` lines.
+
+    Extends the standard OHLCV mapping with the two indicator columns produced
+    by :func:`compute_karpenko` so the strategy can read them as data lines.
+    """
+
     lines = ('ind', 'sign',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -188,6 +280,15 @@ class KarpenkoFeed(bt.feeds.PandasData):
 
 
 class KarpenkoStrategy(bt.Strategy):
+    """Dual-timeframe Karpenko crossing strategy with fixed stop/target.
+
+    Executes on M15 bars while reading the ``ind``/``sign`` crossing signals
+    from the H4 Karpenko feed. Opens longs/shorts on opposite crossings,
+    closes on the reverse crossing or when the fixed point-based stop-loss or
+    take-profit is hit, and tracks signal, order, trade and win/loss counters
+    for the regression assertions.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -208,6 +309,7 @@ class KarpenkoStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15/signal feeds and reset all counters and order state."""
         self.m15 = self.datas[0]
         self.signal = self.datas[1]
         self.ind = self.signal.ind
@@ -230,6 +332,7 @@ class KarpenkoStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current M15 bar's ISO timestamp."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -299,6 +402,12 @@ class KarpenkoStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, debug
 
     def next(self):
+        """Advance one M15 bar: manage risk, then act on new signal crossings.
+
+        Skips while an order is pending or history is insufficient, enforces
+        stop/target exits, and on each fresh signal bar evaluates the Karpenko
+        crossings to open, reverse or close the fixed-size position.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -338,6 +447,15 @@ class KarpenkoStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Update order/entry counters and clear the entry slot when settled.
+
+        Counts completed orders and buy/sell fills, resets the stored stop and
+        target prices once flat, tallies rejected orders, and releases the
+        tracked entry order once it leaves the live states.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -356,6 +474,11 @@ class KarpenkoStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades and win/loss counts.
+
+        Args:
+            trade: The trade being notified; ignored unless closed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -380,6 +503,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test file.
+
+    Args:
+        filename: Absolute or relative path to a data file.
+
+    Returns:
+        The resolved absolute :class:`pathlib.Path`.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -387,6 +521,22 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the M15 execution frame and the H4 Karpenko signal frame.
+
+    Loads and shifts the M15 CSV, resamples it to the configured signal
+    timeframe, computes the Karpenko lines and clips both frames to the
+    requested backtest window.
+
+    Args:
+        config: Resolved configuration mapping with ``data`` and ``params``.
+
+    Returns:
+        A dict with the ``m15`` and ``signal`` DataFrames plus ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data is empty before or after windowing.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -407,6 +557,16 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, both feeds, strategy and analyzers.
+
+    Args:
+        config: Resolved configuration mapping.
+        frame: Mapping from :func:`load_backtest_frames` with the M15 and
+            signal DataFrames.
+
+    Returns:
+        A configured :class:`bt.Cerebro` instance ready to run.
+    """
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -430,6 +590,15 @@ def build_cerebro(config, frame):
 
 
 def build_empty_metrics(frame, config):
+    """Build a zero-activity metrics dict when no signal bars are available.
+
+    Args:
+        frame: Mapping from :func:`load_backtest_frames`.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A metrics dict mirroring :func:`extract_metrics` with neutral values.
+    """
     initial_cash = config['backtest']['initial_cash']
     return {
         'fromdate': frame['fromdate'],
@@ -461,6 +630,18 @@ def build_empty_metrics(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect performance metrics from the strategy and analyzers.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run.
+        frame: Mapping from :func:`load_backtest_frames`.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A dict of counts, returns, risk and trade statistics used by the
+        regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -504,6 +685,18 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the Karpenko backtest end to end and return its outputs.
+
+    Loads the frames, short-circuits to an empty metrics report when no signal
+    bars exist, otherwise builds and runs Cerebro and extracts metrics.
+
+    Args:
+        plot: When True, render the result chart after the run.
+
+    Returns:
+        A ``(results, metrics, cerebro)`` tuple; ``results`` is empty and
+        ``cerebro`` is ``None`` in the zero-signal case.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     if frame['signal'].empty:

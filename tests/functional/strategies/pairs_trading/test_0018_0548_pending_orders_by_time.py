@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Pending_Orders_By_Time") implements an intraday range breakout system based on pending orders set at specific times.
+    - Market Assumptions: Intraday price ranges set during early morning hours establish reference levels. Breakthroughs of these range boundaries at specific times indicate momentum breakouts.
+    - Entry Signals:
+        - At the opening hour (9:00 AM, `opening_hour`), place two pending breakout boundaries around the current price at `distance` (10 pips, `distance`):
+            - Buy Stop (breakout high): at price + distance.
+            - Sell Stop (breakout low): at price - distance.
+        - Entry is triggered when price breaches either breakout boundary.
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (20 pips, `stop_loss`) and Take Profit (500 pips, `take_profit`) set on position activation.
+        - Session End Exit: Close any open positions immediately at the closing hour (21:00, `closing_hour`).
 """
 from __future__ import annotations
 import math
@@ -24,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Pending_Orders_By_Time',
-        'source_ea': 'ea/0548_根据时间挂单/pending_orders_by_time.mq5',
+        'source_ea': 'ea/0548_Pending_Orders_By_Time_Strategy/pending_orders_by_time.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -68,15 +86,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -100,12 +136,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class PendingOrdersByTimeStrategy(bt.Strategy):
+    """Strategy class implementing pending order breakout on opening/closing hours.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         opening_hour=9,
         closing_hour=2,
@@ -118,6 +160,7 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -134,12 +177,26 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
         self.pending_sell = None
 
     def _point(self):
+        """Calculate and retrieve floating point size multiplier.
+
+        Returns:
+            float: Fixed point size.
+        """
         return float(self.p.point)
 
     def _round(self, value):
+        """Round decimal value to strategy price_digits precision.
+
+        Args:
+            value (float): Raw input value.
+
+        Returns:
+            float: Precision-rounded value.
+        """
         return round(float(value), int(self.p.price_digits))
 
     def _place_pending_pair(self):
+        """Calculate and establish dynamic pending buy/sell breakout thresholds around close price."""
         price = float(self.data.close[0])
         dist = float(self.p.distance) * self._point()
         sl = float(self.p.stop_loss) * self._point()
@@ -153,10 +210,17 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
         }
 
     def _clear_pending(self):
+        """Reset pending buy/sell breakout targets to None."""
         self.pending_buy = None
         self.pending_sell = None
 
     def _arm_position(self, direction, entry_price):
+        """Calculate take-profit target and submit position entry orders.
+
+        Args:
+            direction (str): Trade direction ('buy' or 'sell').
+            entry_price (float): Reference entry price.
+        """
         tp = float(self.p.take_profit) * self._point()
         if direction == 'buy':
             self.stop_price = self.pending_buy['sl'] if self.pending_buy else None
@@ -171,6 +235,7 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
         self._clear_pending()
 
     def _check_pending_trigger(self):
+        """Verify price movement across breakout boundaries to trigger entry order submissions."""
         if self.position or self.order is not None:
             return
         high = float(self.data.high[0])
@@ -189,6 +254,11 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
             self._arm_position('sell', float(self.pending_sell['entry']))
 
     def _manage_position(self, dt):
+        """Monitor active positions for take-profit, stop-loss, or mandatory closing hour exits.
+
+        Args:
+            dt (datetime.datetime): Current bar timestamp.
+        """
         if not self.position or self.order is not None:
             return
         high = float(self.data.high[0])
@@ -207,6 +277,7 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         dt = self.data.datetime.datetime(0)
         if self.order is not None:
@@ -223,6 +294,11 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
             self._place_pending_pair()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -241,6 +317,11 @@ class PendingOrdersByTimeStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -259,11 +340,23 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
     sys.path.insert(0, str(LOCAL_BACKTRADER_REPO))
 
 
+
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -271,6 +364,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -282,6 +386,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -300,6 +413,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -325,8 +449,15 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -341,13 +472,79 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
     assert abs(a - float(expected)) <= tol, (
         f"{key}: expected={expected}, got={a} (tol={tol})"
     )
+
+
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_18_0018_0548_pending_orders_by_time() -> None:
@@ -440,9 +637,9 @@ def test_18_0018_0548_pending_orders_by_time() -> None:
     _close(metrics.get('total_return_pct'), 0.02215999999997109, tol=1.000000e-06, key='total_return_pct')
     _close(metrics.get('win_rate'), 50.74626865671642, tol=5.074627e-05, key='win_rate')
     _close(metrics.get('profit_factor'), 1.0683929508348469, tol=1.068393e-06, key='profit_factor')
+    _close(metrics.get('max_drawdown'), 0.055524608596500456, tol=1.000000e-06, key='max_drawdown')
     _close(metrics.get('sharpe_ratio'), 1.9419294324364245, tol=1.941929e-06, key='sharpe_ratio')
     _close(metrics.get('annual_return_pct'), 1.3205257792558842, tol=1.320526e-06, key='annual_return_pct')
-    _close(metrics.get('max_drawdown'), 0.055524608596500456, tol=1.000000e-06, key='max_drawdown')
     _close(metrics.get('sqn'), 0.25212983925574317, tol=1.000000e-06, key='sqn')
     _total_trades = metrics.get("total_trades") or metrics.get("trade_num") or metrics.get("trade_count") or 0
     _activity = (

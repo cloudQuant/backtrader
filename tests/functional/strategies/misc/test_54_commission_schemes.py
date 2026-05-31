@@ -7,6 +7,23 @@ average crossover strategy. It verifies that commission calculations work correc
 across different commission types (percentage-based, fixed, etc.) and ensures that
 the broker properly tracks and deducts commissions from trading operations.
 
+Data Used:
+    Historical OHLCV data from Backtrader samples (default ``dax.csv`` style
+    fixture), loaded through ``resolve_data_path`` to compare commission behavior
+    across broker settings.
+
+Strategy Principle:
+    A dual-SMA crossover generates entry and exit signals.
+    The module validates that broker commission models charge expected fees under
+    percent, fixed, and futures-style configurations while trade outcomes remain
+    consistent.
+
+Strategy Logic:
+    The strategy builds fast/slow moving averages and a crossover indicator; on a
+    bullish crossover it opens a buy, on a bearish crossover it closes/reverses.
+    The test parametrizes multiple brokers, runs identical trading logic under each,
+    asserts non-zero activity and checks broker-level commission totals and metrics.
+
 Reference source: backtrader-master2/samples/commission-schemes/commission-schemes.py
 """
 from __future__ import (absolute_import, division, print_function,

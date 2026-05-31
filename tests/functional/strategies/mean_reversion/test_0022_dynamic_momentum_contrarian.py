@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily gold futures data ``XAUUSD_1d.csv`` from ``tests/datas/`` spanning
+    2008-01-01 to 2025-12-31 with daily bars and derived dynamic-momentum
+    features (returns, momentum, crash signal, regime, and target allocation).
+
+Strategy Principle:
+    The strategy alternates between momentum participation and contrarian
+    intervention. After a momentum collapse measured by rolling downside sum, it
+    enters a contrarian mode and dynamically targets long exposure; otherwise it
+    follows trend direction and rebalances when target allocation changes.
+
+Strategy Logic:
+    Data is prepared into contrarian/momentum regime signals, mapped into a custom
+    feed, and executed with target percentage rebalance orders. Each order state
+    and trade close updates counters for activity, then analyzers produce Sharpe,
+    return, drawdown, and trading diagnostics that are asserted against regression
+    values.
 """
 from __future__ import annotations
 import math
@@ -80,6 +98,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted CSV and apply optional bar-time offset.
+
+    Args:
+        filepath: Source CSV file path.
+        fromdate: Optional start datetime boundary.
+        todate: Optional end datetime boundary.
+        bar_shift_minutes: Optional minute offset to shift the timestamp index.
+
+    Returns:
+        OHLCV dataframe indexed by adjusted datetime.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -112,6 +141,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_dynamic_features(df, params):
+    """Build dynamic momentum, crash regime, and target allocation features.
+
+    Args:
+        df: Input OHLCV dataframe indexed by datetime.
+        params: Strategy parameters controlling lookbacks and exposure.
+
+    Returns:
+        Dataframe with engineered columns consumed by strategy feed.
+    """
     out = df.copy()
     lookback = int(params.get('momentum_lookback_days', 252))
     crash_window = int(params.get('crash_window_days', 21))
@@ -152,6 +190,7 @@ def prepare_dynamic_features(df, params):
 
 
 class Mt5DynamicFeed(bt.feeds.PandasData):
+    """Pandas feed exposing dynamic momentum contrarian indicators."""
     lines = ('return_1d', 'momentum', 'crash_signal', 'regime', 'signal', 'target_pct',)
     params = (
         ('datetime', None),
@@ -171,6 +210,7 @@ class Mt5DynamicFeed(bt.feeds.PandasData):
 
 
 class DynamicMomentumContrarianStrategy(bt.Strategy):
+    """Dynamic regime-switching mean-reversion strategy with target rebalance."""
     params = dict(
         momentum_lookback_days=252,
         crash_window_days=21,
@@ -180,6 +220,7 @@ class DynamicMomentumContrarianStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state counters and pending-order tracking."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.buy_count = 0
@@ -197,6 +238,15 @@ class DynamicMomentumContrarianStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate size for target notional percentage orders.
+
+        Args:
+            target_notional_pct: Fraction of account equity to allocate.
+            price: Optional execution price override.
+
+        Returns:
+            Rounded position size, bounded to a minimum.
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -212,6 +262,7 @@ class DynamicMomentumContrarianStrategy(bt.Strategy):
 
 
     def _current_position_pct(self):
+        """Return current position exposure as account percentage."""
         broker_value = float(self.broker.getvalue())
         if broker_value <= 0:
             return 0.0
@@ -226,10 +277,12 @@ class DynamicMomentumContrarianStrategy(bt.Strategy):
 
 
     def _order_target_notional_pct(self, target_pct):
+        """Submit order to reach target notional percentage."""
         target_size = self._get_position_size(target_notional_pct=target_pct)
         return self.order_target_size(target=target_size)
 
     def next(self):
+        """Advance one bar and rebalance when target regime changes."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         regime = int(round(float(self.data.regime[0])))
@@ -256,12 +309,14 @@ class DynamicMomentumContrarianStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Clear pending-order marker after terminal status updates."""
         if order.status in (order.Submitted, order.Accepted):
             return
-        # 无论订单状态如何，都清除挂单引用
+        # Clear the pending-order reference regardless of final status.
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -279,6 +334,14 @@ BASE_DIR = Path(__file__).resolve().parent
 TRADING_DAYS_PER_YEAR = 252
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build Sharpe analyzer arguments by timeframe.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary of Sharpe analyzer kwargs.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -292,6 +355,14 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a csv path relative to the test directory.
+
+    Args:
+        filename: Data filename from config.
+
+    Returns:
+        Resolved absolute file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -299,6 +370,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load data and prepare test backtest frame.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dict containing prepared dataframe and timeframe boundaries.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -317,6 +396,12 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro, config):
+    """Attach analyzer stack used in regression checks.
+
+    Args:
+        cerebro: Configured ``bt.Cerebro`` instance.
+        config: Strategy/backtest configuration.
+    """
     sharpe_kwargs = get_sharpe_analyzer_kwargs(config)
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', **sharpe_kwargs)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Days, tann=TRADING_DAYS_PER_YEAR)
@@ -326,6 +411,15 @@ def add_default_analyzers(cerebro, config):
 
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with data feed, strategy, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Prepared backtest payload.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -343,6 +437,14 @@ def build_cerebro(config, frame):
 
 
 def normalize(value):
+    """Normalize miscellaneous values for serialization compatibility.
+
+    Args:
+        value: Value to normalize.
+
+    Returns:
+        JSON-compatible scalar/string representation.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -355,6 +457,7 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return finite values, otherwise ``None``."""
     if value is None:
         return None
     if isinstance(value, float):
@@ -366,6 +469,14 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute ulcer index from a broker equity path.
+
+    Args:
+        equity_curve: Ordered equity values.
+
+    Returns:
+        Ulcer index value.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -381,7 +492,17 @@ def calculate_ulcer_index(equity_curve):
 
 
 def extract_metrics(strat, cerebro, frame, config):
-    """提取回测指标 - 参考 trend_pullback 实现"""
+    """Extract regression metrics from strategy state and analyzers.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro engine after execution.
+        frame: Backtest input payload.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of KPIs for deterministic assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -392,7 +513,7 @@ def extract_metrics(strat, cerebro, frame, config):
     final_value = cerebro.broker.getvalue()
     broker_values = [value for _, value in getattr(strat, 'broker_value_series', [])] or [initial_cash, final_value]
     
-    # 从 TradeAnalyzer 获取交易统计
+    # Pull total won/lost trade statistics from TradeAnalyzer.
     total_trades = ta.get('total', {}).get('total', 0)
     won = ta.get('won', {}).get('total', 0)
     lost = ta.get('lost', {}).get('total', 0)

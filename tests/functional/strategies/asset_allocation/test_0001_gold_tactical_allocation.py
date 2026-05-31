@@ -7,6 +7,42 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Three MT5 daily CSV feeds defined in ``_CONFIG['data']``: ``XAUUSD_1d.csv``
+    (gold), ``IVV_1d.csv`` (US equity) and ``IEF_1d.csv`` (US Treasuries) under
+    ``tests/datas/mt5_1d_data``. Daily bars are clipped to 2008-01-01 through
+    2025-12-31, resampled to month-end (``ME``) bars, and aligned to a shared
+    monthly index. A derived signal feed carries the per-month target weights
+    alongside the gold OHLCV bars.
+
+Strategy Principle:
+    A tactical asset-allocation overlay around a gold core. Gold's weight floats
+    around a base level inside a min/max band, tilted by a composite signal that
+    blends three views: 12-month gold momentum, an equity-volatility "safe
+    haven" regime gauge, and a rates/inflation proxy from Treasuries. A stronger
+    bullish composite raises the gold weight (up to the cap); a bearish composite
+    lowers it (down to the floor). Whatever is not allocated to gold is split
+    between equity and bonds in a fixed 60/30 ratio, expressing the thesis that
+    dynamically sizing gold improves a diversified portfolio across regimes.
+
+Strategy Logic:
+    1. ``load_inputs`` loads the daily CSVs (``load_mt5_csv``), resamples to
+       monthly (``resample_to_monthly``), and computes the clipped momentum,
+       safe-haven and inflation signals plus target weights inside
+       ``prepare_tactical_allocation_data`` (using ``rolling_clip_signal``).
+    2. ``TacticalAllocationSignalFeed`` exposes those weights as extra data
+       lines; ``GoldTacticalAllocationStrategy.__init__`` binds the signal and
+       asset feeds and resets counters.
+    3. ``next`` rebalances each month when the ``rebalance_flag`` is set, issuing
+       ``order_target_percent`` orders toward the gold/equity/bond weights;
+       ``notify_order`` clears settled refs and ``notify_trade`` tallies
+       win/loss counts.
+    4. ``build_cerebro`` wires the feeds, commission and
+       Sharpe/Returns/DrawDown/Trade/SQN analyzers; ``extract_metrics`` (with
+       ``finite_or_none`` and ``calculate_ulcer_index``) builds the metrics
+       dict and ``test_1_0001_gold_tactical_allocation`` asserts the captured
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -83,6 +119,23 @@ ASSET_NAMES = ('XAUUSD', 'IVV', 'IEF')
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -113,6 +166,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def resample_to_monthly(df):
+    """Resample a daily OHLCV frame to month-end bars.
+
+    Aggregates each calendar month into a single bar using first/max/min/last
+    for open/high/low/close, summed volume, and last open interest, then drops
+    months without complete OHLC data.
+
+    Args:
+        df: Daily OHLCV DataFrame indexed by datetime.
+
+    Returns:
+        pandas.DataFrame: Month-end (``ME``) OHLCV bars.
+    """
     monthly = pd.DataFrame({
         'open': df['open'].resample('ME').first(),
         'high': df['high'].resample('ME').max(),
@@ -125,12 +190,42 @@ def resample_to_monthly(df):
 
 
 def rolling_clip_signal(series, lookback):
+    """Standardize a series by rolling volatility and clip to [-1, 1].
+
+    Divides the series by its rolling standard deviation over ``lookback``
+    periods to produce a volatility-normalized signal, clips the result to the
+    [-1, 1] range, and fills gaps with zero.
+
+    Args:
+        series: Input pandas Series to normalize.
+        lookback: Rolling window length for the standard deviation.
+
+    Returns:
+        pandas.Series: The clipped, NaN-filled signal series.
+    """
     vol = series.rolling(lookback).std().replace(0, np.nan)
     signal = (series / vol).clip(lower=-1.0, upper=1.0)
     return signal.fillna(0.0)
 
 
 def prepare_tactical_allocation_data(asset_daily_frames, params):
+    """Build the monthly signal feed and target weights for the strategy.
+
+    Resamples each asset to monthly bars, aligns them to a common index, then
+    derives the gold-momentum, safe-haven and inflation signals, combines them
+    into a single tilt, and converts that tilt into gold/equity/bond target
+    weights subject to the configured min/max gold band.
+
+    Args:
+        asset_daily_frames: Mapping of asset name to daily OHLCV DataFrame.
+        params: Strategy parameter dictionary controlling lookbacks and weights.
+
+    Returns:
+        tuple: ``(signal_df, monthly_frames, monthly_summary)`` where
+        ``signal_df`` carries gold OHLCV plus signal/weight lines,
+        ``monthly_frames`` maps each asset to its aligned monthly OHLCV frame,
+        and ``monthly_summary`` holds the per-month signals and weights.
+    """
     monthly_frames = {name: resample_to_monthly(frame) for name, frame in asset_daily_frames.items()}
     common_index = None
     for frame in monthly_frames.values():
@@ -195,6 +290,13 @@ def prepare_tactical_allocation_data(asset_daily_frames, params):
 
 
 class TacticalAllocationSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing tactical-allocation signals as extra lines.
+
+    Extends the standard OHLCV feed with per-month signal and target-weight
+    columns (gold momentum, safe haven, inflation, combined signal, the three
+    asset weights and a rebalance flag) so the strategy can read them directly.
+    """
+
     lines = ('gold_momentum_signal', 'safe_haven_signal', 'inflation_signal', 'combined_signal', 'gold_weight', 'ivv_weight', 'ief_weight', 'rebalance_flag')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -203,6 +305,25 @@ class TacticalAllocationSignalFeed(bt.feeds.PandasData):
 
 
 class GoldTacticalAllocationStrategy(bt.Strategy):
+    """Tactical gold allocation that rebalances to monthly target weights.
+
+    Reads precomputed gold/equity/bond target weights from the signal feed and
+    rebalances the three asset feeds toward those weights whenever the monthly
+    rebalance flag is set. Tracks bar, order, rebalance and trade statistics for
+    the regression assertions.
+
+    Args:
+        gold_base_weight: Baseline gold allocation before the tactical tilt.
+        gold_min_weight: Lower bound on the gold weight.
+        gold_max_weight: Upper bound on the gold weight.
+        tactical_deviation: Maximum tilt applied to gold from the composite
+            signal.
+        momentum_lookback_months: Lookback for the gold momentum signal.
+        equity_vol_lookback_months: Lookback for the equity-volatility gauge.
+        rates_lookback_months: Lookback for the rates/inflation proxy.
+        commission_pct: Commission rate passed to the broker.
+    """
+
     params = dict(
         gold_base_weight=0.10,
         gold_min_weight=0.05,
@@ -215,6 +336,12 @@ class GoldTacticalAllocationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset tracking counters.
+
+        Captures the signal feed and the three named asset feeds, then
+        initializes the bar, buy, sell, trade, win, loss and rebalance counters
+        plus the pending-order set and equity-value series.
+        """
         self.signal = self.datas[0]
         self.asset_feeds = {
             'XAUUSD': self.getdatabyname('XAUUSD'),
@@ -232,6 +359,12 @@ class GoldTacticalAllocationStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Rebalance toward target weights when the monthly flag fires.
+
+        Records equity, skips while orders are pending, and on flagged months
+        issues ``order_target_percent`` orders for gold, equity and bonds toward
+        their signal weights while updating buy/sell counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order_refs:
@@ -256,11 +389,25 @@ class GoldTacticalAllocationStrategy(bt.Strategy):
                     self.sell_count += 1
 
     def notify_order(self, order):
+        """Drop settled orders from the pending-reference set.
+
+        Ignores intermediate Submitted/Accepted states and discards the order
+        reference once it reaches a terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win and loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are
+                counted.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -276,10 +423,29 @@ class GoldTacticalAllocationStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return ``value`` when it is a finite number, else ``None``.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value if it is non-``None`` and finite, otherwise ``None``.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-value series.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, emphasizing deep and sustained declines.
+
+    Args:
+        values: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when fewer than two values exist.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -293,11 +459,33 @@ def calculate_ulcer_index(values):
 
 
 def resolve_config_path(path_value):
+    """Resolve a config path to an absolute path under the test directory.
+
+    Args:
+        path_value: A path string or object, absolute or relative.
+
+    Returns:
+        pathlib.Path: The original path if already absolute, otherwise the path
+        resolved relative to this test file's directory.
+    """
     path = Path(path_value)
     return path if path.is_absolute() else (BASE_DIR / path).resolve()
 
 
 def load_inputs(config):
+    """Load daily asset data and derive the monthly tactical inputs.
+
+    Reads the configured date bounds, loads each asset's daily CSV, and runs
+    ``prepare_tactical_allocation_data`` to produce the signal feed, aligned
+    monthly frames and the monthly summary.
+
+    Args:
+        config: Resolved configuration dictionary (see ``load_config``).
+
+    Returns:
+        dict: Contains ``signal_df``, ``monthly_frames``, ``monthly_summary``,
+        and the parsed ``fromdate`` and ``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -311,6 +499,20 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the cerebro engine, feeds, commission and analyzers.
+
+    Creates a cerebro instance with the configured starting cash and commission,
+    adds the tactical signal feed plus the three monthly asset feeds, registers
+    the strategy with its parameters, and attaches the
+    Sharpe/Returns/DrawDown/Trade/SQN analyzers on a monthly timeframe.
+
+    Args:
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        bt.Cerebro: The fully configured engine ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -330,6 +532,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Compile the performance metrics dictionary from a finished run.
+
+    Reads the trade, Sharpe, returns, drawdown and SQN analyzers, derives win
+    rate, profit factor, total/annual return, net PnL and the Ulcer Index, and
+    combines them with the strategy's own counters.
+
+    Args:
+        strat: The executed strategy instance carrying counters and analyzers.
+        cerebro: The cerebro engine used for the run (for final broker value).
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        dict: Metric name to value mapping asserted by the test.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -369,6 +586,17 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert a value into a JSON-serializable form.
+
+    Datetimes become ISO strings and non-finite floats become ``None``; all
+    other values pass through unchanged.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        A JSON-friendly representation of ``value``.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

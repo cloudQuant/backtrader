@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. A second H4 (240-minute)
+    feed is resampled from the same M15 data and carries the precomputed
+    Fractal MFI oscillator; orders execute on the M15 feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_Fractal_MFI``. The Fractal MFI
+    is a Money Flow Index whose averaging speed adapts to a fractal-dimension
+    (Hurst) estimate of the recent price range, so it reacts faster in trending
+    regimes and slower in choppy ones. The strategy treats it as an overbought/
+    oversold oscillator: a cross up through the low level opens a long (and
+    closes shorts), a cross down through the high level opens a short (and closes
+    longs), each protected by fixed point-based stop loss and take profit.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame and resamples it to H4, where
+    compute_fractal_mfi derives the adaptive MFI; build_cerebro wires both feeds,
+    the strategy, an optional TradeLogger observer, and the default analyzers.
+    Each bar the strategy manages an open position (signal-based close, take
+    profit, or stop) or, once per new signal bar, opens a long/short on a level
+    crossing with fresh risk prices. notify_order tracks fills, buy/sell counts,
+    and risk reset; notify_trade tallies wins and losses. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -98,6 +127,17 @@ PRICE_MAP = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and return a normalized Backtrader DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower date filter.
+        todate: Optional inclusive upper date filter.
+        bar_shift_minutes: Optional minute offset for bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV/openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -125,6 +165,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample the base DataFrame to the indicator timeframe.
+
+    Args:
+        df: Base DataFrame indexed by datetime.
+        rule: Pandas frequency string such as `"240min"`.
+
+    Returns:
+        Aggregated DataFrame used for indicator generation.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -141,6 +190,18 @@ def resample_frame(df, rule):
 
 
 def compute_fractal_mfi(frame, e_period=30, normal_speed=30, price_type='typical', volume_type='tick'):
+    """Compute a Fractal-dimension-adjusted MFI oscillator.
+
+    Args:
+        frame: Source frame with OHLCV and volume columns.
+        e_period: Base oscillation lookback.
+        normal_speed: Baseline speed used before fractal adjustment.
+        price_type: Price extractor key from `PRICE_MAP`.
+        volume_type: Volume selector, `tick` or `real`.
+
+    Returns:
+        A new frame containing the `fractal_mfi` series.
+    """
     work = frame.copy()
     price_getter = PRICE_MAP.get(price_type, PRICE_MAP['typical'])
     work['input_price'] = work.apply(price_getter, axis=1)
@@ -184,12 +245,14 @@ def compute_fractal_mfi(frame, e_period=30, normal_speed=30, price_type='typical
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base execution feed mapping for M15 OHLCV bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class FractalMfiFeed(bt.feeds.PandasData):
+    """Derived indicator feed exposing the `fractal_mfi` signal."""
     lines = ('fractal_mfi',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('fractal_mfi', 6),
@@ -197,6 +260,7 @@ class FractalMfiFeed(bt.feeds.PandasData):
 
 
 class ExpFractalMFIStrategy(bt.Strategy):
+    """Trade on Fractal MFI cross events with position risk limits."""
     params = dict(
         stop_loss=1000,
         take_profit=2000,
@@ -209,6 +273,7 @@ class ExpFractalMFIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, counters, and risk fields."""
         self.base = self.datas[0]
         self.ind = self.datas[1]
 
@@ -278,6 +343,7 @@ class ExpFractalMFIStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance signal processing, open/close/reverse positions when triggered."""
         self.bar_num += 1
         if len(self.ind) < 2:
             return
@@ -303,6 +369,7 @@ class ExpFractalMFIStrategy(bt.Strategy):
             self.last_signal_dt = signal_dt
 
     def notify_order(self, order):
+        """Count completed/rejected orders and maintain order state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -321,6 +388,7 @@ class ExpFractalMFIStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades and classify win/loss results."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -345,6 +413,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative data path under the current test directory.
+
+    Args:
+        filename: Relative data filename from config.
+
+    Returns:
+        Absolute existing file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -352,6 +428,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load base and indicator frames for the configured date range.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary with base frame, fractal indicator frame, and date bounds.
+    """
     data_cfg = config['data']
     ind_cfg = config['indicator']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -372,6 +456,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Cerebro engine with dual feeds, strategy, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Data dictionary from `load_backtest_frames`.
+
+    Returns:
+        Configured `bt.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     indicator_tf = config['data'].get('indicator_timeframe_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -407,6 +500,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzers and strategy counters for regression assertions.
+
+    Args:
+        strat: Backtrader strategy instance.
+        cerebro: Executed Cerebro engine.
+        frame: Loaded frame dictionary.
+        config: Strategy configuration.
+
+    Returns:
+        Mapping of all asserted metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -446,6 +550,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return `(results, metrics, cerebro)`.
+
+    Args:
+        plot: Plot the resulting cerebro chart if True.
+
+    Returns:
+        Tuple of backtest execution results, metrics, and cerebro object.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

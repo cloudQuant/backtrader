@@ -1,7 +1,30 @@
 """Inlined regression test for mean_reversion/0254_0783_scalpel_ea.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
-Uses M15 + M30 + H1 + H4 multi-timeframe data.
+
+Data Used:
+- XAUUSD M15 (primary): 2025-12-03 01:15 to 2026-03-10 09:00
+- XAUUSD M30: resampled from M15
+- XAUUSD H1: resampled from M15
+- XAUUSD H4: resampled from M15
+
+Strategy Principle:
+Scalpel EA is a mean-reversion scalping strategy that uses CCI for entry
+timing on the M15 chart, with higher timeframe (M30, H1, H4) trend alignment
+for filter confirmation. Entries are gated by volatility expansion and
+structural break patterns in the higher timeframes.
+
+Strategy Logic:
+- On each M15 bar, compute CCI(15) and volatility metrics
+- Require bull/bear alignment across M30, H1, H4 (ascending lows for buys,
+  descending highs for sells)
+- Require volatility expansion (current volume > past volume on directional
+  bars) and a 3-bar structural break pattern
+- Set fixed stop-loss, take-profit, and optional trailing/reduce logic
+- A relaxed entry mode allows less strict conditions when the strict set
+  fails to trigger
+- Position management: trailing stop adjustment when profit exceeds take-profit,
+  time-based exits (live_minutes, reduce_minutes), Friday close filter
 """
 from __future__ import annotations
 
@@ -18,6 +41,20 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-format CSV file into a Pandas DataFrame.
+
+    Parses tab-separated columns (DATE, TIME, OPEN, HIGH, LOW, CLOSE, TICKVOL, VOL),
+    renames them to backtrader convention, and optionally shifts the datetime index.
+
+    Args:
+        filepath: Path to the CSV file.
+        fromdate: Optional start date filter.
+        todate: Optional end date filter.
+        bar_shift_minutes: Minutes to shift the datetime index by.
+
+    Returns:
+        DataFrame with columns [open, high, low, close, volume, openinterest].
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +76,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a DataFrame to a higher timeframe using right-closed aggregation.
+
+    Args:
+        df: Source DataFrame with OHLCV data.
+        rule: Pandas resample rule string (e.g. '30min', '4h').
+
+    Returns:
+        Resampled DataFrame with aggregated OHLCV columns.
+    """
     out = df.resample(rule, label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min",
         "close": "last", "volume": "sum", "openinterest": "last",
@@ -49,6 +95,11 @@ def resample_frame(df, rule):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column ordering.
+
+    Maps the 0-based DataFrame columns (open=0, high=1, low=2, close=3,
+    volume=4, openinterest=5) produced by load_mt5_csv().
+    """
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -56,6 +107,13 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ScalpelEaStrategy(bt.Strategy):
+    """Scalpel EA — CCI-driven mean-reversion scalper with multi-timeframe filters.
+
+    Uses CCI(15) on M15 for entry signals, confirmed by higher timeframe
+    (M30, H1, H4) trend alignment and volatility expansion. Includes
+    relaxed entry fallback, trailing stop management, and configurable
+    time-based exits.
+    """
     params = dict(
         lots=-5.0,
         take_profit=30, stop_loss=21, trailing_stop=10,
@@ -70,6 +128,7 @@ class ScalpelEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, runtime counters, and order/trade state."""
         self.base = self.datas[0]
         self.m30 = self.datas[1]
         self.h1 = self.datas[2]
@@ -285,6 +344,13 @@ class ScalpelEaStrategy(bt.Strategy):
         return dict(cci=cci_value, buy_signal=buy_signal, sell_signal=sell_signal)
 
     def next(self):
+        """Execute the main trading logic on each M15 bar.
+
+        Checks enough history, manages any open position (stop/tp/time exits),
+        enforces position limits and interval cooldowns, evaluates entry filters
+        (CCI + multi-tf alignment + volatility), and submits buy/sell orders
+        when conditions are met.
+        """
         self.bar_num += 1
         if not self._enough_history():
             return
@@ -324,6 +390,7 @@ class ScalpelEaStrategy(bt.Strategy):
             self.entry_order = self.sell(size=lots)
 
     def notify_order(self, order):
+        """Update strategy state after entry/exit orders leave pending status."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -347,6 +414,7 @@ class ScalpelEaStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters when a closed trade is reported."""
         if not trade.isclosed:
             return
         self.trade_count += 1

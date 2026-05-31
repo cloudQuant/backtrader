@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. Both the execution and signal feeds use M15
+    (15-minute) bars covering 2025-12-03 01:15 to 2026-03-10 09:00, with each
+    bar timestamp shifted forward by 15 minutes so bars are stamped at their
+    close. The signal feed is a re-aggregated copy of the same M15 frame.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``flat_trend_ea``. A flat-trend
+    regime filter combines Parabolic SAR position relative to price with the
+    dominance of the positive over the negative directional indicator (from the
+    ADX family). When SAR sits below price and +DI leads, a long bias forms;
+    when SAR sits above price and -DI leads, a short bias forms; the in-between
+    cases mark trend exhaustion. Risk is controlled with fixed stop-loss,
+    take-profit and trailing-stop orders measured in pips, and entries are
+    optionally restricted to a daytime trading-hour window.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 base frame; build_cerebro adds it as the
+    execution feed plus a resampled signal feed and wires the default analyzers.
+    FlatTrendIndicator emits buy/sell/end signals each bar. The strategy applies
+    trailing-stop maintenance, closes positions on opposing or end-of-trend
+    signals, and once per new bar within the allowed hours opens a long or short
+    via fixed-lot orders, then places stop-loss/take-profit exit orders.
+    notify_order tracks entry/stop/limit fills and notify_trade logs closed
+    trades. The test forces runonce=True, runs main(), and asserts trade counts
+    and analyzer metrics against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -23,7 +51,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Flat Trend EA',
-        'source_ea': 'ea/0247_横盘趋势_EA/flat_trend_ea.mq5',
+        'source_ea': 'ea/0247_flat_trend_EA/flat_trend_ea.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -79,6 +107,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, sorted ascending and filtered to the
+        date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -105,6 +147,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the MT5 ``spread`` column as an extra line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -119,9 +163,21 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FlatTrendIndicator(bt.Indicator):
+    """Flat-trend regime indicator combining ADX/DI and Parabolic SAR.
+
+    Emits four binary lines (``buy``, ``sell``, ``end_buy``, ``end_sell``) that
+    classify each bar's trend state from the SAR position relative to price and
+    the dominance of the positive over the negative directional indicator.
+    """
+
     lines = ('sell', 'buy', 'end_sell', 'end_buy')
 
     def __init__(self):
+        """Build the ADX, +DI, -DI and Parabolic SAR sub-indicators.
+
+        Also sets the minimum period to 20 bars so the directional and SAR
+        components have enough history before producing signals.
+        """
         self.adx = bt.indicators.AverageDirectionalMovementIndex(self.data)
         self.di_plus = bt.indicators.PlusDirectionalIndicator(self.data)
         self.di_minus = bt.indicators.MinusDirectionalIndicator(self.data)
@@ -129,6 +185,11 @@ class FlatTrendIndicator(bt.Indicator):
         self.addminperiod(20)
 
     def next(self):
+        """Classify the current bar into a buy/sell/end-of-trend state.
+
+        Sets exactly one of the four output lines to 1.0 based on whether the
+        SAR sits below price (uptrend context) and whether +DI exceeds -DI.
+        """
         sell = buy = end_sell = end_buy = 0.0
         if self.sar[0] < self.data.close[0]:
             if self.di_plus[0] > self.di_minus[0]:
@@ -147,6 +208,26 @@ class FlatTrendIndicator(bt.Indicator):
 
 
 class FlatTrendEAStrategy(bt.Strategy):
+    """Port of the MT5 ``flat_trend_ea`` expert advisor.
+
+    Trades the signals from ``FlatTrendIndicator`` on a separate signal feed
+    while executing on the base feed: it opens longs on buy signals and shorts
+    on sell signals during the allowed trading hours, closes on opposing or
+    end-of-trend signals, and manages each position with fixed stop-loss,
+    take-profit and trailing-stop orders sized in pips.
+
+    Args:
+        fixed_lot: Order size in lots for each entry.
+        point_size: Price value of one pip used for stop/target distances.
+        stoploss_pips: Stop-loss distance in pips (0 disables).
+        takeprofit_pips: Take-profit distance in pips (0 disables).
+        trailing_stop_pips: Trailing-stop distance in pips (0 disables).
+        trailing_step_pips: Minimum favorable move before trailing again.
+        use_hour: When True, restrict entries to the trading-hour window.
+        start_hour: First hour (inclusive) entries are allowed.
+        end_hour: Last hour (exclusive) entries are allowed.
+    """
+
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -160,6 +241,12 @@ class FlatTrendEAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution and signal feeds and reset order/position state.
+
+        Captures the base execution feed and the (optionally separate) signal
+        feed, builds the ``FlatTrendIndicator`` on the signal feed, and clears
+        the entry/exit order handles and active-side tracking.
+        """
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = FlatTrendIndicator(self.signal_data)
@@ -172,10 +259,16 @@ class FlatTrendEAStrategy(bt.Strategy):
         self.active_take_price = None
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run the same logic as ``next`` during the warm-up period."""
         self.next()
 
     def _new_bar(self):
@@ -272,6 +365,12 @@ class FlatTrendEAStrategy(bt.Strategy):
                 self.active_stop_price = candidate
 
     def next(self):
+        """Apply trailing stops, process signals, and manage entries per bar.
+
+        Updates the trailing stop, closes positions on opposing or end-of-trend
+        signals, and on each new bar within the allowed hours opens a long on a
+        buy signal or a short on a sell signal when flat and no entry is pending.
+        """
         self._apply_trailing()
         if len(self.signal_data) < 20:
             return
@@ -297,6 +396,15 @@ class FlatTrendEAStrategy(bt.Strategy):
             self._submit_entry('short', 'FlatTrend sell')
 
     def notify_order(self, order):
+        """Track entry, stop and take-profit order fills and terminations.
+
+        On completion, records the active side and places exit orders for a
+        filled entry, or resets exit/position state when a stop or take-profit
+        fills. On cancel/margin/reject, clears the corresponding order handle.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -328,6 +436,13 @@ class FlatTrendEAStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log closed trades and reset position-tracking state.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are
+                logged, after which active side and stop/take prices reset once
+                flat.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -347,6 +462,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -354,12 +480,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into a datetime, or None when empty.
+
+    Args:
+        value: An ISO-format datetime string or a falsy value.
+
+    Returns:
+        A ``datetime`` parsed from ``value``, or None when ``value`` is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load the base M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame under the ``data`` key.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -371,6 +516,14 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard analyzers used to score the backtest.
+
+    Adds Sharpe, Returns, DrawDown, TradeAnalyzer and SQN analyzers configured
+    for the minute timeframe.
+
+    Args:
+        cerebro: The Cerebro instance to attach analyzers to.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -379,6 +532,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV data into a fixed-minute compression.
+
+    Args:
+        df: OHLCV DataFrame indexed by datetime.
+        minutes: Target compression in minutes.
+
+    Returns:
+        A resampled frame with OHLC columns and cleaned missing values.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -388,6 +550,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro with execution/signal feeds, strategy, and standard analyzers.
+
+    Args:
+        config: Inline strategy configuration.
+        frame: Dictionary with loaded base data.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -405,6 +576,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None for missing or non-finite numeric values.
+
+    Args:
+        value: Candidate value.
+
+    Returns:
+        ``None`` if value is null/non-finite; otherwise value unchanged.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -413,6 +592,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Summarize and print key backtest statistics from analyzer outputs.
+
+    Args:
+        results: Strategy instances from ``cerebro.run``.
+        start_value: Starting portfolio value for the report.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -439,6 +624,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI arguments and run the Flat Trend EA backtest."""
     parser = argparse.ArgumentParser(description='Run Flat Trend EA backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

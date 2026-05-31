@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M5 OHLCV from ``tests/datas/XAUUSD_M5.csv`` is loaded with a 5-minute
+    shift, covering ``2026-02-15 00:00:00`` to ``2026-03-17 23:55:00``.
+
+Strategy Principle:
+    The strategy applies RSI extremes and recent range zones for timing, then
+    manages risk with fixed stop-loss/take-profit, break-even and trailing-stop
+    adjustments, plus spread filtering.
+
+Strategy Logic:
+    It calculates RSI and recent swing bounds, opens long/short entries on
+    confluence conditions, submits protective exits, updates stops dynamically, and
+    records trade statistics consumed by final metric assertions.
 """
 from __future__ import annotations
 import math
@@ -89,6 +103,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV history and normalize it for Backtrader.
+
+    Args:
+        filepath: Path to MT5 exported data file.
+        fromdate: Optional inclusive datetime filter start.
+        todate: Optional inclusive datetime filter end.
+        bar_shift_minutes: Optional timestamp shift applied to each bar.
+
+    Returns:
+        DataFrame with datetime index and OHLCV(+spread) columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -115,6 +140,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed including spread for execution filtering and risk checks."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -129,6 +156,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SilviosEABest26Strategy(bt.Strategy):
+    """Risk-managed RSI swing strategy with dynamic stop/limit control."""
+
     params = dict(
         magic_number=20260111,
         risk_percent=1.0,
@@ -154,6 +183,7 @@ class SilviosEABest26Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize RSI indicator and strategy accounting state."""
         self.rsi = bt.ind.RSI(self.data.close, period=self.p.rsi_period)
         self.entry_order = None
         self.stop_order = None
@@ -170,6 +200,7 @@ class SilviosEABest26Strategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped message for trade lifecycle diagnostics."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -310,6 +341,7 @@ class SilviosEABest26Strategy(bt.Strategy):
                 self._replace_stop(new_stop)
 
     def next(self):
+        """Evaluate entries and position management on each bar."""
         self.bar_num += 1
         required_bars = max(self.p.lookback_period + 1, self.p.rsi_period + 2)
         if len(self.data) < required_bars:
@@ -343,6 +375,7 @@ class SilviosEABest26Strategy(bt.Strategy):
             self.log(f'short signal close={close_price:.2f} zone={recent_high - buffer_price:.2f} rsi={rsi_now:.2f} size={size:.2f}')
 
     def notify_order(self, order):
+        """Handle entry/exit/close order status updates."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order is self.entry_order:
@@ -385,6 +418,7 @@ class SilviosEABest26Strategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Count closed trades and reset state when trade lifecycle ends."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -406,6 +440,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data filename to an absolute path.
+
+    Args:
+        filename: Data filename from configuration.
+
+    Returns:
+        Absolute path object to the CSV data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -413,6 +455,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load market data and date limits from config.
+
+    Args:
+        config: Strategy configuration with data section.
+
+    Returns:
+        Dict containing loaded data frame and selected date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -429,6 +479,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used by the migration test assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=5, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -437,6 +488,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build configured Cerebro with broker, feed, strategy, and analyzers.
+
+    Args:
+        config: Configuration object with strategy/backtest settings.
+        frame: Data payload produced by ``load_backtest_frame``.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -456,6 +516,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy, broker, and analyzer statistics for regression checks.
+
+    Args:
+        strat: Strategy instance executed by Backtrader.
+        cerebro: Cerebro engine used for execution.
+        frame: Input frame data dictionary.
+        config: Strategy/backtest config.
+
+    Returns:
+        Dictionary of computed metric values.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -496,6 +567,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize_metric(value):
+    """Convert datetimes and non-finite values for JSON-safe comparison."""
     if isinstance(value, datetime.datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -505,6 +577,7 @@ def normalize_metric(value):
 
 
 def run(plot=False):
+    """Run backtest once and return result triple."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

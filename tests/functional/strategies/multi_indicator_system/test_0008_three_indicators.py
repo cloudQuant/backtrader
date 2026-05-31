@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV bars from ``tests/datas/XAUUSD_M15.csv`` are loaded via MT5
+    CSV parser, shifted by 15 minutes and filtered from ``2025-12-03 01:15:00`` to
+    ``2026-03-10 09:00:00``. Additional helper code resamples to the configured
+    working timeframe (default 15 minutes) before indicator calculation.
+
+Strategy Principle:
+    The strategy requires aligned directional signals from three indicators:
+    MACD trend slope, stochastic oscillator zone, and RSI regime.
+    A bullish regime is treated as open, long-favoring bias when the three signals
+    are non-negative, and a bearish regime is treated as short-favoring bias when
+    all are non-positive.
+
+Strategy Logic:
+    On load, OHLCV bars are transformed into derived columns (`macd`, `sto`, `rsi`)
+    and direction flags. A custom Backtrader feed injects these flags.
+    Strategy execution enters or flips positions at bar opens based on combined buy/sell
+    signals, then records order/trade counters and final metrics using analyzers.
 """
 from __future__ import annotations
 import math
@@ -24,7 +43,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Three Indicators',
-        'source_ea': 'ea/0186_三个指标',
+        'source_ea': 'ea/0186_three_indicators',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -87,6 +106,18 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load a tab separated MT5 export file and normalize it into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: CSV file path to load.
+        fromdate: Optional start datetime to filter rows.
+        todate: Optional end datetime to filter rows.
+        bar_shift_minutes: Number of minutes used to shift bar timestamps.
+
+    Returns:
+        A pandas DataFrame with ``datetime``, ``open``, ``high``, ``low``,
+        ``close``, ``volume``, and ``openinterest`` columns indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -112,6 +143,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 def resample_ohlcv(df, timeframe):
+    """Resample OHLCV bars to a target intraday timeframe.
+
+    Args:
+        df: Source bar DataFrame with a datetime index and OHLCV columns.
+        timeframe: Target timeframe alias (for example ``15min`` or ``1h``).
+
+    Returns:
+        Aggregated OHLCV DataFrame for the requested timeframe.
+    """
     timeframe = str(timeframe).lower()
     rule_map = {
         '1min': '1min',
@@ -136,6 +176,16 @@ def resample_ohlcv(df, timeframe):
 
 
 def applied_price_series(frame, applied_price):
+    """Return a price series from a frame using a selected price mode.
+
+    Args:
+        frame: OHLCV data frame.
+        applied_price: Price mode such as ``close``, ``open``, ``hl2``, ``hlc3``,
+            ``ohlc4``, or ``weighted``.
+
+    Returns:
+        A pandas Series representing the requested applied price.
+    """
     key = str(applied_price).lower()
     if key == 'open':
         return frame['open']
@@ -155,6 +205,16 @@ def applied_price_series(frame, applied_price):
 
 
 def moving_average(series, period, method='sma'):
+    """Compute a moving average with several supported smoothing methods.
+
+    Args:
+        series: Source numeric series.
+        period: Window length.
+        method: One of ``sma``, ``ema``, or ``smma``.
+
+    Returns:
+        Smoothed series using the requested average method.
+    """
     method = str(method).lower()
     if method == 'ema':
         return series.ewm(span=period, adjust=False).mean()
@@ -167,12 +227,35 @@ def moving_average(series, period, method='sma'):
 
 
 def compute_macd_main(series, fast_period, slow_period):
+    """Compute a MACD-style main line.
+
+    Args:
+        series: Input price series.
+        fast_period: Fast EMA span.
+        slow_period: Slow EMA span.
+
+    Returns:
+        The MACD main line (fast EMA minus slow EMA).
+    """
     fast = series.ewm(span=fast_period, adjust=False).mean()
     slow = series.ewm(span=slow_period, adjust=False).mean()
     return fast - slow
 
 
 def compute_stochastic_signal(frame, k_period, d_period, slowing, ma_method='sma', price_field='lowhigh'):
+    """Build smoothed stochastic oscillator signal line and fill initial missing values.
+
+    Args:
+        frame: OHLCV data containing at least ``high`` and ``low`` and ``close``.
+        k_period: Stochastic K lookback period.
+        d_period: Smoothing period for signal line.
+        slowing: Secondary smoothing period applied to raw K.
+        ma_method: Moving-average method for rolling calculations.
+        price_field: Field mode for high/low envelope selection.
+
+    Returns:
+        A pandas Series for the stochastic signal line.
+    """
     price_field = str(price_field).lower()
     if price_field == 'closeclose':
         highest = frame['close'].rolling(k_period).max()
@@ -188,6 +271,15 @@ def compute_stochastic_signal(frame, k_period, d_period, slowing, ma_method='sma
 
 
 def compute_rsi(series, period):
+    """Compute a standard exponentially smoothed RSI series.
+
+    Args:
+        series: Source series.
+        period: RSI period.
+
+    Returns:
+        RSI values between 0 and 100 with fallback 50 for warm-up bars.
+    """
     delta = series.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
@@ -216,6 +308,29 @@ def build_signal_frame(
     rsi_period=86,
     rsi_applied_price='close',
 ):
+    """Build a derived signal frame used by the backtest strategy.
+
+    Args:
+        filepath: MT5 CSV data file path.
+        fromdate: Start datetime for slicing source bars.
+        todate: End datetime for slicing source bars.
+        bar_shift_minutes: Minute shift applied to raw timestamps.
+        work_timeframe: Target working timeframe alias.
+        macd_fast_period: MACD fast EMA period.
+        macd_slow_period: MACD slow EMA period.
+        macd_signal_period: MACD signal EMA period (stored for compatibility).
+        macd_applied_price: Price used for MACD calculation.
+        sto_k_period: Stochastic lookback for raw K.
+        sto_d_period: Stochastic smoothing period.
+        sto_slowing: Additional stochastic smoothing period.
+        sto_ma_method: Stochastic moving-average method.
+        sto_price_field: Stochastic high/low source mode.
+        rsi_period: RSI period.
+        rsi_applied_price: Price used for RSI calculation.
+
+    Returns:
+        DataFrame with raw indicators, signal flags, and derived buy/sell flags.
+    """
     base = load_mt5_csv(filepath, fromdate=fromdate, todate=todate, bar_shift_minutes=bar_shift_minutes)
     frame = resample_ohlcv(base, work_timeframe)
 
@@ -249,6 +364,12 @@ def build_signal_frame(
 
 
 class ThreeIndicatorsFeed(bt.feeds.PandasData):
+    """PandasData extension carrying custom signal lines used by the strategy.
+
+    The feed appends candle and indicator flags to enable execution decisions in
+    ``next_open`` without recalculating indicators inside Backtrader.
+    """
+
     lines = ('candle_signal', 'macd_main', 'macd_signal_flag', 'sto_signal', 'sto_signal_flag', 'rsi_value', 'rsi_signal_flag', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -271,6 +392,13 @@ class ThreeIndicatorsFeed(bt.feeds.PandasData):
 
 
 class ThreeIndicatorsStrategy(bt.Strategy):
+    """Three-indicator threshold strategy with long/short flip logic and trade stats.
+
+    The strategy opens on strong directional consensus between candle direction,
+    MACD slope, stochastic zone, and RSI zone, and tracks completed trade metrics
+    via Backtrader analyzers and order/trade notifications.
+    """
+
     params = dict(
         lots=1.0,
         work_timeframe='15min',
@@ -288,6 +416,11 @@ class ThreeIndicatorsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters used for runtime assertions.
+
+        Returns:
+            None.
+        """
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
@@ -297,13 +430,20 @@ class ThreeIndicatorsStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log message.
+
+        Args:
+            text: Message payload.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Increment the bar counter on every bar update."""
         self.bar_num += 1
 
     def next_open(self):
+        """Evaluate and route position changes at each bar open."""
         if self.order:
             return
         if len(self.data) < 2:
@@ -336,6 +476,11 @@ class ThreeIndicatorsStrategy(bt.Strategy):
         self.order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Update side counters when a submitted order completes.
+
+        Args:
+            order: Backtrader order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -346,6 +491,11 @@ class ThreeIndicatorsStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters and log final PnL for closed trades.
+
+        Args:
+            trade: Backtrader trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -371,6 +521,17 @@ MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
 
 
 def resolve_data_path(filename):
+    """Resolve a fixture data file under this strategy test directory.
+
+    Args:
+        filename: Relative fixture name.
+
+    Returns:
+        Absolute path to the fixture file.
+
+    Raises:
+        FileNotFoundError: If the expected fixture file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -378,6 +539,14 @@ def resolve_data_path(filename):
 
 
 def compression_for_timeframe(work_timeframe):
+    """Map a user timeframe string to a Backtrader minute compression value.
+
+    Args:
+        work_timeframe: Timeframe label from strategy config.
+
+    Returns:
+        Minute compression integer used by ``bt.TimeFrame.Minutes``.
+    """
     mapping = {
         '1min': 1,
         '5min': 5,
@@ -391,6 +560,14 @@ def compression_for_timeframe(work_timeframe):
 
 
 def load_backtest_frame(config):
+    """Load normalized bars and strategy parameters into a backtest data payload.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dict with keys ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -420,6 +597,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Backtrader engine with analyzers and strategy wiring.
+
+    Args:
+        config: Strategy configuration dictionary.
+        frame: Payload returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.cerebro.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     params = config['params']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
@@ -448,6 +634,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect normalized metrics from strategy and configured analyzers.
+
+    Args:
+        strat: Strategy instance from ``cerebro.run`` result.
+        cerebro: Configured Cerebro instance.
+        frame: Backtest payload containing bars/time boundaries.
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary of key performance and risk metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -492,6 +689,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the regression backtest and return raw run artifacts.
+
+    Args:
+        plot: Whether to draw Cerebro plots after execution.
+
+    Returns:
+        ``(results, metrics, cerebro)`` tuple.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

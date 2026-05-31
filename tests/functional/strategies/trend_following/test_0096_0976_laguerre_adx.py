@@ -17,6 +17,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 OHLCV data into a DataFrame with spread column.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Minute shift to apply to bar timestamps.
+
+    Returns:
+        Datetime-indexed DataFrame with OHLCV and spread columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -39,6 +50,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed exposing OHLCV fields and spread for laguerre ADX signal."""
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -47,10 +59,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class LaguerreAdxIndicator(bt.Indicator):
+    """Laguerre-filtered ADX directional components built from +/- DI."""
     lines = ("up", "down")
     params = dict(adx_period=14, gamma=0.764)
 
     def __init__(self):
+        """Initialize DI inputs, laguerre states, and minimum period."""
         self.addminperiod(int(self.p.adx_period) + 5)
         self.plus_di = bt.indicators.PlusDirectionalIndicator(self.data, period=int(self.p.adx_period))
         self.minus_di = bt.indicators.MinusDirectionalIndicator(self.data, period=int(self.p.adx_period))
@@ -90,6 +104,7 @@ class LaguerreAdxIndicator(bt.Indicator):
         return previous_output
 
     def next(self):
+        """Compute smoothed up/down values from directional indicators."""
         prev_up = float(self.lines.up[-1]) if len(self) > 0 and math.isfinite(float(self.lines.up[-1])) else 0.0
         prev_down = float(self.lines.down[-1]) if len(self) > 0 and math.isfinite(float(self.lines.down[-1])) else 0.0
         plus_value = float(self.plus_di[0]) if math.isfinite(float(self.plus_di[0])) else 0.0
@@ -99,6 +114,7 @@ class LaguerreAdxIndicator(bt.Indicator):
 
 
 class LaguerreAdxStrategy(bt.Strategy):
+    """Laguerre ADX cross strategy with risk controls and trade accounting."""
     params = dict(
         fixed_lot=0.1, risk_percent=0.0, point=0.01,
         stop_loss_points=1000, take_profit_points=2000,
@@ -110,6 +126,7 @@ class LaguerreAdxStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind execution/signal feeds and initialize counters and risk state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = LaguerreAdxIndicator(
@@ -209,6 +226,7 @@ class LaguerreAdxStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process signal crossover on each new signal bar and manage exits/entries."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -252,6 +270,7 @@ class LaguerreAdxStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and perform reverse-entry follow-up."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -291,6 +310,7 @@ class LaguerreAdxStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Record trade outcome and clear risk state on flat exits."""
         if not trade.isclosed:
             return
         self.trade_count += 1

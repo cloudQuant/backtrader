@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    The test backtest covers ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Implements a mean-reversion framework around the most recent rolling high/low
+    range and midpoint, with directional entries near range boundaries and risk-
+    constrained position sizing.
+
+Strategy Logic:
+    Builds lowest/highest indicators, submits long/short entries when price touches
+    the rolling boundary, places protective exits via stop/take-profit orders,
+    and validates deterministic metrics collected from analyzers.
 """
 from __future__ import annotations
 import math
@@ -24,7 +38,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Mean Reversion',
-        'source_ea': 'ea/0106_夺宝奇兵均值回复_EA',
+        'source_ea': 'ea/0106_robbery_reversion_ea',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -80,6 +94,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and normalize fields for Backtrader.
+
+    Args:
+        filepath: Source CSV path.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional minute offset for all bars.
+
+    Returns:
+        Time-indexed dataframe with standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -106,6 +131,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas feed with an extra spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -114,6 +140,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class MeanReversionStrategy(bt.Strategy):
+    """Mean-reversion strategy that trades on rolling range mean crossings."""
     params = dict(
         lookback=200,
         risk_per_trade=1.0,
@@ -125,6 +152,7 @@ class MeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and trading state."""
         self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.lookback)
         self.highest = bt.indicators.Highest(self.data.high, period=self.p.lookback)
         self.entry_order = None
@@ -138,6 +166,11 @@ class MeanReversionStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log message when verbose mode is enabled.
+
+        Args:
+            text: Log message.
+        """
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data.datetime[0])
@@ -189,6 +222,7 @@ class MeanReversionStrategy(bt.Strategy):
                 self.limit_order = self.buy(size=size, exectype=bt.Order.Limit, price=self.pending_tp, oco=self.stop_order)
 
     def next(self):
+        """Handle one bar update and entry/cooldown logic."""
         self.bar_num += 1
         if len(self.data) < self.p.lookback:
             return
@@ -225,6 +259,7 @@ class MeanReversionStrategy(bt.Strategy):
             self.log(f'OPEN SELL size={size} tp={tp:.2f} sl={sl:.2f}')
 
     def notify_order(self, order):
+        """Track completed, cancelled, and rejected orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.entry_order:
@@ -252,6 +287,7 @@ class MeanReversionStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Count closed trades and reset exit order handles."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -278,6 +314,14 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename):
+    """Resolve and validate data file path.
+
+    Args:
+        filename: Data path string from configuration.
+
+    Returns:
+        Absolute path to existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -286,6 +330,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse datetime string used in config.
+
+    Args:
+        value: Date-time string or ``None``.
+
+    Returns:
+        Parsed :class:`datetime.datetime` or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -293,6 +345,14 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Load backtest frame for configured dataset and date window.
+
+    Args:
+        config: Strategy configuration dict.
+
+    Returns:
+        Dictionary containing dataframe and period boundaries.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -310,6 +370,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Backtrader engine for this strategy.
+
+    Args:
+        config: Strategy and broker config.
+        frame: Loaded data frame payload.
+
+    Returns:
+        Configured :class:`backtrader.Cerebro`.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -337,6 +406,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` when numeric value is missing or not finite.
+
+    Args:
+        value: Potentially finite value.
+
+    Returns:
+        ``None`` or original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -346,6 +423,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Collect analyzer and trade counters into the metric dictionary.
+
+    Args:
+        results: Backtest result list.
+        start_value: Initial account equity used for return computation.
+
+    Returns:
+        Metric dictionary used by assertions.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -383,6 +469,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Execute backtest and return results, extracted metrics, and engine.
+
+    Args:
+        plot: If True, trigger Backtrader plot output.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

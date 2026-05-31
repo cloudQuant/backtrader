@@ -1,7 +1,25 @@
-"""Inlined regression test for others/0006_mixture_model_bottom_prediction.
+"""Manual single-file regression test for ``test_0006_mixture_model_bottom_prediction``.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
-Uses scikit-learn's GaussianMixture to label bottom regimes for XAUUSD.
+Runs with ``runonce=True`` only.
+
+Data Used:
+    Multi-symbol XAUUSD, IEF, and USDJPY daily exports from
+    ``tests/datas/mt5_1d_data`` (``XAUUSD_1d.csv``, ``IEF_1d.csv``,
+    ``USDJPY_1d.csv``). The test limits data by explicit date bounds and
+    derives rolling momentum/volatility features before running one-pass backtest.
+
+Strategy Principle:
+    Builds feature vectors across own-price and proxy signals, then trains a
+    Gaussian Mixture model with z-scored features to infer bottom-like market
+    regimes. The selected bottom state drives a target exposure signal and hold
+    timing logic.
+
+Strategy Logic:
+    ``prepare_mixture_bottom_features`` trains/updates the model on a rolling
+    window, produces bottom probability and ``target_exposure`` signals, and emits
+    ``signal_change`` events. ``MixtureBottomStrategy`` rebalances only when
+    the signal changes, while ``notify_order`` and ``notify_trade`` maintain
+    execution/trade counters.
 """
 from __future__ import annotations
 
@@ -25,6 +43,16 @@ USDJPY_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "USDJPY_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5 daily export into a sorted datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to the data file.
+        fromdate: Optional inclusive lower time bound.
+        todate: Optional inclusive upper time bound.
+
+    Returns:
+        pandas.DataFrame: DataFrame with OHLCV and open interest columns.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -78,6 +106,16 @@ def _label_bottom_state(model, scaler, train_slice, feature_columns):
 
 
 def prepare_mixture_bottom_features(price_df, proxy_frames, params):
+    """Create rolling features and bottom-regime exposure targets.
+
+    Args:
+        price_df: Main XAUUSD DataFrame indexed by datetime.
+        proxy_frames: Dict with aligned proxy market frames (IEF and USDJPY).
+        params: Parameter map controlling feature windows and model settings.
+
+    Returns:
+        pandas.DataFrame: Feature frame with signal columns used by the strategy.
+    """
     common_index = price_df.index
     for frame in proxy_frames.values():
         common_index = common_index.intersection(frame.index)
@@ -224,6 +262,7 @@ def prepare_mixture_bottom_features(price_df, proxy_frames, params):
 
 
 class MixtureBottomFeed(bt.feeds.PandasData):
+    """PandasData extension that exposes mixture model bottom-detection fields."""
     lines = (
         "predicted_state", "bottom_probability", "target_exposure",
         "retrain_point", "bottom_signal", "hold_counter", "signal_change",
@@ -236,9 +275,15 @@ class MixtureBottomFeed(bt.feeds.PandasData):
 
 
 class MixtureBottomStrategy(bt.Strategy):
+    """Signal-change driven rebalancing strategy for bottom-detection regime.
+
+    Opens/reduces exposure according to ``target_exposure`` and tracks trade
+    lifecycle outcomes.
+    """
     params = dict()
 
     def __init__(self):
+        """Initialize execution and telemetry state."""
         self.bar_num = 0
         self.pending_order = None
         self.trade_count = 0
@@ -249,6 +294,11 @@ class MixtureBottomStrategy(bt.Strategy):
         self.bottom_signal_count = 0
 
     def next(self):
+        """Issue rebalances when the strategy signal toggles.
+
+        The strategy only sends a target-size order when ``signal_change`` is
+        asserted and no order is currently pending.
+        """
         self.bar_num += 1
         if float(self.data.retrain_point[0]) > 0.5:
             self.retrain_count += 1
@@ -262,11 +312,21 @@ class MixtureBottomStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_exposure[0]))
 
     def notify_order(self, order):
+        """Clear the pending order reference after an order leaves active state.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Count closed-trade outcomes for win/loss statistics.
+
+        Args:
+            trade: The trade object reported by Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

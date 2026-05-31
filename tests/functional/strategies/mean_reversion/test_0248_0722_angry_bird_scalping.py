@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy implements a Martingale-style scalping/grid trading algorithm using CCI and RSI for mean reversion signals.
+    - Market Assumptions: Markets fluctuate inside short-term bands. Price extremes identified by CCI and RSI are likely to revert back to the mean. Martingale lot multiplier helps close baskets of trades at profit when the price retracts.
+    - Indicators:
+        - CCI: Commodity Channel Index (55-period, on Close line).
+        - RSI: Relative Strength Index (14-period, on Close line).
+    - Entry Signals:
+        - Long Entry: CCI indicates oversold level (< -cci_drop) or RSI is oversold (< rsi_max), buying with Martingale lot scaling.
+        - Short Entry: CCI indicates overbought level (> cci_drop) or RSI is overbought (> rsi_min), selling with Martingale lot scaling.
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (500 pips) and Take Profit (20 pips).
+        - CCI Drop Exit: Exit long when CCI drops below -cci_drop, or exit short when CCI rises above cci_drop.
 """
 from __future__ import annotations
 import math
@@ -22,8 +41,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '愤怒小鸟_(剥头�?',
-        'source_ea': 'ea/0722_愤怒小鸟_(剥头�?',
+        'name': 'Angry_Bird_Scalping',
+        'source_ea': 'ea/0722_Angry_Bird_Scalping',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -73,15 +92,29 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,12 +142,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class AngryBirdScalpingStrategy(bt.Strategy):
+    """Strategy class implementing Angry Bird Martingale scalping.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         stoploss=500,
         min_profit_point=10,
@@ -137,6 +176,7 @@ class AngryBirdScalpingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.cci = bt.indicators.CCI(self.data.close, period=55)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
 
@@ -157,9 +197,19 @@ class AngryBirdScalpingStrategy(bt.Strategy):
         self.short_trade = False
 
     def _unit(self):
+        """Calculate the price unit value based on point size and digit adjustments.
+
+        Returns:
+            float: Calculated price step unit.
+        """
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _pip_step(self):
+        """Calculate the dynamic grid step distance based on recent high-low ranges.
+
+        Returns:
+            float: Calculated pip step value.
+        """
         lookback = min(len(self), int(self.p.glubina) + 1)
         highs = [float(self.data.high[-i]) for i in range(1, lookback)]
         lows = [float(self.data.low[-i]) for i in range(1, lookback)]
@@ -169,19 +219,43 @@ class AngryBirdScalpingStrategy(bt.Strategy):
         return max(pip_step, float(self.p.default_pips))
 
     def _count_trades(self):
+        """Count active trades in the basket.
+
+        Returns:
+            int: Number of active positions (0 or 1).
+        """
         return 1 if self.position else 0
 
     def _avg_price(self):
+        """Calculate the average entry price of the basket.
+
+        Returns:
+            float: Average entry price.
+        """
         return float(self.position.price) if self.position else 0.0
 
     def _calc_lot(self, count_trades):
+        """Calculate Martingale trade lot size based on exponent parameter.
+
+        Args:
+            count_trades (int): Active trade count.
+
+        Returns:
+            float: Scaled lot size.
+        """
         return round(float(self.p.lots) * (float(self.p.lot_exponent) ** count_trades), int(self.p.lotdecimal))
 
     def _close_all(self):
+        """Close all active positions in the basket."""
         if self.position and self.order is None:
             self.order = self.close()
 
     def _equity_stop(self):
+        """Check and enforce risk stop limits on total account equity.
+
+        Returns:
+            bool: True if equity stop limit was breached and positions closed, otherwise False.
+        """
         if not bool(self.p.use_equity_stop):
             return False
         pnl = self.broker.getvalue() - self.broker.startingcash
@@ -191,6 +265,11 @@ class AngryBirdScalpingStrategy(bt.Strategy):
         return False
 
     def _manage_basket(self):
+        """Manage active trade basket targets and fixed stop loss limits.
+
+        Returns:
+            bool: True if exit orders were successfully placed, otherwise False.
+        """
         if not self.position or self.order is not None:
             return False
         avg_price = self._avg_price()
@@ -210,6 +289,7 @@ class AngryBirdScalpingStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self) < 60:
             return
@@ -266,6 +346,11 @@ class AngryBirdScalpingStrategy(bt.Strategy):
                 self.last_open_buy_price = float(self.data.close[0])
 
     def notify_order(self, order):
+        """Callback to handle order status updates and track active trade prices.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -292,6 +377,11 @@ class AngryBirdScalpingStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -315,6 +405,11 @@ _OriginalCCI = bt.indicators.CCI
 
 
 class CloseLineCCI(bt.Indicator):
+    """Custom CCI indicator designed to evaluate simple single close lines instead of HLC.
+
+    Lines:
+        cci (Line): Output Commodity Channel Index line.
+    """
     lines = ('cci',)
     params = (
         ('period', 20),
@@ -323,6 +418,7 @@ class CloseLineCCI(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize and calculate close-based CCI indicator components."""
         tp = self.data
         tpmean = self.p.movav(tp, period=self.p.period)
         meandev = bt.indicators.MeanDev(tp, tpmean, period=self.p.period)
@@ -330,6 +426,15 @@ class CloseLineCCI(bt.Indicator):
 
 
 def CCICompat(*args, **kwargs):
+    """Determine whether to load default HLC CCI or single CloseLineCCI based on inputs.
+
+    Args:
+        *args: Variable length argument list.
+        **kwargs: Arbitrary keyword arguments.
+
+    Returns:
+        bt.Indicator: Resolved CCI indicator.
+    """
     data = args[0] if args else kwargs.get('data')
     if data is not None and not hasattr(data, 'high'):
         return CloseLineCCI(*args, **kwargs)
@@ -344,6 +449,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -351,6 +467,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -362,6 +489,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -379,6 +515,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -418,6 +565,28 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
+def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
+    config = load_config()
+    frame = load_backtest_frame(config)
+    cerebro = build_cerebro(config, frame)
+    print('\nStarting backtest...')
+    results = cerebro.run()
+    strat = results[0]
+    metrics = extract_metrics(strat, cerebro, frame, config)
+
+    if plot:
+        cerebro.plot()
+    return results, metrics, cerebro
+
+
 def _close(actual, expected, *, tol, key):
     """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
     assert actual is not None, f"{key}: expected={expected}, got=None"
@@ -429,7 +598,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -438,7 +611,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     import inspect
     sig = inspect.signature(build_cerebro)
     params = list(sig.parameters.keys())
@@ -451,7 +632,17 @@ def _build_cerebro_compat(inputs, config):
 
 
 def _extract_metrics_compat(strat, cerebro, inputs, config):
-    """Call extract_metrics with whichever signature the original used."""
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
     for args in (
         (strat, cerebro, inputs, config),
         (strat, cerebro, config, inputs),

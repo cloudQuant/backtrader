@@ -82,6 +82,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Pandas DataFrame with OHLC columns."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,12 +106,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with standard OHLC column mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class IStochasticTradingStrategy(bt.Strategy):
+    """Improved Stochastic trading strategy with multi-layer pyramiding and trailing."""
     params = dict(
         lots=0.1,
         take_profit=50,
@@ -129,6 +132,7 @@ class IStochasticTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize StochasticFull indicator, state counters, and trade management fields."""
         self.stoch = bt.indicators.StochasticFull(
             self.data,
             period=int(self.p.kperiod),
@@ -151,22 +155,27 @@ class IStochasticTradingStrategy(bt.Strategy):
         self.last_layer_size = None
 
     def _point(self):
+        """Return the instrument's point value."""
         return float(self.p.point)
 
     def _round(self, value):
+        """Round a price value to the instrument's configured decimal places."""
         return round(float(value), int(self.p.price_digits))
 
     def _layers(self):
+        """Return the current number of pyramiding layers based on position size."""
         if not self.position:
             return 0
         count = abs(float(self.position.size)) / max(float(self.p.lots), 1e-9)
         return max(1, int(round(count)))
 
     def _max_layers_allowed(self):
+        """Return the maximum allowed pyramiding layers (unbounded if max_positions <= 0)."""
         value = int(self.p.max_positions)
         return 10 ** 9 if value <= 0 else value
 
     def _arm(self, direction, price):
+        """Set stop-loss and take-profit prices for a new position in the given direction."""
         sl = float(self.p.stop_loss) * self._point()
         tp = float(self.p.take_profit) * self._point()
         if direction == 'buy':
@@ -177,6 +186,7 @@ class IStochasticTradingStrategy(bt.Strategy):
             self.take_profit_price = self._round(price - tp) if tp > 0 else None
 
     def _trail(self):
+        """Advance the trailing stop when price moves favorably by at least the trailing step."""
         if not self.position or self.order is not None or float(self.p.trailing_stop) <= 0:
             return
         ts = float(self.p.trailing_stop) * self._point()
@@ -192,6 +202,7 @@ class IStochasticTradingStrategy(bt.Strategy):
                 self.stop_price = new_sl
 
     def _check_exit(self):
+        """Close the position when price hits the take-profit or stop-loss level."""
         if not self.position or self.order is not None:
             return
         high = float(self.data.high[0])
@@ -208,6 +219,7 @@ class IStochasticTradingStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Evaluate Stochastic signals and execute trail/exit/layered entry logic."""
         self.bar_num += 1
         warmup = max(int(self.p.kperiod), int(self.p.dperiod), int(self.p.slowing)) + 5
         if len(self) < warmup:
@@ -256,6 +268,7 @@ class IStochasticTradingStrategy(bt.Strategy):
                 self.order = self.sell(size=new_size)
 
     def notify_order(self, order):
+        """Track order completion status and clear active order references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -277,6 +290,7 @@ class IStochasticTradingStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters and win/loss statistics when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -300,6 +314,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path from test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -307,6 +322,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return the test data frame plus configured period bounds."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -318,6 +334,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with data feed, strategy, and analyzers for this backtest."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -336,6 +353,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect sharpe/returns/drawdown/trade statistics as a regression payload."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

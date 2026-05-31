@@ -1,7 +1,28 @@
 """Inlined regression test for trend_following/0171_xauusd_trend_pullback.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
-Multi-timeframe: M1 (entry) + M5 (pullback) + M15 (trend).
+Self-contained single-file test (manually authored). Runs with runonce=True
+only and validates a three-timeframe trend pullback setup.
+
+Data Used:
+- XAUUSD M1 loaded from ``tests/datas/XAUUSD_M1.csv`` with 1-minute bars.
+- XAUUSD M5 loaded from ``tests/datas/XAUUSD_M5.csv`` with 5-minute bars.
+- XAUUSD M15 loaded from ``tests/datas/XAUUSD_M15.csv`` with 15-minute bars.
+- Backtest window: 2026-03-08 00:00:00 to 2026-03-17 23:59:59.
+- Warm-up bars for M5/M15 from 2026-03-05 00:00:00.
+
+Strategy Principle:
+The strategy filters trend direction on higher timeframe EMAs and ADX, then
+waits for pullback confirmation on M5 and entry alignment on M1 before opening
+positions with fixed-risk sizing and layered profit management.
+
+Strategy Logic:
+- Build parallel feeds for M1, M5, M15 and initialize indicators for trend,
+  pullback, and entry scoring.
+- Use trend regime detection, pullback scoring, and M1 RSI crossover logic to
+  gate entry.
+- On entry, set multi-target take-profit levels, optional breakeven/trailing,
+  and exit risk with hard stop and daily/volume limits.
+- Capture order/trade events to update trade counters and state used by assertions.
 """
 from __future__ import annotations
 
@@ -18,6 +39,17 @@ DATA_DIR = _REPO / "tests" / "datas"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-separated CSV data into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to the source ``.csv`` file.
+        fromdate: Optional lower datetime bound to include.
+        todate: Optional upper datetime bound to include.
+        bar_shift_minutes: Optional minute offset to shift bar timestamps.
+
+    Returns:
+        pandas.DataFrame: Cleaned OHLCV data sorted by datetime index.
+    """
     with open(filepath, "r") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -41,6 +73,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader PandasData feed mapping MT5 CSV column order."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -48,6 +81,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class XAUUSDTrendPullbackStrategy(bt.Strategy):
+    """Three-timeframe trend-pullback strategy with risk and session controls."""
     params = dict(
         trend_ema_fast=50, trend_ema_slow=200, trend_ema_diff=4.5,
         adx_period=14, adx_threshold=22,
@@ -71,6 +105,7 @@ class XAUUSDTrendPullbackStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, multi-timeframe state, and trading counters."""
         self.m1 = self.data0
         self.m5 = self.data1
         self.m15 = self.data2
@@ -415,6 +450,7 @@ class XAUUSDTrendPullbackStrategy(bt.Strategy):
                 self.close(data=self.m1)
 
     def next(self):
+        """Process one step of strategy state and execute entries/exits."""
         self.bar_num += 1
         self._new_day_check()
         pos = self.getposition(self.m1).size
@@ -450,6 +486,11 @@ class XAUUSDTrendPullbackStrategy(bt.Strategy):
         self.prev_m1_rsi = self.m1_rsi[0] if len(self.m1_rsi) > 0 else 0
 
     def notify_order(self, order):
+        """Update entry levels on fill and reset pending state on failure.
+
+        Args:
+            order: Backtrader order instance with the latest status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -484,6 +525,11 @@ class XAUUSDTrendPullbackStrategy(bt.Strategy):
                 self.has_pending_or_open = False
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes and daily loss streak state.
+
+        Args:
+            trade: Closed-trade event from Backtrader.
+        """
         if trade.isclosed:
             self.trade_count += 1
             if trade.pnlcomm >= 0:

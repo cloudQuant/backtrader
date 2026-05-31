@@ -1,6 +1,30 @@
 """Inlined regression test for others/0047_global_growth_cycle.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the D1 (daily) timeframe loaded from
+    ``tests/datas/XAUUSD_1d.csv`` in MetaTrader 5 export format, clipped to
+    2008-01-01 through 2025-12-31. A single daily feed, augmented with
+    precomputed growth-cycle and rebalance-timing columns, drives the backtest.
+
+Strategy Principle:
+    A long-term growth-cycle timing model. The differential between a fast and a
+    slow moving average, normalized by the slow average, measures whether the
+    market is in an expansion (fast above slow) or contraction phase. The
+    strategy only acts on a fixed rebalance cadence (every N bars), holding a
+    long position while the growth cycle is positive and standing aside when it
+    turns negative, capturing the bullish portion of the cycle.
+
+Strategy Logic:
+    load_mt5_csv loads the daily frame and prepare_global_growth_cycle_features
+    precomputes the growth-cycle differential, a positive-signal flag, and a
+    rebalance flag stamped every ``rebalance_days`` bars. On each rebalance bar
+    the strategy opens a notional-sized long when the signal is positive and
+    flat, or closes when the signal turns non-positive while holding.
+    notify_order clears the pending-order reference and notify_trade tallies
+    win/loss. The test builds cerebro, forces runonce=True, and asserts the
+    strategy counters and final portfolio value against migration-time values.
 """
 from __future__ import annotations
 
@@ -17,6 +41,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV and convert to standardized OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -41,6 +66,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_global_growth_cycle_features(df, params):
+    """Compute growth-cycle differential and rebalance timing flags."""
     fast = int(params.get("fast_period", 50))
     slow = int(params.get("slow_period", 200))
     rebalance_days = int(params.get("rebalance_days", 42))
@@ -65,6 +91,7 @@ def prepare_global_growth_cycle_features(df, params):
 
 
 class Mt5GlobalGrowthCycleFeed(bt.feeds.PandasData):
+    """Pandas data feed with growth-cycle and rebalance signal columns."""
     lines = ("growth_cycle", "signal", "rebalance_flag",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -76,6 +103,7 @@ class Mt5GlobalGrowthCycleFeed(bt.feeds.PandasData):
 
 
 class GlobalGrowthCycleStrategy(bt.Strategy):
+    """Simple MA-cycle strategy entering when signal is positive on rebalance days."""
     params = dict(
         fast_period=50,
         slow_period=200,
@@ -84,6 +112,7 @@ class GlobalGrowthCycleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy counters and pending order state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -107,6 +136,7 @@ class GlobalGrowthCycleStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Handle rebalance days by opening on positive signal and closing otherwise."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -124,11 +154,13 @@ class GlobalGrowthCycleStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Reset pending order state when order lifecycle ends."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade count and win/loss statistics for closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

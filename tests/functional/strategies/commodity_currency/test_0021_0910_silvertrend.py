@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. The
+    base feed is M15 (15-minute); a second feed is resampled to H1 (60-minute)
+    and drives the SilverTrend indicator, making this a dual-timeframe setup.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_SilverTrend. The SilverTrend signal
+    builds adaptive bands from the SSP-period high/low range scaled by a risk
+    factor: the trend flips down when the close pierces the lower band and up
+    when it pierces the upper band. A fresh up-flip prints a buy arrow and a
+    fresh down-flip prints a sell arrow. Entries follow the arrows on the higher
+    timeframe and positions are protected by fixed point-based stop-loss and
+    take-profit levels.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_signal_frame resamples it
+    to H1 for the indicator; build_cerebro wires both feeds, the strategy, and
+    the analyzers. Each bar the strategy first checks stop/target exit levels,
+    then, on a new H1 bar, reads the SilverTrend arrows to open longs/shorts and
+    close opposite positions (including a historical-arrow close scan).
+    notify_trade counts entries on open and win/loss on close. extract_metrics
+    consolidates analyzer output; the test hooks extract_metrics, forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -86,6 +113,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,6 +147,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -125,6 +167,7 @@ class SilverTrendIndicator(bt.Indicator):
     params = dict(ssp=9, risk=3)
 
     def __init__(self):
+        """Cache SSP/risk parameters, reset trend state, and set min period."""
         self._ssp = int(self.p.ssp)
         self._k = float(self.p.risk) * 100.0
         self._uptrend = False
@@ -132,6 +175,7 @@ class SilverTrendIndicator(bt.Indicator):
         self.addminperiod(self._ssp + 2)
 
     def next(self):
+        """Update the adaptive bands and emit buy/sell arrows on trend flips."""
         ssp = self._ssp
 
         # Compute average range over SSP bars
@@ -173,6 +217,14 @@ class SilverTrendIndicator(bt.Indicator):
 
 
 class ExpSilverTrendStrategy(bt.Strategy):
+    """Trade SilverTrend arrows on the higher timeframe with fixed SL/TP.
+
+    Runs the SilverTrend indicator on the resampled higher-timeframe feed,
+    entering longs/shorts on fresh buy/sell arrows, closing opposite positions
+    (including a historical-arrow scan), and protecting open positions with
+    fixed point-based stop-loss and take-profit levels.
+    """
+
     params = dict(
         ssp=9,
         risk=3,
@@ -189,6 +241,7 @@ class ExpSilverTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base and signal feeds, build the indicator, reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = SilverTrendIndicator(
@@ -205,6 +258,11 @@ class ExpSilverTrendStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current base-feed bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -248,6 +306,14 @@ class ExpSilverTrendStrategy(bt.Strategy):
                     self.log(f'close long hist sell -{k}'); self.close(); return
 
     def next(self):
+        """Check exit levels, then act on new higher-timeframe SilverTrend arrows.
+
+        Increments the bar counter, applies stop/target exits first, and only
+        proceeds when a new signal-timeframe bar has formed. It reads the buy and
+        sell arrows at the configured signal bar, closes opposite positions per
+        the close flags (with a historical-arrow scan fallback), and opens
+        longs/shorts per the open flags, tracking signal and entry counts.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -295,6 +361,12 @@ class ExpSilverTrendStrategy(bt.Strategy):
             if self.position.size >= 0: self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Count entries on open and win/loss on close.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -315,11 +387,35 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        fn: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Load the M15 XAUUSD frame described by the config into a date range.
+
+    Args:
+        cfg: Parsed configuration whose ``data`` section provides the file path,
+            inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -329,6 +425,16 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Resample the base frame to the indicator timeframe.
+
+    Args:
+        df: The base OHLCV DataFrame to resample.
+        mins: The resampling interval in minutes for the indicator feed.
+
+    Returns:
+        A resampled OHLCV DataFrame (right-labelled, right-closed) with rows
+        missing core prices dropped and open interest filled with zero.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -336,6 +442,20 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Assemble the Cerebro engine with both timeframe feeds and analyzers.
+
+    Args:
+        cfg: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the base M15 feed and the
+        resampled indicator feed, ready to run the backtest.
+
+    Raises:
+        ValueError: If the resampled signal frame is empty.
+    """
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 60)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -355,6 +475,19 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding signal/trade counters and
+            attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        cfg: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and signal/entry counts) used by the assertions.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -369,6 +502,16 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Run the full backtest pipeline and return results, metrics, and engine.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
+        and ``cerebro`` is the engine instance.
+    """
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)

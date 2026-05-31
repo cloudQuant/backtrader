@@ -75,6 +75,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 TSV export into a backtest-ready DataFrame.
+
+    Args:
+        filepath: Data file path.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional minute shift offset.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV/openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -98,6 +109,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter for MT5 inlined frame format."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -117,6 +130,7 @@ class SupportResistTradeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize MA, channel indicators and state counters."""
         self.ma = bt.indicators.EMA(self.data.close, period=self.p.ma_period)
         self.highest = bt.indicators.Highest(self.data.high, period=self.p.num_bars)
         self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.num_bars)
@@ -173,6 +187,7 @@ class SupportResistTradeStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Advance support-resistance breakout logic and manage exits."""
         self.bar_num += 1
         if len(self) < max(self.p.num_bars, self.p.ma_period) + 2:
             return
@@ -199,6 +214,11 @@ class SupportResistTradeStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Update counters for order lifecycle events.
+
+        Args:
+            order: Broker order object.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -214,6 +234,11 @@ class SupportResistTradeStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Increment trade-level counters on each close.
+
+        Args:
+            trade: Closed trade record.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -233,11 +258,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve data path under current test directory.
+
+    Args:
+        filename: Relative file path.
+
+    Returns:
+        Absolute path to file.
+
+    Raises:
+        FileNotFoundError: If file is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load backtest bars and return run metadata.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dict with data and date range.
+
+    Raises:
+        ValueError: If data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -247,6 +294,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build configured Cerebro instance.
+
+    Args:
+        config: Backtest and strategy settings.
+        frame: Loaded data payload.
+
+    Returns:
+        Configured :class:`backtrader.Cerebro` object.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -263,6 +319,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect metrics for regression assertions.
+
+    Args:
+        strat: Strategy instance after execution.
+        cerebro: Completed Cerebro instance.
+        frame: Backtest payload.
+        config: Backtest config.
+
+    Returns:
+        A dictionary of metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -281,6 +348,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Run support/resistance strategy and return output tuple.
+
+    Args:
+        plot: Whether to render chart after execution.
+
+    Returns:
+        ``(results, metrics, cerebro)``.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

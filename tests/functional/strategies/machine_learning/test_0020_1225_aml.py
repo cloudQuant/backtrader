@@ -86,6 +86,24 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-style tab-delimited export as a normalized OHLCV DataFrame.
+
+    Parameters
+    ----------
+    filepath: str | Path
+        Input file path.
+    fromdate: datetime, optional
+        Inclusive lower bound for row selection.
+    todate: datetime, optional
+        Inclusive upper bound for row selection.
+    bar_shift_minutes: int, default 0
+        Minutes to shift each bar timestamp.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with `datetime` index and standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,6 +125,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Backtrader feed mapping MT5 columns into OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -114,6 +133,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AmlFeed(btfeeds.PandasData):
+    """Feed carrying AML and state columns used by the strategy."""
     lines = ('aml', 'state')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -122,6 +142,7 @@ class AmlFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV bars to a higher timeframe used for signal generation."""
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -137,6 +158,7 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def recount_array_zero_pos(co_arr, size):
+    """Create a wrapped list of indices used for circular ordering logic."""
     max1 = size - 1
     count = co_arr[-1]
     count -= 1
@@ -153,12 +175,28 @@ def recount_array_zero_pos(co_arr, size):
 
 
 def range_value(period, start, highs, lows):
+    """Compute a rolling high-low range for the provided window."""
     window_high = highs[start:start + period]
     window_low = lows[start:start + period]
     return max(window_high) - min(window_low)
 
 
 def build_aml_frame(df, indicator_minutes, fractal, lag, point):
+    """Build AML and state values for each resampled bar.
+
+    Parameters
+    ----------
+    df: pandas.DataFrame
+        Raw OHLCV data indexed by datetime.
+    indicator_minutes: int
+        Resampling interval in minutes.
+    fractal: int
+        Fractal period for AML state transitions.
+    lag: int
+        Lag used in signal smoothing.
+    point: float
+        Symbol point size for threshold calculation.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     n = len(signal_df)
     min_rates_total = int(fractal) + int(lag)
@@ -225,6 +263,7 @@ def build_aml_frame(df, indicator_minutes, fractal, lag, point):
 
 
 class AmlStrategy(bt.Strategy):
+    """AML trend strategy with configurable position open/close gating."""
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -241,6 +280,7 @@ class AmlStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and state trackers."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -254,6 +294,7 @@ class AmlStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped strategy log line."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -298,6 +339,7 @@ class AmlStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Generate and execute buy/sell signals for each completed bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -351,6 +393,7 @@ class AmlStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade is opened or closed."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -384,6 +427,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a local data path and validate it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -391,6 +435,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and trim raw market data according to strategy configuration."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -407,6 +452,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and return a configured Cerebro instance for this strategy."""
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -449,6 +495,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy analyzers and execution counters for assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

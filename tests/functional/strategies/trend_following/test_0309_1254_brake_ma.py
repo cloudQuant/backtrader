@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The BrakeExp stop line is
+    computed directly on the M15 feed; no separate signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_BrakeMA`` (built on the
+    BrakeExp indicator). BrakeExp is an exponential trailing stop: while long it
+    rises along an exponential curve from a begin price and, when price breaks
+    it, flips to short (and vice versa), plotting up/down trend lines and
+    buy/sell flip cues. The strategy follows these flips, going long on a
+    down-to-up flip and short on an up-to-down flip, reversing on the opposite
+    flip; risk is bounded by the exponential stop flip rather than a separate
+    fixed stop.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers, building the BrakeExpIndicator which
+    maintains the exponential stop state and emits up/down trend and buy/sell
+    signal lines. Each bar the strategy reads the buy/sell flip cues at the
+    configured signal bar to derive open/close signals, then opens, closes, or
+    reverses a fixed-lot position. notify_trade counts entries on open and
+    win/loss on close. extract_metrics consolidates analyzer output, and the
+    test forces runonce=True, runs the module's run()/main(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -77,6 +105,19 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -98,6 +139,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -105,10 +148,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BrakeExpIndicator(bt.Indicator):
+    """Exponential trailing-stop indicator with trend and flip lines.
+
+    Maintains an exponential-curve stop that rises while long (and falls while
+    short) from a begin price; when price breaks the stop the direction flips.
+    Exposes the active stop on ``up_trend``/``down_trend`` lines and
+    direction-flip cues on ``buy_signal``/``sell_signal`` lines.
+    """
+
     lines = ('up_trend', 'down_trend', 'buy_signal', 'sell_signal')
     params = dict(a=3.0, b=1.0)
 
     def __init__(self):
+        """Set the minimum period and initialize the exponential-stop state."""
         self.addminperiod(5)
         self._is_long = True
         self._max_price = float('-inf')
@@ -117,6 +169,13 @@ class BrakeExpIndicator(bt.Indicator):
         self._begin_price = None
 
     def next(self):
+        """Advance the exponential stop and emit trend and flip lines.
+
+        Extends the stop along the exponential curve, flips direction (resetting
+        the begin price and extremes) when price breaks the stop, and sets the
+        ``up_trend``/``down_trend`` lines plus ``buy_signal``/``sell_signal`` flip
+        cues for the bar.
+        """
         if self._begin_price is None:
             self._begin_price = float(self.data.low[0])
         self._max_price = max(self._max_price, float(self.data.high[0]))
@@ -153,9 +212,23 @@ class BrakeExpIndicator(bt.Indicator):
 
 
 class BrakeMAStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_BrakeMA`` exponential-stop flip strategy.
+
+    Follows the BrakeExp stop flips: goes long on a down-to-up flip and short on
+    an up-to-down flip, entering on the flip and reversing on the opposite flip
+    with a fixed lot.
+
+    Args:
+        a: Exponential-curve growth coefficient for the stop.
+        b: Scale coefficient for the stop offset.
+        signal_bar: Which completed bar to read flip cues from.
+        lot: Fixed order size in lots.
+    """
+
     params = dict(a=3.0, b=1.0, signal_bar=1, lot=0.1)
 
     def __init__(self):
+        """Build the BrakeExp indicator and reset bar/trade counters."""
         self.indicator = BrakeExpIndicator(self.data, a=self.p.a, b=self.p.b)
         self.bar_num = 0
         self.buy_count = 0
@@ -166,6 +239,11 @@ class BrakeMAStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -182,6 +260,13 @@ class BrakeMAStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse on BrakeExp flip signals each bar.
+
+        Increments the bar counter, skips during warm-up, derives open/close
+        signals from the buy/sell flip cues at the configured signal bar, and
+        acts: when flat it opens a long or short; when in a position it closes on
+        the close signal or closes and reverses on the opposite open signal.
+        """
         self.bar_num += 1
         if len(self.data) < 6:
             return
@@ -220,6 +305,12 @@ class BrakeMAStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -252,6 +343,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -259,6 +361,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -275,6 +389,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy and analyzers.
+
+    Args:
+        config: Resolved configuration dict with data, params and backtest.
+        frame: Dict containing the loaded OHLCV frame under ``data``.
+
+    Returns:
+        A configured Cerebro instance ready to run the strategy.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -298,6 +421,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run completes.
+        frame: Dict of prepared frames from load_backtest_frame.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A dict of summary metrics (returns, drawdown, Sharpe, trade statistics,
+        SQN) keyed for the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -338,6 +473,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the BrakeMA backtest and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

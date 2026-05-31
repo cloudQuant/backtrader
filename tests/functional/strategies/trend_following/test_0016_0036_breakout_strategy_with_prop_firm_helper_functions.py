@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The base M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. A second H1 (60-minute)
+    trading feed is resampled from the same M15 frame; the base feed drives close
+    prices and timing while the H1 feed supplies the breakout windows and ATR.
+
+Strategy Principle:
+    This is a port of the MT5 "Breakout Strategy with Prop Firm Helper
+    Functions" expert advisor. It assumes price continues after clearing a recent
+    extreme, so it brackets the market with stop-entry orders just beyond the
+    highest high and lowest low of the last ``entry_period`` H1 bars. Position
+    size is risk based: the entry-to-exit distance is converted to a lot size
+    targeting ``risk_per_trade`` percent of equity. Open trades trail against the
+    opposite exit window. An optional prop-firm "challenge" mode adds equity
+    guards that halt trading once a profit target is reached or a daily loss
+    limit is breached.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro adds the base feed,
+    the resampled H1 trading feed, the strategy, and the default analyzers. On
+    each new H1 bar the strategy checks the challenge guards, cancels stale entry
+    orders, trails or closes any open position against the exit window, and
+    places fresh long/short stop-entry orders sized by calculate_lot_size.
+    notify_order resolves fills (cancelling the opposite entry and arming the
+    exit stop) and notify_trade tallies entries, wins, losses, and daily PnL.
+    extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +117,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +155,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column positions."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -123,6 +169,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class PropFirmBreakoutStrategy(bt.Strategy):
+    """Channel-breakout strategy with risk sizing and prop-firm equity guards."""
+
     params = dict(
         bot_name='Breakout Strategy with Prop Firm Challenge Helper',
         expert_magic=1,
@@ -144,6 +192,7 @@ class PropFirmBreakoutStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind base/trading feeds, build ATR, and reset orders and counters."""
         self.base_data = self.datas[0]
         self.trading_data = self.datas[1]
         self.atr = bt.ind.ATR(self.trading_data, period=self.p.atr_period)
@@ -164,6 +213,11 @@ class PropFirmBreakoutStrategy(bt.Strategy):
         self.daily_closed_pnl = {}
 
     def log(self, text):
+        """Print a timestamped log line for the current base bar.
+
+        Args:
+            text: Message to emit alongside the current base bar datetime.
+        """
         dt = bt.num2date(self.base_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -178,12 +232,39 @@ class PropFirmBreakoutStrategy(bt.Strategy):
         return [float(line[-shift - i]) for i in range(period)]
 
     def highest_high(self, period, shift):
+        """Return the highest trading-feed high over a shifted window.
+
+        Args:
+            period: Number of bars in the lookback window.
+            shift: Offset (in bars) from the current bar where the window ends.
+
+        Returns:
+            The maximum high across the window.
+        """
         return max(self._window_values(self.trading_data.high, period, shift))
 
     def lowest_low(self, period, shift):
+        """Return the lowest trading-feed low over a shifted window.
+
+        Args:
+            period: Number of bars in the lookback window.
+            shift: Offset (in bars) from the current bar where the window ends.
+
+        Returns:
+            The minimum low across the window.
+        """
         return min(self._window_values(self.trading_data.low, period, shift))
 
     def calculate_lot_size(self, stop_distance):
+        """Compute a risk-based lot size for a given stop distance.
+
+        Args:
+            stop_distance: Price distance from entry to the protective exit.
+
+        Returns:
+            A rounded lot size targeting ``risk_per_trade`` percent of equity,
+            falling back to the minimum volume when the distance is non-positive.
+        """
         if stop_distance <= 0:
             return self.p.volume_min
         equity = self.broker.getvalue()
@@ -304,6 +385,13 @@ class PropFirmBreakoutStrategy(bt.Strategy):
             self.short_entry_order.addinfo(kind='entry_short', exit_price=exit_short)
 
     def next(self):
+        """Run the breakout cycle once per new H1 trading bar.
+
+        Increments the bar counter, waits for sufficient history and a new
+        trading bar, applies the prop-firm challenge guards, then cancels stale
+        entry orders, trails or closes any open position, and places fresh
+        stop-entry orders.
+        """
         self.bar_num += 1
         required = max(self.p.entry_period + self.p.entry_shift, self.p.exit_period + self.p.exit_shift, self.p.atr_period + 1)
         if len(self.trading_data) <= required:
@@ -317,6 +405,16 @@ class PropFirmBreakoutStrategy(bt.Strategy):
         self._place_entry_orders()
 
     def notify_order(self, order):
+        """Resolve filled or dead orders and arm exit stops on entries.
+
+        On a completed entry fill, cancels the opposite entry and arms the exit
+        stop at the order's recorded exit price; completed exit/close orders
+        clear the tracked exit price. Non-completed orders clear whichever
+        tracked handle they correspond to.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         kind = getattr(order.info, 'kind', None)
@@ -350,6 +448,13 @@ class PropFirmBreakoutStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Count entries on open, win/loss on close, and accumulate daily PnL.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts, the
+                per-day closed PnL, and resets exit/close handles.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -383,6 +488,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -390,6 +506,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the base M15 frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -406,6 +535,16 @@ def load_backtest_frame(config):
 
 
 def resample_frame(df, minutes):
+    """Resample an M15 OHLCV frame to a coarser bar size.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        minutes: Target bar size in minutes (e.g. 60 for H1).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, and openinterest filled with zeros.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -421,6 +560,11 @@ def resample_frame(df, minutes):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Sharpe, Returns, DrawDown, Trade, and SQN analyzers.
+
+    Args:
+        cerebro: The Cerebro engine to which the analyzers are added.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -429,6 +573,17 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, base and H1 feeds, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the M15 base feed, the
+        resampled H1 trading feed, the strategy, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -452,6 +607,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying trade counters.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frame dict providing the date range and bar count.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, challenge flag, PnL, return,
+        win rate, profit factor, drawdown, Sharpe, annualized return, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -493,6 +660,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

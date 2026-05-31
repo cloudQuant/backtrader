@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` and H4-resampled signal
+    bars.
+    Backtest window: ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Dual moving averages define trend direction, then bracketed trades follow
+    color flips with optional time-based forced exits.
+
+Strategy Logic:
+    Load and resample data, run a trend indicator on signal feed, submit entries
+    when trend flips, enforce max-hold timeout, process reversals/closures, and
+    validate regression metrics.
 """
 from __future__ import annotations
 import math
@@ -88,6 +102,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV and normalize fields for Backtrader.
+
+    Args:
+        filepath: Source path.
+        fromdate: Inclusive start filter.
+        todate: Inclusive end filter.
+        bar_shift_minutes: Timestamp offset.
+
+    Returns:
+        Datetime-indexed DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader pandas feed with spread channel."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -128,15 +154,18 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class TrendManagerIndicator(bt.Indicator):
+    """Simple MA-based trend indicator generating color state."""
     lines = ('color_state', 'fast_line', 'slow_line')
     params = dict(length1=23, length2=84)
 
     def __init__(self):
+        """Initialize fast and slow SMAs for crossover detection."""
         self.fast = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.length1)
         self.slow = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.length2)
         self.addminperiod(max(self.p.length1, self.p.length2) + 3)
 
     def next(self):
+        """Update trend lines and color state on each bar."""
         fast = float(self.fast[0])
         slow = float(self.slow[0])
         self.lines.fast_line[0] = fast
@@ -145,6 +174,7 @@ class TrendManagerIndicator(bt.Indicator):
 
 
 class ExpTrendManagerTmPlusStrategy(bt.Strategy):
+    """Trend-manager strategy with timed exits and bracketed risk controls."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -166,6 +196,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize signal feeds, indicator, and runtime state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = TrendManagerIndicator(self.signal_data, length1=self.p.length1, length2=self.p.length2)
@@ -180,10 +211,16 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
         self.position_open_dt = None
 
     def log(self, text):
+        """Log strategy events with timestamp.
+
+        Args:
+            text: Event message.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Reuse main flow before engine warms up."""
         self.next()
 
     def _new_signal_bar(self):
@@ -254,6 +291,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Apply time-based exits and open/close logic on trend flips."""
         if len(self.signal_data) < max(self.p.length1, self.p.length2) + 5:
             return
         if self._check_time_exit():
@@ -285,6 +323,11 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
             self._submit_entry('short', 'trendmanager color flip down')
 
     def notify_order(self, order):
+        """Handle order life cycle including reversals and timeout exits."""
+        """
+        Args:
+            order: Order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -327,6 +370,7 @@ class ExpTrendManagerTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Clear internal state after trade close."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.closing_side or self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -346,6 +390,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve test data path relative to the test module.
+
+    Args:
+        filename: Relative path.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -353,12 +405,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime config value.
+
+    Args:
+        value: Optional string.
+
+    Returns:
+        Datetime or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and return data for configured date interval.
+
+    Args:
+        config: Inline config object.
+
+    Returns:
+        Dictionary with key ``data``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -370,6 +438,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach shared analyzers for benchmarked metrics."""
+    """
+    Args:
+        cerebro: Engine to enrich.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -378,6 +451,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample raw bars to provided period with OHLCV aggregation."""
+    """
+    Args:
+        df: Input DataFrame.
+        minutes: Compression minutes.
+
+    Returns:
+        Resampled DataFrame.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -387,6 +469,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build and configure the Backtrader engine."""
+    """
+    Args:
+        config: Strategy config.
+        frame: Loaded bars.
+
+    Returns:
+        Prepared cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -404,6 +495,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite values."""
+    """
+    Args:
+        value: Numeric value.
+
+    Returns:
+        None when value is not finite.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -412,6 +511,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print key performance metrics for quick inspection."""
+    """
+    Args:
+        results: Cerebro results.
+        start_value: Initial account value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -438,6 +543,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run backtest and optionally output chart."""
     parser = argparse.ArgumentParser(description='Run Exp_TrendManager_Tm_Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

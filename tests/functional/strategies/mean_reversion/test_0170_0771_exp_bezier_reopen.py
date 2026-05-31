@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD M15 OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    - Backtest window is ``2025-12-03 01:15:00`` through ``2026-03-10 09:00:00``.
+    - Base bars are the original M15 stream; a resampled 240-minute signal stream
+      is generated for Bezier values.
+    - Strategy operates on two feeds inside one Cerebro instance.
+
+Strategy Principle:
+    - Generate smoothed Bezier levels from a chosen applied-price series.
+    - Emit buy/sell entries when the Bezier trajectory indicates trend continuation.
+    - Manage layered entries with configurable stop-loss/take-profit per layer,
+      and support reversal via close-then-reopen behavior.
+
+Strategy Logic:
+    - Resolve config paths and build a signal dataframe from the base data.
+    - Build and run a Cerebro graph with base + Bezier feed.
+    - In ``next()`` evaluate risk exits, then indicator crossings, then optional
+      pyramid additions.
+    - ``notify_order`` updates layer state and handles reopen actions after closes.
+    - ``extract_metrics`` aggregates analyzer outputs and the test asserts fixed
+      migration metrics.
 """
 from __future__ import annotations
 import math
@@ -89,6 +111,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize an MT5-style tab-separated CSV into indexed OHLCV data."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,6 +137,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base feed adapter for normalized OHLCV data."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -121,6 +146,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BezierFeed(bt.feeds.PandasData):
+    """Signal feed that adds the computed ``bezier`` line."""
+
     lines = ('bezier',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -129,6 +156,7 @@ class BezierFeed(bt.feeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV bars to the signal interval with OHLC aggregation."""
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -144,6 +172,7 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def factorial(value):
+    """Compute n! used for Bezier binomial coefficient weights."""
     result = 1
     for i in range(2, int(value) + 1):
         result *= i
@@ -151,6 +180,7 @@ def factorial(value):
 
 
 def applied_price(df, code):
+    """Return a selected price source by MT5-style applied-price code."""
     open_ = df['open'].astype(float)
     high = df['high'].astype(float)
     low = df['low'].astype(float)
@@ -196,6 +226,7 @@ def applied_price(df, code):
 
 
 def build_bezier_frame(df, indicator_minutes, bperiod, t, ipc, price_shift_points=0, point=0.01):
+    """Build a Bezier-smoothed signal dataframe used as a custom strategy feed."""
     signal_df = build_resampled_frame(df, indicator_minutes)
     period = int(bperiod)
     t = min(max(float(t), 0.0), 1.0)
@@ -225,6 +256,8 @@ def build_bezier_frame(df, indicator_minutes, bperiod, t, ipc, price_shift_point
 
 
 class ExpBezierReopenStrategy(bt.Strategy):
+    """Reopen-capable Bezier strategy with optional pyramiding and per-layer risk."""
+
     params = dict(
         signal_bar=1,
         size=0.1,
@@ -246,6 +279,7 @@ class ExpBezierReopenStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, feed handles, and order/tracking counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -262,6 +296,7 @@ class ExpBezierReopenStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Write a timestamped strategy log line."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -413,6 +448,7 @@ class ExpBezierReopenStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate risk checks, indicator transitions, and optional pyramid entry."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -423,6 +459,7 @@ class ExpBezierReopenStrategy(bt.Strategy):
         self._check_pyramid()
 
     def notify_order(self, order):
+        """Track completed and failed orders, update layers, and handle reopens."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -477,6 +514,7 @@ class ExpBezierReopenStrategy(bt.Strategy):
                 self._submit_open(reopen_side, 'signal_reopen')
 
     def notify_trade(self, trade):
+        """Count closed trades and classify win/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -502,6 +540,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset filename to an existing absolute path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -509,6 +548,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load raw data from config and return a consistent frame dictionary."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -525,6 +565,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feeds, strategy parameters, analyzers, and logger observer."""
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -585,6 +626,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and runtime counters for regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

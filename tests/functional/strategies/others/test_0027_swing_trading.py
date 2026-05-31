@@ -1,6 +1,21 @@
-"""Inlined regression test for others/0027_swing_trading.
+"""Manual single-file regression test for ``test_0027_swing_trading``.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
+Runs with ``runonce=True`` only.
+
+Data Used:
+    Daily XAUUSD OHLCV from ``tests/datas/XAUUSD_1d.csv`` for the test interval
+    and feature-engineered swing breakout columns.
+
+Strategy Principle:
+    Detects swing-high/swing-low levels, then requires breakouts beyond recent
+    swing extremes in line with trend direction. Risk is controlled with a swing-based
+    stop and a multiple-of-risk take-profit target.
+
+Strategy Logic:
+    ``prepare_swing_trading_features`` computes trend ATR, swing anchors, and
+    breakout signals. ``SwingTradingStrategy`` enters on ``breakout_signal``,
+    sets stop/take-profit from swing levels, exits on hit targets/time limit, and
+    tracks trade lifecycle outcomes.
 """
 from __future__ import annotations
 
@@ -16,6 +31,16 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5 CSV into a datetime-indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower date bound.
+        todate: Optional inclusive upper date bound.
+
+    Returns:
+        pandas.DataFrame: Cleaned OHLCV data indexed by datetime.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -40,6 +65,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_swing_trading_features(df, params):
+    """Build swing breakout features including trend, ATR and breakout direction.
+
+    Args:
+        df: Raw daily OHLCV DataFrame.
+        params: Parameters for swing windowing and breakout thresholds.
+
+    Returns:
+        pandas.DataFrame: Feature DataFrame with swing and trade signal lines.
+    """
     swing_n = int(params.get("swing_n", 4))
     trend_ma_period = int(params.get("trend_ma_period", 50))
     atr_period = int(params.get("atr_period", 14))
@@ -114,6 +148,7 @@ def prepare_swing_trading_features(df, params):
 
 
 class Mt5SwingTradingFeed(bt.feeds.PandasData):
+    """PandasData extension exposing swing breakout and trend feature lines."""
     lines = (
         "ma_trend", "atr", "atr_long_mean",
         "swing_high", "swing_low", "latest_swing_high", "latest_swing_low",
@@ -128,6 +163,7 @@ class Mt5SwingTradingFeed(bt.feeds.PandasData):
 
 
 class SwingTradingStrategy(bt.Strategy):
+    """Single-position swing breakout strategy with risk-based exits."""
     params = dict(
         take_profit_ratio=2.5,
         max_holding_days=12,
@@ -141,6 +177,7 @@ class SwingTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state, counters, and active-trade risk controls."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -167,6 +204,7 @@ class SwingTradingStrategy(bt.Strategy):
         return direction * round(size, 2)
 
     def next(self):
+        """Drive swing signal evaluation and manage exits while holding positions."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -223,6 +261,11 @@ class SwingTradingStrategy(bt.Strategy):
             self.pending_order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Clear the pending order flag and reset risk levels after flattening.
+
+        Args:
+            order: Order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -232,6 +275,7 @@ class SwingTradingStrategy(bt.Strategy):
             self.trade_direction = 0
 
     def notify_trade(self, trade):
+        """Count trades and update win/loss statistics on close."""
         if not trade.isclosed:
             return
         self.trade_count += 1

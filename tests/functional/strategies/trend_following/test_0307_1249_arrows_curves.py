@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H4 (240-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close. The signal feed
+    carries precomputed buy/sell and buy-stop/sell-stop arrow lines.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_Arrows_Curves``. On the
+    higher H4 timeframe an Arrows&Curves channel is built from rolling highs and
+    lows offset by ``channel``/``ch_stop`` percentages and a ``relay`` lag; close
+    breaking above the upper band flags an uptrend (buy arrow) and below the
+    lower band flags a downtrend (sell arrow), with separate stop arrows on the
+    wider band. The strategy enters in the arrow direction and exits on the
+    opposite arrow or stop arrow, with additional fixed stop-loss and
+    take-profit distances in points.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_arrows_curves_signal_frame
+    resamples it to H4 and precomputes the four arrow lines; build_cerebro wires
+    both feeds and the default analyzers. Each bar the strategy first enforces
+    stop-loss/take-profit exits, then on each new signal bar reads the arrow
+    lines to close opposing positions and open a long or short sized by ``mm``.
+    notify_trade counts entries on open and win/loss on close. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -87,6 +116,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -108,6 +150,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -115,6 +159,12 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ArrowsCurvesSignalFeed(btfeeds.PandasData):
+    """PandasData feed exposing precomputed Arrows&Curves signals.
+
+    Extends the standard OHLCV feed with the buy/sell entry arrows and the
+    buy-stop/sell-stop arrows so the strategy can read them directly.
+    """
+
     lines = ('buy_signal', 'sell_signal', 'buy_stop_signal', 'sell_stop_signal')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -124,6 +174,25 @@ class ArrowsCurvesSignalFeed(btfeeds.PandasData):
 
 
 def build_arrows_curves_signal_frame(df, indicator_minutes, ssp, channel, ch_stop, relay):
+    """Resample to the signal timeframe and precompute Arrows&Curves arrows.
+
+    Aggregates the base frame into ``indicator_minutes`` bars, then walks the
+    bars maintaining the channel trend state to emit buy/sell entry arrows and
+    buy-stop/sell-stop arrows from rolling high/low bands offset by the channel
+    and stop percentages with a ``relay`` lag.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Signal bar size in minutes.
+        ssp: Lookback window length for the high/low channel.
+        channel: Channel offset percentage for the entry band.
+        ch_stop: Additional offset percentage for the stop band.
+        relay: Number of bars to lag the channel window.
+
+    Returns:
+        The resampled signal DataFrame with ``buy_signal``, ``sell_signal``,
+        ``buy_stop_signal`` and ``sell_stop_signal`` columns.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -213,6 +282,14 @@ def build_arrows_curves_signal_frame(df, indicator_minutes, ssp, channel, ch_sto
 
 
 class ArrowsCurvesStrategy(bt.Strategy):
+    """Trade the Arrows&Curves channel breakouts on the H4 signal feed.
+
+    Reads the precomputed buy/sell and buy-stop/sell-stop arrow lines from the
+    higher-timeframe signal feed, enters in the arrow direction sized by ``mm``
+    and exits on the opposing arrow/stop arrow or on the fixed stop-loss and
+    take-profit distances applied to the M15 execution feed.
+    """
+
     params = dict(
         ssp=20,
         channel=0,
@@ -230,6 +307,7 @@ class ArrowsCurvesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Cache the execution and signal feeds and reset counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -243,6 +321,7 @@ class ArrowsCurvesStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print ``text`` prefixed with the current execution bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -291,6 +370,12 @@ class ArrowsCurvesStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Enforce exits, then act on each new signal bar's arrow lines.
+
+        First applies stop-loss/take-profit exits, then once per new signal bar
+        closes positions opposed by stop/opposite arrows and opens a long on a
+        buy arrow or a short on a sell arrow sized by ``mm``.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -332,6 +417,7 @@ class ArrowsCurvesStrategy(bt.Strategy):
             self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -365,6 +451,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Data file path, absolute or relative to this module.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -372,6 +469,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 execution frame within the configured date range.
+
+    Args:
+        config: Resolved configuration dict with a ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame plus ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -388,6 +497,22 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Cerebro engine with both feeds, the strategy and analyzers.
+
+    Resamples the base frame into the Arrows&Curves signal frame, configures the
+    broker (cash, commission, margin, multiplier), adds the M15 execution feed
+    and the H4 signal feed, the strategy, and the standard analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Frame dict produced by :func:`load_backtest_frame`.
+
+    Returns:
+        The configured :class:`backtrader.Cerebro` instance.
+
+    Raises:
+        ValueError: If the preprocessed signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -430,6 +555,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying trade counters.
+        cerebro: The Cerebro instance used to read the final broker value.
+        frame: Frame dict with date range and bar count.
+        config: Resolved configuration dict for initial cash.
+
+    Returns:
+        A dict of performance metrics (trade counts, returns, drawdown, Sharpe,
+        SQN and related statistics) used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -471,6 +608,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Load data, build Cerebro, run the backtest and extract metrics.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        of strategy instances, ``metrics`` is the extracted metrics dict, and
+        ``cerebro`` is the executed engine.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

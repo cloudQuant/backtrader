@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    This test loads a tab-separated MT5 CSV from `tests/datas/XAUUSD_M15.csv`
+    from `2025-12-03 01:15:00` through `2026-03-10 09:00:00`.
+    Execution feed uses 15-minute compression, while the signal feed is
+    resampled to 240-minute bars.
+
+Strategy Principle:
+    The strategy contains two sub-systems:
+    A from SkyscraperFixIndicator and B from ColorAMLIndicator.
+    Each sub-system emits explicit open/close rules and the active signal source
+    is evaluated in A then B order when no position is open.
+    Money-management recovery (`mmrec`) tracks recent consecutive losses per system
+    and side and shifts risk configuration when loss triggers are reached.
+
+Strategy Logic:
+    The strategy initializes indicators on the signal stream and executes bracket
+    orders on the execution stream when conditions are met.
+    It skips repeated bars using signal timestamps, avoids overlapping pending
+    entries/exits, and handles close/reverse transitions through unified order/trade
+    callbacks while updating mmrec counters.
 """
 from __future__ import annotations
 import math
@@ -105,6 +126,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style CSV export and normalize into a pandas OHLCV frame.
+
+    Args:
+        filepath: Path of the source CSV file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional bar timestamp offset in minutes.
+
+    Returns:
+        DataFrame indexed by datetime with columns ``open``, ``high``, ``low``,
+        ``close``, ``volume``, ``openinterest``, and ``spread``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -131,6 +164,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom pandas data feed extension exposing a ``spread`` value."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -145,6 +180,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SkyscraperFixIndicator(bt.Indicator):
+    """Adaptive ATR channel indicator generating buy/sell buffers and color state."""
+
     lines = ('up_buffer', 'dn_buffer', 'buy_buffer', 'sell_buffer', 'color_state')
     params = dict(
         length=10,
@@ -156,6 +193,7 @@ class SkyscraperFixIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize indicator buffers and minimum-bar requirements."""
         self.addminperiod(max(self.p.length, self.p.atr_period) + 3)
         self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
         self.atr_high = bt.indicators.Highest(self.atr, period=self.p.length)
@@ -173,6 +211,7 @@ class SkyscraperFixIndicator(bt.Indicator):
         return value is not None and math.isfinite(value)
 
     def next(self):
+        """Compute buffered levels, trade zones, and color for current bar."""
         up = self._nan()
         dn = self._nan()
         buy = self._nan()
@@ -249,6 +288,8 @@ class SkyscraperFixIndicator(bt.Indicator):
 
 
 class ColorAMLIndicator(bt.Indicator):
+    """Fractal-based AML indicator with trend color transitions."""
+
     lines = ('aml', 'color_state')
     params = dict(
         fractal=6,
@@ -258,6 +299,7 @@ class ColorAMLIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize rolling storage and state for AML calculations."""
         self.addminperiod(2 * self.p.fractal + self.p.lag + 5)
         self._smooth_history = []
         self._prev_aml = None
@@ -274,6 +316,7 @@ class ColorAMLIndicator(bt.Indicator):
         return min(values)
 
     def next(self):
+        """Update AML value and color state from recent high/low dynamics."""
         if len(self.data) < 2 * self.p.fractal + self.p.lag + 2:
             self.lines.aml[0] = float('nan')
             self.lines.color_state[0] = self._prev_color
@@ -316,6 +359,8 @@ class ColorAMLIndicator(bt.Indicator):
 
 
 class ExpSkyscraperFixColorAMLMMRecStrategy(bt.Strategy):
+    """Dual indicator strategy with bracket orders and mm recovery behavior."""
+
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -354,6 +399,7 @@ class ExpSkyscraperFixColorAMLMMRecStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data handles, indicators, and trade bookkeeping."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
 
@@ -393,10 +439,12 @@ class ExpSkyscraperFixColorAMLMMRecStrategy(bt.Strategy):
         }
 
     def log(self, text):
+        """Print a timestamped log message using execution bar time."""
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Share the same processing path as ``next`` in preloading phase."""
         self.next()
 
     def _normalize_lot(self, lot):
@@ -521,6 +569,7 @@ class ExpSkyscraperFixColorAMLMMRecStrategy(bt.Strategy):
         self.log(f'CLOSE system={self.active_system} side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate signals and submit entry/close/reverse orders per active system."""
         if len(self.signal_data) < max(self.p.a_length + 3, 2 * self.p.b_fractal + self.p.b_lag + 3):
             return
         if not self._new_signal_bar():
@@ -558,6 +607,7 @@ class ExpSkyscraperFixColorAMLMMRecStrategy(bt.Strategy):
             self._submit_entry('B', 'short', 'ColorAML sell')
 
     def notify_order(self, order):
+        """Update strategy state in response to order completion or failure."""
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -606,6 +656,7 @@ class ExpSkyscraperFixColorAMLMMRecStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Record mmrec loss counters and reset active context after closed trades."""
         if not trade.isclosed:
             return
         system = self.closing_system or self.active_system
@@ -634,6 +685,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative test data path to an absolute file path.
+
+    Args:
+        filename: Relative path to the data file.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -641,12 +700,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Convert ISO timestamp text to datetime.
+
+    Args:
+        value: ISO formatted string or empty value.
+
+    Returns:
+        Parsed ``datetime`` or ``None`` when not provided.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and validate OHLCV data for strategy execution.
+
+    Args:
+        config: Config dictionary including ``data`` section.
+
+    Returns:
+        Dictionary containing loaded dataframe under ``data``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -663,6 +738,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Add analyzer modules used to compare regression metrics.
+
+    Args:
+        cerebro: Configured Backtrader engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -671,6 +751,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV data to a fixed minute interval and clean gaps.
+
+    Args:
+        df: Source DataFrame indexed by datetime.
+        minutes: Resample resolution in minutes.
+
+    Returns:
+        Cleaned resampled DataFrame.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -688,6 +777,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build configured Backtrader engine with data feeds, strategy, and analyzers.
+
+    Args:
+        config: Strategy and backtest configuration.
+        frame: Prepared market frame dictionary.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -715,6 +813,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize invalid numeric values to ``None``.
+
+    Args:
+        value: Candidate value.
+
+    Returns:
+        ``None`` for missing/non-finite numeric values, otherwise the value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -723,6 +829,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print summarized backtest results.
+
+    Args:
+        results: Cerebro run result list.
+        start_value: Starting broker value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -751,6 +863,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Execute backtest and optionally plot chart output."""
     parser = argparse.ArgumentParser(description='Run Exp_Skyscraper_Fix_ColorAML_MMRec backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` through the MetaTrader-5 style tab-separated
+    CSV reader. Bars are shifted forward by 15 minutes so each bar timestamp
+    marks its close, and the execution feed runs at a 15-minute compression.
+    The backtest window spans 2026-03-01 to 2026-03-10 09:00.
+
+Strategy Principle:
+    This is a port of the NeuroNirvamanEA 2 MetaTrader expert advisor. It
+    combines Laguerre +DI proxy oscillators and SilverTrend signal proxies into
+    three perceptron-style weighted votes. A supervisor perceptron arbitrates
+    between the sub-perceptrons depending on ``pass_mode`` to decide the trade
+    direction, taking trades only inside a configured intraday session window.
+    Each position carries fixed take-profit and stop-loss bracket distances
+    measured in price points.
+
+Strategy Logic:
+    1. ``load_backtest_frame`` reads the MT5 CSV and ``build_cerebro`` wires the
+       feed, broker commission/margin model, strategy, and analyzers.
+    2. ``NeuroNirvamanEA2Strategy.__init__`` instantiates four Laguerre proxies
+       and two SilverTrend proxies and resets order/state tracking.
+    3. On each new bar inside the trade window, the supervisor combines
+       perceptron votes to pick a direction; ``_submit_entry`` opens a bracket
+       order via ``buy_bracket``/``sell_bracket``. Positions are flattened when
+       price leaves the session window.
+    4. ``notify_order`` tracks entry, close, stop, and limit order transitions;
+       ``notify_trade`` logs closed-trade PnL and resets the active side.
+    5. ``summarize`` prints analyzer-derived metrics, and
+       ``test_189_0190_0263_neuronirvamanea_2`` forces ``runonce=True``, derives
+       metrics from analyzers, and asserts them against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -95,6 +126,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV, openinterest, and
+        spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -121,6 +164,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing an extra ``spread`` line from MT5 exports."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -135,13 +180,22 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class LaguerrePlusDiProxy(bt.Indicator):
+    """Laguerre-style +DI proxy normalized to the 0..1 range.
+
+    Approximates the directional-movement balance used by the original EA by
+    computing positive/negative directional movement and true range over the
+    lookback period and emitting the normalized +DI share.
+    """
+
     lines = ('value',)
     params = dict(period=14)
 
     def __init__(self):
+        """Set the minimum period required before emitting values."""
         self.addminperiod(self.p.period + 3)
 
     def next(self):
+        """Compute the normalized +DI ratio for the current bar."""
         pdm_vals = []
         mdm_vals = []
         tr_vals = []
@@ -171,15 +225,23 @@ class LaguerrePlusDiProxy(bt.Indicator):
 
 
 class SilverTrendSignalProxy(bt.Indicator):
+    """SilverTrend buy/sell signal proxy based on a moving-average crossover.
+
+    Emits a non-zero ``buy`` (or ``sell``) value when price crosses above (or
+    below) a risk-scaled simple moving average, mirroring the EA's signal lines.
+    """
+
     lines = ('buy', 'sell')
     params = dict(risk=3)
 
     def __init__(self):
+        """Build the risk-scaled moving average and set the minimum period."""
         self.period = max(3, int(self.p.risk) * 2 + 1)
         self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.period)
         self.addminperiod(self.period + 3)
 
     def next(self):
+        """Set buy/sell signal lines from the price/MA crossover this bar."""
         buy = 0.0
         sell = 0.0
         close0 = float(self.data.close[0])
@@ -195,6 +257,13 @@ class SilverTrendSignalProxy(bt.Indicator):
 
 
 class NeuroNirvamanEA2Strategy(bt.Strategy):
+    """Perceptron-voting trend strategy ported from the NeuroNirvamanEA 2 EA.
+
+    Combines Laguerre +DI and SilverTrend proxies into weighted perceptron
+    votes arbitrated by a supervisor, trading bracketed positions inside an
+    intraday session window.
+    """
+
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -226,6 +295,7 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate the indicator proxies and reset order/state tracking."""
         self.data0_feed = self.datas[0]
         self.laguerre_1 = LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_1_period)
         self.laguerre_2 = LaguerrePlusDiProxy(self.data0_feed, period=self.p.laguerre_2_period)
@@ -242,10 +312,16 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
         self.close_all_pending = False
 
     def log(self, text):
+        """Print a log message prefixed with the current bar timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Delegate to ``next`` so logic runs before the full minimum period."""
         self.next()
 
     def _new_bar(self):
@@ -348,6 +424,7 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
         self.entry_order, self.stop_order, self.limit_order = orders
 
     def next(self):
+        """Evaluate the supervisor and manage entries/exits per session bar."""
         if len(self.data0_feed) < max(self.p.laguerre_1_period, self.p.laguerre_2_period, self.p.laguerre_3_period, self.p.laguerre_4_period, 20) + 5:
             return
         if not self._new_bar():
@@ -368,6 +445,11 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
             self._submit_entry(direction, tp_points, sl_points)
 
     def notify_order(self, order):
+        """Track entry, close, stop, and limit order state transitions.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -404,6 +486,11 @@ class NeuroNirvamanEA2Strategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log closed-trade PnL and clear the active side.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -421,6 +508,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -428,12 +526,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into a datetime, or None.
+
+    Args:
+        value: ISO-formatted datetime string, or a falsy value.
+
+    Returns:
+        A ``datetime.datetime`` instance, or None when ``value`` is falsy.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and filter the market data frame described by the config.
+
+    Args:
+        config: Resolved configuration dict with a ``data`` section.
+
+    Returns:
+        Dict with a ``data`` key holding the loaded DataFrame.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -445,6 +562,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Sharpe, returns, drawdown, trade, and SQN analyzers.
+
+    Args:
+        cerebro: The cerebro instance to configure.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -453,6 +575,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble a cerebro with broker, data feed, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Dict containing the loaded ``data`` DataFrame.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -467,6 +598,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return the value unless it is a non-finite number, in which case None.
+
+    Args:
+        value: Any value, typically a float metric.
+
+    Returns:
+        ``value`` when it is None or a finite number, otherwise None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -475,6 +614,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a human-readable backtest summary from analyzer output.
+
+    Args:
+        results: List of strategy results returned by ``cerebro.run``.
+        start_value: Broker value at the start of the run.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -501,6 +646,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI args, run the backtest, and print the summary."""
     parser = argparse.ArgumentParser(description='Run NeuroNirvamanEA 2 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

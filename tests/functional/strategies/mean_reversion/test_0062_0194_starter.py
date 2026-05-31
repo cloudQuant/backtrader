@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with each bar timestamp shifted forward by 15 minutes. The backtest
+    window spans 2025-12-03 01:15 to 2026-03-10 09:00. CCI and moving-average
+    signal features are precomputed and fed through a custom ``PandasData``
+    subclass.
+
+Strategy Principle:
+    This is a port of the Starter MetaTrader expert advisor. It combines a
+    long-period moving-average trend filter with a CCI mean-reversion trigger.
+    A long is taken when the MA is rising and the CCI crosses up out of an
+    oversold band (below -level), and a short when the MA is falling and the CCI
+    crosses down out of an overbought band (above +level). Position size is
+    risk-scaled and reduced after consecutive losses, and a point-based trailing
+    stop manages open trades.
+
+Strategy Logic:
+    1. ``build_signal_frame`` computes the open-anchored CCI and MA signals plus
+       the previous-bar comparisons, then derives boolean buy/sell signals.
+    2. ``load_backtest_frame`` builds the feature frame; ``build_cerebro`` wires
+       the cheat-on-open broker, feed, strategy, and analyzers.
+    3. ``StarterStrategy.next_open`` enters at the open on a fresh signal with a
+       risk-optimized lot size, while exits are handled by a trailing stop
+       (``_apply_trailing_long``/``_apply_trailing_short`` + ``_close_if_stop_hit``).
+    4. ``notify_order`` confirms fills and arms the stop; ``notify_trade`` records
+       closed-trade PnL for win/loss counts and the loss-streak sizing rule.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_62_0062_0194_starter`` forces ``runonce=True`` via compat helpers,
+       captures the metrics dict, and asserts each value against migration-time
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -88,6 +120,17 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -113,6 +156,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 def signal_ma_from_open_and_prev_closes(frame, period):
+    """Compute the EA's open-anchored moving average.
+
+    Mirrors the MT5 indicator that averages the current bar's open with the
+    previous ``period - 1`` closes.
+
+    Args:
+        frame: DataFrame providing ``open`` and ``close`` columns.
+        period: Moving-average lookback length.
+
+    Returns:
+        pandas.Series of the open-anchored moving average.
+    """
     total = frame['open'].copy()
     for shift in range(1, period):
         total = total + frame['close'].shift(shift)
@@ -120,6 +175,18 @@ def signal_ma_from_open_and_prev_closes(frame, period):
 
 
 def signal_cci_from_open(frame, period):
+    """Compute the EA's open-anchored CCI for the forming bar.
+
+    Uses the current bar's open as the typical price and the previous
+    ``period - 1`` typical prices for the moving average and mean deviation.
+
+    Args:
+        frame: DataFrame providing ``open``, ``high``, ``low``, ``close``.
+        period: CCI lookback length.
+
+    Returns:
+        pandas.Series of the open-anchored CCI values.
+    """
     typical = (frame['high'] + frame['low'] + frame['close']) / 3.0
     signal_tp = frame['open']
     samples = [signal_tp]
@@ -133,6 +200,15 @@ def signal_cci_from_open(frame, period):
 
 
 def closed_bar_cci(frame, period):
+    """Compute the standard CCI on closed-bar typical prices.
+
+    Args:
+        frame: DataFrame providing ``high``, ``low``, ``close`` columns.
+        period: CCI lookback length.
+
+    Returns:
+        pandas.Series of the closed-bar CCI values.
+    """
     typical = (frame['high'] + frame['low'] + frame['close']) / 3.0
     sma = typical.rolling(period).mean()
     mad = typical.rolling(period).apply(lambda s: (s - s.mean()).abs().mean(), raw=False)
@@ -149,6 +225,22 @@ def build_signal_frame(
     ma_period=120,
     ma_delta=0.001,
 ):
+    """Load data and derive the CCI/MA signal columns and buy/sell flags.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+        cci_period: CCI lookback length.
+        cci_level: CCI overbought/oversold band level.
+        ma_period: Moving-average lookback length.
+        ma_delta: Minimum MA slope magnitude required to qualify a signal.
+
+    Returns:
+        pandas.DataFrame with CCI/MA signal columns and boolean ``buy_signal`` /
+        ``sell_signal`` columns, dropping rows with incomplete signals.
+    """
     frame = load_mt5_csv(filepath, fromdate=fromdate, todate=todate, bar_shift_minutes=bar_shift_minutes).copy()
     frame['cci_signal_current'] = signal_cci_from_open(frame, cci_period)
     frame['cci_signal_prev'] = closed_bar_cci(frame, cci_period).shift(1)
@@ -173,6 +265,8 @@ def build_signal_frame(
 
 
 class StarterFeed(bt.feeds.PandasData):
+    """PandasData feed exposing CCI/MA signal and buy/sell flag lines."""
+
     lines = (
         'cci_signal_current', 'cci_signal_prev', 'ma_signal_current', 'ma_signal_prev', 'buy_signal', 'sell_signal',
     )
@@ -194,6 +288,13 @@ class StarterFeed(bt.feeds.PandasData):
 
 
 class StarterStrategy(bt.Strategy):
+    """CCI mean-reversion + MA trend strategy with risk-scaled sizing.
+
+    Ported from the Starter EA: enters on CCI band crossings confirmed by MA
+    slope, sizes positions by risk and recent loss streak, and manages exits
+    with a point-based trailing stop.
+    """
+
     params = dict(
         maximum_risk=0.02,
         decrease_factor=3.0,
@@ -213,6 +314,7 @@ class StarterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize order/stop state and bar/trade tracking counters."""
         self.order = None
         self.current_stop = None
         self.pending_stop = None
@@ -226,10 +328,16 @@ class StarterStrategy(bt.Strategy):
         self.closed_trades = []
 
     def log(self, text):
+        """Print a log message prefixed with the current bar timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Advance the bar counter (entries are handled in ``next_open``)."""
         self.bar_num += 1
 
     def _normalize_lot(self, lot):
@@ -253,6 +361,11 @@ class StarterStrategy(bt.Strategy):
         return losses
 
     def trade_size_optimized(self):
+        """Compute a risk-scaled lot size reduced after consecutive losses.
+
+        Returns:
+            Normalized lot size as a float, or 0.0 when sizing is not possible.
+        """
         cash = self.broker.getcash()
         margin = self.p.margin_per_lot
         if margin <= 0:
@@ -304,6 +417,7 @@ class StarterStrategy(bt.Strategy):
         return False
 
     def next_open(self):
+        """Manage trailing-stop exits or enter at the open on a fresh signal."""
         if self.order:
             return
         if len(self.data) < 2:
@@ -351,6 +465,11 @@ class StarterStrategy(bt.Strategy):
             self.order = self.sell(size=lot)
 
     def notify_order(self, order):
+        """Confirm fills, update entry counts, and arm the trailing stop.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -367,6 +486,11 @@ class StarterStrategy(bt.Strategy):
         self.pending_side = None
 
     def notify_trade(self, trade):
+        """Record closed-trade PnL for win/loss counts and loss-streak sizing.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -394,6 +518,17 @@ MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -401,6 +536,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build the Starter signal frame described by the config.
+
+    Args:
+        config: Resolved configuration dict with ``data`` and ``params``.
+
+    Returns:
+        Dict with ``data``, ``fromdate``, and ``todate`` keys.
+
+    Raises:
+        ValueError: If the loaded signal frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -422,6 +568,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a cheat-on-open cerebro with feed, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Dict containing the loaded ``data`` DataFrame.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -460,6 +615,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs and strategy counters into regression metrics.
+
+    Args:
+        strat: The executed strategy instance after `cerebro.run()`.
+        cerebro: The completed `Cerebro` engine containing broker state.
+        frame: Prepared backtest frame dict with input data and date bounds.
+        config: Loaded strategy configuration mapping.
+
+    Returns:
+        A dictionary of metrics used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

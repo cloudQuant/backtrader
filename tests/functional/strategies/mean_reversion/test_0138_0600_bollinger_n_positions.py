@@ -23,7 +23,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Bollinger_N_Positions',
-        'source_ea': 'ea/0600_布林带的_N_个仓�?bollinger_bands_n_positions.mq5',
+        'source_ea': 'ea/0600_bollinger_bands_n_positions.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -82,6 +82,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted tabular data into a backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to MT5 CSV export.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Optional minute offset for each bar timestamp.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,6 +116,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapped to OHLCV fields for this strategy."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -138,6 +150,7 @@ class BollingerNPositionsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize Bollinger indicators, counters, and risk/exit state."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -166,6 +179,7 @@ class BollingerNPositionsStrategy(bt.Strategy):
         return round(float(value), int(self.p.price_digits))
 
     def next(self):
+        """Run one bar: manage exits, reversals, and signal-triggered entries."""
         self.bar_num += 1
         warmup = int(self.p.bb_period) + 2
         if len(self) < warmup:
@@ -265,6 +279,7 @@ class BollingerNPositionsStrategy(bt.Strategy):
                 self.trailing_activated = True
 
     def notify_order(self, order):
+        """Track order completion, rejections, and pending reentry transitions."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -295,6 +310,7 @@ class BollingerNPositionsStrategy(bt.Strategy):
                 self.pending_reentry = None
 
     def notify_trade(self, trade):
+        """Record closed trades and outcome counts."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -318,6 +334,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data file path relative to this test directory.
+
+    Args:
+        filename: Relative path in the strategy test folder.
+
+    Returns:
+        Absolute path to the requested file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -325,6 +349,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build and return the backtest input frame for the given config.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary containing frame data and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -340,6 +372,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with data feed, strategy, and standard analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Dictionary from ``load_backtest_frame``.
+
+    Returns:
+        Configured ``bt.Cerebro`` ready to run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -365,6 +406,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy and analyzer metrics used by the regression assertions.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Cerebro engine used for execution.
+        frame: Input frame bundle.
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary of test metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -441,10 +493,9 @@ def _extract_metrics_compat(strat, cerebro, inputs, config):
 
 
 def test_138_0138_0600_bollinger_n_positions() -> None:
-    """Migrated regression test (runonce=True only).
-
-    Originally located at tests/functional/strategies_regression/mean_reversion/0138_0600_bollinger_n_positions.
-    """
+    """Validate Bollinger N Positions backtest metrics against baseline regression values."""
+    # Migrated regression test (runonce=True only).
+    # Originally located at tests/functional/strategies_regression/mean_reversion/0138_0600_bollinger_n_positions.
     config = load_config()
     inputs = _resolve_loader()(config)
     cerebro = _build_cerebro_compat(inputs, config)

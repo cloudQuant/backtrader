@@ -85,6 +85,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +112,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -125,6 +127,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class CandleStopColor(bt.Indicator):
+    """Indicator computing highest-high/ lowest-low trailing stop channels with color breakout signal."""
     lines = ('color_idx', 'upper', 'lower')
     params = dict(
         up_trail_periods=5,
@@ -134,6 +137,7 @@ class CandleStopColor(bt.Indicator):
     )
 
     def next(self):
+        """Compute trailing high/low range and set color index based on close position."""
         hh_indices = range(self.p.up_trail_shift, self.p.up_trail_shift + self.p.up_trail_periods)
         ll_indices = range(self.p.dn_trail_shift, self.p.dn_trail_shift + self.p.dn_trail_periods)
         highs = [float(self.data.high[-idx]) for idx in hh_indices if len(self.data) > idx]
@@ -156,6 +160,7 @@ class CandleStopColor(bt.Indicator):
 
 
 class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
+    """Candle-stop trailing channel breakout strategy with timed exits and bracket order management."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -175,6 +180,7 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.channel = CandleStopColor(
@@ -193,6 +199,7 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log message with the current execution bar datetime."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -230,6 +237,7 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse=None')
 
     def next(self):
+        """Run on each new signal bar to process entries, exits, and time exits."""
         required = max(self.p.up_trail_periods + self.p.up_trail_shift, self.p.dn_trail_periods + self.p.dn_trail_shift) + self.p.signal_bar + 2
         if len(self.signal_feed) < required:
             return
@@ -267,6 +275,7 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
                 self._submit_entry('short', 'candlestop transition from lower breakout state')
 
     def notify_order(self, order):
+        """Track order lifecycle: clear references on fill/cancel, record entry and close state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -305,6 +314,7 @@ class ExpCandleStopSystemTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log trade close events and reset active-side state when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -323,6 +333,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a filename relative to the test file directory, raising FileNotFoundError if missing."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -330,12 +341,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO datetime value for backtest filters."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load raw MT5 data and return execution frame dict."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -347,6 +360,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach common analyzers used by this strategy's metrics."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -355,6 +369,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro with execution/signal feeds and selected strategy/analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -371,6 +386,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` when value is missing or not finite."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -379,6 +395,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print compact summary stats from analyzer outputs."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -405,6 +422,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entrypoint for manual backtest execution."""
     parser = argparse.ArgumentParser(description='Run Exp CandleStop System Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

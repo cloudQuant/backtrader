@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 OHLCV data is loaded from ``tests/datas/XAUUSD_M15.csv``.
+    A resampled H4-style signal frame is computed for VI+ / VI- indicators from the same source
+    using ``indicator_minutes`` and ``vortex_period`` settings.
+    The configured date window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy opens long or short positions when configured Vortex indicator cross-over
+    conditions appear on the secondary signal stream.
+    It uses directional money-management settings and explicit stop/limit exits in the strategy loop.
+
+Strategy Logic:
+    Market data is normalized from MT5 CSV, transformed into a signal feed containing VI+ and VI-,
+    and consumed alongside the base feed.
+    The strategy de-duplicates signal-bar processing, evaluates crossover conditions, sends entry/close
+    orders, and updates risk levels after fills.
+    Final metrics are extracted from analyzers for regression assertions.
 """
 from __future__ import annotations
 import math
@@ -89,6 +107,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated OHLCV exports into a DataFrame.
+
+    Args:
+        filepath: Source path of the MT5 CSV file.
+        fromdate: Optional lower-bound datetime for filtering rows.
+        todate: Optional upper-bound datetime for filtering rows.
+        bar_shift_minutes: Optional bar index shift in minutes.
+
+    Returns:
+        DataFrame indexed by ``datetime`` with normalized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -110,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Execution feed for M15 OHLCV base data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -117,6 +147,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class VortexFeed(btfeeds.PandasData):
+    """Signal feed exposing VI+ and VI- indicator values."""
     lines = ('vi_plus', 'vi_minus')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -125,6 +156,15 @@ class VortexFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV data to a slower timeframe for indicator calculation.
+
+    Args:
+        df: Time-indexed OHLCV DataFrame.
+        indicator_minutes: Resample interval in minutes.
+
+    Returns:
+        Resampled OHLCV DataFrame.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -140,6 +180,16 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def build_vortex_frame(df, indicator_minutes, vortex_period):
+    """Compute Vortex Indicator series and return a signal frame.
+
+    Args:
+        df: Source OHLCV DataFrame.
+        indicator_minutes: Resampling interval used for signal generation.
+        vortex_period: Rolling period for VI sum normalization.
+
+    Returns:
+        DataFrame augmented with ``vi_plus`` and ``vi_minus``.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     high = signal_df['high'].astype(float)
     low = signal_df['low'].astype(float)
@@ -161,6 +211,7 @@ def build_vortex_frame(df, indicator_minutes, vortex_period):
 
 
 class ExpVortexIndicatorDuplexStrategy(bt.Strategy):
+    """Dual-sided Vortex strategy with optional reverse closes and basic risk exits."""
     params = dict(
         l_signal_bar=1,
         s_signal_bar=1,
@@ -180,6 +231,7 @@ class ExpVortexIndicatorDuplexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, counters, and order-side tracking flags."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -196,6 +248,11 @@ class ExpVortexIndicatorDuplexStrategy(bt.Strategy):
         self._current_take_profit = None
 
     def log(self, text):
+        """Print a timestamped execution log line.
+
+        Args:
+            text: Text message.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -250,6 +307,7 @@ class ExpVortexIndicatorDuplexStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process risk checks and new signal crossovers on each new bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -313,6 +371,11 @@ class ExpVortexIndicatorDuplexStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_order(self, order):
+        """Track fill/cancel states and update risk levels from execution side.
+
+        Args:
+            order: Backtrader order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -326,6 +389,11 @@ class ExpVortexIndicatorDuplexStrategy(bt.Strategy):
             self._pending_side = None
 
     def notify_trade(self, trade):
+        """Update entry/exit counters based on trade lifecycle.
+
+        Args:
+            trade: Trade object reported by Backtrader.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -360,6 +428,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative data filename against this module directory.
+
+    Args:
+        filename: Relative path name.
+
+    Returns:
+        Absolute path for the resolved data file.
+
+    Raises:
+        FileNotFoundError: If file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -367,6 +446,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load execution data and return the prepared backtest payload.
+
+    Args:
+        config: Configuration map with data and date settings.
+
+    Returns:
+        Dictionary with raw data frame and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -383,6 +470,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with base/signal data feeds and analyzers.
+
+    Args:
+        config: Full strategy configuration.
+        frame: Dict containing input dataframe and metadata.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -423,6 +519,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract structured regression metrics from strategy/analyzer state.
+
+    Args:
+        strat: Strategy instance (first result from run).
+        cerebro: Engine used for execution.
+        frame: Backtest input frame.
+        config: Configuration mapping.
+
+    Returns:
+        Dictionary of backtest metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

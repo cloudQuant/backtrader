@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The strategy runs on the full date range
+    2025-12-03 01:15 through 2026-03-10 09:00 with bars shifted by 15 minutes
+    to align to bar close timestamps.
+
+Strategy Principle:
+    Jumps in MALR channels are used as trend regime triggers. The strategy opens
+    long/short positions on channel-break signals, supports optional averaging,
+    reversal-on-signal, and fixed-distance stop-loss/take-profit controls with
+    optional trailing after profit.
+
+Strategy Logic:
+    The file builds a custom MALR indicator and feeds it to the strategy. On each
+    bar, the strategy checks trailing exits, then evaluates bullish/bearish channel
+    cross conditions to decide whether to reverse, open, or scale into positions.
+    Order/trade lifecycle callbacks update counters and persist entry/exit
+    parameters, while ``extract_metrics`` aggregates analyzer outputs for regression
+    assertions.
 """
 from __future__ import annotations
 import math
@@ -89,6 +109,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 export into a Backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        A DataFrame indexed by datetime containing OHLCV and openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas data feed mapping MT5 fields to Backtrader's OHLCV schema."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -121,6 +153,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class MalrIndicator(bt.Indicator):
+    """Compute MALR trend channels used for breakout-trigger detection."""
     lines = ('malr', 'malrh', 'malrl', 'malrhh', 'malrll')
     params = dict(
         ma_period=120,
@@ -130,6 +163,7 @@ class MalrIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize MA basis and channel deviation buffers."""
         sma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_period)
         lwma = bt.indicators.WeightedMovingAverage(self.data.close, period=self.p.ma_period)
         self._ff = 3.0 * lwma - 2.0 * sma
@@ -138,6 +172,7 @@ class MalrIndicator(bt.Indicator):
         self.addminperiod(int(self.p.ma_period) * 2 + 3)
 
     def next(self):
+        """Calculate MALR center and channel boundaries for the current bar."""
         ff = float(self._ff[0])
         std = float(self._std[0])
         t1 = std * float(self.p.channel_reversal)
@@ -149,6 +184,7 @@ class MalrIndicator(bt.Indicator):
         self.lines.malrll[0] = ff - t2
 
     def once(self, start, end):
+        """Vectorized computation path for backtesting efficiency."""
         ff_array = self._ff.array
         std_array = self._std.array
         lines = (
@@ -176,6 +212,7 @@ class MalrIndicator(bt.Indicator):
 
 
 class EaMalrStrategy(bt.Strategy):
+    """Trend strategy implementing MALR channel entries with optional averaging."""
     params = dict(
         lot=0.1,
         sl=2550,
@@ -200,6 +237,7 @@ class EaMalrStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator, state tracking, and minimum period."""
         self.malr = MalrIndicator(
             self.data,
             ma_period=self.p.ma_period,
@@ -226,6 +264,7 @@ class EaMalrStrategy(bt.Strategy):
         self.addminperiod(self.p.ma_period + 5)
 
     def log(self, text):
+        """Print timestamped debug output for strategy actions."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -325,6 +364,7 @@ class EaMalrStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Apply trailing exits, then evaluate entry/reversal signals."""
         self.bar_num += 1
         if len(self) < self.p.ma_period + 3:
             return
@@ -373,6 +413,7 @@ class EaMalrStrategy(bt.Strategy):
                 return
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and trigger pending reversals."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -404,6 +445,7 @@ class EaMalrStrategy(bt.Strategy):
             self._place_entry(direction, mode)
 
     def notify_trade(self, trade):
+        """Update trade statistics and persist exit housekeeping."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -439,6 +481,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a module-relative data filename to absolute path.
+
+    Args:
+        filename: Relative path under this test module directory.
+
+    Returns:
+        Absolute existing path to the file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -446,6 +496,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and prepare backtest data according to config time window.
+
+    Args:
+        config: Loaded regression config with ``data`` section.
+
+    Returns:
+        Dictionary with loaded frame and parsed date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -462,6 +520,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro instance with data feed, strategy and analyzers.
+
+    Args:
+        config: Regression config including params/backtest settings.
+        frame: Prepared backtest frame returned from :func:`load_backtest_frame`.
+
+    Returns:
+        A ready-to-run ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -485,6 +552,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect the metrics asserted by regression checks.
+
+    Args:
+        strat: Backtrader strategy instance.
+        cerebro: Engine containing analyzer state and broker.
+        frame: Frame dict with datetime bounds.
+        config: Regression config with backtest metadata.
+
+    Returns:
+        Metric dictionary consumed by the test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -529,6 +607,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return result objects and metrics.
+
+    Args:
+        plot: If ``True``, visualize cerebro plots.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -564,13 +650,12 @@ def _invoke_strategy_main():
 
 
 def test_119_0119_1140_ea_malr() -> None:
-    """Migrated regression test (runonce=True only).
+    """Run the migrated EA_MALR regression and validate computed metrics.
 
-    Originally located at tests/functional/strategies_regression/trend_following/0119_1140_ea_malr.
+    The test runs the original strategy entry point with `runonce=True`, captures
+    `extract_metrics()` output, and asserts key portfolio/trade indicators against
+    baseline values.
     """
-    # Capture metrics by hooking extract_metrics() and invoking the original
-    # main() (or run()). This reuses whatever loader / build_cerebro /
-    # extract_metrics signatures the strategy used internally.
     captured = {}
     _orig_extract = extract_metrics
     def _capture_em(*a, **kw):

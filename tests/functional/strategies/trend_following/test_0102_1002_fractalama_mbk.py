@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` with
+    ``fromdate=2025-12-03 01:15:00`` and ``todate=2026-03-10 09:00:00``.
+    The data is shifted by 15 minutes and processed with an H4 signal timeframe.
+
+Strategy Principle:
+    Builds a Fractal Adaptive Moving Average (FRAMA-like) from high/low range
+    decomposition and a trigger line. Positioning is based on frama/trigger
+    crossovers with configurable risk controls (fixed stop-loss/take-profit).
+
+Strategy Logic:
+    The module loads MT5 CSV data, creates execution + signal feed,
+    evaluates crossover signals each bar, handles risk exits, and exports
+    analyzer/trade counters for deterministic regression assertions.
 """
 from __future__ import annotations
 import math
@@ -88,6 +103,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and return a sorted OHLCV DataFrame.
+
+    Args:
+        filepath: Source CSV file path.
+        fromdate: Optional datetime lower bound.
+        todate: Optional datetime upper bound.
+        bar_shift_minutes: Minute shift applied to timestamps.
+
+    Returns:
+        pd.DataFrame: DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +135,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom MT5 data feed with default OHLCV column mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +143,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class FractalAMAMBK(Indicator):
+    """FRAMA-style indicator exposing smoothed trend and trigger lines."""
     lines = ('frama', 'trigger')
     params = dict(
         r_period=16,
@@ -124,6 +152,7 @@ class FractalAMAMBK(Indicator):
     )
 
     def __init__(self):
+        """Set minimum period based on FRAMA computation window."""
         self.addminperiod(max(int(self.p.r_period), 2) + 2)
 
     def _range(self, high_line, low_line, start_shift, count):
@@ -132,6 +161,7 @@ class FractalAMAMBK(Indicator):
         return max(highs) - min(lows)
 
     def next(self):
+        """Compute FRAMA and trigger values for the current bar."""
         period = max(int(self.p.r_period), 2)
         n = (period // 2) * 2
         n2 = max(n // 2, 1)
@@ -165,6 +195,7 @@ class FractalAMAMBK(Indicator):
 
 
 class FractalAMAMBKStrategy(Strategy):
+    """FRAMA crossover strategy with fixed risk and one-directional execution flow."""
     params = dict(
         signal_bar=1,
         r_period=16,
@@ -181,6 +212,7 @@ class FractalAMAMBKStrategy(Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, counters, and risk tracking fields."""
         self.indicator = FractalAMAMBK(
             self.data,
             r_period=self.p.r_period,
@@ -204,6 +236,11 @@ class FractalAMAMBKStrategy(Strategy):
         self.warmup = max(int(self.p.r_period) + max(int(self.p.signal_bar), 1) + 5, 30)
 
     def log(self, text):
+        """Log strategy events with current execution timestamp.
+
+        Args:
+            text: Message content to print.
+        """
         dt = num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -269,6 +306,7 @@ class FractalAMAMBKStrategy(Strategy):
         return False
 
     def next(self):
+        """Evaluate crossover-based entries/exits and manage position lifecycle."""
         self.bar_num += 1
         if len(self.data) < self.warmup + max(int(self.p.signal_bar), 1) + 1:
             return
@@ -306,6 +344,7 @@ class FractalAMAMBKStrategy(Strategy):
                 return
 
     def notify_order(self, order):
+        """Update counters and risk levels on order lifecycle events."""
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.rejected_order_count += 1
             self.pending_entry_direction = 0
@@ -332,6 +371,7 @@ class FractalAMAMBKStrategy(Strategy):
             self._reset_levels()
 
     def notify_trade(self, trade):
+        """Track closed-trade outcomes and clear levels when flat."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -357,6 +397,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate local test data path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -364,6 +405,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest input frame from configured MT5 data.
+
+    Args:
+        config: Test configuration dictionary.
+
+    Returns:
+        dict: Contains loaded dataframe and selected date range.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -393,6 +442,7 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Backtrader Cerebro for the FRAMA strategy."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -422,6 +472,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Generate deterministic metrics and counters used by regression tests."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -464,6 +515,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return execution results and metrics.
+
+    Args:
+        plot: Whether to show plot output.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

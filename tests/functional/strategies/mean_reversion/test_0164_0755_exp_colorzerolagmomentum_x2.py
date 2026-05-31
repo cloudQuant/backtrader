@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The base M15 (15-minute) frame covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. Two extra signal feeds are
+    derived by resampling the base frame: a slow H6 (360-minute) feed and a fast
+    M30 (30-minute) feed, each carrying precomputed Color ZeroLag Momentum main
+    and signal lines. Execution and returns are measured on the M15 base feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_ColorZerolagMomentum_X2``. It
+    blends five momentum periods into a "ZeroLag" composite momentum, then
+    EWMA-smooths it into a signal line. The slow timeframe defines trend
+    direction (main above/below signal) and the fast timeframe provides
+    entry/exit triggers (main crossing signal). Trades are opened only in the
+    slow trend's direction and protected by fixed point-based stop loss and take
+    profit; the dual-timeframe filter is meant to trade pullbacks within the
+    prevailing momentum regime.
+
+Strategy Logic:
+    load_backtest_frames loads the base M15 frame and resamples it into the slow
+    and fast Color ZeroLag Momentum feeds; build_cerebro wires all three feeds,
+    the strategy, optional TradeLogger observer, and the default analyzers. Each
+    bar the strategy manages stop/take-profit risk, waits for a new fast-bar
+    timestamp, reads the slow trend, derives fast open/close signals, and opens,
+    closes, or reverses accordingly. notify_order tracks fills and buy/sell
+    counts; notify_trade tallies wins and losses. extract_metrics consolidates
+    analyzer output, and the test forces runonce=True, runs the module's
+    run()/main(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -116,6 +146,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, tick_volume,
+        and openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -142,6 +185,17 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a base OHLCV frame to a coarser bar size.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        rule: A pandas offset alias for the target bar size (e.g. ``'360min'``).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, openinterest filled with zeros, and a volume column
+        copied from tick_volume.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -157,6 +211,16 @@ def resample_frame(df, rule):
 
 
 def price_series(frame, applied_price='PRICE_CLOSE'):
+    """Select an MT5-style applied-price series from an OHLC frame.
+
+    Args:
+        frame: DataFrame with open, high, low, and close columns.
+        applied_price: MT5 applied-price name (e.g. PRICE_CLOSE, PRICE_MEDIAN,
+            PRICE_TYPICAL, PRICE_WEIGHTED); unknown values default to close.
+
+    Returns:
+        A pandas Series of the selected price for each bar.
+    """
     mapping = str(applied_price).upper()
     if mapping == 'PRICE_OPEN':
         return frame['open']
@@ -174,11 +238,38 @@ def price_series(frame, applied_price='PRICE_CLOSE'):
 
 
 def compute_momentum(values, period):
+    """Compute a percentage momentum ratio over a lookback period.
+
+    Args:
+        values: Sequence of prices coercible to a float Series.
+        period: Lookback length; momentum compares each value to the value
+            ``period`` bars earlier.
+
+    Returns:
+        A pandas Series of ``value / value.shift(period) * 100`` (NaN until the
+        lookback is satisfied).
+    """
     series = pd.Series(values, dtype=float)
     return (series / series.shift(int(period))) * 100.0
 
 
 def compute_color_zerolag_momentum(frame, smoothing=15, applied_price='PRICE_CLOSE', factor1=0.05, momentum_period1=8, factor2=0.10, momentum_period2=21, factor3=0.16, momentum_period3=34, factor4=0.26, momentum_period4=55, factor5=0.43, momentum_period5=89):
+    """Build the Color ZeroLag Momentum main and signal lines for a frame.
+
+    Blends five factor-weighted momentum series into a composite "main" line,
+    then EWMA-smooths it into a "signal" line.
+
+    Args:
+        frame: OHLC DataFrame to compute the indicator on.
+        smoothing: EWMA smoothing length used for the signal line.
+        applied_price: MT5 applied-price name passed to :func:`price_series`.
+        factor1..factor5: Blend weights for each momentum component.
+        momentum_period1..momentum_period5: Lookback lengths for each component.
+
+    Returns:
+        A copy of ``frame`` with ``main_line`` and ``signal_line`` columns added
+        and warm-up rows (NaN) dropped.
+    """
     out = frame.copy()
     src = price_series(out, applied_price)
     m1 = compute_momentum(src, momentum_period1)
@@ -195,12 +286,16 @@ def compute_color_zerolag_momentum(frame, smoothing=15, applied_price='PRICE_CLO
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard OHLCV column positions."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ColorZerolagFeed(bt.feeds.PandasData):
+    """PandasData feed adding precomputed main_line and signal_line columns."""
+
     lines = ('main_line', 'signal_line')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('main_line', 6), ('signal_line', 7),
@@ -208,6 +303,8 @@ class ColorZerolagFeed(bt.feeds.PandasData):
 
 
 class ExpColorZerolagMomentumX2Strategy(bt.Strategy):
+    """Dual-timeframe Color ZeroLag Momentum trend-and-trigger strategy."""
+
     params = dict(
         slow_tf_minutes=360,
         fast_tf_minutes=30,
@@ -252,6 +349,7 @@ class ExpColorZerolagMomentumX2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base/slow/fast feeds and their lines and reset counters."""
         self.base = self.datas[0]
         self.slow = self.datas[1]
         self.fast = self.datas[2]
@@ -276,6 +374,11 @@ class ExpColorZerolagMomentumX2Strategy(bt.Strategy):
         self.take_profit_price = None
 
     def log(self, text):
+        """Print a timestamped log line for the current base bar.
+
+        Args:
+            text: Message to emit alongside the current base bar datetime.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -357,6 +460,14 @@ class ExpColorZerolagMomentumX2Strategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, prev_main, prev_signal, curr_main, curr_signal
 
     def next(self):
+        """Manage risk and act on the dual-timeframe momentum signals each bar.
+
+        Increments the bar counter, skips while an order is pending, applies
+        stop/take-profit management, and waits until a new fast-bar timestamp is
+        available. It then reads the slow trend, derives fast open/close signals,
+        logs them, and closes, opens, or reverses the position in the slow
+        trend's direction, setting fresh risk prices on each new entry.
+        """
         self.bar_num += 1
         if self.order is not None:
             return
@@ -398,6 +509,16 @@ class ExpColorZerolagMomentumX2Strategy(bt.Strategy):
             self.order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/failed orders and update fill counters and risk.
+
+        On a completed fill, increments the completed-order count and the
+        buy/sell counter when a position is open, or clears risk prices when the
+        position is flat. Failed orders increment the rejected count. Clears the
+        tracked order once it is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -416,6 +537,12 @@ class ExpColorZerolagMomentumX2Strategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -440,6 +567,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -447,6 +585,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the base frame and build the slow and fast momentum signal frames.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections used for loading and indicator computation.
+
+    Returns:
+        A dict with the ``base`` M15 frame, the ``slow`` and ``fast`` Color
+        ZeroLag Momentum frames, and the ``fromdate``/``todate`` bounds.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -489,6 +640,18 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, three feeds, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frames dict returned by :func:`load_backtest_frames`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the base M15 feed, the
+        slow/fast Color ZeroLag Momentum feeds, the strategy, an optional
+        TradeLogger observer, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     slow_minutes = config['data'].get('slow_tf_minutes', 360)
     fast_minutes = config['data'].get('fast_tf_minutes', 30)
@@ -529,6 +692,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying signal and trade counters.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frames dict providing date range and bar counts.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/signal/trade counts, order counts, PnL,
+        return, win rate, Sharpe, annualized return, drawdown, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -569,6 +744,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

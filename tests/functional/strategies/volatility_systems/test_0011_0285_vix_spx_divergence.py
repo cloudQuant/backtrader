@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the daily (D1) timeframe, loaded from the
+    MetaTrader 5 export ``tests/datas/XAUUSD_1d.csv`` and clipped to 2008-01-01
+    through 2025-12-31. A derived feature frame augments the OHLCV columns with
+    historical volatility, its change, a new-high flag, a volatility-rise flag, a
+    rolling price/volatility correlation, a Monday flag, a composite signal
+    strength, and an entry-signal flag. Data is delivered through a single
+    PandasData feed priced as a spot instrument with a percentage commission.
+
+Strategy Principle:
+    A volatility-divergence fade adapted to a single instrument. The original VIX
+    vs SPX divergence idea is reproduced here using price-derived proxies: when
+    price makes a new high while historical volatility is rising and the
+    price/volatility correlation breaks down, the move is treated as fragile and
+    faded with a short. Monday and sharp volatility spikes amplify the signal
+    strength. Each short carries a fixed percentage stop-loss and take-profit and
+    a maximum holding period.
+
+Strategy Logic:
+    ``prepare_vix_spx_divergence_features`` computes the volatility, new-high,
+    correlation, Monday, signal-strength, and entry-signal columns. ``__init__``
+    zeroes the bar and trade counters and order/risk state. ``next`` records
+    broker value, manages stop/take-profit/time exits while in a position, and
+    otherwise opens a strength-scaled short via ``order_target_size`` on an entry
+    signal. ``notify_order`` clears the pending order and resets risk prices when
+    flat. ``extract_metrics`` consolidates analyzer output (plus an Ulcer Index)
+    into a metrics dict that the test compares against migration-time expected
+    values.
 """
 from __future__ import annotations
 import math
@@ -79,6 +108,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV export into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -105,6 +148,22 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_vix_spx_divergence_features(df, params):
+    """Add volatility-divergence signal columns to the daily frame.
+
+    Computes historical volatility and its change, a new-high flag, a
+    volatility-rise flag, a rolling price/volatility correlation, a Monday flag,
+    a composite signal strength, and the combined entry-signal flag.
+
+    Args:
+        df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters controlling the new-high period, volatility lookback
+            and rise threshold, correlation lookback and cutoff, and Monday
+            weight.
+
+    Returns:
+        A frame with the OHLCV columns plus the volatility, correlation, flag,
+        signal-strength, and entry-signal columns (warm-up rows dropped).
+    """
     new_high_period = int(params.get('new_high_period', 50))
     vol_lookback = int(params.get('vol_lookback', 20))
     vol_rise_threshold = float(params.get('vol_rise_threshold', 0.02))
@@ -138,6 +197,8 @@ def prepare_vix_spx_divergence_features(df, params):
 
 
 class Mt5VixSpxDivergenceFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the volatility-divergence signal lines."""
+
     lines = (
         'hist_vol', 'vol_change', 'new_high', 'vol_up', 'price_vol_corr', 'monday_flag',
         'signal_strength', 'entry_signal',
@@ -150,6 +211,8 @@ class Mt5VixSpxDivergenceFeed(bt.feeds.PandasData):
 
 
 class VixSpxDivergenceStrategy(bt.Strategy):
+    """Fade new highs on rising volatility with fixed stop/take-profit and time exit."""
+
     params = dict(
         holding_days=3,
         position_size=0.95,
@@ -165,6 +228,7 @@ class VixSpxDivergenceStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Zero the bar/trade counters and order/risk state, and value series."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -188,6 +252,13 @@ class VixSpxDivergenceStrategy(bt.Strategy):
         return direction * round(size, 2)
 
     def next(self):
+        """Manage stop/take-profit/time exits, else open a strength-scaled short.
+
+        Increments the bar counter and records broker value, skips while an order
+        is pending, exits an open position on the stop, take-profit, or holding
+        limit, and—while flat—opens a strength-scaled short on an entry signal
+        with fixed stop and take-profit prices.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -223,6 +294,13 @@ class VixSpxDivergenceStrategy(bt.Strategy):
             self.pending_order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Clear the pending order and reset risk prices once flat.
+
+        Args:
+            order: The order whose status changed; when no longer live the
+                pending order is cleared and, if flat, the stop/take-profit
+                prices are reset.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -237,10 +315,27 @@ class VixSpxDivergenceStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is non-None and finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is not None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -254,6 +349,16 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load the daily frame and add the divergence feature columns.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -263,6 +368,16 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        frame: The loaded data dict returned by :func:`load_data`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the divergence feed, a
+        percentage commission, the strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -278,6 +393,19 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded data dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, SQN, and Ulcer
+        Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -317,6 +445,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(value):
+    """Convert datetimes to ISO strings and non-finite floats to None.
+
+    Args:
+        value: Any value to normalize for JSON-friendly output.
+
+    Returns:
+        An ISO string for datetimes, None for NaN/inf floats, else the value
+        unchanged.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -328,6 +465,12 @@ def normalize(value):
 
 
 def main():
+    """Run the divergence backtest end to end and extract its metrics.
+
+    Loads the config, builds the feature frame and Cerebro engine, runs the
+    backtest, and passes the executed strategy through :func:`extract_metrics`
+    so the regression test can capture the resulting metrics dict.
+    """
     config = load_config()
     frame = load_data(config)
     print(f"Loaded vix-spx-divergence bars: {len(frame['data'])}")

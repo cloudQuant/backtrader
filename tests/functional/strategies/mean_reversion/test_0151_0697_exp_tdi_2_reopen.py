@@ -17,6 +17,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV and return a Pandas DataFrame with standardized columns."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +40,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a DataFrame to a higher timeframe using OHLC aggregation."""
     out = df.resample(rule, label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min", "close": "last",
         "tick_volume": "sum", "openinterest": "last",
@@ -50,6 +52,7 @@ def resample_frame(df, rule):
 
 
 def price_series(frame, applied_price="PRICE_CLOSE_"):
+    """Select the price column from a DataFrame based on the applied_price specifier."""
     if applied_price == "PRICE_OPEN_":
         return frame["open"]
     if applied_price == "PRICE_HIGH_":
@@ -66,6 +69,7 @@ def price_series(frame, applied_price="PRICE_CLOSE_"):
 
 
 def smooth_series(series, method="MODE_SMA_", period=20):
+    """Smooth a price series using the specified method (SMA/EMA/SMMA/LWMA)."""
     period = max(int(period), 1)
     values = pd.Series(series).astype(float)
     method = str(method).upper()
@@ -80,6 +84,7 @@ def smooth_series(series, method="MODE_SMA_", period=20):
 
 
 def compute_tdi_frame(frame, tdi_method="MODE_SMA_", tdi_period=20, applied_price="PRICE_CLOSE_"):
+    """Compute TDI (Trend Direction Index) direct and tdi lines from the price frame."""
     out = frame.copy()
     src = price_series(out, applied_price=applied_price).astype(float)
     period = max(int(tdi_period), 1)
@@ -95,6 +100,7 @@ def compute_tdi_frame(frame, tdi_method="MODE_SMA_", tdi_period=20, applied_pric
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with standard OHLC column mapping."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -102,6 +108,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class TdiFeed(bt.feeds.PandasData):
+    """PandasData feed extended with TDI signal lines (tdi, direct)."""
     lines = ("tdi", "direct")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -111,6 +118,7 @@ class TdiFeed(bt.feeds.PandasData):
 
 
 class ExpTdi2ReOpenStrategy(bt.Strategy):
+    """Trading strategy using TDI crossover signals with layer-based pyramiding."""
     params = dict(
         signal_tf_minutes=240,
         tdi_method="MODE_SMA_",
@@ -132,6 +140,7 @@ class ExpTdi2ReOpenStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, counters, and layer tracking."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.tdi = self.signal.tdi
@@ -238,6 +247,7 @@ class ExpTdi2ReOpenStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Bar-by-bar logic: enters/exits positions based on TDI and direct crossover conditions."""
         self.bar_num += 1
         self._manage_layers()
         if len(self.signal) < max(int(self.p.signal_bar) + 2, int(self.p.tdi_period) + 3):
@@ -261,6 +271,7 @@ class ExpTdi2ReOpenStrategy(bt.Strategy):
         self._maybe_reopen()
 
     def notify_trade(self, trade):
+        """Track trade outcomes: win/loss count based on closed trade P&L."""
         if not trade.isclosed:
             return
         self.trade_count += 1

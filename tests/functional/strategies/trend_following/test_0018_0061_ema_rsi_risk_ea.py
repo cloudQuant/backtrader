@@ -18,6 +18,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 CSV file and return a normalized Backtrader dataframe."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -40,6 +41,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed including spread line from MT5 exports."""
     lines = ("spread",)
     params = (
         ("datetime", None),
@@ -50,6 +52,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class EmaRsiRiskEaStrategy(bt.Strategy):
+    """EMA/RSI risk-based breakout strategy using bracket orders and trailing stops."""
     params = dict(
         fast_ema=12,
         slow_ema=26,
@@ -75,6 +78,7 @@ class EmaRsiRiskEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order refs, counters, and lot/entry guards."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.fast_ma = bt.ind.EMA(self.signal_data.close, period=self.p.fast_ema)
@@ -169,6 +173,7 @@ class EmaRsiRiskEaStrategy(bt.Strategy):
                 self._replace_stop_order(new_stop)
 
     def next(self):
+        """Run risk checks, manage open positions, and place new entries on signal changes."""
         self.bar_num += 1
         min_bars = max(self.p.slow_ema, self.p.rsi_period) + 2
         now = bt.num2date(self.exec_data.datetime[0]).replace(tzinfo=None)
@@ -199,6 +204,7 @@ class EmaRsiRiskEaStrategy(bt.Strategy):
             self._open_bracket("short", lots)
 
     def notify_order(self, order):
+        """Track lifecycle of entry/bracket orders and clear references on completion/cancel."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -226,6 +232,7 @@ class EmaRsiRiskEaStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track closed trade count and win/loss statistics."""
         if not trade.isclosed:
             return
         self.trade_count += 1

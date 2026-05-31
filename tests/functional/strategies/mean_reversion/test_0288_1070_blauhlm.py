@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 historical bars from ``tests/datas/XAUUSD_M15.csv`` over the
+    2025-12-03 to 2026-03-10 date range, shifted 15 minutes.
+    A 240-minute resampled series feeds BlauHLM signal calculations.
+
+Strategy Principle:
+    The strategy computes a blue-hls trend indicator (HLM) smoothed with several
+    moving-average passes and classifies trend regimes by mode.
+    Entries and exits are produced by comparing current and previous histogram and
+    cloud values while enforcing fixed risk limits.
+
+Strategy Logic:
+    Build base and signal feeds, run one strategy instance with duplicate-signal
+    filtering by bar timestamp, and execute only one pending order at a time.
+    `extract_metrics` aggregates analyzer outputs and strategy state counters.
 """
 from __future__ import annotations
 import math
@@ -92,6 +108,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted data and return a normalized OHLCV frame.
+
+    Parameters:
+        filepath: Data file path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Minute offset applied to index.
+
+    Returns:
+        DataFrame with datetime index and OHLCV + openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -118,6 +145,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample OHLCV bars for signal timeframe calculations."""
+    """Aggregate OHLCV fields with right-labeled bins.
+
+    Parameters:
+        df: Input time series.
+        rule: Pandas frequency spec.
+
+    Returns:
+        Resampled DataFrame with cleaned bars.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -133,6 +170,16 @@ def resample_frame(df, rule):
 
 
 def smooth_series(series, period, method='MODE_EMA'):
+    """Smooth a series using configured moving-average style.
+
+    Args:
+        series: Input pandas Series.
+        period: Window period.
+        method: One of MODE_EMA / MODE_SMA / MODE_SMMA / MODE_LWMA.
+
+    Returns:
+        Smoothed series.
+    """
     period = max(int(period), 1)
     if method == 'MODE_SMA':
         return series.rolling(period, min_periods=period).mean()
@@ -145,6 +192,21 @@ def smooth_series(series, period, method='MODE_EMA'):
 
 
 def compute_blau_hlm(frame, xma_method='MODE_EMA', xlength=2, xlength1=20, xlength2=5, xlength3=3, xlength4=3, point=0.01):
+    """Compute BlauHLM components and colorized histogram lines.
+
+    Parameters:
+        frame: OHLCV source frame.
+        xma_method: Smoothing method for intermediate series.
+        xlength: Base lookback for HLM delta.
+        xlength1: First smoothing period.
+        xlength2: Second smoothing period.
+        xlength3: Third smoothing period.
+        xlength4: Signal smoothing period.
+        point: Point-size scaling.
+
+    Returns:
+        Frame with ``up``, ``dn``, ``hist`` and ``color`` columns.
+    """
     out = frame.copy()
     xlength = max(int(xlength), 1)
     xlength1 = max(int(xlength1), 1)
@@ -194,6 +256,7 @@ def compute_blau_hlm(frame, xma_method='MODE_EMA', xlength=2, xlength1=20, xleng
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping for base MT5 OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
         ('volume', 4), ('openinterest', 5),
@@ -201,6 +264,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BlauHLMFeed(bt.feeds.PandasData):
+    """Backtrader feed including BlauHLM signal lines."""
     lines = ('up', 'dn', 'hist', 'color',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -209,6 +273,7 @@ class BlauHLMFeed(bt.feeds.PandasData):
 
 
 class BlauHLMStrategy(bt.Strategy):
+    """Strategy implementation for BlauHLM trend mode signal entries."""
     params = dict(
         mode='twist',
         mm=0.1,
@@ -235,6 +300,7 @@ class BlauHLMStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters and risk-management state."""
         self.m15 = self.datas[0]
         self.signal = self.datas[1]
         self.up = self.signal.up
@@ -258,6 +324,7 @@ class BlauHLMStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Output timestamped debug messages."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -366,6 +433,7 @@ class BlauHLMStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, debug
 
     def next(self):
+        """Process signals each M15 bar and dispatch risk/entry/exit orders."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -405,6 +473,7 @@ class BlauHLMStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Update counters and cleanup pending order on lifecycle end."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -423,6 +492,7 @@ class BlauHLMStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Track trade result counters after closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -447,6 +517,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve file path relative to strategy directory.
+
+    Args:
+        filename: Relative filename from configuration.
+
+    Returns:
+        Absolute path to data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -454,6 +532,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and prepare M15 and signal frames for this strategy.
+
+    Args:
+        config: Configuration dictionary.
+
+    Returns:
+        Dict with prepared data and date metadata.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -479,6 +565,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Backtrader engine."""
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -502,6 +589,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Compile trade statistics and analyzer metrics for assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -545,6 +633,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return execution result tuple."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

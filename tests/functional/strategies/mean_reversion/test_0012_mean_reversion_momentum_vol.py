@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) daily data from 2008-01-01 to 2025-12-31.
+    Derived features: short/long momentum, rolling volatility and entry/exit signals.
+
+Strategy Principle:
+    A regime-aware approach that uses short-momentum and long-momentum signals to
+    switch between momentum continuation and mean-reversion pullback entries.
+
+Strategy Logic:
+    __init__: Track bars, counters, pending order status, and broker equity history.
+    next(): Enter when the composite entry signal is true while flat; exit on exit
+        signal or holding-period stop.
+    notify_order(): Clear pending-order state on terminal order updates.
+    notify_trade(): Track completed trade outcome counters.
+    test_12_0012_mean_reversion_momentum_vol(): Execute regression and assert all
+        expected metrics.
 """
 from __future__ import annotations
 import math
@@ -77,6 +94,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,41 +121,40 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_mean_reversion_momentum_vol_features(df, params):
-    """准备均值回归动量波动率策略特征"""
+    """Prepare short/long momentum and volatility features."""
     out = df.copy()
     short_period = int(params.get('short_period', 5))
     long_period = int(params.get('long_period', 20))
     threshold_days = int(params.get('threshold_days', 16))
     
-    # 计算短期动量
+    # Compute short-term momentum.
     out['short_momentum'] = out['close'].pct_change(short_period)
     
-    # 计算长期动量
+    # Compute long-term momentum.
     out['long_momentum'] = out['close'].pct_change(long_period)
     
-    # 计算波动率
+    # Compute volatility estimate used for signal filters.
     out['volatility'] = out['close'].pct_change().rolling(window=long_period).std()
     
-    # 根据Hurst指数理论：短期用动量，长期用均值回归
-    # 简化实现：当短期动量与长期动量方向一致时使用动量策略
-    # 当短期动量与长期动量方向相反时使用均值回归
+    # Hypothesis notes:
+    # Short horizon uses momentum; when horizons disagree, mean-reversion is favored.
     
-    # 动量信号：短期和长期动量都为正
+    # Momentum entry when both short and long momentum are positive.
     out['momentum_signal'] = (
         (out['short_momentum'] > 0) & 
         (out['long_momentum'] > 0)
     ).astype(float)
     
-    # 均值回归信号：短期动量为负且长期动量为正（回调买入）
+    # Mean-reversion entry when short momentum is negative and long momentum recovers.
     out['mean_reversion_signal'] = (
         (out['short_momentum'] < -out['volatility']) & 
         (out['long_momentum'] > 0)
     ).astype(float)
     
-    # 综合入场信号
+    # Combined entry signal.
     out['entry_signal'] = out['mean_reversion_signal']
     
-    # 出场信号：短期动量转正
+    # Exit when short momentum recovers above half-volatility threshold.
     out['exit_signal'] = (out['short_momentum'] > out['volatility'] * 0.5).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -146,6 +163,7 @@ def prepare_mean_reversion_momentum_vol_features(df, params):
 
 
 class Mt5MeanReversionMomentumVolFeed(bt.feeds.PandasData):
+    """Backtrader feed exposing momentum-volatility feature lines."""
     lines = ('short_momentum', 'long_momentum', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -155,6 +173,7 @@ class Mt5MeanReversionMomentumVolFeed(bt.feeds.PandasData):
 
 
 class MeanReversionMomentumVolStrategy(bt.Strategy):
+    """Momentum-volatility mean-reversion switching strategy."""
     params = dict(
         short_period=5,
         long_period=20,
@@ -164,6 +183,7 @@ class MeanReversionMomentumVolStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize tracking counters and broker value recorder."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -190,6 +210,7 @@ class MeanReversionMomentumVolStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar and apply configured entry/exit behavior."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -199,7 +220,7 @@ class MeanReversionMomentumVolStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -207,18 +228,20 @@ class MeanReversionMomentumVolStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Reset pending-order flag once order reaches terminal status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -230,7 +253,7 @@ class MeanReversionMomentumVolStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Mean Reversion Momentum Vol 策略回测"""
+"""Mean Reversion Momentum Vol strategy backtest."""
 
 
 
@@ -240,6 +263,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build timeframe-based Sharpe ratio analyzer kwargs.
+
+    Args:
+        config: Strategy configuration containing data timeframe.
+
+    Returns:
+        Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -252,10 +283,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return a finite analyzer metric or ``None`` if unavailable.
+
+    Args:
+        x: Candidate value.
+
+    Returns:
+        The value if finite; otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from broker-value path.
+
+    Args:
+        values: Ordered broker values.
+
+    Returns:
+        Ulcer index as float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -270,6 +317,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load data and compute strategy feature frame."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -283,6 +331,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure Cerebro with strategy/analyzers/feed.
+
+    Args:
+        frame: Prepared input dict.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -305,6 +362,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect sharpe, drawdown, and trade metrics for assertions.
+
+    Args:
+        strat: Strategy instance from execution.
+        cerebro: Running Cerebro engine.
+        frame: Input payload.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of KPI values used by regression checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -339,6 +407,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values to JSON-compatible primitives.
+
+    Args:
+        v: Value to normalize.
+
+    Returns:
+        ISO timestamp for datetime inputs, ``None`` for non-finite floats, or
+        original value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

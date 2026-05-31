@@ -3,6 +3,33 @@
 """Test case: Stochastic SR (Stochastic Support/Resistance) strategy.
 
 Reference: backtrader-backtests/StochasticSR/Stochastic_SR_Backtest.py
+
+Data Used:
+    Shanghai Stock Exchange ticker SH600000 (Pudong Development Bank) daily bars
+    loaded from ``sh600000.csv`` via resolve_data_path, parsed into a
+    datetime-indexed OHLCV frame and clipped to 2000-01-01 through 2022-12-31
+    with non-positive closes removed. A single daily PandasData feed drives the
+    backtest.
+
+Strategy Principle:
+    A counter-trend system that times entries with the Stochastic oscillator and
+    manages risk with Donchian-channel support/resistance. Stochastic crossings
+    back through the 80/20 bands flag exhaustion of overbought/oversold moves, so
+    the strategy fades them — selling as %D drops back below 80 and buying as %D
+    rises back above 20. Each entry is bracketed by two OCO stops: a fixed
+    points stop and a Donchian-extreme stop (prior N-bar high/low), and positions
+    are taken off when Stochastic reaches the opposite 70/30 zone.
+
+Strategy Logic:
+    StochasticSRStrategy builds a Stochastic indicator. While flat it detects a
+    %D cross back below 80 (enter short) or back above 20 (enter long), sets the
+    Donchian stop from the N-bar high/low, and arms paired OCO stop orders. While
+    long it closes when %D reaches 70; while short it closes when %D reaches 30.
+    notify_order counts completed buys/sells and tracks fill price; notify_trade
+    accumulates win/loss and PnL; stop reports final statistics. The parametrized
+    test runs both runonce=True and runonce=False, then asserts bar count, order
+    counts, win/loss, final value, Sharpe, annual return, and drawdown against
+    expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

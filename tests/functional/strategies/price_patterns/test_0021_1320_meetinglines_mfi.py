@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Meeting Lines + MFI") implements a trend reversal system based on Japanese Meeting Lines candlestick patterns confirmed by the Money Flow Index (MFI).
+    - Market Assumptions: Meeting Lines (where two opposing candles close at or very close to the same price level) represent a deceleration of current trend and a strong potential trend turnaround, which is highly reliable when confirmed by volume-weighted MFI overbought/oversold levels.
+    - Indicators:
+        - SMA: Simple Moving Average (4-period, `ma_period`) of candle body sizes.
+        - MFI: Money Flow Index (12-period, `mfi_period`).
+    - Entry Signals:
+        - Buy Entry (bullish meeting lines): Two candles with opposing directions close very close to each other (within tolerance), where Candle 1 is bullish, Candle 2 is bearish, and previous MFI < 40 (`mfi_entry_long`).
+        - Sell Entry (bearish meeting lines): Two candles with opposing directions close very close to each other, where Candle 1 is bearish, Candle 2 is bullish, and previous MFI > 60 (`mfi_entry_short`).
+    - Exit Signals:
+        - Long Exit: MFI crosses up through 70 (`mfi_exit_upper`) or up through 30 (`mfi_exit_lower`).
+        - Short Exit: MFI crosses down through 30 (`mfi_exit_lower`) or down through 70 (`mfi_exit_upper`).
 """
 from __future__ import annotations
 import math
@@ -24,7 +43,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Meeting Lines + MFI',
-        'source_ea': 'ea/1320_MQL5_向导_-_基于_牛市约会线_熊市约会线形态的交易信号_+_MFI',
+        'source_ea': 'ea/1320_Meeting_Lines_MFI_Strategy/expert_abc_ws_mfi.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -70,9 +89,18 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
+
 
 
 
@@ -82,7 +110,20 @@ if str(REPO_ROOT) not in sys.path:
 
 
 
+
+
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,13 +153,20 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MoneyFlowIndex(bt.Indicator):
+    """Money Flow Index indicator.
+
+    Lines:
+        mfi (Line): Calculated Money Flow Index line.
+    """
     lines = ('mfi',)
     params = (('period', 14),)
 
     def __init__(self):
+        """Initialize indicator and establish minimum period."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate high/low volume ratios and derive Money Flow Index."""
         positive_flow = 0.0
         negative_flow = 0.0
         for i in range(self.p.period):
@@ -144,6 +193,11 @@ class MoneyFlowIndex(bt.Indicator):
 
 
 class MeetingLinesMfiStrategy(bt.Strategy):
+    """Strategy class implementing Meeting Lines pattern recognition and MFI filtering.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         mfi_period=12,
         mfi_entry_long=40,
@@ -159,6 +213,7 @@ class MeetingLinesMfiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.mfi = MoneyFlowIndex(self.data, period=self.p.mfi_period)
         self.body_sma = bt.indicators.SMA(abs(self.data.close - self.data.open), period=self.p.ma_period)
         self.bar_num = 0
@@ -170,13 +225,28 @@ class MeetingLinesMfiStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _avg_body(self):
+        """Retrieve rolling average body size of recent bars.
+
+        Returns:
+            float: Average body size.
+        """
         return float(self.body_sma[-1])
 
     def _is_bullish_meeting_lines(self):
+        """Verify bullish Meeting Lines pattern conditions on the last 2 bars.
+
+        Returns:
+            bool: True if bullish meeting lines pattern is formed, otherwise False.
+        """
         o2, c2 = float(self.data.open[-2]), float(self.data.close[-2])
         o1, c1 = float(self.data.open[-1]), float(self.data.close[-1])
         avg = self._avg_body()
@@ -187,6 +257,11 @@ class MeetingLinesMfiStrategy(bt.Strategy):
                 abs(c1 - c2) < float(self.p.close_tolerance_multiplier) * avg)
 
     def _is_bearish_meeting_lines(self):
+        """Verify bearish Meeting Lines pattern conditions on the last 2 bars.
+
+        Returns:
+            bool: True if bearish meeting lines pattern is formed, otherwise False.
+        """
         o2, c2 = float(self.data.open[-2]), float(self.data.close[-2])
         o1, c1 = float(self.data.open[-1]), float(self.data.close[-1])
         avg = self._avg_body()
@@ -197,6 +272,7 @@ class MeetingLinesMfiStrategy(bt.Strategy):
                 abs(c1 - c2) < float(self.p.close_tolerance_multiplier) * avg)
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         warmup = max(self.p.mfi_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -229,6 +305,11 @@ class MeetingLinesMfiStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -254,6 +335,8 @@ if str(REPO_ROOT) not in sys.path:
 
 
 
+
+
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -261,6 +344,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -268,6 +362,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -284,6 +389,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -307,6 +421,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -338,15 +463,32 @@ def extract_metrics(strat, cerebro, frame, config):
         'lost': lost,
         'win_rate': (won / total_trades * 100) if total_trades else 0,
         'profit_factor': (gross_won / gross_lost) if gross_lost else None,
-        'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
         'sharpe_ratio': sharpe.get('sharperatio'),
         'annual_return_pct': (returns.get('rnorm') or 0) * 100,
+        'max_drawdown': drawdown.get('max', {}).get('drawdown', 0),
         'sqn': sqn.get('sqn'),
     }
 
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -379,6 +521,65 @@ def _invoke_strategy_main():
     if hasattr(_mod, "run") and callable(_mod.run):
         return _mod.run()
     raise RuntimeError("Neither main() nor run() found in inlined module")
+
+
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_21_0021_1320_meetinglines_mfi() -> None:

@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each bar's timestamp is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at its close. A single data feed is
+    used; no resampling.
+
+Strategy Principle:
+    This is the "The_20s_v020" (Exp_The_20s_v020) strategy. It reads the prior
+    bar's range and marks the upper and lower 20% zones (the ``ratio`` band).
+    When the previous bar opens and closes on opposite ends of that band and the
+    current bar extends beyond it by a ``level`` threshold (MODE_1), or when a
+    three-bar expansion-then-inside pattern forms (MODE_2), it produces a
+    reversal signal. An ATR offset sets the entry, and the ``direct`` flag can
+    invert buy/sell so the strategy follows or fades the break. Each position is
+    bracketed by fixed point-based stop-loss and take-profit distances.
+
+Strategy Logic:
+    prepare_frame loads the M15 frame; build_cerebro wires the pandas feed, a
+    fixed-commission futures broker, the strategy, and the analyzers. The20sV020Signal
+    computes the buy/sell signal lines, and The20sV020Strategy, each bar after
+    warm-up, first manages protective stop/take-profit exits, then reads the
+    signal at ``signal_bar`` to open, close, or reverse a position. notify_order
+    counts completed/rejected orders and derives stop/target prices on entry
+    fills, while notify_trade tallies wins/losses on close. extract_metrics
+    consolidates analyzer output and order/signal counters, and the test forces
+    runonce=True, runs the module's main()/run(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -83,6 +112,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset added to each timestamp so the
+            bar is stamped at its close.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +146,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed exposing the standard M15 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +155,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class The20sV020Signal(Indicator):
+    """Reversal signal from prior-bar 20% zones with an ATR-offset entry."""
+
     lines = ('sell', 'buy')
     params = dict(
         alg='MODE_1',
@@ -122,10 +168,20 @@ class The20sV020Signal(Indicator):
     )
 
     def __init__(self):
+        """Build the ATR sub-indicator and set the warm-up minimum period."""
         self.atr = btind.ATR(self.data, period=max(int(self.p.atr_period), 1))
         self.addminperiod(max(int(self.p.atr_period), 5) + 6)
 
     def next(self):
+        """Emit buy/sell signal levels from the prior-bar 20% zone logic.
+
+        Resets both lines to zero, and once enough bars exist computes the
+        prior-bar range, its upper/lower 20% zones, and the ATR. Under MODE_1 it
+        flags a reversal when the previous bar spans the band and the current bar
+        breaks beyond it by the level threshold; under MODE_2 it uses a three-bar
+        expansion-then-inside pattern. The ``direct`` flag optionally swaps the
+        buy and sell outputs.
+        """
         self.lines.buy[0] = 0.0
         self.lines.sell[0] = 0.0
 
@@ -169,6 +225,8 @@ class The20sV020Signal(Indicator):
 
 
 class The20sV020Strategy(Strategy):
+    """Trade The20sV020 reversal signals with fixed stop-loss and take-profit."""
+
     params = dict(
         alg='MODE_1',
         level=100,
@@ -182,6 +240,7 @@ class The20sV020Strategy(Strategy):
     )
 
     def __init__(self):
+        """Build the signal indicator and reset order/trade counters and state."""
         self.indicator = The20sV020Signal(
             self.data,
             alg=self.p.alg,
@@ -255,6 +314,14 @@ class The20sV020Strategy(Strategy):
         return not math.isnan(value) and value != 0.0
 
     def next(self):
+        """Manage protective exits, then open, close, or reverse on a signal.
+
+        Skips during warm-up, first handles stop/take-profit exits via
+        :meth:`_manage_protective_levels`, then reads the buy/sell signals at
+        ``signal_bar`` and tallies their counts. While in a position it reverses
+        on an opposing signal; while flat it opens long on a buy signal or short
+        on a sell signal.
+        """
         if len(self.data) < self.warmup:
             return
 
@@ -287,6 +354,13 @@ class The20sV020Strategy(Strategy):
                 return
 
     def notify_order(self, order):
+        """Count completed/rejected orders and set bracket prices on entry fills.
+
+        Args:
+            order: The order whose status changed; a completed buy/sell matching
+                the pending entry direction records the entry price and derives
+                the stop-loss and take-profit levels.
+        """
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.rejected_order_count += 1
             self.pending_entry_direction = 0
@@ -317,6 +391,12 @@ class The20sV020Strategy(Strategy):
             self._reset_levels()
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -335,6 +415,16 @@ MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
 
 
 def prepare_frame(config, base_dir):
+    """Load the configured date range into a backtest frame bundle.
+
+    Args:
+        config: Parsed configuration providing the ``data`` section.
+        base_dir: Directory used to resolve the relative data file path.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame, the ``fromdate``/``todate``
+        bounds, and the resolved ``filepath``.
+    """
     data_cfg = config['data']
     fromdate = pd.Timestamp(data_cfg['fromdate']) if data_cfg.get('fromdate') else None
     todate = pd.Timestamp(data_cfg['todate']) if data_cfg.get('todate') else None
@@ -349,6 +439,16 @@ def prepare_frame(config, base_dir):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest and commission settings.
+        frame: The loaded data dict returned by :func:`prepare_frame`.
+
+    Returns:
+        A configured :class:`backtrader.cerebro.Cerebro` with the M15 feed, a
+        fixed-commission futures broker, the strategy, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     cerebro = Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -399,6 +499,16 @@ def _get_nested(mapping, *keys, default=0):
 
 
 def extract_metrics(strategy, cerebro):
+    """Collect regression metrics from analyzers and strategy counters.
+
+    Args:
+        strategy: Strategy instance from ``cerebro.run()``.
+        cerebro: Completed Backtrader engine.
+
+    Returns:
+        A flattened metrics dict (final value, PnL, trade/order/signal counts,
+        drawdown, returns, Sharpe, and SQN) used by the regression assertions.
+    """
     sharpe = strategy.analyzers.sharpe.get_analysis()
     returns = strategy.analyzers.returns.get_analysis()
     drawdown = strategy.analyzers.drawdown.get_analysis()
@@ -427,6 +537,15 @@ def extract_metrics(strategy, cerebro):
 
 
 def run(plot=False):
+    """Run the backtest end-to-end and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: When True, render the Cerebro candlestick plot after the run.
+
+    Returns:
+        A tuple of the raw ``cerebro.run()`` results, the extracted metrics dict,
+        and the Cerebro engine.
+    """
     base_dir = Path(__file__).resolve().parent
     config_path = (base_dir / 'config.yaml').resolve()
     config = load_config(config_path)
@@ -441,6 +560,11 @@ def run(plot=False):
 
 
 def main():
+    """Parse CLI args, run the backtest, and print a JSON summary.
+
+    Builds the config, frame, and Cerebro engine, runs the backtest, extracts
+    metrics, prints a JSON report, and optionally plots when ``--plot`` is given.
+    """
     parser = argparse.ArgumentParser(description='Run the 1100 The_20s_v020 Backtrader example')
     parser.add_argument('--config', default='config.yaml', help='Path to config.yaml')
     parser.add_argument('--plot', action='store_true', help='Plot after backtest')

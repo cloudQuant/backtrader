@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD
+    - Base data file: tests/datas/XAUUSD_M15.csv
+    - Base timeframe: M15 bars from 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+    - Shift: base bars can be shifted forward by `bar_shift_minutes` when loading
+    - Signal timeframe: 360-minute bars derived by resampling the base series
+    - Feed schema: OHLCV fields with derived buy/sell signal arrows on signal feed.
+
+Strategy Principle:
+    The strategy follows a cross-over signal built from Kaufman Adaptive Moving Average
+    (KAMA, using fast/slow efficiency-ratio smoothing periods) and a configurable
+    moving average (SMA/EMA/SMMA/LWMA alias MODE_SMA/MODE_EMA/MODE_SMMA/MODE_LWMA).
+    A trade signal is emitted when KAMA and the selected moving average cross.
+    The strategy can open positions on buy/sell signals and optionally close opposite
+    positions at the same time, while enforcing fixed stop-loss and take-profit
+    levels calculated in price units from `point` and `digits_adjust`.
+
+Strategy Logic:
+    1) Load inline strategy config and historical bar data.
+    2) Build a base M15 DataFrame and a 360-minute signal DataFrame with technical
+       indicators `KAMA`, selected moving average, and ATR-based arrow prices.
+    3) Create two backtrader feeds: primary M15 price feed and signal feed with
+       `buy_arrow` and `sell_arrow` lines.
+    4) In `next`, skip until enough history is available, then evaluate current
+       and optional fallback historical signals, apply risk exits first, and submit buy/sell
+       orders if constraints allow.
+    5) Track completed/rejected orders and trade outcomes through callbacks.
+    6) Collect metrics from analyzers and assert expected backtest invariants
+       in the migration-specific test function.
 """
 from __future__ import annotations
 import math
@@ -91,6 +121,21 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load tab-separated MT5 exported price data into a time-indexed DataFrame.
+
+    The source file is parsed, cleaned of quote wrappers, and converted to a standard
+    pandas OHLCV format with a datetime index created from `<DATE>` + `<TIME>`.
+
+    Args:
+        filepath: Absolute path to the source MT5 CSV file.
+        fromdate: Optional lower-bound datetime filter.
+        todate: Optional upper-bound datetime filter.
+        bar_shift_minutes: Minutes to shift each bar timestamp forward after parsing.
+
+    Returns:
+        A DataFrame indexed by datetime with columns `open`, `high`, `low`,
+        `close`, `volume`, and `openinterest`.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -116,6 +161,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a bar DataFrame using OHLCV aggregation.
+
+    Args:
+        df: Source DataFrame containing datetime index and `open`, `high`, `low`,
+            `close`, `volume`, `openinterest`.
+        rule: Pandas resample rule string (for example, `'360min'`).
+
+    Returns:
+        A resampled DataFrame with full OHLCV columns and gaps dropped.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -130,6 +185,15 @@ def resample_frame(df, rule):
 
 
 def ema_manual(series, period):
+    """Compute a simple EMA from an input series using manual smoothing.
+
+    Args:
+        series: Input close series.
+        period: EMA period.
+
+    Returns:
+        A Series containing the manually computed EMA values.
+    """
     period = int(max(period, 1))
     alpha = 2.0 / (period + 1.0)
     values = series.to_numpy(dtype=float)
@@ -149,6 +213,15 @@ def ema_manual(series, period):
 
 
 def smma(series, period):
+    """Compute smoothed moving average (SMMA) values.
+
+    Args:
+        series: Input data series.
+        period: SMMA window size.
+
+    Returns:
+        A Series of SMMA values.
+    """
     period = int(max(period, 1))
     values = series.to_numpy(dtype=float)
     out = np.full(len(values), np.nan, dtype=float)
@@ -166,12 +239,29 @@ def smma(series, period):
 
 
 def weighted_moving_average(series, period):
+    """Compute a linearly weighted moving average.
+
+    Args:
+        series: Input data series.
+        period: Window length used for weighting.
+
+    Returns:
+        A weighted average series where recent samples have higher weight.
+    """
     period = int(max(period, 1))
     weights = np.arange(1, period + 1, dtype=float)
     return series.rolling(period).apply(lambda x: np.dot(x, weights) / weights.sum(), raw=True)
 
 
 def true_range(frame):
+    """Calculate True Range using standard high/low and previous close values.
+
+    Args:
+        frame: OHLCV-like DataFrame with `high`, `low`, and `close` columns.
+
+    Returns:
+        A Series of True Range values.
+    """
     prev_close = frame['close'].shift(1)
     return pd.concat([
         frame['high'] - frame['low'],
@@ -181,11 +271,31 @@ def true_range(frame):
 
 
 def compute_atr(frame, period=15):
+    """Compute ATR by smoothing True Range with SMMA.
+
+    Args:
+        frame: OHLCV-like DataFrame.
+        period: ATR smoothing period.
+
+    Returns:
+        A Series of ATR values.
+    """
     tr = true_range(frame)
     return smma(tr, period)
 
 
 def compute_kama(series, er_period=9, fast_period=2, slow_period=30):
+    """Compute Kaufman Adaptive Moving Average for a price-like series.
+
+    Args:
+        series: Input price series.
+        er_period: Efficiency ratio lookback period.
+        fast_period: Fast EMA period for gain calculation.
+        slow_period: Slow EMA period for gain calculation.
+
+    Returns:
+        A Series of KAMA values.
+    """
     er_period = int(max(er_period, 1))
     fast_sc = 2.0 / (fast_period + 1.0)
     slow_sc = 2.0 / (slow_period + 1.0)
@@ -207,6 +317,16 @@ def compute_kama(series, er_period=9, fast_period=2, slow_period=30):
 
 
 def moving_average(series, period, method='MODE_LWMA'):
+    """Dispatch to requested moving-average method.
+
+    Args:
+        series: Input series.
+        period: Window length.
+        method: Average variant (`MODE_SMA`, `MODE_EMA`, `MODE_SMMA`, or `MODE_LWMA`).
+
+    Returns:
+        A series with the requested moving average applied.
+    """
     method = str(method or 'MODE_LWMA').upper()
     if method == 'MODE_SMA':
         return series.rolling(int(max(period, 1))).mean()
@@ -218,6 +338,29 @@ def moving_average(series, period, method='MODE_LWMA'):
 
 
 def compute_kaufwmacross(frame, ama_period=9, fast_ma_period=2, slow_ma_period=30, ama_price='PRICE_CLOSE', ma_period=13, ma_type='MODE_LWMA', ma_price='PRICE_CLOSE', point=0.01):
+    """Compute the KaufWMAcross signals from resampled bars.
+
+    The function reproduces the migrated expert logic by:
+    1) deriving KAMA from `ama_price`,
+    2) deriving a selectable MA from `ma_price`,
+    3) comparing shifted MA states to identify cross signals,
+    4) converting crosss into buy/sell arrows offset by ATR-derived margin.
+
+    Args:
+        frame: OHLCV signal-data DataFrame.
+        ama_period: ER lookback period for KAMA.
+        fast_ma_period: Fast period used in KAMA smoothing.
+        slow_ma_period: Slow period used in KAMA smoothing.
+        ama_price: Source price selector for KAMA; current implementation uses close price.
+        ma_period: Length of MA used for comparison.
+        ma_type: MA type constant string (for example, `MODE_LWMA`).
+        ma_price: Source price selector for MA; current implementation uses close price.
+        point: Market point size used by downstream metrics and risk calculations.
+
+    Returns:
+        The input frame enriched with `buy_arrow` and `sell_arrow` and rows where
+        neither signal exists removed.
+    """
     price_ama = frame['close'] if str(ama_price).upper() == 'PRICE_CLOSE' else frame['close']
     price_ma = frame['close'] if str(ma_price).upper() == 'PRICE_CLOSE' else frame['close']
     ama = compute_kama(price_ama, er_period=ama_period, fast_period=fast_ma_period, slow_period=slow_ma_period)
@@ -236,6 +379,11 @@ def compute_kaufwmacross(frame, ama_period=9, fast_ma_period=2, slow_ma_period=3
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping MT5 CSV fields to base OHLCV line positions.
+
+    The feed keeps default integer indexes for all standard price/volume fields
+    required by the inlined strategy.
+    """
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -243,6 +391,11 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class KaufWMAcrossFeed(bt.feeds.PandasData):
+    """Backtrader feed extending OHLCV with KaufWMAcross signal lines.
+
+    Adds `sell_arrow` and `buy_arrow` as additional lines to support the signal
+    driven strategy branch.
+    """
     lines = ('sell_arrow', 'buy_arrow')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -252,6 +405,12 @@ class KaufWMAcrossFeed(bt.feeds.PandasData):
 
 
 class KaufWMAcrossStrategy(bt.Strategy):
+    """Trend strategy implementing KaufWMAcross entry, exit, and risk checks.
+
+    The strategy evaluates signal lines on a higher timeframe while executing
+    orders on the lower timeframe feed, while counting signal, order, and trade
+    statistics for reproducible migration metrics.
+    """
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -277,6 +436,7 @@ class KaufWMAcrossStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state counters, tracking fields, and signal references."""
         self.m15 = self.datas[0]
         self.h6 = self.datas[1]
         self.sell_arrow = self.h6.sell_arrow
@@ -300,6 +460,11 @@ class KaufWMAcrossStrategy(bt.Strategy):
         self.min_signal_bars = max(int(self.p.signal_bar), 1) + max(int(self.p.ama_period), int(self.p.ma_period), 15) + 5
 
     def log(self, text):
+        """Print a timestamped strategy log line.
+
+        Args:
+            text: Message to write.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -380,6 +545,11 @@ class KaufWMAcrossStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, buy_arrow, sell_arrow
 
     def next(self):
+        """Run one decision step for each bar.
+
+        The method enforces minimum history requirements, risk-based closures,
+        duplicate-signal deduplication by timestamp, and one-order-at-a-time behavior.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -415,6 +585,11 @@ class KaufWMAcrossStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Handle order status updates and update execution counters.
+
+        Args:
+            order: Backtrader order object emitted by the broker engine.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -433,6 +608,11 @@ class KaufWMAcrossStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Handle closed trade lifecycle and update trade win/loss statistics.
+
+        Args:
+            trade: Closed trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -457,6 +637,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data path relative to the test module directory.
+
+    Args:
+        filename: Candidate filename from configuration (usually with `tests/datas/...`).
+
+    Returns:
+        The resolved absolute path.
+
+    Raises:
+        FileNotFoundError: When the target file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -464,6 +655,15 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Build the base and signal DataFrames used by the strategy.
+
+    Args:
+        config: Normalized configuration dictionary from `load_config()`.
+
+    Returns:
+        A dictionary containing base (`m15`) and signal DataFrames plus the
+        requested date bounds.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -479,6 +679,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a `bt.Cerebro` instance for this strategy.
+
+    Args:
+        config: Inline configuration with backtest and data sections.
+        frame: Output of `load_backtest_frames()`.
+
+    Returns:
+        A configured `bt.Cerebro` object ready to execute `run()`.
+    """
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 360)
     cerebro = bt.Cerebro(stdstats=True)
@@ -499,6 +708,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract key execution metrics from analyzer outputs and strategy counters.
+
+    Args:
+        strat: Strategy instance after a Cerebro run.
+        cerebro: Completed `bt.Cerebro` instance with executed broker state.
+        frame: Input frame container passed into the run call.
+        config: Inline configuration dictionary.
+
+    Returns:
+        A dictionary used by the migration test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -542,6 +762,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run a single backtest pass and return result objects and metrics.
+
+    Args:
+        plot: If True, invoke backtrader plotting after run completion.
+
+    Returns:
+        A tuple `(results, metrics, cerebro)` where results contains strategy runs.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

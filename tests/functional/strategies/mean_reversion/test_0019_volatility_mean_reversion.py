@@ -77,6 +77,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-format CSV file and return a clean DataFrame with standard column names."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,25 +104,25 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_volatility_mean_reversion_features(df, params):
-    """准备波动率均值回归策略特征"""
+    """Prepare volatility mean-reversion features: volatility, percentile rank, entry/exit signals."""
     out = df.copy()
     lookback = int(params.get('lookback', 25))
     entry_threshold = float(params.get('entry_threshold', 60))
     exit_threshold = float(params.get('exit_threshold', 100))
     
-    # 计算波动率（使用收益率标准差）
+    # Compute volatility from the standard deviation of returns
     out['returns'] = out['close'].pct_change()
     out['volatility'] = out['returns'].rolling(window=lookback).std() * 100
     
-    # 计算波动率百分位
+    # Compute volatility percentile rank
     out['vol_pct'] = out['volatility'].rolling(window=lookback).apply(
         lambda x: (x.iloc[-1] - x.min()) / (x.max() - x.min()) * 100 if x.max() != x.min() else 50
     )
     
-    # 入场信号：波动率百分位低于入场阈值（低波动率，预期回归）
+    # Entry signal: volatility percentile below threshold (low vol, expecting reversion)
     out['entry_signal'] = (out['vol_pct'] < entry_threshold).astype(float)
     
-    # 出场信号：波动率百分位高于出场阈值
+    # Exit signal: volatility percentile above exit threshold
     out['exit_signal'] = (out['vol_pct'] > exit_threshold * 0.8).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -130,6 +131,7 @@ def prepare_volatility_mean_reversion_features(df, params):
 
 
 class Mt5VolatilityMeanReversionFeed(bt.feeds.PandasData):
+    """PandasData subclass exposing volatility mean-reversion feature lines (volatility, vol_pct, entry_signal, exit_signal)."""
     lines = ('volatility', 'vol_pct', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -139,6 +141,7 @@ class Mt5VolatilityMeanReversionFeed(bt.feeds.PandasData):
 
 
 class VolatilityMeanReversionStrategy(bt.Strategy):
+    """Mean-reversion strategy that enters when volatility percentile is low and exits on high vol or max holding days."""
     params = dict(
         lookback=25,
         entry_threshold=60,
@@ -148,6 +151,7 @@ class VolatilityMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, state variables, and order tracker for volatility mean-reversion strategy."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -174,6 +178,7 @@ class VolatilityMeanReversionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Evaluate entry/exit signals each bar: enter on low vol percentile, exit on high vol or max holding days."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -183,7 +188,7 @@ class VolatilityMeanReversionStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -191,18 +196,20 @@ class VolatilityMeanReversionStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order reference once the order is no longer in Pending/Accepted status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade outcome: increment win/loss count on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -214,7 +221,7 @@ class VolatilityMeanReversionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Volatility Mean Reversion 策略回测"""
+"""Volatility Mean Reversion strategy backtest entry point."""
 
 
 
@@ -224,6 +231,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Return SharpeRatio analyzer kwargs with annualisation factor derived from the config timeframe."""
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -236,10 +244,12 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return x if it is finite and truthy, otherwise None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index from a sequence of broker values (measure of downside risk)."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -254,6 +264,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and prepare MT5 CSV data with volatility mean-reversion features applied."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -266,6 +277,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct a Cerebro engine configured with the volatility mean-reversion strategy and analyzers."""
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -288,6 +300,7 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest metrics from analyzers and strategy counters for regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -322,6 +335,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Convert non-serialisable types (datetime, NaN, Inf) to JSON-safe equivalents."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

@@ -18,6 +18,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "GLD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 daily export CSV and return a sorted dataframe for option simulation."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -55,6 +56,7 @@ def _compute_rsi(series, period):
 
 
 def prepare_put_write_features(price_df, params):
+    """Add volatility, moving-average, RSI, and entry-filter features."""
     out = price_df.copy()
     vol_window = int(params.get("vol_window", 21))
     ma_period = int(params.get("ma_period", 200))
@@ -73,6 +75,7 @@ def prepare_put_write_features(price_df, params):
 
 
 class GLDPutWriteFeed(bt.feeds.PandasData):
+    """Pandas feed exposing realized-volatility and signal feature lines."""
     lines = ("realized_vol", "ma_filter", "rsi", "entry_filter")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -81,6 +84,7 @@ class GLDPutWriteFeed(bt.feeds.PandasData):
 
 
 class GLDPutWriteStrategy(bt.Strategy):
+    """Synthetic GLD short put-write strategy with daily re-pricing and expiries."""
     params = dict(
         moneyness=0.95,
         dte_days=30,
@@ -92,6 +96,7 @@ class GLDPutWriteStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, active option state, and bookkeeping fields."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -171,6 +176,7 @@ class GLDPutWriteStrategy(bt.Strategy):
         self.last_trade_bar = self.bar_num
 
     def next(self):
+        """Handle feature-driven entry, option mark-to-market, and exit conditions."""
         self.bar_num += 1
         if float(self.data.entry_filter[0]) > 0.5:
             self.signal_days += 1

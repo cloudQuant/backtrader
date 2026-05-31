@@ -17,6 +17,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV data into a datetime-indexed OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -41,6 +42,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_markowitz_optimization_features(df, params):
+    """Generate rolling Sharpe proxy and rebalance flags for Markowitz-style timing."""
     lookback = int(params.get("lookback", 120))
     rebalance_days = int(params.get("rebalance_days", 63))
     rf = float(params.get("risk_free_rate", 0.0))
@@ -65,6 +67,7 @@ def prepare_markowitz_optimization_features(df, params):
 
 
 class Mt5MarkowitzOptimizationFeed(bt.feeds.PandasData):
+    """Pandas feed including sharpe proxy and rebalance indicator columns."""
     lines = ("sharpe_proxy", "rebalance_flag",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -75,6 +78,7 @@ class Mt5MarkowitzOptimizationFeed(bt.feeds.PandasData):
 
 
 class MarkowitzOptimizationStrategy(bt.Strategy):
+    """Rebalance based on rolling Sharpe proxy and month-like re-entry signals."""
     params = dict(
         lookback=120,
         rebalance_days=63,
@@ -83,6 +87,7 @@ class MarkowitzOptimizationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and pending order state for lifecycle tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -106,6 +111,7 @@ class MarkowitzOptimizationStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Evaluate rebalance condition and place buy/close orders."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -123,11 +129,13 @@ class MarkowitzOptimizationStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending-order reference when order reaches terminal status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade, win, and loss counters when a position closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

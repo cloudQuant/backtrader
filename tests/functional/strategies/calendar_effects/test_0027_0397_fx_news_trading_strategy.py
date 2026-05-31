@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol EURUSD on the daily (D1) timeframe, loaded from the MT5 export
+    ``tests/datas/mt5_1d_data/EURUSD_1d.csv`` and spanning 2008-01-01 to
+    2025-12-31. A derived signal feed augments the daily bars with a volatility
+    (ATR-style) column, synthetic economic-event codes and windows (NFP, FOMC,
+    CPI), volatility-based buy/sell breakout entry levels, a stop distance, a
+    holding-days target, and a per-bar risk fraction.
+
+Strategy Principle:
+    This is the "FX News Trading Strategy", an event-driven approach that trades
+    around scheduled macro releases. Around each event window it brackets price
+    with volatility-scaled breakout levels above and below the trigger bar's
+    close, expecting the release to spark a directional expansion. Position size
+    is risk-based (a fixed fraction of equity divided by the stop distance), and
+    trades are protected by a volatility stop and closed after a fixed holding
+    period or when the event window ends.
+
+Strategy Logic:
+    load_inputs loads the daily frame and prepare_news_features builds the event
+    calendar, volatility, entry/stop levels, and risk columns; build_cerebro
+    wires the FX news signal feed, a percentage commission, the strategy, and the
+    analyzers. Each bar the strategy records broker value and event-day counts,
+    manages an open position (volatility stop, holding-period exit, or
+    window-end exit), or—inside an event window while flat—enters long/short when
+    price crosses the breakout level with risk-based sizing. notify_order clears
+    pending state on completion and notify_trade tallies wins and losses.
+    extract_metrics consolidates analyzer output (plus an Ulcer Index), and the
+    test forces runonce=True, runs the module, and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -81,6 +111,20 @@ EVENT_DEFINITIONS = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -140,6 +184,20 @@ def _build_event_dates(index):
 
 
 def prepare_news_features(price_df, params):
+    """Add event-calendar, volatility, entry/stop, and risk columns.
+
+    Builds synthetic NFP/FOMC/CPI event windows, an ATR-style volatility series,
+    volatility-scaled buy/sell breakout entry levels, a stop distance, a
+    holding-days target, and a per-bar risk fraction.
+
+    Args:
+        price_df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters controlling the volatility lookback/multiplier, total
+            risk fraction, holding period, and event window width.
+
+    Returns:
+        A feature-augmented frame with warm-up rows lacking volatility dropped.
+    """
     out = price_df.copy()
     lookback = int(params.get('volatility_lookback', 20))
     multiplier = float(params.get('volatility_multiplier', 1.0))
@@ -186,6 +244,8 @@ def prepare_news_features(price_df, params):
 
 
 class FXNewsFeed(bt.feeds.PandasData):
+    """PandasData feed exposing volatility, event, entry, stop, and risk lines."""
+
     lines = ('volatility', 'event_code', 'event_window', 'buy_entry', 'sell_entry', 'stop_distance', 'holding_days_target', 'risk_fraction')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -194,6 +254,8 @@ class FXNewsFeed(bt.feeds.PandasData):
 
 
 class FXNewsTradingStrategy(bt.Strategy):
+    """Trade volatility breakouts around macro-event windows with risk sizing."""
+
     params = dict(
         stop_loss_multiplier=1.0,
         volatility_lookback=20,
@@ -205,6 +267,7 @@ class FXNewsTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order/risk state, and the broker value series."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -226,6 +289,7 @@ class FXNewsTradingStrategy(bt.Strategy):
         return max(0.01, round(risk_cash / stop_distance, 2))
 
     def next(self):
+        """Advance one bar, close or reverse positions, and submit entries."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if float(self.data.event_window[0]) > 0.5:
@@ -275,6 +339,7 @@ class FXNewsTradingStrategy(bt.Strategy):
             self.pending_order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Reset ephemeral state when an order lifecycle finishes."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed and not self.position:
@@ -284,6 +349,7 @@ class FXNewsTradingStrategy(bt.Strategy):
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increase trade counters and win/loss tallies on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -303,10 +369,12 @@ class FXNewsTradingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite or null numeric values."""
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from a series of equity values."""
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -320,6 +388,7 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load and prepare backtest inputs from configured data file."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -329,6 +398,7 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Build Cerebro with feed, strategy parameters, and analyzers."""
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0002)))
@@ -344,6 +414,7 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Collect trade/analyzer metrics for regression assertions."""
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -384,6 +455,7 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Normalize values for stable JSON-style metric comparison."""
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

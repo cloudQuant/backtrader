@@ -1,6 +1,21 @@
 """Inlined regression test for trend_following/0078_0855_donchian_channels_system.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars from ``tests/datas/XAUUSD_M15.csv``,
+    with an additional 240-minute resampled stream used for channel calculation.
+    The backtest window is 2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    Combines a Donchian-channel style breakout signal on the slower feed with a
+    strict state machine for signal transition handling on the live feed.
+
+Strategy Logic:
+    ``load_mt5_csv`` ingests and normalizes raw bars, ``_build_signal_frame``
+    creates the higher-timeframe source, ``DonchianChannelsSystem`` produces the
+    color signal, and ``ExpDonchianChannelsSystemStrategy`` executes trades with
+    point-based exits while tracking test metrics.
 """
 from __future__ import annotations
 
@@ -16,6 +31,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 CSV export into a sorted OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV source file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Optional shift to apply to datetime index.
+
+    Returns:
+        A datetime-indexed DataFrame with OHLCV and openinterest columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +63,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData wrapper for XAUUSD OHLCV bars in this regression script."""
+
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,13 +72,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DonchianChannelsSystem(bt.Indicator):
+    """Donchian-channel indicator emitting breakout-oriented color states."""
+
     lines = ("color",)
     params = dict(period=20, shift=2, margins=-2)
 
     def __init__(self):
+        """Initialize warmup period based on configured Donchian window."""
         self.addminperiod(int(self.p.period) + int(self.p.shift) + 3)
 
     def next(self):
+        """Update rolling channel bounds and write the current breakout color."""
         shift = int(self.p.shift)
         highs = [float(self.data.high[-(shift + i)]) for i in range(int(self.p.period))]
         lows = [float(self.data.low[-(shift + i)]) for i in range(int(self.p.period))]
@@ -69,6 +101,8 @@ class DonchianChannelsSystem(bt.Indicator):
 
 
 class ExpDonchianChannelsSystemStrategy(bt.Strategy):
+    """Strategy wrapper for Donchian channel breakout state transitions."""
+
     params = dict(
         period=20, shift=2, margins=-2,
         signal_bar=1,
@@ -84,6 +118,7 @@ class ExpDonchianChannelsSystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach feeds, indicator, and all state counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = DonchianChannelsSystem(
@@ -117,6 +152,7 @@ class ExpDonchianChannelsSystemStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Run one bar: manage exits and optionally open long/short positions."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -144,6 +180,7 @@ class ExpDonchianChannelsSystemStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Increment open/closed trade counters based on trade lifecycle."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

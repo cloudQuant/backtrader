@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the daily (D1) timeframe loaded from the MT5 export
+    ``tests/datas/mt5_1d_data/XAUUSD_1d.csv``, covering 2008-01-01 to
+    2025-12-31. A single daily feed carries the OHLCV lines plus precomputed
+    momentum, fast/slow trend moving averages, a trend filter, and the monthly
+    rebalance and target-signal lines.
+
+Strategy Principle:
+    A port of the "Commodity Momentum" strategy. It measures 12-month price
+    momentum and confirms it with a trend filter (fast MA above slow MA and
+    price above the slow MA). Once per month the strategy holds a full long
+    position only when momentum is positive and the trend is up, otherwise it
+    stands flat, capturing time-series momentum while the trend filter avoids
+    holding through downtrends.
+
+Strategy Logic:
+    prepare_commodity_momentum_features computes momentum, the trend MAs/filter,
+    and the monthly rebalance and target signals, storing them as extra feed
+    lines. build_cerebro wires the feed, a percentage futures commission, the
+    strategy, and analyzers. Each bar the strategy records broker value and, only
+    on a monthly rebalance bar when the target signal changes, sizes a target
+    position via order_target_size (counting buys/sells). notify_order clears the
+    pending order and notify_trade tallies win/loss. extract_metrics consolidates
+    analyzer output plus an Ulcer Index; the test hooks extract_metrics, forces
+    runonce=True via main(), and asserts each metric against migration-time
+    values.
 """
 from __future__ import annotations
 import math
@@ -78,6 +105,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,6 +142,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_commodity_momentum_features(df, params):
+    """Compute momentum, trend filters, and monthly rebalance/target signals.
+
+    Args:
+        df: The daily OHLCV DataFrame to operate on.
+        params: Strategy parameters supplying the momentum lookback (months) and
+            the fast/slow trend moving-average windows.
+
+    Returns:
+        A copy of ``df`` augmented with ``momentum``, fast/slow trend MAs,
+        ``trend_filter``, ``rebalance_signal``, and ``target_signal`` columns,
+        with warm-up rows dropped.
+    """
     out = df.copy()
     lookback_months = int(params.get('lookback_months', 12))
     trend_fast = int(params.get('trend_fast', 50))
@@ -125,6 +175,8 @@ def prepare_commodity_momentum_features(df, params):
 
 
 class Mt5CommodityMomentumFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the momentum, trend, and signal lines."""
+
     lines = ('momentum', 'trend_fast_ma', 'trend_slow_ma', 'trend_filter', 'rebalance_signal', 'target_signal')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -133,6 +185,13 @@ class Mt5CommodityMomentumFeed(bt.feeds.PandasData):
 
 
 class CommodityMomentumStrategy(bt.Strategy):
+    """Hold a full long when monthly momentum and trend agree, else stay flat.
+
+    On each monthly rebalance bar it reads the precomputed target signal and
+    sizes a full long position when momentum is positive and the trend filter is
+    up, otherwise flattens, tracking buy/sell and win/loss counts.
+    """
+
     params = dict(
         lot_size=1.0,
         lookback_months=12,
@@ -142,6 +201,7 @@ class CommodityMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, the pending order slot, and the last target signal."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -167,6 +227,13 @@ class CommodityMomentumStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Rebalance the long/flat position on monthly target-signal changes.
+
+        Increments the bar counter, records broker value, and skips while an
+        order is pending or off the monthly rebalance bar. When the target signal
+        changes it sizes a full long (or flat) position via order_target_size and
+        counts the direction as a buy or sell.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -187,11 +254,22 @@ class CommodityMomentumStrategy(bt.Strategy):
         self.last_target_signal = target_signal
 
     def notify_order(self, order):
+        """Clear the pending order slot once an order leaves flight.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears the pending slot.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -209,6 +287,16 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build SharpeRatio analyzer kwargs matching the data timeframe.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the
+            timeframe code (e.g. ``D1``, ``M15``, ``H1``).
+
+    Returns:
+        A dict of keyword arguments (timeframe, compression, annualization
+        factor, etc.) for the SharpeRatio analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -221,10 +309,27 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite and truthy, otherwise None.
+
+    Args:
+        x: The numeric value to validate.
+
+    Returns:
+        The original value when finite and truthy, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -239,6 +344,16 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load the XAUUSD feed and compute the commodity momentum features.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path and inclusive date bounds.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -248,6 +363,16 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the Cerebro engine with the feed, strategy, and analyzers.
+
+    Args:
+        frame: The loaded frame dict returned by :func:`load_data`.
+        config: Parsed configuration providing cash, commission/margin, and
+            strategy parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -270,6 +395,21 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and trade counts) used by the
+        assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -316,6 +456,11 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Run the commodity momentum backtest end to end.
+
+    Loads the config and data, builds the engine, runs the backtest, and
+    extracts the metrics (used by the test harness via its hooks).
+    """
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

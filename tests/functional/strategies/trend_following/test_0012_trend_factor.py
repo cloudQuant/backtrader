@@ -7,12 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This strategy constructs a composite Trend Factor by combining multi-period Time Series Momentum (TSM) and rolling moving average trends.
+    - Market Assumptions: Asset prices demonstrate strong medium-to-long term momentum and trend persistence. Combining short-term (3 months), medium-term (6 months), and long-term (12 months) momentum factors yields highly reliable trend-following entries.
+    - Indicators:
+        - Time Series Momentum (TSM): Percentage returns over 3-month (63 bars), 6-month (126 bars), and 12-month (252 bars) lookback periods.
+        - Moving Average Trends: Prices normalized by 3-month, 6-month, and 12-month rolling averages.
+        - Trend Factor: Weighted combination of the TSM signals (w1=0.2, w2=0.3, w3=0.5).
+        - Normalized Trend Factor: Rolling 252-day z-score of the Trend Factor.
+    - Entry Signals:
+        - Buy Entry: Trend Factor crosses above the configured `threshold` (0.0).
+    - Exit Signals:
+        - Close/Sell Entry: Trend Factor crosses below the configured `threshold` (0.0).
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
 import json
+import csv
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
@@ -72,7 +92,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -80,6 +108,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,7 +144,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_trend_factor_features(df, params):
-    """准备趋势因子策略特征"""
+    """Prepare and compute indicators for the Trend Factor strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback windows and weights.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing trend_factor, trend_zscore, and signals.
+    """
     out = df.copy()
     lookback_3m = int(params.get('lookback_3m', 63))
     lookback_6m = int(params.get('lookback_6m', 126))
@@ -116,27 +162,27 @@ def prepare_trend_factor_features(df, params):
     w3 = float(params.get('w3', 0.5))
     threshold = float(params.get('threshold', 0.0))
     
-    # 计算时间序列动量 (TSM)
+    # Calculate Time Series Momentum (TSM)
     out['tsm_3m'] = out['close'] / out['close'].shift(lookback_3m) - 1
     out['tsm_6m'] = out['close'] / out['close'].shift(lookback_6m) - 1
     out['tsm_12m'] = out['close'] / out['close'].shift(lookback_12m) - 1
     
-    # 计算移动平均趋势
+    # Calculate rolling MA trends
     out['ma_3m'] = out['close'] / out['close'].rolling(window=lookback_3m).mean() - 1
     out['ma_6m'] = out['close'] / out['close'].rolling(window=lookback_6m).mean() - 1
     out['ma_12m'] = out['close'] / out['close'].rolling(window=lookback_12m).mean() - 1
     
-    # 构建趋势因子：多周期组合
+    # Build Trend Factor: composite weighted multi-period momentum
     out['trend_factor'] = (w1 * out['tsm_3m'] + w2 * out['tsm_6m'] + w3 * out['tsm_12m'])
     
-    # 标准化趋势因子
+    # Normalize Trend Factor with rolling z-score
     out['trend_zscore'] = (out['trend_factor'] - out['trend_factor'].rolling(window=252).mean()) / \
                           out['trend_factor'].rolling(window=252).std()
     
-    # 生成入场信号：趋势因子大于阈值
+    # Generate entry signals: Trend Factor is positive
     out['entry_signal'] = (out['trend_factor'] > threshold).astype(float)
     
-    # 生成出场信号：趋势因子小于阈值
+    # Generate exit signals: Trend Factor is negative
     out['exit_signal'] = (out['trend_factor'] < threshold).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -145,6 +191,7 @@ def prepare_trend_factor_features(df, params):
 
 
 class Mt5TrendFactorFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Trend Factor strategy lines."""
     lines = ('trend_factor', 'trend_zscore', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -155,6 +202,11 @@ class Mt5TrendFactorFeed(bt.feeds.PandasData):
 
 
 class TrendFactorStrategy(bt.Strategy):
+    """Strategy class implementing multi-period Trend Factor following logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lookback_3m=63,
         lookback_6m=126,
@@ -167,6 +219,7 @@ class TrendFactorStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -178,6 +231,15 @@ class TrendFactorStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -192,6 +254,7 @@ class TrendFactorStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -201,24 +264,34 @@ class TrendFactorStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if exit_signal:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -230,7 +303,7 @@ class TrendFactorStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Trend Factor 策略回测"""
+"""Trend Factor strategy backtest."""
 
 
 
@@ -240,6 +313,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -252,10 +333,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -270,6 +367,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Trend Factor strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -282,6 +387,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -304,6 +418,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -338,6 +463,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -345,10 +478,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -368,64 +499,81 @@ def _close(actual, expected, *, tol, key):
     )
 
 
-def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    if hasattr(_mod, "main") and callable(_mod.main):
-        return _mod.main()
-    if hasattr(_mod, "run") and callable(_mod.run):
-        return _mod.run()
-    raise RuntimeError("Neither main() nor run() found in inlined module")
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_12_0012_trend_factor() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/trend_following/0012_trend_factor.
+
+    Raises:
+        Exception: If the metrics capture or execution fails.
+
+    Returns:
+        None
     """
-    # Capture metrics by hooking extract_metrics() and invoking the original
-    # main() (or run()). This reuses whatever loader / build_cerebro /
-    # extract_metrics signatures the strategy used internally.
-    captured = {}
-    _orig_extract = extract_metrics
-    def _capture_em(*a, **kw):
-        m = _orig_extract(*a, **kw)
-        if isinstance(m, dict):
-            captured["metrics"] = m
-        return m
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    _mod.extract_metrics = _capture_em
-
-    # Force runonce=True for the run inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so that argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            _invoke_strategy_main()
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        _mod.extract_metrics = _orig_extract
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "extract_metrics() was not called"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4135, f"bar_num: expected=4135, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 58, f"buy_count: expected=58, got={metrics.get('buy_count')!r}"

@@ -77,6 +77,24 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-style tab-separated export into a datetime-indexed DataFrame.
+
+    Parameters
+    ----------
+    filepath: str | Path
+        Path of the source CSV file.
+    fromdate: datetime, optional
+        Earliest timestamp to include.
+    todate: datetime, optional
+        Latest timestamp to include.
+    bar_shift_minutes: int, default 0
+        Minutes to shift each bar timestamp forward.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Normalized OHLCV frame indexed by ``datetime``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +120,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas feed that maps MT5 OHLCV column names to Backtrader fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,10 +128,12 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AwesomeOscillator(bt.Indicator):
+    """Awesome Oscillator indicator using two SMAs on the price midpoint."""
     lines = ('ao',)
     params = dict(fast=5, slow=34)
 
     def __init__(self):
+        """Create fast and slow moving averages of the midpoint."""
         median = (self.data.high + self.data.low) / 2.0
         fast_ma = bt.indicators.SimpleMovingAverage(median, period=self.p.fast)
         slow_ma = bt.indicators.SimpleMovingAverage(median, period=self.p.slow)
@@ -120,15 +141,18 @@ class AwesomeOscillator(bt.Indicator):
 
 
 class AcceleratorOscillator(bt.Indicator):
+    """Accelerator Oscillator indicator computed from Awesome Oscillator."""
     lines = ('ac',)
 
     def __init__(self):
+        """Create an AO smoothed by a 5-period SMA."""
         ao = AwesomeOscillator(self.data)
         ao_sma = bt.indicators.SimpleMovingAverage(ao.ao, period=5)
         self.lines.ac = ao.ao - ao_sma
 
 
 class ArtificialIntelligenceStrategy(bt.Strategy):
+    """Core AI-driven strategy with AO/AC signal logic and trade controls."""
     params = dict(
         lots=0.1,
         stop_loss=850,
@@ -141,6 +165,7 @@ class ArtificialIntelligenceStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize trading state, indicators and control flags."""
         self.ac = AcceleratorOscillator(self.data)
 
         self.bar_num = 0
@@ -159,6 +184,7 @@ class ArtificialIntelligenceStrategy(bt.Strategy):
         self.addminperiod(int(self.p.shift) + 25)
 
     def log(self, text):
+        """Print a timestamped strategy message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -200,6 +226,7 @@ class ArtificialIntelligenceStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate signals and issue/reverse positions each bar."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -250,6 +277,7 @@ class ArtificialIntelligenceStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track order transitions and reset pending state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -257,6 +285,7 @@ class ArtificialIntelligenceStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Update counters and risk state when a trade opens or closes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -292,6 +321,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Return an absolute path for a data file and verify it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -299,6 +329,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 data for the configured symbol and date window."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -315,6 +346,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct a Cerebro engine configured for the regression strategy."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -338,6 +370,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract benchmark metrics used by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

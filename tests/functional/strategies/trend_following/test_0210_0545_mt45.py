@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 source file ``tests/datas/XAUUSD_M15.csv`` exported from MT5, loaded as
+    XAUUSD H1 bars by applying a compression step during feed creation. The test
+    filters bars from 2025-12-03 01:15:00 to 2026-03-10 09:00:00 and evaluates
+    every bar sequentially with intrabar fields open/high/low/close, volume, and
+    open interest.
+
+Strategy Principle:
+    The MT45 strategy alternates trading direction between buy and sell after each
+    closed trade. Each entry uses fixed stop/take distances derived from config
+    inputs. On a losing trade, lot size is increased by a multiplier with a cap,
+    enabling a martingale-style recovery attempt. The model closes each position
+    when stop or take price is hit and records completion/rejection statistics.
+
+Strategy Logic:
+    ``__init__`` initializes position counters, lot state, direction flag, and
+    risk levels. ``next`` increments bar count, performs active exit checks, and
+    submits a new market order in the current direction when flat. ``notify_order``
+    updates completed/rejected order counters and clears pending orders, while
+    ``notify_trade`` updates wins/losses and toggles the next direction.
+    The helper pipeline resolves config/data paths, loads a cleaned MT5 dataframe,
+    builds a configured cerebro with analyzers, then computes deterministic metrics
+    asserted by the inline regression test.
 """
 from __future__ import annotations
 import math
@@ -24,7 +48,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'MT45',
-        'source_ea': 'ea/0545_这是一个跨平台_МТ45_EA_交易�?mt45.mq5',
+        'source_ea': 'ea/0545_cross_platform_MT45_EA_mt45.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -76,6 +100,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Loads MT5 CSV data and parses it into a Pandas DataFrame.
+
+    Cleans double quotes, strips whitespaces, and aligns the datetime index. Optionally shifts K-line datetime
+    and filters by date range.
+
+    Args:
+        filepath (str or Path): Path to the CSV data file.
+        fromdate (datetime, optional): Start date filter. Defaults to None.
+        todate (datetime, optional): End date filter. Defaults to None.
+        bar_shift_minutes (int, optional): Number of minutes to shift datetime index. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Processed OHLCV DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,12 +137,21 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom Pandas Data Feed for MT5 CSV format.
+
+    Maps MT5 CSV columns (open, high, low, close, volume, openinterest) to Backtrader-compatible fields.
+    """
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class MT45Strategy(bt.Strategy):
+    """MT45 Strategy utilizing alternating direction entries and Martingale lot sizing.
+
+    Alternates market direction between 'buy' and 'sell' upon trade closure.
+    Applies lot multiplication on loss to recover drawdown.
+    """
     params = dict(
         stop=600,
         take=700,
@@ -116,6 +163,7 @@ class MT45Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initializes state variables, alternating direction, lot sizes, and tracking metrics."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -168,6 +216,11 @@ class MT45Strategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Executes core strategy logic on every K-line bar.
+
+        Coordinates active position exit checks and places alternating market entries
+        when out of market.
+        """
         self.bar_num += 1
         if self.order is not None:
             return
@@ -177,6 +230,11 @@ class MT45Strategy(bt.Strategy):
         self._arm(self.next_direction, float(self.data.close[0]))
 
     def notify_order(self, order):
+        """Tracks order completion and status updates to manage pending transactions.
+
+        Args:
+            order (bt.Order): Backtrader order status notification object.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -195,6 +253,11 @@ class MT45Strategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Logs trade closure, alternates direction, and updates Martingale multiplier on loss.
+
+        Args:
+            trade (bt.Trade): Backtrader trade notification object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -223,6 +286,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolves target data file path relative to strategy directory.
+
+    Args:
+        filename (str): Name or path string of the data file.
+
+    Returns:
+        Path: Absolute path to the existing data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -230,6 +304,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Prepares and loads historical data frame based on configuration parameters.
+
+    Args:
+        config (dict): Strategy configuration dictionary containing data parameters.
+
+    Returns:
+        dict: Preprocessed data frame and datetime filters.
+
+    Raises:
+        ValueError: If loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -241,6 +326,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Builds and configures the Backtrader Cerebro backtesting engine.
+
+    Sets initial capital, commissions, margin, data feeds, strategy instance, and analytical monitors.
+
+    Args:
+        config (dict): Configuration dictionary containing backtest parameters.
+        frame (dict): Loaded historical data frame dictionary with datetime filters.
+
+    Returns:
+        bt.Cerebro: Fully configured backtesting engine instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -259,6 +355,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extracts performance metrics from completed strategy and engine analyzer outputs.
+
+    Args:
+        strat (bt.Strategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Completed backtesting engine.
+        frame (dict): Loaded historical data frame dictionary.
+        config (dict): Strategy configuration dictionary.
+
+    Returns:
+        dict: Performance summary statistics including Sharpe, return, drawdowns, and trade counts.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -286,6 +393,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Orchestrates strategy loading, execution, evaluation, and optional plotting.
+
+    Args:
+        plot (bool, optional): Whether to plot backtest chart. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) containing strategy results, metrics dict, and engine.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

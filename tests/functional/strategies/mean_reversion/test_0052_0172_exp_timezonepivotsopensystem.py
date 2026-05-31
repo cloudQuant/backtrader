@@ -94,6 +94,7 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV into a time-indexed DataFrame with optional datetime filtering and bar shift."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -120,6 +121,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -128,6 +130,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class TimeZonePivotsFeed(btfeeds.PandasData):
+    """Backtrader data feed extending PandasData with upper/lower pivot lines and color index."""
     lines = ('upper', 'lower', 'color_idx')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -136,6 +139,7 @@ class TimeZonePivotsFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLC data to the indicator timeframe using standard aggregation rules."""
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -153,6 +157,7 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def build_timezone_pivots_frame(df, indicator_minutes, start_hour, offset_points, point_size):
+    """Build a signal DataFrame with upper/lower pivot channel lines and color index features."""
     signal_df = build_resampled_frame(df, indicator_minutes)
     upper = []
     lower = []
@@ -189,6 +194,7 @@ def build_timezone_pivots_frame(df, indicator_minutes, start_hour, offset_points
 
 
 class ExpTimeZonePivotsOpenSystemStrategy(bt.Strategy):
+    """Pivot-channel breakout strategy using time-zone anchored support/resistance levels with bracket orders."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -209,6 +215,7 @@ class ExpTimeZonePivotsOpenSystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dual data references, order trackers, and performance counters."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1]
         self.entry_order = None
@@ -227,6 +234,7 @@ class ExpTimeZonePivotsOpenSystemStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log message with the current execution bar datetime."""
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -292,6 +300,7 @@ class ExpTimeZonePivotsOpenSystemStrategy(bt.Strategy):
         return True
 
     def next(self):
+        """Bar-by-bar logic: check signal bar changes and pivot breakout conditions to enter/exit positions."""
         self.bar_num += 1
         if len(self.signal_data) < max(int(self.p.signal_bar), 1) + 1:
             return
@@ -321,6 +330,7 @@ class ExpTimeZonePivotsOpenSystemStrategy(bt.Strategy):
             self._submit_entry('short', 'pivot bearish breakout')
 
     def notify_order(self, order):
+        """Track order lifecycle: update counters on fills, clear references on cancellations/rejections."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -364,6 +374,7 @@ class ExpTimeZonePivotsOpenSystemStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters and log trade P&L when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -392,6 +403,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to the test directory and validate its existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -399,12 +411,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO-8601 datetime string, returning None for empty inputs."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load source CSV data into a dict with the raw frame and datetime bounds."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -416,6 +430,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro instance with dual data feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = config.get('params', {})
@@ -447,6 +462,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return the value, or None if it is None or non-finite (NaN/inf)."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -455,6 +471,7 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Collect analyzer and strategy performance metrics from backtest results."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -492,6 +509,7 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Execute the full backtest pipeline: load data, build cerebro, run, and extract metrics."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

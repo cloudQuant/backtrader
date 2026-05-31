@@ -1,7 +1,24 @@
-"""Inlined regression test for commodity_currency/0013_arima_garch_gold_strategy.
+"""Manual single-file regression test for ``test_0013_arima_garch_gold_strategy``.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
-ARIMA(p,0,q) directional + EWMA volatility (with optional GARCH from `arch`) on XAUUSD.
+Runs with ``runonce=True`` only, asserting strategy outputs captured at migration time.
+
+Data Used:
+    XAUUSD daily OHLCV data from ``tests/datas/mt5_1d_data/XAUUSD_1d.csv``.
+    The test loads a reduced sample by date filtering and 10-bar striding, then
+    computes ARIMA/forecast features on the same data slice before backtesting.
+
+Strategy Principle:
+    Builds ARIMA(p,0,q) forecasts for one-step returns and estimates
+    volatility via EWMA or GARCH(1,1). The sign of forecast return relative to
+    a volatility-derived threshold becomes the target portfolio allocation
+    percentage for dynamic rebalancing.
+
+Strategy Logic:
+    ``prepare_arima_garch_features`` computes ``signal`` and ``target_pct`` columns.
+    ``Mt5ArimaGarchFeed`` exposes these derived features as additional feed lines.
+    ``ArimaGarchGoldStrategy.next`` compares desired vs current position percentage,
+    submits target-size orders, and tracks balance-of-trades counters through
+    ``notify_order`` and ``notify_trade``.
 """
 from __future__ import annotations
 
@@ -25,6 +42,18 @@ DATA_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-style daily CSV export into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to the raw MT5 data file.
+        fromdate: Optional inclusive lower-bound timestamp.
+        todate: Optional inclusive upper-bound timestamp.
+        bar_shift_minutes: Minutes to shift each bar timestamp forward.
+
+    Returns:
+        pandas.DataFrame: Bar data indexed by datetime with OHLCV and
+            open interest columns.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -93,6 +122,16 @@ def _forecast_volatility(train_returns, arima_residuals, ewma_vol_span=30):
 
 
 def prepare_arima_garch_features(df, params):
+    """Prepare engineered ARIMA/volatility features used by the strategy feed.
+
+    Args:
+        df: Raw OHLCV bars indexed by datetime.
+        params: Parameter dictionary controlling model windows and thresholds.
+
+    Returns:
+        pandas.DataFrame: Feature-rich frame including forecast columns and
+            the ``target_pct`` signal used for rebalancing.
+    """
     out = df.copy()
     out["log_return"] = np.log(out["close"] / out["close"].shift(1))
     train_window = int(params.get("train_window", 750))
@@ -160,6 +199,11 @@ def prepare_arima_garch_features(df, params):
 
 
 class Mt5ArimaGarchFeed(bt.feeds.PandasData):
+    """PandasData extension carrying ARIMA and volatility feature lines.
+
+    Includes forecast return, forecast volatility, signal threshold and target
+    allocation percentage fields used by ``ArimaGarchGoldStrategy``.
+    """
     lines = ("log_return", "forecast_return", "forecast_vol", "signal_threshold", "signal",
              "target_pct", "ar_order", "ma_order")
     params = (
@@ -171,11 +215,17 @@ class Mt5ArimaGarchFeed(bt.feeds.PandasData):
 
 
 class ArimaGarchGoldStrategy(bt.Strategy):
+    """Dynamic allocation strategy using ARIMA forecast direction and volatility.
+
+    The strategy rebalances position size so current exposure tracks the most
+    recent ``target_pct`` value from indicators.
+    """
     params = dict(
         target_percent=0.95,
     )
 
     def __init__(self):
+        """Initialize counters for rebalance and trade outcome tracking."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.buy_count = 0
@@ -218,6 +268,7 @@ class ArimaGarchGoldStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Advance strategy logic and rebalance when target allocation changes."""
         self.bar_num += 1
         target_pct = float(self.data.target_pct[0])
         signal = int(round(float(self.data.signal[0])))
@@ -244,11 +295,21 @@ class ArimaGarchGoldStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Clear the pending order reference after status transitions.
+
+        Args:
+            order: Order instance updated by Backtrader.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Record completed trade outcomes for win/loss statistics.
+
+        Args:
+            trade: Trade instance emitted on position close.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

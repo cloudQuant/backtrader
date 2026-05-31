@@ -7,6 +7,18 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+**Data Used**: XAUUSD (D1, 2008-01-01–2025-12-31)
+
+**Strategy Principle**: Mean reversion on a weekly rotation basis — enter
+oversold conditions when the closing range is low and the 200‑MA trend is up;
+exit when the closing range recovers or after a fixed holding period.
+
+**Strategy Logic**:
+1. Compute 200‑period SMA as a trend filter (close > MA → bullish bias).
+2. Compute *closing range*: how close the close is to the lookback low vs high.
+3. Enter long when closing range < 0.3 (oversold) AND trend filter is bullish.
+4. Exit when closing range > 0.7 (overbought) OR holding days exceed threshold.
 """
 from __future__ import annotations
 import math
@@ -76,6 +88,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-format CSV into a cleaned, indexed DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,38 +115,39 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_weekly_mean_reversion_rotation_features(df, params):
-    """准备周度均值回归轮动策略特征"""
+    """Prepare weekly mean-reversion rotation features (closing range, trend filter, entry/exit signals)."""
     out = df.copy()
     lookback = int(params.get('lookback', 5))
     ma_period = int(params.get('ma_period', 200))
-    
-    # 计算200日均线趋势过滤
+
+    # 200-period MA trend filter
     out['ma'] = out['close'].rolling(window=ma_period).mean()
     out['trend_filter'] = (out['close'] > out['ma']).astype(float)
-    
-    # 计算Closing Range（最佳排名指标）
+
+    # Closing range: best ranking indicator
     out['lowest_low'] = out['low'].rolling(window=lookback).min()
     out['highest_high'] = out['high'].rolling(window=lookback).max()
     out['closing_range'] = (
-        (out['close'] - out['lowest_low']) / 
+        (out['close'] - out['lowest_low']) /
         (out['highest_high'] - out['lowest_low'])
     ).fillna(0.5)
-    
-    # 入场信号：Closing Range低于阈值（超卖）且趋势向上
+
+    # Entry signal: closing range below threshold (oversold) with uptrend
     out['entry_signal'] = (
-        (out['closing_range'] < 0.3) & 
+        (out['closing_range'] < 0.3) &
         (out['trend_filter'] > 0.5)
     ).astype(float)
-    
-    # 出场信号：Closing Range回归到高位
+
+    # Exit signal: closing range recovers to high area
     out['exit_signal'] = (out['closing_range'] > 0.7).astype(float)
-    
-    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
+
+    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest',
                'closing_range', 'trend_filter', 'entry_signal', 'exit_signal']].copy()
     return out.dropna()
 
 
 class Mt5WeeklyMeanReversionRotationFeed(bt.feeds.PandasData):
+    """PandasData subclass that adds closing_range, trend_filter, entry_signal, exit_signal lines."""
     lines = ('closing_range', 'trend_filter', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -143,6 +157,7 @@ class Mt5WeeklyMeanReversionRotationFeed(bt.feeds.PandasData):
 
 
 class WeeklyMeanReversionRotationStrategy(bt.Strategy):
+    """Mean-reversion strategy entering on oversold closing range with uptrend bias and exiting on overbought or time stop."""
     params = dict(
         lookback=5,
         ma_period=200,
@@ -151,6 +166,7 @@ class WeeklyMeanReversionRotationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -177,35 +193,38 @@ class WeeklyMeanReversionRotationStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Evaluate entry/exit signals on each bar and submit orders."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
-        
+
         if self.pending_order is not None:
             return
-        
+
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
-        
-        # 无持仓时检查入场
+
+        # Check entry when no position held
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
                 self.entry_bar = self.bar_num
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
-        
-        # 有持仓时检查出场
+
+        # Check exit when holding a position
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending_order on order completion/cancellation."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade win/loss count on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -217,7 +236,7 @@ class WeeklyMeanReversionRotationStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Weekly Mean Reversion Rotation 策略回测"""
+"""Weekly Mean Reversion Rotation strategy backtest."""
 
 
 
@@ -227,6 +246,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Resolve SharpeRatio analyzer kwargs from the config timeframe string."""
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -239,10 +259,12 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return *x* unchanged if it is finite, else None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index measuring downside volatility from an equity curve."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -257,6 +279,7 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an absolute path by checking several candidate directories."""
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -273,6 +296,7 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load CSV data and compute weekly mean-reversion rotation features."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -285,6 +309,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure a Cerebro engine for the weekly mean-reversion rotation strategy."""
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -307,6 +332,8 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate metrics from completed cerebro run for assertion."""
+
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -341,6 +368,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value for JSON serialisation (datetime→iso, NaN/Inf→None)."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

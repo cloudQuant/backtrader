@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Historical XAUUSD daily bars from `tests/datas/XAUUSD_1d.csv`.
+    - Timeframe: D1, from 2008-01-01 to 2025-12-31.
+    - Derived features include realized volatility, cumulative risk-premium signal,
+      and rebalance cadence flag.
+
+Strategy Principle:
+    - Estimates a simple risk-premium score as multi-period return divided by
+      realized volatility.
+    - Trades long only when the signal is positive and rebalance schedule is active.
+    - Closes when the signal turns negative, while honoring rebalance windows.
+    - Regression asserts track standard portfolio risk and performance metrics.
+
+Strategy Logic:
+    - Loads config and resolves paths, then reads MT5 csv and prepares features.
+    - Backtest frame is fed through a custom pandas data feed with engineered lines.
+    - Strategy `next()` uses risk-premium regime to switch between flat and long.
+    - `extract_metrics()` standardizes analyzer outputs for deterministic assertions.
 """
 from __future__ import annotations
 import math
@@ -76,6 +95,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and clean an MT5-style csv file into datetime-indexed OHLCV data.
+
+    Args:
+        filepath (str | Path): Raw csv path.
+        fromdate (datetime | None): Optional start date boundary.
+        todate (datetime | None): Optional end date boundary.
+
+    Returns:
+        pandas.DataFrame: Cleaned dataframe ordered by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,6 +132,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_risk_premium_value_features(df, params):
+    """Create risk-premium and rebalance features used by the strategy.
+
+    Args:
+        df (pandas.DataFrame): Raw OHLCV data.
+        params (dict): Strategy parameters for lookback and rebalance settings.
+
+    Returns:
+        pandas.DataFrame: Feature-enriched dataframe with NaN-free rows.
+    """
     vol_lookback = int(params.get('vol_lookback', 60))
     return_lookback = int(params.get('return_lookback', 120))
     rebalance_days = int(params.get('rebalance_days', 63))
@@ -128,6 +166,7 @@ def prepare_risk_premium_value_features(df, params):
 
 
 class Mt5RiskPremiumValueFeed(bt.feeds.PandasData):
+    """Custom feed with engineered `risk_premium`, `signal`, and `rebalance_flag`."""
     lines = ('risk_premium', 'signal', 'rebalance_flag',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -139,6 +178,7 @@ class Mt5RiskPremiumValueFeed(bt.feeds.PandasData):
 
 
 class RiskPremiumValueStrategy(bt.Strategy):
+    """Long/flat strategy driven by risk premium and rebalance timing."""
     params = dict(
         vol_lookback=60,
         return_lookback=120,
@@ -147,6 +187,7 @@ class RiskPremiumValueStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and helper state for deterministic trading flow."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -170,6 +211,7 @@ class RiskPremiumValueStrategy(bt.Strategy):
 
 
     def next(self):
+        """Read rebalance and signal states, then place/buffer orders accordingly."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -188,17 +230,19 @@ class RiskPremiumValueStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Reset pending-order tracking once the order lifecycle reaches terminal state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Placeholder for lifecycle compatibility; no post-trade action needed."""
         pass
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Risk Premium Value 策略回测"""
+"""Risk Premium Value strategy backtest."""
 
 
 
@@ -209,6 +253,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe analyzer kwargs based on timeframe frequency.
+
+    Args:
+        config (dict): Strategy configuration including `data.timeframe`.
+
+    Returns:
+        dict: Parameters compatible with `bt.analyzers.SharpeRatio`.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -221,10 +273,19 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return finite values as-is, else ``None``."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from a sequence of broker values.
+
+    Args:
+        values (Sequence[float]): Equity curve values.
+
+    Returns:
+        float: Root-mean-square of drawdowns below historical peaks.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -239,6 +300,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load data and create indicator features for this regression case.
+
+    Args:
+        config (dict): Fully resolved strategy configuration.
+
+    Returns:
+        dict: Prepared frame and metadata.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -251,6 +320,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and return a configured Backtrader engine.
+
+    Args:
+        frame (dict): Data frame container.
+        config (dict): Full strategy and backtest config.
+
+    Returns:
+        bt.Cerebro: Backtrader engine with analyzers and strategy attached.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -273,6 +351,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy and analyzer metrics used by regression assertions.
+
+    Args:
+        strat: Strategy instance.
+        cerebro: Backtest engine after run.
+        frame (dict): Data metadata.
+        config (dict): Strategy/backtest config.
+
+    Returns:
+        dict: Flattened metrics including trades, pnl, and risk statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -307,6 +396,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize datetimes and non-finite numbers for serialization."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -318,6 +408,7 @@ def normalize(v):
 
 
 def main():
+    """Run strategy backtest and print loaded-bar summary."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

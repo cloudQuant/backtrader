@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Three daily (D1) feeds loaded from MT5 exports under
+    ``tests/datas/mt5_1d_data/``: gold (XAUUSD), an inflation proxy (GTIP), and a
+    defensive bond proxy (IEF), all aligned on their common dates from 2010-01-01
+    to 2025-12-31. A derived signal feed carries precomputed real-momentum,
+    volatility, drawdown, and target-weight columns built from the three price
+    series.
+
+Strategy Principle:
+    This is the "Gold Real Momentum" allocation strategy. It assumes gold is
+    worth holding when its trailing nominal return exceeds an inflation-adjusted
+    benchmark (the inflation proxy minus the defensive proxy), i.e. when gold's
+    "real momentum" is positive and it is not in a deep drawdown. When that holds
+    the strategy allocates to gold (scaled down in high-volatility regimes);
+    otherwise it rotates into the defensive asset. Rebalancing happens monthly.
+
+Strategy Logic:
+    load_inputs loads the three D1 frames and prepare_real_momentum_features
+    computes the real-momentum signal and monthly target weights; build_cerebro
+    wires the signal feed plus the three price feeds, a percentage futures
+    commission, the strategy, and the analyzers. On each monthly rebalance bar
+    the strategy issues order_target_percent orders toward the gold/defensive
+    target weights and counts entries/exits. notify_order tracks pending order
+    refs and notify_trade logs closed-trade PnL. extract_metrics consolidates
+    analyzer output (including an Ulcer Index from the broker-value series), and
+    the test forces runonce=True, runs the module's run()/main(), and asserts
+    each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -82,6 +110,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -112,6 +154,20 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_real_momentum_features(gold_df, inflation_proxy_df, defensive_df, params):
+    """Align the three price frames and compute real-momentum target weights.
+
+    Args:
+        gold_df: Daily gold (XAUUSD) OHLCV frame.
+        inflation_proxy_df: Daily inflation-proxy (GTIP) OHLCV frame.
+        defensive_df: Daily defensive-asset (IEF) OHLCV frame.
+        params: Strategy parameters controlling lookback, threshold, stop-loss,
+            volatility window, and weight scaling.
+
+    Returns:
+        A tuple ``(gold, inflation_proxy, defensive, signal_df)`` aligned on the
+        common index, where ``signal_df`` carries the rebalance flag, real
+        momentum, volatility, drawdown, and gold/defensive target weights.
+    """
     common_index = gold_df.index.intersection(inflation_proxy_df.index).intersection(defensive_df.index).sort_values()
     gold = gold_df.loc[common_index].copy()
     inflation_proxy = inflation_proxy_df.loc[common_index].copy()
@@ -159,6 +215,8 @@ def prepare_real_momentum_features(gold_df, inflation_proxy_df, defensive_df, pa
 
 
 class GoldRealMomentumSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the precomputed real-momentum signal columns."""
+
     lines = ('month', 'rebalance_signal', 'gold_nominal_return', 'inflation_proxy_return', 'real_momentum', 'gold_volatility', 'drawdown', 'target_gold_pct', 'target_defensive_pct')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -167,6 +225,8 @@ class GoldRealMomentumSignalFeed(bt.feeds.PandasData):
 
 
 class GoldRealMomentumStrategy(bt.Strategy):
+    """Monthly gold/defensive allocation driven by gold's real momentum."""
+
     params = dict(
         lookback_days=252,
         threshold=0.0,
@@ -180,6 +240,7 @@ class GoldRealMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and price feeds and reset counters and logs."""
         self.signal = self.datas[0]
         self.gold = self.getdatabyname('XAUUSD')
         self.inflation_proxy = self.getdatabyname('GTIP')
@@ -196,6 +257,13 @@ class GoldRealMomentumStrategy(bt.Strategy):
             self.order_refs.add(order.ref)
 
     def next(self):
+        """Rebalance toward target gold/defensive weights on monthly signals.
+
+        Increments the bar counter and records broker value, skips while orders
+        are pending or when the bar is not a rebalance bar, then issues
+        order_target_percent orders toward the precomputed gold and defensive
+        target weights and updates entry/exit counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.order_refs:
@@ -218,11 +286,22 @@ class GoldRealMomentumStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Drop completed or dead orders from the pending-order ref set.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Log the commission-adjusted PnL of each closed trade.
+
+        Args:
+            trade: The trade whose status changed; closed trades append their
+                ``pnlcomm`` to the trade log.
+        """
         if trade.isclosed:
             self.trade_log.append({'pnlcomm': trade.pnlcomm})
 
@@ -233,14 +312,33 @@ class GoldRealMomentumStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 class FuturesCommission(bt.CommInfoBase):
+    """Percentage, stock-like commission scheme for the allocation feeds."""
+
     params = (('commission', 0.0005), ('commtype', bt.CommInfoBase.COMM_PERC), ('stocklike', True))
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -254,6 +352,17 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load the three daily frames and build the aligned signal frame.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the aligned ``gold_df``, ``inflation_proxy_df``,
+        ``defensive_df``, the derived ``signal_df``, and the ``fromdate`` and
+        ``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -273,6 +382,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, signal/price feeds, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest and strategy parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the signal feed, the gold,
+        inflation-proxy, and defensive price feeds, a percentage commission, the
+        strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.addcommissioninfo(FuturesCommission(commission=float(config['params'].get('commission_pct', 0.0005))))
@@ -294,6 +414,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, SQN, and Ulcer
+        Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -333,6 +466,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -344,6 +486,11 @@ def normalize(value):
 
 
 def main():
+    """Run the full backtest end-to-end and compute its metrics.
+
+    Loads the config and inputs, builds and runs Cerebro, and extracts the
+    summary metrics from the resulting strategy instance.
+    """
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded real momentum bars: {len(inputs['signal_df'])}")

@@ -16,6 +16,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load a MetaTrader 5 MT5 export into a minute OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV file.
+        fromdate: Optional inclusive lower bound.
+        todate: Optional inclusive upper bound.
+        bar_shift_minutes: Minutes to shift timestamps forward.
+
+    Returns:
+        Datetime-indexed OHLCV DataFrame filtered to the requested range.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +48,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed mapping standard OHLCV columns by positional indices."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +56,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ConstituentsEaStrategy(bt.Strategy):
+    """Constituents EA-inspired intraday breakout strategy with timed sessions."""
     params = dict(
         stop_loss_points=0,
         take_profit_points=0,
@@ -60,6 +73,7 @@ class ConstituentsEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state for pending orders, position state, and counters."""
         self.buy_entry_order = None
         self.sell_entry_order = None
         self.close_order = None
@@ -75,6 +89,7 @@ class ConstituentsEaStrategy(bt.Strategy):
         self.loss_count = 0
 
     def next(self):
+        """Advance one bar, cancel stale entry orders, and evaluate new opens."""
         self.bar_num += 1
         self._cancel_expired_day_orders()
 
@@ -85,6 +100,7 @@ class ConstituentsEaStrategy(bt.Strategy):
         return round(lot, 2)
 
     def trade_size(self):
+        """Compute position size based on fixed lot or risk-based sizing."""
         if str(self.p.lot_or_risk).lower() == "lot":
             return self._normalize_lot(self.p.volume_or_risk)
         margin = self.p.margin_per_lot
@@ -178,6 +194,7 @@ class ConstituentsEaStrategy(bt.Strategy):
         self.sell_entry_order.ea_take = sell_take
 
     def next_open(self):
+        """Evaluate breakout setup and submit paired entry orders on session open."""
         if len(self.data) <= self.p.search_depth:
             return
         if self.position:
@@ -202,6 +219,7 @@ class ConstituentsEaStrategy(bt.Strategy):
             self._place_stop_orders(size, price_max, price_low)
 
     def notify_order(self, order):
+        """Handle completed/cancelled orders and track stop/take-profit + active side."""
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -258,6 +276,7 @@ class ConstituentsEaStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Accrue trade counters when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes) resampled to Daily (D1) for signal generation.
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Yesterday Today") implements a multi-timeframe breakout trading system based on previous day's extreme price levels.
+    - Market Assumptions: Breaking through the previous day's high or low price level indicates a strong structural momentum breakout on the intraday chart.
+    - Indicators:
+        - Daily High/Low: Yesterday's High (`high[-1]`) and Yesterday's Low (`low[-1]`) calculated from the resampled D1 data feed.
+    - Entry Signals:
+        - Long Entry: On the current M15 bar, close price crosses above yesterday's D1 High.
+        - Short Entry: On the current M15 bar, close price crosses below yesterday's D1 Low.
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (50 pips, `stop_loss_pips`) and Take Profit (50 pips, `take_profit_pips`) set on entry.
 """
 from __future__ import annotations
 import math
@@ -25,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Yesterday Today',
-        'source_ea': 'ea/0145_昨天今天',
+        'source_ea': 'ea/0145_Yesterday_Today',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -67,21 +84,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
-WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
-BACKTRADER_REPO = WORKSPACE_ROOT / 'backtrader'
-if str(BACKTRADER_REPO) not in sys.path:
-    sys.path.insert(0, str(BACKTRADER_REPO))
-
-
-
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -108,6 +137,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom backtrader Pandas data feed with supplementary spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -116,6 +146,11 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class YesterdayTodayStrategy(bt.Strategy):
+    """Strategy class implementing multi-timeframe breakout based on previous day's high/low.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         fixed_lot=1.0,
         stop_loss_pips=50,
@@ -125,6 +160,7 @@ class YesterdayTodayStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.data_m15 = self.datas[0]
         self.data_d1 = self.datas[1]
         self.last_bar_dt = None
@@ -139,12 +175,22 @@ class YesterdayTodayStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data_m15.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _new_bar(self):
+        """Verify if a new bar has commenced on the M15 timeframe.
+
+        Returns:
+            bool: True if a new bar has started, otherwise False.
+        """
         current = bt.num2date(self.data_m15.datetime[0])
         if self.last_bar_dt == current:
             return False
@@ -152,6 +198,7 @@ class YesterdayTodayStrategy(bt.Strategy):
         return True
 
     def _cancel_exits(self):
+        """Cancel outstanding stop-loss and take-profit exit orders."""
         if self.stop_order is not None:
             self.cancel(self.stop_order)
             self.stop_order = None
@@ -160,6 +207,7 @@ class YesterdayTodayStrategy(bt.Strategy):
             self.limit_order = None
 
     def _place_exits(self):
+        """Calculate and submit new fixed stop-loss and take-profit exit orders."""
         if not self.position:
             return
         stop_distance = float(self.p.stop_loss_pips) * float(self.p.point_size)
@@ -177,6 +225,7 @@ class YesterdayTodayStrategy(bt.Strategy):
                 self.limit_order = self.buy(size=size, exectype=bt.Order.Limit, price=self.position.price - limit_distance, oco=self.stop_order)
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if not self._new_bar():
             return
@@ -199,6 +248,11 @@ class YesterdayTodayStrategy(bt.Strategy):
             self.log(f'OPEN SHORT prev_low={prev_low:.5f} close={current_close:.5f}')
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.entry_order:
@@ -230,6 +284,11 @@ class YesterdayTodayStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -240,8 +299,6 @@ class YesterdayTodayStrategy(bt.Strategy):
         self._cancel_exits()
         self.log(f'TRADE CLOSED pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
 
-
-#!/usr/bin/env python3
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
@@ -260,6 +317,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -268,6 +336,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO format datetime string value into datetime object.
+
+    Args:
+        value (str): Datetime string value.
+
+    Returns:
+        datetime.datetime or None: Parsed datetime object.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -275,6 +351,17 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data and resample to daily timeframe.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing both M15 and resampled D1 data.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -301,6 +388,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -336,6 +432,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Filter out infinite or NaN values, returning None instead.
+
+    Args:
+        value (float): Input value to inspect.
+
+    Returns:
+        float or None: Filtered float value or None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -345,6 +449,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        results (list): Output strategy instances from cerebro run.
+        start_value (float): Initial account equity value.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -384,6 +497,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -398,7 +519,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -408,7 +536,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

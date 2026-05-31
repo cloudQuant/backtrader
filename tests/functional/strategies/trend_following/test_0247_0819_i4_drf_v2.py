@@ -16,6 +16,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 export into an intraday OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV input file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift bar timestamps for close-time alignment.
+
+    Returns:
+        DataFrame indexed by datetime with open/high/low/close/volume/openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +48,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed mapping OHLCV columns to expected positional indices."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,13 +56,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class I4DRFV2(bt.Indicator):
+    """Close-difference indicator producing value and binary color trend state."""
     lines = ("color", "value")
     params = dict(period=11)
 
     def __init__(self):
+        """Initialize the minimum period requirement."""
         self.addminperiod(int(self.p.period) + 2)
 
     def next(self):
+        """Compute current indicator value and color."""
         total = 0.0
         period = int(self.p.period)
         for i in range(period):
@@ -62,6 +77,7 @@ class I4DRFV2(bt.Indicator):
 
 
 class ExpI4DRFV2Strategy(bt.Strategy):
+    """I4DRF v2 strategy entering on indicator color reversals."""
     params = dict(
         period=11,
         signal_bar=1,
@@ -78,6 +94,7 @@ class ExpI4DRFV2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Wire feeds/indicator and reset strategy state for a run."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = I4DRFV2(self.signal_data, period=self.p.period)
@@ -108,6 +125,7 @@ class ExpI4DRFV2Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Handle one bar: exit checks then potential directional entries."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -140,6 +158,7 @@ class ExpI4DRFV2Strategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Update entry and outcome counters from trade lifecycle events."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

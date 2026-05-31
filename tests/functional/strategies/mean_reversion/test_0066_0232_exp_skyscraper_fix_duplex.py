@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+This module validates an experimental skyscraper-fix duplex strategy in a
+single inlined test file that keeps generated test behavior intact.
+
+Data Used:
+    Uses XAUUSD M15 data from `tests/datas/XAUUSD_M15.csv` as execution
+    data. The same source is resampled to H4 (`240` minutes) and used as the
+    second signal stream for high-level trend and reversal detection.
+
+Strategy Principle:
+    The strategy builds two directional SkyscraperFix indicators (long and short),
+    each combining ATR-based channel expansion and configurable directional signals.
+    Signals from buy/sell buffers drive bracket entries, while directional close
+    buffers and optional reverse flags control position exits and flips.
+
+Strategy Logic:
+    The script loads embedded configuration, reads MT5-formatted OHLC rows,
+    instantiates execution/signal feeds in Cerebro, and runs backtests with shared
+    analyzers. Assertions validate final metrics (PnL, drawdown, return, sharpe,
+    SQN, and trade counts) against expected values.
 """
 from __future__ import annotations
 import math
@@ -96,6 +116,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Read and normalize an MT5 CSV export into a sorted OHLC DataFrame.
+
+    Args:
+        filepath: Path of the tab-separated MT5 data file.
+        fromdate: Optional lower datetime bound for filtering.
+        todate: Optional upper datetime bound for filtering.
+        bar_shift_minutes: Number of minutes to shift timestamps.
+
+    Returns:
+        Normalized DataFrame with OHLCV/spread columns, indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -122,6 +153,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom pandas data feed that carries spread as an additional line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -136,6 +168,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SkyscraperFixIndicator(bt.Indicator):
+    """Indicator for directional buffer-based skyline reversals."""
     lines = ('up_buffer', 'dn_buffer', 'buy_buffer', 'sell_buffer')
     params = dict(
         length=10,
@@ -147,6 +180,7 @@ class SkyscraperFixIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Build ATR state and initialize rolling trend context."""
         self.addminperiod(max(self.p.length, self.p.atr_period) + 2)
         self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
         self.atr_high = bt.indicators.Highest(self.atr, period=self.p.length)
@@ -164,6 +198,7 @@ class SkyscraperFixIndicator(bt.Indicator):
         return value is not None and math.isfinite(value)
 
     def next(self):
+        """Update the skyscraper buffers for the current bar."""
         up = self._nan()
         dn = self._nan()
         buy = self._nan()
@@ -235,6 +270,7 @@ class SkyscraperFixIndicator(bt.Indicator):
 
 
 class SkyscraperFixDuplexStrategy(bt.Strategy):
+    """Dual-direction execution strategy using long and short skyline buffers."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -264,6 +300,7 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate dual indicators and initialize tracking state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
 
@@ -296,9 +333,15 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
         self.loss_count = 0
 
     def prenext(self):
+        """Call ``next`` during data warm-up for consistent behavior."""
         self.next()
 
     def log(self, text):
+        """Log text with execution-bar datetime for traceability.
+
+        Args:
+            text: The message to log.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -372,6 +415,7 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
         self.log(f'CLOSE size={self.position.size} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Run signal filtering, entry submission, and conditional reversal exits."""
         if not self._new_signal_bar():
             return
         if self.entry_order is not None or self.close_order is not None:
@@ -395,6 +439,11 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
             self._submit_entry('short', 'sell buffer signal')
 
     def notify_order(self, order):
+        """React to order status transitions and keep internal order state clean.
+
+        Args:
+            order: Backtrader order whose state has changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -433,6 +482,11 @@ class SkyscraperFixDuplexStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters once a trade is closed.
+
+        Args:
+            trade: Closed or updating trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -453,6 +507,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a test data path.
+
+    Args:
+        filename: Relative data filename from the repository test data folder.
+
+    Returns:
+        Absolute path to the resolved file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -460,12 +522,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string value.
+
+    Args:
+        value: Datetime string or ``None``.
+
+    Returns:
+        Parsed datetime object, or ``None`` when ``value`` is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and normalize the backtest DataFrame and date bounds from config.
+
+    Args:
+        config: Strategy configuration loaded from the inlined source.
+
+    Returns:
+        Mapping with filtered DataFrame and selected date window.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -482,6 +560,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used by migrated expected metric assertions.
+
+    Args:
+        cerebro: Target Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -490,6 +573,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample an OHLC DataFrame to the configured minute rule.
+
+    Args:
+        df: Source DataFrame indexed by datetime.
+        minutes: Target frequency in minutes.
+
+    Returns:
+        Resampled and cleaned DataFrame aligned to aggregation rules.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -507,6 +599,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Construct the Cerebro engine with two feeds and strategy wiring.
+
+    Args:
+        config: Backtest configuration dictionary.
+        frame: Backtest frame returned by ``load_backtest_frame``.
+
+    Returns:
+        Configured Cerebro object ready for execution.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -535,6 +636,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for None or non-finite numeric values.
+
+    Args:
+        value: Candidate numeric value.
+
+    Returns:
+        The input value if finite and not None, else ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -543,6 +652,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a formatted summary for regression observability.
+
+    Args:
+        results: Backtest results list returned from Cerebro.
+        start_value: Initial portfolio value before running.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -571,6 +686,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Execute the inlined OHLC skyline backtest and optionally plot output."""
     parser = argparse.ArgumentParser(description='Run Exp_Skyscraper_Fix_Duplex backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the M15 (15-minute) timeframe loaded from the MT5
+    export ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. The
+    feed also carries the MT5 ``spread`` column. The strategy aggregates the M15
+    bars into daily statistics internally rather than using a separate feed.
+
+Strategy Principle:
+    A port of the MT5 expert advisor JS-MA-Day. It tracks each day's open and
+    the running median of the daily high/low, then takes a moving average of
+    those daily medians. A bullish pattern forms when the recent daily MAs are
+    rising relative to one another yet still sit above their day opens (and the
+    mirror for bearish), signalling an intraday continuation. Trading is flat by
+    a scheduled close hour, and positions use fixed pip stop-loss, take-profit,
+    and a trailing stop.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_cerebro wires the feed,
+    commission, strategy, and analyzers. Each bar the strategy rolls the daily
+    open/high/low state, checks stop/take-profit exits, updates the trailing
+    stop, force-closes after the close hour, and otherwise evaluates the daily
+    MA/day-open pattern to open a long or short. notify_order tracks entry/close
+    fills and initialises exit levels; notify_trade logs closes. The test hooks
+    the metric extractor (falling back to analyzer-derived metrics), forces
+    runonce=True via main(), and asserts each metric against migration-time
+    expected values.
 """
 from __future__ import annotations
 import math
@@ -78,6 +105,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV (with spread) into a backtrader OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, sorted and filtered to the range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -104,6 +144,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns plus the spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -118,6 +160,15 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class JsMaDayStrategy(bt.Strategy):
+    """Daily-median moving-average pattern strategy with brackets and trailing.
+
+    Aggregates intraday bars into daily open/median statistics, takes a moving
+    average of the daily medians, and enters longs/shorts on rising/falling MA
+    patterns relative to the day opens. Positions are protected by fixed pip
+    stop-loss, take-profit, and a trailing stop, and are flattened at a scheduled
+    close hour.
+    """
+
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -131,6 +182,7 @@ class JsMaDayStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the feed and reset order state, exit levels, and daily trackers."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -147,6 +199,11 @@ class JsMaDayStrategy(bt.Strategy):
         self.current_day_low = None
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -261,6 +318,13 @@ class JsMaDayStrategy(bt.Strategy):
         return ma0, ma1, ma2, open0, open1
 
     def next(self):
+        """Roll daily state, manage exits, and open trades on the daily pattern.
+
+        Updates the rolling daily open/high/low, applies stop/take-profit exits
+        and the trailing stop, force-closes after the configured close hour, and
+        otherwise opens a long or short when the daily MA/day-open pattern fires
+        (optionally reversed).
+        """
         dt = self._roll_day_state()
         if self._check_exit_thresholds():
             return
@@ -286,6 +350,14 @@ class JsMaDayStrategy(bt.Strategy):
             self._submit_entry('short', 'daily MA/day-open bearish pattern')
 
     def notify_order(self, order):
+        """Track entry/close fills and initialise or reset exit levels.
+
+        Args:
+            order: The order whose status changed. A completed entry sets the
+                active side, entry price, and bracket levels; a completed close
+                clears them; cancel/margin/reject states drop the order
+                reference.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -308,6 +380,11 @@ class JsMaDayStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Log closed trades and reset active side and exit levels when flat.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are logged.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -327,6 +404,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -334,12 +422,32 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string, returning None for empty input.
+
+    Args:
+        value: An ISO-format datetime string or a falsy value.
+
+    Returns:
+        A :class:`datetime.datetime`, or None when ``value`` is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load the M15 XAUUSD frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive date bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -351,6 +459,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Sharpe, Returns, DrawDown, Trade, and SQN analyzers.
+
+    Args:
+        cerebro: The Cerebro engine to register the analyzers on.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -359,6 +472,16 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -373,6 +496,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: The value to validate.
+
+    Returns:
+        The original value when finite (or non-numeric), else None for NaN/inf.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -381,6 +512,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a human-readable backtest summary from analyzer output.
+
+    Args:
+        results: The list returned by ``cerebro.run()``.
+        start_value: The broker starting value used to compute net PnL.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -409,6 +546,11 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI args, run the JS-MA-Day backtest, and print the summary.
+
+    Loads the config, builds the frame and engine, runs the event-driven
+    backtest, and prints the summary; with ``--plot`` it also renders a chart.
+    """
     parser = argparse.ArgumentParser(description='Run JS-MA-Day backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

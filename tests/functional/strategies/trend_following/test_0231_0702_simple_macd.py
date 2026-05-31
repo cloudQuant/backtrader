@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 00:00:00 to 2026-03-10 23:59:00.
+
+Strategy Principle:
+    - This is a basic trend-following strategy based on MACD (Moving Average Convergence Divergence) direction.
+    - Market Assumptions: Price movement trends tend to persist in the direction of the MACD slope. When MACD line rises (value > previous value), the market is in an uptrend; when it falls, it is in a downtrend.
+    - Indicators:
+        - MACD line: difference between fast EMA (12) and slow EMA (26).
+        - Signal line: 9-period EMA of the MACD line.
+    - Entry Signals:
+        - Buy Entry: MACD rises (signal > 0) when flat.
+        - Sell Entry: MACD falls (signal < 0) when flat.
+    - Exit Signals:
+        - Close Long: MACD falls (signal < 0) when holding long.
+        - Close Short: MACD rises (signal > 0) when holding short.
 """
 from __future__ import annotations
 import math
@@ -23,8 +42,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '简单_MACD',
-        'source_ea': 'ea/0702_简单_MACD',
+        'name': 'Simple_MACD',
+        'source_ea': 'ea/0702_Simple_MACD',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -60,15 +79,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -96,17 +133,24 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class SimpleMACDStrategy(bt.Strategy):
+    """Strategy class implementing basic MACD slope direction trend following.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lots=0.1,
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.macd = bt.indicators.MACD(self.data.close, period_me1=12, period_me2=26, period_signal=9)
 
         self.bar_num = 0
@@ -122,6 +166,11 @@ class SimpleMACDStrategy(bt.Strategy):
         self.order = None
 
     def _direction_signal(self):
+        """Evaluate MACD slope direction over the last two bars.
+
+        Returns:
+            int: 1 for rising, -1 for falling, 0 for unchanged.
+        """
         macd_2 = float(self.macd.macd[-2])
         macd_1 = float(self.macd.macd[-1])
         if macd_1 > macd_2:
@@ -131,6 +180,7 @@ class SimpleMACDStrategy(bt.Strategy):
         return 0
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self) < 30:
             return
@@ -156,6 +206,11 @@ class SimpleMACDStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -171,6 +226,11 @@ class SimpleMACDStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -195,6 +255,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -202,6 +273,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -213,6 +295,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -230,6 +321,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -269,8 +371,15 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -294,15 +403,63 @@ def _close(actual, expected, *, tol, key):
     )
 
 
-def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    if hasattr(_mod, "main") and callable(_mod.main):
-        return _mod.main()
-    if hasattr(_mod, "run") and callable(_mod.run):
-        return _mod.run()
-    raise RuntimeError("Neither main() nor run() found in inlined module")
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_230_0231_0702_simple_macd() -> None:
@@ -310,48 +467,11 @@ def test_230_0231_0702_simple_macd() -> None:
 
     Originally located at tests/functional/strategies_regression/trend_following/0231_0702_simple_macd.
     """
-    # Capture metrics by hooking extract_metrics() and invoking the original
-    # main() (or run()). This reuses whatever loader / build_cerebro /
-    # extract_metrics signatures the strategy used internally.
-    captured = {}
-    _orig_extract = extract_metrics
-    def _capture_em(*a, **kw):
-        m = _orig_extract(*a, **kw)
-        if isinstance(m, dict):
-            captured["metrics"] = m
-        return m
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    _mod.extract_metrics = _capture_em
-
-    # Force runonce=True for the run inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so that argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            _invoke_strategy_main()
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        _mod.extract_metrics = _orig_extract
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "extract_metrics() was not called"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 6154, f"bar_num: expected=6154, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 492, f"buy_count: expected=492, got={metrics.get('buy_count')!r}"

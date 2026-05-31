@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. A second H4 (240-minute)
+    feed is resampled from the same M15 data and used only to compute the
+    Anchored Momentum Candle signal; orders execute on the M15 feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_AnchoredMomentumCandle``.
+    Anchored Momentum measures how far an EMA sits above or below an SMA of the
+    same period, expressed as a percentage. Computed on each of open/high/low/
+    close it forms a synthetic "momentum candle"; the candle's body colour
+    (close above or below open) signals the momentum regime. A bullish colour
+    flip is a long signal and a bearish flip a short signal, each protected by a
+    fixed point-based stop loss and take profit.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro adds the execution
+    feed, resamples it to the H4 signal feed, and registers the strategy and
+    default analyzers. The AnchoredMomentumCandleIndicator (built from four
+    AnchoredMomentumLine sub-indicators) produces the synthetic candle and its
+    colour. Each new signal bar the strategy checks protective exit levels, then
+    reads the current/previous candle colour to open, close, or reverse a
+    position. notify_order tracks fills, risk prices, and reversal entries;
+    notify_trade tallies closed trades. extract_metrics consolidates analyzer
+    output, and the test forces runonce=True, runs the module's run()/main(),
+    and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +115,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -112,6 +154,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed adding an MT5 ``spread`` column to the OHLCV mapping."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -126,15 +170,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AnchoredMomentumLine(bt.Indicator):
+    """Anchored Momentum line: EMA-vs-SMA percentage plus a zone classifier."""
+
     lines = ('momentum', 'zone')
     params = dict(mom_period=8, smooth_period=6, up_level=0.025, dn_level=-0.025)
 
     def __init__(self):
+        """Create the SMA/EMA sub-indicators and set the minimum period."""
         self.sma = bt.indicators.SimpleMovingAverage(self.data, period=int(self.p.mom_period))
         self.ema = bt.indicators.ExponentialMovingAverage(self.data, period=int(self.p.mom_period))
         self.addminperiod(int(self.p.mom_period) + 2)
 
     def next(self):
+        """Compute the percentage momentum and assign its up/neutral/down zone."""
         sma = float(self.sma[0])
         if sma == 0:
             momentum = 0.0
@@ -151,10 +199,13 @@ class AnchoredMomentumLine(bt.Indicator):
 
 
 class AnchoredMomentumCandleIndicator(bt.Indicator):
+    """Synthetic candle from Anchored Momentum on each OHLC price plus colour."""
+
     lines = ('a_open', 'a_high', 'a_low', 'a_close', 'color')
     params = dict(mom_period=8, smooth_period=6, up_level=0.025, dn_level=-0.025)
 
     def __init__(self):
+        """Create the four per-price Anchored Momentum lines and set min period."""
         self.mom_open = AnchoredMomentumLine(self.data.open, mom_period=self.p.mom_period, smooth_period=self.p.smooth_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
         self.mom_high = AnchoredMomentumLine(self.data.high, mom_period=self.p.mom_period, smooth_period=self.p.smooth_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
         self.mom_low = AnchoredMomentumLine(self.data.low, mom_period=self.p.mom_period, smooth_period=self.p.smooth_period, up_level=self.p.up_level, dn_level=self.p.dn_level)
@@ -162,6 +213,7 @@ class AnchoredMomentumCandleIndicator(bt.Indicator):
         self.addminperiod(int(self.p.mom_period) + 2)
 
     def next(self):
+        """Assemble the momentum candle OHLC and colour for the current bar."""
         o = float(self.mom_open.momentum[0])
         h = max(float(self.mom_high.momentum[0]), o)
         l = min(float(self.mom_low.momentum[0]), o)
@@ -182,6 +234,8 @@ class AnchoredMomentumCandleIndicator(bt.Indicator):
 
 
 class AnchoredMomentumCandleStrategy(bt.Strategy):
+    """Trade Anchored Momentum Candle colour flips with fixed stop/take-profit."""
+
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -204,6 +258,7 @@ class AnchoredMomentumCandleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind execution/signal feeds, build the indicator, and reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = AnchoredMomentumCandleIndicator(
@@ -232,6 +287,11 @@ class AnchoredMomentumCandleStrategy(bt.Strategy):
         self.warmup = int(self.p.mom_period) + int(self.p.signal_bar) + 8
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: Message to emit alongside the current execution bar datetime.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -316,6 +376,14 @@ class AnchoredMomentumCandleStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Act on momentum-candle colour flips once per new signal bar.
+
+        Increments the bar counter, runs only on a new signal-feed timestamp,
+        skips during warm-up or while an order is pending, and checks protective
+        exit levels first. It then reads the current and previous candle colours
+        to flag buy/sell open and close conditions and closes, reverses, or
+        opens a long/short position accordingly.
+        """
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -359,6 +427,16 @@ class AnchoredMomentumCandleStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track fills, set risk prices on entries, and chain reversal entries.
+
+        Failed orders increment the rejected count and clear pending state.
+        Completed entry fills increment buy/sell counts and set stop/take-profit
+        prices; a completed exit clears risk and, if a reversal was pending,
+        submits the opposite entry.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -402,6 +480,12 @@ class AnchoredMomentumCandleStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades and clear risk state when flat.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and, when no position remains, clear risk prices.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -426,6 +510,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -433,6 +528,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 OHLCV frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -463,6 +571,18 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, execution and H4 signal feeds, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the M15 execution feed, the
+        resampled signal feed (when the indicator timeframe differs), the
+        strategy, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -494,6 +614,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying signal/order/trade counts.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frame dict providing the date range and bar count.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/signal/order/trade counts, PnL, return,
+        win rate, Sharpe, annualized return, drawdown, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

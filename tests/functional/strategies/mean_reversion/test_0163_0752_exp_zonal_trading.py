@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `tests/datas/XAUUSD_M15.csv` as base bars (`M15`) and 4-hour AO/AC
+    signal frames built from that same source.
+    Date range is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    AO/AC signal states are derived from median-price oscillator calculations.
+    AO and AC directional states define buy/sell zonal regime.
+    Long and short entries occur on aligned states, with symmetric risk controls.
+
+Strategy Logic:
+    1. Normalize base feed and build AO/AC signal feeds by resampling.
+    2. For each bar, de-duplicate by signal timestamp and gate one action at a time.
+    3. Submit close/reverse orders first, then open new positions on valid states.
+    4. Capture analyzer metrics and assert against migration baselines.
 """
 from __future__ import annotations
 import math
@@ -85,6 +101,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated export and normalize OHLCV structure.
+
+    Args:
+        filepath: Source data path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional timestamp shift in minutes.
+
+    Returns:
+        DataFrame indexed by datetime with standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +138,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample bars using `rule` and keep required OHLCV columns."""
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -126,6 +154,11 @@ def resample_frame(df, rule):
 
 
 def awesome_oscillator(frame):
+    """Calculate Awesome Oscillator state from median price moving averages.
+
+    Returns:
+        Source frame enriched with `signal_state` column.
+    """
     median = (frame['high'] + frame['low']) / 2.0
     sma5 = median.rolling(5, min_periods=5).mean()
     sma34 = median.rolling(34, min_periods=34).mean()
@@ -137,6 +170,11 @@ def awesome_oscillator(frame):
 
 
 def accelerator_oscillator(frame):
+    """Calculate Accelerator Oscillator state from AO acceleration values.
+
+    Returns:
+        Source frame enriched with `signal_state` column.
+    """
     median = (frame['high'] + frame['low']) / 2.0
     sma5 = median.rolling(5, min_periods=5).mean()
     sma34 = median.rolling(34, min_periods=34).mean()
@@ -149,12 +187,14 @@ def accelerator_oscillator(frame):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base feed wrapper for execution bars (open, high, low, close, volume)."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class SignalStateFeed(bt.feeds.PandasData):
+    """Feed carrying an additional `signal_state` line for AO/AC signals."""
     lines = ('signal_state',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5), ('signal_state', 6),
@@ -162,6 +202,7 @@ class SignalStateFeed(bt.feeds.PandasData):
 
 
 class ExpZonalTradingStrategy(bt.Strategy):
+    """Zonal strategy driven by AO/AC signal state alignment and risk limits."""
     params = dict(
         stop_loss=1000,
         take_profit=2000,
@@ -176,6 +217,7 @@ class ExpZonalTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, counters, order references, and risk levels."""
         self.base = self.datas[0]
         self.ao = self.datas[1]
         self.ac = self.datas[2]
@@ -196,6 +238,7 @@ class ExpZonalTradingStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def log(self, text):
+        """Print strategy log entry with base-bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -228,6 +271,7 @@ class ExpZonalTradingStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Run one backtest step: risk checks, signal mapping, and action dispatch."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -266,6 +310,7 @@ class ExpZonalTradingStrategy(bt.Strategy):
             self.order = self.close()
 
     def notify_order(self, order):
+        """Track completed/rejected orders and clear pending references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -284,6 +329,7 @@ class ExpZonalTradingStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track closed trades and win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -308,6 +354,11 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve relative path to an absolute strategy data file path.
+
+    Raises:
+        FileNotFoundError: If file is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -315,6 +366,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load base bars and derived AO/AC frames from config configuration."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -328,6 +380,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble cerebro with feeds, strategy, observers, and analyzers."""
     bt_cfg = config['backtest']
     ao_minutes = config['data'].get('ao_tf_minutes', 240)
     ac_minutes = config['data'].get('ac_tf_minutes', 240)
@@ -368,6 +421,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect regression metrics from analyzers and strategy counters."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -408,6 +462,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute backtest and return `(results, metrics, cerebro)`."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

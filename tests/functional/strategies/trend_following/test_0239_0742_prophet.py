@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00, with each bar timestamp shifted forward by 15 minutes.
+
+Strategy Principle:
+    This is the "PROphet" strategy (MT5 PROphet EA). It computes a weighted score
+    from recent high/low range relationships using four tunable coefficients for
+    the buy side and four for the sell side (each centered at 100). A positive
+    buy score during the active hours opens a long; a positive sell score opens a
+    short. Both directions can be enabled or disabled independently. Risk is a
+    point-based stop that trails in the trade's favour, and any open position is
+    force-closed after the evening session hour.
+
+Strategy Logic:
+    load_backtest_frame loads and date-filters the frame; build_cerebro adds the
+    M15 feed, configures a fixed-commission futures broker, the strategy, and the
+    analyzers. Each bar the strategy waits for warm-up, skips while an order is
+    pending, then either manages the open long/short (time-of-day force-close and
+    trailing stop) or, once per bar within the active hours, evaluates the
+    weighted buy/sell score to open a position and set the initial stop.
+    notify_order tracks completed/rejected orders and buy/sell counts and clears
+    the working order, while notify_trade tallies wins and losses. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -85,6 +111,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -112,12 +151,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class PROphetStrategy(bt.Strategy):
+    """Trade a weighted high/low range score with a trailing point stop."""
+
     params = dict(
         da_buy=True,
         x1=9,
@@ -139,6 +182,7 @@ class PROphetStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order/stop state, and the per-bar trade marker."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -195,6 +239,11 @@ class PROphetStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute one bar: manage open positions and open new trades when valid.
+
+        Args:
+            self: Strategy instance.
+        """
         self.bar_num += 1
         if len(self) < 5:
             return
@@ -224,6 +273,13 @@ class PROphetStrategy(bt.Strategy):
             self.last_trade_bar_dt = dt
 
     def notify_order(self, order):
+        """Track completed/rejected orders, buy/sell counts, and clear state.
+
+        Args:
+            order: The order whose status changed; completed fills update the
+                buy/sell counters or clear the stop when flat, and any terminal
+                status releases the working order reference.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -241,6 +297,11 @@ class PROphetStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update counters when a trade is closed.
+
+        Args:
+            trade: Closed trade notification object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -265,6 +326,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a CSV filename relative to test data directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -272,6 +334,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 bars and return normalized frame plus bounds.
+
+    Args:
+        config: Normalized test configuration.
+
+    Returns:
+        Dict with loaded frame and from/to boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -283,6 +353,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro engine, add feed/strategy, and attach analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -300,6 +371,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect performance metrics from analyzers and strategy state.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro instance after run.
+        frame: Backtest frame dict with data and boundaries.
+        config: Normalized configuration.
+
+    Returns:
+        Dictionary with bar counts, counts, PnL and risk metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -341,6 +423,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Build config, execute runonce backtest, and return outputs."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

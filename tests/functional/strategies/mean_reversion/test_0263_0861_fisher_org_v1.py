@@ -1,6 +1,25 @@
 """Inlined regression test for mean_reversion/0263_0861_fisher_org_v1.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+- XAUUSD M15 (primary): 2025-12-03 01:15 to 2026-03-10 09:00
+- XAUUSD H8 (signal): resampled from M15
+
+Strategy Principle:
+Fisher Transform Org V1 normalises price within a highest-high/lowest-low
+window, smooths it via recursive formula, then applies the Fisher Transform
+(atanh) to create a near-Gaussian indicator. The Fisher line and its lagged
+trigger line generate crossover signals for reversal entries.
+
+Strategy Logic:
+- FisherOrgV1 indicator produces two lines: fisher (current smoothed Fisher
+  value) and trigger (previous bar's fisher value)
+- Buy when fisher crosses above trigger (upward reversal)
+- Sell when fisher crosses below trigger (downward reversal)
+- Secondary logic: if no crossover, trend-follow on fisher >/< trigger slope
+- Strategy fires once per new H8 bar, with stop-loss/take-profit at fixed
+  point distances, configurable buy/sell open/close gating
 """
 from __future__ import annotations
 
@@ -17,6 +36,24 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data into a datetime-indexed DataFrame.
+
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to the MT5 CSV file.
+    fromdate : datetime or None
+        Earliest date to include.
+    todate : datetime or None
+        Latest date to include.
+    bar_shift_minutes : int
+        Minutes to shift the datetime index forward.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: datetime, open, high, low, close, volume, openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +75,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def _build_signal_frame(df, minutes):
+    """Resample a DataFrame to a lower-frequency signal frame for dual-timeframe strategies."""
     out = df.resample(f"{int(minutes)}min", label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min",
         "close": "last", "volume": "sum", "openinterest": "sum",
@@ -48,6 +86,7 @@ def _build_signal_frame(df, minutes):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column ordering."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -55,6 +94,23 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def _price(data, mode, ago=0):
+    """Return a price value from OHLC data based on a mode selector.
+
+    Parameters
+    ----------
+    data : DataFeed
+        Data feed with open/high/low/close lines.
+    mode : int
+        Price mode: 2=open, 3=high, 4=low, 5=(h+l)/2, 6=(h+l+c)/3,
+        7=(2c+h+l)/4, 8=(o+c)/2, 9=(o+h+l+c)/4; default returns close.
+    ago : int
+        Bar offset.
+
+    Returns
+    -------
+    float
+        Selected price value.
+    """
     o = float(data.open[-ago])
     h = float(data.high[-ago])
     l = float(data.low[-ago])
@@ -79,14 +135,25 @@ def _price(data, mode, ago=0):
 
 
 class FisherOrgV1(bt.Indicator):
+    """Fisher Transform indicator producing a Gaussian-like signal line and its lagged trigger.
+
+    Lines
+    -----
+    fisher : float
+        Current smoothed Fisher Transform value.
+    trigger : float
+        Previous bar's fisher value, used for crossover detection.
+    """
     lines = ("fisher", "trigger")
     params = dict(length=7, ipc=1)
 
     def __init__(self):
+        """Initialise indicator state and smoothing recursive value."""
         self.addminperiod(int(self.p.length) + 2)
         self._value1 = 0.0
 
     def next(self):
+        """Compute Fisher Transform value and set fisher/trigger lines."""
         length = int(self.p.length)
         highs = [float(self.data.high[-i]) for i in range(length)]
         lows = [float(self.data.low[-i]) for i in range(length)]
@@ -111,6 +178,7 @@ class FisherOrgV1(bt.Indicator):
 
 
 class ExpFisherOrgV1Strategy(bt.Strategy):
+    """Dual-timeframe strategy trading FisherOrgV1 crossover signals."""
     params = dict(
         length=7, ipc=1,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -121,6 +189,7 @@ class ExpFisherOrgV1Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy: bind data feeds and create FisherOrgV1 indicator."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = FisherOrgV1(self.signal_data, length=self.p.length, ipc=self.p.ipc)
@@ -151,6 +220,7 @@ class ExpFisherOrgV1Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process a new bar: check exit levels, fire buy/sell signals on Fisher trigger crossovers."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -183,6 +253,7 @@ class ExpFisherOrgV1Strategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track trade lifecycle: count open direction and record win/loss on close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

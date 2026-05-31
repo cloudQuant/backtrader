@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV source bars from ``tests/datas/XAUUSD_M15.csv`` are loaded,
+    shifted by 15 minutes, resampled to H1 and filtered to the window
+    ``2025-12-03 01:15:00`` through ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    This test strategy builds a custom moving-average-my (MAMy) signal from aligned
+    MA trend and weighted-price relationships. Longs are opened when bullish open
+    conditions flip, shorts when bearish open conditions flip, and positions are
+    closed on opposite close conditions.
+
+Strategy Logic:
+    The test preprocesses raw bars into custom columns ``mamy_open`` and ``mamy_close``
+    plus boolean entry/exit flags. A custom data feed injects these signals.
+    Strategy execution runs on bar opens, applies one-sided position management,
+    and final metrics are collected via Backtrader analyzers for assertion.
 """
 from __future__ import annotations
 import math
@@ -25,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'MAMy System',
-        'source_ea': 'ea/0188_MAMy_智能系统',
+        'source_ea': 'ea/0188_mamy_system',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -78,6 +95,17 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load and normalize MT5 export data into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Input MT5 CSV file path.
+        fromdate: Optional start time to filter bars.
+        todate: Optional end time to filter bars.
+        bar_shift_minutes: Minute offset applied to parsed timestamps.
+
+    Returns:
+        Normalized OHLCV DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +131,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 def resample_to_h1(df):
+    """Resample 15-minute bars to hourly OHLCV bars.
+
+    Args:
+        df: Minute-level OHLCV DataFrame.
+
+    Returns:
+        Hourly resampled OHLCV DataFrame.
+    """
     agg = {
         'open': 'first',
         'high': 'max',
@@ -116,6 +152,16 @@ def resample_to_h1(df):
 
 
 def moving_average(series, period, method='lwma'):
+    """Compute a moving average for supported methods.
+
+    Args:
+        series: Input Series.
+        period: Window length.
+        method: One of ``sma``, ``ema``, ``smma``, or ``lwma``.
+
+    Returns:
+        Smoothed series.
+    """
     method = str(method).lower()
     if method == 'sma':
         return series.rolling(period).mean()
@@ -146,6 +192,19 @@ def build_indicator_frame(
     ma_period=3,
     ma_method='lwma',
 ):
+    """Build the full indicator signal frame used by the strategy.
+
+    Args:
+        filepath: MT5 CSV file path.
+        fromdate: Start datetime.
+        todate: End datetime.
+        bar_shift_minutes: Minute shift for timestamp alignment.
+        ma_period: Averaging period.
+        ma_method: Moving-average method for trend filtering.
+
+    Returns:
+        DataFrame with MA-derived candle flags and signal columns.
+    """
     base = load_mt5_csv(filepath, fromdate=fromdate, todate=todate, bar_shift_minutes=bar_shift_minutes)
     frame = resample_to_h1(base)
     weighted_price = (frame['high'] + frame['low'] + 2.0 * frame['close']) / 4.0
@@ -200,6 +259,8 @@ def build_indicator_frame(
 
 
 class MAMySystemFeed(bt.feeds.PandasData):
+    """PandasData extension carrying MAMy open/close signal lines."""
+
     lines = ('mamy_open', 'mamy_close', 'open_buy', 'open_sell', 'close_buy', 'close_sell')
     params = (
         ('datetime', None),
@@ -219,6 +280,8 @@ class MAMySystemFeed(bt.feeds.PandasData):
 
 
 class MAMySystemStrategy(bt.Strategy):
+    """MAMy strategy with explicit open/close transitions and trade counting."""
+
     params = dict(
         lots=1.0,
         ma_period=3,
@@ -226,6 +289,7 @@ class MAMySystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters used by regression assertions."""
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
@@ -235,13 +299,16 @@ class MAMySystemStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped strategy log message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Advance bar counter each update."""
         self.bar_num += 1
 
     def next_open(self):
+        """Evaluate configured open/close signal flags at bar open."""
         if self.order:
             return
         if len(self.data) < 2:
@@ -267,6 +334,7 @@ class MAMySystemStrategy(bt.Strategy):
             self.order = self.close()
 
     def notify_order(self, order):
+        """Handle completed/cancelled orders and side counters."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -277,6 +345,7 @@ class MAMySystemStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track completed trade outcomes and log realized PnL."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -302,6 +371,17 @@ MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
 
 
 def resolve_data_path(filename):
+    """Resolve test fixture path and validate file existence.
+
+    Args:
+        filename: Relative fixture file name.
+
+    Returns:
+        Absolute path for the fixture.
+
+    Raises:
+        FileNotFoundError: If fixture path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -309,6 +389,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate the signal frame and date range from config.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Mapping with ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -328,6 +416,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a Cerebro instance for this strategy.
+
+    Args:
+        config: Strategy configuration dictionary.
+        frame: Backtest frame payload.
+
+    Returns:
+        Configured Cerebro object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -351,6 +448,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate key performance metrics for this run.
+
+    Args:
+        strat: Strategy instance.
+        cerebro: Executed Cerebro instance.
+        frame: Backtest frame payload.
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary of bars, trades, returns, and risk metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -395,6 +503,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run strategy backtest and return execution artifacts.
+
+    Args:
+        plot: Whether to plot the result.
+
+    Returns:
+        ``(results, metrics, cerebro)`` tuple.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

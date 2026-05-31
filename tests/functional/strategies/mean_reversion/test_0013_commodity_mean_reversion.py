@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Gold futures daily CSV data ``XAUUSD_1d.csv`` under ``tests/datas/``,
+    symbol ``XAUUSD`` on timeframe ``D1`` from ``2008-01-01`` to
+    ``2025-12-31``. The strategy uses OHLCV fields plus derived z-score,
+    annual return, and binary entry/exit signals on a single data source.
+
+Strategy Principle:
+    The strategy assumes gold prices mean-revert after extreme deviations from a
+    rolling mean band. It opens a long position only when the close-price z-score
+    falls below a negative threshold and exits when the z-score rebounds near zero
+    or when the maximum holding period is reached.
+
+Strategy Logic:
+    Data is normalized and enriched into trading features, then fed into a custom
+    Backtrader feed. The strategy tracks bar count, pending orders, trade state,
+    and equity curve, submits buy/close orders based on rolling-signal logic, and
+    uses analyzer outputs to compute return, risk, and trade statistics that are
+    asserted in this regression test.
 """
 from __future__ import annotations
 import math
@@ -68,7 +87,11 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load and resolve the inlined YAML-equivalent strategy configuration.
+
+    Returns:
+        A deep-copied config dictionary with resolved filesystem paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -76,6 +99,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5-style CSV data and normalize it into a sorted OHLCV frame.
+
+    Args:
+        filepath: CSV file path produced by MT5 export.
+        fromdate: Optional lower-bound datetime filter.
+        todate: Optional upper-bound datetime filter.
+
+    Returns:
+        Pandas DataFrame indexed by parsed datetime with standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,25 +135,34 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_commodity_mean_reversion_features(df, params):
-    """准备商品均值回归策略特征"""
+    """Build mean-reversion signals and derived features used by the strategy.
+
+    Args:
+        df: Raw OHLCV dataframe indexed by datetime.
+        params: Strategy parameters containing ``lookback`` and
+            ``zscore_threshold``.
+
+    Returns:
+        Feature dataframe with required custom lines and built-in OHLCV fields.
+    """
     out = df.copy()
     lookback = int(params.get('lookback', 252))
     zscore_threshold = float(params.get('zscore_threshold', -2.0))
     
-    # 计算滚动均值和标准差
+    # Compute rolling mean and standard deviation.
     out['mean'] = out['close'].rolling(window=lookback).mean()
     out['std'] = out['close'].rolling(window=lookback).std()
     
-    # 计算Z-score
+    # Compute Z-score for mean-reversion distance.
     out['zscore'] = (out['close'] - out['mean']) / out['std']
     
-    # 计算年度收益率
+    # Compute 252-day annual return proxy used by the strategy frame.
     out['yearly_return'] = out['close'].pct_change(252)
     
-    # 入场信号：Z-score低于阈值（极端偏离）
+    # Generate entry signal when z-score indicates extreme negative deviation.
     out['entry_signal'] = (out['zscore'] < zscore_threshold).astype(float)
     
-    # 出场信号：Z-score回归到零附近
+    # Generate exit signal when z-score reverts near zero.
     out['exit_signal'] = (abs(out['zscore']) < 0.5).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -129,6 +171,7 @@ def prepare_commodity_mean_reversion_features(df, params):
 
 
 class Mt5CommodityMeanReversionFeed(bt.feeds.PandasData):
+    """Pandas feed class exposing commodity-specific feature lines."""
     lines = ('zscore', 'yearly_return', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -138,6 +181,7 @@ class Mt5CommodityMeanReversionFeed(bt.feeds.PandasData):
 
 
 class CommodityMeanReversionStrategy(bt.Strategy):
+    """Trend-agnostic mean-reversion strategy for gold commodity futures."""
     params = dict(
         lookback=252,
         zscore_threshold=-2.0,
@@ -146,6 +190,7 @@ class CommodityMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, order state, and broker-value tracking series."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -158,6 +203,15 @@ class CommodityMeanReversionStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate order size from available equity, target notional exposure, and multiplier.
+
+        Args:
+            target_notional_pct: Target account fraction to allocate.
+            price: Optional custom execution price override.
+
+        Returns:
+            Position size rounded to two decimals, clipped to minimum step.
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -172,6 +226,7 @@ class CommodityMeanReversionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Handle one bar: optionally enter, exit, and record equity path."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -181,7 +236,7 @@ class CommodityMeanReversionStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Enter when flat and signal is active.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -189,18 +244,20 @@ class CommodityMeanReversionStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Exit when signal confirms mean-reversion completion or holding horizon elapsed.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order reference once the order reaches terminal state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss statistics for each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -212,7 +269,7 @@ class CommodityMeanReversionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Commodity Mean Reversion 策略回测"""
+"""Commodity Mean Reversion strategy backtest helpers."""
 
 
 
@@ -222,6 +279,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build analyzer kwargs based on the configured data timeframe.
+
+    Args:
+        config: Test configuration containing data timeframe.
+
+    Returns:
+        Keyword argument mapping for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -234,10 +299,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return finite values as-is, otherwise ``None``.
+
+    Args:
+        x: Candidate value from analyzer output.
+
+    Returns:
+        Input value if finite, else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from an equity curve-like sequence.
+
+    Args:
+        values: Iterable of broker or equity values ordered in time.
+
+    Returns:
+        Ulcer index value as a float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -252,6 +333,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Resolve data range and build the strategy feature frame.
+
+    Args:
+        config: Strategy/backtest configuration with data section.
+
+    Returns:
+        Dictionary containing prepared dataframe and parsed date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -265,6 +354,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Create and configure Backtrader engine, data feed, strategy, and analyzers.
+
+    Args:
+        frame: Prepared input payload from :func:`load_data`.
+        config: Full configuration mapping.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready for execution.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -287,6 +385,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract all KPI fields used by regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro engine after ``run()``.
+        frame: Backtest input payload.
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary with portfolio, trade, return, and risk metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -321,6 +430,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for serialization-friendly output.
+
+    Args:
+        v: Value to normalize.
+
+    Returns:
+        ISO string for datetime, ``None`` for NaN/inf floats, or original value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -329,7 +446,14 @@ def normalize(v):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert an actual scalar is finite and within tolerance of expected.
+
+    Args:
+        actual: Actual metric from runtime.
+        expected: Expected reference value.
+        tol: Allowed absolute tolerance.
+        key: Metric label for assertion messages.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -339,7 +463,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper by probing known strategy entry names.
+
+    Returns:
+        Callable data-loader function found in module globals.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -348,7 +476,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call ``build_cerebro`` with the argument order expected by this strategy.
+
+    Args:
+        inputs: Prepared input payload.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance.
+    """
     import inspect
     sig = inspect.signature(build_cerebro)
     params = list(sig.parameters.keys())
@@ -361,7 +497,7 @@ def _build_cerebro_compat(inputs, config):
 
 
 def _extract_metrics_compat(strat, cerebro, inputs, config):
-    """Call extract_metrics with whichever signature the original used."""
+    """Call ``extract_metrics`` with the argument order used by this strategy."""
     for args in (
         (strat, cerebro, inputs, config),
         (strat, cerebro, config, inputs),

@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    The backtest period is from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Builds CHO, CCI and moving-average-derived indicators to detect momentum
+    shifts, then filters entries with configurable buy/sell mode, session window,
+    and position management constraints.
+
+Strategy Logic:
+    Compute custom indicator lines, generate cross-based signals, optionally close
+    and reverse positions, and place bracket exits with optional trailing stop.
+    Test metrics are computed from trade and analyzer outputs and asserted with
+    regression tolerances.
 """
 from __future__ import annotations
 import math
@@ -24,7 +39,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'iCHO Trend CCIDualOnMA Filter',
-        'source_ea': 'ea/0108_iCHO_??_CCIDualOnMA_???',
+        'source_ea': 'ea/0108_iCHO_CCIDualOnMA_Filter',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -96,6 +111,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV file and normalize for a Backtrader pandas feed.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional minute adjustment.
+
+    Returns:
+        Normalized OHLCV dataframe indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -122,6 +148,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas data feed including an extra spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -130,9 +157,11 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AccumulationDistributionLine(bt.Indicator):
+    """Accumulate the ADL indicator from price and volume progression."""
     lines = ('adl',)
 
     def next(self):
+        """Compute one bar's accumulation/distribution line value."""
         high = float(self.data.high[0])
         low = float(self.data.low[0])
         close = float(self.data.close[0])
@@ -146,10 +175,12 @@ class AccumulationDistributionLine(bt.Indicator):
 
 
 class ChaikinOscillator(bt.Indicator):
+    """Chaikin oscillator as EMA(short) minus EMA(long) of ADL."""
     lines = ('cho',)
     params = dict(fast_period=3, slow_period=10)
 
     def __init__(self):
+        """Initialize fast/slow ADL EMAs."""
         self.adl = AccumulationDistributionLine(self.data)
         fast = bt.indicators.ExponentialMovingAverage(self.adl, period=self.p.fast_period)
         slow = bt.indicators.ExponentialMovingAverage(self.adl, period=self.p.slow_period)
@@ -157,10 +188,12 @@ class ChaikinOscillator(bt.Indicator):
 
 
 class LineCCI(bt.Indicator):
+    """Custom CCI computation on the selected input data."""
     lines = ('cci',)
     params = dict(period=14)
 
     def next(self):
+        """Calculate a bar's CCI value with zero-handling for degenerate windows."""
         if len(self.data) < self.p.period:
             self.lines.cci[0] = 0.0
             return
@@ -174,16 +207,19 @@ class LineCCI(bt.Indicator):
 
 
 class CCIDualOnMA(bt.Indicator):
+    """Provide fast/slow CCI values computed on a smoothing moving average."""
     lines = ('fast', 'slow')
     params = dict(ma_period=12, fast_period=14, slow_period=50)
 
     def __init__(self):
+        """Initialize smoothed MA and dual CCI lines."""
         self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_period)
         self.lines.fast = LineCCI(self.ma, period=self.p.fast_period)
         self.lines.slow = LineCCI(self.ma, period=self.p.slow_period)
 
 
 class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
+    """Trend-follow/mean-reversion hybrid strategy using CHO and dual CCI."""
     params = dict(
         fixed_lot=3.0,
         stop_loss_points=150,
@@ -209,6 +245,7 @@ class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create indicators and initialize trading state."""
         self.cho = ChaikinOscillator(self.data, fast_period=self.p.cho_fast_period, slow_period=self.p.cho_slow_period)
         self.cci_dual = CCIDualOnMA(self.data, ma_period=self.p.ma_period, fast_period=self.p.cci_fast_period, slow_period=self.p.cci_slow_period)
         self.entry_order = None
@@ -226,6 +263,11 @@ class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Log text with bar timestamp when verbose mode is enabled.
+
+        Args:
+            text: Message text.
+        """
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data.datetime[0])
@@ -380,6 +422,7 @@ class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
         return None
 
     def next(self):
+        """Process one bar: optional close/reverse then generate next entry."""
         self.bar_num += 1
         current_bar = self._current_dt()
         if self.position:
@@ -442,6 +485,7 @@ class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
         self._open_signal(open_side)
 
     def notify_order(self, order):
+        """Update order state for entry, stop-loss, and take-profit orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.entry_order:
@@ -475,6 +519,7 @@ class ICHOTrendCCIDualOnMAFilterStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track win/loss counters and clear open exit orders."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -501,6 +546,14 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename):
+    """Resolve and validate dataset path from module directory.
+
+    Args:
+        filename: Configured dataset path.
+
+    Returns:
+        Absolute path object of the dataset file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -509,6 +562,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse configured date strings.
+
+    Args:
+        value: ISO datetime string or ``None``.
+
+    Returns:
+        Parsed ``datetime`` or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -516,6 +577,14 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Load and slice test dataframe from configured source.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dict with dataframe and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -533,6 +602,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build configured Backtrader engine with analyzers and strategy.
+
+    Args:
+        config: Full strategy/backtest config.
+        frame: Loaded data frame payload.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -558,6 +636,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize non-finite analyzer values to ``None``.
+
+    Args:
+        value: Numeric value candidate.
+
+    Returns:
+        ``None`` for missing/non-finite values, else original.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -567,6 +653,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Assemble key metrics from strategy and analyzers.
+
+    Args:
+        results: Cerebro result list.
+        start_value: Initial cash used for return math.
+
+    Returns:
+        Metric dictionary used by assertions.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -604,6 +699,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run strategy backtest and return raw results and summary metrics.
+
+    Args:
+        plot: Flag to render a candlestick plot.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

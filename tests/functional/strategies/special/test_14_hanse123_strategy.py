@@ -4,6 +4,31 @@ Tests the Hans123 intraday breakout strategy using rebar futures data RB889.csv
 - Uses PandasData to load single contract data
 - Intraday strategy based on breakout of high/low points from first N bars after market open,
   with moving average filter
+
+Data Used:
+    Rebar (steel) continuous futures contract RB889 loaded from
+    ``tests/datas/RB889.csv`` via resolve_data_path, capped to the most recent
+    20,000 intraday bars. The CSV provides datetime-indexed OHLCV plus open
+    interest, cleaned of zero-price rows, and is delivered through a single
+    PandasData feed priced as a futures instrument (multiplier 10, 10% margin).
+
+Strategy Principle:
+    A moving-average-filtered variant of the classic Hans123 intraday breakout.
+    The high and low of the first N bars after the open define a breakout range
+    for the session. A 200-bar SMA acts as a trend filter so breakouts are only
+    taken in the direction of the prevailing trend: an upward MA with price above
+    it and a break of the upper band goes long, while the mirror condition goes
+    short. All positions are flattened before the close to stay flat overnight.
+
+Strategy Logic:
+    load_rb889_data loads and trims the futures frame. Each bar the strategy
+    tracks the running session high/low, fixes the upper/lower breakout bands
+    once ``bar_num`` bars have elapsed, and resets daily state at the 15:00 bar.
+    During the 21:00-23:00 and 09:00-11:00 windows it opens trend-aligned
+    breakout longs/shorts sized by account equity, and closes any open position
+    at 14:55. notify_order and notify_trade log fills and PnL; stop reports final
+    counters. The parametrized test runs both runonce=True and runonce=False,
+    collecting analyzer metrics and asserting them against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

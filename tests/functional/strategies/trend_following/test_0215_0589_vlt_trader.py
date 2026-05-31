@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` from `tests/datas/`.
+    Tests period: `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    Symbol and interval remain `XAUUSD` and `M15`, with bar shifting applied.
+
+Strategy Principle:
+    Searches for local low-volatility candle patterns to stage simultaneous
+    bullish and bearish pending entries.
+    When a pending order is hit, applies fixed stop-loss/take-profit and
+    maintains single-position exposure until exit condition is met.
+
+Strategy Logic:
+    MT5 data is parsed through `load_mt5_csv()`, then bounded by backtest window.
+    `build_cerebro()` wires feed, strategy, broker config, and analyzers.
+    In `next()`, pending orders are checked first, then exits are managed for
+    active positions, otherwise new pending entries are created from volatility checks.
+    Metrics extraction merges execution counters and analyzers for deterministic tests.
 """
 from __future__ import annotations
 import math
@@ -76,6 +94,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tabular market data into a normalized DataFrame.
+
+    Args:
+        filepath: Source path for MT5 data file.
+        fromdate: Optional datetime lower bound.
+        todate: Optional datetime upper bound.
+        bar_shift_minutes: Optional shift applied to datetime index.
+
+    Returns:
+        pd.DataFrame: Data normalized for MT5 backtesting.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,12 +128,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader pandas feed mapping for MT5-normalized OHLCV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class VLTTraderStrategy(bt.Strategy):
+    """Volatility-based pending-entry strategy with fixed size and TP/SL exits."""
     params = dict(
         lots=0.1,
         take_profit=10,
@@ -116,6 +147,7 @@ class VLTTraderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state for pending orders and execution counters."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -175,6 +207,11 @@ class VLTTraderStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Run per-bar state machine.
+
+        First checks pending entries, then exits active positions, and otherwise
+        computes volatility of recent candles to update new pending entry levels.
+        """
         self.bar_num += 1
         if len(self) < int(self.p.count_candles) + 3:
             return
@@ -223,6 +260,7 @@ class VLTTraderStrategy(bt.Strategy):
             }
 
     def notify_order(self, order):
+        """Update fill/reject counters and clear order tracking references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -241,6 +279,7 @@ class VLTTraderStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track closed-trade statistics including win/loss counts."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -264,6 +303,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve relative data path under test directory.
+
+    Args:
+        filename: Name of the data file.
+
+    Returns:
+        Path: Absolute path to the requested file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -271,6 +318,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 bars and bound them with configured from/to datetimes.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        dict: Dataframe and boundaries for execution.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -282,6 +337,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Instantiate and configure Cerebro for this scenario.
+
+    Args:
+        config: Test settings.
+        frame: Loaded data frame.
+
+    Returns:
+        bt.Cerebro: Prepared engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -300,6 +364,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate strategy counters and analyzer outputs for assertions.
+
+    Args:
+        strat: Executed strategy object.
+        cerebro: The running engine.
+        frame: Data and date-range context.
+        config: Configuration used for execution.
+
+    Returns:
+        dict: Metrics map.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -327,6 +402,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return structured results.
+
+    Args:
+        plot: Toggle plotting after execution.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

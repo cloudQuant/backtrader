@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` execution bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with each bar timestamp shifted forward by 15 minutes. A resampled
+    H4 (240-minute) feed carries the indicator. The backtest window spans
+    2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    This is a port of the Exp_ColorSchaffDeMarkerTrendCycle MetaTrader expert
+    advisor. It feeds fast and slow DeMarker oscillators into a Schaff Trend
+    Cycle transform (double stochastic normalization plus EMA smoothing),
+    producing a bounded oscillator and a discrete color code marking trend
+    direction and overbought/oversold regimes. Color transitions out of the
+    high band signal shorts/long-exits and out of the low band signal
+    longs/short-exits, with reversal handling and fixed point-based stops.
+
+Strategy Logic:
+    1. ``DeMarker`` and ``ColorSchaffDeMarkerTrendCycle`` build the oscillator
+       and color line on the H4 signal feed.
+    2. ``load_backtest_frame`` loads the data; ``build_cerebro`` adds the M15
+       execution feed plus the resampled H4 signal feed, broker, strategy, and
+       analyzers.
+    3. ``ColorSchaffDeMarkerTrendCycleStrategy.next`` reads the current/previous
+       color, opens/closes/reverses positions on regime changes, and
+       ``_check_exit_levels`` enforces stop-loss/take-profit.
+    4. ``notify_order`` manages entry fills, risk arming, and reverse-after-close;
+       ``notify_trade`` tallies closed trades.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_17_0017_colorschaffdemarkertrendcycle`` forces ``runonce=True``,
+       captures the metrics dict, and asserts each value against migration-time
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -86,10 +118,13 @@ def load_config(*args, **kwargs):
 
 
 class DeMarker(bt.Indicator):
+    """DeMarker oscillator measuring directional move strength (0..1)."""
+
     lines = ('demarker',)
     params = dict(period=14)
 
     def __init__(self):
+        """Build the up/down move sums and emit the DeMarker ratio."""
         self.addminperiod(self.p.period + 1)
         high_diff = self.data.high(0) - self.data.high(-1)
         low_diff = self.data.low(-1) - self.data.low(0)
@@ -102,6 +137,18 @@ class DeMarker(bt.Indicator):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV, openinterest, and
+        spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -128,6 +175,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing an extra ``spread`` line from MT5 exports."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -142,10 +191,13 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorSchaffDeMarkerTrendCycle(bt.Indicator):
+    """Schaff Trend Cycle of DeMarker oscillators with a discrete color line."""
+
     lines = ('stc', 'color')
     params = dict(fast_demarker=23, slow_demarker=50, cycle=10, high_level=60, low_level=-60)
 
     def __init__(self):
+        """Build the fast/slow DeMarkers and initialize the STC smoothing state."""
         self.addminperiod(3 * max(int(self.p.fast_demarker), int(self.p.slow_demarker)) + int(self.p.cycle) + 5)
         self.fast_demarker = DeMarker(self.data, period=int(self.p.fast_demarker))
         self.slow_demarker = DeMarker(self.data, period=int(self.p.slow_demarker))
@@ -165,6 +217,7 @@ class ColorSchaffDeMarkerTrendCycle(bt.Indicator):
         return ((value - llv) / (hhv - llv)) * scale
 
     def next(self):
+        """Compute the STC value and discrete color code for the current bar."""
         fast = float(self.fast_demarker[0]) if math.isfinite(float(self.fast_demarker[0])) else 0.0
         slow = float(self.slow_demarker[0]) if math.isfinite(float(self.slow_demarker[0])) else 0.0
         macd = fast - slow
@@ -204,6 +257,8 @@ class ColorSchaffDeMarkerTrendCycle(bt.Indicator):
 
 
 class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
+    """Schaff-DeMarker color-regime strategy with reversal and stop management."""
+
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -227,6 +282,7 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind feeds, build the STC indicator, and reset order/risk state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = ColorSchaffDeMarkerTrendCycle(
@@ -257,6 +313,11 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
         self.warmup = 3 * warm_a + int(self.p.cycle) + int(self.p.signal_bar) + 6
 
     def log(self, text):
+        """Print a log message prefixed with the current execution timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -344,6 +405,7 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Act on STC color regime changes once per new signal bar."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -399,6 +461,11 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Manage entry fills, risk arming, rejections, and reverse-after-close.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -442,6 +509,11 @@ class ColorSchaffDeMarkerTrendCycleStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades and clear risk state when flat.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -466,6 +538,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -473,6 +556,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter the market data frame described by the config.
+
+    Args:
+        config: Resolved configuration dict with a ``data`` section.
+
+    Returns:
+        Dict with ``data``, ``fromdate``, and ``todate`` keys.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -503,6 +597,15 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Assemble a cerebro with the M15 feed, resampled H4 signal, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Dict containing the loaded ``data`` DataFrame.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -534,6 +637,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The cerebro instance after the run.
+        frame: Dict with the loaded ``data`` frame and date bounds.
+        config: Resolved configuration dict.
+
+    Returns:
+        Dict of backtest metrics keyed by metric name.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -576,6 +690,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest end to end and optionally plot the result.
+
+    Args:
+        plot: Whether to render the chart after the run.
+
+    Returns:
+        Tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

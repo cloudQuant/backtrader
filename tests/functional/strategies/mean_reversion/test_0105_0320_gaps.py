@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Gaps Strategy") implements a gap-fill mean reversion trading system.
+    - Market Assumptions: Gaps formed at market openings or between intraday bars are prone to be "filled" as prices revert to previous baseline levels.
+    - Entry Signals:
+        - Buy Entry (gap down): Current bar's Open price is lower than previous bar's Low price by at least `gap_pips` (1 pip).
+        - Sell Entry (gap up): Current bar's Open price is higher than previous bar's High price by at least `gap_pips` (1 pip).
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (50 pips, `stoploss_pips`) and Take Profit (50 pips, `takeprofit_pips`).
+        - Trailing stop exit manages active open profit using `trailing_stop_pips` and `trailing_step_pips` parameters.
 """
 from __future__ import annotations
 import math
@@ -23,7 +39,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Gaps',
-        'source_ea': 'ea/0320_缺口/gaps.mq5',
+        'source_ea': 'ea/0320_Gaps/gaps.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -67,15 +83,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -102,6 +136,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with supplementary spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -116,15 +151,10 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class GapsStrategy(bt.Strategy):
-    """
-    0320 Gaps EA — gap trading strategy.
+    """Strategy class implementing Gaps breakout mean reversion.
 
-    Logic:
-    - On each new bar, compare current bar's open with previous bar's high/low.
-    - If open < previous_low - gap_pips → BUY (gap down, expect reversion).
-    - If open > previous_high + gap_pips → SELL (gap up, expect reversion).
-    - Single position at a time.
-    - SL/TP/Trailing stop support.
+    Attributes:
+        params (dict): Configured strategy parameters.
     """
     params = dict(
         fixed_lot=0.1,
@@ -137,6 +167,7 @@ class GapsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize tracking metrics, list series, and state variables."""
         self.data0 = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -147,14 +178,21 @@ class GapsStrategy(bt.Strategy):
         self.limit_price = None
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _reset_exit_levels(self):
+        """Reset target stop-loss and take-profit prices to None."""
         self.stop_price = None
         self.limit_price = None
 
     def _initialize_exit_levels(self):
+        """Calculate and establish target stop-loss and take-profit exit prices based on entry price."""
         if not self.position or self.entry_price is None:
             return
         ps = self.p.point_size
@@ -166,6 +204,7 @@ class GapsStrategy(bt.Strategy):
             self.limit_price = self.entry_price - self.p.takeprofit_pips * ps if self.p.takeprofit_pips > 0 else None
 
     def _update_trailing_stop(self):
+        """Calculate and update dynamic trailing stop levels based on trailing_stop_pips and trailing_step_pips."""
         if not self.position or self.entry_price is None:
             return
         if self.p.trailing_stop_pips == 0:
@@ -186,6 +225,12 @@ class GapsStrategy(bt.Strategy):
                     self.stop_price = new_sl
 
     def _submit_entry(self, side, reason):
+        """Submit a new long or short market order or handle reverse positions.
+
+        Args:
+            side (str): Direction of order ('long' or 'short').
+            reason (str): Label indicating entry trigger.
+        """
         if self.entry_order is not None or self.close_order is not None:
             self.pending_side = side
             return
@@ -207,12 +252,22 @@ class GapsStrategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size} reason={reason}')
 
     def _submit_close(self, reason):
+        """Submit a market order to close any active open position.
+
+        Args:
+            reason (str): Label indicating exit trigger.
+        """
         if not self.position or self.close_order is not None:
             return
         self.close_order = self.close()
         self.log(f'CLOSE side={self.active_side} reason={reason}')
 
     def _check_exit_thresholds(self):
+        """Check active position status for target stop-loss or take-profit price breaches.
+
+        Returns:
+            bool: True if an exit order was successfully placed, otherwise False.
+        """
         if not self.position or self.entry_price is None or self.close_order is not None:
             return False
         bar_high = float(self.data0.high[0])
@@ -234,6 +289,7 @@ class GapsStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         if len(self.data0) < 3:
             return
         self._update_trailing_stop()
@@ -256,6 +312,11 @@ class GapsStrategy(bt.Strategy):
             self._submit_entry('short', f'gap up: open={cur_open:.5f} > prev_high={prev_high:.5f}+gap={gap:.5f}')
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -282,6 +343,11 @@ class GapsStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -292,8 +358,6 @@ class GapsStrategy(bt.Strategy):
 
 
 
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -301,6 +365,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -308,12 +383,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO format datetime string value into datetime object.
+
+    Args:
+        value (str): Datetime string value.
+
+    Returns:
+        datetime.datetime or None: Parsed datetime object.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -325,6 +419,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Configure default analyzers on a Cerebro backtest engine.
+
+    Args:
+        cerebro (bt.Cerebro): Target Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -333,6 +432,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -347,6 +455,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Filter out infinite or NaN values, returning None instead.
+
+    Args:
+        value (float): Input value to inspect.
+
+    Returns:
+        float or None: Filtered float value or None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -355,6 +471,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Calculate and print backtest statistics and performance metrics summary.
+
+    Args:
+        results (list): Output strategy instances from cerebro run.
+        start_value (float): Initial account equity value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -381,6 +503,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Main execution function to parse arguments and run the backtest."""
     parser = argparse.ArgumentParser(description='Run Gaps EA backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
@@ -395,7 +518,14 @@ def main():
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -404,124 +534,84 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
 def test_105_0105_0320_gaps() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/mean_reversion/0105_0320_gaps.
     """
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function (returns a dict).
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "extracted" not in captured:
-                        captured["extracted"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Hook cerebro.run() to (a) force runonce=True and (b) capture results
-    # so we can derive metrics directly from analyzers when no extractor returns a dict.
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _hooked_cerebro_run(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        _r = _orig_run(self, *args, **kwargs)
-        captured["cerebro"] = self
-        captured["results"] = _r
-        try:
-            captured["initial_cash"] = float(self.broker.startingcash)
-        except Exception:
-            pass
-        return _r
-    _bt.Cerebro.run = _hooked_cerebro_run
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "extracted" not in captured:
-                    captured["extracted"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "extracted" not in captured:
-                            captured["extracted"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "cerebro" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("extracted")
-    if metrics is None:
-        # Derive from cerebro/analyzers
-        cerebro = captured.get("cerebro")
-        results = captured.get("results") or []
-        assert cerebro is not None and results, "no metrics or cerebro captured"
-        strat = results[0] if not isinstance(results[0], list) else results[0][0]
-        metrics = {}
-        metrics["final_value"] = float(cerebro.broker.getvalue())
-        if "initial_cash" in captured:
-            metrics["initial_cash"] = captured["initial_cash"]
-        analyzers = getattr(strat, "analyzers", None)
-        if analyzers is not None:
-            for name in dir(analyzers):
-                if name.startswith("_"):
-                    continue
-                try:
-                    an = getattr(analyzers, name)
-                    analysis = an.get_analysis()
-                except Exception:
-                    continue
-                if "sharperatio" in analysis and "sharpe_ratio" not in metrics:
-                    metrics["sharpe_ratio"] = analysis.get("sharperatio")
-                if "rnorm" in analysis and "annual_return" not in metrics:
-                    metrics["annual_return"] = analysis.get("rnorm")
-                if "rtot" in analysis and "return_rate" not in metrics:
-                    metrics["return_rate"] = analysis.get("rtot")
-                if "max" in analysis and isinstance(analysis["max"], dict) and "drawdown" in analysis["max"] and "max_drawdown" not in metrics:
-                    metrics["max_drawdown"] = analysis["max"]["drawdown"]
-                if "sqn" in analysis and "sqn" not in metrics:
-                    metrics["sqn"] = analysis.get("sqn")
-                if "total" in analysis and isinstance(analysis["total"], dict) and "total_trades" not in metrics:
-                    metrics["total_trades"] = analysis["total"].get("closed", analysis["total"].get("total", 0))
-                    metrics["trade_num"] = metrics.get("total_trades", 0)
-                if "won" in analysis and isinstance(analysis["won"], dict) and "win_count" not in metrics:
-                    metrics["win_count"] = analysis["won"].get("total", 0)
-                if "lost" in analysis and isinstance(analysis["lost"], dict) and "loss_count" not in metrics:
-                    metrics["loss_count"] = analysis["lost"].get("total", 0)
-        for attr in ("bar_num", "buy_count", "sell_count", "rebalance_count"):
-            if hasattr(strat, attr) and attr not in metrics:
-                metrics[attr] = getattr(strat, attr)
-
-    assert metrics, "no metrics derived"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = {}
+    strat = results[0] if not isinstance(results[0], list) else results[0][0]
+    metrics["final_value"] = float(cerebro.broker.getvalue())
+    metrics["initial_cash"] = float(config['backtest']['initial_cash'])
+    
+    analyzers = getattr(strat, 'analyzers', None)
+    if analyzers is not None:
+        for name in dir(analyzers):
+            if name.startswith("_"):
+                continue
+            try:
+                an = getattr(analyzers, name)
+                analysis = an.get_analysis()
+            except Exception:
+                continue
+            if "sharperatio" in analysis and "sharpe_ratio" not in metrics:
+                metrics["sharpe_ratio"] = analysis.get("sharperatio")
+            if "rnorm" in analysis and "annual_return" not in metrics:
+                metrics["annual_return"] = analysis.get("rnorm")
+            if "rtot" in analysis and "return_rate" not in metrics:
+                metrics["return_rate"] = analysis.get("rtot")
+            if "max" in analysis and isinstance(analysis["max"], dict) and "drawdown" in analysis["max"] and "max_drawdown" not in metrics:
+                metrics["max_drawdown"] = analysis["max"]["drawdown"]
+            if "sqn" in analysis and "sqn" not in metrics:
+                metrics["sqn"] = analysis.get("sqn")
+            if "total" in analysis and isinstance(analysis["total"], dict) and "total_trades" not in metrics:
+                metrics["total_trades"] = analysis["total"].get("closed", analysis["total"].get("total", 0))
+                metrics["trade_num"] = metrics.get("total_trades", 0)
+            if "won" in analysis and isinstance(analysis["won"], dict) and "win_count" not in metrics:
+                metrics["win_count"] = analysis["won"].get("total", 0)
+            if "lost" in analysis and isinstance(analysis["lost"], dict) and "loss_count" not in metrics:
+                metrics["loss_count"] = analysis["lost"].get("total", 0)
+    for attr in ("bar_num", "buy_count", "sell_count", "rebalance_count"):
+        if hasattr(strat, attr) and attr not in metrics:
+            metrics[attr] = getattr(strat, attr)
 
     assert metrics.get('win_count') == 29, f"win_count: expected=29, got={metrics.get('win_count')!r}"
     assert metrics.get('loss_count') == 30, f"loss_count: expected=30, got={metrics.get('loss_count')!r}"

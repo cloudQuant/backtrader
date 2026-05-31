@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M5.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars and normalize to Backtrader OHLCV dataframe format."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +38,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping matching MT5 exported column ordering."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +46,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class VRBreakdownLevelStrategy(bt.Strategy):
+    """Volume-reversal breakdown strategy with stop/take-profit bracket handling."""
     params = dict(
         iLots=0.01, iTakeProfit=400, iStopLoss=200,
         iMagicNumber=227, iSlippage=30,
@@ -52,6 +55,7 @@ class VRBreakdownLevelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize lot sizing, level state, and counters for lifecycle tracking."""
         self.lt = 0.0
         self.level_up = 0.0
         self.level_dw = 0.0
@@ -114,6 +118,7 @@ class VRBreakdownLevelStrategy(bt.Strategy):
                 self.tp_order = self.buy(size=size, exectype=bt.Order.Limit, price=tp, oco=self.stop_order)
 
     def next(self):
+        """Place directional stop entries when no position is active and levels are ready."""
         self.bar_num += 1
         if len(self.data) < 2 or self.lt <= 0:
             return
@@ -128,6 +133,7 @@ class VRBreakdownLevelStrategy(bt.Strategy):
             self.sell_stop = self.sell(size=self.lt, exectype=bt.Order.Stop, price=self.level_dw, oco=self.buy_stop)
 
     def notify_order(self, order):
+        """Update open/close order references and submit exit legs when entries complete."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order is self.buy_stop:
@@ -169,6 +175,7 @@ class VRBreakdownLevelStrategy(bt.Strategy):
                 self.tp_order = None
 
     def notify_trade(self, trade):
+        """Track trade outcomes and clear exit orders after position closure."""
         if trade.isopen:
             if trade.size > 0:
                 self.buy_count += 1

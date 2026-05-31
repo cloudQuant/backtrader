@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` with
+    ``fromdate=2025-12-03 01:15:00`` and ``todate=2026-03-10 09:00:00``.
+    The data is parsed from MT5-formatted fields, converted to OHLCV bars,
+    shifted by 15 minutes (bar_shift_minutes), and loaded into a custom
+    ``Mt5PandasFeed``.
+
+Strategy Principle:
+    Builds Ichimoku Cloud components and enters long positions when the previous
+    candle is bullish inside the cloud with ``senkou_span_a > senkou_span_b``.
+    Enters short positions when the previous candle is bearish inside the cloud with
+    ``senkou_span_b > senkou_span_a``.
+    Risk control is implemented through fixed pip-based stop loss and take profit
+    from parameters.
+
+Strategy Logic:
+    The script loads config and MT5 CSV data, creates a Backtrader ``Cerebro``,
+    adds indicators, strategy parameters, and analyzers, then runs once to produce
+    a metrics payload. The strategy tracks entry/exit state each bar, applies
+    protective stop/take-profit checks each bar, flips positions when opposite
+    signals appear, and records trade metrics for deterministic assertions.
 """
 from __future__ import annotations
 import math
@@ -76,6 +98,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MT5-exported CSV file into a Backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the source CSV file.
+        fromdate: Optional filter for bars on or after this datetime.
+        todate: Optional filter for bars on or before this datetime.
+        bar_shift_minutes: Minutes to shift timestamps for timezone/alignment fixes.
+
+    Returns:
+        pd.DataFrame: Data indexed by datetime with columns ``open``, ``high``,
+        ``low``, ``close``, ``volume``, and ``openinterest``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -97,6 +131,11 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom Backtrader feed mapping MT5 columns to standard OHLCV indices.
+
+    This preserves existing column order assumptions used by the inlined strategy.
+    """
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -104,6 +143,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class Ichimok2005Strategy(bt.Strategy):
+    """Ichimoku-based trend strategy with fixed-risk take-profit/stop-loss exits."""
+
     params = dict(
         tenkan=9,
         kijun=26,
@@ -116,6 +157,7 @@ class Ichimok2005Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize Ichimoku indicators and runtime tracking state."""
         self.ichimoku = bt.indicators.Ichimoku(
             self.data,
             tenkan=self.p.tenkan,
@@ -137,6 +179,11 @@ class Ichimok2005Strategy(bt.Strategy):
         self._last_position_size = 0.0
 
     def log(self, text):
+        """Log one line of execution text with timestamp.
+
+        Args:
+            text: Message to print with bar timestamp.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -169,6 +216,7 @@ class Ichimok2005Strategy(bt.Strategy):
             self._take_profit_price = self._entry_price - take_distance if self.p.take_profit_pips > 0 else None
 
     def next(self):
+        """Advance one bar, update position state, check exits, and evaluate signals."""
         self.bar_num += 1
         warmup = self.p.senkou + self.p.kijun + 5
         if len(self.data) < warmup:
@@ -242,12 +290,22 @@ class Ichimok2005Strategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Clear internal tracked state once no position is active.
+
+        Args:
+            order: Executed or rejected order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if not self.position:
             self._clear_position_state()
 
     def notify_trade(self, trade):
+        """Track open/closed trade counters and win/loss statistics.
+
+        Args:
+            trade: Trade object containing direction, status, and PnL.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -280,6 +338,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve relative test data path to absolute path and validate existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -287,6 +346,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest input dataframe and return frame metadata.
+
+    Args:
+        config: Test configuration dictionary containing ``data`` section.
+
+    Returns:
+        dict: Includes keys ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -303,6 +370,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Backtrader cerebro object for this strategy test.
+
+    Args:
+        config: Test configuration including backtest and data metadata.
+        frame: Prepared data frame container from :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured cerebro with feed, strategy, and analyzers.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -326,6 +402,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract metrics used by the regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro instance after run, used for final account value.
+        frame: Backtest data frame metadata.
+        config: Test configuration for initial cash and constants.
+
+    Returns:
+        dict: Deterministic metrics bundle consumed by the inline test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -366,6 +453,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute backtest end-to-end and return results, metrics, and cerebro.
+
+    Args:
+        plot: Whether to render cerebro plot after run.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

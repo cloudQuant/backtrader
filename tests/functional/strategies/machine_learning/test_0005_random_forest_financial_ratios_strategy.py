@@ -27,6 +27,7 @@ ASSET_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5-style market CSV and return sorted OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -51,6 +52,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_ml_inputs(asset_map, params):
+    """Align asset frames and build rolling feature-label samples."""
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -104,6 +106,7 @@ def prepare_ml_inputs(asset_map, params):
 
 
 def build_prediction_lookup(features_list, labels_list, dates, params):
+    """Train retrained RandomForest models and generate per-date predictions."""
     train_window = int(params.get("train_window", 252))
     rebalance_step = max(1, int(params.get("rebalance_interval_days", 21)))
     random_state = int(params.get("random_state", 42))
@@ -145,6 +148,7 @@ def build_prediction_lookup(features_list, labels_list, dates, params):
 
 
 class RandomForestFinancialRatiosStrategy(bt.Strategy):
+    """Portfolio rotation strategy based on RandomForest probability ranking."""
     params = dict(
         top_n=2,
         threshold=0.55,
@@ -153,6 +157,7 @@ class RandomForestFinancialRatiosStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and order tracking."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -180,6 +185,7 @@ class RandomForestFinancialRatiosStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rebalance holdings at configured intervals according to predictions."""
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         if self.order_refs:
@@ -208,11 +214,13 @@ class RandomForestFinancialRatiosStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Track order lifecycle and clear pending references on completion."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update trade result counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    A dual moving-average crossover system. An exponential moving average (EMA)
+    and a linear weighted moving average (LWMA) of the same period define the
+    trend. A long is opened when the LWMA leads above a rising EMA and both turn
+    up, a short on the mirror bearish condition, and positions are closed when
+    the LWMA crosses back across the EMA. Lot sizing supports a fixed lot or a
+    risk-based size with optional martingale reduction after losing streaks.
+
+Strategy Logic:
+    ``__init__`` builds the EMA and LWMA indicators, zeroes the counters, and
+    sets the minimum period. ``next`` reads the two MAs, closes the position on a
+    reverse cross, and otherwise opens a long or short on the alignment signal
+    with a risk-scaled lot. ``notify_order`` clears the working order on any
+    terminal status; ``notify_trade`` tracks buy/sell on open and win/loss (and
+    per-trade PnL) on close. The module-level helpers load the CSV, build the
+    cerebro with analyzers, and extract a metrics dictionary that the test
+    compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -73,6 +99,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -98,6 +137,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -105,6 +146,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class UniversalInvestorStrategy(bt.Strategy):
+    """EMA/LWMA crossover system with risk-scaled lot sizing."""
+
     params = dict(
         moving_period=23,
         maximum_risk=0.05,
@@ -113,6 +156,7 @@ class UniversalInvestorStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the EMA and LWMA indicators, zero counters, and set min period."""
         self.ema = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.moving_period)
         self.lwma = bt.indicators.WeightedMovingAverage(self.data.close, period=self.p.moving_period)
 
@@ -131,6 +175,7 @@ class UniversalInvestorStrategy(bt.Strategy):
         self.addminperiod(int(self.p.moving_period) + 3)
 
     def log(self, text):
+        """Print ``text`` prefixed with the current bar's ISO timestamp."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -158,6 +203,18 @@ class UniversalInvestorStrategy(bt.Strategy):
         return self._normalize_lot(lot)
 
     def next(self):
+        """Execute strategy logic for each completed bar.
+
+        The strategy evaluates EMA/LWMA state to:
+        1) close an existing position when reverse trend confirmation appears, then
+        2) submit a new direction order when a fresh trend alignment is confirmed.
+
+        Args:
+            self: Strategy instance state, including live indicators and counters.
+
+        Returns:
+            None.
+        """
         self.bar_num += 1
         if self.order is not None:
             return
@@ -199,6 +256,14 @@ class UniversalInvestorStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Handle pending order lifecycle callbacks and clear active order state.
+
+        Args:
+            order: The broker order object reported by backtrader.
+
+        Returns:
+            None.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -206,6 +271,18 @@ class UniversalInvestorStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track trade lifecycle events and update win/loss counters.
+
+        The callback records:
+        - first open trade side counters when a position is opened, and
+        - closed-trade PnL statistics and win/loss totals on exit.
+
+        Args:
+            trade: Backtrader Trade object for the updated position.
+
+        Returns:
+            None.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -240,6 +317,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data filename relative to the script directory.
+
+    Args:
+        filename: Relative data file path from this test module.
+
+    Returns:
+        Path object pointing to the resolved absolute file location.
+
+    Raises:
+        FileNotFoundError: When the resolved file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -247,6 +335,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build a filtered OHLCV data frame for a configured backtest window.
+
+    Args:
+        config: Inlined config dictionary with a ``data`` section defining the
+            source file and date range.
+
+    Returns:
+        Dictionary with keys ``data``, ``fromdate``, and ``todate`` containing
+        the parsed and date-limited market data.
+
+    Raises:
+        ValueError: If the parsed data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -263,6 +364,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Initialize and configure a Backtrader Cerebro engine for this strategy.
+
+    Args:
+        config: Configuration dictionary containing strategy and backtest parameters.
+        frame: Backtest input dictionary returned by :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance with data feed, strategy, and analyzers
+        registered.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -286,6 +397,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract normalized metrics used by regression assertions.
+
+    Args:
+        strat: Strategy instance after ``cerebro.run()`` completion.
+        cerebro: Cerebro instance used to run the backtest.
+        frame: Backtest input dictionary with market data and time bounds.
+        config: Inlined strategy/backtest config.
+
+    Returns:
+        Dictionary of run-time counters, returns, risk metrics and analyzer outputs
+        aligned to the original expected-JSON structure.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

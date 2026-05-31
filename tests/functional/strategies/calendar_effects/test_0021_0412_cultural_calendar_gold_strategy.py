@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol GLD (gold ETF) on the daily (D1) timeframe, loaded from the MT5 export
+    ``tests/datas/mt5_1d_data/GLD_1d.csv`` and spanning 2008-01-01 to 2025-12-31.
+    A derived signal feed adds a per-bar target exposure, holiday code, and
+    entry/exit window flags built from a fixed cultural-holiday calendar.
+
+Strategy Principle:
+    This is the "Cultural Calendar Gold Strategy". It assumes gold demand rises
+    around major gold-buying cultural holidays (Diwali, Lunar New Year, Eid
+    al-Fitr, Christmas), so it builds a long exposure in a window spanning a
+    configurable number of days before each holiday through a few days after.
+    Each holiday carries its own weight, scaling the base position size, and
+    overlapping windows take the stronger target.
+
+Strategy Logic:
+    load_backtest_frame loads the daily frame and prepare_cultural_calendar_
+    features (via the holiday calendar) precomputes the target exposure and
+    entry/exit flags; build_cerebro wires the signal feed, a percentage
+    commission, the strategy, and the analyzers. Each bar the strategy tracks the
+    target exposure and, while no order is pending, scales into the holiday
+    window via order_target_percent or exits to flat once the window closes.
+    notify_order clears the pending order and notify_trade tallies wins and
+    losses. extract_metrics consolidates analyzer output (plus calendar-day count
+    and an Ulcer Index), and the test forces runonce=True, runs the module's
+    run()/main(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -90,6 +116,20 @@ HOLIDAY_DEFINITIONS = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -147,6 +187,17 @@ def _build_holiday_calendar(index, params):
 
 
 def prepare_cultural_calendar_features(price_df, params):
+    """Add target-exposure and entry/exit window columns from the holiday calendar.
+
+    Args:
+        price_df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters providing the base position size and per-holiday
+            window/weight overrides.
+
+    Returns:
+        A copy of ``price_df`` with holiday code, target exposure, in-window
+        flag, and entry/exit signal columns (warm-up rows dropped).
+    """
     out = price_df.copy()
     base_position_size = float(params.get('base_position_size', 0.10))
     out['target_exposure'] = 0.0
@@ -176,6 +227,8 @@ def prepare_cultural_calendar_features(price_df, params):
 
 
 class CulturalCalendarGoldFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the holiday code, exposure, and signal lines."""
+
     lines = ('holiday_code', 'target_exposure', 'in_holiday_window', 'entry_signal', 'exit_signal')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -184,6 +237,8 @@ class CulturalCalendarGoldFeed(bt.feeds.PandasData):
 
 
 class CulturalCalendarGoldStrategy(bt.Strategy):
+    """Scale gold exposure into cultural-holiday buying windows."""
+
     params = dict(
         base_position_size=0.10,
         diwali_entry_days_before=20,
@@ -201,6 +256,7 @@ class CulturalCalendarGoldStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order state, and calendar/exposure trackers."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -213,6 +269,13 @@ class CulturalCalendarGoldStrategy(bt.Strategy):
         self.max_target_exposure = 0.0
 
     def next(self):
+        """Scale into or out of the holiday exposure target each bar.
+
+        Increments the bar counter, records broker value, tracks the running max
+        target exposure and calendar-day count, then—while no order is pending—
+        exits to flat when the window closes or scales the position toward the
+        current holiday-weighted target via order_target_percent.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         target = float(self.data.target_exposure[0])
@@ -240,11 +303,22 @@ class CulturalCalendarGoldStrategy(bt.Strategy):
             self.pending_order = self.order_target_percent(target=desired)
 
     def notify_order(self, order):
+        """Clear the pending order once it is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -264,10 +338,27 @@ class CulturalCalendarGoldStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -281,6 +372,19 @@ def calculate_ulcer_index(values):
 
 
 def load_backtest_frame(config):
+    """Load the daily frame and add the cultural-calendar feature columns.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` bounds.
+
+    Raises:
+        ValueError: If the feature frame is empty after preparation.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -292,6 +396,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, signal feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, commission, and symbol
+            settings.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the cultural-calendar feed,
+        a percentage commission, the strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['backtest'].get('commission', 0.0005)))
@@ -307,6 +422,19 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frame dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, calendar days, max exposure,
+        PnL, return, win rate, profit factor, drawdown, Sharpe, annualized
+        return, SQN, and Ulcer Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -348,6 +476,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

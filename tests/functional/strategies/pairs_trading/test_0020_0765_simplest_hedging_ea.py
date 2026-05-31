@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy implements a basic grid-like hedging system, submitting simultaneous buy and sell (hedged) pairs on the same asset.
+    - Market Assumptions: Continuous execution of dual-direction positions will capture intraday volatility. While one direction hits stop loss, the other direction captures large profits when a strong trend emerges.
+    - Entry Signals:
+        - When no active layers exist, immediately submit a simultaneous buy and sell pair (hedged pair).
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (76 pips) and Take Profit (750 pips).
+        - Stop-hit / Take-profit closed order logic monitors live high/low bar ranges and closes the respective leg immediately.
 """
 from __future__ import annotations
 import math
@@ -23,8 +38,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '最简单的对冲_EA',
-        'source_ea': 'ea/0765_最简单的对冲_EA',
+        'name': 'Simplest_Hedging_EA',
+        'source_ea': 'ea/0765_Simplest_Hedging_EA',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -65,15 +80,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,12 +134,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class SimplestHedgingEaStrategy(bt.Strategy):
+    """Strategy class implementing simple multi-layer hedged pair logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lots=1.0,
         stop_loss=76,
@@ -117,6 +156,7 @@ class SimplestHedgingEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -133,13 +173,28 @@ class SimplestHedgingEaStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _unit(self):
+        """Calculate the price unit value based on point size and digit adjustments.
+
+        Returns:
+            float: Calculated price step unit.
+        """
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _submit_pair(self):
+        """Submit simultaneous long (buy) and short (sell) hedged market orders.
+
+        Returns:
+            bool: True if orders were placed, otherwise False.
+        """
         if self.pending_orders:
             return False
         self.pending_orders = [
@@ -151,6 +206,11 @@ class SimplestHedgingEaStrategy(bt.Strategy):
         return True
 
     def _check_layer_exits(self):
+        """Check if any active layer has crossed its stop-loss or take-profit price levels.
+
+        Returns:
+            bool: True if exit orders were placed, otherwise False.
+        """
         if not self.layers or self.pending_orders:
             return False
         high = float(self.data.high[0])
@@ -173,6 +233,7 @@ class SimplestHedgingEaStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         curr_dt = bt.num2date(self.data.datetime[0])
         if self._check_layer_exits():
@@ -186,6 +247,16 @@ class SimplestHedgingEaStrategy(bt.Strategy):
             self._submit_pair()
 
     def _create_layer(self, side, price, size):
+        """Build and return an active trade layer dict with calculated exit targets.
+
+        Args:
+            side (str): Direction of order ('buy' or 'sell').
+            price (float): Order execution price.
+            size (float): Order size in lots.
+
+        Returns:
+            dict: Structured layer parameter details.
+        """
         unit = self._unit()
         if side == 'buy':
             stop_price = round(price - float(self.p.stop_loss) * unit, int(self.p.price_digits)) if self.p.stop_loss > 0 else None
@@ -202,6 +273,11 @@ class SimplestHedgingEaStrategy(bt.Strategy):
         }
 
     def notify_order(self, order):
+        """Callback to handle order status updates and track active layers.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         matched = None
@@ -233,6 +309,11 @@ class SimplestHedgingEaStrategy(bt.Strategy):
             self.pending_orders = [item for item in self.pending_orders if item['order'].ref != order.ref]
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -258,6 +339,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -265,6 +357,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -276,6 +379,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -293,6 +405,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -333,8 +456,15 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -358,78 +488,75 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_20_0020_0765_simplest_hedging_ea() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/pairs_trading/0020_0765_simplest_hedging_ea.
     """
-    # Capture metrics by hooking extract_metrics() (or similar) and invoking the
-    # original main()/run(). This reuses whatever loader / build_cerebro /
-    # metrics-extraction signatures the strategy used internally.
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function.
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "summarize", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "metrics" not in captured:
-                        captured["metrics"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Force runonce=True for the cerebro.run() call inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "metrics" not in captured:
-                    captured["metrics"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "metrics" not in captured:
-                            captured["metrics"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "no metrics captured during run"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 6129, f"bar_num: expected=6129, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 110, f"buy_count: expected=110, got={metrics.get('buy_count')!r}"

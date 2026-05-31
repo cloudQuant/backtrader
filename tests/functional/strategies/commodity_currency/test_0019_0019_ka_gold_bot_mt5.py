@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the M5 (5-minute) timeframe, loaded from the MT5
+    export ``tests/datas/XAUUSD_M5.csv`` and covering 2025-12-03 01:05 to
+    2025-12-31 23:59 with each bar timestamp shifted forward by 5 minutes. The
+    feed also carries the MT5 ``spread`` column, which the spread filter uses; a
+    single 5-minute feed drives all indicators.
+
+Strategy Principle:
+    A port of the MT5 expert advisor KA-Gold Bot. It combines a Keltner-style
+    channel (an EMA midline plus a rolling average high-low range) with a fast
+    EMA(10) and a slow EMA(200) trend filter. A long is taken when price breaks
+    above the upper band, sits above the slow EMA, and the fast EMA crosses up
+    through the band; the mirror conditions trigger a short. Risk is managed with
+    fixed pip stop-loss/take-profit brackets plus a trailing stop, and trading is
+    confined to a session time window with a spread guard.
+
+Strategy Logic:
+    load_backtest_frame loads the M5 frame and build_cerebro wires the feed,
+    commission, strategy, and analyzers. Each bar the strategy updates the
+    trailing stop, and while flat and inside the allowed session it evaluates the
+    band/EMA signal, sizing the order by risk and bracketing it with stop and
+    limit exit orders. notify_order manages entry fills and the OCO-style exit
+    pair; notify_trade counts entries on open and win/loss on close.
+    extract_metrics consolidates analyzer output; the test runs with
+    runonce=True and asserts each metric against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -90,6 +116,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV (with spread) into a backtrader OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -116,6 +155,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns plus the spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -130,13 +171,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class HighLowAverage(bt.Indicator):
+    """Rolling mean of the bar high-low range over ``period`` bars."""
+
     lines = ('avg',)
     params = (('period', 50),)
 
     def __init__(self):
+        """Set the minimum period so the average has enough history."""
         self.addminperiod(self.p.period)
 
     def next(self):
+        """Compute the average high-low range over the lookback window."""
         total = 0.0
         for i in range(self.p.period):
             total += float(self.data.high[-i] - self.data.low[-i])
@@ -144,6 +189,14 @@ class HighLowAverage(bt.Indicator):
 
 
 class KAGoldBotStrategy(bt.Strategy):
+    """Keltner-band breakout with EMA trend filter, brackets, and trailing stop.
+
+    Combines a Keltner-style channel (EMA midline plus a rolling high-low range)
+    with a fast and slow EMA filter to trigger session-bounded breakout entries,
+    bracketing each position with fixed pip stop/take-profit orders and managing
+    a trailing stop, subject to a spread guard.
+    """
+
     params = dict(
         inp_keltner_period=50,
         inp_ema10=10,
@@ -172,6 +225,7 @@ class KAGoldBotStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the EMA/Keltner indicators and reset order state and counters."""
         self.ema10 = bt.ind.EMA(self.data.close, period=self.p.inp_ema10)
         self.ema200 = bt.ind.EMA(self.data.close, period=self.p.inp_ema200)
         self.keltner_mid = bt.ind.EMA(self.data.close, period=self.p.inp_keltner_period)
@@ -194,6 +248,11 @@ class KAGoldBotStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -323,6 +382,13 @@ class KAGoldBotStrategy(bt.Strategy):
                     self.log(f'update trailing sell sl={self.stop_price:.2f}')
 
     def next(self):
+        """Update trailing stops and open a new bracketed trade on a signal.
+
+        Increments the bar counter, skips during indicator warm-up, and always
+        updates the trailing stop first. While flat with no pending entry and
+        inside the allowed session window, it evaluates the band/EMA signal and
+        opens a long or short when one fires.
+        """
         self.bar_num += 1
         if len(self.data) < max(self.p.inp_keltner_period, self.p.inp_ema200) + 2:
             return
@@ -337,6 +403,13 @@ class KAGoldBotStrategy(bt.Strategy):
             self._open_trade(signal)
 
     def notify_order(self, order):
+        """Manage entry fills and the OCO-style stop/take-profit exit pair.
+
+        Args:
+            order: The order whose status changed. A completed entry submits the
+                exit bracket; a completed stop or take-profit cancels its
+                sibling; terminal states clear the relevant order references.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order is self.entry_order:
@@ -361,6 +434,13 @@ class KAGoldBotStrategy(bt.Strategy):
                 self.tp_order = None
 
     def notify_trade(self, trade):
+        """Count entries on open and win/loss on close, then reset trade state.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts and
+                clears trailing/stop/take-profit state.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -395,6 +475,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -402,6 +493,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M5 XAUUSD frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -418,6 +522,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Sharpe, Returns, DrawDown, Trade, and SQN analyzers.
+
+    Args:
+        cerebro: The Cerebro engine to register the analyzers on.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=5, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -426,6 +535,16 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -445,6 +564,19 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding trade counters and
+            attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and entry/exit counts) used by the assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10),
+    resampled to H1 for signal generation.
+
+Strategy Principle:
+    Kwan RDP (Rising-Falling-Partition) is a multi-indicator composite oscillator
+    combining DeMarker, MFI (Money Flow Index), and momentum into a smoothed
+    direction signal. The strategy enters on direction changes of this composite
+    indicator with fixed stop-loss and take-profit levels.
+
+Strategy Logic:
+    1. Compute DeMarker, MFI, and momentum from the H1 signal feed.
+    2. Combine them into a raw composite value: demarker * mfi / momentum * 100.
+    3. Smooth the composite with a phase-adjusted exponential filter (JJMA-like).
+    4. Direction line = rising (0), falling (2), or unchanged (1).
+    5. On direction flip from non-zero to 0 -> buy; from non-2 to 2 -> sell.
+    6. Manage positions with fixed SL/TP computed from point value.
+    7. Runs on XAUUSD M15 with H1 signal; SL=1000 pts, TP=2000 pts.
 """
 from __future__ import annotations
 import math
@@ -85,7 +104,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -93,6 +120,12 @@ def load_config(*args, **kwargs):
 
 
 class KwanRdpIndicator(bt.Indicator):
+    """Custom Kwan RDP technical indicator.
+
+    Lines:
+        kwan (bt.LineSeries): Smoothed combination of DeMarker, MFI, and Momentum.
+        direction (bt.LineSeries): Directional momentum flag (0 = bullish, 1 = flat, 2 = bearish).
+    """
     lines = ('kwan', 'direction',)
 
     params = dict(
@@ -107,6 +140,7 @@ class KwanRdpIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize indicator state: rolling buffers and minperiod."""
         self.addminperiod(max(self.p.demarker_period, self.p.mfi_period, self.p.momentum_period) + self.p.x_length + 5)
         self._high_buf = []
         self._low_buf = []
@@ -118,6 +152,7 @@ class KwanRdpIndicator(bt.Indicator):
         self._smooth_buf = []
 
     def _select_price(self, mode):
+        """Return the selected price value (open/high/low/median/typical/weighted/close)."""
         mode = str(mode).upper()
         if mode == 'OPEN':
             return float(self.data.open[0])
@@ -134,6 +169,7 @@ class KwanRdpIndicator(bt.Indicator):
         return float(self.data.close[0])
 
     def _calc_demarker(self):
+        """Compute DeMarker oscillator from rolling high/low buffers."""
         p = int(self.p.demarker_period)
         if len(self._high_buf) <= p or len(self._low_buf) <= p:
             return None
@@ -152,6 +188,7 @@ class KwanRdpIndicator(bt.Indicator):
         return smax / denom
 
     def _calc_mfi(self):
+        """Compute Money Flow Index from typical price and volume buffers."""
         p = int(self.p.mfi_period)
         if len(self._typical_buf) <= p or len(self._money_flow_buf) <= p:
             return None
@@ -172,6 +209,7 @@ class KwanRdpIndicator(bt.Indicator):
         return 100.0 - (100.0 / (1.0 + money_ratio))
 
     def _calc_momentum(self):
+        """Compute momentum as percentage change of selected price over period."""
         p = int(self.p.momentum_period)
         if len(self._close_buf) <= p:
             return None
@@ -182,6 +220,7 @@ class KwanRdpIndicator(bt.Indicator):
         return 100.0 * curr_price / prev_price
 
     def _smooth_value(self, raw_value):
+        """Smooth raw_value using SMA or phase-adjusted exponential (JJMA-like)."""
         method = str(self.p.xma_method).upper()
         if method in ('MODE_SMA_', 'SMA'):
             period = max(1, int(self.p.x_length))
@@ -202,6 +241,7 @@ class KwanRdpIndicator(bt.Indicator):
         return smooth
 
     def next(self):
+        """Compute Kwan RDP indicator: composite of DeMarker * MFI / momentum, smoothed."""
         high = float(self.data.high[0])
         low = float(self.data.low[0])
         close = float(self.data.close[0])
@@ -246,6 +286,11 @@ class KwanRdpIndicator(bt.Indicator):
 
 
 class ExpKwanRdpStrategy(bt.Strategy):
+    """Strategy class implementing the Kwan RDP indicator logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -270,6 +315,7 @@ class ExpKwanRdpStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy: set up data feeds, KwanRdpIndicator, and trade counters."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.kwan = KwanRdpIndicator(
@@ -296,6 +342,12 @@ class ExpKwanRdpStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, txt, dt=None):
+        """Log the given message with a timestamp prefix.
+
+        Args:
+            txt (str): Message to log.
+            dt (datetime.datetime, optional): Optional timestamp. Defaults to None.
+        """
         dt = dt or bt.num2date(self.data0.datetime[0])
         print(f'[{dt:%Y-%m-%d %H:%M}] {txt}')
 
@@ -311,6 +363,7 @@ class ExpKwanRdpStrategy(bt.Strategy):
         return v
 
     def _prepare_entry_levels(self, side, price):
+        """Compute and store stop-loss and take-profit prices for an entry side."""
         pt = float(self.p.point)
         sl_pts = int(self.p.stop_loss_points)
         tp_pts = int(self.p.take_profit_points)
@@ -323,6 +376,7 @@ class ExpKwanRdpStrategy(bt.Strategy):
         self.entry_price = price
 
     def _check_exit_levels(self):
+        """Check if current price hits SL or TP; close position if so."""
         if not self.position:
             return
         price = float(self.data0.close[0])
@@ -350,6 +404,7 @@ class ExpKwanRdpStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         if self.order is not None:
             return
 
@@ -416,6 +471,11 @@ class ExpKwanRdpStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [order.Completed]:
             action = self.pending_action or ''
             if 'open_long' in action:
@@ -429,6 +489,11 @@ class ExpKwanRdpStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isclosed:
             self.trade_count += 1
             if trade.pnlcomm > 0:
@@ -440,17 +505,19 @@ class ExpKwanRdpStrategy(bt.Strategy):
             self.take_profit_price = None
 
     def stop(self):
+        """Print backtest performance summary on strategy completion."""
         total = self.trade_count
         wr = (self.win_count / total * 100) if total > 0 else 0
-        print('========== Exp_KWAN_RDP 策略结束 ==========')
-        print(f'  买入次数: {self.buy_count}')
-        print(f'  卖出次数: {self.sell_count}')
-        print(f'  总交易数: {total}')
-        print(f'  盈利次数: {self.win_count}')
-        print(f'  亏损次数: {self.loss_count}')
-        print(f'  胜率:     {wr:.1f}%')
-        print(f'  最终权益: {self.broker.getvalue():.2f}')
+        print('========== Exp_KWAN_RDP Strategy Finished ==========')
+        print(f'  Buy orders: {self.buy_count}')
+        print(f'  Sell orders: {self.sell_count}')
+        print(f'  Total trades: {total}')
+        print(f'  Winning trades: {self.win_count}')
+        print(f'  Losing trades: {self.loss_count}')
+        print(f'  Win rate:     {wr:.1f}%')
+        print(f'  Final equity: {self.broker.getvalue():.2f}')
         print('=============================================')
+
 
 
 
@@ -465,6 +532,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with extra spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -479,6 +547,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -505,6 +584,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, minutes):
+    """Resample raw M15 data into higher-timeframe signals.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data.
+        minutes (int): Target resampling timeframe in minutes.
+
+    Returns:
+        pd.DataFrame: Resampled higher-timeframe market data.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -523,6 +611,17 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config: dict) -> dict:
+    """Load historical market data and prepare resampled signal frames.
+
+    Args:
+        config (dict): Backtest configuration containing data paths and compressions.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing execution and resampled signals.
+    """
     data_cfg = config['data']
     data_file = data_cfg['file']
     if not os.path.isabs(data_file):
@@ -542,6 +641,11 @@ def load_backtest_frame(config: dict) -> dict:
 
 
 def add_default_analyzers(cerebro):
+    """Register default performance and statistics analyzers to Cerebro.
+
+    Args:
+        cerebro (bt.Cerebro): Cerebro engine instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -550,6 +654,14 @@ def add_default_analyzers(cerebro):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -558,6 +670,16 @@ def finite_or_none(value):
 
 
 def extract_metrics(strat, start_value, frame):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        start_value (float): Initial portfolio cash.
+        frame (dict): Loaded data frame dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -586,6 +708,18 @@ def extract_metrics(strat, start_value, frame):
 
 
 def run(cfg_path: str | None = None):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        cfg_path (str, optional): Config yaml path. Defaults to None.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        tuple: (results, metrics) backtest output.
+    """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
     cfg = load_config(cfg_path)
@@ -632,16 +766,16 @@ def run(cfg_path: str | None = None):
         stocklike=bt_cfg.get('stocklike', False),
     )
 
-    print(f'数据文件:  {os.path.normpath(os.path.join(SCRIPT_DIR, data_cfg["file"]))}')
-    print(f'信号周期:  {signal_tf}')
-    print(f'回测区间:  {data_cfg["fromdate"]} ~ {data_cfg["todate"]}')
-    print(f'初始资金:  {cerebro.broker.getvalue():.2f}')
+    print(f'Data file:   {os.path.normpath(os.path.join(SCRIPT_DIR, data_cfg["file"]))}')
+    print(f'Signal TF:   {signal_tf}')
+    print(f'Backtest:    {data_cfg["fromdate"]} ~ {data_cfg["todate"]}')
+    print(f'Initial cash: {cerebro.broker.getvalue():.2f}')
     print('-' * 50)
 
     start_value = cerebro.broker.getvalue()
     results = cerebro.run()
     final_value = cerebro.broker.getvalue()
-    print(f'\n最终权益: {final_value:.2f}')
+    print(f'\nFinal value: {final_value:.2f}')
     metrics = extract_metrics(results[0], start_value, frame)
     return results, metrics
 

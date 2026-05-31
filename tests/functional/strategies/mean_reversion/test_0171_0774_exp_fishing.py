@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    A momentum-pyramiding "fishing" grid. A large candle body (close-open beyond
+    a point-based threshold) signals a breakout in its direction. The strategy
+    enters with the body, then adds layers in the same direction each time price
+    advances another threshold, building a pyramid up to a maximum number of
+    add-on positions. Each layer carries its own fixed stop-loss and take-profit
+    distances, so layers are closed individually as their risk levels are hit.
+
+Strategy Logic:
+    ``__init__`` zeroes the bar, trade, and signal counters and the per-layer
+    state. ``next`` checks layer risk exits first, then an initial entry on a
+    large body, then a pyramid add-on when price extends past the threshold.
+    ``_submit_open``/``_submit_close`` route orders and stage a pending action.
+    ``notify_order`` materializes filled layers (recording entry, stop, and
+    take-profit prices) or removes closed layers, and ``notify_trade`` tallies
+    wins and losses. ``extract_metrics`` consolidates analyzer output into a
+    metrics dict that the test compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -81,6 +107,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +141,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,6 +150,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ExpFishingStrategy(bt.Strategy):
+    """Momentum pyramiding grid with per-layer fixed stop/take-profit."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -122,6 +165,7 @@ class ExpFishingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Zero the bar/trade/signal counters and per-layer order state."""
         self.data0 = self.datas[0]
         self.bar_num = 0
         self.buy_count = 0
@@ -136,6 +180,7 @@ class ExpFishingStrategy(bt.Strategy):
         self.pending_action = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current bar's ISO timestamp."""
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -250,6 +295,7 @@ class ExpFishingStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Check layer risk exits, then an initial entry, then a pyramid add-on."""
         self.bar_num += 1
         if len(self.data0) < 2:
             return
@@ -260,6 +306,7 @@ class ExpFishingStrategy(bt.Strategy):
         self._check_pyramid()
 
     def notify_order(self, order):
+        """Handle completed or failed orders and synchronize layer state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -309,6 +356,7 @@ class ExpFishingStrategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Count closed trades and accumulate win/loss statistics."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -334,6 +382,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative data path from the test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -341,6 +390,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 data and trim to configured backtest date range."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -357,6 +407,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro instance with data feed, strategy and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -393,6 +444,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect backtest outputs from strategy counters and analyzers."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

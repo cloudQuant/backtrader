@@ -14,6 +14,36 @@ Reference: backtrader-master2/samples/optimization/optimization.py
 
 The test uses a Simple Moving Average (SMA) and MACD crossover strategy,
 optimizing the SMA period parameter to maximize risk-adjusted returns.
+
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData``. Only the 2006-01-01 to 2006-12-31 window is
+    used (single data feed, daily timeframe, no resampling). The same file is
+    reused for the optimization sweep and the best-parameter rerun, and the test
+    is parametrized over ``runonce=True`` and ``runonce=False``.
+
+Strategy Principle:
+    The strategy is a MACD crossover system whose SMA period is treated as the
+    tunable parameter. The trade signal comes from the MACD line crossing its
+    signal line: a bullish cross opens a long, a bearish cross closes it. The
+    surrounding harness assumes the parameter combination with the highest
+    annualized Sharpe ratio is the most desirable, so optimization searches a
+    small SMA-period grid and selects the best risk-adjusted result. Risk is
+    bounded by single-position sizing and the opposing crossover.
+
+Strategy Logic:
+    1. ``OptimizeStrategy.__init__`` builds the SMA, MACD, and crossover
+       indicators and resets bar/buy/sell counters; ``next`` goes long on a
+       positive MACD crossover when flat and closes on a negative crossover.
+    2. ``run_optimization`` sweeps ``smaperiod`` over range(10, 13) with fixed
+       MACD periods using ``optstrategy`` and Returns/Sharpe analyzers.
+    3. ``run_best_strategy`` reruns a single backtest with the selected
+       parameters and full Returns/Sharpe/DrawDown/Trade analyzers, returning a
+       metrics dictionary.
+    4. ``test_optimization`` collects all sweep results, picks the max-Sharpe
+       combination, reruns it, and asserts the run count, optimal SMA period,
+       bar count, final value, Sharpe ratio, annual return, max drawdown, and
+       trade count match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -162,6 +192,10 @@ def run_optimization(runonce=True):
     The optimization varies the SMA period from 10 to 12 while keeping
     MACD parameters fixed to reduce computational time.
 
+    Args:
+        runonce: If True, run in vectorized mode; if False, run in
+            event-driven mode. Defaults to True.
+
     Returns:
         A list of strategy run results from all parameter combinations.
         Each result contains the strategy instance with attached analyzers
@@ -210,6 +244,8 @@ def run_best_strategy(best_params, runonce=True):
     Args:
         best_params: Dictionary containing the optimal parameter values.
             Example: {'smaperiod': 10, 'macdperiod1': 12, ...}
+        runonce: If True, run in vectorized mode; if False, run in
+            event-driven mode. Defaults to True.
 
     Returns:
         A dictionary containing comprehensive strategy metrics:

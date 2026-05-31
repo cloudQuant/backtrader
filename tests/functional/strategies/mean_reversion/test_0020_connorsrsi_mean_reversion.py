@@ -86,6 +86,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-format CSV file and return a clean DataFrame with standard column names."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -144,7 +145,7 @@ def _calculate_streaks(close):
 
 
 def _calculate_percent_rank(close, rank_period):
-    """计算价格在过去 rank_period 天中的百分位排名（0-100）"""
+    """Compute the percentile rank (0-100) of the current price within the last rank_period days."""
     values = []
     for idx in range(len(close)):
         if idx < rank_period:
@@ -171,6 +172,7 @@ def _days_since_recent_high(high_series, lookback_days):
 
 
 def prepare_connors_features(df, params):
+    """Prepare ConnorsRSI features: CRSI, RSI(2), trend MA, days-since-high and setup signal."""
     out = df.copy()
     close = out['close']
     price_rsi = _calculate_rsi(close, int(params.get('rsi_period', 3)))
@@ -190,6 +192,7 @@ def prepare_connors_features(df, params):
 
 
 class Mt5ConnorsFeed(bt.feeds.PandasData):
+    """PandasData subclass exposing ConnorsRSI feature lines (crsi, rsi2, trend_ma, days_since_high, setup_signal)."""
     lines = ('crsi', 'rsi2', 'trend_ma', 'days_since_high', 'setup_signal',)
     params = (
         ('datetime', None),
@@ -208,6 +211,7 @@ class Mt5ConnorsFeed(bt.feeds.PandasData):
 
 
 class ConnorsRSIMeanReversionStrategy(bt.Strategy):
+    """Mean-reversion strategy entering on ConnorsRSI oversold setups and exiting when RSI(2) recovers."""
     params = dict(
         high_lookback_weeks=26,
         recent_high_max_days=30,
@@ -222,6 +226,7 @@ class ConnorsRSIMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, state variables, and order tracker for ConnorsRSI mean-reversion strategy."""
         self.bar_num = 0
         self.setup_count = 0
         self.buy_count = 0
@@ -256,6 +261,7 @@ class ConnorsRSIMeanReversionStrategy(bt.Strategy):
         return float(self.data.setup_signal[0]) > 0.5
 
     def next(self):
+        """Evaluate entry/exit signals each bar: enter on ConnorsRSI setup, exit when RSI(2) recovers above threshold."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.order is not None:
@@ -274,6 +280,7 @@ class ConnorsRSIMeanReversionStrategy(bt.Strategy):
         self.order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size), price=limit_price), exectype=bt.Order.Limit, price=limit_price, valid=valid_until)
 
     def notify_order(self, order):
+        """Track order lifecycle: count completed buys, expired, cancelled, and rejected orders; clear reference on final status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -285,10 +292,11 @@ class ConnorsRSIMeanReversionStrategy(bt.Strategy):
             self.cancelled_count += 1
         elif order.status in (order.Margin, order.Rejected):
             self.rejected_count += 1
-        # 无论订单状态如何，都清除挂单引用
+        # Clear order reference regardless of final status
         self.order = None
 
     def notify_trade(self, trade):
+        """Track trade outcome: increment win/loss count on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -306,6 +314,7 @@ BASE_DIR = Path(__file__).resolve().parent
 TRADING_DAYS_PER_YEAR = 252
 
 def get_sharpe_analyzer_kwargs(config):
+    """Return SharpeRatio analyzer kwargs with annualisation factor derived from the config timeframe."""
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -319,6 +328,7 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def resolve_data_path(filename):
+    """Resolve a relative data filename to an absolute path, raising if not found."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -326,6 +336,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and prepare MT5 CSV data with ConnorsRSI features applied."""
     data_cfg = config['data']
     raw = load_mt5_csv(
         resolve_data_path(data_cfg['file']),
@@ -341,6 +352,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with CommInfo percent commission, Connors feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -362,6 +374,7 @@ def build_cerebro(config, frame):
 
 
 def normalize(value):
+    """Normalize objects for JSON-friendly output."""
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if hasattr(value, 'isoformat'):
@@ -373,6 +386,7 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return ``None`` for NaN/inf values, otherwise preserve the original value."""
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -381,6 +395,7 @@ def finite_or_none(value):
 
 
 def ulcer_index(values):
+    """Compute ulcer index from a sequence of equity values."""
     if not values:
         return 0.0
     peak = values[0]
@@ -394,7 +409,7 @@ def ulcer_index(values):
 
 
 def extract_metrics(strat, cerebro, frame, config):
-    """提取回测指标 - 参考 trend_pullback 实现"""
+    """Extract and aggregate analyzer-driven backtest metrics."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -405,7 +420,7 @@ def extract_metrics(strat, cerebro, frame, config):
     final_value = cerebro.broker.getvalue()
     broker_values = [v for _, v in getattr(strat, 'broker_value_series', [])] or [initial_cash, final_value]
     
-    # 从 TradeAnalyzer 获取交易统计
+    # Read trade statistics from TradeAnalyzer.
     total_trades = ta.get('total', {}).get('total', 0)
     won = ta.get('won', {}).get('total', 0)
     lost = ta.get('lost', {}).get('total', 0)
@@ -446,6 +461,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def save_outputs(config, metrics):
+    """Write metrics to strategy JSON and append summary CSV."""
     local_path = (BASE_DIR / config['outputs']['local_result_json']).resolve()
     with open(local_path, 'w', encoding='utf-8') as f:
         json.dump({k: normalize(v) for k, v in metrics.items()}, f, ensure_ascii=False, indent=2)

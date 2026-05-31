@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The base M15 (15-minute) frame covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. It is resampled to an H1
+    (60-minute) execution feed; the strategy trades on the hourly bars and uses
+    ATR computed on them.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor "LBS". At a few scheduled hours of
+    the day it brackets the recent two-bar range with an OCO pair of stop-entry
+    orders: a buy-stop above the high and a sell-stop below the low. Whichever
+    breaks first opens a position and cancels the other. Risk is capped by an
+    initial fixed-distance protective stop that then trails the close once price
+    has moved far enough in favour.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and resamples it to H1; build_cerebro
+    wires the H1 feed, the strategy, and the default analyzers. Each new bar,
+    while flat and during a scheduled hour, the strategy places the OCO buy/sell
+    stop pair; while in a position it ensures the initial protective stop and
+    trails it. notify_order resolves entry fills (recording side and arming the
+    stop) and stop exits, and notify_trade tallies wins and losses.
+    extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -85,6 +112,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +151,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_ohlcv(df, minutes):
+    """Resample an M15 OHLCV+spread frame to a coarser bar size.
+
+    Args:
+        df: The base OHLCV DataFrame (with a spread column) indexed by datetime.
+        minutes: Target bar size in minutes (e.g. 60 for H1).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, and openinterest/spread filled with zeros.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -128,6 +178,8 @@ def resample_ohlcv(df, minutes):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed adding an MT5 ``spread`` column to the OHLCV mapping."""
+
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -136,6 +188,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class LbsStrategy(bt.Strategy):
+    """Scheduled-hour OCO breakout with an ATR-context trailing protective stop."""
+
     params = dict(
         fixed_lot=1.0,
         point_size=0.01,
@@ -149,6 +203,7 @@ class LbsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the ATR indicator and reset order handles and counters."""
         self.atr = bt.indicators.ATR(self.datas[0], period=self.p.atr_period)
         self.buy_entry_order = None
         self.sell_entry_order = None
@@ -165,6 +220,11 @@ class LbsStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: Message to emit alongside the current bar datetime.
+        """
         dt = bt.num2date(self.datas[0].datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -251,6 +311,13 @@ class LbsStrategy(bt.Strategy):
             self.log(f'TRAIL SHORT stop={desired:.5f}')
 
     def next(self):
+        """Manage open trades or place scheduled-hour breakout entries.
+
+        Increments the bar counter, waits for warm-up and a new bar, then—when in
+        a position—ensures and trails the protective stop, or—when flat—cancels
+        any stale stop and, during a scheduled hour, submits the OCO buy/sell
+        stop entry pair.
+        """
         self.bar_num += 1
         if len(self) < max(3, self.p.atr_period + 1):
             return
@@ -267,6 +334,16 @@ class LbsStrategy(bt.Strategy):
             self._submit_entry_pair()
 
     def notify_order(self, order):
+        """Resolve entry fills, arm protective stops, and clear dead orders.
+
+        On a completed buy/sell entry it records the side, increments the
+        buy/sell count, cancels the opposite OCO leg, and arms the initial stop;
+        a completed stop exit clears the active side. Cancelled or rejected
+        orders clear whichever tracked handle they correspond to.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -297,6 +374,12 @@ class LbsStrategy(bt.Strategy):
                 self.stop_exit_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -324,6 +407,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -331,12 +425,33 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into a datetime, or None when empty.
+
+    Args:
+        value: An ISO 8601 datetime string, or a falsy value.
+
+    Returns:
+        The parsed :class:`datetime.datetime`, or None if ``value`` is falsy.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load the M15 frame and resample it to the H1 execution frame.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, date bounds, bar shift, and execution compression.
+
+    Returns:
+        A dict with the resampled ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -349,6 +464,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, H1 feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -367,6 +492,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -375,6 +508,16 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        results: The list of strategy instances returned by ``cerebro.run()``.
+        start_value: The broker value at the start of the run.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, and SQN).
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -412,6 +555,16 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro candlestick plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

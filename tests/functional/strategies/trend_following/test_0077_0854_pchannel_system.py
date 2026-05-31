@@ -1,6 +1,23 @@
 """Inlined regression test for trend_following/0077_0854_pchannel_system.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via MT5 style CSV loader. A 240-minute
+    resampled series is used as the signal feed.
+    Test window is 2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    Uses a pivot-channel style indicator on a slower resampled feed and enters
+    breakout trades only when channel-color transitions align with configured
+    long/short permission flags.
+
+Strategy Logic:
+    ``load_mt5_csv`` prepares the base dataframe, ``_build_signal_frame`` creates
+    the indicator feed, ``PChannelSystem`` generates color signals, and
+    ``ExpPChannelSystemStrategy`` enforces position transitions with fixed
+    point-based exit levels while collecting count metrics.
 """
 from __future__ import annotations
 
@@ -16,6 +33,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 CSV export into a sorted OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV source file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Optional shift applied to the datetime index.
+
+    Returns:
+        A datetime-indexed DataFrame with OHLCV columns sorted by time.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +65,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData wrapper for XAUUSD OHLCV input used by this test."""
+
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,13 +74,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class PChannelSystem(bt.Indicator):
+    """Indicator that classifies current bar position versus rolling channel bounds."""
+
     lines = ("color",)
     params = dict(period=20, shift=2)
 
     def __init__(self):
+        """Initialize warmup requirements for the configured rolling period."""
         self.addminperiod(int(self.p.period) + int(self.p.shift) + 3)
 
     def next(self):
+        """Compute channel colors from rolling high/low and current candle body."""
         shift = int(self.p.shift)
         hh = max(float(self.data.high[-(shift + i)]) for i in range(int(self.p.period)))
         ll = min(float(self.data.low[-(shift + i)]) for i in range(int(self.p.period)))
@@ -65,6 +99,8 @@ class PChannelSystem(bt.Indicator):
 
 
 class ExpPChannelSystemStrategy(bt.Strategy):
+    """Trend strategy that trades channel-color reversals from a resampled feed."""
+
     params = dict(
         period=20, shift=2,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -75,6 +111,7 @@ class ExpPChannelSystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach market feeds, the channel indicator, and tracking counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = PChannelSystem(self.signal_data, period=self.p.period, shift=self.p.shift)
@@ -105,6 +142,7 @@ class ExpPChannelSystemStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one bar, handle exits, and submit entries on signal transitions."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -132,6 +170,7 @@ class ExpPChannelSystemStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Capture trade open/close events and update strategy counters."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

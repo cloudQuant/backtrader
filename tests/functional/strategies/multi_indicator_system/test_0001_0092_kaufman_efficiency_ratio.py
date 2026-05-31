@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a multi-indicator trading strategy built around the Kaufman Efficiency Ratio and Kaufman Adaptive Moving Average (KAMA).
+    - Market Assumptions: Markets fluctuate between high efficiency (directional, trending) and low efficiency (flat, oscillating) periods. Price trends are highly reliable and persistent when the Kaufman Efficiency Ratio (ER) is high, making breakouts of KAMA highly profitable.
+    - Indicators:
+        - Kaufman Efficiency Ratio (er): Ratio of net direction change to cumulative absolute volatility over lookback `er_period` (10 days).
+        - Kaufman Adaptive Moving Average (kama): An adaptive moving average that dynamically adjusts its smoothing constant based on the efficiency ratio.
+        - trend_confirmed: True if `er` exceeds `er_threshold` (0.3).
+    - Entry Signals:
+        - Buy Entry: Trend is confirmed and price crosses above kama (entry_long > 0.5).
+        - Sell Entry: Trend is confirmed and price crosses below kama (entry_short > 0.5).
+    - Exit Signals:
+        - Close Long: Close price crosses below kama.
+        - Close Short: Close price crosses above kama.
 """
 from __future__ import annotations
 import math
@@ -69,7 +89,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -77,6 +105,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,7 +141,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_efficiency_ratio(prices, period=10):
-    """计算Kaufman效率比率"""
+    """Calculate the Kaufman Efficiency Ratio (ER).
+
+    Args:
+        prices (pd.Series): Close prices series.
+        period (int): Period to look back. Defaults to 10.
+
+    Returns:
+        pd.Series: Kaufman Efficiency Ratio values series.
+    """
     change = prices.diff()
     direction = abs(prices - prices.shift(period))
     volatility = change.abs().rolling(window=period).sum()
@@ -112,7 +158,17 @@ def calculate_efficiency_ratio(prices, period=10):
 
 
 def calculate_kama(prices, er, fast_period=2, slow_period=30):
-    """计算Kaufman自适应移动平均"""
+    """Calculate Kaufman Adaptive Moving Average (KAMA).
+
+    Args:
+        prices (pd.Series): Close prices series.
+        er (pd.Series): Calculated Efficiency Ratio series.
+        fast_period (int): Period of fast SMA boundary. Defaults to 2.
+        slow_period (int): Period of slow SMA boundary. Defaults to 30.
+
+    Returns:
+        pd.Series: KAMA values series.
+    """
     fast_sc = 2 / (fast_period + 1)
     slow_sc = 2 / (slow_period + 1)
     sc = er * (fast_sc - slow_sc) + slow_sc
@@ -128,23 +184,31 @@ def calculate_kama(prices, er, fast_period=2, slow_period=30):
 
 
 def prepare_kaufman_features(df, params):
-    """准备Kaufman效率比率策略特征"""
+    """Prepare and compute indicators for the Kaufman Efficiency Ratio strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing period limits and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing er, kama, and signals.
+    """
     out = df.copy()
     er_period = int(params.get('er_period', 10))
     fast_period = int(params.get('fast_period', 2))
     slow_period = int(params.get('slow_period', 30))
     
-    # 计算效率比率
+    # Calculate Efficiency Ratio
     out['er'] = calculate_efficiency_ratio(out['close'], er_period)
     
-    # 计算KAMA
+    # Calculate KAMA
     out['kama'] = calculate_kama(out['close'], out['er'], fast_period, slow_period)
     
-    # 趋势确认信号
+    # Trend confirmation signals
     er_threshold = float(params.get('er_threshold', 0.3))
     out['trend_confirmed'] = (out['er'] > er_threshold).astype(float)
     
-    # 入场信号：趋势确认 + 价格穿越KAMA
+    # Entry Signals: trend confirmed + price crosses above/below KAMA
     out['cross_above'] = ((out['close'] > out['kama']) & 
                           (out['close'].shift(1) <= out['kama'].shift(1))).astype(float)
     out['cross_below'] = ((out['close'] < out['kama']) & 
@@ -161,6 +225,7 @@ def prepare_kaufman_features(df, params):
 
 
 class Mt5KaufmanFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Kaufman strategy lines."""
     lines = ('er', 'kama', 'entry_long', 'entry_short',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -170,6 +235,11 @@ class Mt5KaufmanFeed(bt.feeds.PandasData):
 
 
 class KaufmanEfficiencyStrategy(bt.Strategy):
+    """Strategy class implementing Kaufman Efficiency Ratio following logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         er_period=10,
         er_threshold=0.3,
@@ -179,6 +249,7 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -191,6 +262,15 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -205,6 +285,7 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -216,7 +297,7 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
         close_above_kama = float(self.data.close[0]) > float(self.data.kama[0])
         close_below_kama = float(self.data.close[0]) < float(self.data.kama[0])
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_long:
                 self.buy_count += 1
@@ -228,7 +309,7 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
                 self.pending_order = self.sell(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if self.position_type == 1 and close_below_kama:
             self.sell_count += 1
             self.position_type = 0
@@ -239,11 +320,21 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -255,7 +346,7 @@ class KaufmanEfficiencyStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Kaufman Efficiency Ratio 策略回测"""
+"""Kaufman Efficiency Ratio strategy backtest."""
 
 
 
@@ -265,6 +356,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -277,10 +376,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -295,6 +410,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Kaufman strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -307,6 +430,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -329,6 +461,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -363,6 +506,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -370,27 +521,73 @@ def normalize(v):
     return v
 
 
-
-
-
-def main():
-    config = load_config()
-    frame = load_data(config)
-    print(f"Loaded {len(frame['data'])} bars")
-    cerebro = build_cerebro(frame, config)
-    results = cerebro.run()
-    strat = results[0]
-    metrics = extract_metrics(strat, cerebro, frame, config)
-
-
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert close-numeric equality with finite guard and custom tolerance."""
     assert actual is not None, f"{key}: expected={expected}, got=None"
-    a = float(actual)
-    assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
-    assert abs(a - float(expected)) <= tol, (
-        f"{key}: expected={expected}, got={a} (tol={tol})"
+    actual_f = float(actual)
+    assert math.isfinite(actual_f), f"{key}: expected={expected}, got non-finite {actual}"
+    assert abs(actual_f - float(expected)) <= tol, (
+        f"{key}: expected={expected}, got={actual_f} (tol={tol})"
     )
+
+
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_1_0001_0092_kaufman_efficiency_ratio() -> None:
@@ -398,73 +595,11 @@ def test_1_0001_0092_kaufman_efficiency_ratio() -> None:
 
     Originally located at tests/functional/strategies_regression/multi_indicator_system/0001_0092_kaufman_efficiency_ratio.
     """
-    # Capture metrics by hooking extract_metrics() (or similar) and invoking the
-    # original main()/run(). This reuses whatever loader / build_cerebro /
-    # metrics-extraction signatures the strategy used internally.
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function.
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "summarize", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "metrics" not in captured:
-                        captured["metrics"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Force runonce=True for the cerebro.run() call inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "metrics" not in captured:
-                    captured["metrics"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "metrics" not in captured:
-                            captured["metrics"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "no metrics captured during run"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4628, f"bar_num: expected=4628, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 100, f"buy_count: expected=100, got={metrics.get('buy_count')!r}"

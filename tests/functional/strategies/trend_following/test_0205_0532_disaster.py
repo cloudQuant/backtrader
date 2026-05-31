@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` from `tests/datas/`.
+    Tests symbol `XAUUSD` on `M15` bars from `2025-12-03 01:15:00`
+    to `2026-03-10 09:00:00`, with an optional 15-minute shift.
+    A single 15-minute timeframe feed is used.
+
+Strategy Principle:
+    Calculates a long-period SMA and derives a directional trigger zone with
+    configurable distance from MA.
+    When price diverges above/below that zone, pending entries are prepared with
+    fixed SL/TP distances and optional repricing.
+    The strategy opens one-leg entries, then manages trailing exits via bar-level
+    take-profit and stop-loss checks.
+
+Strategy Logic:
+    `load_mt5_csv()` converts the MT5 tab-separated file into a standardized
+    DataFrame.
+    `load_backtest_frame()` filters rows to the configured window.
+    `build_cerebro()` wires feed, strategy, commission config, analyzers and cash
+    settings.
+    In `next()`, pending orders are generated and triggered, active positions are
+    monitored, and all counters are maintained.
+    `extract_metrics()` merges analyzer outputs with runtime counters and pytest
+    assertions validate the migrated expectations.
 """
 from __future__ import annotations
 import math
@@ -78,6 +103,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted CSV data and normalize for pandas/Backtrader consumption.
+
+    Args:
+        filepath: MT5 export path.
+        fromdate: Lower bound datetime filter.
+        todate: Upper bound datetime filter.
+        bar_shift_minutes: Optional minute offset applied to the datetime index.
+
+    Returns:
+        pd.DataFrame: index/datetime and OHLCV columns compatible with pandas feeds.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,12 +137,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader pandas data feed mapping for MT5-style OHLCV columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class DisasterStrategy(bt.Strategy):
+    """SMA-diff based strategy with pending entry queues and SL/TP management."""
     params = dict(
         stop_loss=35,
         take_profit=95,
@@ -120,6 +158,7 @@ class DisasterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and all bookkeeping variables for execution."""
         self.ma = bt.ind.SMA(self.data.close, period=int(self.p.ma_period))
         self.bar_num = 0
         self.signal_count = 0
@@ -219,6 +258,12 @@ class DisasterStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Advance the strategy by one bar.
+
+        Keeps MA warm-up and order-gating checks, updates pending-entry candidates
+        when flat, triggers pending orders against high/low touches, and manages
+        open positions with protected exit conditions.
+        """
         self.bar_num += 1
         if len(self) < int(self.p.ma_period) + 5:
             return
@@ -233,6 +278,7 @@ class DisasterStrategy(bt.Strategy):
         self._update_pending()
 
     def notify_order(self, order):
+        """Track completed/cancelled order counters and reset active order state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -251,6 +297,7 @@ class DisasterStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -274,6 +321,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename under the current test module directory.
+
+    Args:
+        filename: Data filename relative to the test file.
+
+    Returns:
+        Path: The absolute resolved path to the data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -281,6 +336,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate the test data window into backtest-ready structure.
+
+    Args:
+        config: Strategy and data settings.
+
+    Returns:
+        dict: Parsed frame plus effective from/to datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -292,6 +355,18 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure the Backtrader `Cerebro` instance.
+
+    Adds feed/strategy, broker parameters, and analyzers needed by regression
+    assertions.
+
+    Args:
+        config: Strategy/backtest dictionaries.
+        frame: Parsed backtest frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured engine ready to execute.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -310,6 +385,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and strategy counters into one metric set.
+
+    Args:
+        strat: Strategy instance after run.
+        cerebro: Running Cerebro instance.
+        frame: Backtest payload including date window and bars.
+        config: Test configuration dictionary.
+
+    Returns:
+        dict: Aggregated metrics for regression verification.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -337,6 +423,17 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the disaster strategy regression backtest and return results and metrics.
+
+    Args:
+        plot: Whether to render a chart after the run.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+            - results: output from `cerebro.run()`
+            - metrics: dictionary from `extract_metrics()`
+            - cerebro: engine instance used for execution
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

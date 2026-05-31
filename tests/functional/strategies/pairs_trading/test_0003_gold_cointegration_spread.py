@@ -1,7 +1,21 @@
-"""Inlined regression test for pairs_trading/0003_gold_cointegration_spread.
+"""Inlined regression test for pairs trading using cointegration spread.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Engle-Granger cointegration spread on XAUUSD / XAGUSD daily.
+
+Data Used:
+    Daily XAUUSD and XAGUSD data from ``tests/datas/mt5_1d_data``.
+
+Strategy Principle:
+    Build a rolling cointegration beta and spread z-score from log prices. Enter
+    long/short spread positions when the spread exceeds threshold and exit on
+    reversion, loss, or when co-integration confidence drops.
+
+Strategy Logic:
+    ``prepare_cointegration_features`` computes spread beta, z-score, and signal
+    flags. The strategy opens paired long/short legs according to z-score
+    extremes, manages open positions through threshold-based exits, and uses
+    callbacks to track order lifecycle and trade outcomes.
 """
 from __future__ import annotations
 
@@ -24,6 +38,16 @@ SILVER_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "XAGUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader-5 CSV file into a normalized OHLCV DataFrame.
+
+    Args:
+        filepath: MT5 CSV/TSV path.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+
+    Returns:
+        Datetime-indexed OHLCV DataFrame ready for backtesting.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -48,6 +72,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_pair_data(gold_df, silver_df):
+    """Align gold and silver bars on a common datetime index.
+
+    Args:
+        gold_df: XAUUSD OHLCV DataFrame.
+        silver_df: XAGUSD OHLCV DataFrame.
+
+    Returns:
+        Tuple of aligned ``(gold_df, silver_df)``.
+    """
     common_index = gold_df.index.intersection(silver_df.index).sort_values()
     return gold_df.loc[common_index].copy(), silver_df.loc[common_index].copy()
 
@@ -74,6 +107,16 @@ def _cointegration_pass(residuals, pvalue_threshold):
 
 
 def prepare_cointegration_features(gold_df, silver_df, params):
+    """Compute rolling cointegration features used by the strategy.
+
+    Args:
+        gold_df: Gold OHLCV DataFrame.
+        silver_df: Silver OHLCV DataFrame.
+        params: Parameter dict with window and p-value thresholds.
+
+    Returns:
+        Tuple ``(signal_df, gold_aligned, silver_aligned)`` with feature columns.
+    """
     gold, silver = prepare_pair_data(gold_df, silver_df)
     window = int(params.get("coint_window", 252))
     pvalue_threshold = float(params.get("pvalue_threshold", 0.05))
@@ -113,6 +156,7 @@ def prepare_cointegration_features(gold_df, silver_df, params):
 
 
 class GoldCointegrationSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing beta/z-score/cointegration signal lines."""
     lines = ("beta", "zscore", "coint_flag", "coint_pvalue")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -121,6 +165,7 @@ class GoldCointegrationSignalFeed(bt.feeds.PandasData):
 
 
 class GoldCointegrationSpreadStrategy(bt.Strategy):
+    """Pairs strategy that trades long/short spreads on cointegration z-score signals."""
     params = dict(
         entry_threshold=2.0,
         exit_threshold=0.5,
@@ -130,6 +175,7 @@ class GoldCointegrationSpreadStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy references, counters, and position state."""
         self.signal = self.datas[0]
         self.gold = self.getdatabyname("XAUUSD")
         self.silver = self.getdatabyname("XAGUSD")
@@ -189,6 +235,7 @@ class GoldCointegrationSpreadStrategy(bt.Strategy):
         self.current_spread_side = -1
 
     def next(self):
+        """Evaluate spread signals and perform opens or exits each bar."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -210,11 +257,17 @@ class GoldCointegrationSpreadStrategy(bt.Strategy):
             self._close_all()
 
     def notify_order(self, order):
+        """Track and clear pending order references.
+
+        Args:
+            order: Order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count completed trades and classify wins/losses."""
         if not trade.isclosed:
             return
         self.trade_count += 1

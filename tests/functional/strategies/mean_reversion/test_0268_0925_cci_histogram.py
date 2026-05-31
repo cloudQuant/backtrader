@@ -1,6 +1,23 @@
 """Inlined regression test for mean_reversion/0268_0925_cci_histogram.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+- XAUUSD M15 (primary): 2025-12-03 01:15 to 2026-03-10 09:00
+- XAUUSD H4 (signal): resampled from M15
+
+Strategy Principle:
+CCI Histogram is a CCI-based color-state strategy. The indicator wraps CCI
+and classifies its value into three color zones (above high_level, between,
+below low_level). Trades are triggered on color transitions, indicating
+overbought/oversold regime shifts.
+
+Strategy Logic:
+- CCIHistogramIndicator computes CCI and derives a color_state line:
+  0.0 = overbought (CCI > high_level), 1.0 = neutral, 2.0 = oversold (CCI < low_level)
+- Buy when color_state transitions from non-zero to 0.0 (exits overbought)
+- Sell when color_state transitions from non-2.0 to 2.0 (exits oversold)
+- Strategy fires once per new H4 bar with stop-loss/take-profit at point distances
 """
 from __future__ import annotations
 
@@ -17,6 +34,24 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data into a datetime-indexed DataFrame.
+
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to the MT5 CSV file.
+    fromdate : datetime or None
+        Earliest date to include.
+    todate : datetime or None
+        Latest date to include.
+    bar_shift_minutes : int
+        Minutes to shift the datetime index forward.
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: datetime, open, high, low, close, volume, openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +73,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def _build_signal_frame(df, minutes):
+    """Resample a DataFrame to a lower-frequency signal frame for dual-timeframe strategies."""
     out = df.resample(f"{int(minutes)}min", label="right", closed="right").agg({
         "open": "first", "high": "max", "low": "min",
         "close": "last", "volume": "sum", "openinterest": "sum",
@@ -48,6 +84,7 @@ def _build_signal_frame(df, minutes):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column ordering."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -55,15 +92,28 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class CCIHistogramIndicator(bt.Indicator):
+    """CCI-based colour-state indicator classifying CCI into three zones.
+
+    Lines
+    -----
+    cci : float
+        Commodity Channel Index value.
+    color_state : float
+        0.0 = overbought (CCI > high_level), 1.0 = neutral, 2.0 = oversold.
+    hist_base : float
+        Always 0.0 (placeholder for histogram baseline).
+    """
     lines = ("cci", "color_state", "hist_base")
     params = dict(cci_period=14, high_level=100, low_level=-100)
 
     def __init__(self):
+        """Initialise indicator state: attach CCI sub-indicator and set minimum period."""
         cci = bt.indicators.CommodityChannelIndex(self.data, period=int(self.p.cci_period))
         self.lines.cci = cci
         self.addminperiod(int(self.p.cci_period) + 2)
 
     def next(self):
+        """Classify current CCI value into colour state (0=overbought, 1=neutral, 2=oversold)."""
         cci_value = float(self.lines.cci[0])
         color = 1.0
         if cci_value > float(self.p.high_level):
@@ -75,6 +125,7 @@ class CCIHistogramIndicator(bt.Indicator):
 
 
 class ExpCCIHistogramStrategy(bt.Strategy):
+    """Dual-timeframe strategy trading CCI colour-state transitions on H4 data."""
     params = dict(
         cci_period=14, high_level=100, low_level=-100,
         signal_bar=1,
@@ -86,6 +137,7 @@ class ExpCCIHistogramStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy: bind data feeds and create CCIHistogramIndicator."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = CCIHistogramIndicator(
@@ -129,6 +181,7 @@ class ExpCCIHistogramStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process a new bar: check exit levels, trade colour-state transitions."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -165,6 +218,7 @@ class ExpCCIHistogramStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track trade lifecycle: count open direction and record win/loss on close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

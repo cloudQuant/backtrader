@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily ``D1`` bars loaded from ``tests/datas/XAUUSD_1d.csv``
+    via the MetaTrader-5 style CSV reader, with no intrabar shift. The backtest
+    window spans 2008-01-01 to 2025-12-31. Overnight-gap and volatility features
+    are precomputed and fed through a custom ``PandasData`` subclass.
+
+Strategy Principle:
+    The strategy trades the overnight momentum (gap) effect: a small positive
+    gap with a positive recent overnight trend and streak suggests continuation
+    long; the mirror condition suggests a short. Exposure is volatility-targeted
+    (scaled toward a target annual volatility), positions are entered at the open
+    via cheat-on-open, and each trade carries intraday stop-loss and
+    take-profit exits. A consecutive-loss circuit breaker pauses trading after a
+    losing streak.
+
+Strategy Logic:
+    1. ``prepare_overnight_features`` computes overnight/intraday returns,
+       rolling volatility, trend/streak, the long/short signals, and the
+       volatility-scaled target percentage.
+    2. ``load_inputs`` builds the feature frame; ``build_cerebro`` configures the
+       cheat-on-open broker, feed, strategy, and analyzers.
+    3. ``GoldOvernightMomentumStrategy.next_open`` enters at the open on a fresh
+       signal; ``next`` checks same-session stop/take/close exits.
+    4. ``notify_order`` resets entry state; ``notify_trade`` tallies win/loss and
+       maintains the loss-streak pause.
+    5. ``extract_metrics`` collects analyzer output, equity-curve Ulcer index,
+       and signal-day statistics, and
+       ``test_3_0003_gold_overnight_momentum`` forces ``runonce=True``, captures
+       the metrics dict, and asserts each value against migration-time
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -84,6 +115,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 style CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -112,6 +154,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_overnight_features(df, params):
+    """Compute overnight-momentum features and trade signals.
+
+    Args:
+        df: Raw daily OHLCV DataFrame.
+        params: Strategy parameters controlling thresholds, lookbacks, and
+            volatility targeting.
+
+    Returns:
+        Copy of the frame augmented with overnight/intraday returns, volatility,
+        trend/streak, long/short signals, and the target percentage, with
+        incomplete rows dropped.
+    """
     out = df.copy()
     threshold = float(params.get('overnight_threshold', 0.01))
     lookback = int(params.get('overnight_lookback', 3))
@@ -155,6 +209,8 @@ def prepare_overnight_features(df, params):
 
 
 class Mt5OvernightMomentumFeed(bt.feeds.PandasData):
+    """PandasData feed exposing overnight-momentum feature and signal lines."""
+
     lines = (
         'overnight_return', 'intraday_return', 'volatility_20', 'overnight_trend',
         'overnight_streak', 'long_signal', 'short_signal', 'signal', 'target_percent',
@@ -167,6 +223,8 @@ class Mt5OvernightMomentumFeed(bt.feeds.PandasData):
 
 
 class GoldOvernightMomentumStrategy(bt.Strategy):
+    """Volatility-targeted overnight-gap momentum strategy with risk controls."""
+
     params = dict(
         stop_loss_pct=0.01,
         take_profit_pct=0.015,
@@ -181,6 +239,7 @@ class GoldOvernightMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset all bar, trade, exit, and risk-control tracking counters."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -215,6 +274,7 @@ class GoldOvernightMomentumStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next_open(self):
+        """Enter a position at the open on a fresh long/short overnight signal."""
         if self.pending_order is not None or self.position:
             return
         if self.bar_num < 1 or self.bar_num <= self.pause_until_bar:
@@ -241,6 +301,7 @@ class GoldOvernightMomentumStrategy(bt.Strategy):
             self.pending_order = self.sell(size=size)
 
     def next(self):
+        """Apply same-session stop-loss, take-profit, or close-out exits."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -267,6 +328,11 @@ class GoldOvernightMomentumStrategy(bt.Strategy):
         self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Reset entry state and clear the pending order on finalization.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status in (order.Canceled, order.Margin, order.Rejected):
@@ -281,6 +347,11 @@ class GoldOvernightMomentumStrategy(bt.Strategy):
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts and maintain the loss-streak pause.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -305,6 +376,17 @@ TRADING_DAYS_PER_YEAR = 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -312,6 +394,15 @@ def resolve_data_path(filename):
 
 
 def normalize(value):
+    """Convert a value into a CSV/JSON-serializable scalar.
+
+    Args:
+        value: Any value, possibly a date/datetime or other object.
+
+    Returns:
+        The value unchanged when it is a basic scalar, an ISO string for
+        date-like objects, or its ``str`` representation otherwise.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -324,6 +415,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value unless it is a non-finite float, in which case None.
+
+    Args:
+        value: Any value, typically a float metric.
+
+    Returns:
+        ``value`` when it is None or finite, otherwise None.
+    """
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -332,6 +431,14 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute the Ulcer Index of an equity curve.
+
+    Args:
+        equity_curve: Sequence of portfolio values over time.
+
+    Returns:
+        The Ulcer Index as a float, or 0.0 when no drawdown data is available.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -347,6 +454,15 @@ def calculate_ulcer_index(equity_curve):
 
 
 def load_inputs(config):
+    """Load input data and prepared overnight feature frame.
+
+    Args:
+        config: Resolved inline configuration.
+
+    Returns:
+        Dictionary containing the feature DataFrame, date bounds, and resolved
+        strategy parameters.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -365,6 +481,15 @@ def load_inputs(config):
 
 
 def build_cerebro(config, inputs):
+    """Build and configure the overnight-momentum Backtrader engine.
+
+    Args:
+        config: Inline strategy configuration.
+        inputs: Dictionary returned by :func:`load_inputs`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
     cerebro.broker.set_coc(True)
@@ -387,6 +512,17 @@ def build_cerebro(config, inputs):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Extract metrics from analyzers and strategy state for assertions.
+
+    Args:
+        strat: Strategy instance returned by ``cerebro.run``.
+        cerebro: Executed cerebro engine.
+        inputs: Inputs dictionary containing data and date bounds.
+        config: Inline strategy configuration.
+
+    Returns:
+        Dictionary of metrics for migration-time regression checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -454,6 +590,14 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def run(plot=False):
+    """Run the overnight momentum backtest and return run artifacts.
+
+    Args:
+        plot: Whether to show a candlestick plot after run.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     inputs = load_inputs(config)
     cerebro = build_cerebro(config, inputs)

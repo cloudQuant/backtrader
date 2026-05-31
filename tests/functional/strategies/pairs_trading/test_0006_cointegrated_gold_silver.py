@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Two daily (D1) feeds loaded from MT5 exports under
+    ``tests/datas/mt5_1d_data/``: gold (XAUUSD) and silver (XAGUSD), aligned on
+    their common dates from 2008-01-01 to 2025-12-31. A derived signal feed
+    carries the rolling regression beta, spread z-score, position state, and
+    per-leg target weights.
+
+Strategy Principle:
+    This is the "Cointegrated Gold Silver Pairs" strategy. It assumes gold and
+    silver are cointegrated, so a rolling OLS regression of gold on silver yields
+    a hedge ratio whose residual spread is stationary. A z-score of that spread
+    drives the trade: fade the spread beyond the entry threshold (long the cheap
+    leg, short the rich leg with beta-scaled sizing), exit as it reverts within
+    the exit threshold, and cut the position on a percentage stop loss.
+
+Strategy Logic:
+    load_data loads the two daily frames and prepare_cointegrated_inputs runs the
+    rolling regression, computes the z-score, and precomputes the per-bar target
+    weights and rebalance flags; build_cerebro wires the signal feed plus both
+    price feeds, a percentage commission, the strategy, and the analyzers. On
+    each rebalance-flagged bar the strategy issues order_target_percent orders
+    toward the precomputed leg weights. notify_order tracks pending orders and
+    notify_trade tallies wins and losses. extract_metrics consolidates analyzer
+    output (plus an Ulcer Index), and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -80,6 +107,20 @@ ASSET_ORDER = ['XAUUSD', 'XAGUSD']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM:SS`` or
+    ``HH:MM`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -125,6 +166,21 @@ def _rolling_beta_alpha(y, x, window):
 
 
 def prepare_cointegrated_inputs(asset_frames, params):
+    """Align the two frames and precompute the cointegration trading signals.
+
+    Runs a rolling regression of gold on silver, derives the spread z-score, and
+    simulates the entry/exit/stop state machine to produce per-bar target weights
+    and rebalance flags.
+
+    Args:
+        asset_frames: Mapping of symbol to its daily OHLCV frame.
+        params: Parameters controlling the regression/z-score windows,
+            entry/exit thresholds, stop loss, and per-pair notional fraction.
+
+    Returns:
+        A dict with the derived ``signal_df`` (beta, zscore, position_state,
+        rebalance_flag, gold/silver weights) and the aligned ``asset_frames``.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -223,6 +279,8 @@ def prepare_cointegrated_inputs(asset_frames, params):
 
 
 class CointegratedSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the cointegration signal and weight lines."""
+
     lines = ('beta', 'zscore', 'position_state', 'rebalance_flag', 'gold_weight', 'silver_weight')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -231,6 +289,8 @@ class CointegratedSignalFeed(bt.feeds.PandasData):
 
 
 class CointegratedPairsStrategy(bt.Strategy):
+    """Execute precomputed cointegration target weights on rebalance bars."""
+
     params = dict(
         regression_window=30,
         zscore_window=40,
@@ -241,6 +301,7 @@ class CointegratedPairsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset counters and order state."""
         self.signal_data = self.datas[0]
         self.asset_data = {data._name: data for data in self.datas[1:]}
         self.pending_orders = []
@@ -252,6 +313,13 @@ class CointegratedPairsStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Issue target-percent orders for both legs on rebalance-flagged bars.
+
+        Increments the bar counter and records broker value, skips while orders
+        are pending or when the bar is not flagged for rebalance, then routes
+        order_target_percent orders toward the precomputed gold and silver leg
+        weights.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal_data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_orders:
@@ -269,11 +337,22 @@ class CointegratedPairsStrategy(bt.Strategy):
                 self.pending_orders.append(order)
 
     def notify_order(self, order):
+        """Drop completed or dead orders from the pending-order list.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [o for o in self.pending_orders if o.ref != order.ref]
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -291,6 +370,8 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 class SpotCommissionInfo(CommInfoBase):
+    """Percentage, stock-like commission scheme using absolute percentages."""
+
     params = (
         ('commission', 0.0002),
         ('stocklike', True),
@@ -300,10 +381,27 @@ class SpotCommissionInfo(CommInfoBase):
 
 
 def finite_or_none(x):
+    """Return the value if it is truthy and finite, otherwise None.
+
+    Args:
+        x: A numeric value or None.
+
+    Returns:
+        The value when it is truthy and finite, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -317,11 +415,30 @@ def calculate_ulcer_index(values):
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Return the daily Sharpe-analyzer kwargs for this backtest.
+
+    Args:
+        config: Parsed configuration (accepted for signature compatibility).
+
+    Returns:
+        A dict of kwargs configuring the SharpeRatio analyzer on a daily,
+        annualized basis.
+    """
     return dict(timeframe=bt.TimeFrame.Days, compression=1, factor=252, annualize=True, riskfreerate=0)
 
 
 
 def load_data(config):
+    """Load and align the gold and silver frames and build the signal frame.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the prepared ``inputs`` (signal frame plus aligned asset
+        frames) and the ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -334,6 +451,17 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the Cerebro engine, signal/asset feeds, strategy, and analyzers.
+
+    Args:
+        frame: The loaded data dict returned by :func:`load_data`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the signal feed, both price
+        feeds, per-asset percentage commission, the strategy, and the default
+        analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -354,6 +482,19 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded data dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/rebalance/trade counts, PnL, return, win
+        rate, profit factor, drawdown, Sharpe, annualized return, SQN, and Ulcer
+        Index).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -401,6 +542,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Run the full cointegration pairs backtest and compute its metrics."""
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

@@ -7,12 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Trade_on_Qualified_RSI") implements a counter-trend mean reversion strategy based on overbought/oversold extremes in the Relative Strength Index (RSI) with structural confirmation over multiple bars.
+    - Market Assumptions: Overbought/oversold extreme values in the RSI indicator indicate short-term exhaustion of price trend. Entering opposite positions when these extremes persist over multiple confirmation bars ("Qualified RSI") captures mean-reverting profits.
+    - Indicators:
+        - RSI: Relative Strength Index (28-period, `rsi_period`). Overbought level is 55.0 (`rsi_upper`), oversold is 45.0 (`rsi_lower`).
+    - Entry Signals:
+        - Buy Entry: Current bar's RSI is oversold (<= 45), and the historical `count_bars` (5 bars, `count_bars`) are all below or equal to 45.
+        - Sell Entry: Current bar's RSI is overbought (>= 55), and the historical `count_bars` (5 bars, `count_bars`) are all above or equal to 55.
+    - Exit Signals:
+        - Dynamic Trailing Stop Loss: Dynamic Trailing Stop Loss calculated as `stop_loss` (21 pips) from the previous bar's Close price.
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
-import argparse, datetime
+import argparse
+import datetime
 import sys
 import backtrader as bt
 import pandas as pd
@@ -23,7 +41,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Trade_on_Qualified_RSI',
-        'source_ea': 'ea/0622_在有效RSI上交�?trade_on_qualified_rsi.mq5',
+        'source_ea': 'ea/0622_Trade_On_Qualified_RSI_Strategy/trade_on_qualified_rsi.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -67,15 +85,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +135,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -124,6 +161,7 @@ class QualifiedRSIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
 
         self.bar_num = 0
@@ -139,12 +177,26 @@ class QualifiedRSIStrategy(bt.Strategy):
         self.stop_price = None
 
     def _point(self):
+        """Calculate and retrieve floating point size multiplier.
+
+        Returns:
+            float: Fixed point size.
+        """
         return float(self.p.point)
 
     def _round(self, value):
+        """Round decimal value to strategy price_digits precision.
+
+        Args:
+            value (float): Raw input value.
+
+        Returns:
+            float: Precision-rounded value.
+        """
         return round(float(value), int(self.p.price_digits))
 
     def _trailing(self):
+        """Calculate and establish dynamic trailing stop levels based on previous close and stop_loss parameters."""
         if not self.position or self.order is not None:
             return
         sl_dist = float(self.p.stop_loss) * self._point()
@@ -159,6 +211,7 @@ class QualifiedRSIStrategy(bt.Strategy):
                 self.stop_price = new_sl
 
     def _check_sl(self):
+        """Check active position status for trailing stop-loss price breaches."""
         if not self.position or self.order is not None or self.stop_price is None:
             return
         high = float(self.data.high[0])
@@ -169,6 +222,7 @@ class QualifiedRSIStrategy(bt.Strategy):
             self.order = self.close(); return
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         warmup = self.p.rsi_period + self.p.count_bars + 5
         if len(self) < warmup:
@@ -207,6 +261,11 @@ class QualifiedRSIStrategy(bt.Strategy):
                 self.order = self.buy(size=self.p.lots)
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -222,6 +281,11 @@ class QualifiedRSIStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -241,11 +305,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -255,6 +341,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -271,6 +366,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -288,7 +394,24 @@ def extract_metrics(strat, cerebro, frame, config):
         'sharpe_ratio': sharpe.get('sharperatio'), 'annual_return_pct': (returns.get('rnorm') or 0) * 100,
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

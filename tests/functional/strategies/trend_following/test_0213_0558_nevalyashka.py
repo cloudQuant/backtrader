@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` located in `tests/datas/`.
+    Symbol `XAUUSD` on timeframe `M15`, sampled from `2025-12-03 01:15:00`
+    through `2026-03-10 09:00:00`.
+    Data index is shifted by 15 minutes when loading.
+
+Strategy Principle:
+    Alternates directional entries with fixed minimum lot size and fixed SL/TP.
+    The first bar seeds an initial sell signal, afterwards it alternates direction
+    after each closed trade.
+    Position exits are controlled by per-trade stop-loss and take-profit levels.
+
+Strategy Logic:
+    `load_mt5_csv()` converts MT5 TSV data to a normalized DataFrame.
+    `load_backtest_frame()` applies configured date boundaries.
+    `build_cerebro()` wires feed/strategy/analyzers and broker settings.
+    `next()` handles first-start initialization, alternating direction, and exit checks.
+    `extract_metrics()` merges counters and analyzer output for deterministic checks.
 """
 from __future__ import annotations
 import math
@@ -74,6 +93,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 style TSV data into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to MT5 source file.
+        fromdate: Optional lower datetime filter.
+        todate: Optional upper datetime filter.
+        bar_shift_minutes: Optional minute adjustment to index.
+
+    Returns:
+        pd.DataFrame: datetime-indexed OHLCV data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -97,12 +127,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData wrapper for normalized MT5 OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class NevalyashkaStrategy(bt.Strategy):
+    """Alternating entry strategy with fixed lots and SL/TP exit policy."""
     params = dict(
         number_minimum_lots=1,
         stop_loss=50,
@@ -112,6 +144,7 @@ class NevalyashkaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and alternating-direction trade state."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -170,6 +203,12 @@ class NevalyashkaStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Evaluate setup state for each bar.
+
+        On first bar, initializes with an initial short order.
+        On subsequent bars, alternates direction when the previous trade closed,
+        unless a manually requested next direction is already queued.
+        """
         self.bar_num += 1
         if self.order is not None:
             return
@@ -194,6 +233,7 @@ class NevalyashkaStrategy(bt.Strategy):
             self._arm('buy', float(self.data.close[0]))
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and reset pending order pointers."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -212,6 +252,7 @@ class NevalyashkaStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters and prepare the direction flip for next cycle."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -236,6 +277,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a test data file path.
+
+    Args:
+        filename: Data filename within module directory.
+
+    Returns:
+        Path: Fully-resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -243,6 +292,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter dataset according to configured bounds.
+
+    Args:
+        config: Configuration object.
+
+    Returns:
+        dict: Dataframe and time bounds for backtesting.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -254,6 +311,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create a configured Cerebro instance.
+
+    Args:
+        config: Configuration dictionary.
+        frame: Loaded OHLCV frame.
+
+    Returns:
+        bt.Cerebro: Fully initialized engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -272,6 +338,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzers and strategy runtime counters.
+
+    Args:
+        strat: Finished strategy object.
+        cerebro: Executor engine.
+        frame: Backtest payload.
+        config: Test configuration.
+
+    Returns:
+        dict: Finalized metrics for regression checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -299,6 +376,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the backtest and return results with metrics.
+
+    Args:
+        plot: Whether to plot the execution chart.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

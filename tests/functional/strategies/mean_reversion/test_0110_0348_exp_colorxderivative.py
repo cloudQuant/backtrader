@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H12 (720-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_ColorXDerivative``. On the
+    higher H12 timeframe the ColorXDerivative indicator measures the smoothed
+    rate of change of a weighted price and classifies momentum into colored
+    states (rising/falling above or below zero). The strategy treats color-state
+    transitions as mean-reversion/momentum-shift signals: it opens longs when
+    the derivative turns up out of a bearish state and shorts when it turns down
+    out of a bullish state, and closes positions on the opposite color
+    transition. Each position carries fixed stop-loss and take-profit levels in
+    pips.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 base frame and resamples it to the H12
+    signal frame; build_cerebro wires both feeds plus the default analyzers and
+    builds the ColorXDerivative indicator on the signal feed. On each new signal
+    bar the strategy first checks protective stop/take-profit levels, then reads
+    the current and previous color index to decide whether to open, close, or
+    reverse a position sized by fixed lot. notify_order sets entry risk prices
+    and counts entries; notify_trade clears risk state on close. The test forces
+    runonce=True, runs main(), and asserts trade counts and analyzer metrics
+    against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -88,6 +117,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, sorted ascending and filtered to the
+        date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +157,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the MT5 ``spread`` column as an extra line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -128,16 +173,31 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorXDerivative(bt.Indicator):
+    """Smoothed price-derivative indicator with a momentum color state.
+
+    Computes the average rate of change of a weighted price over ``i_slowing``
+    bars, smoothed across ``xlength`` windows, and classifies it into a color
+    index: rising/falling while positive (0/1) or negative (3/4), with 2 as a
+    neutral state.
+    """
+
     lines = ('value', 'color_idx')
     params = dict(i_slowing=34, xlength=15)
 
     def __init__(self):
+        """Set the minimum period to cover the slowing and smoothing windows."""
         self.addminperiod(max(self.p.i_slowing + 2, self.p.xlength + 2))
 
     def _price(self, ago=0):
         return (float(self.data.high[ago]) + float(self.data.low[ago]) + 2.0 * float(self.data.close[ago])) / 4.0
 
     def next(self):
+        """Compute the smoothed derivative value and its color state.
+
+        Stores the smoothed derivative on the ``value`` line and a color index on
+        ``color_idx`` reflecting whether the value is rising or falling above or
+        below zero relative to the previous bar.
+        """
         der = 100.0 * (self._price(0) - self._price(-self.p.i_slowing)) / float(self.p.i_slowing)
         window = [100.0 * (self._price(-i) - self._price(-(i + self.p.i_slowing))) / float(self.p.i_slowing) for i in range(self.p.xlength)]
         smooth = sum(window) / float(len(window)) if window else der
@@ -152,6 +212,31 @@ class ColorXDerivative(bt.Indicator):
 
 
 class ExpColorXDerivativeStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_ColorXDerivative`` color-transition strategy.
+
+    Reads the ColorXDerivative color state from the H12 signal feed and opens or
+    closes positions on color transitions, executing on the M15 feed. Each
+    position carries fixed stop-loss and take-profit levels checked intrabar.
+
+    Args:
+        fixed_lot: Fixed order size in lots (used when > 0).
+        risk_percent: Percent-of-equity risk used to size when fixed_lot is 0.
+        point_size: Price value of one pip for stop/target distances.
+        stoploss_pips: Stop-loss distance in pips (0 disables).
+        takeprofit_pips: Take-profit distance in pips (0 disables).
+        buy_pos_open: Whether long entries are permitted.
+        sell_pos_open: Whether short entries are permitted.
+        buy_pos_close: Whether long positions may be closed on signal.
+        sell_pos_close: Whether short positions may be closed on signal.
+        i_slowing: Slowing period passed to the ColorXDerivative indicator.
+        xlength: Smoothing window passed to the ColorXDerivative indicator.
+        signal_bar: Which completed signal bar to read the color state from.
+        lot_min: Minimum order size in lots.
+        lot_step: Lot rounding step.
+        lot_max: Maximum order size in lots.
+        contract_multiplier: Contract multiplier used for risk-based sizing.
+    """
+
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -172,6 +257,12 @@ class ExpColorXDerivativeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution and signal feeds and reset order/trade state.
+
+        Captures the M15 execution feed and the H12 signal feed, builds the
+        ColorXDerivative indicator on the signal feed, and clears order, entry
+        side, risk-price and entry-counter state.
+        """
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.ind = ColorXDerivative(self.signal_feed, i_slowing=self.p.i_slowing, xlength=self.p.xlength)
@@ -184,6 +275,11 @@ class ExpColorXDerivativeStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -251,6 +347,13 @@ class ExpColorXDerivativeStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Act once per new signal bar: check exits, then open/close on color.
+
+        Skips repeated signal bars and the warm-up window, enforces protective
+        stop/take-profit exits, then reads current and previous color states to
+        close an opposing position or open a new long/short per the configured
+        open/close permissions.
+        """
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
             return
@@ -292,6 +395,15 @@ class ExpColorXDerivativeStrategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size:.2f} color_now={color_now} color_prev={color_prev} value={value_now:.5f}')
 
     def notify_order(self, order):
+        """Record entry risk prices and counts, and reset on terminal status.
+
+        On a completed entry, increments the buy/sell counter and sets the
+        stop-loss/take-profit prices; on a completed exit, clears risk state. On
+        any terminal status the pending order handle is cleared.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -314,6 +426,12 @@ class ExpColorXDerivativeStrategy(bt.Strategy):
                 self.entry_side = None
 
     def notify_trade(self, trade):
+        """Log closed trades and clear risk/entry state once flat.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are
+                logged.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -336,6 +454,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path relative to the test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -343,12 +462,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings, returning ``None`` for empty values."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV data into fixed-minute bars."""
     rule = f'{minutes}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -366,6 +487,7 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config):
+    """Load base and signal frames using config bounds and compression."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -384,6 +506,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Add the standard analyzer stack used by strategy regressions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -392,6 +515,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro with dual feeds, strategy params, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -416,6 +540,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for None/non-finite numeric values."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -424,6 +549,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a short regression summary from analyzer outputs."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -452,6 +578,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run backtest from CLI with optional plotting."""
     parser = argparse.ArgumentParser(description='Run Exp ColorXDerivative backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

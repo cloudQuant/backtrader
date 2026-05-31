@@ -7,6 +7,29 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `tests/datas/XAUUSD_M15.csv` as the primary OHLCV input for the
+    execution timeframe `M15` and a derived `H4` signal stream for generating
+    Parabolic SAR crossover events.
+    Main feed covers 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy uses Parabolic SAR direction flips on the signal feed to detect
+    trend reversals.
+    When price crosses from below SAR to above SAR, it allows opening long and
+    closing existing short positions; the opposite crossing opens short and closes
+    existing long.
+    Additional filters enforce a fixed lot size and optional buy/sell open-close
+    controls plus optional timed holding exit.
+
+Strategy Logic:
+    On each bar, compute Sar on the signal timeframe and compare the current and
+    previous bars.
+    The execution logic evaluates reversal close actions first, then skip opening
+    new positions when one is already held.
+    Order completion updates entry/exit counters and per-trade state; analyzer
+    results are collected after `cerebro.run()` and validated by expected metrics.
 """
 from __future__ import annotations
 import math
@@ -90,6 +113,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-separated CSV data into a normalized OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the exported MT5 data file.
+        fromdate: Optional left bound for filtering bars.
+        todate: Optional right bound for filtering bars.
+        bar_shift_minutes: Minutes to shift index for broker-agnostic alignment.
+
+    Returns:
+        A pandas DataFrame indexed by datetime, containing columns:
+        `open`, `high`, `low`, `close`, `volume`, `openinterest`, and optional
+        `spread`.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -121,6 +157,11 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed extension that exposes `spread` as a custom line.
+
+    Data source format matches inlined MT5 export after normalization in
+    `load_mt5_csv`, with datetime mapped to index and standard OHLCV fields.
+    """
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -135,6 +176,21 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ExpSarTmPlusStrategy(bt.Strategy):
+    """Parabolic SAR based reversal strategy with optional timed exits.
+
+    The strategy runs on a primary execution feed while using a second resampled
+    signal feed for directional flips. It tracks counts and risk levels for
+    assertions in regression checks.
+
+    Attributes:
+        sar: ParabolicSAR indicator driven by the signal feed.
+        order: The currently active order object during submit/accept cycles.
+        pending_action: Last requested logical action (`open_long`, `open_short`, `close`).
+        entry_dt: Datetime of the last executed entry.
+        entry_price: Executed entry price.
+        stop_price: Active stop-loss price level.
+        take_profit_price: Active take-profit price level.
+    """
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -155,6 +211,7 @@ class ExpSarTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator, position trackers, and trade counters."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.sar = bt.indicators.ParabolicSAR(self.data1, af=self.p.sar_step, afmax=self.p.sar_maximum)
@@ -172,10 +229,24 @@ class ExpSarTmPlusStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped text message for strategy runtime tracing.
+
+        Args:
+            text: Message content to print.
+        """
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Execute signal evaluation and order routing for each bar.
+
+        Flow:
+            1. Skip if an order is pending.
+            2. Skip if insufficient signal bars are available.
+            3. Check explicit stop-loss/take-profit and hold-time exits.
+            4. Detect SAR cross-over direction and set close/open intents.
+            5. Submit one order per bar when a validated action exists.
+        """
         if self.order is not None:
             return
         if len(self.data1) <= int(self.p.signal_bar) + 1:
@@ -251,6 +322,15 @@ class ExpSarTmPlusStrategy(bt.Strategy):
             self.log(f'OPEN SHORT newer_close={newer_close:.5f} newer_sar={newer_sar:.5f}')
 
     def notify_order(self, order):
+        """Handle order status changes and keep internal counters in sync.
+
+        On completed open orders, increment entry counters and prepare stop/take-profit
+        levels. On completed closes, clear temporary entry context.
+        Any terminal order state resets the pending action and order lock.
+
+        Args:
+            order: Backtrader order object with execution/status info.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -273,6 +353,7 @@ class ExpSarTmPlusStrategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters and clear active levels after close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -352,6 +433,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve strategy data file path and fail fast when file is missing.
+
+    Args:
+        filename: Relative path to the CSV data resource.
+
+    Returns:
+        Absolute resolved path.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -359,12 +451,29 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into a naive datetime object.
+
+    Args:
+        value: None or datetime string in ``YYYY-MM-DD HH:MM:SS`` format.
+
+    Returns:
+        A `datetime.datetime` instance, or ``None`` if input is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def resample_frame(df, minutes):
+    """Resample a base dataframe into a coarser compression window.
+
+    Args:
+        df: Source bars indexed by datetime.
+        minutes: Target bar length in minutes.
+
+    Returns:
+        Resampled dataframe with OHLCV columns and forward-complete spread fields.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -382,6 +491,16 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config):
+    """Load execution and signal feeds from config-defined data bounds.
+
+    Args:
+        config: Merged inline strategy configuration.
+
+    Returns:
+        A dict containing:
+        - `data`: base execution bars.
+        - `signal`: resampled bars for SAR signal evaluation.
+    """
     data_cfg = config['data']
     frame = load_mt5_csv(
         resolve_data_path(data_cfg['file']),
@@ -397,6 +516,12 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro, returns_compression=15):
+    """Attach baseline analyzers used by regression expectations.
+
+    Args:
+        cerebro: Backtrader engine object.
+        returns_compression: Returns analyzer compression in minutes.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=returns_compression, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -405,6 +530,15 @@ def add_default_analyzers(cerebro, returns_compression=15):
 
 
 def build_cerebro(config, frame):
+    """Create and configure `Cerebro` for this strategy test.
+
+    Args:
+        config: Test configuration dictionary.
+        frame: Prepared feed dictionary from `load_backtest_frame`.
+
+    Returns:
+        Configured `bt.Cerebro` instance ready for `run()`.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -435,6 +569,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite values to ``None`` for assertion-safe metric outputs."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -443,6 +578,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact summary of broker and analyzer metrics.
+
+    Args:
+        results: Cerebro run outputs.
+        start_value: Broker value before strategy execution.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -471,6 +612,11 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entry point for running the inlined strategy backtest.
+
+    Parses the optional `--plot` flag, runs the engine, and prints summary
+    metrics.
+    """
     parser = argparse.ArgumentParser(description='Run Exp_Sar_Tm_Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

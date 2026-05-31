@@ -7,6 +7,43 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This strategy implements a tail risk mitigation model using a monthly moving average warning trigger.
+    - Market Assumptions: Downward trend breaks below long-term moving averages (e.g. 10-month/210-day SMA) on a monthly closing basis indicate a high-risk tail regime. Reducing exposure (e.g. from 100% to 50%) during these risk periods substantially mitigates peak drawdown and protects equity.
+    - Indicators:
+        - monthly_close: Grouped monthly last close price.
+        - monthly_ma: 10-month rolling mean of monthly_close.
+        - risk_state: Flag indicating if monthly_close < monthly_ma.
+        - target_pct: Target exposure weight (1.0 for normal, 0.5 for risk state).
+        - large_loss_flag: Flag indicating if monthly return <= -5.0%.
+    - Entry/Exit Signals:
+        - Rebalancing order triggered at the beginning of each month if target_pct shifts.
+
+Strategy Logic:
+    - Initialization: ``TailRiskMAWarningStrategy.__init__`` resets bar, rebalance,
+      trade, regime, and equity-tracking counters and clears any pending order.
+    - Data Loading: ``load_backtest_frame`` reads the MT5 CSV, then
+      ``prepare_tail_risk_features`` resamples to month-end, builds the moving
+      average and risk state, and shifts the state by one month to avoid lookahead.
+    - Entry/Exit: ``next`` acts once per new month, comparing current exposure
+      against ``target_pct`` and submitting an ``order_target_size`` rebalance only
+      when the gap exceeds a 2% band; buy/sell counters track exposure direction.
+    - Order Notification: ``notify_order`` clears the pending-order reference once
+      an order leaves the submitted/accepted state; ``notify_trade`` tallies closed
+      trades into win/loss counts.
+    - Metric Extraction: ``extract_metrics`` gathers analyzer output (Sharpe,
+      returns, drawdown, trades, SQN), the equity-curve Ulcer index, and monthly
+      regime statistics from ``extract_monthly_stats``.
+    - Test Assertions: ``test_3_0003_tail_risk_ma_warning`` forces ``runonce=True``,
+      captures the metrics dict via an ``extract_metrics`` hook, and asserts each
+      value against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -72,15 +109,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -113,6 +168,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_tail_risk_features(df, params):
+    """Prepare and compute indicators for the Tail Risk MA Warning strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing MA periods and risk position targets.
+
+    Returns:
+        tuple: (out_df, monthly_table) containing calculated indicators and aggregated monthly metrics.
+    """
     out = df.copy()
     month_end_index = out.index.to_period('M').to_timestamp('M')
     monthly_close = out['close'].groupby(month_end_index).last()
@@ -143,6 +207,7 @@ def prepare_tail_risk_features(df, params):
 
 
 class Mt5TailRiskFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with tail risk mitigation lines."""
     lines = ('monthly_close', 'monthly_ma', 'risk_state', 'target_pct', 'large_loss_flag',)
     params = (
         ('datetime', None),
@@ -161,6 +226,11 @@ class Mt5TailRiskFeed(bt.feeds.PandasData):
 
 
 class TailRiskMAWarningStrategy(bt.Strategy):
+    """Strategy class implementing moving average-based monthly tail risk protection.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         ma_period_months=10,
         loss_threshold_pct=5.0,
@@ -169,6 +239,7 @@ class TailRiskMAWarningStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.buy_count = 0
@@ -185,15 +256,34 @@ class TailRiskMAWarningStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def log(self, text):
+        """Log the given message with an ISO timestamp prefix.
+
+        Args:
+            text (str): Message to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _month_key(self):
+        """Return the current year and month tuple from the data feed timestamp.
+
+        Returns:
+            tuple: (year, month) of the current bar.
+        """
         dt = bt.num2date(self.data.datetime[0])
         return dt.year, dt.month
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -209,6 +299,11 @@ class TailRiskMAWarningStrategy(bt.Strategy):
 
 
     def _current_position_pct(self):
+        """Calculate the current actual portfolio exposure percentage.
+
+        Returns:
+            float: Exposure ratio of the current position size.
+        """
         broker_value = float(self.broker.getvalue())
         if broker_value <= 0:
             return 0.0
@@ -223,10 +318,19 @@ class TailRiskMAWarningStrategy(bt.Strategy):
 
 
     def _order_target_notional_pct(self, target_pct):
+        """Execute a rebalancing target size order based on target notional percentage.
+
+        Args:
+            target_pct (float): Target exposure percentage.
+
+        Returns:
+            bt.Order: The placed target size order.
+        """
         target_size = self._get_position_size(target_notional_pct=target_pct)
         return self.order_target_size(target=target_size)
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         month_key = self._month_key()
@@ -255,12 +359,22 @@ class TailRiskMAWarningStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
-        # 无论订单状态如何，都清除挂单引用
+        # Clear pending order references regardless of order status
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -278,6 +392,14 @@ BASE_DIR = Path(__file__).resolve().parent
 TRADING_DAYS_PER_YEAR = 252
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -291,6 +413,17 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -298,6 +431,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load daily gold market data and prepare tail risk indicators.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing daily bar and monthly table.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -316,6 +460,12 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro, config):
+    """Register default performance and statistics analyzers to Cerebro.
+
+    Args:
+        cerebro (bt.Cerebro): Cerebro engine instance.
+        config (dict): Configuration dictionary.
+    """
     sharpe_kwargs = get_sharpe_analyzer_kwargs(config)
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', **sharpe_kwargs)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Days, tann=TRADING_DAYS_PER_YEAR)
@@ -325,6 +475,15 @@ def add_default_analyzers(cerebro, config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -357,6 +516,14 @@ def build_cerebro(config, frame):
 
 
 def normalize(value):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        value (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -369,6 +536,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     if value is None:
         return None
     if isinstance(value, float):
@@ -380,6 +555,14 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        equity_curve (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -395,6 +578,14 @@ def calculate_ulcer_index(equity_curve):
 
 
 def extract_monthly_stats(monthly_table):
+    """Extract monthly statistics (below MA percentages, large loss occurrences).
+
+    Args:
+        monthly_table (pd.DataFrame): Aggregated monthly indicator table.
+
+    Returns:
+        dict: Monthly performance metrics summary.
+    """
     table = monthly_table.dropna(subset=['monthly_close'])
     if table.empty:
         return {
@@ -420,7 +611,17 @@ def extract_monthly_stats(monthly_table):
 
 
 def extract_metrics(strat, cerebro, frame, config):
-    """提取回测指标 - 参考 trend_pullback 实现"""
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -431,8 +632,9 @@ def extract_metrics(strat, cerebro, frame, config):
     final_value = cerebro.broker.getvalue()
     broker_values = [value for _, value in getattr(strat, 'broker_value_series', [])] or [initial_cash, final_value]
     
-    # 该策略是长期持有、部分调仓，TradeAnalyzer只统计完全平仓的交易
-    # 所以使用 rebalance_count 作为交易次数
+    # This strategy represents long-term holding with partial monthly rebalancing,
+    # so TradeAnalyzer only accounts for fully closed positions.
+    # Therefore, rebalance_count is used as total trade count activity.
     total_trades = strat.rebalance_count
     won = ta.get('won', {}).get('total', 0)
     lost = ta.get('lost', {}).get('total', 0)
@@ -473,10 +675,15 @@ def extract_metrics(strat, cerebro, frame, config):
     return metrics
 
 
-
-
-
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -76,6 +76,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV file into OHLCV DataFrame used by this test.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute shift to apply to index.
+
+    Returns:
+        DataFrame with datetime index and OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +110,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed mapping frame columns to OHLCV fields."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -125,6 +138,7 @@ class EMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize EMA indicators and trade tracking counters."""
         self.median_price = (self.data.high + self.data.low) / 2.0
         self.ema_fast = bt.indicators.EMA(self.median_price, period=self.p.ema_fast_period)
         self.ema_slow = bt.indicators.EMA(self.median_price, period=self.p.ema_slow_period)
@@ -166,6 +180,7 @@ class EMAStrategy(bt.Strategy):
                 self.check = 0; self.order = self.close(); return
 
     def next(self):
+        """Process signal detection and manage open positions each bar."""
         self.bar_num += 1
         if len(self) < self.p.ema_slow_period + 2:
             return
@@ -201,6 +216,11 @@ class EMAStrategy(bt.Strategy):
                 self.order = self.buy(size=self.p.lots)
 
     def notify_order(self, order):
+        """Update counters for completed/rejected orders and clear active order.
+
+        Args:
+            order: Order instance updated by broker.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -214,6 +234,11 @@ class EMAStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count every closed trade and update win/loss aggregates.
+
+        Args:
+            trade: Closed trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -233,11 +258,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve and validate configured data path.
+
+    Args:
+        filename: Relative path to data file.
+
+    Returns:
+        Resolved absolute path.
+
+    Raises:
+        FileNotFoundError: If file not found.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load historical frame and return run bounds.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Dict containing data and ``fromdate``/``todate``.
+
+    Raises:
+        ValueError: If loaded data is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -247,6 +294,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build a Cerebro engine preconfigured for EMA strategy test.
+
+    Args:
+        config: Strategy/backtest config.
+        frame: Loaded frame payload.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -263,6 +319,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer and strategy counters into a metric dictionary.
+
+    Args:
+        strat: Completed strategy.
+        cerebro: Completed Cerebro instance.
+        frame: Backtest frame payload.
+        config: Backtest configuration.
+
+    Returns:
+        Dict of performance metrics used by assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -281,6 +348,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Run EMA strategy backtest and return results and metrics.
+
+    Args:
+        plot: Whether to plot cerebro output.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

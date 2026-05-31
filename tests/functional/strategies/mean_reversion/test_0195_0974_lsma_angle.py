@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) loaded from the MT5 tab-separated export
+    ``tests/datas/XAUUSD_M15.csv``. The base execution feed is M15 (15-minute)
+    bars shifted forward by 15 minutes so each timestamp marks the candle close,
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The same frame is
+    resampled to an H1 (60-minute) signal timeframe on which the indicator runs,
+    giving a two-feed setup: M15 for execution and H1 for signals.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_LSMA_Angle. A Least Squares Moving
+    Average (linear-regression endpoint) is computed at two shifts, and the
+    scaled difference between them is read as the slope angle of the LSMA. The
+    angle is binned into color states (steep up rising/falling, steep down
+    rising/falling, or neutral) using an angle threshold. Color transitions out
+    of an extreme up or down state signal a mean-reversion turn: leaving a strong
+    bullish state triggers/closes longs and leaving a strong bearish state
+    triggers/closes shorts. Positions carry fixed point stop-loss and
+    take-profit protection.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro adds the M15
+    execution feed and an H1 resampled signal feed, then wires the
+    angle-color indicator strategy and analyzers. Once per new H1 signal bar the
+    strategy checks protective exits, reads the color index at the configured
+    signal bar versus the prior bar, and opens, closes, or reverses positions on
+    color transitions. notify_order tracks fills, counts buys/sells, arms risk
+    levels, and performs deferred reversals; notify_trade tallies closed trades.
+    extract_metrics consolidates analyzer output; the test loads inputs, builds
+    cerebro, forces runonce=True, and asserts each metric against migration-time
+    values.
 """
 from __future__ import annotations
 import math
@@ -86,6 +117,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound; earlier rows are dropped.
+        todate: Optional inclusive upper bound; later rows are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, openinterest, and spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -112,6 +156,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 OHLCV columns plus a spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -126,10 +172,23 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class LsmaAngleIndicator(bt.Indicator):
+    """Compute LSMA slope angle and map it to a color-state indicator.
+
+    The indicator evaluates two least-squares MAs at different shifts and uses
+    the angle and trend persistence to classify bullish/bearish momentum states.
+
+    Args:
+        lsma_period: Look-back window used for each LSMA estimate.
+        angle_threshold: Threshold used to classify the angle magnitude.
+        start_shift: Shift index for the start LSMA sample.
+        end_shift: Shift index for the end LSMA sample.
+    """
+
     lines = ('angle', 'color_index')
     params = dict(lsma_period=25, angle_threshold=15, start_shift=4, end_shift=0)
 
     def __init__(self):
+        """Set minimum-history requirement and initialize derived scale factor."""
         needed = int(max(self.p.lsma_period + self.p.start_shift, self.p.lsma_period + self.p.end_shift)) + 2
         self.addminperiod(needed)
         self._m_factor = None
@@ -157,6 +216,7 @@ class LsmaAngleIndicator(bt.Indicator):
         self._m_factor = (1000.0 if abs(float(self.data.close[0])) >= 10 and abs(float(self.data.close[0])) < 1000 else 100000.0) / shift_diff
 
     def next(self):
+        """Calculate the current angle and update color index for the next bar."""
         if int(self.p.end_shift) >= int(self.p.start_shift):
             self.lines.angle[0] = 0.0
             self.lines.color_index[0] = 2
@@ -183,6 +243,28 @@ class LsmaAngleIndicator(bt.Indicator):
 
 
 class LsmaAngleStrategy(bt.Strategy):
+    """Trade on LSMA-angle turn transitions from the helper indicator.
+
+    Args:
+        fixed_lot: Fixed lot size when non-zero.
+        risk_percent: Risk fraction of current equity for dynamic sizing.
+        point: Instrument point size.
+        stop_loss_points: Stop-loss distance in points.
+        take_profit_points: Take-profit distance in points.
+        buy_pos_open: Allow long entries.
+        sell_pos_open: Allow short entries.
+        buy_pos_close: Allow closing long positions.
+        sell_pos_close: Allow closing short positions.
+        lsma_period: LSMA period for indicator.
+        angle_threshold: Indicator angle threshold.
+        start_shift: LSMA start shift.
+        end_shift: LSMA end shift.
+        signal_bar: Signal-bar index used for transition checks.
+        lot_min: Minimum order size.
+        lot_step: Size rounding step.
+        lot_max: Maximum order size.
+        contract_multiplier: Contract multiplier used in risk sizing.
+    """
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -205,6 +287,7 @@ class LsmaAngleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Wire data feeds/indicator and initialize trade and risk counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = LsmaAngleIndicator(
@@ -233,6 +316,7 @@ class LsmaAngleStrategy(bt.Strategy):
         self.warmup = int(max(self.p.lsma_period + self.p.start_shift, self.p.lsma_period + self.p.end_shift)) + int(self.p.signal_bar) + 4
 
     def log(self, text):
+        """Emit a timestamped strategy log line."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -320,6 +404,7 @@ class LsmaAngleStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one bar, check exit guards, and submit entry/reverse orders."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -365,6 +450,7 @@ class LsmaAngleStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Process completed/cancelled orders and reset pending state flags."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -408,6 +494,7 @@ class LsmaAngleStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track closed trade count and log realized outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -432,6 +519,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy file path from the local test directory.
+
+    Args:
+        filename: Relative path in test data tree.
+
+    Returns:
+        Absolute path to data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -439,6 +534,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return the backtest frame plus time range.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary with keys ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -469,6 +572,15 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine with feeds, strategy, and analyzer stack.
+
+    Args:
+        config: Strategy configuration dictionary.
+        frame: Backtest frame dictionary from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -500,6 +612,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect trade and return metrics used for regression assertions.
+
+    Args:
+        strat: Strategy instance after run completion.
+        cerebro: Backtrader engine instance.
+        frame: Backtest frame.
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary with metrics used by the inline test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

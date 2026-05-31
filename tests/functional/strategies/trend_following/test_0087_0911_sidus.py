@@ -89,6 +89,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a tab-separated MT5 export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV export file.
+        fromdate: Optional inclusive lower bound on the bar timestamp.
+        todate: Optional inclusive upper bound on the bar timestamp.
+        bar_shift_minutes: Minutes to add to each bar timestamp so bars are
+            stamped at their close.
+
+    Returns:
+        A datetime-indexed DataFrame with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +123,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Plain pandas feed mapping OHLCV columns by position for both timeframes."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -126,6 +141,7 @@ class SidusIndicator(bt.Indicator):
     params = dict(fast_ema=18, slow_ema=28, fast_lwma=5, slow_lwma=8, digit=0)
 
     def __init__(self):
+        """Cache MA periods and digit scaling, and set the indicator warmup."""
         self._fe = int(self.p.fast_ema)
         self._se = int(self.p.slow_ema)
         self._fl = int(self.p.fast_lwma)
@@ -165,6 +181,7 @@ class SidusIndicator(bt.Indicator):
         return total / period
 
     def next(self):
+        """Emit buy/sell arrow offsets when the LWMA/EMA cross conditions fire."""
         # Current bar (ago=0) and previous bar (ago=1)
         fst_ema_0 = self._ema(self._fe, 0)
         slw_ema_0 = self._ema(self._se, 0)
@@ -199,6 +216,8 @@ class SidusIndicator(bt.Indicator):
 
 
 class ExpSidusStrategy(bt.Strategy):
+    """Dual-timeframe Sidus strategy trading H1 arrow signals on M15 execution."""
+
     params = dict(
         fast_ema=18,
         slow_ema=28,
@@ -218,6 +237,7 @@ class ExpSidusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind base/signal feeds, build the Sidus indicator, and reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = SidusIndicator(
@@ -237,6 +257,11 @@ class ExpSidusStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line using the current base bar datetime.
+
+        Args:
+            text: Message to log alongside the current bar timestamp.
+        """
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -280,6 +305,7 @@ class ExpSidusStrategy(bt.Strategy):
                     self.log(f'close long hist sell -{k}'); self.close(); return
 
     def next(self):
+        """Manage exits and open/close positions on Sidus arrow signals."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -327,6 +353,11 @@ class ExpSidusStrategy(bt.Strategy):
             if self.position.size >= 0: self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Count entries on open and tally win/loss on close.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -347,11 +378,33 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        fn: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Load the M15 base OHLCV frame for the backtest.
+
+    Args:
+        cfg: Resolved configuration dict containing a ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` frame and the ``fromdate``/``todate``.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -361,6 +414,15 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Resample the base frame to the higher signal timeframe.
+
+    Args:
+        df: Source M15 OHLCV DataFrame.
+        mins: Target bar size in minutes for the signal feed.
+
+    Returns:
+        A resampled OHLCV DataFrame with missing open interest filled with zero.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -368,6 +430,19 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Assemble a Cerebro engine with the M15/H1 feeds, strategy, and analyzers.
+
+    Args:
+        cfg: Resolved configuration dict with ``backtest``, ``data``, and
+            ``params`` sections.
+        frame: Frame dict produced by load_backtest_frame.
+
+    Returns:
+        A configured bt.Cerebro instance ready to run.
+
+    Raises:
+        ValueError: If the resampled signal frame is empty.
+    """
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 60)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -387,6 +462,17 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Collect Sharpe, returns, drawdown, trade, and PnL metrics from analyzers.
+
+    Args:
+        strat: The executed strategy instance with attached analyzers.
+        cerebro: The Cerebro engine, used for final broker value.
+        frame: Frame dict with the loaded data and date range.
+        cfg: Resolved configuration dict for initial cash.
+
+    Returns:
+        A dict of summary metrics asserted by the regression test.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -401,6 +487,14 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Execute the backtest and return run results, extracted metrics, and cerebro.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)

@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses MT5-style XAUUSD 15-minute OHLC data from ``tests/datas/XAUUSD_M15.csv``.
+    The strategy backtests the period from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``
+    with minute-level compression of 15.
+
+Strategy Principle:
+    Trades mean-reversion transitions in RSI space by combining oversold/overbought
+    reversals, bullish/bearish divergence patterns, and optional centerline confirmation.
+    It layers risk controls with position sizing, bracket risk management,
+    daily profit/loss limits, trailing stop management, and optional time/news filters.
+
+Strategy Logic:
+    The strategy calculates RSI features, evaluates regime and time filters before
+    opening bracket long/short positions when reversal conditions are met, and then
+    updates exits with optional RSI-level exits and trailing-stop logic. The test
+    builds a Cerebro engine with analyzers, runs a single-pass backtest, extracts
+    structured metrics, and asserts expected result values.
 """
 from __future__ import annotations
 import math
@@ -107,6 +125,7 @@ def load_config():
 
 
 class TheRSIEngineStrategy(bt.Strategy):
+    """RSI engine strategy that applies multiple reversal signals and risk controls."""
     params = dict(
         use_risk_management=False,
         risk_percent=1.0,
@@ -151,6 +170,7 @@ class TheRSIEngineStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize RSI state, counters, and active-order tracking fields."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
         self.bar_num = 0
         self.buy_count = 0
@@ -168,10 +188,16 @@ class TheRSIEngineStrategy(bt.Strategy):
         self.pending_direction = None
 
     def log(self, text):
+        """Print timestamped strategy log messages.
+
+        Args:
+            text: Log body text.
+        """
         d = bt.num2date(self.data.datetime[0])
         print(f'{d.isoformat()}, {text}')
 
     def next(self):
+        """Advance strategy state and execute one bar of trading logic."""
         self.bar_num += 1
         now = bt.num2date(self.data.datetime[0])
         self._reset_daily_state_if_needed(now)
@@ -184,6 +210,7 @@ class TheRSIEngineStrategy(bt.Strategy):
             self._check_for_entry_signals(now)
 
     def notify_order(self, order):
+        """Track order lifecycle transitions and clear stale order references."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -207,6 +234,7 @@ class TheRSIEngineStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters when a trade closes and log PnL."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -433,6 +461,18 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def load_mt5_data(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and normalize it to an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 export CSV file.
+        fromdate: Optional filter lower bound datetime.
+        todate: Optional filter upper bound datetime.
+        bar_shift_minutes: Optional minute offset applied to all timestamps.
+
+    Returns:
+        A datetime-indexed DataFrame with columns ``open``, ``high``, ``low``, ``close``,
+        ``volume``, and ``openinterest``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -459,6 +499,14 @@ def load_mt5_data(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path relative to the test directory.
+
+    Args:
+        filename: File path from config, including repository-relative notation.
+
+    Returns:
+        Absolute path to the file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -466,6 +514,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest dataframe by reading config date window and MT5 dataset.
+
+    Args:
+        config: Migration config containing data source, period, and symbol settings.
+
+    Returns:
+        Dict with keys ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -477,6 +533,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used by assertion-driven metric checks.
+
+    Args:
+        cerebro: Cerebro engine instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -485,6 +546,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build the Cerebro engine and configure feed/strategy/analyzers.
+
+    Args:
+        config: Full strategy/backtest configuration.
+        frame: Data payload from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -505,6 +575,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite numeric values, otherwise return the value."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -513,12 +584,32 @@ def finite_or_none(value):
 
 
 def format_metric(value, fmt='.2f'):
+    """Format a numeric metric for display with a fallback string.
+
+    Args:
+        value: Numeric value to format.
+        fmt: Format specification.
+
+    Returns:
+        Formatted value string or ``'N/A'``.
+    """
     if value is None:
         return 'N/A'
     return format(value, fmt)
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy/analyzer metrics from the backtest run.
+
+    Args:
+        strat: Strategy instance returned by ``cerebro.run``.
+        cerebro: Completed Cerebro instance.
+        frame: Backtest data payload with metadata and source frame.
+        config: Full inlined config used for the test.
+
+    Returns:
+        Dictionary of bar counts, trade statistics, and analyzer outputs.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

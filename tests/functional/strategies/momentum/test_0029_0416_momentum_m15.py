@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The smoothed moving average
+    and the momentum oscillator are computed directly on this feed; no separate
+    signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor "Momentum-M15". It combines a
+    smoothed moving average of the low (shifted) acting as a trend gate with a
+    momentum oscillator (price now versus ``momentum_period`` bars ago). A long
+    is taken when price sits below the MA and momentum is making a sustained run
+    of lower readings near the neutral level; a short mirrors that above the MA.
+    A gap filter suppresses trading for a timeout after large open-to-close gaps,
+    and an optional trailing stop manages open trades.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy, and the default analyzers. Each new bar the strategy enforces the
+    gap filter, then either looks for an entry (MA gate plus a monotonic momentum
+    run) or manages the open position (MA/momentum exit or trailing stop).
+    notify_order tracks fills and buy/sell counts; notify_trade tallies wins and
+    losses. The test hooks the metrics summarizer, forces runonce=True, runs the
+    module's main()/run(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -80,6 +107,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +151,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed adding an MT5 ``spread`` column to the OHLCV mapping."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -125,6 +167,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MomentumM15Strategy(bt.Strategy):
+    """MA-gated momentum strategy with gap filter and optional trailing stop."""
+
     params = dict(
         lot=0.10,
         trailing_stop_pips=0.0,
@@ -141,6 +185,7 @@ class MomentumM15Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the smoothed MA on the low and reset order state and counters."""
         self.data0 = self.datas[0]
         self.ma = bt.indicators.SmoothedMovingAverage(self.data0.low, period=self.p.ma_period)
         self.order = None
@@ -155,10 +200,21 @@ class MomentumM15Strategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: Message to emit alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Run the gap filter then look for an entry or manage the position.
+
+        Runs once per new bar, skips during warm-up or while an order is in
+        flight, suppresses trading while the gap filter is active, then checks
+        for an open when flat or for a close/trailing update when in a position.
+        """
         dt = bt.num2date(self.data0.datetime[0])
         if self.last_dt == dt:
             return
@@ -177,6 +233,13 @@ class MomentumM15Strategy(bt.Strategy):
             self._check_for_close()
 
     def notify_order(self, order):
+        """Track entry/close fills, buy/sell counts, and clear the live order.
+
+        Args:
+            order: The order whose status changed; completed entries increment
+                the buy/sell counter and reset the trailing level, and completed
+                or failed orders clear the tracked order and pending action.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -195,6 +258,12 @@ class MomentumM15Strategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts and reset the trailing level on close.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -333,6 +402,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -340,12 +420,32 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO datetime string into a datetime, or None when empty.
+
+    Args:
+        value: An ISO 8601 datetime string, or a falsy value.
+
+    Returns:
+        The parsed :class:`datetime.datetime`, or None if ``value`` is falsy.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load the M15 OHLCV frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, optional ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        The loaded OHLCV DataFrame filtered to the requested date range.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     frame = load_mt5_csv(
         resolve_data_path(data_cfg['file']),
@@ -360,6 +460,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Sharpe, Returns, DrawDown, Trade, and SQN analyzers.
+
+    Args:
+        cerebro: The Cerebro engine to which the analyzers are added.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -368,6 +473,16 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, M15 feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded OHLCV DataFrame returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -388,6 +503,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -396,6 +519,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a human-readable summary of a completed backtest.
+
+    Args:
+        results: The list of strategy instances returned by ``cerebro.run()``.
+        start_value: The broker value at the start of the run.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -424,6 +553,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI args, run the Momentum-M15 backtest, and print a summary."""
     parser = argparse.ArgumentParser(description='Run Momentum-M15 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

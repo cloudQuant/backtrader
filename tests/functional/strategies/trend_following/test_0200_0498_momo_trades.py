@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    The "Momo trades" momentum system pairs an MACD histogram pattern with a
+    price-versus-MA displacement filter. A long needs a specific MACD sequence
+    (recent values rising and crossing up from below zero a few bars back) plus
+    the close standing a minimum number of pips above the moving average; the
+    short is the mirror. Risk supports fixed or risk-percent lot sizing with a
+    pip stop-loss, optional take-profit/trailing stop, a breakeven move, and an
+    end-of-day flat-out.
+
+Strategy Logic:
+    ``__init__`` builds the SMA and MACD and zeroes the trade counters and
+    per-position risk state. ``_macd_buy``/``_macd_sell`` and ``_ema_buy``/
+    ``_ema_sell`` evaluate the entry conditions. ``next`` sets protection, runs
+    the end-of-day close, stop/take exits, and trailing/breakeven updates, then
+    opens a long/short when both filters agree. ``notify_order`` sets protection
+    on fills and clears the order; ``notify_trade`` tracks buy/sell on open and
+    win/loss on close. The module-level helpers load the CSV, build the cerebro
+    with analyzers, and extract a metrics dictionary that the test compares
+    against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -88,6 +116,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +150,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +159,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MomoTradesStrategy(bt.Strategy):
+    """MACD-histogram momentum + price/MA displacement system with EOD flat-out."""
+
     params = dict(
         manual_lot=True,
         lot=0.1,
@@ -140,6 +185,7 @@ class MomoTradesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the SMA and MACD indicators and zero counters and risk state."""
         self.ma = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.ma_period)
         self.macd = bt.indicators.MACD(
             self.data.close,
@@ -304,6 +350,7 @@ class MomoTradesStrategy(bt.Strategy):
                     self._stop_price = self._entry_price
 
     def next(self):
+        """Set protection, run EOD/stop/take/trailing exits, then open on dual filters."""
         self.bar_num += 1
         warmup = max(self.p.ma_period + self.p.ma_bar + 2, self.p.slow_ema_period + self.p.signal_period + self.p.macd_bar + 12)
         if len(self.data) < warmup:
@@ -333,6 +380,11 @@ class MomoTradesStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Set protection on fills and clear the working order on terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed and self.position:
@@ -343,6 +395,13 @@ class MomoTradesStrategy(bt.Strategy):
             self._clear_position_state()
 
     def notify_trade(self, trade):
+        """Track buy/sell on open and win/loss on close for each trade.
+
+        Args:
+            trade: The trade whose status changed; the first open bumps the
+                buy or sell counter and a close bumps the trade and win/loss
+                counters by sign of PnL.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -374,6 +433,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -381,6 +451,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and date-clip the OHLCV frame described by ``config['data']``.
+
+    Args:
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict with the loaded ``data`` frame plus ``fromdate`` and ``todate``.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -397,6 +478,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro with broker, feed, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dictionary.
+        frame: Output of :func:`load_backtest_frame`.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -420,6 +510,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro that ran the backtest.
+        frame: Output of :func:`load_backtest_frame`.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict of trade counts, returns, drawdown, Sharpe, SQN, and related
+        performance metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -460,6 +562,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the end-to-end backtest and return results, metrics, and cerebro.
+
+    Args:
+        plot: When True, render the cerebro plot after the run.
+
+    Returns:
+        A tuple ``(results, metrics, cerebro)`` from the executed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

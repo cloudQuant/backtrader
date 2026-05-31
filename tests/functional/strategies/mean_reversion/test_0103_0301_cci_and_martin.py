@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10),
+    loaded via load_mt5_csv with 15-minute bar shift, served through Mt5PandasFeed
+    with an additional spread line.
+
+Strategy Principle:
+    CCI and Martin EA combines a CCI indicator with 3-bar candlestick pattern
+    confirmation for mean-reversion entries. BUY when CCI reverses up from oversold
+    (< 5) after two bearish bars turn into a bullish bar. SELL when CCI reverses down
+    from overbought (> -5) after two bullish bars turn into a bearish bar. An optional
+    martingale multiplier increases lot size after consecutive losses.
+
+Strategy Logic:
+    SafeCCI computes CCI using mean deviation with configurable period and factor.
+    __init__ creates the CCI indicator and initialises martingale state. next() checks
+    entry conditions (CCI cross + candle pattern), then submits bracket orders with
+    fixed stop-loss/take-profit and trailing stop. notify_order tracks entry/close
+    fills and triggers pending reversals. notify_trade updates the martingale
+    multiplier. The test_103 function hooks main(), captures metrics from analyzers,
+    and asserts win/loss counts, trade count, final value, max drawdown, Sharpe, SQN,
+    and return rate.
 """
 from __future__ import annotations
 import math
@@ -23,7 +45,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'CCI and Martin',
-        'source_ea': 'ea/0301_CCI_和马�?cci_and_martin.mq5',
+        'source_ea': 'ea/0301_CCI_and_martin.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -80,6 +102,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a pandas DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -106,6 +129,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed carrying an additional spread line from MT5 CSV exports."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -120,6 +144,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SafeCCI(bt.Indicator):
+    """CCI indicator with mean deviation, returning 0.0 when denominator is zero."""
     lines = ('cci',)
     params = (
         ('period', 27),
@@ -127,9 +152,11 @@ class SafeCCI(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialise SafeCCI and set minimum period to `period`."""
         self.addminperiod(self.p.period)
 
     def next(self):
+        """Compute CCI from rolling typical-price SMA and mean deviation."""
         period = self.p.period
         typical_prices = [
             (float(self.data.high[-i]) + float(self.data.low[-i]) + float(self.data.close[-i])) / 3.0
@@ -173,6 +200,7 @@ class CCIMartinStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise CCI indicator, trade state, and martingale variables."""
         self.data0 = self.datas[0]
         self.cci = SafeCCI(self.data0, period=self.p.cci_period)
         self.entry_order = None
@@ -188,6 +216,7 @@ class CCIMartinStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line with the current bar datetime."""
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -296,6 +325,7 @@ class CCIMartinStrategy(bt.Strategy):
             self.loss_count = 0
 
     def next(self):
+        """Evaluate CCI + candlestick pattern and submit entry/exit orders."""
         if len(self.data0) < self.p.cci_period + 5:
             return
         self._update_trailing_stop()
@@ -331,6 +361,7 @@ class CCIMartinStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track entry/close order fills and trigger pending reversals."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -357,6 +388,7 @@ class CCIMartinStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Update martingale state after a trade closes."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -377,6 +409,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve `filename` relative to this file's directory and verify existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -384,12 +417,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO-format datetime string, returning None for falsy input."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and return a backtest data frame from the 'data' section of `config`."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -401,6 +436,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach Sharpe, Returns, DrawDown, TradeAnalyzer, and SQN to `cerebro`."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -409,6 +445,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and return a Cerebro instance configured from `config` and `frame`."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -423,6 +460,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None for non-finite or None values, otherwise return the value unchanged."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -431,6 +469,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a backtest summary including drawdown, Sharpe, SQN, and trade stats."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -457,6 +496,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Parse CLI args, load config, build cerebro, run backtest, and print summary."""
     parser = argparse.ArgumentParser(description='Run CCI and Martin EA backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

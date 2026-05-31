@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 OHLCV data is loaded from ``tests/datas/XAUUSD_M15.csv`` (MT5 tab-separated export).
+    Strategy execution uses this feed directly with 15-minute execution compression.
+    The configured date window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy combines RSI overbought/oversold behavior with an RFTL weighted filter and
+    custom divergence checks to generate buy/sell bias switches.
+    It uses fixed stop-loss, take-profit, and trailing-stop order management for risk control.
+
+Strategy Logic:
+    Market data is normalized from MT5 CSV, and RSI/RFTL signals are computed at each bar.
+    The strategy scans recent RSI history to detect buy/sell triggers, enters or exits on signal
+    transitions, and updates protective orders after fills.
+    Final analyzer outputs are converted into deterministic metrics for regression assertions.
 """
 from __future__ import annotations
 import math
@@ -95,6 +111,17 @@ RFTL_WEIGHTS = [
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated OHLCV exports into a time-indexed DataFrame.
+
+    Args:
+        filepath: Source path of the MT5 CSV file.
+        fromdate: Optional lower-bound timestamp to filter rows.
+        todate: Optional upper-bound timestamp to filter rows.
+        bar_shift_minutes: Optional timezone/bar-shift offset in minutes to add to timestamps.
+
+    Returns:
+        A pandas DataFrame with ``datetime, open, high, low, close, volume, openinterest, spread`` columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -121,6 +148,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom Pandas feed that exposes spread as an additional data line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -129,10 +157,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class RFTLIndicator(bt.Indicator):
+    """Indicator that computes a weighted RFTL value from weighted close history."""
     lines = ('rftl',)
     params = dict(weights=tuple(RFTL_WEIGHTS))
 
     def __init__(self):
+        """Build the RFTL weighted sum and enforce warmup period."""
         total = 0.0
         for idx, weight in enumerate(self.p.weights):
             total += float(weight) * self.data.close(-idx)
@@ -141,6 +171,7 @@ class RFTLIndicator(bt.Indicator):
 
 
 class RsiRftlEaStrategy(bt.Strategy):
+    """RSI + RFTL mean-reversion strategy with protective orders and reversal support."""
     params = dict(
         fixed_lot=1.0,
         point_size=0.01,
@@ -153,6 +184,7 @@ class RsiRftlEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, indicators, and trading state counters."""
         self.data0_feed = self.datas[0]
         self.rsi = bt.indicators.RSI(self.data0_feed.close, period=self.p.rsi_period)
         self.rftl = RFTLIndicator(self.data0_feed)
@@ -172,6 +204,11 @@ class RsiRftlEaStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print a timestamped strategy log line.
+
+        Args:
+            text: Message to print.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -351,6 +388,7 @@ class RsiRftlEaStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate trading signals and manage entries, exits, and reversals per bar."""
         self.bar_num += 1
         self._apply_trailing()
         if len(self.data0_feed) < max(self.p.rsi_period + 20, 60):
@@ -381,6 +419,11 @@ class RsiRftlEaStrategy(bt.Strategy):
                 self._submit_entry('short', 'RSI top divergence with RFTL filter')
 
     def notify_order(self, order):
+        """Handle order lifecycle events and trigger follow-up actions for fills/cancels.
+
+        Args:
+            order: Order instance notified by Backtrader.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -428,6 +471,11 @@ class RsiRftlEaStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade is fully closed.
+
+        Args:
+            trade: Closed trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -453,6 +501,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data path relative to the test module directory.
+
+    Args:
+        filename: Relative file path expected under the module directory.
+
+    Returns:
+        Absolute path for the requested data file.
+
+    Raises:
+        FileNotFoundError: If the data file is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -460,12 +519,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO-8601 datetime string values.
+
+    Args:
+        value: Datetime string in ISO format or a falsey value.
+
+    Returns:
+        Parsed ``datetime.datetime`` or ``None`` when value is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Build the DataFrame and metadata payload used for the backtest.
+
+    Args:
+        config: Loaded configuration with data section.
+
+    Returns:
+        Dictionary containing prepared market data and resolved date bounds.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -477,6 +552,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a Backtrader engine and analyzers for this strategy.
+
+    Args:
+        config: Full strategy/backtest configuration map.
+        frame: Backtest payload from ``load_backtest_frame``.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -495,6 +579,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert infinite values to ``None`` for safe reporting."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -503,6 +588,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Extract metrics used by regression assertions from strategy analyzers.
+
+    Args:
+        results: Result list produced by ``cerebro.run()``.
+        start_value: Initial portfolio value before strategy execution.
+
+    Returns:
+        Dictionary of pnl, drawdown, trade, and ratio metrics.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -540,6 +634,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run the strategy with current configuration and return results and metrics.
+
+    Args:
+        plot: Whether to invoke Backtrader chart rendering.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

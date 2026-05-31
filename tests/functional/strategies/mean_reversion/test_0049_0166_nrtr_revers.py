@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest interval is ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Implements a volatility-adaptive NRTR reversal model using ATR-derived
+    envelopes and trade-state transitions, with optional trailing stop control.
+
+Strategy Logic:
+    Computes NRTR-like support/resistance thresholds, switches trade state between
+    buy and sell regimes, then submits reverse/entry/close orders and enforces
+    stop-loss, take-profit, and trailing-stop exits.
 """
 from __future__ import annotations
 import math
@@ -85,6 +98,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars and normalize them into Backtrader dataframe format.
+
+    Args:
+        filepath: Data file path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute shift.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +135,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed extension exposing spread data line."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -119,6 +144,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class NrtrReversStrategy(bt.Strategy):
+    """NRTR reversal strategy with stateful long/short regime handling."""
     params = dict(
         fixed_lot=1.0,
         point_size=0.01,
@@ -133,6 +159,7 @@ class NrtrReversStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order handles, and counters."""
         self.data0_feed = self.datas[0]
         self.atr = bt.indicators.AverageTrueRange(self.data0_feed, period=self.p.atr_period)
         self.entry_order = None
@@ -152,10 +179,12 @@ class NrtrReversStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print timestamped log messages."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Allow pre-loading indicators before normal next processing."""
         self.next()
 
     def _new_bar(self):
@@ -243,6 +272,7 @@ class NrtrReversStrategy(bt.Strategy):
         return max(values)
 
     def next(self):
+        """Evaluate NRTR state transitions and submit close/reverse/entry orders."""
         self.bar_num += 1
         self._apply_trailing()
         min_len = max(self.p.atr_period + 6, 15)
@@ -286,6 +316,7 @@ class NrtrReversStrategy(bt.Strategy):
                 return
 
     def notify_order(self, order):
+        """Handle order lifecycle updates and reset working references."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -328,6 +359,7 @@ class NrtrReversStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track closed-trade outcome counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -353,6 +385,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and verify dataset path.
+
+    Args:
+        filename: Dataset path from config.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -360,12 +400,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse date strings used in config.
+
+    Args:
+        value: ISO datetime string or ``None``.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load data for the configured timeframe and return payload.
+
+    Args:
+        config: Full configuration object.
+
+    Returns:
+        Dictionary with dataframe and backtest date boundaries.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -377,6 +433,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Backtrader engine and register strategy/analyzers.
+
+    Args:
+        config: Backtest configuration.
+        frame: Loaded frame data.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -395,6 +460,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numeric values to ``None``.
+
+    Args:
+        value: Candidate value.
+
+    Returns:
+        ``None`` or original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -403,6 +476,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Aggregate analyzers and strategy counters into assertion metrics.
+
+    Args:
+        results: Backtest results list.
+        start_value: Initial account value.
+
+    Returns:
+        Metrics dictionary.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -440,6 +522,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run the strategy backtest and return results, metrics, and engine.
+
+    Args:
+        plot: Whether to render a plot.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

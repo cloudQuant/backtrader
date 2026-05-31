@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - `tests/datas/XAUUSD_M15.csv` (symbol XAUUSD, 15-minute bars).
+    - Date range: `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    - One data stream for execution, no separate signal stream in this strategy.
+
+Strategy Principle:
+    - Builds a QQE-style oscillator and derives trend state from a pair of
+      adaptive threshold lines (`up` and `down`).
+    - Generates buy/sell entries at a configured time window (`start_hour`,
+      `start_minute`) and uses mirrored opposite-direction exits.
+    - Backtest uses fixed lot size with optional directional close on session end.
+
+Strategy Logic:
+    - `load_backtest_frame` loads CSV and constrains data by date.
+    - `QQECloudIndicator` computes RSI, smoothed RSI, momentum and adaptive
+      envelope lines.
+    - `QQECloudStrategy.next` evaluates intraday gating and trend cross state,
+      then opens/closes positions.
+    - `extract_metrics` combines strategy counters and analyzer outputs for
+      deterministic regression assertions.
 """
 from __future__ import annotations
 import math
@@ -83,6 +104,7 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and normalize it into a Backtrader-ready DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +126,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Default base-data feed mapping for OHLCV data loaded from MT5 export."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +134,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Resolve moving-average class from strategy configuration value."""
     mode = str(name).lower()
     if mode in {'mode_sma', 'sma'}:
         return bt.indicators.SimpleMovingAverage
@@ -122,10 +146,20 @@ def resolve_ma_class(name):
 
 
 class QQECloudIndicator(bt.Indicator):
+    """Indicator computing smoothed QQE-like trend values from RSI.
+
+    Args:
+        rsi_period: RSI lookback period.
+        sf: Smoothing factor for XRSI and momentum smoothers.
+        darfactor: ATR-like factor used to offset trailing reference.
+        xma_method: Moving-average method alias used for RSI smoothing.
+        xphase: Unused legacy parameter preserved for compatibility.
+    """
     lines = ('up', 'down')
     params = dict(rsi_period=14, sf=5, darfactor=4.236, xma_method='sma', xphase=15)
 
     def __init__(self):
+        """Initialize RSI, smoothed RSI, and momentum smoothing components."""
         self._rsi = bt.indicators.RelativeStrengthIndex(self.data.close, period=max(2, int(self.p.rsi_period)))
         ma_cls = resolve_ma_class(self.p.xma_method)
         self._xrsi = ma_cls(self._rsi, period=max(1, int(self.p.sf)))
@@ -136,6 +170,7 @@ class QQECloudIndicator(bt.Indicator):
         self.addminperiod(int(self.p.rsi_period) + int(self.p.sf) + wilders_period * 2 + 5)
 
     def next(self):
+        """Update output lines on each tick using previous envelope state."""
         xrsi = float(self._xrsi[0])
         prev_xrsi = float(self._xrsi[-1])
         dar = float(self._xxmom[0]) * float(self.p.darfactor)
@@ -156,6 +191,7 @@ class QQECloudIndicator(bt.Indicator):
         self.lines.down[0] = tr
 
     def once(self, start, end):
+        """Vectorized indicator evaluation for vectorized Backtrader runs."""
         xrsi_array = self._xrsi.array
         xxmom_array = self._xxmom.array
         up_line = self.lines.up.array
@@ -186,6 +222,7 @@ class QQECloudIndicator(bt.Indicator):
 
 
 class QQECloudStrategy(bt.Strategy):
+    """QQECloud strategy managing time-windowed entries and mirrored exits."""
     params = dict(
         start_hour=8,
         start_minute=0,
@@ -201,6 +238,7 @@ class QQECloudStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate indicator and initialize trade counters."""
         self.indicator = QQECloudIndicator(
             self.data,
             rsi_period=self.p.rsi_period,
@@ -218,6 +256,7 @@ class QQECloudStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print timestamped execution log line."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -232,6 +271,7 @@ class QQECloudStrategy(bt.Strategy):
         return buy_open1, sell_open1, buy_close, sell_close
 
     def next(self):
+        """Evaluate session/time filters and execute/reverse signal-based orders."""
         self.bar_num += 1
         warmup = int(self.p.rsi_period) + int(self.p.sf) + int(self.p.rsi_period) * 4 + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -277,6 +317,7 @@ class QQECloudStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track order lifecycle counts for regression metrics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -309,6 +350,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path relative to this test module."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -316,6 +358,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load market data and return frame plus runtime date window."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -332,6 +375,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create Backtrader engine, load data feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -355,6 +399,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract canonical strategy and analyzer metrics for assertion checks."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -395,6 +440,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return results, metrics and cerebro instance."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

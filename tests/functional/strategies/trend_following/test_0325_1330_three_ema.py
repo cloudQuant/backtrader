@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The three EMAs are computed
+    directly on the M15 close; no separate signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``expert_3ema``. Three EMAs (fast,
+    medium, slow) define the trend: full bullish alignment (fast > medium > slow)
+    is a long signal and full bearish alignment (fast < medium < slow) is a short
+    signal. The strategy assumes trends persist once the EMAs stack in order, so
+    it enters on the bar a fresh alignment forms and reverses to the opposite
+    side when the alignment flips. There is no separate stop-loss or take-profit;
+    risk is bounded by the reversing alignment signal.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers. Each bar the strategy compares the
+    current and previous EMA alignment: when flat it opens a long or short on a
+    newly formed alignment, and when in a position it closes and reverses on a
+    newly formed opposite alignment. notify_trade counts entries on open and
+    win/loss on close. extract_metrics consolidates analyzer output, and the test
+    forces runonce=True, runs the module's run()/main(), and asserts each metric
+    against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -22,7 +48,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Three EMA Trend',
-        'source_ea': 'ea/1330_MQL5向导_-_基于三条移动平均线的交易信号/expert_3ema.mq5',
+        'source_ea': 'ea/1330_MQL5_wizard_three_moving_average_signal/expert_3ema.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -72,6 +98,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -93,6 +132,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -115,6 +156,7 @@ class ThreeEMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the three EMA indicators and reset bar/trade counters."""
         self.fast_ema = bt.indicators.EMA(self.data.close, period=self.p.fast_period)
         self.medium_ema = bt.indicators.EMA(self.data.close, period=self.p.medium_period)
         self.slow_ema = bt.indicators.EMA(self.data.close, period=self.p.slow_period)
@@ -127,10 +169,23 @@ class ThreeEMAStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Open or reverse positions on a fresh three-EMA alignment.
+
+        Increments the bar counter, skips during warm-up, and compares the
+        current and previous EMA stack: when flat it opens a long on a newly
+        formed bullish alignment or a short on a newly formed bearish alignment;
+        when in a position it closes and reverses on a newly formed opposite
+        alignment.
+        """
         self.bar_num += 1
         if len(self.data) < self.p.slow_period + 3:
             return
@@ -169,6 +224,12 @@ class ThreeEMAStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -193,12 +254,35 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load the M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -209,6 +293,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy and analyzers.
+
+    Args:
+        config: Resolved configuration dict with data, params and backtest.
+        frame: Dict containing the loaded OHLCV frame under ``data``.
+
+    Returns:
+        A configured Cerebro instance ready to run the strategy.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -226,6 +319,19 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """
+    Collect analyzer and strategy counters into a flat regression metrics map.
+
+    Args:
+        strat: Completed strategy instance from ``cerebro.run()``.
+        cerebro: Executed Cerebro engine for value access.
+        frame: Input frame bundle with date bounds and bars.
+        config: Test configuration containing initial cash.
+
+    Returns:
+        Dict of metrics used by this test's assertions.
+
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -248,6 +354,15 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """
+    Run the regression backtest and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: Whether to invoke cerebro plotting after execution.
+
+    Returns:
+        Tuple of strategy results, extracted metrics, and cerebro engine.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

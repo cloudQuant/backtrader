@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol ``XAUUSD`` from ``tests/datas/XAUUSD_M15.csv``.
+    Base and execution timeframe is M15 from ``2025-12-03 01:15:00`` to
+    ``2026-03-10 09:00:00`` (bars shifted by 15 minutes on load).
+    Indicator timeframe uses H4 when enabled by config, while execution remains
+    on M15.
+
+Strategy Principle:
+    The strategy builds a custom Dots indicator (moving-average-like line with
+    filter points and color flips) and trades on cross-colors. Long entries are
+    triggered when color flips from 1 to 0, while short entries are triggered on
+    reverse flips. Fixed lot sizing can be overridden; otherwise size is derived
+    from risk control inputs and fixed stop/take-profit distances.
+
+Strategy Logic:
+    On each new signal bar after warmup, the strategy counts color transitions and
+    decides whether to open, close, or reverse based on current and previous color
+    states. Protective stop and take-profit exits are checked each bar. Orders and
+    trade lifecycle events update position metadata, risk levels, and counters used
+    by final assertions.
 """
 from __future__ import annotations
 import math
@@ -85,6 +106,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 export TSV file and normalize it into an indexed OHLCV frame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Optional minute shift applied to each bar timestamp.
+
+    Returns:
+        A DataFrame indexed by ``datetime`` with spread and open-interest fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +143,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed extending Backtrader with a spread line mapping."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -125,10 +158,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DotsIndicator(bt.Indicator):
+    """Compute a multi-cycle Dots value and color-change state.
+
+    Attributes:
+        lines: Custom lines ``dots`` and ``color``.
+        params: Indicator parameters used in strategy logic.
+    """
     lines = ('dots', 'color')
     params = dict(length=10, filter_points=0.0, price_code=1, point=0.01)
 
     def __init__(self):
+        """Initialize internal caches and indicator warmup state."""
         self.addminperiod(int(self.p.length) * 4 + int(self.p.length) + 5)
         self.res1 = 1.0 / max(float(self.p.length), 1.0)
         self.phase = max(int(self.p.length) - 1, 0)
@@ -160,6 +200,7 @@ class DotsIndicator(bt.Indicator):
         return c
 
     def next(self):
+        """Update smoothed value and color state for the current bar."""
         total_len = self.phase + int(self.p.length) * self.cycle
         if len(self.data) <= total_len:
             return
@@ -190,6 +231,7 @@ class DotsIndicator(bt.Indicator):
 
 
 class DotsStrategy(bt.Strategy):
+    """Mean-reversion Dots strategy with fixed/reverse signals and risk exits."""
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -211,6 +253,7 @@ class DotsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind price feeds, instantiate indicator, and init tracking counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = DotsIndicator(
@@ -239,6 +282,11 @@ class DotsStrategy(bt.Strategy):
         self.warmup = int(self.p.length) * 5 + int(self.p.signal_bar) + 4
 
     def log(self, text):
+        """Print a timestamped strategy message.
+
+        Args:
+            text: Message to emit.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -326,6 +374,7 @@ class DotsStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate latest color transitions and drive entry/exit/reversal flow."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -369,6 +418,7 @@ class DotsStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Handle completed/cancelled/rejected orders and reverse-order chaining."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -412,6 +462,7 @@ class DotsStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Log closed trades and clear risk state when flat."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -436,6 +487,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve an input file path below this strategy test directory.
+
+    Args:
+        filename: Relative filename to resolve.
+
+    Returns:
+        Absolute existing path for the given filename.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -443,6 +502,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and window OHLCV bars according to configured date boundaries.
+
+    Args:
+        config: Strategy configuration with data section.
+
+    Returns:
+        Dictionary with frame and its date window boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -473,6 +540,7 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Create a configured Cerebro instance with strategy and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -504,6 +572,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract the key metrics used by regression assertions.
+
+    Args:
+        strat: Strategy instance after run completion.
+        cerebro: Cerebro instance used for the run.
+        frame: Loaded inputs with bars and boundaries.
+        config: Strategy/backtest config object.
+
+    Returns:
+        Dictionary of metrics to validate in assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

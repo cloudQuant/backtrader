@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Two daily (D1) symbols, gold (XAUUSD) and the IVV equity ETF, loaded from the
+    MT5 exports ``tests/datas/mt5_1d_data/XAUUSD_1d.csv`` and
+    ``tests/datas/mt5_1d_data/IVV_1d.csv`` over 2008-01-01 to 2025-12-31. The two
+    frames are aligned on their common dates and a derived signal feed adds
+    rebalance triggers, one-day returns, and target weight columns, so the
+    backtest runs on three feeds (a signal feed plus the gold and benchmark
+    price feeds).
+
+Strategy Principle:
+    This is the "High Volatility Rebalancing Gold Policy", a two-asset allocation
+    strategy holding a small gold sleeve alongside a large equity (IVV) sleeve.
+    It rebalances back to target weights on a calendar schedule or whenever drift
+    exceeds a threshold. A high-volatility risk overlay flattens both sleeves
+    when a single-day loss or portfolio drawdown breaches its stop, then stays
+    risk-off for a cooldown period before re-entering.
+
+Strategy Logic:
+    load_inputs loads and aligns both frames and prepare_rebalancing_inputs builds
+    the rebalance/return/target-weight columns; build_cerebro wires the signal,
+    gold, and benchmark feeds, per-asset commission models, the strategy, and the
+    analyzers. Each bar the strategy records broker value, decrements any risk-off
+    cooldown, and—when no orders are pending—either flattens on a risk-stop
+    trigger or rebalances to target sizes on a calendar/drift signal via
+    order_target_size, updating rebalance/switch/stop counters. notify_order
+    clears completed order references. extract_metrics consolidates analyzer
+    output (plus an Ulcer Index), and the test forces runonce=True, runs the
+    module's main(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -82,6 +111,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -112,6 +155,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_rebalancing_inputs(gold_df, benchmark_df, params):
+    """Align the gold/benchmark frames and build the rebalancing signal frame.
+
+    Args:
+        gold_df: Daily OHLCV DataFrame for the gold sleeve.
+        benchmark_df: Daily OHLCV DataFrame for the benchmark (IVV) sleeve.
+        params: Parameters providing the rebalance frequency and target weights.
+
+    Returns:
+        A tuple ``(gold, benchmark, signal_df)`` aligned on the common date index,
+        where ``signal_df`` carries the rebalance trigger, one-day returns, and
+        target weight columns.
+    """
     common_index = gold_df.index.intersection(benchmark_df.index).sort_values()
     gold = gold_df.loc[common_index].copy()
     benchmark = benchmark_df.loc[common_index].copy()
@@ -131,6 +186,8 @@ def prepare_rebalancing_inputs(gold_df, benchmark_df, params):
 
 
 class RebalancingSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing rebalance, return, and target-weight signal lines."""
+
     lines = ('month', 'quarter', 'rebalance_signal', 'gold_return_1d', 'benchmark_return_1d', 'target_gold_weight', 'target_benchmark_weight')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -139,6 +196,8 @@ class RebalancingSignalFeed(bt.feeds.PandasData):
 
 
 class HighVolatilityReapPolicyStrategy(bt.Strategy):
+    """Rebalance a gold/equity pair to targets with a volatility risk-off overlay."""
+
     params = dict(
         drift_threshold=0.05,
         single_day_stop_loss=0.10,
@@ -150,6 +209,7 @@ class HighVolatilityReapPolicyStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal/gold/benchmark feeds and reset counters and risk state."""
         self.signal = self.datas[0]
         self.gold = self.getdatabyname('XAUUSD')
         self.benchmark = self.getdatabyname('IVV')
@@ -229,6 +289,14 @@ class HighVolatilityReapPolicyStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Record value, then flatten on a risk-stop or rebalance to targets.
+
+        Increments the bar counter, appends broker value, and decrements any
+        risk-off cooldown. While orders are pending it waits. On a risk-stop
+        trigger it flattens both sleeves and starts the cooldown; otherwise, on a
+        calendar or drift signal it rebalances to target sizes via
+        order_target_size, updating the rebalance, switch, and buy/sell counters.
+        """
         self.bar_num += 1
         broker_value = float(self.broker.getvalue())
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), broker_value))
@@ -271,6 +339,12 @@ class HighVolatilityReapPolicyStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def notify_order(self, order):
+        """Discard the order reference once it is no longer live.
+
+        Args:
+            order: The order whose status changed; completed/cancelled orders are
+                removed from the pending-order reference set.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
@@ -285,6 +359,8 @@ TRADING_DAYS_PER_YEAR = 252
 
 
 class AssetCommissionInfo(bt.CommInfoBase):
+    """Percentage commission model sized by notional (size * price * mult)."""
+
     params = (
         ('commission', 0.0002),
         ('margin', 1.0),
@@ -299,6 +375,16 @@ class AssetCommissionInfo(bt.CommInfoBase):
 
 
 def normalize(value):
+    """Convert a value to a JSON-friendly scalar.
+
+    Args:
+        value: Any value; datetimes are ISO-formatted and other non-primitives
+            are stringified.
+
+    Returns:
+        The value unchanged when it is a primitive, an ISO string for datetimes,
+        or its string representation otherwise.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -311,6 +397,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is finite, else None (NaN and infinities map to None).
+    """
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -319,6 +413,15 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        equity_curve: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when the series is empty or has no drawdowns.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -334,6 +437,16 @@ def calculate_ulcer_index(equity_curve):
 
 
 def load_inputs(config):
+    """Load and align the gold and benchmark frames and build the signal frame.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the aligned ``gold_df`` and ``benchmark_df`` frames, the
+        ``signal_df`` rebalancing frame, and the ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -351,6 +464,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, three feeds, commissions, strategy, analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest and commission settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the signal, gold, and
+        benchmark feeds, per-asset commission models, the strategy, and the
+        default analyzers.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -382,6 +506,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Collect regression metrics from analyzers and strategy counters.
+
+    Args:
+        strat: Strategy instance from ``cerebro.run()``.
+        cerebro: Completed Backtrader engine.
+        inputs: The loaded inputs dict (provides bars and date bounds).
+        config: Full configuration (used for initial cash and strategy name).
+
+    Returns:
+        A flattened metrics dict (rebalance/switch/stop counts, returns,
+        drawdown, Sharpe, SQN, and an Ulcer Index) used by the regression
+        assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -427,6 +564,7 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def main():
+    """Run the strategy end-to-end: load inputs, build Cerebro, run, extract metrics."""
     config = load_config()
     inputs = load_inputs(config)
     cerebro = build_cerebro(inputs, config)

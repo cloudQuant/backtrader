@@ -7,6 +7,29 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv`` is loaded
+    via MT5-like loader conversion and then shifted by 15 minutes for consistent
+    bar alignment.
+    The same raw bars are resampled to 240 minutes (H4) before computing the
+    custom Color ZeroLag TRIX signals.
+
+Strategy Principle:
+    The strategy builds a fast and slow zero-lag TRIX stack from five TRIX periods
+    using configurable weights.
+    A buy signal appears when fast crosses down below slow, and a sell signal
+    appears when fast crosses up above slow on the H4 signal series.
+    Positions are controlled by per-trade stop-loss / take-profit settings and
+    one active order at a time.
+
+Strategy Logic:
+    The file builds two data feeds (M15 price feed and H4 signal feed), sets up a
+    Backtrader Cerebro instance with fixed commission settings, and runs the
+    strategy once.
+    Strategy lifecycle includes initialization, signal checking in ``next()``,
+    entry/exit/risk checks, order and trade callbacks, and final metric
+    extraction used by the assertion block.
 """
 from __future__ import annotations
 import math
@@ -95,6 +118,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-delimited CSV data into a time-indexed OHLCV frame.
+
+    Parameters:
+        filepath: Path to the source CSV file.
+        fromdate: Optional left boundary for datetime filtering.
+        todate: Optional right boundary for datetime filtering.
+        bar_shift_minutes: Minute offset applied to all timestamps.
+
+    Returns:
+        A DataFrame indexed by ``datetime`` containing columns:
+        ``open``, ``high``, ``low``, ``close``, ``volume``, ``openinterest``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -120,6 +155,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV DataFrame with standard aggregation.
+
+    Parameters:
+        df: Input DataFrame with columns ``open``, ``high``, ``low``, ``close``,
+            ``volume``, ``openinterest`` and DatetimeIndex.
+        rule: Pandas resample rule string such as ``"240min"``.
+
+    Returns:
+        Aggregated DataFrame by ``rule`` with missing OHLC rows removed.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -134,6 +179,15 @@ def resample_frame(df, rule):
 
 
 def compute_trix(close, period):
+    """Compute the TRIX-like triple EMA percentage change series.
+
+    Parameters:
+        close: Closing price series used for EMA smoothing.
+        period: EMA span for each nested smoothing layer.
+
+    Returns:
+        A percentage-change Series scaled by 100.
+    """
     ema1 = close.ewm(span=int(period), adjust=False, min_periods=int(period)).mean()
     ema2 = ema1.ewm(span=int(period), adjust=False, min_periods=int(period)).mean()
     ema3 = ema2.ewm(span=int(period), adjust=False, min_periods=int(period)).mean()
@@ -141,6 +195,26 @@ def compute_trix(close, period):
 
 
 def compute_color_zerolag_trix(frame, smoothing=15, factor1=0.05, trix_period1=8, factor2=0.10, trix_period2=21, factor3=0.16, trix_period3=34, factor4=0.26, trix_period4=55, factor5=0.43, trix_period5=89):
+    """Generate Color ZeroLag TRIX fast/slow lines and binary signal flags.
+
+    Parameters:
+        frame: M15/H4 OHLCV frame used as signal source; expects ``close``.
+        smoothing: Exponential smoothing factor for the slow-line filter.
+        factor1: Weight of TRIX period 1.
+        trix_period1: EMA period used for first TRIX branch.
+        factor2: Weight of TRIX period 2.
+        trix_period2: EMA period used for second TRIX branch.
+        factor3: Weight of TRIX period 3.
+        trix_period3: EMA period used for third TRIX branch.
+        factor4: Weight of TRIX period 4.
+        trix_period4: EMA period used for fourth TRIX branch.
+        factor5: Weight of TRIX period 5.
+        trix_period5: EMA period used for fifth TRIX branch.
+
+    Returns:
+        A DataFrame copy with appended columns ``fast``, ``slow``, ``buy_signal``,
+        and ``sell_signal``; rows without valid indicators are dropped.
+    """
     close = frame['close'].astype(float)
     trix1 = compute_trix(close, trix_period1)
     trix2 = compute_trix(close, trix_period2)
@@ -175,6 +249,11 @@ def compute_color_zerolag_trix(frame, smoothing=15, factor1=0.05, trix_period1=8
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader pandas data feed wrapper for MT5-style columns.
+
+    This feed maps the normalized MT5 columns onto Backtrader's built-in OHLCV
+    fields and is used for the M15 raw price series.
+    """
     params = (
         ('datetime', None),
         ('open', 0),
@@ -187,6 +266,11 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorZerolagTriXFeed(bt.feeds.PandasData):
+    """Backtrader feed wrapper for precomputed Color ZeroLag TRIX fields.
+
+    In addition to standard OHLCV columns, this feed exposes signal columns:
+    ``fast``, ``slow``, ``buy_signal``, and ``sell_signal``.
+    """
     lines = ('fast', 'slow', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -204,6 +288,23 @@ class ColorZerolagTriXFeed(bt.feeds.PandasData):
 
 
 class ColorZerolagTriXStrategy(bt.Strategy):
+    """Trade on Color ZeroLag TRIX crossovers with simple position and risk control.
+
+    Parameters:
+        mm: Money management multiplier.
+        mm_mode: Money management mode string (e.g. ``LOT``).
+        stop_loss: Stop-loss distance in points.
+        take_profit: Take-profit distance in points.
+        deviation: Pending-order deviation tolerance.
+        buy_pos_open/sell_pos_open: Enable corresponding entry directions.
+        buy_pos_close/sell_pos_close: Enable signal-based exits for opposite side.
+        signal_bar: Signal bar index used for H4 signal references.
+        size: Order size.
+        point: Symbol point value.
+        digits_adjust: Scaling factor for points.
+        price_digits: Precision for order price values.
+        smoothing/factor*/trix_period*: Parameters forwarded to signal generation.
+    """
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -233,6 +334,7 @@ class ColorZerolagTriXStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data references, counters, and local order tracking state."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.fast = self.h4.fast
@@ -257,6 +359,7 @@ class ColorZerolagTriXStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped strategy log line."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -311,6 +414,15 @@ class ColorZerolagTriXStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Main step loop: validate signal history, process exits then entries.
+
+        For each bar, the strategy:
+        1) skips when an order is pending,
+        2) checks minimum signal history,
+        3) applies risk close rules,
+        4) handles close-on-opposite-signal logic,
+        5) issues new market entries based on Color ZeroLag TRIX signals.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -360,6 +472,11 @@ class ColorZerolagTriXStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Handle order lifecycle callbacks and update counters.
+
+        Parameters:
+            order: Backtrader order object provided by engine events.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -378,6 +495,11 @@ class ColorZerolagTriXStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Track closed trade statistics for metrics assertions.
+
+        Parameters:
+            trade: Closed Backtrader trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -402,6 +524,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file relative to the strategy test directory.
+
+    Parameters:
+        filename: Relative path to data file.
+
+    Returns:
+        Absolute Path object pointing to the file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -409,6 +539,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and prepare M15/H4 data frames used by the backtest.
+
+    Parameters:
+        config: Test configuration dictionary containing data section.
+
+    Returns:
+        Dict with keys ``m15``, ``h4``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -423,6 +561,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build a Backtrader engine with data, strategy, and analyzers.
+
+    Parameters:
+        config: Test configuration containing strategy/backtest settings.
+        frame: Prepared frame bundle from :func:`load_backtest_frames`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -444,6 +591,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy metrics required by the migration assertion block.
+
+    Parameters:
+        strat: Backtrader strategy instance after run.
+        cerebro: Engine used to run the test.
+        frame: Prepared frame dictionary used for metadata.
+        config: Test configuration containing backtest section.
+
+    Returns:
+        Dict of metric values consumed by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -489,6 +647,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the configured backtest and return results, metrics, and engine.
+
+    Parameters:
+        plot: Whether to render Backtrader chart output.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)`` where ``metrics`` comes from
+        :func:`extract_metrics`.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Source: `tests/datas/XAUUSD_M15.csv` loaded through `load_mt5_csv`.
+    - Symbol: `XAUUSD`, base timeframe: `M15`.
+    - Sampling window:
+        - start: `2025-12-03 01:15:00`
+        - end: `2026-03-10 09:00:00`
+    - Bar shift:
+        - 15 minutes for imported bars, applied through the shared loader.
+    - Derived signal feed:
+        - Resamples to 240 minutes and computes `bbe`/`sign` lines.
+        - Uses a second feed with custom lines `bbe` and `sign`.
+
+Strategy Principle:
+    - The CoeffOfLine-like indicator is built from EMA deviations of the resampled
+      high/low with a bounded signal.
+    - A four-color state machine converts indicator regime into signed trend
+      states (`sign`), where ±2 indicates stronger directional bias and ±1
+      indicates transition/weak states.
+    - The strategy opens only stronger trend states and applies configurable stop-loss
+      / take-profit controls.
+
+Strategy Logic:
+    - Load and filter MT5 data, build the higher-timeframe signal frame, then build
+      Cerebro with two data feeds:
+        - base bar feed (`Mt5PandasFeed`) for execution
+        - derived indicator feed (`BullsBearsEyesFeed`) for signals.
+    - On each bar:
+        - evaluate emergency exits,
+        - detect fresh signal updates,
+        - open/close positions based on `trend` sign strength.
+    - Aggregate analyzer outputs in `extract_metrics` and assert expected values.
 """
 from __future__ import annotations
 import math
@@ -96,6 +128,17 @@ MODE_BREAKDOWN3 = 3
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a mt5 style TSV file and convert it to a timezone-naive DataFrame.
+
+    Args:
+        filepath: Path to the source MT5 export file.
+        fromdate: Lower date filter (inclusive), optional.
+        todate: Upper date filter (inclusive), optional.
+        bar_shift_minutes: Optional minute offset to shift timestamps.
+
+    Returns:
+        Backtrader-compatible DataFrame indexed by parsed `datetime`.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -117,6 +160,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Default OHLCV feed mapping used as execution data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -124,6 +168,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class BullsBearsEyesFeed(btfeeds.PandasData):
+    """Signal feed containing Bulls/Bears Eyes indicator value and directional sign."""
     lines = ('bbe', 'sign',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -132,6 +177,15 @@ class BullsBearsEyesFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample base data into larger bars for indicator calculation.
+
+    Args:
+        df: Base time-series DataFrame indexed by datetime.
+        indicator_minutes: Desired timeframe in minutes.
+
+    Returns:
+        Aggregated DataFrame with OHLCV and openinterest columns.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -147,10 +201,38 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def ema_series(values, period):
+    """Compute an exponential moving average series.
+
+    Args:
+        values: Price series input.
+        period: EMA span.
+
+    Returns:
+        Smoothed EMA Series.
+    """
     return values.ewm(span=int(period), adjust=False).mean()
 
 
 def build_bulls_bears_eyes_frame(df, indicator_minutes, period, gamma, mode, high_level, middle_level, low_level):
+    """Build indicator frame with BullsBearsEyes levels and sign transitions.
+
+    The routine constructs a resampled signal frame, computes EMA deviation,
+    calculates a compact oscillator and classifies bullish/bearish colors, then
+    derives a directional sign (`-2/-1/0/1/2`) used by the strategy.
+
+    Args:
+        df: Minute-level base DataFrame.
+        indicator_minutes: Resampling interval in minutes.
+        period: EMA period.
+        gamma: Smoothing gamma parameter.
+        mode: Threshold mode selector.
+        high_level: Upper threshold.
+        middle_level: Mid threshold.
+        low_level: Lower threshold.
+
+    Returns:
+        DataFrame including extra columns `bbe` and `sign`.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     period = int(period)
     gamma = float(gamma)
@@ -253,6 +335,7 @@ def build_bulls_bears_eyes_frame(df, indicator_minutes, period, gamma, mode, hig
 
 
 class BullsBearsEyesStrategy(bt.Strategy):
+    """Backtrader strategy that trades on BullsBearsEyes trend sign transitions."""
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -273,6 +356,7 @@ class BullsBearsEyesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind data feeds, counters, and internal tracking state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -286,6 +370,7 @@ class BullsBearsEyesStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Log a timestamped message for debugging."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -330,6 +415,7 @@ class BullsBearsEyesStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate exit rules, detect sign updates, and act on strong trend changes."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -375,6 +461,7 @@ class BullsBearsEyesStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Collect per-trade counters from Backtrader trade notifications."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -408,6 +495,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve configured data filename relative to the current test file.
+
+    Args:
+        filename: Data filename from configuration.
+
+    Returns:
+        Absolute path to the existing test data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -415,6 +510,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load market bars and apply configured datetime filters.
+
+    Args:
+        config: Strategy config dictionary.
+
+    Returns:
+        Dictionary with filtered bars and period boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -431,6 +534,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro engine with feeds, strategy and analyzers.
+
+    Args:
+        config: Full strategy/backtest config.
+        frame: Dictionary returned by `load_backtest_frame`.
+
+    Returns:
+        A prepared `bt.Cerebro` instance for execution.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -481,6 +593,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect risk and performance metrics for assertion.
+
+    Args:
+        strat: Strategy instance returned by Cerebro.
+        cerebro: Executed Cerebro object.
+        frame: Market context used for the run.
+        config: Original configuration map.
+
+    Returns:
+        Dict of metrics used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -522,6 +645,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run strategy backtest end-to-end.
+
+    Args:
+        plot: If True, render a Cerebro chart after execution.
+
+    Returns:
+        Tuple of `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

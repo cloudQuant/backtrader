@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H4 (240-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close. The H4 signal feed
+    carries precomputed JBrainTrend1Stop buy-stop/sell-stop lines.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_JBrainTrend1Stop``. On the
+    higher H4 timeframe a BrainTrend-style stop system combines an ATR-scaled
+    range, a stochastic filter, and JMA-smoothed high/low/close to flag trend
+    flips: a fresh buy-stop after a prior sell-stop signals a long and a fresh
+    sell-stop after a prior buy-stop signals a short. The strategy enters in the
+    flip direction and exits on the opposite flip, with fixed stop-loss and
+    take-profit distances scaled by the point size and digits adjustment.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame, resamples it to H4, and
+    precomputes the buy-stop/sell-stop columns; build_cerebro wires both feeds
+    and the default analyzers. Each bar the strategy enforces
+    stop-loss/take-profit exits, then on each new H4 signal bar reads the stop
+    lines to close opposing positions and open a long or short sized by
+    ``size``. notify_order counts completed/rejected orders and entries while
+    notify_trade tallies win/loss on close. extract_metrics consolidates
+    analyzer output, and the test forces runonce=True, runs the module's
+    main()/run(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -91,6 +119,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close,
+        tick_volume, real_volume, and openinterest columns, filtered to the
+        requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -117,6 +159,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser bar size using right-closed bins.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        rule: Pandas offset alias for the target bar size (e.g. ``'240min'``).
+
+    Returns:
+        The resampled DataFrame with rows lacking OHLC data dropped.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -132,6 +183,17 @@ def resample_frame(df, rule):
 
 
 def smooth_series(series, period, method='MODE_SMA'):
+    """Smooth a series with the requested moving-average method.
+
+    Args:
+        series: The input pandas Series to smooth.
+        period: Lookback length for the moving average.
+        method: One of ``MODE_SMA``, ``MODE_EMA``, ``MODE_SMMA``, or
+            ``MODE_LWMA``.
+
+    Returns:
+        The smoothed Series (defaults to SMA for unknown methods).
+    """
     period = max(int(period), 1)
     if method == 'MODE_EMA':
         return series.ewm(span=period, adjust=False).mean()
@@ -144,6 +206,26 @@ def smooth_series(series, period, method='MODE_SMA'):
 
 
 def compute_jbraintrend1stop(frame, atr_period=7, sto_period=9, ma_method='MODE_SMA', stop_dperiod=3, length_=7, point=0.01):
+    """Compute JBrainTrend1Stop buy-stop/sell-stop trend-flip lines.
+
+    Combines an ATR-scaled range, a stochastic filter, and smoothed
+    high/low/close to track the BrainTrend state, emitting buy-stop and
+    sell-stop levels (plus their persistent stop lines) on trend flips.
+
+    Args:
+        frame: OHLCV DataFrame indexed by datetime.
+        atr_period: Lookback for the base ATR.
+        sto_period: Lookback for the stochastic oscillator.
+        ma_method: Moving-average method passed to smooth_series.
+        stop_dperiod: Extra periods added to the ATR used for stop spacing.
+        length_: Smoothing length for the high/low/close lines.
+        point: Instrument point size (kept for signature compatibility).
+
+    Returns:
+        A copy of ``frame`` filtered to bars carrying any stop signal, with
+        ``sell_stop``, ``buy_stop``, ``sell_stop_line`` and ``buy_stop_line``
+        columns.
+    """
     out = frame.copy()
     d = 2.3
     s = 1.5
@@ -217,6 +299,8 @@ def compute_jbraintrend1stop(frame, atr_period=7, sto_period=9, ma_method='MODE_
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
         ('volume', 4), ('openinterest', 5),
@@ -224,6 +308,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class JBrainTrend1StopFeed(bt.feeds.PandasData):
+    """PandasData feed exposing precomputed JBrainTrend1Stop stop lines.
+
+    Extends the standard OHLCV feed with the sell-stop/buy-stop signals and
+    their persistent stop lines so the strategy can read them directly.
+    """
+
     lines = ('sell_stop', 'buy_stop', 'sell_stop_line', 'buy_stop_line',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -232,6 +322,14 @@ class JBrainTrend1StopFeed(bt.feeds.PandasData):
 
 
 class JBrainTrend1StopStrategy(bt.Strategy):
+    """JBrainTrend1Stop flip strategy ported from the MT5 advisor.
+
+    Reads the precomputed buy-stop/sell-stop trend-flip signals from the H4 feed
+    and trades the M15 execution feed: a fresh buy-stop after a prior sell-stop
+    opens a long and a fresh sell-stop after a prior buy-stop opens a short,
+    closing on the opposite flip or on the fixed stop-loss/take-profit levels.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -256,6 +354,7 @@ class JBrainTrend1StopStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Cache the execution and signal feeds and reset counters/state."""
         self.m15 = self.datas[0]
         self.signal = self.datas[1]
         self.sell_stop = self.signal.sell_stop
@@ -278,6 +377,11 @@ class JBrainTrend1StopStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log line for the current M15 bar.
+
+        Args:
+            text: Message body.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -347,6 +451,7 @@ class JBrainTrend1StopStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, debug
 
     def next(self):
+        """Run per-bar risk checks and apply signal-based flip entries/exits."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -386,6 +491,7 @@ class JBrainTrend1StopStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Update order counters and clear tracked order references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -404,6 +510,7 @@ class JBrainTrend1StopStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters when a position is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -428,6 +535,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data path relative to this test module.
+
+    Args:
+        filename: Relative filename under the module directory.
+
+    Returns:
+        Absolute path to an existing file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -435,6 +550,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load base bars and build the stop-line signal frame for the backtest.
+
+    Args:
+        config: Loaded strategy/backtest configuration.
+
+    Returns:
+        Dict with prepared M15 and signal data frames and date bounds.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -459,6 +582,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Backtrader engine with two feeds and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Prepared data dictionary from :func:`load_backtest_frames`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -482,6 +614,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer and strategy state metrics for regression assertions.
+
+    Args:
+        strat: Strategy instance after running cerebro.
+        cerebro: Cerebro engine with analyzer state.
+        frame: Source frames and date bounds.
+        config: Backtest configuration.
+
+    Returns:
+        Flat metrics dictionary for test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -525,6 +668,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the configured backtest and return outputs for assertions.
+
+    Args:
+        plot: If ``True``, plot cerebro output.
+
+    Returns:
+        ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

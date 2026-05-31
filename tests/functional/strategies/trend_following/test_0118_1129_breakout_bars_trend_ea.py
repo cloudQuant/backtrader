@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("BreakoutBarsTrend_EA") is a breakout trend-following system based on consecutive candles breaching high/low price boundaries.
+    - Market Assumptions: When consecutive price actions breakout past the preceding trend boundaries, a powerful unidirectional momentum waves occurs.
+    - Indicators:
+        - BreakoutBarsTrendV2: A custom indicator that tracks the price extremes (min and max prices) during a trend and detects a trend reversal when the close price pulls back by a given distance (`delta`, calculated either in PIPS or PERCENT) from the extreme price.
+    - Entry Signals:
+        - Buy Entry: The BreakoutBarsTrendV2 value reverses from downtrend to uptrend (`value > 0`), and if `negatives` is enabled, a negative series structure has completed. Symmetrical stop loss and take profit targets are computed.
+        - Sell Entry: The BreakoutBarsTrendV2 value reverses from uptrend to downtrend (`value < 0`), and if `negatives` is enabled, a negative series structure has completed. Symmetrical stop loss and take profit targets are computed.
+    - Exit Signals:
+        - Stop Loss & Take Profit: Symmetrical levels are set relative to entry price (1.0% SL, 4.0% TP).
+        - Trend Reversal: Active position is closed immediately when a reverse trend change is detected by the indicator.
 """
 from __future__ import annotations
 import math
@@ -24,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'BreakoutBarsTrend_EA',
-        'source_ea': 'ea/1129_突破柱趋势_EA',
+        'source_ea': 'ea/1129_Breakout_Bars_Trend_EA/breakout_bars_trend_ea.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -69,15 +87,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -110,6 +147,11 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class BreakoutBarsTrendV2(bt.Indicator):
+    """Custom trend-breakout indicator calculating dynamic trend boundaries and reversals.
+
+    Lines:
+        value: Trend state value (1.0 or positive series count for uptrend, -1.0 or negative series count for downtrend).
+    """
     lines = ('value',)
     params = dict(
         reversal_mode='PERCENT',
@@ -118,6 +160,7 @@ class BreakoutBarsTrendV2(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize the indicator parameters, trend tracking states, and seed prices."""
         self._mode = str(self.p.reversal_mode).upper()
         self._delta = float(self.p.delta)
         if self._mode == 'PIPS':
@@ -136,11 +179,20 @@ class BreakoutBarsTrendV2(bt.Indicator):
         self.addminperiod(1)
 
     def _reversal_distance(self, price):
+        """Calculate the absolute price pullback distance threshold required for a trend reversal.
+
+        Args:
+            price (float): Extreme reference price.
+
+        Returns:
+            float: Symmetrical price pullback distance.
+        """
         if self._mode == 'PIPS':
             return float(self._delta) * float(self.p.point)
         return (float(price) / 100.0) * float(self._delta)
 
     def next(self):
+        """Determine if a trend reversal has occurred, and update trend extremes."""
         close = float(self.data.close[0])
         high = float(self.data.high[0])
         low = float(self.data.low[0])
@@ -203,6 +255,11 @@ class BreakoutBarsTrendV2(bt.Indicator):
 
 
 class BreakoutBarsTrendEaStrategy(bt.Strategy):
+    """Strategy class implementing breakout bar crossovers with protective risk management.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         reversal_mode='PERCENT',
         delta=1.0,
@@ -217,6 +274,7 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator instance, backtest tracking metrics, and state variables."""
         self.bbt = BreakoutBarsTrendV2(
             self.data,
             reversal_mode=self.p.reversal_mode,
@@ -239,21 +297,48 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
         self.addminperiod(3)
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _distance(self, price, distance):
+        """Calculate real price distance based on point or percentage parameters.
+
+        Args:
+            price (float): Base reference price.
+            distance (float): Symmetrical offset distance.
+
+        Returns:
+            float: Calculated price distance.
+        """
         if str(self.p.reversal_mode).upper() == 'PIPS':
             return float(distance) * float(self.p.point)
         return (float(price) / 100.0) * float(distance)
 
     def _clamp_volume(self, volume):
+        """Restrict order lot size within min/max boundaries and align with volume step requirements.
+
+        Args:
+            volume (float): Desired lot size.
+
+        Returns:
+            float: Clamped and aligned lot size.
+        """
         volume = min(max(float(volume), float(self.p.min_lot)), float(self.p.max_lot))
         step = max(float(self.p.volume_step), 1e-8)
         digits = 0 if step >= 1.0 else max(0, int(round(-math.log10(step))))
         return round(volume, digits)
 
     def _trend_change(self):
+        """Check if indicator value flipped trend signs on active bar.
+
+        Returns:
+            int: 1 for uptrend reversal, -1 for downtrend reversal, otherwise 0.
+        """
         if len(self) < 2:
             return 0
         cur = float(self.bbt.value[0])
@@ -263,6 +348,11 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
         return 0
 
     def _is_negative_series(self):
+        """Check if a negative series has successfully formed within past lookback bars.
+
+        Returns:
+            bool: True if completed, otherwise False.
+        """
         negatives = max(int(self.p.negatives), 0)
         if negatives <= 0:
             return True
@@ -291,6 +381,12 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
         return False
 
     def _set_exit_levels(self, direction, price):
+        """Calculate and set absolute stop loss and take profit price levels.
+
+        Args:
+            direction (int): Trade direction (1 for buy, -1 for sell).
+            price (float): Entry price.
+        """
         stop_distance = self._distance(price, self.p.stop_loss) if float(self.p.stop_loss) > 0 else None
         take_distance = self._distance(price, self.p.take_profit) if float(self.p.take_profit) > 0 else None
         if direction > 0:
@@ -301,6 +397,11 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
             self.take_price = price - take_distance if take_distance is not None else None
 
     def _check_exit_levels(self):
+        """Check if active position needs to be closed due to SL/TP breaches.
+
+        Returns:
+            bool: True if an exit order was placed, otherwise False.
+        """
         if not self.position or self.order is not None:
             return False
         high = float(self.data.high[0])
@@ -326,6 +427,7 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -361,6 +463,11 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
         self.order = self.sell(size=volume)
 
     def notify_order(self, order):
+        """Handle order life cycle updates and reset order reference pointers.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -368,6 +475,11 @@ class BreakoutBarsTrendEaStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -401,6 +513,14 @@ if BACKTRADER_LOCAL.exists() and str(BACKTRADER_LOCAL) not in sys.path:
 
 
 def build_cerebro(config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     commission = float(config['backtest'].get('commission', 0.0))
@@ -435,6 +555,14 @@ def build_cerebro(config):
 
 
 def analyzer_to_dict(value):
+    """Recursively convert backtrader Analyzer structures into a standard dictionary.
+
+    Args:
+        value (Any): Analyzer output.
+
+    Returns:
+        Any: Formatted dictionary or scalar values.
+    """
     if hasattr(value, '_asdict'):
         return {k: analyzer_to_dict(v) for k, v in value._asdict().items()}
     if isinstance(value, dict):
@@ -445,6 +573,17 @@ def analyzer_to_dict(value):
 
 
 def extract_metrics(config, cerebro, strategy, df):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        config (dict): Backtest configuration.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        strategy (bt.Strategy): Run strategy instance containing observers/analyzers.
+        df (pd.DataFrame): Input pandas DataFrame.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     start_value = float(config['backtest']['initial_cash'])
     end_value = float(cerebro.broker.getvalue())
     end_cash = float(cerebro.broker.getcash())
@@ -488,6 +627,7 @@ def extract_metrics(config, cerebro, strategy, df):
 
 
 def main():
+    """Main entry point to load config, run backtest, and print metrics report JSON."""
     config = load_config()
     cerebro = build_cerebro(config)
     strategies = cerebro.run()
@@ -498,7 +638,14 @@ def main():
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -508,7 +655,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

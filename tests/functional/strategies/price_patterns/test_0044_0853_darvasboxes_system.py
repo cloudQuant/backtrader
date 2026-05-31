@@ -1,6 +1,23 @@
 """Inlined regression test for price_patterns/0044_0853_darvasboxes_system.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` through the MetaTrader-5 CSV parser.
+    The same source is resampled to 240-minute bars to build the signal feed.
+    The test window is 2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    Detects Darvas box color transitions on a resampled signal series and
+    uses those transitions to time breakout-style long/short entries and closes.
+
+Strategy Logic:
+    ``load_mt5_csv`` loads and cleans the raw M15 data; ``_build_signal_frame``
+    resamples it to the indicator timeframe. The strategy tracks the custom
+    ``DarvasBoxesSystem`` indicator state, opens positions when signal transitions
+    confirm, manages each position with fixed point-based stops/take profits, and
+    updates counters via ``notify_trade``.
 """
 from __future__ import annotations
 
@@ -16,6 +33,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 CSV export into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV source file.
+        fromdate: Optional inclusive lower datetime filter.
+        todate: Optional inclusive upper datetime filter.
+        bar_shift_minutes: Optional minute shift applied to the datetime index.
+
+    Returns:
+        A datetime-indexed OHLCV DataFrame sorted in ascending order.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +65,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData subclass for XAUUSD OHLCV bars used by this regression test."""
+
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,16 +74,20 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DarvasBoxesSystem(bt.Indicator):
+    """Indicator that emits Darvas box color states from high/low progression."""
+
     lines = ("color",)
     params = dict(symmetry=True, shift=2)
 
     def __init__(self):
+        """Initialize the indicator state and ensure required warmup bars."""
         self.addminperiod(int(self.p.shift) + 8)
         self.state = 0
         self.box_top = None
         self.box_bottom = None
 
     def next(self):
+        """Update the running Darvas box and emit the discrete color signal."""
         if self.box_top is None:
             self.box_top = float(self.data.high[-1])
             self.box_bottom = float(self.data.low[-1])
@@ -98,6 +132,8 @@ class DarvasBoxesSystem(bt.Indicator):
 
 
 class ExpDarvasBoxesSystemStrategy(bt.Strategy):
+    """Multi-timeframe Darvas box strategy with breakout-style trade control."""
+
     params = dict(
         symmetry=True, shift=2,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -108,6 +144,7 @@ class ExpDarvasBoxesSystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach feeds, indicator, and counters for trading and statistics."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = DarvasBoxesSystem(self.signal_data, symmetry=self.p.symmetry, shift=self.p.shift)
@@ -138,6 +175,7 @@ class ExpDarvasBoxesSystemStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one bar, check exits, and submit entries or flatting orders."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -165,6 +203,7 @@ class ExpDarvasBoxesSystemStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track trade outcomes and update win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

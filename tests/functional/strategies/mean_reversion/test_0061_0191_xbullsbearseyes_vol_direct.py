@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. The
+    M15 base data is resampled to H2 (2-hour) bars, which carry the indicator
+    and signal lines; tick volume from the source is preserved for the
+    volume-weighted indicator.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_XBullsBearsEyes_Vol_Direct. It computes
+    a recursive Bulls/Bears Eyes oscillator from the high/low spread around a
+    price EMA, weights it by volume, and smooths it with a Laguerre-style
+    four-stage filter plus a moving average ("direct" line). The slope of the
+    direct line defines a colour: a colour flip from falling to rising is a buy
+    signal and the reverse is a sell signal, so the strategy trades momentum
+    turns in the volume-weighted oscillator. Positions use fixed point-based
+    stop-loss and take-profit levels and reverse on the opposite signal.
+
+Strategy Logic:
+    build_signal_frame loads and resamples the data, computes the direct line,
+    derives the colour and shifted buy/sell/close signals, and stores them as
+    extra feed lines. The strategy runs cheat-on-open: each open bar it closes
+    positions hit by stop/take-profit or a reverse signal, then opens a long or
+    short on a fresh buy/sell signal, recording the bracket levels. notify_order
+    confirms fills and applies the stored stop/take-profit; notify_trade tallies
+    win/loss. extract_metrics consolidates analyzer output; the test forces
+    runonce=True and asserts each metric against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -82,6 +110,19 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        tick_volume, and openinterest columns, filtered to the requested range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -108,6 +149,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 def resample_to_h2(df):
+    """Resample an intraday OHLCV frame to 2-hour bars.
+
+    Args:
+        df: The base OHLCV DataFrame with a datetime index.
+
+    Returns:
+        A right-labelled, right-closed 2-hour OHLCV DataFrame with rows missing
+        core prices dropped.
+    """
     agg = {
         'open': 'first',
         'high': 'max',
@@ -122,10 +172,35 @@ def resample_to_h2(df):
 
 
 def ema(series, period):
+    """Compute an exponential moving average of a series.
+
+    Args:
+        series: The input price series.
+        period: The EMA span in bars.
+
+    Returns:
+        The EMA-smoothed series.
+    """
     return series.ewm(span=period, adjust=False).mean()
 
 
 def recursive_bulls_bears_direct(frame, period=13, gamma=0.6, ma_length=12, volume_type='tick'):
+    """Compute the volume-weighted, Laguerre-smoothed Bulls/Bears direct line.
+
+    Builds the bull/bear power around a price EMA, runs a four-stage Laguerre
+    filter (gamma) to derive an oscillator, weights it by volume, and smooths it
+    with a moving average to produce the "direct" line.
+
+    Args:
+        frame: The OHLCV DataFrame (with a tick_volume column) to operate on.
+        period: EMA period for the price reference.
+        gamma: Laguerre smoothing factor in [0, 1).
+        ma_length: Window of the final moving-average smoothing.
+        volume_type: ``'tick'`` to use tick volume, otherwise real volume.
+
+    Returns:
+        A pandas Series of the smoothed direct line aligned to ``frame.index``.
+    """
     price_ema = ema(frame['close'], period)
     bears = frame['low'] - price_ema
     bulls = frame['high'] - price_ema
@@ -174,6 +249,26 @@ def build_signal_frame(
     signal_bar=1,
     volume_type='tick',
 ):
+    """Load, resample, and annotate the H2 frame with indicator and signals.
+
+    Loads the MT5 CSV, resamples to H2, computes the direct line and its slope
+    colour, then derives shifted buy/sell and close signals from colour flips.
+
+    Args:
+        filepath: Path to the MT5 export CSV.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each source timestamp.
+        period: EMA period passed to the direct-line calculation.
+        gamma: Laguerre smoothing factor for the direct line.
+        ma_length: Smoothing window for the direct line.
+        signal_bar: Number of bars to shift colour before reading signals.
+        volume_type: ``'tick'`` or real volume for the indicator weighting.
+
+    Returns:
+        An H2 OHLCV DataFrame augmented with ``direct``, ``color``, and the
+        buy/sell/close signal columns, with incomplete rows dropped.
+    """
     base = load_mt5_csv(filepath, fromdate=fromdate, todate=todate, bar_shift_minutes=bar_shift_minutes)
     frame = resample_to_h2(base)
     frame['direct'] = recursive_bulls_bears_direct(frame, period=period, gamma=gamma, ma_length=ma_length, volume_type=volume_type)
@@ -199,6 +294,8 @@ def build_signal_frame(
 
 
 class XBullsBearsEyesVolDirectFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the direct line, colour, and signal columns."""
+
     lines = ('direct', 'color', 'buy_signal', 'sell_signal', 'close_buy_signal', 'close_sell_signal',)
     params = (
         ('datetime', None),
@@ -219,6 +316,13 @@ class XBullsBearsEyesVolDirectFeed(bt.feeds.PandasData):
 
 
 class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
+    """Trade colour flips of the volume-weighted Bulls/Bears direct line.
+
+    Acts on the precomputed buy/sell/close signals on each open bar (cheat on
+    open): opens longs/shorts on fresh signals with fixed point-based stop-loss
+    and take-profit brackets, and closes on stop, target, or a reverse signal.
+    """
+
     params = dict(
         lot=0.1,
         stop_loss_points=1000,
@@ -232,6 +336,7 @@ class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset order state, bracket levels, pending side, and counters."""
         self.order = None
         self.current_stop = None
         self.current_take_profit = None
@@ -246,10 +351,16 @@ class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Advance the bar counter; trading happens in :meth:`next_open`."""
         self.bar_num += 1
 
     def _close_if_exit_hit(self):
@@ -286,6 +397,13 @@ class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
         return False
 
     def next_open(self):
+        """Manage exits and open new bracketed positions at the bar open.
+
+        Skips while an order is pending or during warm-up. When holding a
+        position it checks stop/take-profit/reverse exits; when flat it opens a
+        long on a buy signal or a short on a sell signal, recording the pending
+        stop and take-profit levels.
+        """
         if self.order:
             return
         if len(self.data) < 2:
@@ -324,6 +442,14 @@ class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lot)
 
     def notify_order(self, order):
+        """Confirm fills, apply the stored brackets, and count entries.
+
+        Args:
+            order: The order whose status changed. On a completed entry it
+                increments the buy/sell counter and activates the pending stop
+                and take-profit; submitted/accepted states are ignored and all
+                pending state is cleared once the order settles.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -344,6 +470,11 @@ class XBullsBearsEyesVolDirectStrategy(bt.Strategy):
         self.pending_side = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -369,6 +500,17 @@ MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -376,6 +518,20 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build the H2 signal frame described by the config over its date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` and ``params`` sections
+            provide the file path, date bounds, bar shift, and indicator
+            parameters.
+
+    Returns:
+        A dict with the annotated ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the resulting signal frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -398,6 +554,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The signal frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` (cheat-on-open) ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -427,6 +593,20 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding trade counters and
+            attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The signal frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and entry counts) used by the assertions; the
+        annual return is clamped to drop implausible magnitudes.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -1,7 +1,21 @@
-"""Inlined regression test for others/0024_rut_spx_divergence.
+"""Manual single-file regression test for ``test_0024_rut_spx_divergence``.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
-Trade asset is IWM (Russell 2000 ETF), signal is IVV (S&P 500 ETF).
+Runs with ``runonce=True`` only.
+
+Data Used:
+    IWM daily bars from ``tests/datas/mt5_1d_data/IWM_1d.csv`` as execution
+    data, with IVV daily bars from ``tests/datas/mt5_1d_data/IVV_1d.csv`` as the
+    divergence reference signal.
+
+Strategy Principle:
+    When the Russell (IWM) prints consecutive down closes while the S&P proxy
+    (IVV) sets near-term new highs, this strategy treats it as a divergence and
+    opens a risk-defined long position.
+
+Strategy Logic:
+    ``prepare_rut_spx_divergence_features`` calculates consecutive down-streak and
+    IVV new-high flags. ``RutSpxDivergenceStrategy`` applies a single-position
+    long-only workflow with stop-loss, take-profit, and holding-period exits.
 """
 from __future__ import annotations
 
@@ -18,6 +32,16 @@ SIGNAL_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "IVV_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5 CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+
+    Returns:
+        pandas.DataFrame: Datetime-indexed OHLCV data filtered to the window.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -42,6 +66,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_rut_spx_divergence_features(trade_df, signal_df, params):
+    """Build divergence features from trade and reference ETFs.
+
+    Args:
+        trade_df: Execution ETF DataFrame (IWM) indexed by datetime.
+        signal_df: Reference ETF DataFrame (IVV) indexed by datetime.
+        params: Strategy parameters for down-day count and new-high windows.
+
+    Returns:
+        pandas.DataFrame: Feature-enriched DataFrame including entry signals.
+    """
     rut_down_days = int(params.get("rut_down_days", 3))
     spx_new_high_period = int(params.get("spx_new_high_period", 3))
     aligned_index = trade_df.index.intersection(signal_df.index).sort_values()
@@ -66,6 +100,7 @@ def prepare_rut_spx_divergence_features(trade_df, signal_df, params):
 
 
 class RutSpxDivergenceFeed(bt.feeds.PandasData):
+    """PandasData extension exposing divergence streak and entry flags."""
     lines = ("trade_down", "consecutive_down", "signal_new_high", "entry_signal",)
     params = (
         ("datetime", None),
@@ -75,6 +110,7 @@ class RutSpxDivergenceFeed(bt.feeds.PandasData):
 
 
 class RutSpxDivergenceStrategy(bt.Strategy):
+    """Long-only divergence strategy with fixed risk and holding controls."""
     params = dict(
         holding_days=4,
         position_size=0.95,
@@ -86,6 +122,7 @@ class RutSpxDivergenceStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize trade counters and active-trade risk state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -100,6 +137,7 @@ class RutSpxDivergenceStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def next(self):
+        """Handle exits and entries based on divergence entry signals."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -133,6 +171,11 @@ class RutSpxDivergenceStrategy(bt.Strategy):
             self.pending_order = self.order_target_percent(target=float(self.p.position_size))
 
     def notify_order(self, order):
+        """Clear pending marker and reset position context when flat.
+
+        Args:
+            order: Order object transitioning out of active status.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -142,6 +185,7 @@ class RutSpxDivergenceStrategy(bt.Strategy):
             self.take_profit_price = None
 
     def notify_trade(self, trade):
+        """Update closed-trade counters for win/loss reporting."""
         if not trade.isclosed:
             return
         self.trade_count += 1

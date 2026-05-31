@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each bar timestamp is shifted forward by 15 minutes, and
+    the M15 frame is fed to Cerebro at a 60-minute (H1) compression so the
+    strategy effectively trades on hourly bars.
+
+Strategy Principle:
+    This is the "gazonkos" strategy (MT5 gazonkos EA). It is a momentum-rollback
+    state machine: it first detects a strong directional move (the close changed
+    by more than ``delta`` points between two lookback bars ``t1`` and ``t2``),
+    then waits for a rollback of ``rollback`` points against that move within the
+    same hour before entering in the original direction. Trades carry a fixed
+    point-based stop loss and take profit, and entries are throttled to one per
+    hour and a maximum number of concurrent positions.
+
+Strategy Logic:
+    load_backtest_frame loads and date-filters the frame; build_cerebro adds the
+    feed at H1 compression, configures a fixed-commission futures broker, the
+    strategy, and the analyzers. Each bar the strategy manages the open position
+    (stop/take-profit touch) and advances a four-state machine: idle → armed →
+    momentum detected → rollback confirmed → entry, then opens a long/short and
+    resets. notify_order tracks completed/rejected orders and buy/sell counts and
+    clears the working order, while notify_trade tallies wins and losses.
+    extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -79,6 +107,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -106,12 +147,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class GazonkosStrategy(bt.Strategy):
+    """Momentum-then-rollback state machine with fixed point stop/take profit."""
+
     params = dict(
         take_profit=16,
         rollback=16,
@@ -126,6 +171,7 @@ class GazonkosStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset the state machine, counters, and order/risk state."""
         self.state = 0
         self.trade_direction = 0
         self.maxprice = None
@@ -196,6 +242,7 @@ class GazonkosStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Advance state machine and execute rollback-based entries when allowed."""
         self.bar_num += 1
         if len(self) < max(int(self.p.t1), int(self.p.t2)) + 2:
             return
@@ -251,6 +298,11 @@ class GazonkosStrategy(bt.Strategy):
                 self.state = 0
 
     def notify_order(self, order):
+        """Track order lifecycle and keep position/risk state in sync.
+
+        Args:
+            order (bt.Order): Order object emitted by broker notifications.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -269,6 +321,7 @@ class GazonkosStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters and win/loss statistics on trade close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -293,6 +346,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data path relative to the test directory.
+
+    Args:
+        filename (str): Name or relative path to the target data file.
+
+    Returns:
+        Path: Absolute resolved file path.
+
+    Raises:
+        FileNotFoundError: If resolved file path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -300,6 +364,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and clip the MT5 csv data frame using configuration time bounds.
+
+    Args:
+        config (dict): Fully resolved configuration dictionary.
+
+    Returns:
+        dict: Loaded dataframe and date range metadata.
+
+    Raises:
+        ValueError: If loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -316,6 +391,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create a configured Cerebro engine with broker, feed, strategy and analyzers.
+
+    Args:
+        config (dict): Backtest and strategy config payload.
+        frame (dict): Preloaded data frame and bounds.
+
+    Returns:
+        bt.Cerebro: Prepared cerebro instance for execution.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -344,6 +428,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble a normalized metric dictionary from analyzer outputs.
+
+    Args:
+        strat (bt.Strategy): Executed strategy object.
+        cerebro (bt.Cerebro): Backtest engine after ``run``.
+        frame (dict): Backtest frame metadata.
+        config (dict): Original execution configuration.
+
+    Returns:
+        dict: Performance and trade-statistics dictionary used by pytest checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -385,6 +480,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute backtest and return results, metrics, and Cerebro instance."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

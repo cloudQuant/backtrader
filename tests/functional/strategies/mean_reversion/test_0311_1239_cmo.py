@@ -7,6 +7,29 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - `tests/datas/XAUUSD_M15.csv` (symbol XAUUSD, 15-minute bars).
+    - Date window: `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    - Two feeds are used: base M15 execution bars and a resampled higher-timeframe
+      indicator frame (default 240 minutes).
+
+Strategy Principle:
+    - Computes Chande Momentum Oscillator (CMO) on resampled bars using
+      configurable price source and smoothing method.
+    - A long signal is generated when current CMO crosses above zero, and a short
+      when it crosses below zero; exits are managed by configurable stop loss,
+      take profit, and optional directional close flags.
+
+Strategy Logic:
+    - `load_backtest_frame` loads MT5 csv data and slices by date.
+    - `build_cmo_frame` resamples source data, computes MA, CMO components, and
+      adds CMO values as a signal line.
+    - `build_cerebro` wires base and signal feeds plus analyzers into Backtrader.
+    - `CmoStrategy.next` enforces one-bar signal-gate checks, exit priority, then
+      buy/sell execution by position-state transitions.
+    - `extract_metrics` collates strategy counters and analyzer outputs for stable
+      regression assertions.
 """
 from __future__ import annotations
 import math
@@ -88,6 +111,7 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and normalize it into a standard Backtrader DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +133,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Default feed mapping for OHLCV base bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +141,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class CmoFeed(btfeeds.PandasData):
+    """Signal feed carrying the computed CMO values."""
     lines = ('cmo',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -124,6 +150,7 @@ class CmoFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample base data into the indicator timeframe used for CMO generation."""
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -139,6 +166,7 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def applied_price(df, code):
+    """Resolve the applied price input used for moving-average baseline."""
     open_ = df['open'].astype(float)
     high = df['high'].astype(float)
     low = df['low'].astype(float)
@@ -162,6 +190,7 @@ def applied_price(df, code):
 
 
 def moving_average(series, period, method):
+    """Compute moving average with multiple smoothing options."""
     period = int(period)
     method = int(method)
     if method == 0:
@@ -177,6 +206,7 @@ def moving_average(series, period, method):
 
 
 def build_cmo_frame(df, indicator_minutes, length, method, price):
+    """Build the CMO signal frame for strategy consumption."""
     signal_df = build_resampled_frame(df, indicator_minutes)
     ma = moving_average(applied_price(signal_df, price), length, method)
     dprice = ma - ma.shift(1)
@@ -194,6 +224,7 @@ def build_cmo_frame(df, indicator_minutes, length, method, price):
 
 
 class CmoStrategy(bt.Strategy):
+    """CMO-based trend-flip strategy with fixed stop and take-profit management."""
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -211,6 +242,7 @@ class CmoStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create references and initialize counters for trades and positions."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -224,6 +256,7 @@ class CmoStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Log strategy events with current bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -268,6 +301,7 @@ class CmoStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate exits and trigger entries on CMO sign transitions."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -317,6 +351,7 @@ class CmoStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track trade lifecycle statistics for regression metrics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -350,6 +385,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve file path under module directory and validate it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -357,6 +393,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return backtest input frame bounded by configured date range."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -373,6 +410,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Backtrader engine, attach data feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -417,6 +455,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer and counter fields into expected regression metrics.
+
+    Args:
+        strat: Strategy instance after execution.
+        cerebro: Executed cerebro engine.
+        frame: Backtest frame metadata.
+        config: Source configuration.
+
+    Returns:
+        Dict containing deterministic metric keys for assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -458,6 +507,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute one backtest run and return results plus extracted metrics.
+
+    Args:
+        plot: Whether to render chart output.
+
+    Returns:
+        Tuple `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

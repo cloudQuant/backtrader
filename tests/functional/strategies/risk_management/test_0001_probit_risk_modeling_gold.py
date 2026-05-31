@@ -1,7 +1,24 @@
-"""Inlined regression test for risk_management/0001_probit_risk_modeling_gold.
+"""Regression test for probabilistic gold-risk regime switching.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Probit risk model on XAUUSD with IEF/GTIP/DXYN macro features.
+
+Data Used:
+    XAUUSD, IEF, GTIP, and DXYN daily MT5 exports from
+    ``tests/datas/mt5_1d_data`` are loaded and aligned from 2021-01-01 to
+    2025-12-31.
+
+Strategy Principle:
+    The strategy builds a rolling probit risk model on momentum/volatility/macro
+    features to estimate near-term downside-risk probability. Exposure is switched
+    between full target and flat depending on that probability threshold.
+
+Strategy Logic:
+    ``prepare_probit_risk_data`` generates engineered factors, trains/updates a
+    probit model on rolling windows, and derives ``target_signal``/risk
+    probabilities. In ``next``, the strategy compares the current target to the
+    last target, submits rebalance orders when changed, and records alert/switch
+    and trade lifecycle statistics.
 """
 from __future__ import annotations
 
@@ -34,6 +51,16 @@ FEATURE_COLUMNS = [
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 export and return OHLCV data indexed by datetime.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV file.
+        fromdate: Optional inclusive lower date bound.
+        todate: Optional inclusive upper date bound.
+
+    Returns:
+        OHLCV DataFrame sorted by datetime with backtrader-compatible columns.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -91,6 +118,16 @@ def _heuristic_probability(window_frame, current_row):
 
 
 def prepare_probit_risk_data(asset_frames, params):
+    """Prepare aligned risk features and rolling probit model outputs.
+
+    Args:
+        asset_frames: Mapping of symbol to OHLCV frame.
+        params: Model parameters (windows, thresholds, and refit cadence).
+
+    Returns:
+        A tuple of aligned raw frames and the feature frame including risk
+        probability and trading target signals.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -171,6 +208,7 @@ def prepare_probit_risk_data(asset_frames, params):
 
 
 class ProbitRiskSignalFeed(bt.feeds.PandasData):
+    """Feed carrying engineered probit risk model factor lines."""
     lines = ("gold_return_1d", "volatility_20d", "rsi_14", "macd_histogram",
              "real_rate_change_20d", "dxy_change_20d", "risk_state", "risk_probability", "target_signal")
     params = (
@@ -182,11 +220,13 @@ class ProbitRiskSignalFeed(bt.feeds.PandasData):
 
 
 class ProbitRiskModelingGoldStrategy(bt.Strategy):
+    """Probit risk-model strategy that toggles gold exposure by risk regime."""
     params = dict(
         target_percent=0.95,
     )
 
     def __init__(self):
+        """Initialize signal/trade state for regime-driven switching."""
         self.signal = self.datas[0]
         self.gold = self.getdatabyname("XAUUSD")
         self.order_refs = set()
@@ -217,6 +257,7 @@ class ProbitRiskModelingGoldStrategy(bt.Strategy):
         return round(raw_size, 2)
 
     def next(self):
+        """Rotate between target and flat when regime signal changes."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -240,11 +281,13 @@ class ProbitRiskModelingGoldStrategy(bt.Strategy):
         self.last_target_signal = target_signal
 
     def notify_order(self, order):
+        """Track active order refs and clear resolved orders."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count wins/losses for each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1

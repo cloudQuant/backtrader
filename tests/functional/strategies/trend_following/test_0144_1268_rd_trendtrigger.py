@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` are loaded from MT5 TSV
+    export and shifted by ``bar_shift_minutes`` before trimming to the configured
+    date window.
+
+Strategy Principle:
+    RD-TrendTrigger builds a custom trend-trigger oscillator from high/low
+    range differences. It emits turning signals under either twist/disposition
+    interpretation and converts these into directional entries and reversals.
+
+Strategy Logic:
+    The indicator is computed per bar and fed directly to the strategy, which
+    evaluates open/close flags, executes reversals or entries, and tracks trade
+    counters. Backtest helpers load data, configure analyzers, then validate
+    extracted metrics against expected regression snapshots.
 """
 from __future__ import annotations
 import math
@@ -80,6 +96,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and return a Backtrader-ready OHLCV frame.
+
+    Args:
+        filepath: MT5 export file path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minute offset to apply to timestamps.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,6 +128,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Standard OHLCV Backtrader feed for MT5-derived data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -108,14 +136,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class RDTrendTriggerIndicator(bt.Indicator):
+    """Custom indicator that derives normalized range-trend trigger values."""
     lines = ('value',)
     params = dict(regress=15, t3_length=5, t3_phase=70)
 
     def __init__(self):
+        """Initialize helper buffers and required warmup length."""
         self._ema = bt.indicators.ExponentialMovingAverage(self.lines.value, period=max(1, int(self.p.t3_length)))
         self.addminperiod(int(self.p.regress) * 2 + int(self.p.t3_length) + 3)
 
     def next(self):
+        """Compute trend trigger value from rolling high/low comparisons."""
         regress = int(self.p.regress)
         highs_recent = [float(self.data.high[-i]) for i in range(regress)]
         highs_older = [float(self.data.high[-regress - i]) for i in range(regress)]
@@ -136,6 +167,7 @@ class RDTrendTriggerIndicator(bt.Indicator):
 
 
 class RDTrendTriggerStrategy(bt.Strategy):
+    """Rule-based strategy that trades trend-trigger crossings in two modes."""
     params = dict(
         mode='twist',
         regress=15,
@@ -148,6 +180,7 @@ class RDTrendTriggerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize oscillator-derived line and trade bookkeeping counters."""
         basis = self.data.close - bt.indicators.SimpleMovingAverage(self.data.close, period=max(2, int(self.p.regress)))
         self.indicator = type('RDTrendTriggerLines', (), {})()
         self.indicator.value = bt.indicators.ExponentialMovingAverage(basis, period=max(1, int(self.p.t3_length)))
@@ -160,6 +193,7 @@ class RDTrendTriggerStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped strategy log message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -205,6 +239,7 @@ class RDTrendTriggerStrategy(bt.Strategy):
         return self._signals_twist(shift)
 
     def next(self):
+        """Evaluate mode-specific signals and execute close/open/reverse actions."""
         self.bar_num += 1
         warmup = int(self.p.regress) * 2 + int(self.p.t3_length) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -243,6 +278,7 @@ class RDTrendTriggerStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entry and close events including win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -275,6 +311,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path under the test module and ensure existence.
+
+    Args:
+        filename: Path relative to this test file.
+
+    Returns:
+        Absolute path to the data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -282,6 +326,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load normalized test data and wrap date range metadata.
+
+    Args:
+        config: Inline configuration dictionary.
+
+    Returns:
+        Backtest frame dict including data and from/to datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -298,6 +350,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Cerebro engine with strategy and analyzers.
+
+    Args:
+        config: Strategy/backtest config.
+        frame: Data prepared by ``load_backtest_frame``.
+
+    Returns:
+        A configured ``bt.Cerebro`` engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -321,6 +382,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect deterministic metrics from analyzers and trade counters.
+
+    Args:
+        strat: Finished strategy instance.
+        cerebro: The Backtrader engine instance.
+        frame: Input frame used in this run.
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary of regression metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -361,6 +433,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the configured backtest and return run outputs.
+
+    Args:
+        plot: Flag to render plot after execution.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

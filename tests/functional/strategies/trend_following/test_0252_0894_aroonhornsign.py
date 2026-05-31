@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD_M15 tick data loaded from tests/datas/XAUUSD_M15.csv.
+    - Primary timeframe is M15; indicator timeframe is H4 by resampling.
+    - Date window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - A 15-minute bar shift is applied when reading the source file.
+
+Strategy Principle:
+    - Builds Aroon-Horn signal levels from highs/lows with ATR-based filter distances.
+    - Generates bullish and bearish directional arrows when trend flips across threshold.
+    - The strategy opens/closes positions based on indicator arrows and risk controls
+      (take profit / stop loss).
+
+Strategy Logic:
+    - build_signal_frame resamples M15 bars to a configured H4-like interval for
+      indicator input.
+    - build_cerebro wires base and signal feeds plus analyzers.
+    - Strategy next() scans new signal states, applies close checks and then entries.
+    - notify_trade() tracks bar counts and performance statistics.
+    - extract_metrics() collects analyzer and strategy counters for deterministic
+      regression assertions.
 """
 from __future__ import annotations
 import math
@@ -86,6 +107,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style TSV data and return a normalized minute-bar DataFrame.
+
+    Args:
+        filepath: Source data file path.
+        fromdate: Optional earliest datetime (inclusive) filter.
+        todate: Optional latest datetime (inclusive) filter.
+        bar_shift_minutes: Optional minute shift applied to each bar timestamp.
+
+    Returns:
+        DataFrame indexed by datetime with standardized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,6 +139,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Minimal pandas feed mapping for MT5 OHLCV frames."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -126,6 +160,7 @@ class AroonHornSignIndicator(bt.Indicator):
     params = dict(aroon_period=9, atr_period=10)
 
     def __init__(self):
+        """Initialize Aroon window, ATR window, and trend tracking state."""
         self._ap = int(self.p.aroon_period)
         self._atr_p = int(self.p.atr_period)
         self._trend_prev = 0
@@ -146,6 +181,7 @@ class AroonHornSignIndicator(bt.Indicator):
         return total / period
 
     def next(self):
+        """Compute bear/bull arrow levels based on trend flips and ATR displacement."""
         ap = self._ap
 
         # Find bars since highest high and lowest low within AroonPeriod
@@ -208,6 +244,7 @@ class ExpAroonHornSignStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize signal feed, strategy indicators, and statistics counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = AroonHornSignIndicator(
@@ -226,6 +263,7 @@ class ExpAroonHornSignStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Emit an ISO-timestamped log message for the current base bar."""
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -269,6 +307,7 @@ class ExpAroonHornSignStrategy(bt.Strategy):
                     self.log(f'close long hist sell -{k}'); self.close(); return
 
     def next(self):
+        """Run one-step signal handling and order logic for the current bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -316,6 +355,7 @@ class ExpAroonHornSignStrategy(bt.Strategy):
             if self.position.size >= 0: self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Update trade/result counters when a trade opens or closes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -336,11 +376,27 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a data file path relative to the current test directory.
+
+    Args:
+        fn: Relative data file name.
+
+    Returns:
+        Absolute resolved file path.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Load and validate the regression data frame with date boundaries.
+
+    Args:
+        cfg: Inline merged strategy configuration.
+
+    Returns:
+        Dict with dataframe and resolved date boundaries.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -350,6 +406,15 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Build a higher-timeframe signal dataframe by time-based resampling.
+
+    Args:
+        df: Source minute bars DataFrame.
+        mins: Resample length in minutes.
+
+    Returns:
+        Resampled and cleaned OHLCV DataFrame used as signal feed.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -357,6 +422,15 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Create Backtrader engine with base feed, signal feed, and analyzers.
+
+    Args:
+        cfg: Inline configuration for parameters and broker settings.
+        frame: Backtest context containing loaded base data.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 240)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -376,6 +450,17 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Collect analyzer outputs and strategy counters for assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro instance after running.
+        frame: Input frame returned by load_backtest_frame.
+        cfg: Inline merged config.
+
+    Returns:
+        Dictionary of deterministic metrics checked by regression asserts.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -390,6 +475,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Run the backtest and return results, metrics, and engine."""
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)
@@ -408,10 +494,7 @@ def _close(actual, expected, *, tol, key):
 
 
 def test_251_0252_0894_aroonhornsign() -> None:
-    """Migrated regression test (runonce=True only).
-
-    Originally located at tests/functional/strategies_regression/trend_following/0252_0894_aroonhornsign.
-    """
+    """Migrated regression test (runonce=True only)."""
     captured = {}
 
     import sys as _sys

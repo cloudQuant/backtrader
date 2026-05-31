@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: D1 (Daily).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 00:00:00 to 2025-12-31 00:00:00.
+
+Strategy Principle:
+    - This strategy ("LowVol Momentum Value Momentum") implements a multi-factor tactical allocation system based on historical volatility and absolute momentum.
+    - Market Assumptions: Lower volatility indicates more stable market regimes, while positive momentum identifies strong ongoing trends. A composite score balancing low volatility and high momentum optimizes the risk-adjusted performance.
+    - Indicators:
+        - Volatility Rank: Rolling standard deviation of returns (60-period, `vol_lookback`), rank-normalized such that low volatility receives a high score (0 to 1).
+        - Momentum Rank: Rolling pct change of close price (120-period, `mom_lookback`), rank-normalized (0 to 1).
+        - Composite Score: Average of Volatility Rank and Momentum Rank.
+    - Entry Signals:
+        - Buy Entry: On scheduled rebalance day (every 63 days, `rebalance_days`), if composite score > 0.6, place a buy order.
+    - Exit Signals:
+        - Close Position: On scheduled rebalance day, if composite score < 0.4, close the long position.
 """
 from __future__ import annotations
 import math
@@ -68,7 +86,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -76,6 +102,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -101,8 +137,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
     return df
 
 
-
 def prepare_lowvol_momentum_value_momentum_features(df, params):
+    """Calculate absolute momentum, rolling volatility, and composite scores.
+
+    Args:
+        df (pd.DataFrame): Input raw historical price DataFrame.
+        params (dict): Configured strategy parameters.
+
+    Returns:
+        pd.DataFrame: Processed features DataFrame containing composite score ranks and scheduled rebalance flags.
+    """
     vol_lookback = int(params.get('vol_lookback', 60))
     mom_lookback = int(params.get('mom_lookback', 120))
     rebalance_days = int(params.get('rebalance_days', 63))
@@ -136,6 +180,7 @@ def prepare_lowvol_momentum_value_momentum_features(df, params):
 
 
 class Mt5LowvolMomentumValueMomentumFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with supplementary indicator lines."""
     lines = ('vol_rank', 'mom_rank', 'composite_score', 'rebalance_flag',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -148,6 +193,11 @@ class Mt5LowvolMomentumValueMomentumFeed(bt.feeds.PandasData):
 
 
 class LowvolMomentumValueMomentumStrategy(bt.Strategy):
+    """Strategy class implementing low volatility and high momentum composite rebalancing.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         vol_lookback=60,
         mom_lookback=120,
@@ -156,6 +206,7 @@ class LowvolMomentumValueMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -164,6 +215,15 @@ class LowvolMomentumValueMomentumStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate the target position size based on target portfolio percentage.
+
+        Args:
+            target_notional_pct (float, optional): Portfolio allocation weight. Defaults to 1.0.
+            price (float, optional): Reference asset price. Defaults to None.
+
+        Returns:
+            float: Calculated position size.
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -179,6 +239,7 @@ class LowvolMomentumValueMomentumStrategy(bt.Strategy):
 
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
 
@@ -201,27 +262,43 @@ class LowvolMomentumValueMomentumStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle trade status updates.
+
+        Args:
+            trade (bt.Trade): The updated trade instance.
+        """
         pass
 
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""LowVol Momentum Value Momentum 策略回测"""
+"""LowVol Momentum Value Momentum Strategy backtest."""
 
 
 
 
 
-BASE_DIR = Path(__file__).parent.resolve()
+BASE_DIR = Path(__parent.resolve() if '__parent' in globals() else __file__).parent.resolve()
 
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Construct appropriate annualization arguments for Sharpe ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration.
+
+    Returns:
+        dict: Parameters dictionary for Sharpe ratio analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -234,10 +311,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Filter out infinite or NaN values, returning None instead.
+
+    Args:
+        x (float): Input value to inspect.
+
+    Returns:
+        float or None: Filtered float value or None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index (UI) performance metric for account equity.
+
+    Args:
+        values (list): Chronological list of account equity values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -252,6 +345,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and process daily gold features.
+
+    Args:
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Processed data dictionary containing from/to dates and pandas DataFrame.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -264,6 +365,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, commission rules, and analyzers.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -286,6 +396,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -320,6 +441,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize input values for standardized JSON serialization.
+
+    Args:
+        v (Any): Raw input value.
+
+    Returns:
+        Any: Standardized serializable value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -329,8 +458,8 @@ def normalize(v):
 
 
 
-
 def main():
+    """Main execution function to load configuration, process data, configure backtest and extract metrics."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -341,13 +470,79 @@ def main():
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
     assert abs(a - float(expected)) <= tol, (
         f"{key}: expected={expected}, got={a} (tol={tol})"
     )
+
+
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_23_0023_lowvol_momentum_value_momentum() -> None:

@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (gold spot), base timeframe M15.
+    - Data path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Analysis period: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - Bar shift: optional `bar_shift_minutes` offset is applied before filtering by period.
+
+Strategy Principle:
+    - This strategy builds smoothed OHLC values by applying a configurable moving-average
+      method to each OHLC field.
+    - Price crossing above the smoothed high band and below the smoothed low band drives
+      reversals/entries with a fixed level buffer (`level * point`).
+    - Position management is based on breakout signal interpretation and current trend regime.
+
+Strategy Logic:
+    - `CandlesXSmoothedIndicator` produces smoothed OHLC and `color_state` values from a chosen MA class.
+    - `CandlesXSmoothedStrategy` searches recent bars for valid breakout conditions (`_latest_breakout_state`),
+      applies close/reverse/entry logic in `next`, and tracks trade counters in `notify_trade`.
+    - `extract_metrics` and test harness wrap strategy execution to compare against migration metrics.
 """
 from __future__ import annotations
 import math
@@ -80,6 +99,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 CSV export into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath (str): Source MT5 tab-separated file path.
+        fromdate (datetime.datetime | None): Optional start filter.
+        todate (datetime.datetime | None): Optional end filter.
+        bar_shift_minutes (int): Minute offset for each bar timestamp.
+
+    Returns:
+        pd.DataFrame: Parsed dataframe indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,6 +131,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base MT5 OHLCV feed."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -108,6 +139,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Resolve moving-average strategy by string key.
+
+    Args:
+        name (str): MA method key from config.
+
+    Returns:
+        bt.indicator: Corresponding Backtrader MA class.
+    """
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SMA
@@ -119,6 +158,7 @@ def resolve_ma_class(name):
 
 
 class CandlesXSmoothedIndicator(bt.Indicator):
+    """Indicator that smooths OHLC bars with configurable MA and derives color state."""
     lines = ('smooth_open', 'smooth_high', 'smooth_low', 'smooth_close', 'color_state',)
     params = dict(
         ma_method='lwma',
@@ -127,6 +167,7 @@ class CandlesXSmoothedIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize all smoothed OHLC lines and color state."""
         ma_cls = resolve_ma_class(self.p.ma_method)
         self.lines.smooth_open = ma_cls(self.data.open, period=self.p.ma_length)
         self.lines.smooth_high = ma_cls(self.data.high, period=self.p.ma_length)
@@ -135,10 +176,12 @@ class CandlesXSmoothedIndicator(bt.Indicator):
         self.addminperiod(self.p.ma_length + 2)
 
     def next(self):
+        """Set color state to bullish (`0`) or bearish (`1`) for current bar."""
         self.lines.color_state[0] = 0.0 if float(self.lines.smooth_open[0]) < float(self.lines.smooth_close[0]) else 1.0
 
 
 class CandlesXSmoothedStrategy(bt.Strategy):
+    """Breakout strategy on smoothed candle structure."""
     params = dict(
         ma_method='lwma',
         ma_length=30,
@@ -152,6 +195,7 @@ class CandlesXSmoothedStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize smoothed indicator, counters, and breakout threshold."""
         self.signal = CandlesXSmoothedIndicator(
             self.data,
             ma_method=self.p.ma_method,
@@ -168,6 +212,7 @@ class CandlesXSmoothedStrategy(bt.Strategy):
         self._break_level = float(self.p.level) * float(self.p.point)
 
     def log(self, text):
+        """Print timestamped log message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -195,6 +240,7 @@ class CandlesXSmoothedStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Apply warm-up and current breakout-state decisions to execute trades."""
         self.bar_num += 1
         if len(self.data) < int(self.p.ma_length) + int(self.p.signal_bar) + 5:
             return
@@ -236,6 +282,7 @@ class CandlesXSmoothedStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update trade counters on open and closed trade events."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -268,6 +315,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset path relative to the test directory.
+
+    Args:
+        filename (str): Relative filename.
+
+    Returns:
+        Path: Existing absolute file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -275,6 +330,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest input data based on config date window.
+
+    Args:
+        config (dict): Strategy configuration.
+
+    Returns:
+        dict: Data frame and metadata for execution.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -291,6 +354,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro engine and attach feed, strategy, and analyzers.
+
+    Args:
+        config (dict): Strategy/backtest configuration.
+        frame (dict): Preloaded input frame.
+
+    Returns:
+        bt.Cerebro: Configured backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -314,6 +386,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer metrics and strategy counters for regression assertions.
+
+    Args:
+        strat (CandlesXSmoothedStrategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Engine used for the backtest.
+        frame (dict): Input frame metadata.
+        config (dict): Strategy configuration.
+
+    Returns:
+        dict: Metrics dictionary.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -354,6 +437,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the strategy backtest and return the collected outputs.
+
+    Args:
+        plot (bool): Whether to render a plot after run.
+
+    Returns:
+        tuple: (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

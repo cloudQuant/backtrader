@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) loaded from the MT5 tab-separated export
+    ``tests/datas/XAUUSD_M15.csv``. The base execution feed is M15 (15-minute)
+    bars shifted forward by 15 minutes so each timestamp marks the candle close,
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. A second feed is
+    resampled to an H1 (60-minute) signal timeframe on which the indicator runs,
+    giving a two-feed setup: M15 for execution and H1 for signals.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_iStochKomposter. A custom Stochastic
+    oscillator (slowed %K over a lookback window) measures whether price is
+    overbought or oversold on the H1 timeframe. Crossing up through the lower
+    level prints a buy marker offset below the bar low by 3/8 of ATR; crossing
+    down through the upper level prints a sell marker offset above the bar high.
+    Those markers, evaluated at the configured signal bar, drive mean-reversion
+    entries while opposite markers close existing positions. Positions also carry
+    fixed point stop-loss and take-profit protection.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro resamples it to H1,
+    wires both feeds, the indicator-driven strategy, and analyzers. Each M15 bar
+    the strategy first checks stop-loss/take-profit exits, then — only when a new
+    H1 signal bar has formed — reads the indicator buy/sell markers to close
+    opposing positions and open longs or shorts sized by a fixed lot.
+    notify_trade tallies buy/sell on open and win/loss on close. extract_metrics
+    consolidates analyzer output; the test loads inputs, builds cerebro, forces
+    runonce=True, and asserts each metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -89,6 +117,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound; earlier rows are dropped.
+        todate: Optional inclusive upper bound; later rows are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,14 +148,24 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the loaded MT5 frame columns by position."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
 
 
 class IStochKomposterIndicator(bt.Indicator):
+    """Stochastic-and-ATR composite that prints offset buy/sell markers.
+
+    Emits a buy line below the bar low (and a sell line above the bar high),
+    offset by 3/8 of ATR, whenever the slowed %K stochastic crosses up through
+    the lower level or down through the upper level respectively.
+    """
+
     lines = ('sell', 'buy', 'sto', 'atr')
     params = dict(atr_period=14, k_period=5, d_period=3, slowing=3, up_level=70, dn_level=30)
 
     def __init__(self):
+        """Build the ATR sub-indicator and set the warm-up minimum period."""
         self._atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
         self.addminperiod(max(int(self.p.atr_period), int(self.p.k_period) + int(self.p.d_period) + int(self.p.slowing) + 1) + 2)
 
@@ -135,6 +186,7 @@ class IStochKomposterIndicator(bt.Indicator):
         return sum(vals) / len(vals)
 
     def next(self):
+        """Compute the slowed stochastic and emit ATR-offset cross markers."""
         self.lines.sell[0] = float('nan')
         self.lines.buy[0] = float('nan')
         sto_now = self._main_stochastic()
@@ -151,6 +203,13 @@ class IStochKomposterIndicator(bt.Indicator):
 
 
 class ExpIStochKomposterStrategy(bt.Strategy):
+    """Trade iStochKomposter markers with fixed stop-loss/take-profit exits.
+
+    Reads the H1 indicator's buy/sell markers at the configured signal bar,
+    closing opposing positions and opening fixed-lot longs or shorts, while also
+    enforcing point-based stop-loss and take-profit levels on each bar.
+    """
+
     params = dict(
         atr_period=14,
         k_period=5,
@@ -171,6 +230,7 @@ class ExpIStochKomposterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Wire the M15 execution feed, H1 signal indicator, and counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = IStochKomposterIndicator(self.signal_data, atr_period=self.p.atr_period, k_period=self.p.k_period, d_period=self.p.d_period, slowing=self.p.slowing, up_level=self.p.up_level, dn_level=self.p.dn_level)
@@ -185,6 +245,7 @@ class ExpIStochKomposterStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print ``text`` prefixed with the current base-feed ISO timestamp."""
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -220,6 +281,13 @@ class ExpIStochKomposterStrategy(bt.Strategy):
         return None if math.isnan(val) else val
 
     def next(self):
+        """Manage protective exits, then act on new H1 signal markers.
+
+        Increments the bar counter, checks stop-loss/take-profit exits first,
+        and only when a fresh H1 signal bar has formed reads the indicator buy/
+        sell markers to close opposing positions and open fixed-lot longs or
+        shorts.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -274,6 +342,7 @@ class ExpIStochKomposterStrategy(bt.Strategy):
                 self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Tally buy/sell on open and win/loss on close for each trade."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -307,6 +376,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -314,6 +394,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and date-clip the M15 OHLCV frame described by ``config['data']``.
+
+    Args:
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict with the loaded ``data`` frame plus ``fromdate`` and ``todate``.
+
+    Raises:
+        ValueError: If the loaded frame contains no rows.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -325,6 +416,15 @@ def load_backtest_frame(config):
 
 
 def build_signal_frame(df, indicator_minutes):
+    """Resample the base frame up to the indicator signal timeframe.
+
+    Args:
+        df: The base M15 OHLCV DataFrame.
+        indicator_minutes: Bar size in minutes for the resampled signal frame.
+
+    Returns:
+        A resampled OHLCV DataFrame aggregated to ``indicator_minutes`` bars.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last'})
     signal_df = signal_df.dropna(subset=['open', 'high', 'low', 'close'])
@@ -333,6 +433,16 @@ def build_signal_frame(df, indicator_minutes):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro engine with the M15 + H1 feeds and analyzers.
+
+    Args:
+        config: Resolved configuration dict with ``backtest``, ``data``, and
+            ``params`` sections.
+        frame: The frame dict produced by load_backtest_frame.
+
+    Returns:
+        A configured Cerebro instance ready to run the iStochKomposter backtest.
+    """
     backtest_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 60)
@@ -356,6 +466,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strategy, cerebro, frame, config):
+    """Consolidate strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strategy: The executed strategy instance holding signal/trade counters.
+        cerebro: The Cerebro engine used to read final portfolio value.
+        frame: The frame dict providing bar count and date range.
+        config: Resolved configuration dict supplying the initial cash.
+
+    Returns:
+        A dict of summary metrics (counts, PnL, return, win rate, Sharpe,
+        drawdown, SQN) used by the regression assertions.
+    """
     sharpe = strategy.analyzers.sharpe.get_analysis()
     returns = strategy.analyzers.returns.get_analysis()
     drawdown = strategy.analyzers.drawdown.get_analysis()

@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily gold futures data ``XAUUSD_1d.csv`` from ``tests/datas/`` between
+    ``2008-01-01`` and ``2025-12-31``. The strategy uses custom ConnorsRSI
+    components plus price trend moving-average context.
+
+Strategy Principle:
+    The strategy uses an oversold ConnorsRSI condition while price is above trend
+    filter to submit discounted limit buys, and exits when ConnorsRSI rebounds above
+    the configured exit level. It tracks setup and order lifecycle outcomes.
+
+Strategy Logic:
+    Feature engineering builds ConnorsRSI and trend context, which are fed to a
+    custom data feed. The strategy evaluates signal readiness, places one-bar to
+    next-day orders, handles order status updates, and records detailed trade
+    outcome statistics used by downstream analyzers.
 """
 from __future__ import annotations
 import math
@@ -84,6 +100,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV and return normalized OHLCV bars.
+
+    Args:
+        filepath: Source data file path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minute shift applied to timestamps.
+
+    Returns:
+        Datetime-indexed dataframe with open/high/low/close/volume columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -142,7 +169,7 @@ def _calculate_streaks(close):
 
 
 def _calculate_percent_rank(close, rank_period):
-    """计算价格在过去 rank_period 天中的百分位排名（0-100）"""
+    """Calculate rolling price percentile rank as a 0-100 score."""
     values = []
     for idx in range(len(close)):
         if idx < rank_period:
@@ -159,6 +186,15 @@ def _calculate_percent_rank(close, rank_period):
 
 
 def prepare_connors_features(df, params):
+    """Build ConnorsRSI-derived features and trend baseline.
+
+    Args:
+        df: Input OHLCV dataframe.
+        params: Strategy parameters for RSI and rank windows.
+
+    Returns:
+        Dataframe with ``crsi`` and ``trend_ma`` features.
+    """
     out = df.copy()
     close = out['close']
     price_rsi = _calculate_rsi(close, int(params.get('rsi_period', 3)))
@@ -170,6 +206,7 @@ def prepare_connors_features(df, params):
 
 
 class Mt5ConnorsFeed(bt.feeds.PandasData):
+    """Pandas feed exposing ConnorsRSI-derived fields."""
     lines = ('crsi', 'trend_ma',)
     params = (
         ('datetime', None),
@@ -185,6 +222,7 @@ class Mt5ConnorsFeed(bt.feeds.PandasData):
 
 
 class ConnorsRSISensitivityStrategy(bt.Strategy):
+    """ConnorsRSI limit-entry strategy with order lifecycle tracking."""
     params = dict(
         lookback_days=20,
         crsi_entry=25.0,
@@ -197,6 +235,7 @@ class ConnorsRSISensitivityStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, pending order state, and broker history."""
         self.bar_num = 0
         self.setup_count = 0
         self.buy_count = 0
@@ -212,6 +251,15 @@ class ConnorsRSISensitivityStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Compute order size from target percentage of current notional.
+
+        Args:
+            target_notional_pct: Target account fraction.
+            price: Optional execution price override.
+
+        Returns:
+            Position size rounded to two decimals.
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -226,11 +274,13 @@ class ConnorsRSISensitivityStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def _entry_signal_ready(self):
+        """Check trend/oversold condition for potential long entry."""
         if len(self.data) < 2:
             return False
         return float(self.data.close[-1]) > float(self.data.trend_ma[-1]) and float(self.data.crsi[-1]) < float(self.p.crsi_entry)
 
     def next(self):
+        """Advance one bar and manage setup, entries, and exits."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.order is not None:
@@ -249,6 +299,7 @@ class ConnorsRSISensitivityStrategy(bt.Strategy):
         self.order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size), price=limit_price), exectype=bt.Order.Limit, price=limit_price, valid=valid_until)
 
     def notify_order(self, order):
+        """Handle all non-submitted order terminal states."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -260,10 +311,11 @@ class ConnorsRSISensitivityStrategy(bt.Strategy):
             self.cancelled_count += 1
         elif order.status in (order.Margin, order.Rejected):
             self.rejected_count += 1
-        # 无论订单状态如何，都清除挂单引用
+        # Clear pending order reference for any final status.
         self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters after closed executions."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -281,6 +333,14 @@ BASE_DIR = Path(__file__).resolve().parent
 TRADING_DAYS_PER_YEAR = 252
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build Sharpe ratio analyzer keyword arguments.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Analyzer kwargs compatible with ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -294,6 +354,7 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def resolve_data_path(filename):
+    """Resolve and validate the input data file path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -301,6 +362,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load config-driven input frame and compute Connors features.
+
+    Args:
+        config: Strategy/backtest config.
+
+    Returns:
+        Dictionary containing prepared dataframe and range boundaries.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -319,6 +388,12 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro, config):
+    """Attach analyzers used by this strategy's regression assertions.
+
+    Args:
+        cerebro: Configured Cerebro instance.
+        config: Strategy/backtest config.
+    """
     sharpe_kwargs = get_sharpe_analyzer_kwargs(config)
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', **sharpe_kwargs)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Days, tann=TRADING_DAYS_PER_YEAR)
@@ -328,6 +403,15 @@ def add_default_analyzers(cerebro, config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with data, strategy, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Prepared backtest payload.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -345,6 +429,14 @@ def build_cerebro(config, frame):
 
 
 def normalize(value):
+    """Normalize values for compatibility with JSON-style output.
+
+    Args:
+        value: Input value.
+
+    Returns:
+        Value as string when needed, or original scalar types.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -357,6 +449,7 @@ def normalize(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute ulcer index from equity curve sequence."""
     if not equity_curve:
         return 0.0
     peak = None
@@ -372,7 +465,17 @@ def calculate_ulcer_index(equity_curve):
 
 
 def extract_metrics(strat, cerebro, frame, config):
-    """提取回测指标 - 参考 trend_pullback 实现"""
+    """Extract regression metrics from analyzers and strategy state.
+
+    Args:
+        strat: Strategy instance.
+        cerebro: Executed Cerebro instance.
+        frame: Backtest input payload.
+        config: Strategy configuration.
+
+    Returns:
+        Dict of metrics used by test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -383,7 +486,7 @@ def extract_metrics(strat, cerebro, frame, config):
     final_value = cerebro.broker.getvalue()
     broker_values = [value for _, value in getattr(strat, 'broker_value_series', [])] or [initial_cash, final_value]
     
-    # 从 TradeAnalyzer 获取交易统计
+    # Read total/ won/lost trade metrics from TradeAnalyzer.
     total_trades = ta.get('total', {}).get('total', 0)
     won = ta.get('won', {}).get('total', 0)
     lost = ta.get('lost', {}).get('total', 0)

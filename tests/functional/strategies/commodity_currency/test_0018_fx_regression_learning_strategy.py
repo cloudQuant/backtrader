@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single daily (D1) EURUSD feed exported from MT5,
+    ``tests/datas/mt5_1d_data/EURUSD_1d.csv``, covering 2022-01-01 to
+    2025-12-31. Engineered features (carry proxy, multi-horizon momentum, value,
+    volatility, and range) are derived from this one feed; no external feed is
+    used.
+
+Strategy Principle:
+    A port of the "FX Regression Learning" strategy that fits a supervised
+    regression model (Ridge by default, optionally Linear or Lasso) on a rolling
+    training window to predict the forward EURUSD return over a fixed horizon.
+    Standardised technical features feed the model; a prediction above/below a
+    threshold becomes a long/short signal whose strength scales the target
+    exposure. The premise is that recent feature-to-return relationships persist
+    long enough to be tradable out of sample.
+
+Strategy Logic:
+    prepare_regression_features engineers the feature set, walks forward
+    refitting the model on each rolling window, and stores the prediction,
+    signal, and target percent as extra feed lines. The strategy walks the daily
+    bars, records broker value, tallies long/short/neutral signal days, and on
+    the rebalance cadence compares the target percent to current exposure and
+    issues order_target_percent orders (counting buys/sells). extract_metrics
+    gathers returns, drawdown, Sharpe, SQN, win/loss, profit factor, signal-day
+    counts, and an Ulcer index; the test runs with runonce=True and asserts each
+    metric against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -78,6 +105,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -113,6 +151,23 @@ def _build_model(model_type, alpha):
 
 
 def prepare_regression_features(price_df, params):
+    """Engineer features and walk-forward model predictions into feed lines.
+
+    Builds the technical feature set, then for each step past the training window
+    refits the regression model on a rolling window of standardised features and
+    forward returns, storing the prediction, the long/short/neutral signal, and
+    the strength-scaled target percent.
+
+    Args:
+        price_df: The single-asset OHLCV DataFrame to engineer features from.
+        params: Strategy parameters supplying the model type, alpha, training
+            window, predict horizon, signal threshold, and max target percent.
+
+    Returns:
+        A DataFrame containing the OHLCV columns plus engineered features,
+        ``prediction``, ``signal``, ``target_percent``, and ``coef_l2``, with
+        incomplete rows dropped.
+    """
     out = price_df.copy()
     model_type = params.get('model_type', 'ridge')
     alpha = float(params.get('alpha', 1.0))
@@ -186,6 +241,8 @@ def prepare_regression_features(price_df, params):
 
 
 class FXRegressionFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the engineered features and model output lines."""
+
     lines = ('carry_proxy', 'momentum_21', 'momentum_63', 'momentum_126', 'value', 'volatility_21', 'volatility_63', 'range_21', 'prediction', 'signal', 'target_percent', 'coef_l2')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -194,6 +251,14 @@ class FXRegressionFeed(bt.feeds.PandasData):
 
 
 class FXRegressionLearningStrategy(bt.Strategy):
+    """Trade EURUSD toward the model's strength-scaled target exposure.
+
+    Reads the precomputed prediction/signal/target percent from the feed and, on
+    the rebalance cadence, issues ``order_target_percent`` orders toward the
+    target exposure while tracking buy/sell counts and long/short/neutral signal
+    days.
+    """
+
     params = dict(
         rebalance_interval=5,
         model_type='ridge',
@@ -206,6 +271,7 @@ class FXRegressionLearningStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, the pending order slot, and signal-day tallies."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -228,6 +294,14 @@ class FXRegressionLearningStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Rebalance EURUSD toward the model target exposure on the cadence.
+
+        Increments the bar counter, records broker value, and tallies the day's
+        long/short/neutral signal. While no order is pending and on the rebalance
+        cadence, it compares the target percent to current exposure and, when the
+        drift is large enough, issues an order_target_percent order (counting the
+        direction as a buy or sell).
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         signal_value = float(self.data.signal[0])
@@ -252,11 +326,22 @@ class FXRegressionLearningStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target_percent)
 
     def notify_order(self, order):
+        """Clear the pending order slot once an order leaves flight.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears the pending slot.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -276,10 +361,27 @@ class FXRegressionLearningStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -293,6 +395,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load the EURUSD feed and engineer the regression features.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path and inclusive date bounds.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -302,6 +414,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the FX feed, strategy, and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, symbol, and
+            strategy parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0002)))
@@ -317,6 +439,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, signal-day tallies, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and the data frame.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, signal-day counts, and trade counts)
+        used by the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -359,6 +496,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

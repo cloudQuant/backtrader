@@ -1,6 +1,31 @@
-"""Inlined regression test for trend_following/0076_0830_fibonacci_retracement.
+"""Inlined regression test for the Fibonacci retracement (ZigZag) trend strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    Symbol XAUUSD (gold) loaded from the M15 export tests/datas/XAUUSD_M15.csv,
+    restricted to 2026-03-01 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes. A 15-minute execution feed and a 15-minute resampled
+    signal feed (built by _build_signal_frame) are both added to cerebro.
+
+Strategy Principle:
+    A ZigZag pivot detector identifies recent swing highs and lows, from which
+    the prevailing trend and Fibonacci retracement levels (23.6%, 38.2%, 61.8%,
+    76.4%) of the latest swing are derived. The strategy assumes price resumes
+    the established trend after retracing into these levels, entering long in an
+    uptrend when price crosses up through a retracement level and short in a
+    downtrend when price crosses down through one.
+
+Strategy Logic:
+    ZigZagRetracementState consumes the signal feed's high/low/time arrays to
+    maintain pivots, infer trend direction, and compute Fibonacci levels. Each
+    bar the strategy first manages position exits via a fixed stop loss and a
+    Fibonacci-based take profit, then, once enough history and a cooldown have
+    elapsed, checks for a buffered cross of any retracement level in the trend
+    direction to open a fixed-size position. Trade notifications maintain
+    buy/sell and win/loss counters and a post-close pause. The test runs the
+    backtest under runonce=True and asserts the strategy counters, trade total,
+    and final broker value against migration-time expected values.
 """
 from __future__ import annotations
 
@@ -17,6 +42,19 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported tab-separated CSV into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional number of minutes to shift each bar's
+            timestamp forward.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted ascending and filtered to the date range.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +76,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard OHLCV column positions."""
+
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -45,7 +85,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ZigZagRetracementState:
+    """ZigZag pivot tracker exposing trend direction and Fibonacci levels."""
+
     def __init__(self, depth=12, deviation=5, backstep=3, trend_precision=-5, point=0.0001):
+        """Initialize ZigZag detection thresholds and the pivot buffer.
+
+        Args:
+            depth: Half-window size for swing pivot detection.
+            deviation: Minimum point move (scaled by ``point``) between pivots.
+            backstep: Minimum bar separation between consecutive pivots.
+            trend_precision: Point tolerance (scaled by ``point``) for trend
+                comparisons.
+            point: Instrument point size used to scale deviation/precision.
+        """
         self.depth = int(depth)
         self.deviation = float(deviation) * float(point)
         self.backstep = int(backstep)
@@ -55,6 +107,13 @@ class ZigZagRetracementState:
         self._last_pivot_kind = None
 
     def update(self, highs, lows, times):
+        """Detect a new swing pivot from the latest high/low window.
+
+        Args:
+            highs: Sequence of bar high prices ordered oldest to newest.
+            lows: Sequence of bar low prices ordered oldest to newest.
+            times: Sequence of bar datetimes aligned with ``highs``/``lows``.
+        """
         if len(highs) < self.depth * 2 + 1:
             return
         idx = len(highs) - self.depth - 1
@@ -90,6 +149,11 @@ class ZigZagRetracementState:
         self._last_pivot_price = price
 
     def trend(self):
+        """Infer trend direction from the last four pivots.
+
+        Returns:
+            1 for an uptrend, -1 for a downtrend, or 0 when undetermined.
+        """
         if len(self.pivots) < 4:
             return 0
         hl0 = self.pivots[-1][1]
@@ -103,6 +167,13 @@ class ZigZagRetracementState:
         return 0
 
     def levels(self):
+        """Compute Fibonacci retracement levels of the latest swing.
+
+        Returns:
+            A dict with the trend, the 0%/100% swing anchors, the swing base
+            range, and the list of retracement level prices; None when fewer
+            than two pivots are available.
+        """
         if len(self.pivots) < 2:
             return None
         fibo00 = self.pivots[-1][1]
@@ -120,6 +191,8 @@ class ZigZagRetracementState:
 
 
 class FibonacciRetracementStrategy(bt.Strategy):
+    """Trend-aligned strategy entering on Fibonacci retracement-level crosses."""
+
     params = dict(
         ext_depth=12,
         ext_deviation=5,
@@ -136,6 +209,7 @@ class FibonacciRetracementStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base/signal feeds, ZigZag state, and tracking counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.state = ZigZagRetracementState(
@@ -172,6 +246,7 @@ class FibonacciRetracementStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage exits, refresh ZigZag pivots, and enter on level crosses."""
         self.bar_num += 1
         if self._check_position_exit():
             return
@@ -206,6 +281,11 @@ class FibonacciRetracementStrategy(bt.Strategy):
                 self.sell(size=float(self.p.trade_value))
 
     def notify_trade(self, trade):
+        """Track open/close trades into win/loss counters and the pause timer.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

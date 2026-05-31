@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bar data from 2025-12-03 to 2026-03-10 loaded from
+    tests/datas/XAUUSD_M15.csv, resampled to H4 for signal generation.
+    The strategy uses a multi-timeframe approach with M15 data for execution
+    and H4 data for signal generation.
+
+Strategy Principle:
+    ATR Normalized Histogram is a trend-following strategy that generates buy/sell
+    signals based on the color of an ATR-normalized histogram. The histogram
+    measures the relative position of price range vs. the ATR, colored by level
+    crossings (high/middle/low thresholds).
+
+Strategy Logic:
+    1. load_backtest_frame() loads M15 CSV and resamples to H4 for the signal feed.
+    2. build_cerebro() wires M15 data feed, H4 signal feed, strategy, and analyzers.
+    3. AtrNormalizeHistogram indicator computes the normalized ATR histogram on the
+       signal (H4) feed.
+    4. ExpAtrNormalizeHistogramStrategy checks histogram color transitions on H4
+       and executes trades on M15.
+    5. extract_metrics() aggregates metrics for assertion.
+    6. test_119_0119_0378_exp_atr_normalize_histogram() runs and validates.
 """
 from __future__ import annotations
 import math
@@ -93,6 +115,12 @@ def load_config(*args, **kwargs):
 
 
 class AtrNormalizeHistogram(bt.Indicator):
+    """ATR-normalized histogram indicator for multi-timeframe signal generation.
+
+    Computes a normalized ATR value where xdiff is smoothed range ratio,
+    colored by threshold crossings (high/middle/low levels).
+    """
+
     lines = ('value', 'color')
     params = dict(
         ma_method1='SMA',
@@ -108,6 +136,7 @@ class AtrNormalizeHistogram(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialise indicator state: rolling buffers and prior smoothing values."""
         self._diff_buf = []
         self._range_buf = []
         self._diff_prev = None
@@ -115,6 +144,19 @@ class AtrNormalizeHistogram(bt.Indicator):
         self.addminperiod(max(int(self.p.length1), int(self.p.length2)) + 5)
 
     def _smooth(self, raw_value, method, length, phase, buf, prev_attr):
+        """Apply SMA, LWMA, or exponential smoothing to a raw value.
+
+        Args:
+            raw_value: The raw input value.
+            method: Smoothing method ('SMA', 'LWMA', or EMA variant).
+            length: Lookback window length.
+            phase: Phase parameter for EMA variants (-100 to 100).
+            buf: Rolling buffer list.
+            prev_attr: Attribute name to store previous smoothed value.
+
+        Returns:
+            Smoothed value as float.
+        """
         method = str(method).upper()
         length = max(1, int(length))
         if method in ('MODE_SMA_', 'SMA'):
@@ -141,6 +183,7 @@ class AtrNormalizeHistogram(bt.Indicator):
         return smooth
 
     def next(self):
+        """Compute per-bar normalized ATR value and color classification."""
         prev_close = float(self.data.close[-1]) if len(self.data) > 1 else float(self.data.close[0])
         diff = float(self.data.close[0]) - float(self.data.low[0])
         range_value = max(float(self.data.high[0]), prev_close) - min(float(self.data.low[0]), prev_close)
@@ -165,6 +208,12 @@ class AtrNormalizeHistogram(bt.Indicator):
 
 
 class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
+    """Multi-timeframe strategy based on ATR Normalized Histogram color transitions.
+
+    Executes on M15 data using H4 histogram color signals. Enters on color
+    transitions (0 = high, 4 = low), exits on opposite signal or SL/TP hits.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -190,6 +239,7 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy: set up data aliases, indicator, and state counters."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.hist = AtrNormalizeHistogram(
@@ -218,10 +268,17 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, txt, dt=None):
+        """Print a timestamped log message for debugging."""
         dt = dt or bt.num2date(self.data0.datetime[0])
         print(f'[{dt:%Y-%m-%d %H:%M}] {txt}')
 
     def _prepare_entry_levels(self, side, price):
+        """Compute stop-loss and take-profit prices for a given entry side.
+
+        Args:
+            side: 'long' or 'short'.
+            price: Entry price.
+        """
         pt = float(self.p.point)
         sl_pts = int(self.p.stop_loss_points)
         tp_pts = int(self.p.take_profit_points)
@@ -234,6 +291,7 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
         self.entry_price = price
 
     def _check_exit_levels(self):
+        """Check if current price hits SL or TP and close position if so."""
         if not self.position or self.order is not None:
             return
         high = float(self.data0.high[0])
@@ -262,6 +320,7 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Execute per-bar logic: check exits, then check entries on histogram color transitions."""
         if self.order is not None:
             return
         sb = int(self.p.signal_bar)
@@ -326,6 +385,7 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Handle order completion: clear pending action and update counters."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -341,6 +401,7 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track closed trade outcome and update win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -353,17 +414,18 @@ class ExpAtrNormalizeHistogramStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def stop(self):
+        """Print final strategy summary statistics on backtest completion."""
         total = self.trade_count
         wr = (self.win_count / total * 100.0) if total else 0.0
-        print('========== Exp_ATR_Normalize_Histogram 策略结束 ==========')
-        print(f'  买入次数: {self.buy_count}')
-        print(f'  卖出次数: {self.sell_count}')
-        print(f'  总交易数: {self.trade_count}')
-        print(f'  盈利次数: {self.win_count}')
-        print(f'  亏损次数: {self.loss_count}')
-        print(f'  胜率:     {wr:.1f}%')
-        print(f'  最终权益: {self.broker.getvalue():.2f}')
-        print('=========================================================')
+        print('========== Exp_ATR_Normalize_Histogram Strategy End ==========')
+        print(f'  Buy count:    {self.buy_count}')
+        print(f'  Sell count:   {self.sell_count}')
+        print(f'  Total trades: {self.trade_count}')
+        print(f'  Wins:         {self.win_count}')
+        print(f'  Losses:       {self.loss_count}')
+        print(f'  Win rate:     {wr:.1f}%')
+        print(f'  Final value:  {self.broker.getvalue():.2f}')
+        print('==============================================================')
 
 
 
@@ -378,7 +440,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
-    lines = ('spread',)
+    """Pandas data feed extended with a spread line for MT5 data."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -392,6 +454,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file and return a cleaned pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported CSV file.
+        fromdate: Optional start datetime to filter data.
+        todate: Optional end datetime to filter data.
+
+    Returns:
+        pd.DataFrame with datetime index and OHLCV columns plus spread.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -416,6 +488,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def resample_frame(df, minutes):
+    """Resample a DataFrame to a higher timeframe using OHLCV aggregation.
+
+    Args:
+        df: DataFrame with datetime index and OHLCV columns.
+        minutes: Target timeframe in minutes.
+
+    Returns:
+        Resampled DataFrame with updated columns.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -434,6 +515,15 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config: dict) -> dict:
+    """Load and resample the MT5 CSV data for backtesting.
+
+    Args:
+        config: Dict with data section containing file, fromdate, todate, and
+            signal_compression_minutes.
+
+    Returns:
+        Dict with 'data' (M15 DataFrame) and 'signal' (resampled DataFrame).
+    """
     data_cfg = config['data']
     data_file = data_cfg['file']
     if not os.path.isabs(data_file):
@@ -448,6 +538,11 @@ def load_backtest_frame(config: dict) -> dict:
 
 
 def add_default_analyzers(cerebro):
+    """Add SharpeRatio, Returns, DrawDown, TradeAnalyzer, and SQN analyzers to cerebro.
+
+    Args:
+        cerebro: bt.Cerebro instance to attach analyzers to.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -456,6 +551,14 @@ def add_default_analyzers(cerebro):
 
 
 def finite_or_none(value):
+    """Return value if it is a finite number, otherwise None.
+
+    Args:
+        value: A numeric value to check.
+
+    Returns:
+        The original value if finite, else None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -464,6 +567,16 @@ def finite_or_none(value):
 
 
 def extract_metrics(strat, start_value, frame):
+    """Extract metrics from a run strategy instance.
+
+    Args:
+        strat: ExpAtrNormalizeHistogramStrategy instance after cerebro.run().
+        start_value: Initial broker cash.
+        frame: Dict with 'data' DataFrame and 'signal' DataFrame.
+
+    Returns:
+        Dict of scalar metrics (win_count, loss_count, total_trades, sharpe_ratio, etc.).
+    """
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -492,6 +605,14 @@ def extract_metrics(strat, start_value, frame):
 
 
 def run(cfg_path: str | None = None):
+    """Build cerebro, run the strategy, and return results with extracted metrics.
+
+    Args:
+        cfg_path: Optional path to config.yaml; defaults to SCRIPT_DIR/config.yaml.
+
+    Returns:
+        Tuple of (cerebro.run() results, metrics dict).
+    """
     if cfg_path is None:
         cfg_path = os.path.join(SCRIPT_DIR, 'config.yaml')
     cfg = load_config(cfg_path)
@@ -537,16 +658,16 @@ def run(cfg_path: str | None = None):
         stocklike=bt_cfg.get('stocklike', False),
     )
 
-    print(f'数据文件:  {os.path.normpath(os.path.join(SCRIPT_DIR, data_cfg["file"]))}')
-    print(f'信号周期:  {data_cfg.get("signal_timeframe", "H4")}')
-    print(f'回测区间:  {data_cfg["fromdate"]} ~ {data_cfg["todate"]}')
-    print(f'初始资金:  {cerebro.broker.getvalue():.2f}')
+    print(f'Data file:      {os.path.normpath(os.path.join(SCRIPT_DIR, data_cfg["file"]))}')
+    print(f'Signal period:  {data_cfg.get("signal_timeframe", "H4")}')
+    print(f'Backtest range: {data_cfg["fromdate"]} ~ {data_cfg["todate"]}')
+    print(f'Initial cash:   {cerebro.broker.getvalue():.2f}')
     print('-' * 50)
 
     start_value = cerebro.broker.getvalue()
     results = cerebro.run()
     final_value = cerebro.broker.getvalue()
-    print(f'\n最终权益: {final_value:.2f}')
+    print(f'\nFinal value: {final_value:.2f}')
     metrics = extract_metrics(results[0], start_value, frame)
     return results, metrics
 

@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Intraday gold futures data ``XAUUSD_M15.csv`` from ``tests/datas/`` with
+    timeframe ``M15``, covering 2025-01-01 to 2025-12-31. The strategy uses
+    generated intraday session features such as z-score, target percentage, and
+    signal-change flags.
+
+Strategy Principle:
+    The approach trades intraday mean-reversion around session z-score extremes.
+    It builds a dynamic target position from session relative returns and exits when
+    z-score reverts, holding-time cap is reached, or session ends.
+
+Strategy Logic:
+    The helper prepares intraday session features grouped by trading day and bar
+    slot, then feeds them into a custom Data feed. The strategy sends target-size
+    orders when signals change, tracks completed trades, and validates Sharpe,
+    drawdown, return, and other KPIs through deterministic regression assertions.
 """
 from __future__ import annotations
 import math
@@ -76,6 +93,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and normalize datetime-indexed OHLCV columns.
+
+    Args:
+        filepath: MT5 CSV file path.
+        fromdate: Optional minimum datetime filter.
+        todate: Optional maximum datetime filter.
+
+    Returns:
+        Dataframe indexed by datetime and sorted.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,6 +129,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_intraday_mean_reversion_features(df, params):
+    """Prepare session-based z-score and target-position features.
+
+    Args:
+        df: Raw OHLCV dataframe with datetime index.
+        params: Strategy parameters controlling z-score thresholds and holding rules.
+
+    Returns:
+        Feature dataframe with columns consumed by the custom feed.
+    """
     entry_z = float(params.get('entry_z', 2.0))
     exit_z = float(params.get('exit_z', 0.5))
     lookback_days = int(params.get('lookback_days', 252))
@@ -166,6 +202,7 @@ def prepare_intraday_mean_reversion_features(df, params):
 
 
 class MeanReversionSignalFeed(bt.feeds.PandasData):
+    """Backtrader feed exposing intraday mean-reversion derived lines."""
     lines = ('zscore', 'target_pct', 'signal_change')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -174,6 +211,7 @@ class MeanReversionSignalFeed(bt.feeds.PandasData):
 
 
 class GoldIntradayMeanReversionStrategy(bt.Strategy):
+    """Mean-reversion strategy that trades on intraday signal changes."""
     params = dict(
         entry_z=2.0,
         exit_z=0.5,
@@ -184,6 +222,7 @@ class GoldIntradayMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and broker tracking collections."""
         self.bar_num = 0
         self.pending_order = None
         self.trade_count = 0
@@ -193,6 +232,7 @@ class GoldIntradayMeanReversionStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """React to signal changes and submit target-weighted orders."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -203,11 +243,13 @@ class GoldIntradayMeanReversionStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_pct[0]))
 
     def notify_order(self, order):
+        """Clear pending-order state when terminal statuses arrive."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -225,6 +267,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 class SpotCommissionInfo(CommInfoBase):
+    """Commission model for spot-like percent fees used by this strategy."""
     params = (
         ('commission', 0.0002),
         ('stocklike', True),
@@ -234,6 +277,14 @@ class SpotCommissionInfo(CommInfoBase):
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe ratio analyzer kwargs by timeframe.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Keyword args for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -246,6 +297,14 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def get_returns_analyzer_kwargs(config):
+    """Build return analyzer kwargs by timeframe.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Keyword args for ``bt.analyzers.Returns``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -258,10 +317,26 @@ def get_returns_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return value when finite; otherwise return ``None``.
+
+    Args:
+        x: Candidate value from analyzer output.
+
+    Returns:
+        ``x`` when finite, else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from broker-equity trajectory.
+
+    Args:
+        values: Ordered equity values.
+
+    Returns:
+        The computed ulcer index.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -276,6 +351,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load raw data and convert to strategy-ready feature dataframe.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dict with feature dataframe and period bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -285,6 +368,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble and configure the Cerebro engine for this strategy.
+
+    Args:
+        frame: Prepared input payload.
+        config: Backtest configuration.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -302,6 +394,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract the set of performance and risk metrics for regression checks.
+
+    Args:
+        strat: Executed strategy object.
+        cerebro: Cerebro engine instance.
+        frame: Prepared data payload.
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary of strategy metrics used by assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()

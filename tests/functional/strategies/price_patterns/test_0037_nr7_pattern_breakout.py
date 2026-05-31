@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This strategy trades breakouts of the Narrow Range 7 (NR7) pattern.
+    - Market Assumptions: Markets alternate between periods of low volatility (contraction) and high volatility (expansion). The NR7 pattern (where today's price range is the narrowest of the last 7 days) represents a extreme contraction state. A breakout of this day's high or low typically signals the start of a new, high-momentum trend.
+    - Indicators:
+        - Daily Range: Today's High minus Low.
+        - NR7 Day: Today's Daily Range is strictly less than the minimum Daily Range of the previous 6 days.
+        - Average True Range (ATR): 14-day standard ATR to configure dynamic risk and reward.
+    - Entry Signals:
+        - Buy Entry: Previous day was an NR7 day, and today's close crosses above the NR7 day's high.
+        - Sell Entry: Previous day was an NR7 day, and today's close crosses below the NR7 day's low.
+    - Exit Signals:
+        - Stop Loss: Entry price minus `stop_loss_atr` * ATR (for long) or plus (for short).
+        - Take Profit: Entry price plus `take_profit_atr` * ATR (for long) or minus (for short).
+        - Time based exit: Close position unconditionally if held for more than `time_exit` bars (5 days).
+
+Strategy Logic:
+    - Initialization: Load daily MT5 gold CSV data, compute NR7 conditions and ATR values.
+    - Core Strategy Loop (next):
+        - If holding position, check for ATR-based stop loss, take profit or time exit triggers.
+        - If flat, monitor for upward or downward breakouts of the previous day's NR7 boundaries.
 """
 from __future__ import annotations
 import math
@@ -70,7 +97,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -78,6 +113,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,34 +149,42 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_nr7_features(df, params):
-    """准备NR7突破策略特征"""
+    """Prepare and compute indicators for the NR7 pattern breakout strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback windows and ATR configurations.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing nr7 boundaries, atr, and breakout signals.
+    """
     out = df.copy()
     lookback = int(params.get('lookback', 7))
     atr_period = int(params.get('atr_period', 14))
     
-    # 计算每日区间
+    # Calculate daily range
     out['daily_range'] = out['high'] - out['low']
     
-    # NR7条件：当日区间 < 过去6日最小区间
+    # NR7 condition: daily range < minimum daily range of the previous 6 days
     out['min_range_prev6'] = out['daily_range'].shift(1).rolling(window=lookback-1).min()
     out['nr7'] = (out['daily_range'] < out['min_range_prev6']).astype(float)
     
-    # NR7日的高低点
+    # High and Low boundaries on the NR7 day
     out['nr7_high'] = out['high'].where(out['nr7'] > 0.5).shift(1)
     out['nr7_low'] = out['low'].where(out['nr7'] > 0.5).shift(1)
     
-    # 计算ATR
+    # Compute ATR
     tr1 = out['high'] - out['low']
     tr2 = abs(out['high'] - out['close'].shift(1))
     tr3 = abs(out['low'] - out['close'].shift(1))
     out['tr'] = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
     out['atr'] = out['tr'].rolling(window=atr_period).mean()
     
-    # 向上突破信号
+    # Upward breakout signal
     out['breakout_up'] = ((out['nr7'].shift(1) > 0.5) & 
                           (out['close'] > out['nr7_high'])).astype(float)
     
-    # 向下突破信号
+    # Downward breakout signal
     out['breakout_down'] = ((out['nr7'].shift(1) > 0.5) & 
                             (out['close'] < out['nr7_low'])).astype(float)
     
@@ -141,6 +194,7 @@ def prepare_nr7_features(df, params):
 
 
 class Mt5NR7Feed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with NR7 breakout lines."""
     lines = ('nr7', 'nr7_high', 'nr7_low', 'atr', 'breakout_up', 'breakout_down',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -151,6 +205,11 @@ class Mt5NR7Feed(bt.feeds.PandasData):
 
 
 class NR7BreakoutStrategy(bt.Strategy):
+    """Strategy class implementing the NR7 pattern breakout logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lookback=7,
         stop_loss_atr=2.5,
@@ -161,6 +220,7 @@ class NR7BreakoutStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -177,6 +237,15 @@ class NR7BreakoutStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -191,17 +260,18 @@ class NR7BreakoutStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
         if self.pending_order is not None:
             return
         
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if self.position:
             bars_held = self.bar_num - self.entry_bar
             
-            # 止损
+            # Stop loss
             if self.position_type == 1 and self.data.low[0] < self.stop_loss:
                 self.pending_order = self.close()
                 self.position_type = 0
@@ -211,7 +281,7 @@ class NR7BreakoutStrategy(bt.Strategy):
                 self.position_type = 0
                 return
             
-            # 止盈
+            # Take profit
             if self.position_type == 1 and self.data.high[0] > self.take_profit:
                 self.pending_order = self.close()
                 self.position_type = 0
@@ -221,18 +291,18 @@ class NR7BreakoutStrategy(bt.Strategy):
                 self.position_type = 0
                 return
             
-            # 时间出场
+            # Time exit
             if bars_held >= self.p.time_exit:
                 self.pending_order = self.close()
                 self.position_type = 0
             return
         
-        # 无持仓时检查NR7突破
+        # Check NR7 breakout when flat
         atr = float(self.data.atr[0])
         if atr <= 0:
             return
         
-        # 向上突破
+        # Upward breakout
         if float(self.data.breakout_up[0]) > 0.5:
             self.buy_count += 1
             self.entry_price = float(self.data.close[0])
@@ -242,7 +312,7 @@ class NR7BreakoutStrategy(bt.Strategy):
             self.position_type = 1
             self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
         
-        # 向下突破
+        # Downward breakout
         elif float(self.data.breakout_down[0]) > 0.5:
             self.sell_count += 1
             self.entry_price = float(self.data.close[0])
@@ -253,11 +323,21 @@ class NR7BreakoutStrategy(bt.Strategy):
             self.pending_order = self.sell(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -269,7 +349,7 @@ class NR7BreakoutStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""NR7 Pattern Breakout 策略回测"""
+"""NR7 Pattern Breakout strategy backtest."""
 
 
 
@@ -279,6 +359,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -291,10 +379,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -309,6 +413,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare NR7 breakout strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -322,6 +434,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -344,6 +465,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -378,6 +510,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -385,10 +525,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -409,7 +547,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        any: Result of executing main() or run().
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):
@@ -423,6 +565,12 @@ def test_37_0037_nr7_pattern_breakout() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/price_patterns/0037_nr7_pattern_breakout.
+
+    Raises:
+        Exception: If the metrics capture or execution fails.
+
+    Returns:
+        None
     """
     # Capture metrics by hooking extract_metrics() and invoking the original
     # main() (or run()). This reuses whatever loader / build_cerebro /

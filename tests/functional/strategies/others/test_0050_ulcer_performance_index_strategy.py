@@ -1,7 +1,23 @@
-"""Inlined regression test for others/0050_ulcer_performance_index_strategy.
+"""Inlined regression test for the UPI multi-asset rotation strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Universe: IVV, IEF, GLD, DBC.
+
+Data Used:
+    Daily MT5 exports for IVV, IEF, GLD, and DBC from
+    ``tests/datas/mt5_1d_data``. Bars run from 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    The strategy periodically reallocates portfolio weights using the Ulcer
+    Performance Index (annualized return divided by ulcer drawdown risk), while
+    capping individual allocations.
+
+Strategy Logic:
+    ``prepare_upi_inputs`` aligns closes by timestamp, ``build_weight_lookup``
+    computes rebalance weights at fixed intervals using lookback statistics,
+    and ``UlcerPerformanceIndexStrategy`` submits target-size orders only on
+    rebalance dates. Order and trade callbacks maintain execution and result
+    counters.
 """
 from __future__ import annotations
 
@@ -24,6 +40,16 @@ ASSET_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV data into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+
+    Returns:
+        Datetime-indexed OHLCV DataFrame.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -48,6 +74,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_upi_inputs(asset_map):
+    """Align all assets to a common trading calendar and build close matrix.
+
+    Args:
+        asset_map: Mapping from symbol to per-symbol OHLCV DataFrame.
+
+    Returns:
+        A tuple ``(prepared_frames, close_df)`` where ``prepared_frames`` uses
+        aligned indexes for all symbols and ``close_df`` is wide close-price
+        matrix for all assets.
+    """
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -61,12 +97,29 @@ def prepare_upi_inputs(asset_map):
 
 
 def calculate_ulcer_index(price_series):
+    """Calculate ulcer index from a price series.
+
+    Args:
+        price_series: Price path series.
+
+    Returns:
+        Ulcer index as a float.
+    """
     peak = price_series.cummax()
     drawdown = ((peak - price_series) / peak).clip(lower=0.0)
     return float(np.sqrt(np.mean(np.square(drawdown)))) if len(drawdown) else 0.0
 
 
 def build_weight_lookup(close_df, params):
+    """Build rebalance date -> target-weight dictionaries from UPI scores.
+
+    Args:
+        close_df: Wide DataFrame of aligned close prices.
+        params: Strategy hyperparameters including risk/weight controls.
+
+    Returns:
+        Mapping from rebalance datetimes to per-asset target portfolio weights.
+    """
     lookback = int(params.get("lookback_window", 126))
     ulcer_window = int(params.get("ulcer_window", 50))
     max_weight = float(params.get("max_weight", 0.4))
@@ -104,12 +157,14 @@ def build_weight_lookup(close_df, params):
 
 
 class UlcerPerformanceIndexStrategy(bt.Strategy):
+    """Multi-asset UPI rotation strategy with interval rebalancing."""
     params = dict(
         weight_lookup=None,
         rebalance_interval_days=21,
     )
 
     def __init__(self):
+        """Initialize counters and active order references."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -137,6 +192,7 @@ class UlcerPerformanceIndexStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Run rebalance logic on scheduled bars and submit size targets."""
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         if self.order_refs:
@@ -160,11 +216,21 @@ class UlcerPerformanceIndexStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed/pending order refs from the tracking set.
+
+        Args:
+            order: The order state update.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count closed trades by profit sign.
+
+        Args:
+            trade: Closed trade instance from Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 OHLCV data is loaded from ``tests/datas/XAUUSD_M15.csv``.
+    Signal data is built from resampled H4 bars and augments each row with MPLUS,
+    MMINUS, and RSI values for crossover logic.
+    The configured date window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy issues long/short actions based on dual crossover conditions from
+    Metro channel-style MPLUS/MMINUS trajectories.
+    It applies directional risk controls, optional reversals, and closes on stop/take-profit.
+
+Strategy Logic:
+    The module normalizes raw MT5 bars, builds resampled indicator frames, computes RSI
+    and channel lines, and runs a Backtrader strategy on synchronized base and signal feeds.
+    Orders are executed on signal transitions and metrics are validated with analyzer output.
 """
 from __future__ import annotations
 import math
@@ -91,6 +107,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated OHLCV exports into a DataFrame.
+
+    Args:
+        filepath: Source path of the MT5 CSV file.
+        fromdate: Optional lower-bound datetime for row filtering.
+        todate: Optional upper-bound datetime for row filtering.
+        bar_shift_minutes: Optional timestamp offset in minutes.
+
+    Returns:
+        DataFrame indexed by datetime with normalized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -112,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Execution-time feed carrying base OHLCV columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -119,6 +147,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ColorMetroFeed(btfeeds.PandasData):
+    """Signal feed carrying metropolitan channel components and RSI values."""
     lines = ('mplus', 'mminus', 'rsi')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -127,6 +156,15 @@ class ColorMetroFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV data for indicator generation.
+
+    Args:
+        df: Time-indexed OHLCV DataFrame.
+        indicator_minutes: Minutes per resampled bar.
+
+    Returns:
+        Resampled OHLCV DataFrame.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -142,6 +180,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def rsi_wilder(close_series, period):
+    """Calculate Wilder-style RSI for a close series.
+
+    Args:
+        close_series: Series-like close prices.
+        period: Smoothing period.
+
+    Returns:
+        RSI values as a pandas Series.
+    """
     period = int(period)
     close = pd.Series(close_series, dtype=float).reset_index(drop=True)
     delta = close.diff()
@@ -175,6 +222,18 @@ def rsi_wilder(close_series, period):
 
 
 def build_color_metro_frame(df, indicator_minutes, period_rsi, step_size_fast, step_size_slow):
+    """Build signal components used by the ColorMETRO strategy.
+
+    Args:
+        df: Source OHLCV DataFrame.
+        indicator_minutes: Indicator resample interval.
+        period_rsi: RSI period.
+        step_size_fast: Fast channel step size.
+        step_size_slow: Slow channel step size.
+
+    Returns:
+        DataFrame enriched with ``mplus``, ``mminus``, and ``rsi``.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     rsi_series = rsi_wilder(signal_df['close'].astype(float), period_rsi)
     n = len(signal_df)
@@ -246,6 +305,7 @@ def build_color_metro_frame(df, indicator_minutes, period_rsi, step_size_fast, s
 
 
 class ExpColorMetroDuplexStrategy(bt.Strategy):
+    """ColorMETRO duplex strategy with long/short crossover handling."""
     params = dict(
         l_signal_bar=1,
         s_signal_bar=1,
@@ -267,6 +327,7 @@ class ExpColorMetroDuplexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, counters, and pending execution context."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -283,6 +344,11 @@ class ExpColorMetroDuplexStrategy(bt.Strategy):
         self._current_take_profit = None
 
     def log(self, text):
+        """Print a timestamped log entry.
+
+        Args:
+            text: Text message.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -336,6 +402,7 @@ class ExpColorMetroDuplexStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate signal transitions and manage entries/exits."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -399,6 +466,11 @@ class ExpColorMetroDuplexStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_order(self, order):
+        """Update risk tracking and pending-side state on order completion.
+
+        Args:
+            order: Order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -412,6 +484,7 @@ class ExpColorMetroDuplexStrategy(bt.Strategy):
             self._pending_side = None
 
     def notify_trade(self, trade):
+        """Update counters and clear risk state after trade lifecycle events."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -446,6 +519,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data path from module-relative file name.
+
+    Args:
+        filename: Relative filename from configuration.
+
+    Returns:
+        Absolute file path.
+
+    Raises:
+        FileNotFoundError: If file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -453,6 +537,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return execution bars for the backtest date window.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dict containing parsed DataFrame and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -469,6 +561,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine, attach feeds, and add strategy/analyzers.
+
+    Args:
+        config: Configuration dictionary.
+        frame: Prepared market data payload.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -511,6 +612,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzer and strategy state into a regression metrics dict.
+
+    Args:
+        strat: Strategy instance from run.
+        cerebro: Execution engine used for run.
+        frame: Backtest payload with data and bounds.
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary of tested metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

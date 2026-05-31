@@ -29,6 +29,17 @@ ALLOCATION = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 daily CSV into a Backtrader-compatible dataframe.
+
+    Args:
+        filepath: MT5-exported data file path.
+        fromdate: Optional start datetime for filtering.
+        todate: Optional end datetime for filtering.
+
+    Returns:
+        A dataframe indexed by ``datetime`` with OHLCV columns for feeding
+        into ``bt.feeds.PandasData``.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -53,6 +64,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_asset_data(asset_map):
+    """Align all asset series on a common datetime index.
+
+    Args:
+        asset_map: Mapping of symbol -> source dataframe.
+
+    Returns:
+        Dictionary of prepared OHLCV dataframes keyed by symbol.
+    """
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -64,6 +83,11 @@ def prepare_asset_data(asset_map):
 
 
 class MarketCyclesOutSampleStrategy(bt.Strategy):
+    """Cycle-based allocation strategy across four asset classes.
+
+    The strategy switches allocation buckets based on equity trend, commodity
+    inflation proxy, and bond rate trend signals.
+    """
     params = dict(
         equity_sma=200,
         inflation_lookback=126,
@@ -74,6 +98,7 @@ class MarketCyclesOutSampleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize runtime counters and order tracking for cycle diagnostics."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -129,6 +154,7 @@ class MarketCyclesOutSampleStrategy(bt.Strategy):
         }
 
     def next(self):
+        """Detect current cycle regime and rebalance when the interval is reached."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -163,11 +189,13 @@ class MarketCyclesOutSampleStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Update tracked order refs when a non-pending status is observed."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Aggregate trade results only when a trade has been closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1

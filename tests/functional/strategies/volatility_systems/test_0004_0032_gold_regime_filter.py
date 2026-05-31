@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2021-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This strategy employs a Hurst exponent-based market state (regime) filter to trade gold.
+    - Market Assumptions: Markets switch between trending regimes (high Hurst exponent, H > 0.5) and mean-reverting/oscillating regimes (low Hurst exponent, H < 0.5). Trading trends is highly profitable in trending regimes, while volatile oscillations can result in whiplash.
+    - Indicators:
+        - Hurst Exponent: Calculated over a short window to measure self-similarity.
+        - Regime Signal: Percentile ranking of the smoothed Hurst index, normalized to [-0.5, 0.5]. Positive values indicate trending states, negative values represent oscillating states.
+        - Trend Direction: 50-day Simple Moving Average (sma_50) state.
+    - Entry Signals:
+        - Buy Entry: Market is trending (is_trending > 0.5) and trend is rising (close > sma_50).
+    - Exit Signals:
+        - Close Entry: Market enters oscillating regime (is_trending <= 0.5).
 """
 from __future__ import annotations
 import math
@@ -68,7 +86,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -76,6 +102,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,7 +138,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def hurst_exponent(series, window):
-    """简化版Hurst指数计算"""
+    """Calculate a simplified Hurst exponent for market returns.
+
+    Args:
+        series (np.ndarray or pd.Series): Series of asset returns.
+        window (int): Moving lookback window.
+
+    Returns:
+        float: Calculated Hurst exponent value.
+    """
     if len(series) < window:
         return 0.5
     lags = range(2, min(window, 20))
@@ -116,37 +160,45 @@ def hurst_exponent(series, window):
 
 
 def prepare_regime_features(df, params):
-    """准备市场状态过滤器特征"""
+    """Prepare and compute indicators for the Gold Regime Filter strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback windows and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing Hurst signals and trend direction.
+    """
     out = df.copy()
     short_window = int(params.get('short_window', 10))
     smooth_window = int(params.get('smooth_window', 60))
     rank_window = int(params.get('rank_window', 252))
     
-    # 计算收益率
+    # Calculate returns
     out['returns'] = out['close'].pct_change()
     
-    # 计算滚动Hurst指数
+    # Calculate rolling Hurst Exponent
     out['hurst'] = out['returns'].rolling(window=short_window * 10).apply(
         lambda x: hurst_exponent(x, short_window), raw=False
     )
     
-    # 平滑Hurst指数
+    # Smooth Hurst index
     out['hurst_smooth'] = out['hurst'].rolling(window=smooth_window).mean()
     
-    # 百分排名
+    # Percentile ranking
     out['hurst_rank'] = out['hurst_smooth'].rolling(window=rank_window).rank(pct=True)
     
-    # 标准化信号 [-0.5, 0.5]
+    # Standardize signals to [-0.5, 0.5]
     out['regime_signal'] = out['hurst_rank'] - 0.5
     
-    # 市场状态：正值=趋势期，负值=震荡期
+    # Market state: positive value = trending period, negative value = oscillating period
     out['is_trending'] = (out['regime_signal'] > 0).astype(float)
     
-    # 趋势方向（使用SMA）
+    # Trend direction (using 50-day SMA)
     out['sma_50'] = out['close'].rolling(window=50).mean()
     out['trend_direction'] = (out['close'] > out['sma_50']).astype(float)
     
-    # 入场信号：趋势期+上升趋势
+    # Entry signals: trending period + upward trend
     out['entry_signal'] = ((out['is_trending'] > 0.5) & 
                            (out['trend_direction'] > 0.5)).astype(float)
     
@@ -156,6 +208,7 @@ def prepare_regime_features(df, params):
 
 
 class Mt5RegimeFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Gold Regime Filter lines."""
     lines = ('regime_signal', 'is_trending', 'entry_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -165,6 +218,11 @@ class Mt5RegimeFeed(bt.feeds.PandasData):
 
 
 class GoldRegimeFilterStrategy(bt.Strategy):
+    """Strategy class implementing Hurst exponent market state filtering.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         short_window=10,
         smooth_window=60,
@@ -173,6 +231,7 @@ class GoldRegimeFilterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -185,6 +244,15 @@ class GoldRegimeFilterStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -199,6 +267,7 @@ class GoldRegimeFilterStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -208,29 +277,39 @@ class GoldRegimeFilterStrategy(bt.Strategy):
         is_trending = float(self.data.is_trending[0]) > 0.5
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         
-        # 状态变化时调仓
+        # Adjust positions when market regime state changes
         current_regime = 1 if is_trending else 0
         if current_regime == self.last_regime:
             return
         self.last_regime = current_regime
         
         if is_trending and entry_signal:
-            # 趋势期，入场
+            # Trending period: enter position
             if not self.position:
                 self.buy_count += 1
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
         else:
-            # 震荡期，空仓
+            # Oscillating period: clear/close position
             if self.position:
                 self.sell_count += 1
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -242,7 +321,7 @@ class GoldRegimeFilterStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Gold Regime Filter 策略回测"""
+"""Gold Regime Filter strategy backtest."""
 
 
 
@@ -252,6 +331,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -264,10 +351,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -282,6 +385,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Gold Regime Filter strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -297,6 +408,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -319,6 +439,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -353,6 +484,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -360,10 +499,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -384,7 +521,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        any: Result of executing main() or run().
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):
@@ -398,6 +539,12 @@ def test_4_0004_0032_gold_regime_filter() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/volatility_systems/0004_0032_gold_regime_filter.
+
+    Raises:
+        Exception: If the metrics capture or execution fails.
+
+    Returns:
+        None
     """
     # Capture metrics by hooking extract_metrics() and invoking the original
     # main() (or run()). This reuses whatever loader / build_cerebro /

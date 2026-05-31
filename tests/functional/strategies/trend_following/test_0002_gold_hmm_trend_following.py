@@ -1,6 +1,39 @@
 """Inlined regression test for trend_following/0002_gold_hmm_trend_following.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    A single MT5 daily CSV feed, ``XAUUSD_1d.csv`` (gold), resolved as
+    ``DATA_FILE`` under the repo's ``tests/datas`` directory. The regression run
+    uses the 2024-01-01 to 2025-12-31 window (daily timeframe, no resampling).
+    The daily series is enriched with HMM regime features and per-bar target
+    weights before being fed to the strategy.
+
+Strategy Principle:
+    A regime-switching trend follower driven by a Gaussian Hidden Markov Model.
+    On a rolling window the HMM is fit to standardized log-return and volatility
+    features, and its hidden states are labelled BULL, BEAR or NEUTRAL by mean
+    return. The strategy assumes regimes persist, so it goes long in confident,
+    persistent BULL states and short in BEAR states, sizing exposure by a
+    volatility target scaled by state confidence. Risk is managed with a stop
+    loss, a break-even arm after a profit threshold, regime-reversal exits and
+    partial scale-outs in neutral regimes.
+
+Strategy Logic:
+    1. ``load_mt5_csv`` loads the gold data and ``prepare_hmm_features`` walks the
+       series, periodically retraining the HMM (helpers ``_standardize`` and
+       ``_label_states``) to emit regime labels, confidence, persistence and a
+       dynamic target percent.
+    2. ``Mt5HMMTrendFeed`` exposes those features as extra data lines;
+       ``GoldHMMTrendFollowingStrategy.__init__`` resets the many trade/exit
+       counters and entry-tracking state.
+    3. ``next`` opens longs/shorts on confident bull/bear signals, applies
+       stop-loss, break-even, reversal and partial-exit logic when in a
+       position; ``notify_order`` tracks entry price and clears pending orders;
+       ``notify_trade`` tallies win/loss counts.
+    4. ``test_001_0002_gold_hmm_trend_following`` loads the data, runs the
+       backtest with fixed parameters under ``runonce=True`` and asserts the
+       captured metrics match the recorded expectations.
 """
 from __future__ import annotations
 
@@ -21,6 +54,24 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index (optionally shifted), renames
+    the OHLC/volume columns to backtrader's lowercase convention, and clips the
+    frame to the requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+        bar_shift_minutes: Optional minutes to add to each parsed timestamp.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -82,6 +133,23 @@ def _label_states(model, features_std):
 
 
 def prepare_hmm_features(df, params):
+    """Compute HMM regime features and dynamic target weights per bar.
+
+    Builds log-return and rolling-volatility features, then walks the series
+    periodically retraining a Gaussian HMM, labelling its states BULL/BEAR/
+    NEUTRAL, and recording the predicted state, confidence, persistence,
+    consistency and a confidence- and volatility-scaled target percent, plus
+    bull/bear/neutral signal flags.
+
+    Args:
+        df: Daily OHLCV DataFrame for gold.
+        params: Strategy parameter dictionary controlling the training window,
+            retrain interval, state count and sizing thresholds.
+
+    Returns:
+        pandas.DataFrame: OHLCV plus the regime/signal/target columns, with
+        warm-up and NaN rows dropped.
+    """
     out = df.copy()
     train_window = int(params.get("train_window", 252))
     retrain_interval = int(params.get("retrain_interval", 21))
@@ -194,6 +262,7 @@ def prepare_hmm_features(df, params):
 
 
 class Mt5HMMTrendFeed(bt.feeds.PandasData):
+    """Custom PandasData feed carrying HMM regime features and trading signals."""
     lines = (
         "predicted_state", "regime_score", "state_confidence", "persistence_prob",
         "state_consistent", "target_percent", "retrain_point", "bull_signal", "bear_signal", "neutral_signal",
@@ -208,6 +277,7 @@ class Mt5HMMTrendFeed(bt.feeds.PandasData):
 
 
 class GoldHMMTrendFollowingStrategy(bt.Strategy):
+    """Regime-switching trend strategy backed by HMM state confidence signals."""
     params = dict(
         stop_loss_pct=0.03,
         take_profit_pct=0.08,
@@ -226,6 +296,7 @@ class GoldHMMTrendFollowingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, state, and runtime order tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -257,6 +328,7 @@ class GoldHMMTrendFollowingStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Check signals each bar and manage entries, exits, and partial exits."""
         self.bar_num += 1
         if float(self.data.retrain_point[0]) > 0.5:
             self.retrain_count += 1
@@ -320,6 +392,11 @@ class GoldHMMTrendFollowingStrategy(bt.Strategy):
             self.pending_order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Process order completion to track entry price and clear pending orders.
+
+        Args:
+            order: Backtrader order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status == order.Completed:
@@ -332,6 +409,11 @@ class GoldHMMTrendFollowingStrategy(bt.Strategy):
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes and win/loss counters.
+
+        Args:
+            trade: Backtrader trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

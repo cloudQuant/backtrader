@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` for execution.
+    Backtest covers ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Uses CCI and RSI thresholds to confirm momentum before entering fixed-size
+    positions, then manages exits with stop-loss, take-profit, and trailing stop.
+
+Strategy Logic:
+    Load and resample base bars, feed a single-data execution strategy, submit
+    bracket-like exits, optionally trail stops, and validate migrated regression
+    metrics after run.
 """
 from __future__ import annotations
 import math
@@ -22,8 +35,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '基础 CCI RSI',
-        'source_ea': 'ea/0256_基础_CCI_RSI/basic_cci_rsi.mq5',
+        'name': 'Basic CCI RSI',
+        'source_ea': 'ea/0256_Basic_CCI_RSI/basic_cci_rsi.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -81,6 +94,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 TSV data for strategy backtests.
+
+    Args:
+        filepath: Input file path.
+        fromdate: Optional lower datetime filter.
+        todate: Optional upper datetime filter.
+        bar_shift_minutes: Timestamp shift in minutes.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,6 +131,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader pandas feed with spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -121,6 +146,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BasicCCIRSIStrategy(bt.Strategy):
+    """Combined CCI/RSI threshold strategy with fixed exits and trailing stops."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -137,6 +163,7 @@ class BasicCCIRSIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state holders for orders, stops, and bar tracking."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.stop_order = None
@@ -171,10 +198,16 @@ class BasicCCIRSIStrategy(bt.Strategy):
         return 100.0 - (100.0 / (1.0 + rs))
 
     def log(self, text):
+        """Log events with datetime stamp.
+
+        Args:
+            text: Message text.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run the same signal logic during startup warmup."""
         self.next()
 
     def _new_bar(self):
@@ -234,6 +267,7 @@ class BasicCCIRSIStrategy(bt.Strategy):
                 self.active_stop_price = candidate
 
     def next(self):
+        """Apply trailing-stop maintenance and place directional entries on signals."""
         self._apply_trailing()
         if len(self.data0_feed) < max(self.p.cci_period, self.p.rsi_period) + 5:
             return
@@ -256,6 +290,7 @@ class BasicCCIRSIStrategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size} reason=RSI and CCI below thresholds')
 
     def notify_order(self, order):
+        """Update state for filled, canceled, or rejected orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -285,6 +320,7 @@ class BasicCCIRSIStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Clear side/stop state after trade close."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -303,6 +339,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve test data path under this test module.
+
+    Args:
+        filename: Relative file name.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -310,12 +354,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse configuration datetime strings.
+
+    Args:
+        value: Datetime string or None.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and slice the configured data range.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Dict containing a data DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -327,6 +387,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register standard analyzers used by regression checks.
+
+    Args:
+        cerebro: Backtrader engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -335,6 +400,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure the backtesting engine."""
+    """
+    Args:
+        config: In-memory strategy configuration.
+        frame: Loaded bar frames.
+
+    Returns:
+        Configured :class:`backtrader.Cerebro`.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -349,6 +423,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert missing/non-finite values to None.
+
+    Args:
+        value: Numeric value.
+
+    Returns:
+        ``None`` when not finite, else the original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -357,6 +439,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a concise backtest summary for debugging.
+
+    Args:
+        results: Backtrader run output.
+        start_value: Opening account value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -383,6 +471,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the strategy backtest and optionally render chart output."""
     parser = argparse.ArgumentParser(description='Run Basic CCI RSI backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

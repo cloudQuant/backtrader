@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (rsi, consecutive_low,
+    entry_signal, exit_signal) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    Consecutive Low RSI Reversal is a mean-reversion strategy that buys when price
+    makes consecutive 50-day lows and RSI(2) drops below 10 (extremely oversold).
+    The position is held for a fixed number of days before exit.
+
+Strategy Logic:
+    1. load_config() / load_data() loads and preprocesses the CSV and enriches
+       it with RSI and consecutive low features.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. ConsecutiveLowRSIReversalStrategy checks entry_signal when flat and exits
+       after holding_days bars.
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_29_0029_consecutive_low_rsi() runs the strategy and validates
+       all expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -78,6 +100,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file and return a cleaned pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported CSV file.
+        fromdate: Optional start datetime to filter data.
+        todate: Optional end datetime to filter data.
+
+    Returns:
+        pd.DataFrame with columns datetime, open, high, low, close, volume,
+        openinterest; indexed by datetime and sorted.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,7 +137,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(close, period=2):
-    """计算RSI指标"""
+    """Calculate Relative Strength Index (RSI) over a given period.
+
+    Args:
+        close: Series of closing prices.
+        period: RSI lookback period (default 2).
+
+    Returns:
+        Series of RSI values.
+    """
     delta = close.diff()
     gain = delta.where(delta > 0, 0)
     loss = (-delta).where(delta < 0, 0)
@@ -116,41 +157,51 @@ def calculate_rsi(close, period=2):
 
 
 def prepare_consecutive_low_rsi_features(df, params):
-    """准备连续新低RSI反转策略特征"""
+    """Prepare consecutive low RSI reversal strategy features from raw OHLCV data.
+
+    Args:
+        df: DataFrame with raw OHLCV columns.
+        params: Parameter dict with lookback, rsi_period, rsi_threshold, holding_days.
+
+    Returns:
+        DataFrame enriched with rsi, consecutive_low, entry_signal, exit_signal.
+    """
     out = df.copy()
     lookback = int(params.get('lookback', 50))
     rsi_period = int(params.get('rsi_period', 2))
     rsi_threshold = float(params.get('rsi_threshold', 10))
-    
-    # 计算50日最低价
+
+    # Calculate 50-day lowest low.
     out['low_50'] = out['close'].rolling(window=lookback).min()
-    
-    # 判断是否为50日新低
+
+    # Check if price is at 50-day low.
     out['is_new_low'] = (out['close'] <= out['low_50']).astype(float)
-    
-    # 判断是否连续两天新低
-    out['consecutive_low'] = ((out['is_new_low'] > 0.5) & 
+
+    # Check for consecutive 2-day low.
+    out['consecutive_low'] = ((out['is_new_low'] > 0.5) &
                                (out['is_new_low'].shift(1) > 0.5)).astype(float)
-    
-    # 计算RSI(2)
+
+    # Calculate RSI(2).
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
-    
-    # 判断RSI是否极度超卖
+
+    # Check if RSI is extremely oversold.
     out['extreme_rsi'] = (out['rsi'] < rsi_threshold).astype(float)
-    
-    # 入场信号：连续两天新低且RSI极度超卖
-    out['entry_signal'] = ((out['consecutive_low'] > 0.5) & 
+
+    # Entry signal: consecutive 2-day low AND RSI extremely oversold.
+    out['entry_signal'] = ((out['consecutive_low'] > 0.5) &
                            (out['extreme_rsi'] > 0.5)).astype(float)
-    
-    # 出场信号：持有N天后
+
+    # Exit signal: hold for N days.
     out['exit_signal'] = 0.0
-    
-    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
+
+    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest',
                'rsi', 'consecutive_low', 'entry_signal', 'exit_signal']].copy()
     return out.dropna()
 
 
 class Mt5ConsecutiveLowRSIFeed(bt.feeds.PandasData):
+    """Custom PandasData feed that exposes RSI and entry/exit signal lines."""
+
     lines = ('rsi', 'consecutive_low', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -161,6 +212,12 @@ class Mt5ConsecutiveLowRSIFeed(bt.feeds.PandasData):
 
 
 class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
+    """Mean-reversion strategy that buys on consecutive 50-day lows with RSI(2) < 10.
+
+    Enters when entry_signal fires (consecutive 2-day low AND RSI oversold),
+    holds for a fixed number of days, then exits.
+    """
+
     params = dict(
         lookback=50,
         rsi_period=2,
@@ -170,6 +227,7 @@ class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy state counters and order tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -182,6 +240,15 @@ class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Compute position size based on broker value and notional percentage.
+
+        Args:
+            target_notional_pct: Fraction of broker value to risk (default 1.0).
+            price: Execution price; defaults to current close.
+
+        Returns:
+            Position size (rounded to 2 decimal places, minimum 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -196,6 +263,7 @@ class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute per-bar logic: entry on signal, exit after holding_days."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -204,7 +272,7 @@ class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
         
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when no position is held.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -212,18 +280,20 @@ class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场：固定持有天数
+        # Check exit when holding: fixed holding days.
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order once it reaches a final state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade outcome (win/loss) when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -235,7 +305,7 @@ class ConsecutiveLowRSIReversalStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Consecutive Low RSI Reversal 策略回测"""
+"""Consecutive Low RSI Reversal strategy backtest."""
 
 
 
@@ -245,6 +315,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build kwargs dict for SharpeRatio analyzer from config.
+
+    Args:
+        config: Dict with 'data' key containing timeframe specification.
+
+    Returns:
+        Dict with timeframe, compression, factor, annualize, riskfreerate.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -257,10 +335,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return x if it is a finite number, otherwise None.
+
+    Args:
+        x: Value to check.
+
+    Returns:
+        The original value if finite, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate Ulcer Index from a series of portfolio values.
+
+    Args:
+        values: Sequence of numeric portfolio values.
+
+    Returns:
+        Ulcer Index as a float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -275,6 +369,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an absolute path.
+
+    Args:
+        filename: Relative or absolute path string.
+
+    Returns:
+        Resolved absolute Path.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -291,6 +393,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and preprocess the CSV data with strategy features.
+
+    Args:
+        config: Dict containing data, params, and backtest sections.
+
+    Returns:
+        Dict with 'data' (enriched DataFrame), 'fromdate', and 'todate'.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -303,6 +413,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure a Cerebro instance for the backtest.
+
+    Args:
+        frame: Dict with 'data' DataFrame and date range.
+        config: Dict with backtest, data, and params sections.
+
+    Returns:
+        Configured bt.Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -325,6 +444,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract metrics from a run strategy instance.
+
+    Args:
+        strat: ConsecutiveLowRSIReversalStrategy instance after cerebro.run().
+        cerebro: bt.Cerebro instance.
+        frame: Dict with 'data' DataFrame and date range.
+        config: Dict with backtest, data, and params sections.
+
+    Returns:
+        Dict of scalar metrics (bar_num, buy_count, trade_count, sharpe_ratio, etc.).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -359,6 +489,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value for JSON serialization.
+
+    Args:
+        v: A value that may be datetime, float NaN/Inf, or other type.
+
+    Returns:
+        ISO string for datetime, None for NaN/Inf, else the original value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

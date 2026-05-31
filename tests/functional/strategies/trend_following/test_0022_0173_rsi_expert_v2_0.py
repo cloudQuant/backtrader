@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) execution feed
+    covers 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close. The RSI and the two
+    moving averages are computed directly on this M15 feed; no separate signal
+    feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor "RSI Expert v2.0". It combines an
+    RSI level-crossing trigger with a fast/slow moving-average trend filter: a
+    long is taken when RSI crosses up through the lower level while the fast MA is
+    above the slow MA (forward mode), and a short on the mirror condition. Each
+    trade carries a fixed stop loss and take profit (via bracket orders) plus an
+    optional trailing stop, and position size can be doubled after a loss
+    (martingale) when enabled.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the execution
+    feed, the strategy, and the default analyzers. Each bar the strategy applies
+    the trailing stop, waits for enough history and a new bar, evaluates the RSI
+    and MA signals, and opens, closes, or reverses a bracketed position.
+    notify_order resolves entry/close/stop/limit fills and chains reversal
+    entries; notify_trade tallies wins/losses and tracks the last-loss flag for
+    martingale sizing. The test hooks the metrics extractor (or derives metrics
+    from analyzers), forces runonce=True, runs the module's main()/run(), and
+    asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -91,6 +119,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -117,6 +158,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed adding an MT5 ``spread`` column to the OHLCV mapping."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -131,6 +174,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def get_price_line(data, applied_price):
+    """Select an MT5-style applied-price line from a data feed.
+
+    Args:
+        data: The backtrader data feed exposing open/high/low/close lines.
+        applied_price: Applied-price name (open, high, low, median, typical,
+            weighted); unknown values default to close.
+
+    Returns:
+        The selected price line (or a combination expression) for the feed.
+    """
     value = str(applied_price).lower()
     if value == 'open':
         return data.open
@@ -148,6 +201,16 @@ def get_price_line(data, applied_price):
 
 
 def build_ma(data_line, method, period):
+    """Construct a moving-average indicator of the requested type.
+
+    Args:
+        data_line: The price line to average.
+        method: MA type name (ema, smma, wma, or otherwise simple).
+        period: Averaging length.
+
+    Returns:
+        The constructed backtrader moving-average indicator.
+    """
     method_name = str(method).lower()
     if method_name == 'ema':
         return bt.indicators.ExponentialMovingAverage(data_line, period=period)
@@ -159,6 +222,8 @@ def build_ma(data_line, method, period):
 
 
 class RSIExpertV20Strategy(bt.Strategy):
+    """RSI level-crossing entries filtered by a fast/slow MA trend regime."""
+
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -186,6 +251,7 @@ class RSIExpertV20Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the RSI and MA indicators and reset order state and counters."""
         self.data0_feed = self.datas[0]
         self.rsi = bt.indicators.RSI(get_price_line(self.data0_feed, self.p.rsi_applied_price), period=self.p.rsi_period)
         self.ma_fast = build_ma(get_price_line(self.data0_feed, self.p.ma_fast_applied_price), self.p.ma_fast_method, self.p.ma_fast_period)
@@ -208,6 +274,11 @@ class RSIExpertV20Strategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: Message to emit alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -318,6 +389,13 @@ class RSIExpertV20Strategy(bt.Strategy):
         return 0
 
     def next(self):
+        """Apply trailing, evaluate RSI/MA signals, and open/close/reverse.
+
+        Increments the bar counter, updates the trailing stop, waits for enough
+        history, completes any pending reversal entry, then on a new bar (when no
+        order is in flight) combines the RSI crossing and MA trend signals to
+        open a long/short, or reverse an opposing position.
+        """
         self.bar_num += 1
         self._apply_trailing()
         required = max(self.p.rsi_period + 2, self.p.ma_slow_period + 1)
@@ -352,6 +430,16 @@ class RSIExpertV20Strategy(bt.Strategy):
                 self._submit_entry('short', 'rsi crossed below upper level')
 
     def notify_order(self, order):
+        """Resolve completed or dead bracket orders and chain reversals.
+
+        On a completed entry, records the active side and increments the buy/sell
+        count; on a completed close, clears bracket handles and submits a pending
+        reversal entry; completed stop/limit legs clear risk state. Cancelled or
+        rejected orders clear whichever tracked handle they correspond to.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -398,6 +486,13 @@ class RSIExpertV20Strategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts and the last-loss martingale flag on close.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter, update win/loss counts, set the last-loss flag,
+                and clear the active side when flat.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -423,6 +518,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a configured data path relative to this strategy module.
+
+    Args:
+        filename: Data file path from strategy configuration.
+
+    Returns:
+        Absolute path to the resolved existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -430,12 +533,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO timestamp string into a datetime.
+
+    Args:
+        value: ISO datetime string, or any falsy value.
+
+    Returns:
+        Parsed ``datetime`` object, or ``None`` when input is empty/invalid.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and clip the backtest bar data according to configured date bounds.
+
+    Args:
+        config: Strategy configuration with ``data`` section.
+
+    Returns:
+        dict: ``data`` key containing a prepared DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -447,6 +566,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Backtrader analyzers used by this migration harness."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -455,6 +575,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with data, strategy, commission model and analyzers.
+
+    Args:
+        config: Resolved configuration for strategy and broker settings.
+        frame: Backtest data bundle from :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -469,6 +598,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return numeric values when finite, otherwise ``None``.
+
+    Args:
+        value: Numeric scalar or ``None``.
+
+    Returns:
+        The original value if finite, else ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -477,6 +614,15 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print strategy summary metrics derived from analyzers and trade results.
+
+    Args:
+        results: Backtest output from Cerebro.
+        start_value: Broker value before the run.
+
+    Returns:
+        None.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -503,6 +649,11 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the RSI Expert v2.0 backtest from CLI arguments.
+
+    Returns:
+        None.
+    """
     parser = argparse.ArgumentParser(description='Run RSI Expert v2.0 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

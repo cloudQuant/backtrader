@@ -1,6 +1,20 @@
 """Inlined regression test for mean_reversion/0076_0253_vr_buch.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD M5 bars from ``tests/datas/XAUUSD_M5.csv`` within
+    ``2025-10-01 00:00:00`` to ``2025-12-31 23:59:59``.
+
+Strategy Principle:
+    This strategy compares fast and slow moving averages from configurable price
+    sources, then trades directional breaks using fixed-size entries with optional
+    reversals.
+
+Strategy Logic:
+    It loads MT5 data, builds a Backtrader feed with spread, runs the strategy
+    with moving-average crossover-style signals, captures buy/sell/trade counts,
+    and validates final PnL and trade statistics.
 """
 from __future__ import annotations
 
@@ -16,6 +30,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M5.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and normalize it into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to source CSV/TSV file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minute offset applied to bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV-like columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +63,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed extension that exposes spread as an additional line."""
     lines = ("spread",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -47,6 +73,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class VRBuchStrategy(bt.Strategy):
+    """Dual moving-average strategy with optional reverse-on-close flow."""
     params = dict(
         fixed_lot=0.1,
         price_source="close",
@@ -55,6 +82,7 @@ class VRBuchStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind data sources, indicators, and execution state counters."""
         self.data0_feed = self.datas[0]
         self.fast_source = self._select_price_line(self.p.fast_price)
         self.slow_source = self._select_price_line(self.p.slow_price)
@@ -77,6 +105,7 @@ class VRBuchStrategy(bt.Strategy):
         self.loss_count = 0
 
     def prenext(self):
+        """Reuse main logic during the bootstrap phase."""
         self.next()
 
     def _ma_cls(self, method):
@@ -132,6 +161,7 @@ class VRBuchStrategy(bt.Strategy):
         self.close_order = self.close()
 
     def next(self):
+        """Process bar progression, detect trend condition changes, and submit orders."""
         self.bar_num += 1
         if len(self.data0_feed) < self.p.slow_period + max(self.p.fast_shift, self.p.slow_shift) + 3:
             return
@@ -163,6 +193,11 @@ class VRBuchStrategy(bt.Strategy):
             self._submit_entry("short", "fast<slow and price<fast")
 
     def notify_order(self, order):
+        """Handle filled or aborted entries/closes and execute pending reversals.
+
+        Args:
+            order: Completed or canceled order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -187,6 +222,7 @@ class VRBuchStrategy(bt.Strategy):
                 self.pending_reverse = None
 
     def notify_trade(self, trade):
+        """Track trade result counters and clear active-side state when flat."""
         if not trade.isclosed:
             return
         self.trade_count += 1

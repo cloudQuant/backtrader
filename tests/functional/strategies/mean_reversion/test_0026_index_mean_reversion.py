@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily gold futures file ``XAUUSD_1d.csv`` in ``tests/datas/mt5_1d_data/``,
+    timeframe ``D1`` from 2008-01-01 to 2025-12-31. The strategy uses weekly
+    return, trend filter, volatility gate, and scheduled target exposure features.
+
+Strategy Principle:
+    This strategy generates periodic mean-reversion exposure at week-end signals,
+    applies optional trend and volatility filters, and rebalances only when target
+    exposure changes, aiming to capture mean-reversion after extreme weekly moves.
+
+Strategy Logic:
+    Data is feature-engineered into target exposures and signal-change flags, then
+    fed to a custom feed. On each signal change, the strategy submits target
+    allocation orders, tracks broker equity, and validates performance metrics from
+    standard Backtrader analyzers.
 """
 from __future__ import annotations
 import math
@@ -77,6 +93,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5-style CSV and normalize datetime/price columns.
+
+    Args:
+        filepath: Path to raw MT5 CSV.
+        fromdate: Optional lower date filter.
+        todate: Optional upper date filter.
+
+    Returns:
+        Parsed and sorted OHLCV dataframe.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -107,6 +133,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_index_mean_reversion_data(df, params):
+    """Prepare weekly mean-reversion and target-exposure indicators.
+
+    Args:
+        df: Raw OHLCV dataframe.
+        params: Strategy parameters for lookbacks and filters.
+
+    Returns:
+        Dataframe of engineered features used by this strategy.
+    """
     out = df.copy()
     weekly_lookback = int(params.get('weekly_lookback', 5))
     signal_delay_days = int(params.get('signal_delay_days', 1))
@@ -164,6 +199,7 @@ def prepare_index_mean_reversion_data(df, params):
 
 
 class IndexMeanReversionFeed(bt.feeds.PandasData):
+    """Pandas feed exposing index mean-reversion engineered lines."""
     lines = ('weekly_return', 'ma', 'trend', 'volatility', 'vol_multiplier', 'week_end_flag', 'target_exposure', 'signal_change')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -172,6 +208,7 @@ class IndexMeanReversionFeed(bt.feeds.PandasData):
 
 
 class IndexMeanReversionStrategy(bt.Strategy):
+    """Simple index mean-reversion strategy driven by target exposure changes."""
     params = dict(
         weekly_lookback=5,
         signal_delay_days=1,
@@ -185,6 +222,7 @@ class IndexMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state counters and brokerage tracking."""
         self.bar_num = 0
         self.pending_order = None
         self.signal_change_count = 0
@@ -194,6 +232,7 @@ class IndexMeanReversionStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Process signal changes and send target-percent orders when needed."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -204,11 +243,13 @@ class IndexMeanReversionStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_exposure[0]))
 
     def notify_order(self, order):
+        """Clear in-flight order state once finalized."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update closed-trade counters after each result."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -224,10 +265,19 @@ class IndexMeanReversionStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return a finite value, otherwise ``None``."""
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from the broker-value sequence.
+
+    Args:
+        values: Equity curve values.
+
+    Returns:
+        Ulcer index numeric value.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -241,6 +291,14 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load configuration-specific data and generate feature frame.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Prepared input payload for Cerebro.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -250,6 +308,15 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Build Cerebro with feed, strategy, commission, and analyzers.
+
+    Args:
+        inputs: Prepared input payload.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -265,6 +332,17 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Extract performance metrics used by this regression script.
+
+    Args:
+        strat: Executed strategy object.
+        cerebro: Running Cerebro engine.
+        inputs: Input payload.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of KPI values.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -305,6 +383,14 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Normalize values for JSON-style reporting.
+
+    Args:
+        value: Raw value.
+
+    Returns:
+        Serialized value suitable for comparison/reporting.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

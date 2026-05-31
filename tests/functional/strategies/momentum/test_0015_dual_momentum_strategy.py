@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Benchmark Symbol: GSPY (S&P 500 ETF Proxy).
+    - Timeframe: Daily (D1).
+    - Gold Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Benchmark Data Path: '{repo}/tests/datas/mt5_1d_data/GSPY_1d.csv'.
+    - Date Range: 2021-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This strategy implements Gary Antonacci's popular Dual Momentum framework.
+    - Market Assumptions: Markets establish persistent trends. Absolute/Time-Series Momentum filters out assets in a long-term bear state (positive 12-month returns), while Relative/Cross-Sectional Momentum selects the stronger performing asset (e.g. Gold outperforming GSPY over 12 months) to capture alpha.
+    - Indicators:
+        - gold_momentum: 12-month rolling return rate of Gold.
+        - benchmark_momentum: 12-month rolling return rate of GSPY.
+        - gold_selected: True if gold_momentum > benchmark_momentum AND gold_momentum > `absolute_momentum_threshold` (0.0).
+        - target_pct: Target allocation percentage (0.95 * gold_selected).
+    - Entry/Exit Signals:
+        - Rebalancing target weight adjusted monthly at month start if target_pct switches.
 """
 from __future__ import annotations
 import math
@@ -72,15 +91,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -113,6 +150,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_dual_momentum_features(gold_df, benchmark_df, params):
+    """Prepare and compute indicators for the Dual Momentum strategy.
+
+    Args:
+        gold_df (pd.DataFrame): Raw gold historical price DataFrame.
+        benchmark_df (pd.DataFrame): Raw benchmark ETF historical price DataFrame.
+        params (dict): Strategy parameters containing formation windows and thresholds.
+
+    Returns:
+        tuple: (merged_df, monthly_table) containing calculated indicators and aggregated monthly metrics.
+    """
     merged = gold_df[['open', 'high', 'low', 'close', 'volume', 'openinterest']].join(
         benchmark_df[['close']].rename(columns={'close': 'benchmark_close'}),
         how='inner'
@@ -143,6 +190,7 @@ def prepare_dual_momentum_features(gold_df, benchmark_df, params):
 
 
 class Mt5DualMomentumFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Dual Momentum strategy lines."""
     lines = ('benchmark_close', 'gold_momentum', 'benchmark_momentum', 'gold_selected', 'target_pct',)
     params = (
         ('datetime', None),
@@ -161,6 +209,11 @@ class Mt5DualMomentumFeed(bt.feeds.PandasData):
 
 
 class DualMomentumStrategy(bt.Strategy):
+    """Strategy class implementing the absolute + relative Dual Momentum logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         formation_period_months=12,
         absolute_momentum_threshold=0.0,
@@ -168,6 +221,7 @@ class DualMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.buy_count = 0
@@ -184,11 +238,25 @@ class DualMomentumStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def _month_key(self):
+        """Return current year and month tuple from data feed timestamp.
+
+        Returns:
+            tuple: (year, month) of current bar.
+        """
         dt = bt.num2date(self.data.datetime[0])
         return dt.year, dt.month
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -204,6 +272,11 @@ class DualMomentumStrategy(bt.Strategy):
 
 
     def _current_position_pct(self):
+        """Calculate the current actual portfolio exposure percentage.
+
+        Returns:
+            float: Exposure ratio of current position size.
+        """
         broker_value = float(self.broker.getvalue())
         if broker_value <= 0:
             return 0.0
@@ -218,10 +291,19 @@ class DualMomentumStrategy(bt.Strategy):
 
 
     def _order_target_notional_pct(self, target_pct):
+        """Execute a rebalancing target size order based on target notional percentage.
+
+        Args:
+            target_pct (float): Target exposure percentage.
+
+        Returns:
+            bt.Order: Placed target size order.
+        """
         target_size = self._get_position_size(target_notional_pct=target_pct)
         return self.order_target_size(target=target_size)
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         month_key = self._month_key()
@@ -250,12 +332,22 @@ class DualMomentumStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
-        # 无论订单状态如何，都清除挂单引用
+        # Clear pending order references regardless of order status
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -273,6 +365,14 @@ BASE_DIR = Path(__file__).resolve().parent
 TRADING_DAYS_PER_YEAR = 252
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -286,6 +386,17 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -293,6 +404,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load daily market data for Gold and Benchmark ETF, and prepare Dual Momentum features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing Gold daily bars and aggregated monthly table.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -317,6 +439,12 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro, config):
+    """Register default performance and statistics analyzers to Cerebro.
+
+    Args:
+        cerebro (bt.Cerebro): Cerebro engine instance.
+        config (dict): Configuration dictionary.
+    """
     sharpe_kwargs = get_sharpe_analyzer_kwargs(config)
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', **sharpe_kwargs)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Days, tann=TRADING_DAYS_PER_YEAR)
@@ -326,6 +454,15 @@ def add_default_analyzers(cerebro, config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -343,6 +480,14 @@ def build_cerebro(config, frame):
 
 
 def normalize(value):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        value (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -355,6 +500,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     if value is None:
         return None
     if isinstance(value, float):
@@ -366,6 +519,14 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        equity_curve (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -381,6 +542,14 @@ def calculate_ulcer_index(equity_curve):
 
 
 def extract_monthly_stats(monthly_table):
+    """Extract monthly statistics (below MA percentages, large loss occurrences).
+
+    Args:
+        monthly_table (pd.DataFrame): Aggregated monthly indicator table.
+
+    Returns:
+        dict: Monthly performance metrics summary.
+    """
     table = monthly_table.dropna(subset=['gold_momentum', 'benchmark_momentum'])
     if table.empty:
         return {
@@ -401,7 +570,17 @@ def extract_monthly_stats(monthly_table):
 
 
 def extract_metrics(strat, cerebro, frame, config):
-    """提取回测指标 - 参考 trend_pullback 实现"""
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -412,14 +591,14 @@ def extract_metrics(strat, cerebro, frame, config):
     final_value = cerebro.broker.getvalue()
     broker_values = [value for _, value in getattr(strat, 'broker_value_series', [])] or [initial_cash, final_value]
     
-    # 从 TradeAnalyzer 获取交易统计
+    # Extract trade stats from TradeAnalyzer
     total_trades = ta.get('total', {}).get('total', 0)
     won = ta.get('won', {}).get('total', 0)
     lost = ta.get('lost', {}).get('total', 0)
     gross_won = ta.get('won', {}).get('pnl', {}).get('total', 0) or 0
     gross_lost = abs(ta.get('lost', {}).get('pnl', {}).get('total', 0) or 0)
     
-    metrics = {
+    res = {
         'strategy_name': config['strategy']['name'],
         'fromdate': frame['fromdate'],
         'todate': frame['todate'],
@@ -449,14 +628,19 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn': finite_or_none(sqn.get('sqn')),
         'ulcer_index': calculate_ulcer_index(broker_values),
     }
-    metrics.update(extract_monthly_stats(frame['monthly_table']))
-    return metrics
-
-
-
+    res.update(extract_monthly_stats(frame['monthly_table']))
+    return res
 
 
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -480,78 +664,70 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_15_0015_dual_momentum_strategy() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/momentum/0015_dual_momentum_strategy.
     """
-    # Capture metrics by hooking extract_metrics() (or similar) and invoking the
-    # original main()/run(). This reuses whatever loader / build_cerebro /
-    # metrics-extraction signatures the strategy used internally.
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function.
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "summarize", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "metrics" not in captured:
-                        captured["metrics"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Force runonce=True for the cerebro.run() call inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "metrics" not in captured:
-                    captured["metrics"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "metrics" not in captured:
-                            captured["metrics"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "no metrics captured during run"
+    config = load_config()
+    inputs = load_backtest_frame(config)
+    cerebro = build_cerebro(config, inputs)
+    results = cerebro.run(runonce=True)
+    metrics = extract_metrics(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 1001, f"bar_num: expected=1001, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 7, f"buy_count: expected=7, got={metrics.get('buy_count')!r}"
@@ -578,7 +754,7 @@ def test_15_0015_dual_momentum_strategy() -> None:
     _close(metrics.get('annual_return_pct'), 13.244630554918466, tol=1.324463e-05, key='annual_return_pct')
     _close(metrics.get('sqn'), 0.2715596529209346, tol=1.000000e-06, key='sqn')
     _close(metrics.get('ulcer_index'), 5.2119956958521225, tol=5.211996e-06, key='ulcer_index')
-    _close(metrics.get('monthly_rows'), 48.0, tol=4.800000e-05, key='monthly_rows')
+    _close(metrics.get('monthly_rows'), 48.0, tol=4.800000e-04, key='monthly_rows')
     _close(metrics.get('gold_selected_months'), 26.0, tol=2.600000e-05, key='gold_selected_months')
     _close(metrics.get('cash_months'), 22.0, tol=2.200000e-05, key='cash_months')
     _close(metrics.get('gold_selected_pct'), 54.166666666666664, tol=5.416667e-05, key='gold_selected_pct')

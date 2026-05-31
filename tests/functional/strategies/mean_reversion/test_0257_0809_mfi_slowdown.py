@@ -1,6 +1,22 @@
 """Inlined regression test for mean_reversion/0257_0809_mfi_slowdown.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10).
+
+Strategy Principle:
+    MFISlowdown strategy uses the Money Flow Index (MFI) with a slowdown detection
+    mechanism to generate entry signals when MFI reaches extreme overbought/oversold
+    levels and shows signs of momentum exhaustion.
+
+Strategy Logic:
+    1. Compute MFI indicator with a configurable period (default 2).
+    2. Compute sell signal when MFI >= level_max (90) and momentum is slowing.
+    3. Compute buy signal when MFI <= level_min (10) and momentum is slowing.
+    4. Enter long on buy signal, enter short on sell signal.
+    5. Exit via stop-loss and take-profit points from entry price.
+    6. Assert bar_num, signal_count, buy/sell counts, trade counts, win/loss.
 """
 from __future__ import annotations
 
@@ -18,6 +34,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -39,6 +56,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MetaTrader5 CSV data (no extra lines)."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -51,9 +69,11 @@ class MoneyFlowIndex(bt.Indicator):
     params = (("period", 14),)
 
     def __init__(self):
+        """Initialize the indicator and declare the minimum period."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute MFI (Money Flow Index) over the configured period."""
         positive_flow = 0.0
         negative_flow = 0.0
         for i in range(self.p.period):
@@ -72,15 +92,23 @@ class MoneyFlowIndex(bt.Indicator):
 
 
 class MFISlowdown(bt.Indicator):
+    """MFI-based signal generator with optional momentum slowdown detection.
+
+    Generates buy/sell lines when MFI reaches extreme levels (level_min/level_max).
+    When seek_slowdown is True, also requires MFI momentum to be slowing
+    (|m1 - m0| < 1.0) before triggering a signal.
+    """
     lines = ("sell", "buy")
     params = dict(mfi_period=2, level_max=90.0, level_min=10.0, seek_slowdown=True)
 
     def __init__(self):
+        """Initialize MFI sub-indicator, ATR, and minimum period."""
         self.addminperiod(max(int(self.p.mfi_period) + 2, 18))
         self.mfi = MoneyFlowIndex(self.data, period=int(self.p.mfi_period))
         self.atr = bt.indicators.ATR(self.data, period=15)
 
     def next(self):
+        """Compute buy/sell signals from MFI extremes and optional slowdown."""
         self.lines.buy[0] = float("nan")
         self.lines.sell[0] = float("nan")
         m0 = float(self.mfi[0])
@@ -95,6 +123,12 @@ class MFISlowdown(bt.Indicator):
 
 
 class ExpMFISlowdownStrategy(bt.Strategy):
+    """MFI Slowdown strategy with dual-data architecture (base M15 + signal H4).
+
+    Enters long when buy signal fires and no position is open.
+    Enters short when sell signal fires and no position is open.
+    Exits via stop-loss and take-profit levels computed from entry price.
+    """
     params = dict(
         mfi_period=2,
         level_max=90.0,
@@ -113,6 +147,7 @@ class ExpMFISlowdownStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize datas, MFISlowdown indicator, and trade counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = MFISlowdown(
@@ -153,6 +188,7 @@ class ExpMFISlowdownStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate signals on H4 data, manage entry/exit, track trade counters."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -189,6 +225,7 @@ class ExpMFISlowdownStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track buy/sell counts on open, trade counts and win/loss on close."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

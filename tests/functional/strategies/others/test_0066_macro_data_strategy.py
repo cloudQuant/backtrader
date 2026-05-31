@@ -1,6 +1,22 @@
-"""Inlined regression test for others/0066_macro_data_strategy.
+"""Regression test for macro-proxy signal rotation strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    Daily MT5 exports for XAUUSD, IVV, and IEF are loaded from
+    ``tests/datas/mt5_1d_data`` and aligned across the same trading dates from
+    2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    The strategy builds a macro-style composite signal from growth, interest-rate,
+    inflation, dollar, and geopolitical proxy components. It interprets strong
+    positive (negative) composite values as long (short) bias.
+
+Strategy Logic:
+    ``prepare_macro_proxy_data`` computes rolling z-scoreized macro factors and
+    maps signal strength to a target exposure. On a fixed rebalance interval the
+    strategy uses ``order_target_percent`` to track the target and updates trade
+    counters from order/trade notifications.
 """
 from __future__ import annotations
 
@@ -18,6 +34,16 @@ RATES_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "IEF_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5 export and return a datetime-indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV file.
+        fromdate: Optional inclusive start datetime for slicing.
+        todate: Optional inclusive end datetime for slicing.
+
+    Returns:
+        OHLCV DataFrame ready for a Backtrader ``PandasData`` feed.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -42,6 +68,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_macro_proxy_data(target_df, growth_df, rates_df, params):
+    """Build macro proxy features and target allocation signals.
+
+    Args:
+        target_df: Target asset frame.
+        growth_df: Equity/pro-growth proxy frame.
+        rates_df: Interest-rate proxy frame.
+        params: Strategy parameters including signal thresholds and component weights.
+
+    Returns:
+        Feature-enhanced DataFrame including z-scored macro signal and target
+        position percentage.
+    """
     common_index = target_df.index.intersection(growth_df.index).intersection(rates_df.index).sort_values()
     target = target_df.loc[common_index].copy()
     growth = growth_df.loc[common_index].copy()
@@ -84,6 +122,7 @@ def prepare_macro_proxy_data(target_df, growth_df, rates_df, params):
 
 
 class MacroSignalFeed(bt.feeds.PandasData):
+    """Backtrader feed that carries macro proxy feature lines."""
     lines = ("growth_trend", "rates_trend", "inflation_proxy", "dollar_proxy", "geopolitical_proxy", "macro_signal_raw", "macro_signal", "signal", "target_percent")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -93,6 +132,11 @@ class MacroSignalFeed(bt.feeds.PandasData):
 
 
 class MacroDataStrategy(bt.Strategy):
+    """Single-asset strategy adapting exposure to macro proxy signal.
+
+    A periodic rebalance keeps portfolio exposure close to the computed target
+    percent derived from macro regime conditions.
+    """
     params = dict(
         rebalance_days=21,
         signal_threshold=0.2,
@@ -105,6 +149,7 @@ class MacroDataStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and pending-order lock."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -126,6 +171,7 @@ class MacroDataStrategy(bt.Strategy):
         return float(self.position.size) * price * multiplier / broker_value
 
     def next(self):
+        """Update signal regime counters and rebalance at schedule intervals."""
         self.bar_num += 1
         signal_value = float(self.data.signal[0])
         if signal_value > 0.5:
@@ -149,11 +195,13 @@ class MacroDataStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target_percent)
 
     def notify_order(self, order):
+        """Reset pending order state when order processing completes."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track completed trade outcomes for regression metrics."""
         if not trade.isclosed:
             return
         self.trade_count += 1

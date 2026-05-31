@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD Daily bars from tests/datas/XAUUSD_1d.csv (2008-01-01 to 2025-12-31),
+    pre-processed with RSI, 50-day new low, consecutive new low, and extreme
+    oversold feature columns computed in prepare_rsi_oversold_reversal_features.
+
+Strategy Principle:
+    RSI Oversold Reversal strategy assumes that consecutive new lows combined with
+    an extreme RSI oversold reading (< 5) signal a mean-reversion bounce.
+    The strategy enters long when both conditions align and exits after a
+    fixed holding period.
+
+Strategy Logic:
+    1. Pre-compute RSI(2), 50-day rolling low, consecutive-new-low flags,
+       and extreme-oversold flags in prepare_rsi_oversold_reversal_features.
+    2. On each bar, enter long when consecutive-new-low AND extreme-oversold
+       are both True and no position is held.
+    3. Exit after holding_days (5) bars regardless of price direction.
+    4. Assert bar_num, buy/sell counts, trade counts, win/loss counts,
+       Sharpe, SQN, drawdown, returns, and ulcer index.
 """
 from __future__ import annotations
 import math
@@ -77,6 +97,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader5 CSV export into a pandas DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,7 +124,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(prices, period=2):
-    """计算RSI指标"""
+    """Compute RSI (Relative Strength Index) from a price series."""
     delta = prices.diff()
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
@@ -115,28 +136,39 @@ def calculate_rsi(prices, period=2):
 
 
 def prepare_rsi_oversold_reversal_features(df, params):
-    """准备RSI超卖反转策略特征"""
+    """Prepare RSI oversold reversal strategy feature columns on a DataFrame.
+
+    Adds RSI, 50-day new low, consecutive-new-low flags, extreme-oversold flags,
+    and entry signal columns, then drops NaN rows.
+
+    Args:
+        df: DataFrame with [open, high, low, close, volume, openinterest] columns.
+        params: Dict with rsi_period, rsi_oversold, low_period keys.
+
+    Returns:
+        DataFrame with added feature columns and NaN rows dropped.
+    """
     out = df.copy()
     rsi_period = int(params.get('rsi_period', 2))
     rsi_oversold = float(params.get('rsi_oversold', 5))
     low_period = int(params.get('low_period', 50))
-    
-    # 计算RSI
+
+    # Compute RSI
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
-    
-    # 计算50日新低
+
+    # Compute 50-day new low
     out['low_50'] = out['close'].rolling(window=low_period).min()
     out['is_new_low'] = (out['close'] == out['low_50']).astype(float)
-    
-    # 连续两天创新低
-    out['consecutive_new_low'] = ((out['is_new_low'] > 0.5) & 
+
+    # Two consecutive days of new lows
+    out['consecutive_new_low'] = ((out['is_new_low'] > 0.5) &
                                    (out['is_new_low'].shift(1) > 0.5)).astype(float)
-    
-    # RSI极端超卖
+
+    # RSI extreme oversold
     out['extreme_oversold'] = (out['rsi'] < rsi_oversold).astype(float)
-    
-    # 入场信号：连续新低 + RSI极端超卖
-    out['entry_signal'] = ((out['consecutive_new_low'] > 0.5) & 
+
+    # Entry signal: consecutive new low + RSI extreme oversold
+    out['entry_signal'] = ((out['consecutive_new_low'] > 0.5) &
                            (out['extreme_oversold'] > 0.5)).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -145,6 +177,7 @@ def prepare_rsi_oversold_reversal_features(df, params):
 
 
 class Mt5RSIOversoldFeed(bt.feeds.PandasData):
+    """PandasData feed carrying pre-computed RSI oversold reversal feature columns."""
     lines = ('rsi', 'is_new_low', 'consecutive_new_low', 'extreme_oversold', 'entry_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -155,6 +188,11 @@ class Mt5RSIOversoldFeed(bt.feeds.PandasData):
 
 
 class RSIOversoldReversalStrategy(bt.Strategy):
+    """RSI Oversold Reversal mean-reversion strategy.
+
+    Enters long when entry_signal is True (consecutive 50-day new low + RSI < 5).
+    Exits after a fixed number of holding_days regardless of price.
+    """
     params = dict(
         rsi_period=2,
         rsi_oversold=5,
@@ -164,6 +202,7 @@ class RSIOversoldReversalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, pending order state, and broker value history."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -176,6 +215,7 @@ class RSIOversoldReversalStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Compute lot size from broker value and target notional percentage."""
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -190,34 +230,37 @@ class RSIOversoldReversalStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Evaluate entry signal, enter on signal, exit after holding_days bars."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
-        
+
         if self.pending_order is not None:
             return
-        
+
         entry_signal = float(self.data.entry_signal[0]) > 0.5
-        
-        # 无持仓时检查入场
+
+        # Check entry when no position is held
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
                 self.entry_bar = self.bar_num
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
-        
-        # 有持仓时检查出场：固定持有天数
+
+        # Check exit when holding: fixed holding days
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending_order on any terminal order status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increment trade_count and win/loss counters on closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -227,18 +270,13 @@ class RSIOversoldReversalStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""RSI Oversold Reversal 策略回测"""
-
-
-
 
 
 BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Return SharpeRatio kwargs dict appropriate to the data timeframe."""
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -251,10 +289,12 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return x only if it is finite and non-zero; otherwise return None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute Ulcer Index over a list of equity values."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -269,6 +309,7 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve filename to an absolute path, checking local and shared data dirs."""
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -285,6 +326,7 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and preprocess data from CSV using config dict."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -297,6 +339,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure a Cerebro instance with feed, strategy, and analyzers."""
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -319,6 +362,7 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract metrics dict from strategy analyzers and broker state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -353,6 +397,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value: datetime to isoformat, NaN/inf to None, else pass through."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

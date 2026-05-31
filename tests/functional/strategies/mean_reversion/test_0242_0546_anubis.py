@@ -1,6 +1,26 @@
 """Inlined regression test for mean_reversion/0242_0546_anubis.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10),
+    loaded via load_mt5_csv with 15-minute bar shift. M15 feed is served through
+    Mt5PandasFeed; H4 feed is derived by resampling M15 to 240-minute bars.
+
+Strategy Principle:
+    Anubis strategy uses CCI on H4 for directional bias combined with MACD
+    cross confirmation on M15. BUY when H4 CCI is below -80 and M15 MACD crosses
+    up through signal (with MACD < 0). SELL when H4 CCI is above +80 and M15
+    MACD crosses down through signal (with MACD > 0). Exit on ATR-based stop
+    or MACD reversal; includes breakeven adjustment and loss-factor position sizing.
+
+Strategy Logic:
+    __init__ creates H4 StdDev(30)/CCI(11) and M15 MACD(20,50,2)/ATR(12).
+    next() waits for warmup, checks CCI + MACD cross for entry direction,
+    and opens positions with SL/TP based on StdDev. Existing positions check
+    breakeven, MACD/ATR-based close conditions, and protection levels.
+    notify_order tracks completed/rejected orders. notify_trade counts
+    win/loss and stores last trade profit for loss-factor sizing.
 """
 from __future__ import annotations
 
@@ -16,6 +36,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a pandas DataFrame with datetime index."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +60,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_h4(df):
+    """Resample M15 bars to H4 (240-min) OHLCV using first/max/min/last/sum."""
     out = pd.DataFrame()
     out["open"] = df["open"].resample("4h").first()
     out["high"] = df["high"].resample("4h").max()
@@ -51,6 +73,7 @@ def resample_h4(df):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5 CSV exports (standard OHLCV columns)."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -58,6 +81,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AnubisStrategy(bt.Strategy):
+    """Anubis — dual-timeframe strategy with CCI(H4), MACD(M15), ATR exits and breakeven."""
+
     params = dict(
         lots=1.0,
         cci_threshold=80, cci_period=11,
@@ -70,6 +95,7 @@ class AnubisStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise H4 indicators (StdDev, CCI) and M15 indicators (MACD, ATR) and state."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.h4_std30 = bt.ind.StdDev(self.h4.close, period=30, movav=bt.ind.MovAv.Exponential)
@@ -97,16 +123,20 @@ class AnubisStrategy(bt.Strategy):
         self.last_trade_profit = 0.0
 
     def _point(self):
+        """Return the point size as a float."""
         return float(self.p.point)
 
     def _round(self, value):
+        """Round value to configured price digits."""
         return round(float(value), int(self.p.price_digits))
 
     def _effective_size(self):
+        """Return lot size, reduced by loss_factor after a losing trade."""
         factor = float(self.p.loss_factor) if self.last_trade_profit < 0 else 1.0
         return max(0.01, float(self.p.lots) * factor)
 
     def _arm(self, direction, price, take):
+        """Submit a buy/sell order with SL/TP and record entry bar."""
         sl = float(self.p.stop_loss) * self._point()
         if direction == "buy":
             self.stop_price = self._round(price - sl) if sl > 0 else None
@@ -124,6 +154,7 @@ class AnubisStrategy(bt.Strategy):
             self.last_short_price = price
 
     def _set_breakeven(self):
+        """Move stop to breakeven once price exceeds the breakeven threshold."""
         if not self.position:
             return
         be = float(self.p.breakeven) * self._point()
@@ -137,6 +168,7 @@ class AnubisStrategy(bt.Strategy):
                     self.stop_price = self._round(float(self.position.price))
 
     def _check_protection(self):
+        """Close position if current bar triggers SL or TP."""
         if not self.position or self.order is not None:
             return
         high = float(self.m15.high[0])
@@ -157,6 +189,7 @@ class AnubisStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Evaluate CCI/MACD entry signals, manage breakeven, exits, and protection."""
         self.bar_num += 1
         warmup = max(40, int(self.p.cci_period) + 5, int(self.p.macd_slow) + int(self.p.macd_signal) + 5)
         if len(self.m15) < warmup or len(self.h4) < 35 or self.order is not None:
@@ -211,6 +244,7 @@ class AnubisStrategy(bt.Strategy):
             self._check_protection()
 
     def notify_order(self, order):
+        """Track completed/rejected orders and reset SL/TP on full exit."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -229,6 +263,7 @@ class AnubisStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count trade, record profit/loss, and update win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1

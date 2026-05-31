@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Historical XAUUSD daily bars from `tests/datas/XAUUSD_1d.csv`.
+    - Timeframe: D1 (daily bars from 2008-01-01 to 2025-12-31).
+    - Feature engineering adds 50/200 period moving averages and a binary regime signal.
+
+Strategy Principle:
+    - Implements a managed futures trend switch:
+        - go long when the fast moving average is above the slow moving average,
+        - exit when the relation flips.
+    - Position sizing targets a constant notional fraction of current broker value,
+        adjusted by contract multiplier and futures commission/margin settings.
+    - Captures deterministic KPIs (returns, drawdown, sharpe, SQN, trade stats)
+      for migration-level regression verification.
+
+Strategy Logic:
+    - `load_config` resolves repository placeholders and returns the embedded test config.
+    - `load_data` loads and cleans csv data, builds engineered indicator columns, then trims to date bounds.
+    - `build_cerebro` wires `Mt5ManagedFuturesHedgeFeed`, strategy, and analyzers.
+    - `ManagedFuturesHedgeStrategy.next()` submits long entries when the signal is 1 and closes when signal returns 0.
+    - `extract_metrics` aggregates analyzer output and returns test assertions consumable values.
 """
 from __future__ import annotations
 import math
@@ -75,6 +96,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize an MT5 CSV export into Backtrader-ready OHLCV data.
+
+    Args:
+        filepath (str | Path): Source MT5 csv file path.
+        fromdate (datetime | None): Optional lower bound for index filtering.
+        todate (datetime | None): Optional upper bound for index filtering.
+
+    Returns:
+        pandas.DataFrame: DataFrame indexed by datetime with OHLCV and open interest
+            columns ordered for downstream feed consumption.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -101,7 +133,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_managed_futures_hedge_features(df, params):
+    """Inject fast/slow moving averages and crossover signal columns.
 
+    Args:
+        df (pandas.DataFrame): Raw bars containing at least `close`.
+        params (dict): Parameter map with `fast_ma` and `slow_ma` keys.
+
+    Returns:
+        pandas.DataFrame: Copy with `fast_ma_val`, `slow_ma_val`, and `signal`
+            columns, with incomplete windows dropped.
+    """
     out = df.copy()
     fast = int(params.get('fast_ma', 50))
     slow = int(params.get('slow_ma', 200))
@@ -113,6 +154,7 @@ def prepare_managed_futures_hedge_features(df, params):
 
 
 class Mt5ManagedFuturesHedgeFeed(bt.feeds.PandasData):
+    """Pandas feed extending Backtrader with moving-average and signal proxy lines."""
     lines = ('fast_ma_val', 'slow_ma_val', 'signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -125,6 +167,7 @@ class Mt5ManagedFuturesHedgeFeed(bt.feeds.PandasData):
 
 
 class ManagedFuturesHedgeStrategy(bt.Strategy):
+    """Managed futures strategy driven by a fast-versus-slow MA regime signal."""
     params = dict(
 fast_ma=50,
         slow_ma=200,
@@ -132,6 +175,7 @@ fast_ma=50,
     )
 
     def __init__(self):
+        """Initialize runtime counters and helper state for order tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -154,6 +198,7 @@ fast_ma=50,
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Evaluate entry/exit logic on each new bar and emit orders when needed."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -171,17 +216,19 @@ fast_ma=50,
 
 
     def notify_order(self, order):
+        """Clear `pending_order` when the order reaches a terminal state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Placeholder trade callback retained for compatibility with generated scripts."""
         pass
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""ManagedFuturesHedge 策略回测"""
+"""ManagedFuturesHedge strategy backtest."""
 
 
 
@@ -192,6 +239,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build analyzer kwargs based on configured timeframe granularity.
+
+    Args:
+        config (dict): Strategy config dictionary containing data timeframe.
+
+    Returns:
+        dict: Analyzer options for `bt.analyzers.SharpeRatio`.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -204,10 +259,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the numeric value if it is finite, otherwise ``None``.
+
+    Args:
+        x: Input value to validate.
+
+    Returns:
+        Optional[float]: Original value when non-null and finite, else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute an ulcer-index-style drawdown severity measure from a value series.
+
+    Args:
+        values (Sequence[float]): Broker value series used for drawdown accumulation.
+
+    Returns:
+        float: Root mean square of percentage drawdowns from each rolling maximum.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -222,6 +293,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and prepare market data for the managed futures hedge regression.
+
+    Args:
+        config (dict): Normalized runtime configuration.
+
+    Returns:
+        dict: Dictionary with cleaned dataframe and parsed date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -237,6 +316,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build the Backtrader engine, attach feed, strategy, and analyzers.
+
+    Args:
+        frame (dict): Prepared frame from `load_data`.
+        config (dict): Backtest configuration including broker and strategy params.
+
+    Returns:
+        bt.Cerebro: Configured engine ready for execution.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -259,6 +347,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and trading counters into a single metrics dictionary.
+
+    Args:
+        strat: Strategy instance after cerebro run completion.
+        cerebro: Running/finished Cerebro engine.
+        frame (dict): Prepared market data frame and date bounds.
+        config (dict): Test configuration dict.
+
+    Returns:
+        dict: Flat metrics payload consumed by assertions in regression test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -292,6 +391,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize datetime and non-finite numbers into JSON-safe values."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -303,6 +403,7 @@ def normalize(v):
 
 
 def main():
+    """Entry point that runs the strategy and prints lightweight diagnostics."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

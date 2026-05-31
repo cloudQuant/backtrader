@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) daily data from 2008-01-01 to 2025-12-31.
+    Derived features: rolling SMA trend flag, N-day high/low breakouts and buy/sell signals.
+
+Strategy Principle:
+    A trend-filtered mean-reversion strategy that enters on N-day lows during an
+    uptrend and exits on N-day highs, combining moving-average trend confirmation
+    with mean-reversion setup triggers.
+
+Strategy Logic:
+    __init__: Track bars, counters, order status, and broker equity history.
+    next(): Check pending orders, enter on long signal when flat, exit on sell signal
+        when in position.
+    notify_order(): Reset the pending-order guard after terminal order status.
+    notify_trade(): Increment win/loss counters after each closed trade.
+    test_10_0010_double_n_gold(): Run a single regression and assert all expected
+        strategy metrics.
 """
 from __future__ import annotations
 import math
@@ -74,6 +92,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -100,24 +119,24 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_double_n_features(df, params):
-    """准备Double N均值回归策略特征"""
+    """Prepare trend and breakout features for the Double N strategy."""
     out = df.copy()
     n_period = int(params.get('n_period', 7))
     sma_period = int(params.get('sma_period', 200))
     
-    # 计算趋势过滤器
+    # Compute trend filter by rolling SMA direction.
     out['sma'] = out['close'].rolling(window=sma_period).mean()
     out['uptrend'] = (out['close'] > out['sma']).astype(float)
     
-    # 计算N日低点和高点
+    # Identify N-day lows and highs.
     out['n_day_low'] = (out['close'] == out['close'].rolling(window=n_period).min()).astype(float)
     out['n_day_high'] = (out['close'] == out['close'].rolling(window=n_period).max()).astype(float)
     
-    # 入场信号：上升趋势 + N日低点
+    # Generate buy signals when trend is up and price tags an N-day low.
     out['buy_signal'] = ((out['uptrend'] > 0.5) & 
                          (out['n_day_low'] > 0.5)).astype(float)
     
-    # 出场信号：N日高点
+    # Generate sell signal on N-day high touch.
     out['sell_signal'] = out['n_day_high']
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -126,6 +145,7 @@ def prepare_double_n_features(df, params):
 
 
 class Mt5DoubleNFeed(bt.feeds.PandasData):
+    """Backtrader feed exposing Double N feature lines."""
     lines = ('uptrend', 'buy_signal', 'sell_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -135,6 +155,7 @@ class Mt5DoubleNFeed(bt.feeds.PandasData):
 
 
 class DoubleNGoldStrategy(bt.Strategy):
+    """Mean-reversion strategy combining trend and N-day extrema signals."""
     params = dict(
         n_period=7,
         sma_period=200,
@@ -142,6 +163,7 @@ class DoubleNGoldStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, pending-order state and broker value tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -167,6 +189,7 @@ class DoubleNGoldStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar and apply entry/exit conditions."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -176,24 +199,26 @@ class DoubleNGoldStrategy(bt.Strategy):
         buy_signal = float(self.data.buy_signal[0]) > 0.5
         sell_signal = float(self.data.sell_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat.
         if not self.position:
             if buy_signal:
                 self.buy_count += 1
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position.
         if sell_signal:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending-order flag once an order becomes final."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade win/loss counters after close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -205,7 +230,7 @@ class DoubleNGoldStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Double N Gold Mean Reversion 策略回测"""
+"""Double N Gold Mean Reversion strategy backtest."""
 
 
 
@@ -215,6 +240,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build timeframe-aware Sharpe ratio analyzer kwargs.
+
+    Args:
+        config: Strategy configuration containing ``data.timeframe``.
+
+    Returns:
+        Keyword arguments suitable for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -227,10 +260,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Normalize Sharpe value to ``None`` when missing or not finite.
+
+    Args:
+        x: Analyzer metric candidate.
+
+    Returns:
+        The input when finite; otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from an equity-value trajectory.
+
+    Args:
+        values: Ordered broker account values.
+
+    Returns:
+        Ulcer index float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -245,6 +294,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and enrich raw data using strategy feature preparation."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -258,6 +308,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Create a configured Cerebro engine for executing the regression.
+
+    Args:
+        frame: Prepared data payload.
+        config: Strategy and backtest configuration.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -280,6 +339,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect all metrics used by regression assertions.
+
+    Args:
+        strat: Strategy instance produced by ``cerebro.run``.
+        cerebro: Running Cerebro engine.
+        frame: Prepared input payload.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary with KPI and strategy counters.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -314,6 +384,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for JSON-oriented serialization.
+
+    Args:
+        v: Value to serialize.
+
+    Returns:
+        ISO timestamp for datetime values, ``None`` for non-finite floats,
+        else original value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD daily bars from ``tests/datas/XAUUSD_1d.csv`` between 2008-01-01 and
+    2025-12-31 with event proxy calendars derived from inferred FOMC/NFP/CPI dates.
+
+Strategy Principle:
+    Builds event-avoidance regime features from moving-average signal, rolling
+    volatility, and nearby macro-event windows. Position size is reduced or flat
+    during event/volatility windows and follows a target-percent framework.
+
+Strategy Logic:
+    Load daily data, compute feature columns, feed through custom feed + strategy.
+    Strategy compares current target percent vs actual exposure, issues orders to
+    rebalance gradually, and collects metrics from analyzers plus internal counters.
 """
 from __future__ import annotations
 import math
@@ -81,6 +95,16 @@ FOMC_MONTHS = (1, 3, 5, 6, 7, 9, 11, 12)
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 daily CSV data and normalize it into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Source export file path.
+        fromdate: Optional lower bound datetime filter.
+        todate: Optional upper bound datetime filter.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -107,6 +131,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def generate_fomc_proxy_dates(start_year, end_year):
+    """Generate synthetic FOMC dates from the third Wednesday proxy schedule.
+
+    Args:
+        start_year: Inclusive start year.
+        end_year: Inclusive end year.
+
+    Returns:
+        List of datetimes.
+    """
     dates = []
     for year in range(start_year, end_year + 1):
         for month in FOMC_MONTHS:
@@ -119,6 +152,7 @@ def generate_fomc_proxy_dates(start_year, end_year):
 
 
 def generate_nfp_proxy_dates(start_year, end_year):
+    """Generate synthetic NFP dates from first Friday of the first week each month."""
     dates = []
     for year in range(start_year, end_year + 1):
         for month in range(1, 13):
@@ -129,10 +163,20 @@ def generate_nfp_proxy_dates(start_year, end_year):
 
 
 def generate_cpi_proxy_dates(start_year, end_year):
+    """Generate synthetic CPI release dates on a fixed-day monthly schedule."""
     return [datetime(year, month, min(10, 28)) for year in range(start_year, end_year + 1) for month in range(1, 13)]
 
 
 def align_event_dates(index, event_dates):
+    """Align synthetic event dates to available trading timestamps.
+
+    Args:
+        index: Sorted datetime index from price series.
+        event_dates: Candidate event datetimes.
+
+    Returns:
+        Sorted list of aligned trading datetimes within ±3 days.
+    """
     aligned = []
     for event_date in event_dates:
         ts = pd.Timestamp(event_date)
@@ -146,6 +190,17 @@ def align_event_dates(index, event_dates):
 
 
 def mark_avoid_windows(index, event_dates, before_days, after_days):
+    """Return a binary vector for avoid windows around events.
+
+    Args:
+        index: Trading bar index.
+        event_dates: Event timestamps on the same index domain.
+        before_days: Number of bars before each event to avoid.
+        after_days: Number of bars after each event to avoid.
+
+    Returns:
+        Float series marking avoidance periods with 1.0.
+    """
     series = pd.Series(0.0, index=index)
     index_map = {ts: i for i, ts in enumerate(index)}
     for event_date in event_dates:
@@ -159,6 +214,15 @@ def mark_avoid_windows(index, event_dates, before_days, after_days):
 
 
 def prepare_avoid_earnings_features(df, params):
+    """Construct feature columns used by avoid-earnings strategy logic.
+
+    Args:
+        df: Raw OHLCV DataFrame.
+        params: Strategy parameters.
+
+    Returns:
+        DataFrame with moving averages, volatility, event flags and target position.
+    """
     out = df.copy()
     fast_ma_period = int(params.get('fast_ma_period', 20))
     slow_ma_period = int(params.get('slow_ma_period', 100))
@@ -210,6 +274,7 @@ def prepare_avoid_earnings_features(df, params):
 
 
 class AvoidEarningsFeed(bt.feeds.PandasData):
+    """PandasData extension exposing all derived avoid-earnings feature lines."""
     lines = (
         'fast_ma', 'slow_ma', 'base_signal', 'current_vol', 'historical_vol', 'high_volatility',
         'near_data_event', 'near_fomc_event', 'avoid_event', 'target_position',
@@ -222,6 +287,7 @@ class AvoidEarningsFeed(bt.feeds.PandasData):
 
 
 class AvoidEarningsStrategy(bt.Strategy):
+    """Target-percent based strategy with event window / volatility reduction."""
     params = dict(
         position_size=0.95,
         reduced_position=0.30,
@@ -237,6 +303,7 @@ class AvoidEarningsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters used by regression metrics."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -246,6 +313,7 @@ class AvoidEarningsStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Track broker value each bar and rebalance towards target exposure."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -270,6 +338,7 @@ class AvoidEarningsStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target)
 
     def notify_order(self, order):
+        """Clear pending order marker when order is no longer open."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -281,10 +350,12 @@ class AvoidEarningsStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return finite float value unchanged; map NaN/inf/None to ``None``."""
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate ulcer index from equity values."""
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -298,6 +369,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load raw CSV and prepare engineered feature DataFrame.
+
+    Args:
+        config: Inline configuration dict.
+
+    Returns:
+        Mapping with prepared frame and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -307,6 +386,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct Cerebro, attach feed/strategy/analyzers."""
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -322,6 +402,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer metrics and internal strategy counters.
+
+    Args:
+        strat: Finished strategy instance.
+        cerebro: Cerebro with executed broker state.
+        frame: Loaded input frame.
+        config: Test config.
+
+    Returns:
+        Dictionary of scalar metrics used by assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -363,6 +454,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(value):
+    """Normalize datetime/float values for JSON-safe serialization."""
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M1 OHLCV from ``tests/datas/XAUUSD_M1.csv`` is used with a 1-minute
+    shift and aggregated to intraday session bars, covering
+    ``2026-03-06 00:00:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    The strategy builds multiple timeframe feeds with stochastic-based confirmation
+    and opens long-only positions when pattern continuation and momentum conditions
+    agree.
+
+Strategy Logic:
+    It monitors entry conditions each bar, tracks tranche-level stop-loss/take-profit
+    levels for partial exits, and updates counters through order/trade callbacks
+    for regression assertions.
 """
 from __future__ import annotations
 import math
@@ -23,8 +38,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': 'Billy 交易系统',
-        'source_ea': 'ea/0517_Billy_交易系统/billy_expert.mq5',
+        'name': 'Billy Trading System',
+        'source_ea': 'ea/0517_Billy_Trading_System/billy_expert.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -78,6 +93,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 tab-separated export into a Backtrader-ready DataFrame.
+
+    The source file is expected to contain MetaQuotes style columns including
+    ``<DATE>``/``<TIME>`` and OHLC volume fields.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional lower bound for the datetime index.
+        todate: Optional upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset applied to all bar timestamps.
+
+    Returns:
+        A pandas DataFrame indexed by ``datetime`` with Backtrader column names.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,12 +130,20 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader Pandas data feed with explicit column index mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class BillyTradingSystemStrategy(bt.Strategy):
+    """Multi-timeframe stochastic confirmation strategy for long-only entries.
+
+    The strategy reads one source feed plus three resampled confirmation feeds,
+    validates a simple trend pattern with dual stochastic momentum alignment,
+    then opens fixed-size positions and manages take-profit / stop-loss levels
+    per tranche.
+    """
     params = dict(
         lots=0.01,
         stop_loss=0,
@@ -120,6 +157,7 @@ class BillyTradingSystemStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Builds indicators, tranche trackers, and metric counters."""
         self.source = self.datas[0]
         self.current_tf = self.datas[1]
         self.sto_tf_1 = self.datas[2]
@@ -188,6 +226,7 @@ class BillyTradingSystemStrategy(bt.Strategy):
         return float(self.sto_1.percK[-1]) > float(self.sto_1.percD[-1]) and float(self.sto_1.percK[0]) > float(self.sto_1.percD[0]) and float(self.sto_2.percK[-1]) > float(self.sto_2.percD[-1]) and float(self.sto_2.percK[0]) > float(self.sto_2.percD[0])
 
     def next(self):
+        """Processes each bar, evaluates entry and exit conditions, and submits orders."""
         self.bar_num += 1
         self._manage_exits()
         if self.open_orders:
@@ -221,6 +260,7 @@ class BillyTradingSystemStrategy(bt.Strategy):
         self.signal_count += 1
 
     def notify_order(self, order):
+        """Updates internal counters and tranche bookkeeping after order completion."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         meta = self.open_orders.pop(order.ref, None)
@@ -239,6 +279,7 @@ class BillyTradingSystemStrategy(bt.Strategy):
             self.rejected_order_count += 1
 
     def notify_trade(self, trade):
+        """Accumulates trade outcome counters when positions are closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -262,6 +303,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset path relative to this test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -269,6 +311,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter source OHLCV data according to regression window parameters."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -280,6 +323,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro, feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = config.get('params', {})
@@ -309,6 +353,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate and return backtest metrics needed by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -336,6 +381,11 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the backtest and return ``(results, metrics, cerebro)``.
+
+    This mirrors the original strategy entrypoint expected by the inline test
+    scaffold.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

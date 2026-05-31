@@ -83,6 +83,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Pandas DataFrame with OHLC columns."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -110,12 +111,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with standard OHLC column mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class BollingerBandsStrategy(bt.Strategy):
+    """Bollinger Bands breakout strategy that trades breakouts beyond the bands with TP/SL management."""
     params = dict(
         profit_made=3,
         loss_limit=20,
@@ -132,6 +135,7 @@ class BollingerBandsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize Bollinger Bands indicator, counters, and order state."""
         self.bbands = bt.indicators.BollingerBands(self.data.open, period=self.p.bb_period, devfactor=self.p.bb_deviation)
 
         self.bar_num = 0
@@ -147,24 +151,29 @@ class BollingerBandsStrategy(bt.Strategy):
         self.order = None
 
     def log(self, text):
+        """Print a timestamped strategy log message for the current bar."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _unit(self):
+        """Return the minimum price unit (point × digits_adjust)."""
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _lots(self):
+        """Calculate position size, with optional scaling proportional to account value."""
         if not self.p.lot_increase:
             return float(self.p.lots)
         ext_lots = round(float(self.broker.getvalue()) / float(self.p.starting_balance), 1)
         return min(ext_lots, 500.0)
 
     def _buy_signal(self):
+        """Check if close is below the lower Bollinger Band by the required distance."""
         upper = float(self.bbands.top[0])
         close = float(self.data.close[0])
         return close < upper - 1e12 if False else close < float('-inf')
 
     def next(self):
+        """Evaluate Bollinger signals, manage orders, and track lifecycle counters."""
         self.bar_num += 1
         if len(self) < self.p.bb_period + 2:
             return
@@ -198,6 +207,7 @@ class BollingerBandsStrategy(bt.Strategy):
             self.order = self.sell(size=self._lots())
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and clear pending order reference."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -213,6 +223,7 @@ class BollingerBandsStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Increment trade counter and win/loss counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -237,6 +248,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve the strategy data path relative to the test module."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -244,6 +256,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load raw data, apply date bounds, and return frame for backtest execution."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -255,6 +268,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feed, strategy, and analyzers based on provided config."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -272,6 +286,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect aggregate metrics from analyzers and broker state for assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) loaded from the daily MT5 export
+    ``tests/datas/XAUUSD_1d.csv`` over 2008-01-01 to 2025-12-31. The daily data
+    is resampled to month-end (monthly) bars, which carry the OHLCV lines plus
+    precomputed momentum, volatility, premium-adjustment, signal-direction, and
+    target-weight lines; a single signal feed drives the strategy.
+
+Strategy Principle:
+    A port of the "Momentum Strategy" approach operating monthly on gold. Long
+    momentum sets the trade direction (long when positive, short when negative if
+    shorting is allowed); a historical-premium adjustment nudges the base weight
+    up or down; and volatility targeting scales exposure toward a target
+    annualized volatility. The resulting target weight is clipped to a min/max
+    band so the position size adapts to both conviction and risk.
+
+Strategy Logic:
+    prepare_momentum_basic_data resamples to monthly, computes the momentum,
+    volatility, premium, and target-weight lines, and stores them on a signal
+    feed. Each monthly bar the strategy records broker value, tallies long/short/
+    cash months, and rebalances toward the target weight via order_target_percent
+    when it drifts beyond the tolerance, counting buys/sells/shorts/covers and
+    switches. notify_order clears the pending order. extract_metrics consolidates
+    analyzer output plus average gross exposure and an Ulcer Index; the test
+    hooks the metric extractor, forces runonce=True via run(), and asserts each
+    metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -79,6 +105,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -105,6 +142,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def resample_to_monthly(df):
+    """Resample a daily OHLCV frame to month-end bars.
+
+    Args:
+        df: The daily OHLCV DataFrame with a datetime index.
+
+    Returns:
+        A month-end OHLCV DataFrame with rows missing core prices dropped.
+    """
     monthly = pd.DataFrame({
         'open': df['open'].resample('ME').first(),
         'high': df['high'].resample('ME').max(),
@@ -117,6 +162,22 @@ def resample_to_monthly(df):
 
 
 def prepare_momentum_basic_data(daily_df, params):
+    """Resample to monthly and compute momentum, volatility, and target weights.
+
+    Derives long/short momentum, realized volatility, a historical-premium
+    adjustment, and a volatility-targeted, premium-adjusted target weight clipped
+    to the configured min/max band.
+
+    Args:
+        daily_df: The daily OHLCV DataFrame to operate on.
+        params: Strategy parameters supplying the momentum and premium lookbacks,
+            base/min/max weights, volatility target, and shorting flag.
+
+    Returns:
+        A monthly DataFrame augmented with the momentum, volatility, premium,
+        ``signal_direction``, ``target_weight``, and ``gross_exposure`` columns,
+        with warm-up rows dropped.
+    """
     monthly = resample_to_monthly(daily_df)
     momentum_period = int(params.get('momentum_period_months', 12))
     short_momentum_period = int(params.get('short_momentum_period_months', 3))
@@ -155,6 +216,8 @@ def prepare_momentum_basic_data(daily_df, params):
 
 
 class MomentumBasicFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the momentum, volatility, and target-weight lines."""
+
     lines = ('returns_1m', 'momentum_long', 'momentum_short', 'realized_vol', 'historical_premium', 'premium_adjustment', 'signal_direction', 'target_weight', 'gross_exposure',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -164,6 +227,13 @@ class MomentumBasicFeed(bt.feeds.PandasData):
 
 
 class MomentumBasicStrategy(bt.Strategy):
+    """Rebalance monthly toward a volatility-targeted, premium-adjusted weight.
+
+    Reads the precomputed target weight from the signal feed and, when it drifts
+    beyond the tolerance, rebalances via order_target_percent, tracking long/
+    short/cash months, switches, rebalances, and directional order counts.
+    """
+
     params = dict(
         rebalance_tolerance=0.02,
         momentum_period_months=12,
@@ -180,6 +250,7 @@ class MomentumBasicStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset bar/rebalance counters, month tallies, and order/target state."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.switch_count = 0
@@ -195,6 +266,13 @@ class MomentumBasicStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Tally the regime month and rebalance toward the target weight.
+
+        Increments the bar counter, records broker value, and counts the month as
+        long/short/cash. While no order is pending and the target has moved beyond
+        the rebalance tolerance, it counts the switch and directional order type
+        and issues order_target_percent toward the new weight.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -231,6 +309,12 @@ class MomentumBasicStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=target)
 
     def notify_order(self, order):
+        """Clear the pending order slot once an order leaves flight.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears the pending slot.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -243,6 +327,15 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def normalize(value):
+    """Convert non-primitive values (e.g. datetimes) into serializable forms.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        Primitives unchanged, an ISO-format string for datetime-like objects,
+        and ``str(value)`` as a fallback.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     isoformat = getattr(value, 'isoformat', None)
@@ -255,6 +348,14 @@ def normalize(value):
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: The value to validate.
+
+    Returns:
+        The original value when finite (or non-float), else None for NaN/inf.
+    """
     if value is None:
         return None
     if isinstance(value, float) and (value != value or value in (float('inf'), float('-inf'))):
@@ -263,6 +364,15 @@ def finite_or_none(value):
 
 
 def calculate_ulcer_index(equity_curve):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        equity_curve: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when the series is empty or has no drawdowns.
+    """
     if not equity_curve:
         return 0.0
     peak = None
@@ -278,6 +388,19 @@ def calculate_ulcer_index(equity_curve):
 
 
 def load_inputs(config):
+    """Load the XAUUSD feed and prepare the monthly momentum signal frame.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path and inclusive date bounds.
+
+    Returns:
+        A dict with the monthly ``signal_df``, the ``fromdate``/``todate``
+        datetimes, and the resolved strategy ``params``.
+
+    Raises:
+        ValueError: If the prepared signal frame is empty.
+    """
     data_cfg = config['data']
     params = dict(config.get('params', {}))
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
@@ -290,6 +413,16 @@ def load_inputs(config):
 
 
 def build_cerebro(config, inputs):
+    """Assemble the Cerebro engine with the monthly signal feed and analyzers.
+
+    Args:
+        config: Parsed configuration providing cash and commission settings.
+        inputs: Prepared inputs dict from :func:`load_inputs` (signal frame and
+            strategy params).
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config.get('params', {}).get('commission_pct', 0.0005)))
@@ -305,6 +438,21 @@ def build_cerebro(config, inputs):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, month tallies,
+            the broker value series, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and the signal frame.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, average gross exposure, month
+        tallies, and order/rebalance counts) used by the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -356,6 +504,16 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def run(plot=False):
+    """Run the basic momentum backtest and return results, metrics, and engine.
+
+    Args:
+        plot: If True, render the Cerebro candlestick plot after the run.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
+        and ``cerebro`` is the engine instance.
+    """
     config = load_config()
     inputs = load_inputs(config)
     cerebro = build_cerebro(config, inputs)

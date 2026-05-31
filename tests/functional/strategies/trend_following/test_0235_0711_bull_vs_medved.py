@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 4-hour (H4) timeframe, loaded from the MT5
+    export ``tests/datas/XAUUSD_H4.csv`` and spanning 2025-12-03 00:00 to
+    2026-03-10 23:59, with each bar timestamp shifted forward by 240 minutes so
+    the index marks the close of each 4-hour bar.
+
+Strategy Principle:
+    This is the "Bull_vs_Medved" strategy (MT5 Bull_vs_Medved EA, "bull vs
+    bear"). At fixed intraday session start times it inspects the last few
+    candles for bullish or bearish body patterns: a large bullish candle (with
+    optional "cool bull" recovery shape, excluding an over-extended "bad bull")
+    triggers a long, and a large bearish candle triggers a short. Orders are
+    placed with a fixed point-based stop loss and take profit, and an optional
+    pending mechanism with a limited lifetime.
+
+Strategy Logic:
+    load_backtest_frame loads and date-filters the frame; build_cerebro adds the
+    H4 feed, configures a fixed-commission futures broker, the strategy, and the
+    analyzers. Each bar the strategy skips while an order is pending, manages the
+    open position (stop/take-profit touch), processes or expires any pending
+    order, and—only at a matching session start slot—evaluates the candle body
+    patterns to place a buy or sell. notify_order tracks completed/rejected
+    orders and buy/sell counts and clears the working order, while notify_trade
+    tallies wins and losses. extract_metrics consolidates analyzer output, and
+    the test forces runonce=True, runs the module's run(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +113,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -113,12 +153,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class BullVsMedvedStrategy(bt.Strategy):
+    """Trade session-timed bullish/bearish candle patterns with fixed risk."""
+
     params = dict(
         lots=0.10,
         candle_size=75,
@@ -134,6 +178,7 @@ class BullVsMedvedStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order/risk state, pending state, and session slots."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -233,6 +278,14 @@ class BullVsMedvedStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage position/pending state then evaluate candle patterns on a slot.
+
+        Increments the bar counter, waits for warm-up, skips while an order is
+        pending, manages the open position (stop/take-profit touch), processes or
+        expires any pending order, and—only at a matching session start slot—
+        opens a long on a (non-bad) bull or cool-bull pattern or a short on a
+        bear pattern.
+        """
         self.bar_num += 1
         if len(self) < 5:
             return
@@ -257,6 +310,13 @@ class BullVsMedvedStrategy(bt.Strategy):
             self._place_pending('sell')
 
     def notify_order(self, order):
+        """Track completed/rejected orders, buy/sell counts, and clear state.
+
+        Args:
+            order: The order whose status changed; completed fills update the
+                buy/sell counters or clear the risk prices when flat, and any
+                terminal status releases the working order reference.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -275,6 +335,12 @@ class BullVsMedvedStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -299,6 +365,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a config data path relative to this file and verify it exists.
+
+    Args:
+        filename: Configured data path, absolute or relative to this directory.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -306,6 +383,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the OHLCV frame for the configured symbol and date range.
+
+    Args:
+        config: Parsed configuration providing the ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate``/``todate``
+        bounds.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -317,6 +406,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration with ``backtest`` and ``data`` sections.
+        frame: The loaded data dict produced by ``load_backtest_frame``.
+
+    Returns:
+        A configured Cerebro instance ready to run, with the H4 feed, the
+        Bull_vs_Medved strategy, and Sharpe/Returns/DrawDown/TradeAnalyzer/SQN
+        analyzers attached.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -334,6 +434,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run.
+        frame: The loaded data dict (for bar counts and date range).
+        config: Parsed configuration (for the initial cash baseline).
+
+    Returns:
+        A dict of summary metrics including trade counts, win rate, profit
+        factor, final value, returns, drawdown, Sharpe ratio, and SQN.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -375,6 +487,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest pipeline and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro chart after the run.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

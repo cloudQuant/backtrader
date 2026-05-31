@@ -7,6 +7,42 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four MT5 daily CSV feeds defined in ``_CONFIG['data']``: ``XAUUSD_1d.csv``
+    (gold), ``IVV_1d.csv`` (US equity), ``IEF_1d.csv`` (US Treasuries) and
+    ``GTIP_1d.csv`` (inflation-protected bonds), all under
+    ``tests/datas/mt5_1d_data``. Daily bars are clipped to 2010-01-01 through
+    2025-12-31, resampled to month-end (``ME``) bars and aligned to a shared
+    monthly index. Only the first three assets are traded; GTIP is used purely
+    as an inflation signal input.
+
+Strategy Principle:
+    A macro-aware enhancement of the 60/40 portfolio with a dynamic gold sleeve.
+    Four binary macro views are summed into a 0-4 score: inflation rising (TIPS
+    outperforming nominal bonds), positive bond momentum, an equity risk-off
+    regime, and a positive gold trend. A higher score lifts gold toward its high
+    or max weight, a zero score drops it to the floor, and the remainder is split
+    between equity and bonds with a defensive tilt toward bonds during risk-off
+    regimes. The thesis is that conditioning allocations on the macro backdrop
+    improves a balanced portfolio's resilience.
+
+Strategy Logic:
+    1. ``load_inputs`` loads the daily CSVs, resamples to monthly
+       (``resample_to_monthly``) and computes the macro score and target weights
+       inside ``prepare_enhanced_60_40_data``.
+    2. ``GoldEnhanced6040SignalFeed`` exposes the signals and weights as extra
+       data lines; ``GoldEnhanced6040Strategy.__init__`` binds the signal and
+       traded asset feeds and resets counters.
+    3. ``next`` rebalances when the monthly flag is set and any asset drifts
+       past ``rebalance_threshold`` (always on the first bar), issuing
+       ``order_target_percent`` orders; ``notify_order`` clears settled refs and
+       ``notify_trade`` tallies win/loss counts.
+    4. ``build_cerebro`` wires the feeds, a ``FuturesCommission`` scheme and the
+       Sharpe/Returns/DrawDown/Trade/SQN analyzers; ``extract_metrics`` (with
+       ``finite_or_none`` and ``calculate_ulcer_index``) builds the metrics dict
+       and ``test_3_0003_gold_enhanced_60_40`` asserts the captured
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -87,6 +123,23 @@ SIGNAL_ASSETS = ('XAUUSD', 'IVV', 'IEF', 'GTIP')
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -117,6 +170,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def resample_to_monthly(df):
+    """Resample a daily OHLCV frame to month-end bars.
+
+    Aggregates each calendar month into a single bar using first/max/min/last
+    for open/high/low/close, summed volume, and last open interest, then drops
+    months without complete OHLC data.
+
+    Args:
+        df: Daily OHLCV DataFrame indexed by datetime.
+
+    Returns:
+        pandas.DataFrame: Month-end (``ME``) OHLCV bars.
+    """
     monthly = pd.DataFrame({
         'open': df['open'].resample('ME').first(),
         'high': df['high'].resample('ME').max(),
@@ -129,6 +194,24 @@ def resample_to_monthly(df):
 
 
 def prepare_enhanced_60_40_data(asset_daily_frames, params):
+    """Build the monthly signal feed and macro-driven target weights.
+
+    Resamples each asset to monthly bars, aligns them to a common index, then
+    computes the inflation, bond, risk-off and gold-trend views, sums them into
+    a macro score, maps that score onto a gold weight inside its min/max band,
+    and splits the remainder between equity and bonds with a defensive risk-off
+    tilt.
+
+    Args:
+        asset_daily_frames: Mapping of asset name to daily OHLCV DataFrame.
+        params: Strategy parameter dictionary controlling lookbacks and weights.
+
+    Returns:
+        tuple: ``(signal_df, monthly_frames, summary)`` where ``signal_df``
+        carries gold OHLCV plus signal/weight/rebalance lines,
+        ``monthly_frames`` maps each asset to its aligned monthly OHLCV frame,
+        and ``summary`` holds the per-month macro score and weights.
+    """
     monthly_frames = {name: resample_to_monthly(frame) for name, frame in asset_daily_frames.items()}
     common_index = None
     for frame in monthly_frames.values():
@@ -201,6 +284,13 @@ def prepare_enhanced_60_40_data(asset_daily_frames, params):
 
 
 class GoldEnhanced6040SignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing macro signals and target weights as extra lines.
+
+    Extends the standard OHLCV feed with the inflation, dollar/bond, risk-off and
+    gold-trend signals, the macro score, the three asset target weights, and the
+    rebalance flag so the strategy can read them directly.
+    """
+
     lines = ('inflation_up', 'dollar_weak', 'risk_off', 'gold_trend', 'macro_score', 'gold_weight', 'equity_weight', 'bond_weight', 'rebalance_flag')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -209,6 +299,26 @@ class GoldEnhanced6040SignalFeed(bt.feeds.PandasData):
 
 
 class GoldEnhanced6040Strategy(bt.Strategy):
+    """Macro-driven gold-enhanced 60/40 portfolio with monthly rebalancing.
+
+    Reads precomputed gold/equity/bond target weights from the signal feed and
+    rebalances the traded asset feeds toward those weights each month when any
+    asset drifts past the rebalance threshold. Tracks bar, order and trade
+    statistics for the regression assertions.
+
+    Args:
+        gold_min_weight: Lower bound on the gold weight.
+        gold_base_weight: Baseline gold weight for low macro scores.
+        gold_high_weight: Elevated gold weight for strong macro scores.
+        gold_max_weight: Upper bound on the gold weight.
+        rebalance_frequency: Nominal rebalance cadence (monthly).
+        rebalance_threshold: Minimum weight drift required to rebalance.
+        macro_lookback_months: Lookback for the macro momentum comparisons.
+        gold_trend_lookback_months: Lookback for the gold-trend signal.
+        equity_vol_lookback_months: Lookback for the equity-volatility gauge.
+        commission_pct: Commission rate passed to the broker.
+    """
+
     params = dict(
         gold_min_weight=0.10,
         gold_base_weight=0.20,
@@ -223,6 +333,12 @@ class GoldEnhanced6040Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and traded asset feeds and reset tracking counters.
+
+        Captures the signal feed and the three traded asset feeds, then
+        initializes the bar, buy, sell, trade, win and loss counters plus the
+        pending-order set and equity-value series.
+        """
         self.signal = self.datas[0]
         self.asset_feeds = {name: self.getdatabyname(name) for name in TRADE_ASSETS}
         self.bar_num = 0
@@ -242,6 +358,13 @@ class GoldEnhanced6040Strategy(bt.Strategy):
         }
 
     def next(self):
+        """Rebalance toward macro-driven target weights each month.
+
+        Records equity, skips while orders are pending or when the rebalance
+        flag is unset, and otherwise rebalances when any asset has drifted past
+        ``rebalance_threshold`` (always on the first bar), issuing
+        ``order_target_percent`` orders and updating buy/sell counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order_refs:
@@ -271,11 +394,25 @@ class GoldEnhanced6040Strategy(bt.Strategy):
                     self.sell_count += 1
 
     def notify_order(self, order):
+        """Drop settled orders from the pending-reference set.
+
+        Ignores intermediate Submitted/Accepted states and discards the order
+        reference once it reaches a terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win and loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are
+                counted.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -291,14 +428,39 @@ class GoldEnhanced6040Strategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 class FuturesCommission(bt.CommInfoBase):
+    """Percentage commission scheme for stock-like assets.
+
+    A thin ``CommInfoBase`` subclass that charges a flat percentage commission
+    and treats instruments as stock-like (no futures margin/multiplier effects).
+    """
+
     params = (('commission', 0.0005), ('commtype', bt.CommInfoBase.COMM_PERC), ('stocklike', True))
 
 
 def finite_or_none(value):
+    """Return ``value`` when it is a finite number, else ``None``.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value if it is non-``None`` and finite, otherwise ``None``.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-value series.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, emphasizing deep and sustained declines.
+
+    Args:
+        values: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when fewer than two values exist.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -312,6 +474,19 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load daily asset data and derive the monthly enhanced-60/40 inputs.
+
+    Reads the configured date bounds, loads each asset's daily CSV, and runs
+    ``prepare_enhanced_60_40_data`` to produce the signal feed, aligned monthly
+    frames and the summary.
+
+    Args:
+        config: Resolved configuration dictionary (see ``load_config``).
+
+    Returns:
+        dict: Contains ``signal_df``, ``monthly_frames``, ``summary``, and the
+        parsed ``fromdate`` and ``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -332,6 +507,20 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the cerebro engine, feeds, commission and analyzers.
+
+    Creates a cerebro instance with the configured starting cash, attaches a
+    ``FuturesCommission`` scheme, adds the signal feed plus the four monthly
+    asset feeds, registers the strategy with its parameters, and attaches the
+    Sharpe/Returns/DrawDown/Trade/SQN analyzers.
+
+    Args:
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        bt.Cerebro: The fully configured engine ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.addcommissioninfo(FuturesCommission(commission=float(config['params'].get('commission_pct', 0.0005))))
@@ -351,6 +540,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Compile the performance metrics dictionary from a finished run.
+
+    Reads the trade, Sharpe, returns, drawdown and SQN analyzers, derives win
+    rate, profit factor, total/annual return, net PnL and the Ulcer Index, and
+    combines them with the strategy's own counters.
+
+    Args:
+        strat: The executed strategy instance carrying counters and analyzers.
+        cerebro: The cerebro engine used for the run (for final broker value).
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        dict: Metric name to value mapping asserted by the test.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -390,6 +594,17 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert a value into a JSON-serializable form.
+
+    Datetimes become ISO strings and non-finite floats become ``None``; all
+    other values pass through unchanged.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        A JSON-friendly representation of ``value``.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

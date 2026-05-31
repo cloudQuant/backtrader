@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (momentum, abs_momentum,
+    month_end) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    Dual Momentum combines absolute momentum (asset return vs risk-free threshold)
+    with relative momentum to decide month-end rebalancing. The strategy holds
+    the asset only when its 252-day momentum exceeds the risk-free threshold;
+    otherwise it stays flat. This captures trend-following upside while avoiding
+    prolonged drawdowns.
+
+Strategy Logic:
+    1. load_config() / load_data() loads and preprocesses the CSV and enriches
+       it with momentum features.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. DualMomentumStrategy tracks bar count, broker value series, and pending
+       orders. On each new month it checks abs_momentum; if > 0.5 it buys (or
+       holds), otherwise it closes the position.
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_1_0001_dual_momentum() runs the strategy via main() and validates
+       all expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -76,6 +101,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file and return a cleaned pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported CSV file.
+        fromdate: Optional start datetime to filter data.
+        todate: Optional end datetime to filter data.
+
+    Returns:
+        pd.DataFrame with columns datetime, open, high, low, close, volume,
+        openinterest; indexed by datetime and sorted.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,26 +138,39 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_dual_momentum_features(df, params):
-    """准备双动量策略特征"""
+    """Prepare dual momentum strategy features from raw OHLCV data.
+
+    Args:
+        df: DataFrame with raw OHLCV columns.
+        params: Parameter dict with lookback_period and risk_free_threshold.
+
+    Returns:
+        DataFrame enriched with momentum, abs_momentum, and month_end columns.
+    """
     out = df.copy()
     lookback = int(params.get('lookback_period', 252))
     risk_free = float(params.get('risk_free_threshold', 0.0))
-    
-    # 计算动量（过去lookback天的收益率）
+
+    # Calculate momentum: return over the lookback period.
     out['momentum'] = out['close'] / out['close'].shift(lookback) - 1
-    
-    # 绝对动量信号：动量 > 无风险利率阈值
+
+    # Absolute momentum signal: momentum exceeds risk-free threshold.
     out['abs_momentum'] = (out['momentum'] > risk_free).astype(float)
-    
-    # 月末调仓标记
+
+    # Month-end rebalancing flag.
     out['month_end'] = (out.index.to_period('M') != out.index.to_period('M').shift(1)).astype(float)
-    
-    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
+
+    out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest',
                'momentum', 'abs_momentum', 'month_end']].copy()
     return out.dropna()
 
 
 class Mt5DualMomentumFeed(bt.feeds.PandasData):
+    """Custom data feed that exposes momentum features as line attributes.
+
+    Extends PandasData with three additional lines: momentum (relative return),
+    abs_momentum (binary signal), and month_end (rebalancing flag).
+    """
     lines = ('momentum', 'abs_momentum', 'month_end',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -131,6 +180,14 @@ class Mt5DualMomentumFeed(bt.feeds.PandasData):
 
 
 class DualMomentumStrategy(bt.Strategy):
+    """Dual momentum strategy that holds an asset only when its momentum exceeds the risk-free threshold.
+
+    The strategy checks for a new month and rebalances based on the abs_momentum
+    signal. If abs_momentum > 0.5, the asset is held; otherwise the position is
+    closed. Tracks trade statistics (win/loss count, trade count, rebalance count)
+    and broker value series for metric extraction.
+    """
+
     params = dict(
         lookback_period=252,
         risk_free_threshold=0.0,
@@ -139,6 +196,7 @@ class DualMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state: counters, pending order tracker, and broker value series."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.trade_count = 0
@@ -164,38 +222,41 @@ class DualMomentumStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute strategy logic on each bar: track values and rebalance monthly."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
-        
+
         if self.pending_order is not None:
             return
-        
-        # 月度调仓
+
+        # Monthly rebalancing.
         month_key = bt.num2date(self.data.datetime[0]).month
         if month_key == self.current_month:
             return
         self.current_month = month_key
-        
+
         abs_momentum = float(self.data.abs_momentum[0])
-        
-        # 根据绝对动量调仓
+
+        # Rebalance based on absolute momentum.
         if abs_momentum > 0.5:
-            # 动量为正，持有
+            # Momentum positive: hold or enter.
             if not self.position:
                 self.rebalance_count += 1
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
         else:
-            # 动量为负，空仓
+            # Momentum negative: exit and stay flat.
             if self.position:
                 self.rebalance_count += 1
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order tracker when order is completed or rejected."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track win/loss statistics when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -207,7 +268,7 @@ class DualMomentumStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Dual Momentum 策略回测"""
+"""Dual Momentum strategy backtest."""
 
 
 
@@ -217,6 +278,15 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build kwargs dict for SharpeRatio analyzer based on data timeframe.
+
+    Args:
+        config: Configuration dict with 'data' key containing timeframe spec.
+
+    Returns:
+        Dict with timeframe, compression, factor, annualize, and riskfreerate
+        suitable for bt.analyzers.SharpeRatio.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -229,10 +299,19 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return x if it is a finite number, otherwise return None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index for a series of portfolio values.
+
+    Args:
+        values: List or sequence of numeric values (e.g., broker values).
+
+    Returns:
+        Ulcer Index as a float; returns 0.0 if fewer than 2 values.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -247,6 +326,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and preprocess data from CSV, enriching it with momentum features.
+
+    Args:
+        config: Configuration dict with 'data' and 'params' keys.
+
+    Returns:
+        Dict with 'data' (enriched DataFrame), 'fromdate', and 'todate'.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -260,6 +347,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure a Cerebro instance with data feed, strategy, and analyzers.
+
+    Args:
+        frame: Dict with 'data' DataFrame and date bounds.
+        config: Configuration dict with 'backtest', 'data', and 'params' keys.
+
+    Returns:
+        Configured bt.Cerebro instance ready for run().
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -282,6 +378,18 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract performance metrics from strategy analyzers.
+
+    Args:
+        strat: Strategy instance after cerebro.run().
+        cerebro: Cerebro instance (used to get final broker value).
+        frame: Data frame dict with 'data', 'fromdate', 'todate'.
+        config: Configuration dict with 'backtest' and 'strategy' keys.
+
+    Returns:
+        Dict of scalar metrics: bar_num, trade counts, win/loss counts,
+        cash, returns, Sharpe ratio, drawdown, SQN, ulcer index, etc.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -316,6 +424,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value for JSON serialization.
+
+    Args:
+        v: A value that may be datetime, float (NaN/inf), or other type.
+
+    Returns:
+        ISO-formatted string for datetime, None for NaN/inf, otherwise v unchanged.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -327,6 +443,7 @@ def normalize(v):
 
 
 def main():
+    """Run the Dual Momentum backtest: load data, build cerebro, run, and extract metrics."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

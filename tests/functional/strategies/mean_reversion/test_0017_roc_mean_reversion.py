@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (percent_rank, uptrend,
+    entry_signal, exit_signal) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    ROC Mean Reversion is a trend-filtered mean-reversion strategy that enters
+    long when the Rate-of-Change (ROC) percentile rank drops below a low
+    threshold (oversold) while price is above a long-term moving average. It
+    exits when the percentile rank rises above a high threshold or after a
+    fixed holding period.
+
+Strategy Logic:
+    1. load_config() / load_data() loads and preprocesses the CSV, computes
+       ROC(3), its percentile rank over a 252-bar window, and a long-term MA
+       trend filter.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. ROCMeanReversionStrategy checks entry_signal on flat positions (uptrend
+       AND low percentile rank) and checks exit_signal (high percentile rank
+       OR holding_period exceeded).
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_17_0017_roc_mean_reversion() runs the strategy and validates all
+       expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -80,6 +106,22 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-format CSV file into a pandas DataFrame with parsed datetime index.
+
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to the CSV file.
+    fromdate : datetime or None
+        Earliest date to include (inclusive).
+    todate : datetime or None
+        Latest date to include (inclusive).
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: datetime (index), open, high, low, close, volume, openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,14 +148,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_roc(prices, period=3):
-    """计算变化率（ROC）"""
+    """Calculate Rate of Change (ROC) over the specified period."""
     return 100 * (prices / prices.shift(period) - 1)
 
 
 def calculate_percent_rank(series, window=252):
-    """计算PercentRank"""
+    """Calculate the percentile rank of the series over a rolling window."""
     def rank_current(x):
-        # x是numpy数组
+        # x is a numpy array
         if x is None or len(x) == 0:
             return np.nan
         current = x[-1]
@@ -126,7 +168,7 @@ def calculate_percent_rank(series, window=252):
 
 
 def prepare_roc_features(df, params):
-    """准备ROC均值回归策略特征"""
+    """Prepare ROC mean-reversion strategy features on the input DataFrame."""
     out = df.copy()
     roc_period = int(params.get('roc_period', 3))
     rank_window = int(params.get('rank_window', 252))
@@ -135,24 +177,24 @@ def prepare_roc_features(df, params):
     use_trend_filter = params.get('use_trend_filter', True)
     ma_period = int(params.get('ma_period', 200))
     
-    # 计算ROC
+    # Compute ROC
     out['roc'] = calculate_roc(out['close'], roc_period)
     
-    # 计算PercentRank
+    # Compute percentile rank
     out['percent_rank'] = calculate_percent_rank(out['roc'], rank_window)
     
-    # 趋势过滤
+    # Trend filter via long-term moving average
     if use_trend_filter:
         out['ma'] = out['close'].rolling(window=ma_period).mean()
         out['uptrend'] = (out['close'] > out['ma']).astype(float)
     else:
         out['uptrend'] = 1.0
     
-    # 入场信号：上升趋势 + PercentRank < 阈值
+    # Entry signal: uptrend AND percentile rank below threshold
     out['entry_signal'] = ((out['uptrend'] > 0.5) & 
                            (out['percent_rank'] < entry_threshold)).astype(float)
     
-    # 出场信号：PercentRank > 出场阈值
+    # Exit signal: percentile rank above threshold
     out['exit_signal'] = (out['percent_rank'] > exit_threshold).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -161,6 +203,10 @@ def prepare_roc_features(df, params):
 
 
 class Mt5ROCFeed(bt.feeds.PandasData):
+    """PandasData feed extended with ROC mean-reversion feature columns.
+
+    Additional lines: percent_rank, uptrend, entry_signal, exit_signal.
+    """
     lines = ('percent_rank', 'uptrend', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -170,6 +216,12 @@ class Mt5ROCFeed(bt.feeds.PandasData):
 
 
 class ROCMeanReversionStrategy(bt.Strategy):
+    """Trend-filtered mean-reversion strategy trading ROC percentile rank.
+
+    Enters long when the ROC(3) percentile rank drops below a low threshold
+    while price is above a long-term moving average. Exits when the rank
+    rises above a high threshold or after a fixed holding period.
+    """
     params = dict(
         roc_period=3,
         rank_window=252,
@@ -182,6 +234,7 @@ class ROCMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy state counters and order tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -194,6 +247,20 @@ class ROCMeanReversionStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate position size as a fraction of broker equity.
+
+        Parameters
+        ----------
+        target_notional_pct : float
+            Fraction of broker value to risk (1.0 = 100%).
+        price : float or None
+            Execution price; uses current close if None.
+
+        Returns
+        -------
+        float
+            Number of units (minimum 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -208,6 +275,7 @@ class ROCMeanReversionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Core strategy logic: enter on entry_signal, exit on exit_signal or holding limit."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -217,7 +285,7 @@ class ROCMeanReversionStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -225,18 +293,20 @@ class ROCMeanReversionStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_period:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order reference when order reaches a terminal state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade win/loss count on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -248,7 +318,7 @@ class ROCMeanReversionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""ROC Mean Reversion 策略回测"""
+"""ROC Mean Reversion backtest entry point."""
 
 
 
@@ -258,6 +328,18 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Resolve SharpeRatio analyzer kwargs from the config timeframe string.
+
+    Parameters
+    ----------
+    config : dict
+        Full config dict; uses ``config['data']['timeframe']``.
+
+    Returns
+    -------
+    dict
+        Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -270,10 +352,23 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return *x* unchanged if it is finite, else None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index measuring downside volatility.
+
+    Parameters
+    ----------
+    values : list of float
+        Broker equity curve over time.
+
+    Returns
+    -------
+    float
+        The Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -288,6 +383,18 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load CSV data and compute ROC mean-reversion features.
+
+    Parameters
+    ----------
+    config : dict
+        Full config dict with ``data`` and ``params`` keys.
+
+    Returns
+    -------
+    dict
+        Keys: ``data`` (DataFrame), ``fromdate``, ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -301,6 +408,20 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure a Cerebro engine for the ROC mean-reversion strategy.
+
+    Parameters
+    ----------
+    frame : dict
+        Output of ``load_data()`` with ``data``, ``fromdate``, ``todate``.
+    config : dict
+        Full config dict including ``backtest`` and ``params`` sections.
+
+    Returns
+    -------
+    bt.Cerebro
+        Configured cerebro instance ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -323,6 +444,25 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate metrics from completed cerebro run for assertion.
+
+    Parameters
+    ----------
+    strat : bt.Strategy
+        The strategy instance after run.
+    cerebro : bt.Cerebro
+        The cerebro instance after run.
+    frame : dict
+        Data frame metadata from ``load_data()``.
+    config : dict
+        Full config dict.
+
+    Returns
+    -------
+    dict
+        Aggregated metrics (bar_num, buy/sell/trade counts, drawdown,
+        Sharpe, returns, SQN, Ulcer Index, etc.).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -357,6 +497,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value for JSON serialisation (datetime→iso, NaN/Inf→None)."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

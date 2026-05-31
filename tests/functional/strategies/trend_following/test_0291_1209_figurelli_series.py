@@ -7,6 +7,41 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single XAUUSD (spot gold) 15-minute (M15) series exported from
+    MetaTrader 5 and read from ``tests/datas/XAUUSD_M15.csv``. Every bar
+    timestamp is shifted forward by 15 minutes (``bar_shift_minutes``) so the
+    stamp marks the bar close. The M15 frame is resampled to a 30-minute (M30)
+    signal timeframe on which the Figurelli Series indicator is computed, and
+    both feeds are clipped to 2025-12-03 01:15:00 .. 2026-03-10 09:00:00.
+
+Strategy Principle:
+    A port of the ``Exp_FigurelliSeries`` MetaTrader expert. The Figurelli
+    Series indicator fans out a family of moving averages (``total`` of them,
+    starting at ``start_period`` and growing by ``step``) over the M30 close
+    and, per bar, counts how many MAs price sits above versus below; the net
+    difference (bulls minus bears) forms an oscillator centred on zero. A
+    positive reading signals broad-based bullish alignment (long bias) and a
+    negative reading bearish alignment (short bias). Entries are restricted to
+    a single intraday start time within a trading-hours window, and fixed
+    point-based stop-loss/take-profit levels bound each position.
+
+Strategy Logic:
+    ``load_config`` materialises the inlined configuration and
+    ``load_backtest_frame`` loads the M15 CSV via ``load_mt5_csv``.
+    ``build_cerebro`` resamples to M30 with ``build_resampled_frame`` and
+    computes the indicator with ``build_figurelli_series_frame`` (using
+    ``applied_price_series`` and ``moving_average``), then wires the M15
+    ``Mt5PandasFeed``, the M30 ``FigurelliSeriesFeed``, the
+    ``FigurelliSeriesStrategy`` and the analyzer stack (Sharpe, Returns,
+    DrawDown, TradeAnalyzer, SQN). On each M15 bar the strategy enforces
+    stop/target exits, reads the Figurelli oscillator sign, closes opposing
+    positions, and opens a sized long/short only at the configured start time;
+    ``notify_trade`` maintains the entry, trade and win/loss counters.
+    ``extract_metrics`` builds the metrics dict that
+    ``test_290_0291_1209_figurelli_series`` captures and asserts against the
+    migration baseline.
 """
 from __future__ import annotations
 import math
@@ -93,6 +128,22 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV frame.
+
+    Parses the ``<DATE> <TIME>`` columns into a datetime index, renames the
+    bracketed MT5 columns to backtrader names, optionally shifts every bar
+    timestamp forward and clips the frame to the requested date range.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each bar timestamp (0 disables).
+
+    Returns:
+        A pandas DataFrame indexed by datetime with ``open``, ``high``, ``low``,
+        ``close``, ``volume`` and ``openinterest`` columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,6 +165,12 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Standard OHLCV pandas feed for the M15 execution data.
+
+    Maps the open/high/low/close/volume/openinterest columns to the default
+    backtrader line positions.
+    """
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -121,6 +178,13 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class FigurelliSeriesFeed(btfeeds.PandasData):
+    """Signal-timeframe feed exposing the Figurelli oscillator line.
+
+    Extends the standard OHLCV mapping with the ``figurelli`` column produced by
+    :func:`build_figurelli_series_frame` so the strategy can read it as a data
+    line.
+    """
+
     lines = ('figurelli',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -129,6 +193,16 @@ class FigurelliSeriesFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample an M15 OHLCV frame to the indicator timeframe.
+
+    Args:
+        df: Source M15 OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target bar size in minutes (e.g. 30 for M30).
+
+    Returns:
+        The resampled OHLCV DataFrame with price-missing bars dropped and
+        ``openinterest`` filled with zeros.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -144,6 +218,17 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def applied_price_series(df, applied_price):
+    """Select a price series from an OHLC frame by MT5 applied-price name.
+
+    Args:
+        df: OHLC DataFrame to derive the price series from.
+        applied_price: MT5 applied-price constant such as ``PRICE_CLOSE``,
+            ``PRICE_OPEN``, ``PRICE_MEDIAN``, ``PRICE_WEIGHTED`` or
+            ``PRICE_TYPICAL``.
+
+    Returns:
+        A float pandas Series with the requested price (close by default).
+    """
     price = str(applied_price).upper()
     if price == 'PRICE_OPEN':
         return df['open'].astype(float)
@@ -161,6 +246,18 @@ def applied_price_series(df, applied_price):
 
 
 def moving_average(series, period, method='ema'):
+    """Compute a moving average of a series by MT5 method name.
+
+    Args:
+        series: Sequence of prices to smooth.
+        period: Averaging window length.
+        method: One of ``'sma'``, ``'smma'``, ``'lwma'`` or ``'ema'``
+            (the default for any unrecognised value).
+
+    Returns:
+        A float pandas Series of the moving-average values, with warm-up
+        positions left as NaN.
+    """
     period = int(period)
     s = pd.Series(series, dtype=float)
     method = str(method).lower()
@@ -189,6 +286,25 @@ def moving_average(series, period, method='ema'):
 
 
 def build_figurelli_series_frame(df, indicator_minutes, start_period, step, total, ma_type, ma_price):
+    """Build the M30 frame with the Figurelli Series oscillator column.
+
+    Resamples to the indicator timeframe, fans out ``total`` moving averages of
+    the chosen applied price, and per bar records the net count of MAs price is
+    above minus below as the ``figurelli`` oscillator value.
+
+    Args:
+        df: Source M15 OHLCV DataFrame.
+        indicator_minutes: Indicator bar size in minutes.
+        start_period: Period of the first (fastest) moving average.
+        step: Period increment between successive moving averages.
+        total: Number of moving averages in the fan.
+        ma_type: Moving-average method passed to :func:`moving_average`.
+        ma_price: Applied-price name passed to :func:`applied_price_series`.
+
+    Returns:
+        The resampled DataFrame with an added ``figurelli`` column (NaN until
+        all moving averages are warmed up).
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     price = applied_price_series(signal_df, ma_price)
     ma_frames = []
@@ -225,6 +341,15 @@ def build_figurelli_series_frame(df, indicator_minutes, start_period, step, tota
 
 
 class FigurelliSeriesStrategy(bt.Strategy):
+    """Figurelli Series oscillator strategy with intraday timing and risk caps.
+
+    Reads the net bull-minus-bear oscillator from the M30 signal feed: a
+    positive value biases long and a negative value biases short. Entries fire
+    only at a single configured intraday start time within the trading-hours
+    window, opposing positions are flattened on a sign flip or outside hours,
+    and fixed point-based stop-loss/take-profit levels bound each position.
+    """
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -248,6 +373,7 @@ class FigurelliSeriesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base/signal feeds and reset all counters and state flags."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -261,6 +387,7 @@ class FigurelliSeriesStrategy(bt.Strategy):
         self._last_base_dt = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current base bar's ISO timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -305,6 +432,13 @@ class FigurelliSeriesStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one base bar: manage risk, then act on the oscillator sign.
+
+        Skips duplicate base timestamps and bars without enough signal history,
+        enforces stop/target exits, closes opposing positions on a sign flip or
+        outside trading hours, and opens a sized long/short only at the
+        configured intraday start time.
+        """
         self.bar_num += 1
         current_dt = bt.num2date(self.base.datetime[0])
         if self._last_base_dt == current_dt:
@@ -361,6 +495,12 @@ class FigurelliSeriesStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count entries on trade open and win/loss tallies on trade close.
+
+        Args:
+            trade: The trade being notified; opens increment buy/sell counts
+                once, closes increment trade and win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -394,6 +534,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test file.
+
+    Args:
+        filename: Absolute or relative path to a data file.
+
+    Returns:
+        The resolved absolute :class:`pathlib.Path`.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -401,6 +552,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate the M15 price frame described by the config.
+
+    Args:
+        config: Resolved configuration mapping with a ``data`` section.
+
+    Returns:
+        A dict with the ``data`` DataFrame plus ``fromdate`` and ``todate``
+        datetimes.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -417,6 +580,22 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, both feeds, strategy and analyzers.
+
+    Computes the M30 Figurelli signal frame, configures the broker, adds the
+    M15 execution feed and M30 signal feed, and registers the strategy (with
+    indicator-only params stripped) plus the analyzer stack.
+
+    Args:
+        config: Resolved configuration mapping.
+        frame: Mapping from :func:`load_backtest_frame` with the M15 frame.
+
+    Returns:
+        A configured :class:`bt.Cerebro` instance ready to run.
+
+    Raises:
+        ValueError: If the computed signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 30)
@@ -461,6 +640,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect performance metrics from the strategy and analyzers.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run.
+        frame: Mapping from :func:`load_backtest_frame`.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A dict of counts, returns, risk and trade statistics used by the
+        regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -502,6 +693,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the Figurelli Series backtest end to end and return its outputs.
+
+    Args:
+        plot: When True, render the result chart after the run.
+
+    Returns:
+        A ``(results, metrics, cerebro)`` tuple.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

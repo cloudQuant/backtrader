@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "IEF_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and normalize to a daily OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -40,6 +41,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_end_of_month_treasury_features(price_df, params):
+    """Add month-end countdown and entry/exit signal features for the strategy."""
     entry_days = max(1, int(params.get("entry_days", 3)))
     out = price_df.copy()
     month_period = pd.Series(out.index.to_period("M"), index=out.index)
@@ -55,6 +57,7 @@ def prepare_end_of_month_treasury_features(price_df, params):
 
 
 class EndOfMonthTreasuryFeed(bt.feeds.PandasData):
+    """PandasData feed with end-of-month calendar features."""
     lines = ("trading_days_to_month_end", "is_entry_window", "is_month_end", "entry_signal", "exit_signal")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -65,6 +68,7 @@ class EndOfMonthTreasuryFeed(bt.feeds.PandasData):
 
 
 class EndOfMonthTreasuryStrategy(bt.Strategy):
+    """Simple monthly-window strategy managing fixed risk exits and close conditions."""
     params = dict(
         position_size=0.95,
         stop_loss=0.02,
@@ -74,6 +78,7 @@ class EndOfMonthTreasuryStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize trade counters and runtime state for orders and risk management."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -86,6 +91,7 @@ class EndOfMonthTreasuryStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def next(self):
+        """Advance each bar and evaluate entry/exit logic based on month-end signals."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -117,6 +123,7 @@ class EndOfMonthTreasuryStrategy(bt.Strategy):
             self.take_profit_price = close * (1.0 + float(self.p.take_profit))
 
     def notify_order(self, order):
+        """Clear pending-order state and reset risk context once order lifecycle ends."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -126,6 +133,7 @@ class EndOfMonthTreasuryStrategy(bt.Strategy):
             self.take_profit_price = None
 
     def notify_trade(self, trade):
+        """Update closed-trade counts and P&L outcome counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M30.csv``. A single M30 (30-minute) feed covers
+    2025-12-03 00:00 to 2026-03-10 23:59 with each bar timestamp shifted forward
+    by 30 minutes so bars are stamped at their close. No higher-timeframe signal
+    feed is used; the Bollinger Bands are computed directly on the M30 feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``BollTrade``. Bollinger Bands are
+    built on the open price over ``bperiod`` with ``deviation`` standard
+    deviations. The strategy is a breakout/mean-reversion hybrid: it buys when
+    the close drops a configurable distance (``bdistance`` points) below the
+    lower band and sells when the close rises the same distance above the upper
+    band. Each position uses fixed take-profit and stop-loss distances in points,
+    and the lot size optionally scales with account equity growth.
+
+Strategy Logic:
+    load_backtest_frame loads the M30 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers. start captures the starting balance for
+    lot scaling. Each bar the strategy manages any open position against its
+    take-profit/stop-loss levels, then (when flat or multiple positions are
+    allowed) checks the band-distance conditions to open a long or short sized by
+    the equity-scaled lot. notify_order counts completed/rejected orders and
+    clears risk prices on close; notify_trade tallies win/loss counts.
+    extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -79,6 +107,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -106,12 +147,35 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class BollTradeStrategy(bt.Strategy):
+    """Port of the MT5 ``BollTrade`` Bollinger-band breakout strategy.
+
+    Buys when the close falls a configurable point distance below the lower
+    Bollinger band and sells when it rises the same distance above the upper
+    band, managing each position with fixed take-profit and stop-loss distances.
+    Optionally scales lot size with account equity and restricts to one position.
+
+    Args:
+        take_profit: Take-profit distance in points (0 disables).
+        stop_loss: Stop-loss distance in points (0 disables).
+        bdistance: Extra distance in points beyond the band to trigger entries.
+        bperiod: Bollinger Bands period.
+        deviation: Bollinger Bands standard-deviation factor.
+        lots: Base order size in lots.
+        lot_increase: When True, scale lots by current equity over starting.
+        one_position_only: When True, hold at most one position at a time.
+        point: Price value of one point for distances.
+        digits_adjust: Multiplier applied to the point unit.
+        price_digits: Decimals used when rounding stop/target prices.
+    """
+
     params = dict(
         take_profit=3,
         stop_loss=20,
@@ -127,6 +191,7 @@ class BollTradeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the Bollinger Bands indicator and reset counters and state."""
         self.bands = bt.indicators.BollingerBands(self.data.open, period=self.p.bperiod, devfactor=self.p.deviation)
         self.starting_balance = None
 
@@ -145,6 +210,7 @@ class BollTradeStrategy(bt.Strategy):
         self.take_profit_price = None
 
     def start(self):
+        """Capture the starting broker value for equity-based lot scaling."""
         self.starting_balance = self.broker.getvalue()
 
     def _unit(self):
@@ -181,6 +247,14 @@ class BollTradeStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage open positions, then open on band-distance breakouts.
+
+        Increments the bar counter, skips during warm-up or while an order is
+        pending, manages any open position against its take-profit/stop-loss
+        levels, and (subject to the one-position rule) opens a long when the
+        close is far below the lower band or a short when far above the upper
+        band, sized by the equity-scaled lot.
+        """
         self.bar_num += 1
         if len(self) < max(self.p.bperiod, 10):
             return
@@ -210,6 +284,7 @@ class BollTradeStrategy(bt.Strategy):
             self.order = self.sell(size=lots)
 
     def notify_order(self, order):
+        """Track order completion/rejection and clear order tracking state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -228,6 +303,7 @@ class BollTradeStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -252,6 +328,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve path to local MT5 data file.
+
+    Args:
+        filename: Relative path under test directory.
+
+    Returns:
+        Absolute filesystem path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -259,6 +343,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load filtered backtest data and return frame metadata.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dict containing loaded data and from/to timestamps.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -270,6 +362,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feed, strategy parameters, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Loaded data frame.
+
+    Returns:
+        Prepared Cerebro instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -287,6 +388,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analysis and trade metrics for regression checks.
+
+    Args:
+        strat: Strategy instance after run.
+        cerebro: Cerebro engine used for run.
+        frame: Backtest frame metadata.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of summary metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -328,6 +440,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return ``results``, ``metrics`` and ``cerebro``.
+
+    Args:
+        plot: If True, render cerebro plot.
+
+    Returns:
+        Tuple of (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

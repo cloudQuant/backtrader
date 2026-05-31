@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) M15 bars from ``tests/datas/XAUUSD_M15.csv``. The data is
+    loaded as 15-minute OHLCV with 15-minute timestamp shift and evaluated from
+    2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    Port of ``FT BillWilliams Trader``. The strategy tracks buy/sell fractal
+    levels from a user-configured lookback, filters entries with Alligator
+    alignment controls (jaw/teeth/lips), and trades breakouts with fixed
+    stop-loss/take-profit.
+
+Strategy Logic:
+    ``load_backtest_frame`` reads the MT5 source and feeds a single M15 series
+    into Backtrader. ``next`` updates fractal levels, manages protective exits,
+    and places entry/close orders on breakout/reversal conditions. ``notify_order``
+    tracks completed/rejected counters and risk resets, while ``notify_trade``
+    increments win/loss counters on close.
 """
 from __future__ import annotations
 import math
@@ -91,6 +109,18 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize an MT5 TSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path of the MT5 export file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minutes to shift each bar timestamp.
+
+    Returns:
+        DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -118,12 +148,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapping standard MT5 OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class FTBillWilliamsTraderStrategy(bt.Strategy):
+    """Fractal breakout strategy based on FrAMA and Alligator-like controls."""
     params = dict(
         count_bars_fractal=5,
         max_distance=1000,
@@ -147,6 +179,7 @@ class FTBillWilliamsTraderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create indicators and initialize runtime state counters."""
         median = (self.data.high + self.data.low) / 2.0
         self.jaw = bt.indicators.SmoothedMovingAverage(median, period=self.p.jaw_period)
         self.teeth = bt.indicators.SmoothedMovingAverage(median, period=self.p.teeth_period)
@@ -294,6 +327,7 @@ class FTBillWilliamsTraderStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Update fractal levels, manage risk exits, and issue entries when valid."""
         self.bar_num += 1
         if len(self) < int(self.p.count_bars_fractal):
             return
@@ -316,6 +350,7 @@ class FTBillWilliamsTraderStrategy(bt.Strategy):
             self.active_sell_level = None
 
     def notify_order(self, order):
+        """Track completed/cancelled order counts and reset risk state on flat fill."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -334,6 +369,7 @@ class FTBillWilliamsTraderStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count opened/closed trades and classify win/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -358,6 +394,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a path under this test directory.
+
+    Args:
+        filename: Data filename from config.
+
+    Returns:
+        Absolute file path.
+
+    Raises:
+        FileNotFoundError: If file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -365,6 +412,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest input frame from the configured data source.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dict containing backtest DataFrame and start/end datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -376,6 +431,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and return a configured Backtrader engine.
+
+    Args:
+        config: Configuration map.
+        frame: Dictionary returned by ``load_backtest_frame``.
+
+    Returns:
+        ``bt.Cerebro`` with feed, strategy, observer, and analyzers added.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -408,6 +472,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect test assertions from strategy state and analyzers.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Completed engine.
+        frame: Backtest frame metadata.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of regression metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

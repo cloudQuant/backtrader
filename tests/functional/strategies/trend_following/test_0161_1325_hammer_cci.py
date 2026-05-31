@@ -16,6 +16,14 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated CSV data and return a cleaned Backtrader frame.
+
+    Parameters:
+        filepath: MT5 export filepath.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minute shift for all bar timestamps.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +45,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed adapter for MT5-style OHLCV columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -58,6 +67,7 @@ class HammerCciStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize CCI and moving-average helpers plus trade accounting counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.cci_period)
         self.close_avg = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
@@ -93,6 +103,7 @@ class HammerCciStrategy(bt.Strategy):
         return (mid1 > avg2 and body_low > (h1 - rng / 3.0) and c1 > c2 and o1 > o2)
 
     def next(self):
+        """Evaluate hammer/hanging-man setup and CCI levels to operate positions."""
         self.bar_num += 1
         warmup = max(self.p.cci_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -121,6 +132,7 @@ class HammerCciStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Record first-open direction and closed trade outcome counters."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

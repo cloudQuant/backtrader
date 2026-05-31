@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD M15 OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    - Backtest window from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    - Two feeds are used: base M15 bars and resampled H4 bars for MFI signals.
+    - No external files beyond the CSV are required during execution.
+
+Strategy Principle:
+    - Compute Money Flow Index (MFI) on the higher-timeframe feed.
+    - Trigger buy/sell opens and closes at configured low/high thresholds.
+    - Use directional control, optional reversals, and stop-loss/take-profit rules.
+
+Strategy Logic:
+    - Load and resample bars, build MFI indicator line, and register both feeds.
+    - In ``next()`` skip until sufficient bars, avoid duplicated signal timestamps,
+      evaluate MFI transitions, then apply risk + position transitions.
+    - ``notify_order`` and ``notify_trade`` update operational counters and reset
+      risk tracks on position close.
+    - Regression assertions consume metrics built by ``extract_metrics()``.
 """
 from __future__ import annotations
 import math
@@ -90,6 +109,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 CSV data into indexed OHLCV data."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +131,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a dataframe using standard OHLC semantics for candle construction."""
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -125,6 +146,8 @@ def resample_frame(df, rule):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base data feed for normalized OHLCV minute bars."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -132,13 +155,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MoneyFlowIndex(bt.Indicator):
+    """Custom Money Flow Index indicator with explicit period window."""
+
     lines = ('mfi',)
     params = (('period', 14),)
 
     def __init__(self):
+        """Initialize minimal period required for stable indicator output."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate and publish current MFI value from recent flow aggregates."""
         positive = 0.0
         negative = 0.0
         for i in range(0, self.p.period):
@@ -157,6 +184,8 @@ class MoneyFlowIndex(bt.Indicator):
 
 
 class ExpMfiStrategy(bt.Strategy):
+    """Mean-reversion strategy driven by Money Flow Index threshold changes."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -178,6 +207,7 @@ class ExpMfiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, counters, and per-trade risk tracking fields."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.mfi = MoneyFlowIndex(self.h4, period=self.p.mfi_period)
@@ -196,6 +226,7 @@ class ExpMfiStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print execution diagnostics with bar timestamp."""
         dt = bt.num2date(self.m15.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -276,6 +307,7 @@ class ExpMfiStrategy(bt.Strategy):
         self.current_side = side
 
     def next(self):
+        """Run risk management, duplicate-signal filtering, and entry/exit decisioning."""
         self.bar_num += 1
         if not self._enough_history():
             return
@@ -314,6 +346,7 @@ class ExpMfiStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed and failed orders and reset position-level risk settings."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -334,6 +367,7 @@ class ExpMfiStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters for each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -359,6 +393,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data filename to an existing absolute path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -366,6 +401,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load input bars, build H4 signal bars, and return a frame bundle."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -378,6 +414,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create the Cerebro engine with feeds, strategy, analyzers, and optional logger."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -410,6 +447,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer and strategy metrics required by regression checks."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -447,6 +485,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the strategy backtest and return results, metrics, and Cerebro."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

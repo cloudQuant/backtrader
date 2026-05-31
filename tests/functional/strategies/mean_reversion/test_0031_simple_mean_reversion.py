@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Gold futures daily data ``XAUUSD_1d.csv`` under ``tests/datas/`` from 2008-01-01
+    to 2025-12-31 with 20-day average, deviation, and entry/exit signal fields.
+
+Strategy Principle:
+    Detects price deviation below its moving average and buys into a mean-reversion
+    expectation, exiting when deviation shrinks toward zero or a holding limit is
+    reached.
+
+Strategy Logic:
+    Data is transformed into moving-average deviation indicators and signal flags, then
+    fed to a custom PandasData feed. Strategy logic executes entry/exit based on
+    those flags and records analyzer metrics for regression verification.
 """
 from __future__ import annotations
 import math
@@ -77,6 +91,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV OHLCV data.
+
+    Args:
+        filepath: Datafile path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+
+    Returns:
+        Datetime-indexed OHLCV dataframe.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,21 +127,29 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_simple_mean_reversion_features(df, params):
-    """准备简单均值回归策略特征"""
+    """Build moving-average mean-reversion deviation features.
+
+    Args:
+        df: Raw OHLCV dataframe.
+        params: Strategy params controlling lookback and threshold.
+
+    Returns:
+        Feature dataframe with average, deviation, and entry/exit signals.
+    """
     out = df.copy()
     lookback = int(params.get('lookback', 20))
     threshold = float(params.get('threshold', 0.02))
     
-    # 计算平均价格
+    # Compute rolling average price.
     out['avg_price'] = out['close'].rolling(window=lookback).mean()
     
-    # 计算偏离度
+    # Compute normalized deviation from average.
     out['deviation'] = (out['avg_price'] - out['close']) / out['close']
     
-    # 入场信号：价格低于平均价格超过阈值
+    # Generate entry signal when deviation is beyond threshold.
     out['entry_signal'] = (out['deviation'] > threshold).astype(float)
     
-    # 出场信号：价格回归到平均价格附近
+    # Generate exit signal when deviation rebounds toward mean.
     out['exit_signal'] = (out['deviation'] < threshold * 0.5).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -126,6 +158,7 @@ def prepare_simple_mean_reversion_features(df, params):
 
 
 class Mt5SimpleMeanReversionFeed(bt.feeds.PandasData):
+    """Pandas feed exposing average/deviation signal lines."""
     lines = ('avg_price', 'deviation', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -135,6 +168,7 @@ class Mt5SimpleMeanReversionFeed(bt.feeds.PandasData):
 
 
 class SimpleMeanReversionStrategy(bt.Strategy):
+    """Simple deviation-based mean-reversion trading strategy."""
     params = dict(
         lookback=20,
         threshold=0.02,
@@ -144,6 +178,7 @@ class SimpleMeanReversionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and state used by assertions."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -170,6 +205,7 @@ class SimpleMeanReversionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar and act on entry/exit signals."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -179,7 +215,7 @@ class SimpleMeanReversionStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Enter when flat and entry signal is true.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -187,18 +223,20 @@ class SimpleMeanReversionStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Exit when exit signal is true or holding time limit is reached.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order pointer on terminal states."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increment completed trade counters and outcome stats."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -210,7 +248,7 @@ class SimpleMeanReversionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Simple Mean Reversion 策略回测"""
+"""Simple Mean Reversion strategy backtest helpers."""
 
 
 
@@ -220,6 +258,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe-ratio analyzer kwargs.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -232,10 +278,16 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return finite value if valid, else ``None``.
+
+    Args:
+        x: Input value.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from equity sequence."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -250,6 +302,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an existing filesystem path.
+
+    Args:
+        filename: Data path from config.
+
+    Returns:
+        Resolved absolute path for the data file.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -266,6 +326,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and prepare data frame with simple mean-reversion features.
+
+    Args:
+        config: Strategy config.
+
+    Returns:
+        Prepared payload for execution.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -278,6 +346,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build Cerebro with data feed, strategy, and analyzers.
+
+    Args:
+        frame: Prepared backtest data.
+        config: Strategy/backtest config.
+
+    Returns:
+        Configured Cerebro engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -300,6 +377,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy and analyzer metrics for assertion.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Running Cerebro engine.
+        frame: Input payload.
+        config: Strategy config.
+
+    Returns:
+        Metric dictionary used by tests.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -334,6 +422,11 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize output value for reporting.
+
+    Args:
+        v: Value to normalize.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

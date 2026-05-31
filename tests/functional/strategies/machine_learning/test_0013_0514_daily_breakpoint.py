@@ -22,8 +22,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '日线级突破点',
-        'source_ea': 'ea/0514_日线级突破点/daily_breakpoint.mq5',
+        'name': 'Daily Breakpoint',
+        'source_ea': 'ea/0514_Daily_Breakpoint/daily_breakpoint.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -81,6 +81,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted tab text into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,12 +105,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader OHLCV feed mapping for MT5 CSV columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class DailyBreakpointStrategy(bt.Strategy):
+    """Daily-breakout strategy with configurable multi-tranche exits."""
     params = dict(
         lots=0.1,
         stop_loss=0,
@@ -126,6 +129,7 @@ class DailyBreakpointStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize signal data references, counters, and tracking state."""
         self.data_h1 = self.datas[1]
         self.data_d1 = self.datas[2]
         self.bar_num = 0
@@ -202,6 +206,7 @@ class DailyBreakpointStrategy(bt.Strategy):
         self._submit_close(hit_ids)
 
     def next(self):
+        """Evaluate H1/D1 breakout signals and submit entry/exit orders."""
         self.bar_num += 1
         self._trailing()
         self._manage_exits()
@@ -256,6 +261,7 @@ class DailyBreakpointStrategy(bt.Strategy):
             self.signal_count += 1
 
     def notify_order(self, order):
+        """Track completed/rejected orders and update tranche bookkeeping."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         meta = self.open_orders.pop(order.ref, None)
@@ -277,6 +283,7 @@ class DailyBreakpointStrategy(bt.Strategy):
             self.rejected_order_count += 1
 
     def notify_trade(self, trade):
+        """Update trade outcome counters on closure."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -300,6 +307,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate the data file location."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -307,6 +315,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load data and clip by configured date range for backtest."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -318,6 +327,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro with feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = config.get('params', {})
@@ -341,6 +351,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble all strategy/analysis metrics used by assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

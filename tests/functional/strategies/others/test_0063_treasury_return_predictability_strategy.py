@@ -18,6 +18,17 @@ GOLD_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "GLD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV and return a Backtrader-ready dataframe.
+
+    Args:
+        filepath: Data file path.
+        fromdate: Optional inclusive start datetime filter.
+        todate: Optional inclusive end datetime filter.
+
+    Returns:
+        Dataframe indexed by ``datetime`` with ``open``/``high``/``low``/
+        ``close``/``volume``/``openinterest`` columns.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -42,6 +53,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_asset_data(asset_map):
+    """Align and trim all frames onto a common trading calendar."""
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -53,6 +65,7 @@ def prepare_asset_data(asset_map):
 
 
 class TreasuryReturnPredictabilityStrategy(bt.Strategy):
+    """Treasury yield-predictability strategy that rotates bond/equity/gold weights."""
     params = dict(
         lookback_days=252,
         high_yield_bond_weight=0.60,
@@ -65,6 +78,7 @@ class TreasuryReturnPredictabilityStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize regime counters and order/trade tracking state."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -111,6 +125,7 @@ class TreasuryReturnPredictabilityStrategy(bt.Strategy):
         return percentile
 
     def next(self):
+        """Compute yield regime, determine target weights, and rebalance on schedule."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -148,11 +163,13 @@ class TreasuryReturnPredictabilityStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Clear tracked order IDs when they leave submitted/accepted states."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Increment trade and win/loss counters for closed trade events."""
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) loaded from the MT5 tab-separated export
+    ``tests/datas/XAUUSD_M15.csv``. The base feed is M15 (15-minute) bars
+    shifted forward by 15 minutes so each timestamp marks the candle close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The base frame is
+    resampled to an 8-hour (480-minute) signal timeframe on which the Fisher
+    Cyber Cycle indicator is precomputed, giving a two-feed setup: M15 for
+    execution and H8 for signals.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_FisherCyberCycle. Ehlers' Cyber Cycle
+    isolates the dominant cycle component of the (high+low)/2 price, and the
+    Fisher transform sharpens that oscillator into a near-Gaussian signal with
+    crisp turning points. A faster Fisher line crossing its one-bar-delayed
+    trigger marks a cycle reversal: an upward cross is bullish and a downward
+    cross is bearish. Signals are read on the slower H8 timeframe while orders
+    execute on M15, and each position carries fixed point stop-loss and
+    take-profit protection.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame, resamples it to H8, and attaches
+    the precomputed Fisher/trigger lines; build_cerebro wires both feeds, the
+    strategy, and analyzers. Each M15 bar the strategy enforces stop/
+    take-profit, then — once per new H8 signal bar — evaluates Fisher/trigger
+    crossovers to close opposing positions and open fresh longs or shorts.
+    notify_order counts fills and clears protection on close; notify_trade
+    tallies win/loss. extract_metrics consolidates analyzer output; the test
+    hooks the metric extractor, forces runonce=True, and asserts each metric
+    against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -86,6 +116,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV export as a normalized OHLCV dataframe.
+
+    Args:
+        filepath: Input CSV path.
+        fromdate: Optional inclusive lower date boundary.
+        todate: Optional inclusive upper date boundary.
+        bar_shift_minutes: Optional minute shift for bar timestamp.
+
+    Returns:
+        pandas.DataFrame: Normalized OHLCV frame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +152,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample OHLCV bars using a right-closed aggregation window.
+
+    Args:
+        df: Base timeframe dataframe.
+        rule: Pandas resample rule string, for example ``"480min"``.
+
+    Returns:
+        pandas.DataFrame: Aggregated OHLCV frame.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -125,6 +175,16 @@ def resample_frame(df, rule):
 
 
 def compute_fisher_cyber_cycle(frame, alpha=0.07, length=8):
+    """Compute Fisher transform and trigger for the cyber cycle indicator.
+
+    Args:
+        frame: Input OHLCV dataframe.
+        alpha: Smoothing constant for cycle calculation.
+        length: Window length used to normalize Fisher values.
+
+    Returns:
+        pandas.DataFrame: Input frame with ``fish`` and ``trigger`` columns.
+    """
     alpha = float(alpha)
     length = max(int(length), 1)
     hl2 = ((frame['high'] + frame['low']) / 2.0).to_numpy(dtype=float)
@@ -182,6 +242,7 @@ def compute_fisher_cyber_cycle(frame, alpha=0.07, length=8):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base feed for M15 OHLCV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -189,6 +250,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FisherCyberCycleFeed(bt.feeds.PandasData):
+    """Pandas feed with Fisher and trigger lines for higher-timeframe signals."""
     lines = ('fish', 'trigger')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -197,6 +259,7 @@ class FisherCyberCycleFeed(bt.feeds.PandasData):
 
 
 class FisherCyberCycleStrategy(bt.Strategy):
+    """CyberCycle Fisher crossover strategy with fixed stop-loss and take-profit."""
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -217,6 +280,7 @@ class FisherCyberCycleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data bindings, indicator handles, and bookkeeping counters."""
         self.m15 = self.datas[0]
         self.h8 = self.datas[1]
         self.fish = self.h8.fish
@@ -239,6 +303,7 @@ class FisherCyberCycleStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Emit a timestamped backtest log line."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -312,6 +377,7 @@ class FisherCyberCycleStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, fish_prev, fish_now, trig_prev, trig_now
 
     def next(self):
+        """Evaluate signals, manage risk exits, and submit bracket orders."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -349,6 +415,7 @@ class FisherCyberCycleStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and update stop/take-profit state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -367,6 +434,7 @@ class FisherCyberCycleStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters from closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -391,6 +459,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path relative to the test directory.
+
+    Args:
+        filename: Relative data filename from config.
+
+    Returns:
+        pathlib.Path: Absolute existing file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -398,6 +474,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load base and signal dataframes plus backtest boundaries.
+
+    Args:
+        config: Strategy configuration object.
+
+    Returns:
+        dict: Loaded frames and metadata for cerebro setup.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -412,6 +496,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro with feeds, strategy and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -431,6 +516,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer outputs into a flat metric map.
+
+    Args:
+        strat: Backtest strategy instance.
+        cerebro: Cerebro object after execution.
+        frame: Backtest data payload from :func:`load_backtest_frames`.
+        config: Full configuration dictionary.
+
+    Returns:
+        dict: Metrics used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -476,6 +572,11 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return execution results, metrics and cerebro object.
+
+    Args:
+        plot: Whether to invoke cerebro.plot().
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: H1 (Hourly).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy implements a mean reversion system combining dual Stochastic oscillators (slow and fast) with a short-period RSI.
+    - Market Assumptions: Combining dual Stochastic oscillators filters noise. When the slow oscillator indicates oversold conditions and fast oscillator shows dynamic crossovers, a potential reversal is confirmed.
+    - Indicators:
+        - Slow Stochastic: 15-period %K, 8-period %D, 8-period slow.
+        - Fast Stochastic: 10-period %K, 3-period %D, 3-period slow.
+        - RSI: 3-period RSI calculated on median price.
+    - Entry Signals:
+        - Buy Entry: Slow Stochastic main line is above its signal line, below 50.0 level, and the absolute difference between fast main and fast signal is greater than 5.
+        - Sell Entry: Slow Stochastic main line is below its signal line, above 55.0 level, and the absolute difference between fast main and fast signal is greater than 5.
+    - Exit Signals:
+        - Long Exit: RSI crossed above 60.0, slow Stochastic signal line is falling and greater than 70.0.
+        - Short Exit: RSI crossed below 40.0, slow Stochastic signal line is rising and less than 30.0.
 """
 from __future__ import annotations
 import math
@@ -22,8 +42,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': 'Altarius_RSI_随机震荡',
-        'source_ea': 'ea/0662_Altarius_RSI_随机震荡/altarius_rsi_stohastic.mq5',
+        'name': 'Altarius_RSI_Stochastic',
+        'source_ea': 'ea/0662_Altarius_RSI_Stochastic/altarius_rsi_stochastic.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -70,15 +90,29 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -106,12 +140,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class AltariusRsiStochasticStrategy(bt.Strategy):
+    """Strategy class implementing dual Stochastic and RSI mean reversion.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lots=0.1,
         maximum_risk=0.1,
@@ -123,7 +163,8 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        self.sto_15_8_8 = bt.indicators.Stochastic(self.data, period=15, period_dfast=8, period_dslow=8)
+        """Initialize indicators, backtest tracking metrics, and state variables."""
+        self.sto_15_8_8 = bt.indicators.Page_126 = bt.indicators.Stochastic(self.data, period=15, period_dfast=8, period_dslow=8)
         self.sto_10_3_3 = bt.indicators.Stochastic(self.data, period=10, period_dfast=3, period_dslow=3)
         median = (self.data.high + self.data.low) / 2.0
         self.rsi = bt.indicators.RSI(median, period=3)
@@ -142,6 +183,11 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
         self.closed_trade_pnls = []
 
     def _lot_optimized(self):
+        """Calculate dynamic lot sizing using account equity and consecutive losses history.
+
+        Returns:
+            float: Calculated position size lot.
+        """
         lot = float(self.p.lots)
         lot = round(float(self.broker.get_cash()) * float(self.p.maximum_risk) / 1000.0, 2)
         if float(self.p.decrease_factor) > 0:
@@ -156,6 +202,11 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
         return max(float(self.p.min_lot), lot)
 
     def _open_signal(self):
+        """Verify slow and fast Stochastic oscillator crossover conditions.
+
+        Returns:
+            int: 1 for Buy trigger, -1 for Sell trigger, 0 for no signal.
+        """
         slow_main = float(self.sto_15_8_8.percK[0])
         slow_signal = float(self.sto_15_8_8.percD[0])
         fast_main = float(self.sto_10_3_3.percK[0])
@@ -167,6 +218,11 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
         return 0
 
     def _close_signal(self):
+        """Verify RSI and Stochastic overbought/oversold exit crossovers.
+
+        Returns:
+            bool: True if exit crossover conditions are met, otherwise False.
+        """
         rsi_0 = float(self.rsi[0])
         sto_signal_0 = float(self.sto_15_8_8.percD[0])
         sto_signal_1 = float(self.sto_15_8_8.percD[-1])
@@ -177,6 +233,7 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self) < 100:
             return
@@ -197,6 +254,11 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
             self.order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -212,6 +274,11 @@ class AltariusRsiStochasticStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -237,6 +304,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -244,6 +322,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency gold data and compress to H1.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -260,6 +349,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -288,6 +386,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -333,7 +442,11 @@ def _close(actual, expected, *, tol, key):
 
 
 def _resolve_loader():
-    """Locate the data-loading helper (varies by strategy)."""
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
     for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
         fn = globals().get(name)
         if callable(fn):
@@ -342,7 +455,15 @@ def _resolve_loader():
 
 
 def _build_cerebro_compat(inputs, config):
-    """Call build_cerebro with whichever signature the original used."""
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
     import inspect
     sig = inspect.signature(build_cerebro)
     params = list(sig.parameters.keys())
@@ -355,7 +476,17 @@ def _build_cerebro_compat(inputs, config):
 
 
 def _extract_metrics_compat(strat, cerebro, inputs, config):
-    """Call extract_metrics with whichever signature the original used."""
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
     for args in (
         (strat, cerebro, inputs, config),
         (strat, cerebro, config, inputs),

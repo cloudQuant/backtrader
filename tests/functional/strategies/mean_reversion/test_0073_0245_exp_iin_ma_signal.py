@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from `tests/datas/XAUUSD_M15.csv`.
+    Builds an H1 signal feed by resampling the same source data.
+
+Strategy Principle:
+    The strategy derives MA crossover-style buy/sell trigger levels from a fast
+    and slow average stack and executes reversals with fixed bracket controls.
+
+Strategy Logic:
+    Data is loaded from configured CSV, a secondary resampled series is added,
+    indicators emit directional trigger levels, and strategy methods submit entry,
+    closure, and reverse orders then validate migrated backtest metrics.
 """
 from __future__ import annotations
 import math
@@ -88,6 +101,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars and return normalized OHLCV/spread DataFrame.
+
+    Args:
+        filepath: CSV input path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minute shift applied to timestamps.
+
+    Returns:
+        Normalized DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +138,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed class exposing spread as an additional data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -128,10 +153,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class IinMASignalIndicator(bt.Indicator):
+    """Indicator that emits MA-based buy and sell signal levels."""
     lines = ('buy_signal', 'sell_signal')
     params = dict(fast_period=10, fast_ma='EMA', slow_period=22, slow_ma='SMA', atr_period=10)
 
     def __init__(self):
+        """Initialize fast/slow moving averages and tracking state."""
         ma_map = {
             'SMA': bt.indicators.SimpleMovingAverage,
             'EMA': bt.indicators.ExponentialMovingAverage,
@@ -146,6 +173,7 @@ class IinMASignalIndicator(bt.Indicator):
         self.addminperiod(max(self.p.fast_period, self.p.slow_period) + self.p.atr_period + 3)
 
     def next(self):
+        """Refresh moving-average crossover signals from current and previous bars."""
         buy_signal = 0.0
         sell_signal = 0.0
         fast_now = float(self.fast_ma[0])
@@ -167,6 +195,7 @@ class IinMASignalIndicator(bt.Indicator):
 
 
 class ExpIinMASignalStrategy(bt.Strategy):
+    """MA cross strategy with money-management sizing and reverse-close handling."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -188,6 +217,7 @@ class ExpIinMASignalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data refs, indicator, and order/position tracking fields."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = IinMASignalIndicator(
@@ -207,10 +237,12 @@ class ExpIinMASignalStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Emit a timestamped strategy event message."""
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Call next for pre-warmed bar handling."""
         self.next()
 
     def _new_signal_bar(self):
@@ -292,6 +324,7 @@ class ExpIinMASignalStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate signal/bar timing and submit entries, reversals, and exits."""
         if len(self.signal_data) < max(self.p.fast_ma_period, self.p.slow_ma_period) + 15:
             return
         if not self.position and self.pending_reverse and self.entry_order is None and self.close_order is None:
@@ -316,6 +349,7 @@ class ExpIinMASignalStrategy(bt.Strategy):
             self._submit_entry('short', 'MA crossover sell')
 
     def notify_order(self, order):
+        """Handle filled/cancelled bracket and close orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -354,6 +388,7 @@ class ExpIinMASignalStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log closed trades and clear active side state when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.closing_side or self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -372,6 +407,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path for a dataset file.
+
+    Args:
+        filename: File name to resolve.
+
+    Returns:
+        Absolute path to dataset file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -379,12 +422,21 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings when provided."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest OHLCV data from config path and filters.
+
+    Args:
+        config: Backtest configuration map.
+
+    Returns:
+        Dict containing a prepared DataFrame under key ``data``.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -396,6 +448,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach baseline analyzers used for metric assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -404,6 +457,7 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample bars with right-labeled OHLCV aggregation."""
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -413,6 +467,7 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with execution and signal feeds plus strategy/analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -430,6 +485,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize non-finite values into ``None`` for safe output."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -438,6 +494,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print summary metrics from analyzer outputs."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -464,6 +521,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the strategy and print analysis summary."""
     parser = argparse.ArgumentParser(description='Run Exp_Iin_MA_Signal backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
@@ -488,10 +546,7 @@ def _close(actual, expected, *, tol, key):
 
 
 def test_73_0073_0245_exp_iin_ma_signal() -> None:
-    """Migrated regression test (runonce=True only).
-
-    Originally located at tests/functional/strategies_regression/mean_reversion/0073_0245_exp_iin_ma_signal.
-    """
+    """Execute migrated regression assertions for the inlined backtest."""
     captured = {}
 
     import sys as _sys

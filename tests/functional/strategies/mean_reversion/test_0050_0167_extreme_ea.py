@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 OHLCV data is loaded from ``tests/datas/XAUUSD_M15.csv`` (MT5 tab-separated export).
+    The same feed drives the strategy execution and signal columns are computed from
+    an internal, derived M30 CCI series.
+    The configured date window is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy combines a fast/slow smoothed moving-average slope assessment with
+    CCI extremes to gate entries and uses MA slope reversals for exits.
+    Position exits are managed with symmetric stop-loss, take-profit, and trailing-stop
+    adjustments plus reverse-entry support when a close is followed by an opposite
+    directional trigger.
+
+Strategy Logic:
+    The module loads and normalizes MT5 CSV bars, builds indicator columns
+    (SMMA-based MA tracks and CCI values), and injects them into a custom Backtrader feed.
+    The Backtrader strategy issues entries, manages protective orders, handles fills/cancels,
+    and closes positions based on exit conditions.
+    Final metrics are extracted from analyzers and asserted against fixed expectations.
 """
 from __future__ import annotations
 import math
@@ -91,6 +111,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated OHLCV exports into a cleaned time-indexed DataFrame.
+
+    Args:
+        filepath: Source path of the MT5 CSV file.
+        fromdate: Optional lower-bound timestamp to filter rows.
+        todate: Optional upper-bound timestamp to filter rows.
+        bar_shift_minutes: Optional timezone/bar-shift offset in minutes to add to timestamps.
+
+    Returns:
+        A pandas DataFrame with columns ``datetime, open, high, low, close, volume, openinterest, spread``.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -117,6 +148,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def smma(series, period):
+    """Compute a Smoothed Moving Average (SMMA) over a numeric Series.
+
+    Args:
+        series: Source numeric pandas Series.
+        period: Window length used by the SMMA calculation.
+
+    Returns:
+        A pandas Series of SMMA values with the same index as input.
+    """
     values = [math.nan] * len(series)
     data = series.tolist()
     if len(data) < period:
@@ -131,6 +171,17 @@ def smma(series, period):
 
 
 def cci(series_high, series_low, series_close, period):
+    """Compute Commodity Channel Index values for the provided price triple.
+
+    Args:
+        series_high: High price series.
+        series_low: Low price series.
+        series_close: Close price series.
+        period: Calculation window for rolling typical price mean and mean absolute deviation.
+
+    Returns:
+        A pandas Series containing CCI values.
+    """
     tp = (series_high + series_low + series_close) / 3.0
     sma = tp.rolling(period).mean()
     mad = tp.rolling(period).apply(lambda x: pd.Series(x).sub(pd.Series(x).mean()).abs().mean(), raw=False)
@@ -138,6 +189,15 @@ def cci(series_high, series_low, series_close, period):
 
 
 def resample_ohlcv(df, minutes):
+    """Resample OHLCV bars to a coarser minute timeframe.
+
+    Args:
+        df: A DataFrame with a datetime index and standard OHLCV columns.
+        minutes: Resample frequency in minutes.
+
+    Returns:
+        A resampled DataFrame with OHLCV aggregates and clean `openinterest` / `spread`.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -155,6 +215,20 @@ def resample_ohlcv(df, minutes):
 
 
 def build_signal_frame(df, cci_minutes, cci_period, cci_up_level, cci_down_level, ma_fast_period, ma_slow_period):
+    """Build trade signals from MA and CCI indicators.
+
+    Args:
+        df: Cleaned base DataFrame containing required OHLCV columns.
+        cci_minutes: Target compression in minutes for CCI calculation.
+        cci_period: Rolling window used by CCI.
+        cci_up_level: CCI level above which a short setup is favored.
+        cci_down_level: CCI level below which a long setup is favored.
+        ma_fast_period: Fast smoothed MA period.
+        ma_slow_period: Slow smoothed MA period.
+
+    Returns:
+        A DataFrame with added columns for MA trends, CCI, entry, and exit signals.
+    """
     frame = df.copy()
     median_price = (frame['high'] + frame['low']) / 2.0
     frame['ma_fast'] = smma(median_price, ma_fast_period)
@@ -183,6 +257,11 @@ def build_signal_frame(df, cci_minutes, cci_period, cci_up_level, cci_down_level
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom Pandas feed that carries signal and exit marker columns in addition to OHLCV.
+
+    The feed exposes additional boolean lines used directly by the strategy logic:
+    long/short entry and long/short exit conditions.
+    """
     lines = ('spread', 'long_signal', 'short_signal', 'long_exit', 'short_exit')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -191,6 +270,14 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ExtremeEaStrategy(bt.Strategy):
+    """Mean-reversion strategy using MA trend slope and CCI conditions with staged exits.
+
+    The strategy:
+    - tracks entry and exit signals from custom feed columns,
+    - enforces one active entry and one close/exit flow at a time,
+    - places stop and limit exits after fills,
+    - applies a trailing-stop adjustment rule.
+    """
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -208,6 +295,7 @@ class ExtremeEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, pending orders, and lifecycle counters."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -225,6 +313,11 @@ class ExtremeEaStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped strategy log line in ISO format.
+
+        Args:
+            text: Text message to log.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -306,6 +399,14 @@ class ExtremeEaStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate bar-level trading rules and emit entry/close actions.
+
+        The method enforces:
+            1) trailing-stop updates first,
+            2) no duplicate actions while orders are pending,
+            3) exit handling on MA trend reversals,
+            4) new entry placement from long/short signal flags when flat.
+        """
         self.bar_num += 1
         self._apply_trailing()
         if len(self.data0_feed) < 20:
@@ -331,6 +432,11 @@ class ExtremeEaStrategy(bt.Strategy):
                 self._submit_entry('short', 'ma down + cci above up level')
 
     def notify_order(self, order):
+        """Handle order lifecycle events for entry, close, stop-loss, and take-profit orders.
+
+        Args:
+            order: Order object notified by Backtrader.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -378,6 +484,11 @@ class ExtremeEaStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Track closed trade statistics and update win/loss counters.
+
+        Args:
+            trade: Closed trade object containing pnl and direction attributes.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -403,6 +514,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data file relative to the current test module directory.
+
+    Args:
+        filename: Relative path string to a strategy data resource.
+
+    Returns:
+        Absolute path object for the requested file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist at the resolved location.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -410,12 +532,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO-8601 datetime strings into ``datetime`` objects.
+
+    Args:
+        value: None or datetime string in ISO format.
+
+    Returns:
+        Parsed ``datetime.datetime`` when value is provided, otherwise ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load market data and build the signal-enriched frame used by the custom feed.
+
+    Args:
+        config: Test configuration mapping with ``data`` and ``params`` sections.
+
+    Returns:
+        Dictionary containing the prepared signal DataFrame and resolved date bounds.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = parse_dt(data_cfg.get('fromdate'))
@@ -438,6 +576,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure the Backtrader engine for the strategy test.
+
+    Args:
+        config: Full strategy/backtest configuration mapping.
+        frame: Prepared backtest payload from ``load_backtest_frame``.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready for execution.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = dict(config.get('params', {}))
@@ -459,6 +606,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize non-finite numeric values into ``None`` for metrics output.
+
+    Args:
+        value: Numeric value to check.
+
+    Returns:
+        The original value when finite, otherwise ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -467,6 +622,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Extract test metrics from Backtrader analyzer outputs and strategy counters.
+
+    Args:
+        results: List returned by ``cerebro.run()``.
+        start_value: Portfolio value before backtest execution.
+
+    Returns:
+        Dictionary of assertion targets such as pnl, win rate, and trade statistics.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -504,6 +668,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Execute the configured strategy run and return the backtest results and metrics.
+
+    Args:
+        plot: Whether to invoke Backtrader chart rendering.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

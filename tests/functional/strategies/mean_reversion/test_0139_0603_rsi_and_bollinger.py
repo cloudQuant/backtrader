@@ -23,7 +23,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'RSI_and_Bollinger_Bands',
-        'source_ea': 'ea/0603_RSI_和布林带/rsi_and_bollinger_bands.mq5',
+        'source_ea': 'ea/0603_RSI_and_Bollinger_Bands/rsi_and_bollinger_bands.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -86,6 +86,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted tabular data into a backtrader-ready DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +110,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapped to OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -151,6 +153,7 @@ class RSIBollingerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and stop-trailing state."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -203,6 +206,7 @@ class RSIBollingerStrategy(bt.Strategy):
             self.lower_fractal = l_0
 
     def next(self):
+        """Advance one bar: detect fractal setup, manage exits, and open orders."""
         self.bar_num += 1
         warmup = max(int(self.p.rsi_period), int(self.p.bands_period)) + 5
         if len(self) < warmup:
@@ -279,6 +283,7 @@ class RSIBollingerStrategy(bt.Strategy):
                 self.stop_price = new_sl
 
     def notify_order(self, order):
+        """Track order lifecycle counters for completed or rejected orders."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -297,6 +302,7 @@ class RSIBollingerStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Record completed trades and outcome (win/loss) counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -320,6 +326,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy test file path relative to this test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -327,6 +334,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 CSV, slice by date bounds, and return a normalized frame."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -342,6 +350,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with configured broker settings, feed, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -367,6 +376,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy and analyzer metrics used by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

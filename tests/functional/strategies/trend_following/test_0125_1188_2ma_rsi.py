@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD
+    - Timeframe: M15 (15-minute bars)
+    - Data source: `tests/datas/XAUUSD_M15.csv` under repository root
+    - Backtest window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+    - Additional preprocessing: timestamp shift by 15 minutes
+
+Strategy Principle:
+    - Two moving averages (fast and slow) define directional regime and MA
+      crossover opportunities.
+    - RSI confirms momentum extremes before entering or filtering reversals.
+    - Position exits are triggered by opposite trend/momentum conditions.
+
+Strategy Logic:
+    - Load MT5-style price data into a normalized ``PandasData`` feed.
+    - Configure a single-data Cerebro run with SMA + RSI indicators and standard
+      analyzers.
+    - During each bar, log potential actions and manage entries/exits based on
+      MA crossover and RSI thresholds.
+    - Track trade outcomes via callbacks and collect analyzer counters.
+    - Backtest metrics are captured and asserted against migration snapshots.
 """
 from __future__ import annotations
 import math
@@ -74,6 +96,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV history into a Backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with open/high/low/close/volume columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -95,6 +128,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData mapping for normalized MT5 OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -120,6 +154,7 @@ class TwoMaRsiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize SMA/RSI indicators and bookkeeping counters."""
         self.ma_fast = bt.indicators.SMA(self.data.close, period=self.p.fast_period)
         self.ma_slow = bt.indicators.SMA(self.data.close, period=self.p.slow_period)
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
@@ -132,10 +167,12 @@ class TwoMaRsiStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped diagnostic message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Evaluate MA/RSI signals for each bar and place reversals or pullback entries."""
         self.bar_num += 1
         warmup = max(self.p.fast_period, self.p.slow_period, self.p.rsi_period) + 5
         if len(self.data) < warmup:
@@ -186,6 +223,7 @@ class TwoMaRsiStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update trade counters when positions are opened and closed."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -210,11 +248,27 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data path relative to this test file.
+
+    Args:
+        filename: Relative data filename.
+
+    Returns:
+        Absolute path to the resolved file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load and validate backtest data for the configured period.
+
+    Args:
+        config: Resolved configuration dictionary.
+
+    Returns:
+        Dict containing DataFrame and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -225,6 +279,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with data feed, strategy parameters, and analyzers.
+
+    Args:
+        config: Test configuration.
+        frame: Prepared backtest payload.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -242,6 +305,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract and normalize backtest KPIs for strict regression assertions.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: Engine after run.
+        frame: Backtest frame metadata.
+        config: Test configuration.
+
+    Returns:
+        Dictionary of counters, cash metrics, and analyzer-derived statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -262,6 +336,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the regression scenario and return (results, metrics, cerebro).
+
+    Args:
+        plot: Whether to render backtest chart.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

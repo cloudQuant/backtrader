@@ -4,6 +4,34 @@
 
 Reference: backtrader-master2/samples/strategy-selection/strategy-selection.py
 Demonstrates how to select different strategies at runtime.
+
+Data Used:
+    Daily OHLCV bars from ``2005-2006-day-001.txt`` loaded via
+    ``bt.feeds.BacktraderCSVData`` (single data feed, daily timeframe, full
+    file range, no resampling). The same data file is reused for both candidate
+    strategies, and the test is parametrized over ``runonce=True`` and
+    ``runonce=False`` to exercise the vectorized and event-driven engines.
+
+Strategy Principle:
+    The module demonstrates runtime selection between two interchangeable
+    crossover strategies. ``StrategyA`` is a dual-SMA crossover (fast SMA versus
+    slow SMA) and ``StrategyB`` is a price-versus-SMA crossover. Both assume
+    that a crossover marks a trend change worth following: cross up goes long,
+    cross down closes the position. Neither uses a stop loss; risk is bounded by
+    fixed sizing and the next opposing crossover.
+
+Strategy Logic:
+    1. Each strategy's ``__init__`` builds its SMA/crossover indicators and
+       resets bar/buy/sell counters.
+    2. Each ``next`` goes long on a positive crossover (closing any open
+       position first) and closes on a negative crossover, with a single live
+       order at a time; ``notify_order`` counts completed buys and sells.
+    3. ``run_strategy_with_analyzer`` wires cerebro with $100,000 cash, a fixed
+       stake of 10, and Sharpe/Returns/DrawDown/Trade analyzers, then returns a
+       metrics dictionary for one strategy.
+    4. ``test_strategy_selection`` runs both strategies and asserts their bar
+       counts, final values, Sharpe ratios, annual returns, max drawdowns, and
+       trade counts match the recorded expectations.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -175,6 +203,8 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name, runonce
         strategy_class: The strategy class to run.
         data_path: Path to the data file for backtesting.
         strategy_name: Name of the strategy for display purposes.
+        runonce: If True, run in vectorized mode; if False, run in
+            event-driven mode. Defaults to True.
 
     Returns:
         A dictionary containing strategy performance metrics including

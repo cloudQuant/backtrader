@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The base M15 (15-minute) frame covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The strategy itself trades
+    on an H1 (60-minute) feed resampled from that M15 frame; only the resampled
+    H1 feed is added to the engine, so candlestick patterns are evaluated on
+    hourly bars.
+
+Strategy Principle:
+    This is a port of the MT5 "Simple Three Inside Pattern" expert advisor. It
+    looks for the bullish/bearish "three inside up/down" candlestick reversal:
+    a strong candle, an inside candle that pulls back, and a confirmation candle
+    that breaks the first candle's extreme in the reversal direction. The pattern
+    is read as a short-term reversal signal; each trade is bracketed with a fixed
+    stop loss and take profit measured in points, so risk is capped per trade.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro resamples it to H1,
+    adds the resampled feed, the strategy, and the default analyzers. Each bar the
+    strategy stays flat unless no position/entry order is open, then tests for a
+    bullish or bearish three-inside pattern and, on a match, submits a bracket
+    order (buy_bracket / sell_bracket) sized by the normalized lot with stop and
+    limit legs. notify_order logs fills and clears completed bracket legs;
+    notify_trade tallies wins and losses on close. extract_metrics consolidates
+    analyzer output, and the test forces runonce=True, runs the module's
+    run()/main(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -23,7 +51,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Simple Three Inside Pattern EA',
-        'source_ea': 'ea/0033_简单的三内图案_EA/simple_three_inside_pattern_ea.mq5',
+        'source_ea': 'ea/0033_Simple_Three_Inside_Pattern_EA/simple_three_inside_pattern_ea.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -77,6 +105,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +143,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column positions."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -114,6 +157,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SimpleThreeInsidePatternStrategy(bt.Strategy):
+    """Trade bullish/bearish three-inside candlestick reversals with brackets."""
+
     params = dict(
         stop_loss=500,
         take_profit=500,
@@ -126,6 +171,7 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset order handles, bracket trackers, and trade counters."""
         self.entry_order = None
         self.stop_order = None
         self.limit_order = None
@@ -138,6 +184,11 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: Message to emit alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -147,6 +198,13 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
         return round(max(lot, self.p.lot_min), 4)
 
     def bullish_three_inside(self):
+        """Return True if the last three bars form a bullish three-inside-up.
+
+        Returns:
+            bool: True when a bearish first bar, an inside bullish middle bar,
+            and a confirming bullish bar that closes above the first bar's high
+            are all present.
+        """
         older_open = float(self.data.open[-2])
         older_close = float(self.data.close[-2])
         older_high = float(self.data.high[-2])
@@ -167,6 +225,13 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
         )
 
     def bearish_three_inside(self):
+        """Return True if the last three bars form a bearish three-inside-down.
+
+        Returns:
+            bool: True when a bullish first bar, an inside bearish middle bar,
+            and a confirming bearish bar that closes below the first bar's low
+            are all present.
+        """
         older_open = float(self.data.open[-2])
         older_close = float(self.data.close[-2])
         older_high = float(self.data.high[-2])
@@ -187,6 +252,14 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
         )
 
     def next(self):
+        """Detect a three-inside pattern while flat and open a bracketed trade.
+
+        Increments the bar counter, skips during warm-up or when a position or
+        entry order is already live, then on a bullish pattern submits a
+        buy_bracket and on a bearish pattern submits a sell_bracket sized by the
+        normalized lot, with stop-loss and take-profit legs offset by the
+        configured point distances.
+        """
         self.bar_num += 1
         if len(self.data) < 3:
             return
@@ -214,6 +287,13 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Log bracket entry fills and clear completed or dead bracket legs.
+
+        Args:
+            order: The order whose status changed; completed entry legs are
+                logged with their stop/limit prices, and any non-alive entry,
+                stop, or limit leg is cleared from the tracked handles.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         kind = getattr(order.info, 'kind', None)
@@ -241,6 +321,13 @@ class SimpleThreeInsidePatternStrategy(bt.Strategy):
             self.limit_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss on close and reset bracket/order trackers.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count, then all entry/stop/
+                limit handles and the pending-order list are cleared.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -265,6 +352,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -272,6 +370,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the base M15 frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -288,6 +399,16 @@ def load_backtest_frame(config):
 
 
 def resample_frame(df, minutes):
+    """Resample an M15 OHLCV frame to a coarser bar size.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        minutes: Target bar size in minutes (e.g. 60 for H1).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, and openinterest filled with zeros.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -303,6 +424,11 @@ def resample_frame(df, minutes):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the standard Sharpe, Returns, DrawDown, Trade, and SQN analyzers.
+
+    Args:
+        cerebro: The Cerebro engine to which the analyzers are added.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -311,6 +437,16 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, resampled H1 feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -332,6 +468,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying trade counters.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frame dict providing the date range and bar count.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -372,6 +520,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

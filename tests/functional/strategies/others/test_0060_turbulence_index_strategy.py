@@ -1,7 +1,23 @@
-"""Inlined regression test for others/0060_turbulence_index_strategy.
+"""Inlined regression test for the Turbulence Index regime-allocation strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
-Universe: IVV, IEF, GLD, DBC, EEM. Uses Mahalanobis-distance turbulence index.
+Universe: IVV, IEF, GLD, DBC, EEM. Uses Mahalanobis-distance turbulence
+index.
+
+Data Used:
+    MT5 daily OHLCV data for IVV, IEF, GLD, DBC, and EEM from
+    ``tests/datas/mt5_1d_data`` spanning 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    A rolling Mahalanobis turbulence measure maps each date to regime states
+    (high, normal, low). Each regime has a fixed target allocation map, so the
+    strategy rotates exposures at configured rebalance intervals.
+
+Strategy Logic:
+    Inputs are aligned by timestamp, turbulence is computed on return vectors, and
+    each bar resolves the current regime. On rebalance bars, ``next`` targets
+    position sizes to regime-specific allocations. Order and trade callbacks track
+    activity and outcome counts.
 """
 from __future__ import annotations
 
@@ -30,6 +46,16 @@ ALLOCATION = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader-5 export into an aligned OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV file.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+
+    Returns:
+        Datetime-indexed DataFrame with standard OHLCV fields.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -54,6 +80,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_turbulence_inputs(asset_map):
+    """Align all asset data and return closes matrix plus return series.
+
+    Args:
+        asset_map: Mapping from symbol names to DataFrames.
+
+    Returns:
+        Tuple ``(prepared_frames, aligned_index, returns_df)`` where returns are
+        percentage changes with matching index.
+    """
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -68,6 +103,15 @@ def prepare_turbulence_inputs(asset_map):
 
 
 def compute_turbulence_series(returns_df, lookback):
+    """Compute rolling Mahalanobis turbulence scores.
+
+    Args:
+        returns_df: Return matrix indexed by date and columns for symbols.
+        lookback: Lookback window length for covariance/mean estimation.
+
+    Returns:
+        Series of non-negative turbulence scores, indexed by computation date.
+    """
     values = []
     index = []
     for i in range(lookback, len(returns_df)):
@@ -88,6 +132,16 @@ def compute_turbulence_series(returns_df, lookback):
 
 
 def build_state_lookup(turbulence_series, params):
+    """Convert turbulence levels to discrete regime labels.
+
+    Args:
+        turbulence_series: Time series of turbulence scores.
+        params: Dict containing ``high_percentile`` and ``low_percentile``.
+
+    Returns:
+        Mapping from normalized timestamp to one of ``high_turbulence``,
+        ``low_turbulence``, or ``normal``.
+    """
     high_pct = float(params.get("high_percentile", 75))
     low_pct = float(params.get("low_percentile", 25))
     lookup = {}
@@ -107,6 +161,7 @@ def build_state_lookup(turbulence_series, params):
 
 
 class TurbulenceIndexStrategy(bt.Strategy):
+    """Regime-aware multi-asset strategy with scheduled target rebalancing."""
     params = dict(
         rebalance_interval_days=21,
         allocation=None,
@@ -114,6 +169,7 @@ class TurbulenceIndexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and working state."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -143,6 +199,7 @@ class TurbulenceIndexStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """On scheduled rebalance bars, shift positions toward regime targets."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -172,11 +229,21 @@ class TurbulenceIndexStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Remove completed orders from the local pending set.
+
+        Args:
+            order: Order object from Backtrader.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count each closed trade outcome.
+
+        Args:
+            trade: Closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

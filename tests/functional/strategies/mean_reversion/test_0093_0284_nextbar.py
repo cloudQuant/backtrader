@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 OHLCV+spread data from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest window is set from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    Timestamps are shifted by 15 minutes to match configured execution timing.
+
+Strategy Principle:
+    The strategy compares a short-bar lagged close against a longer lag to detect
+    momentum distance, then opens or reverses positions according to that signal.
+    A trailing-stop manager and bracket exits are used to manage risk and exits.
+
+Strategy Logic:
+    Load configuration and MT5 bars, run the strategy with a single data feed, and
+    submit bracket entries with trailing stop maintenance.
+    Track order/trade lifecycle events and validate analyzer metrics in the test.
 """
 from __future__ import annotations
 import math
@@ -79,6 +94,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported bars and normalize them for Backtrader.
+
+    Args:
+        filepath: Path to MT5 data export file.
+        fromdate: Optional lower timestamp filter.
+        todate: Optional upper timestamp filter.
+        bar_shift_minutes: Optional minute shift applied to timestamps.
+
+    Returns:
+        A datetime-indexed OHLCV spread DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -105,6 +131,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed that exposes the MT5 spread field."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -119,6 +146,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class NextbarStrategy(bt.Strategy):
+    """Nextbar strategy with bar-distance signals, bracket exits, and trailing stops."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -133,6 +161,7 @@ class NextbarStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feed references, order state, and entry tracking."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -144,10 +173,16 @@ class NextbarStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print a timestamped strategy log message.
+
+        Args:
+            text: Message text.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Keep running next() while indicators are still warming up."""
         self.next()
 
     def _new_bar(self):
@@ -211,6 +246,7 @@ class NextbarStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse=None')
 
     def next(self):
+        """Generate trade signals and manage lifetime/exit constraints."""
         self._apply_trailing()
         if len(self.data0_feed) < self.p.signal_bar + 2:
             return
@@ -237,6 +273,11 @@ class NextbarStrategy(bt.Strategy):
             self._submit_entry('short', 'close[signal_bar]-close[1] > min distance')
 
     def notify_order(self, order):
+        """Update internal states for completed or terminal order outcomes.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -278,6 +319,7 @@ class NextbarStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Reset temporary state after a closed trade is finalized."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -297,6 +339,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve configured data file path and ensure it exists.
+
+    Args:
+        filename: Relative filename from test config.
+
+    Returns:
+        Absolute path for backtest data.
+
+    Raises:
+        FileNotFoundError: If file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -304,12 +357,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO8601 datetime input.
+
+    Args:
+        value: Datetime string or falsy value.
+
+    Returns:
+        Parsed datetime object or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and trim raw bars for configured date boundaries.
+
+    Args:
+        config: Loaded inline strategy configuration.
+
+    Returns:
+        Mapping containing prepared backtest DataFrame.
+
+    Raises:
+        ValueError: When no rows remain after filtering.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -321,6 +393,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers for regression metric extraction."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -329,6 +402,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro instance.
+
+    Args:
+        config: Test configuration.
+        frame: Backtest input payload with DataFrame.
+
+    Returns:
+        Configured Cerebro object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -343,6 +425,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite numeric values."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -351,6 +434,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact summary from analyzer results.
+
+    Args:
+        results: Cerebro run output.
+        start_value: Initial account equity.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -377,6 +466,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the strategy once and optionally plot a candlestick chart."""
     parser = argparse.ArgumentParser(description='Run Nextbar backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

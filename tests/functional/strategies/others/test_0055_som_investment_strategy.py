@@ -27,6 +27,16 @@ ASSET_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV file and normalize fields for Backtrader feeds.
+
+    Args:
+        filepath: Path to the exported MT5 CSV file.
+        fromdate: Optional start datetime to trim rows.
+        todate: Optional end datetime to trim rows.
+
+    Returns:
+        A cleaned dataframe indexed by ``datetime`` with OHLCV columns.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -79,6 +89,16 @@ def _map_to_cluster(weights, sample):
 
 
 def prepare_som_inputs(asset_map, params):
+    """Build aligned asset data and rolling feature snapshots for SOM selection.
+
+    Args:
+        asset_map: Mapping from symbol to market dataframes.
+        params: Strategy parameters controlling momentum/volatility/drawdown windows.
+
+    Returns:
+        Tuple of ``(prepared_data, feature_lookup)`` where the first entry is
+        aligned OHLCV data and the second maps timestamps to feature rows.
+    """
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -121,6 +141,11 @@ def prepare_som_inputs(asset_map, params):
 
 
 class SOMInvestmentStrategy(bt.Strategy):
+    """Self-balancing strategy selecting top SOM clusters by momentum.
+
+    The strategy rebuilds feature clusters periodically and holds the top-ranked
+    assets from each cluster at fixed position weights.
+    """
     params = dict(
         som_rows=3, som_cols=3, som_iterations=250, learning_rate=0.15,
         top_n_holdings=3, rebalance_interval_days=21,
@@ -128,6 +153,7 @@ class SOMInvestmentStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize trade counters and order tracking state."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -177,6 +203,7 @@ class SOMInvestmentStrategy(bt.Strategy):
         return [item["symbol"] for item in selected[: max(1, int(self.p.top_n_holdings))]]
 
     def next(self):
+        """Evaluate current features and rebalance holdings on schedule."""
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         if self.order_refs:
@@ -202,11 +229,13 @@ class SOMInvestmentStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Remove completed order refs from local tracking set."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count closed trades and win/loss outcomes for assertions."""
         if not trade.isclosed:
             return
         self.trade_count += 1

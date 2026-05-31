@@ -17,6 +17,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "GLD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file, parse datetime, and return cleaned OHLCV frame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -60,6 +61,7 @@ def _hurst_from_prices(values, min_lag, max_lag):
 
 
 def prepare_hurst_data(frame, params):
+    """Compute Hurst, SMA, RSI and return dataset for the Hurst strategy."""
     prepared = frame[["open", "high", "low", "close", "volume", "openinterest"]].copy()
     hurst_window = int(params.get("hurst_window", 150))
     min_lag = int(params.get("min_lag", 2))
@@ -78,6 +80,7 @@ def prepare_hurst_data(frame, params):
 
 
 class HurstFeed(bt.feeds.PandasData):
+    """Pandas data feed with Hurst, SMA and RSI custom lines."""
     lines = ("hurst", "sma", "rsi")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -86,6 +89,7 @@ class HurstFeed(bt.feeds.PandasData):
 
 
 class HurstExponentStrategy(bt.Strategy):
+    """Dual-regime strategy switching between trend and mean reversion by Hurst value."""
     params = dict(
         trend_threshold=0.55,
         mean_reversion_threshold=0.45,
@@ -103,6 +107,7 @@ class HurstExponentStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and state used for rebalance and classification tracking."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -132,6 +137,7 @@ class HurstExponentStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Evaluate regime signals and rebalance positions on interval boundaries."""
         self.bar_num += 1
         data = self.datas[0]
         if self.order_refs:
@@ -164,11 +170,13 @@ class HurstExponentStrategy(bt.Strategy):
         self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Forget submitted order references after order status resolves."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Track completed trades and classify by profitability."""
         if not trade.isclosed:
             return
         self.trade_count += 1

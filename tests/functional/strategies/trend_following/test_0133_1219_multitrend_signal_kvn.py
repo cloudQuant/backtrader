@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The base M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. A second signal feed is
+    resampled to ``indicator_minutes`` (240 / H4) and carries precomputed
+    buy/sell arrow levels and ADX; orders execute on the M15 feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_MultiTrend_Signal_KVN``. It
+    builds an adaptive swing channel whose lookback length scales inversely with
+    ADX (stronger trends use shorter windows). When the close breaks the lower
+    swing band the trend flips down and a sell arrow with a stop offset is
+    emitted; breaking the upper band flips it up and emits a buy arrow. The
+    strategy trades these arrow flips, taking a position only when the prior
+    trend was opposite, and protects each trade with fixed point-based stop loss
+    and take profit.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro resamples it to the H4
+    signal frame (build_multitrend_signal_kvn_frame computes Wilder ADX and the
+    arrow levels), then adds the base feed, the signal feed, the strategy, and
+    the default analyzers. Each new signal bar the strategy checks fixed
+    stop/take-profit exits, reads the current arrow and last trend, and opens or
+    reverses a position sized by the money-management rule. notify_trade counts
+    entries on open and win/loss on close. extract_metrics consolidates analyzer
+    output, and the test forces runonce=True, runs the module's run()/main(), and
+    asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -88,6 +117,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +151,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column positions."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +160,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class MultiTrendSignalKvnFeed(btfeeds.PandasData):
+    """PandasData feed adding the buy/sell arrow and ADX signal lines."""
+
     lines = ('buy_arrow', 'sell_arrow', 'adx')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -124,6 +170,16 @@ class MultiTrendSignalKvnFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample the base OHLCV frame to the indicator timeframe.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target bar size in minutes (e.g. 240 for H4).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, and openinterest filled with zeros.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -139,6 +195,18 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def adx_wilder(high_series, low_series, close_series, period):
+    """Compute Wilder's ADX from high/low/close series.
+
+    Args:
+        high_series: Sequence of bar highs.
+        low_series: Sequence of bar lows.
+        close_series: Sequence of bar closes.
+        period: Wilder smoothing period.
+
+    Returns:
+        A pandas Series of ADX values (NaN until the double warm-up period is
+        satisfied), aligned to the input by position.
+    """
     period = int(period)
     high = pd.Series(high_series, dtype=float).reset_index(drop=True)
     low = pd.Series(low_series, dtype=float).reset_index(drop=True)
@@ -201,6 +269,20 @@ def adx_wilder(high_series, low_series, close_series, period):
 
 
 def build_multitrend_signal_kvn_frame(df, indicator_minutes, k, kstop, kperiod, per_adx, point):
+    """Build the H4 signal frame used by the strategy.
+
+    Args:
+        df (pd.DataFrame): Base M15 frame with datetime index and OHLCV fields.
+        indicator_minutes (int): Target signal timeframe in minutes.
+        k (float): Swing channel width multiplier.
+        kstop (float): Stop offset coefficient used when trend flips.
+        kperiod (int): Window size base used for initial swing estimation.
+        per_adx (int): Wilder ADX period.
+        point (float): Instrument point size used for distance scaling.
+
+    Returns:
+        pd.DataFrame: Resampled frame with added `buy_arrow`, `sell_arrow`, and `adx` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     high = signal_df['high'].astype(float).reset_index(drop=True)
     low = signal_df['low'].astype(float).reset_index(drop=True)
@@ -255,6 +337,8 @@ def build_multitrend_signal_kvn_frame(df, indicator_minutes, k, kstop, kperiod, 
 
 
 class MultiTrendSignalKvnStrategy(bt.Strategy):
+    """Trend strategy that reacts to adaptive buy/sell arrows from higher timeframe signals."""
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -273,6 +357,7 @@ class MultiTrendSignalKvnStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data bindings, execution counters, and signal state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -286,6 +371,7 @@ class MultiTrendSignalKvnStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log entry for the base bar."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -330,6 +416,7 @@ class MultiTrendSignalKvnStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process signal/position transitions on each new bar."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -388,6 +475,7 @@ class MultiTrendSignalKvnStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track order side and trade outcome statistics from Backtrader callbacks."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -421,6 +509,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file relative to this test module and verify existence.
+
+    Args:
+        filename (str): Relative data file path.
+
+    Returns:
+        Path: Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -428,6 +524,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load base bars and return the frame bundle used by the backtest builder.
+
+    Args:
+        config (dict): Strategy/backtest configuration loaded from the inlined config.
+
+    Returns:
+        dict: Contains raw data and selected date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -444,6 +548,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro instance with both feeds and analyzers.
+
+    Args:
+        config (dict): Full strategy/backtest configuration.
+        frame (dict): Data bundle returned by `load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured engine ready to run.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -488,6 +601,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and strategy counters into test metrics.
+
+    Args:
+        strat (MultiTrendSignalKvnStrategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Cerebro instance used for the run.
+        frame (dict): Frame data used for backtest execution.
+        config (dict): Test configuration.
+
+    Returns:
+        dict: Metrics dictionary used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -529,6 +653,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the inlined backtest pipeline and return the output tuple.
+
+    Args:
+        plot (bool): Whether to render a chart after execution.
+
+    Returns:
+        tuple: (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

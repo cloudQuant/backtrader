@@ -16,6 +16,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 CSV file into a datetime-indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 export.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Minutes to shift timestamps.
+
+    Returns:
+        DataFrame containing datetime and OHLCV/openinterest columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +48,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Standard OHLCV pandas feed mapped by positional columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,20 +56,24 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ADXDMI(bt.Indicator):
+    """DMI direction indicator exposing plus/minus directional values."""
     lines = ("plus", "minus")
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize plus and minus directional sub-indicators."""
         self.addminperiod(int(self.p.period) + 3)
         self.plus_di = bt.indicators.PlusDirectionalIndicator(self.data, period=int(self.p.period))
         self.minus_di = bt.indicators.MinusDirectionalIndicator(self.data, period=int(self.p.period))
 
     def next(self):
+        """Write current directional index values to output lines."""
         self.lines.plus[0] = float(self.plus_di[0])
         self.lines.minus[0] = float(self.minus_di[0])
 
 
 class ExpADXDMIStrategy(bt.Strategy):
+    """Directional-movement strategy using signal-bar ADX crossovers."""
     params = dict(
         dmi_period=14, smooth=10,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -68,6 +84,7 @@ class ExpADXDMIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind signal data and initialize state counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = ADXDMI(self.signal_data, period=self.p.dmi_period)
@@ -98,6 +115,7 @@ class ExpADXDMIStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Handle trade exits and directional signal-based position changes."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -127,6 +145,7 @@ class ExpADXDMIStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Update open/close trade counters from trade lifecycle events."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

@@ -16,6 +16,14 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-tab-delimited historical data and return Backtrader-ready data.
+
+    Parameters:
+        filepath: Source CSV path.
+        fromdate: Optional lower timestamp bound.
+        todate: Optional upper timestamp bound.
+        bar_shift_minutes: Optional minute offset for each bar.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +45,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data adapter for MT5 pandas OHLCV tables."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -58,6 +67,7 @@ class DarkCloudCciStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create CCI indicator, MA references, and state counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.cci_period)
         self.close_avg = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.sma_body = bt.indicators.SMA(
@@ -97,6 +107,7 @@ class DarkCloudCciStrategy(bt.Strategy):
                 o1 < l2)
 
     def next(self):
+        """Generate signals using dark-cloud / piercing-line patterns and CCI filters."""
         self.bar_num += 1
         warmup = max(self.p.cci_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -125,6 +136,7 @@ class DarkCloudCciStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update counts on trade open and close events."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

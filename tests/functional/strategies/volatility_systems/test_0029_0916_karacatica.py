@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H1 (60-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_Karacatica``. On the higher
+    H1 timeframe the Karacatica indicator combines ATR, ADX +DI/-DI and a
+    close-versus-close(iperiod) comparison to emit buy/sell arrows on directional
+    breakouts, with a latch preventing repeated same-side signals. The strategy
+    treats a buy arrow as a long entry (and short-exit) cue and a sell arrow as a
+    short entry (and long-exit) cue. Each position carries fixed stop-loss and
+    take-profit distances in points.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 base frame and build_signal_frame
+    resamples it to the H1 frame; build_cerebro wires both feeds and the default
+    analyzers and builds the KaracaticaIndicator on the signal feed. Each bar the
+    strategy first enforces stop-loss/take-profit exits, then once per new signal
+    bar reads the arrows to close opposing positions (including a historical
+    scan) and open a fixed-lot long or short. notify_trade counts entries on
+    open and win/loss on close. extract_metrics consolidates analyzer output,
+    and the test forces runonce=True, runs the module's run()/main(), and asserts
+    each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -85,6 +112,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted ascending and filtered to the date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -106,6 +146,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -120,6 +162,7 @@ class KaracaticaIndicator(bt.Indicator):
     params = dict(iperiod=70)
 
     def __init__(self):
+        """Initialize the ATR scaling factor, direction latch, and min period."""
         self._s = 1.5 / 2.0
         self._ltr = 0  # 0=none, 1=last was buy, 2=last was sell
         self.addminperiod(int(self.p.iperiod) + 2)
@@ -160,6 +203,14 @@ class KaracaticaIndicator(bt.Indicator):
         return plus_di, minus_di
 
     def next(self):
+        """Emit ATR-offset buy/sell arrows on latched directional breakouts.
+
+        Computes ATR and +DI/-DI over ``iperiod`` and, when the close exceeds
+        its value ``iperiod`` bars ago with +DI dominant (and the last arrow was
+        not a buy), places a buy arrow below the low; the symmetric condition
+        places a sell arrow above the high. The direction latch prevents
+        consecutive arrows of the same side.
+        """
         period = int(self.p.iperiod)
         if len(self.data) < period + 2:
             self.lines.buy_arrow[0] = 0.0
@@ -188,6 +239,27 @@ class KaracaticaIndicator(bt.Indicator):
 
 
 class ExpKaracaticaStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_Karacatica`` arrow-signal strategy.
+
+    Reads buy/sell arrows from the KaracaticaIndicator on the H1 signal feed and
+    opens or closes positions accordingly, executing on the M15 feed with fixed
+    stop-loss and take-profit distances in points. A historical scan closes
+    positions on an opposing arrow that appeared on an earlier bar.
+
+    Args:
+        iperiod: Lookback period passed to the KaracaticaIndicator.
+        signal_bar: Which completed signal bar to read arrows from.
+        stop_loss_points: Stop-loss distance in points (0 disables).
+        take_profit_points: Take-profit distance in points (0 disables).
+        fixed_lot: Fixed order size in lots.
+        point: Price value of one point for stop/target distances.
+        buy_pos_open: Whether long entries are permitted.
+        sell_pos_open: Whether short entries are permitted.
+        buy_pos_close: Whether long positions may be closed on signal.
+        sell_pos_close: Whether short positions may be closed on signal.
+        indicator_minutes: Signal timeframe size in minutes.
+    """
+
     params = dict(
         iperiod=70,
         signal_bar=1,
@@ -203,6 +275,12 @@ class ExpKaracaticaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution and signal feeds and reset counters.
+
+        Captures the M15 execution feed and the H1 signal feed, builds the
+        KaracaticaIndicator on the signal feed, and clears bar/signal/trade
+        counters and position-tracking state.
+        """
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = KaracaticaIndicator(self.signal_data, iperiod=self.p.iperiod)
@@ -217,6 +295,11 @@ class ExpKaracaticaStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -258,6 +341,13 @@ class ExpKaracaticaStrategy(bt.Strategy):
                     self.log(f'close long hist sell -{k}'); self.close(); return
 
     def next(self):
+        """Enforce exits, then open/close on Karacatica arrows each signal bar.
+
+        Increments the bar counter, applies stop-loss/take-profit exits, and
+        once per new signal bar reads the buy/sell arrows to close opposing
+        positions (including a historical scan) and open a fixed-lot long or
+        short per the configured permissions.
+        """
         self.bar_num += 1
         if len(self.base) < 2: return
         if self._check_exit_levels(): return
@@ -299,6 +389,12 @@ class ExpKaracaticaStrategy(bt.Strategy):
             if self.position.size >= 0: self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -319,11 +415,34 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        fn: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Load the base M15 frame for the backtest from the configured CSV.
+
+    Args:
+        cfg: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -333,6 +452,16 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Resample the base frame to the indicator (signal) timeframe.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        mins: Signal bar size in minutes.
+
+    Returns:
+        A right-labeled, right-closed resampled OHLCV DataFrame with bars
+        lacking complete OHLC data dropped and open interest zero-filled.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -340,6 +469,22 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Assemble the Cerebro engine with both feeds and the default analyzers.
+
+    Builds the H1 signal frame, configures cash and commission, adds the M15
+    execution and H1 signal feeds, registers the strategy, and adds the standard
+    Sharpe/Returns/DrawDown/Trade/SQN analyzers.
+
+    Args:
+        cfg: Resolved configuration dict with data, params and backtest.
+        frame: Dict containing the loaded base OHLCV frame under ``data``.
+
+    Returns:
+        A configured Cerebro instance ready to run the strategy.
+
+    Raises:
+        ValueError: If the resampled signal frame is empty.
+    """
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 60)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -359,6 +504,18 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run completes.
+        frame: Dict of prepared frames from load_backtest_frame.
+        cfg: Resolved configuration mapping.
+
+    Returns:
+        A dict of summary metrics (returns, drawdown, Sharpe, trade statistics,
+        SQN) keyed for the regression assertions.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -373,6 +530,14 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Run the Karacatica backtest and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)

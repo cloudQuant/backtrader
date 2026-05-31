@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Source: `tests/datas/XAUUSD_M15.csv` loaded via `load_mt5_csv`.
+    - Symbol: `XAUUSD`, timeframe: `M15`.
+    - Date interval:
+        - `2025-12-03 01:15:00` through `2026-03-10 09:00:00`
+    - Bar shift: +15 minutes when loading source bars.
+    - Signal context:
+        - The same data is used by a dedicated indicator `MUVNorDiffCloudIndicator`
+          attached to the main feed (`ema/sma` differential cloud values).
+
+Strategy Principle:
+    - Uses a Momentum/DIFF style normalized cloud from SMA and EMA slope differences.
+    - Generates buy/sell impulses when the transformed cloud reaches extreme values.
+    - Applies opposite-side close-and-reverse behavior with fixed lot sizing.
+
+Strategy Logic:
+    - Build the base feed and compute the indicator each bar (or once with Backtrader
+      vectorized execution).
+    - Detect active buy/sell signals, including recent-signal fallback when immediate
+      signals are absent.
+    - If already holding, close/reverse as dictated by `buy_open` / `sell_open`
+      logic and recent signal context; otherwise open new positions.
+    - At the end of backtest, `extract_metrics` aggregates analyzers and counters.
 """
 from __future__ import annotations
 import math
@@ -77,6 +101,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MT5 TSV export and return a Backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the source data file.
+        fromdate: Optional inclusive left bound.
+        todate: Optional inclusive right bound.
+        bar_shift_minutes: Optional minute shift applied to the index.
+
+    Returns:
+        DataFrame indexed by datetime with Backtrader column names.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -98,6 +133,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Execution data feed for M15 bars from a pandas DataFrame."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -105,16 +141,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MUVNorDiffCloudIndicator(bt.Indicator):
+    """Calculate normalized DIFF cloud signals used by the strategy."""
     lines = ('buy', 'sell', 'sma_res', 'ema_res')
     params = dict(ma_period=14, momentum=1, kperiod=14)
 
     def __init__(self):
+        """Initialize SMA/EMA buffers and minimum bars required for reliable signals."""
         price = self.data.close
         self._sma = bt.indicators.SimpleMovingAverage(price, period=max(1, int(self.p.ma_period)))
         self._ema = bt.indicators.ExponentialMovingAverage(price, period=max(1, int(self.p.ma_period)))
         self.addminperiod(int(self.p.ma_period) + int(self.p.momentum) + int(self.p.kperiod) + 5)
 
     def next(self):
+        """Compute cloud values for the current bar."""
         momentum = max(1, int(self.p.momentum))
         kperiod = max(2, int(self.p.kperiod))
         sma_vals = []
@@ -138,6 +177,7 @@ class MUVNorDiffCloudIndicator(bt.Indicator):
         self.lines.sell[0] = -100.0 if sma_res == -100.0 or ema_res == -100.0 else 0.0
 
     def once(self, start, end):
+        """Compute cloud values for a pre-allocated bar range in vectorized mode."""
         momentum = max(1, int(self.p.momentum))
         kperiod = max(2, int(self.p.kperiod))
         sma = self._sma.array
@@ -181,6 +221,7 @@ class MUVNorDiffCloudIndicator(bt.Indicator):
 
 
 class MUVNorDiffCloudStrategy(bt.Strategy):
+    """Trade trend reversals from the MUV NorDIFF cloud buy/sell impulses."""
     params = dict(
         ma_period=14,
         momentum=1,
@@ -190,6 +231,7 @@ class MUVNorDiffCloudStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind indicator, initialize execution counters and trade state."""
         self.indicator = MUVNorDiffCloudIndicator(
             self.data,
             ma_period=self.p.ma_period,
@@ -205,6 +247,7 @@ class MUVNorDiffCloudStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped strategy log message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -232,6 +275,7 @@ class MUVNorDiffCloudStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Process signals and execute close/open/reverse orders."""
         self.bar_num += 1
         warmup = int(self.p.ma_period) + int(self.p.momentum) + int(self.p.kperiod) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -271,6 +315,7 @@ class MUVNorDiffCloudStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track counts for opened and closed trades."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -303,6 +348,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve strategy data file relative to the generated test module.
+
+    Args:
+        filename: Configured filename in `_CONFIG['data']['file']`.
+
+    Returns:
+        Absolute path to an existing CSV file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -310,6 +363,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and slice backtest data using configured date range.
+
+    Args:
+        config: Strategy configuration map.
+
+    Returns:
+        Dict containing filtered bars and test date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -326,6 +387,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with data feed, strategy and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Market data dict from `load_backtest_frame`.
+
+    Returns:
+        A ready `bt.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -349,6 +419,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer and strategy counters into a single metrics dictionary.
+
+    Args:
+        strat: Strategy object after running backtest.
+        cerebro: Executed `bt.Cerebro` engine.
+        frame: Source market context dict.
+        config: Current config map.
+
+    Returns:
+        Dictionary of fields asserted by regression expectations.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -389,6 +470,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the full backtest and return outputs for validation.
+
+    Args:
+        plot: Whether to render Cerebro plot.
+
+    Returns:
+        Tuple `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

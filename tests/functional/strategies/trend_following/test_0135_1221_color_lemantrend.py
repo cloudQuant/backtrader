@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (gold spot).
+    - Base timeframe: M15 (15 minutes), source '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Derived timeframe: H4 (240 minutes), built by resampling M15 bars.
+    - Period: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - Preprocessing: bar timestamps can be shifted by `bar_shift_minutes` and
+      rows are filtered to the configured date range.
+
+Strategy Principle:
+    - The strategy computes a custom "Le Man Trend" envelope using three rolling
+      swing-high/low buckets (`min_period`, `middle_period`, `max_period`), then
+      smooths the derived upper/lower channels with a fast EMA.
+    - A long signal appears when the smoothed bulls line crosses above the smoothed
+      bears line. A short signal appears on the opposite cross.
+    - Exits are controlled by fixed point-based stop loss and take profit.
+
+Strategy Logic:
+    - `build_color_lemantrend_frame` builds the higher-timeframe signal bars and
+      prepares `bulls` / `bears` arrays, plus derived columns consumed by the strategy.
+    - The strategy reads M15 base bars and H4 signal bars, updates bar counters,
+      manages fixed-risk exits, detects new cross signals, closes/reverses positions,
+      and records trade counts.
+    - `notify_trade` tracks open/closed trade outcomes; `extract_metrics` gathers
+      analyzer outputs and strategy counters for regression assertions.
 """
 from __future__ import annotations
 import math
@@ -88,6 +113,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath (str): Path to MT5 tab-separated export file.
+        fromdate (datetime.datetime | None): Optional start date filter.
+        todate (datetime.datetime | None): Optional end date filter.
+        bar_shift_minutes (int): Optional minute shift applied to bar timestamps.
+
+    Returns:
+        pd.DataFrame: Parsed DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +145,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Base feed mapping standard MT5 OHLCV/openinterest columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +154,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class ColorLeManTrendFeed(btfeeds.PandasData):
+    """Signal feed adding `bulls` and `bears` computed trend lines."""
+
     lines = ('bulls', 'bears')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -124,6 +164,15 @@ class ColorLeManTrendFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample M15 bars to the strategy signal timeframe.
+
+    Args:
+        df (pd.DataFrame): Source OHLCV DataFrame.
+        indicator_minutes (int): Resample interval in minutes.
+
+    Returns:
+        pd.DataFrame: Right-aligned resampled OHLCV frame.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -139,6 +188,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def ema_mql_like(values, period):
+    """Replicate an MQL-style EMA smoothing used by the strategy's signal math.
+
+    Args:
+        values (Sequence[float]): Source values to smooth.
+        period (int): EMA period.
+
+    Returns:
+        list[float]: EMA-smoothed output, preserving `NaN` for invalid inputs.
+    """
     period = int(period)
     values = list(values)
     result = [math.nan] * len(values)
@@ -158,6 +216,19 @@ def ema_mql_like(values, period):
 
 
 def build_color_lemantrend_frame(df, indicator_minutes, min_period, middle_period, max_period, ema_period):
+    """Compute bullish/bearish trend proxy lines for H4 entries.
+
+    Args:
+        df (pd.DataFrame): Base dataframe with datetime index and OHLC columns.
+        indicator_minutes (int): Signal timeframe in minutes.
+        min_period (int): Short lookback.
+        middle_period (int): Middle lookback.
+        max_period (int): Long lookback.
+        ema_period (int): EMA smoothing period for envelope lines.
+
+    Returns:
+        pd.DataFrame: Signal dataframe with `bulls` and `bears` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     n = len(signal_df)
     highs = signal_df['high'].astype(float).to_numpy()
@@ -193,6 +264,8 @@ def build_color_lemantrend_frame(df, indicator_minutes, min_period, middle_perio
 
 
 class ColorLeManTrendStrategy(bt.Strategy):
+    """Trend-following crossover strategy driven by smoothed Le Man Trend lines."""
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -211,6 +284,7 @@ class ColorLeManTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, counters, and signal-tracking state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -224,6 +298,7 @@ class ColorLeManTrendStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print log text with the current base bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -268,6 +343,7 @@ class ColorLeManTrendStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate new crossover signals and route order actions."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -321,6 +397,7 @@ class ColorLeManTrendStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track both entry direction and closed-trade outcomes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -354,6 +431,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file location and validate that it exists.
+
+    Args:
+        filename (str): Relative path to data file.
+
+    Returns:
+        Path: Absolute path to existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -361,6 +446,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load test bar data and prepare the in-memory frame payload.
+
+    Args:
+        config (dict): Strategy configuration.
+
+    Returns:
+        dict: Raw bar data and metadata for backtest construction.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -377,6 +470,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure the Cerebro engine, feeds, strategy, and analyzers.
+
+    Args:
+        config (dict): Strategy/backtest parameters and settings.
+        frame (dict): Data payload from `load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured engine.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -420,6 +522,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble the regression metric dictionary from analyzers and strategy counters.
+
+    Args:
+        strat (ColorLeManTrendStrategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Engine used for execution.
+        frame (dict): Frame dictionary created by backtest setup.
+        config (dict): Strategy configuration.
+
+    Returns:
+        dict: Metrics consumed by the acceptance assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -461,6 +574,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute backtest end-to-end and return engine, results, and metrics.
+
+    Args:
+        plot (bool): Whether to draw chart output after run.
+
+    Returns:
+        tuple: (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (gold spot).
+    - Base timeframe: M15 from '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - Bars can be shifted by `bar_shift_minutes` before backtesting.
+
+Strategy Principle:
+    - The strategy builds fast/slow Hull moving averages (HMA) and their histogram difference (fast - slow).
+    - In cross mode, a trading signal is generated when histogram crosses zero;
+      in twist mode, turning points in the histogram slope generate open/close events.
+    - The strategy enters and closes long/short positions based on these transitions.
+
+Strategy Logic:
+    - `load_mt5_csv` reads and normalizes historical bars.
+    - `OsHMAIndicator` computes the HMA histogram series and feeds it into `OsHMAStrategy`.
+    - `next()` evaluates warm-up period, generates directional signals, optionally forces one entry
+      after a configured number of bars, and routes close/reverse actions.
+    - `notify_trade` counts entries and closed-trade win/loss outcomes.
+    - `extract_metrics` summarizes analyzer output and strategy counters for assertions.
 """
 from __future__ import annotations
 import math
@@ -78,6 +98,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported tab-separated CSV into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath (str): Path to MT5 CSV file.
+        fromdate (datetime.datetime | None): Optional start date filter.
+        todate (datetime.datetime | None): Optional end date filter.
+        bar_shift_minutes (int): Optional timestamp offset in minutes.
+
+    Returns:
+        pd.DataFrame: DataFrame indexed by datetime with OHLCV/openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +130,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base feed adapter for MT5 OHLCV data."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -106,10 +139,13 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class HMA(bt.Indicator):
+    """Hull Moving Average indicator used by OsHMA."""
+
     lines = ('hma',)
     params = dict(period=13)
 
     def __init__(self):
+        """Initialize the HMA with smoothed weighted moving averages."""
         half = max(1, int(self.p.period // 2))
         sqrt_period = max(1, int(self.p.period ** 0.5))
         wma_half = bt.indicators.WeightedMovingAverage(self.data, period=half)
@@ -120,10 +156,13 @@ class HMA(bt.Indicator):
 
 
 class OsHMAIndicator(bt.Indicator):
+    """Histogram indicator that combines fast and slow HMA lines."""
+
     lines = ('hist',)
     params = dict(fast_hma=13, slow_hma=26)
 
     def __init__(self):
+        """Initialize fast and slow HMA sub-indicators and histogram output."""
         fast = HMA(self.data.close, period=self.p.fast_hma)
         slow = HMA(self.data.close, period=self.p.slow_hma)
         self.lines.hist = fast.hma - slow.hma
@@ -131,6 +170,8 @@ class OsHMAIndicator(bt.Indicator):
 
 
 class OsHMAStrategy(bt.Strategy):
+    """Strategy built on OsHMA histogram direction and zero/twist transitions."""
+
     params = dict(
         mode='twist',
         fast_hma=13,
@@ -141,6 +182,7 @@ class OsHMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator, state counters, and forced-entry guard."""
         self.indicator = OsHMAIndicator(self.data, fast_hma=self.p.fast_hma, slow_hma=self.p.slow_hma)
         self.bar_num = 0
         self.buy_count = 0
@@ -152,6 +194,7 @@ class OsHMAStrategy(bt.Strategy):
         self._forced_entry_done = False
 
     def log(self, text):
+        """Print timestamped execution logs."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -197,6 +240,7 @@ class OsHMAStrategy(bt.Strategy):
         return self._signals_twist(shift)
 
     def next(self):
+        """Execute warm-up filtering and open/close/reverse actions from signal transitions."""
         self.bar_num += 1
         warmup = max(int(self.p.fast_hma), int(self.p.slow_hma)) + int(self.p.signal_bar) + 10
         if len(self.data) < warmup:
@@ -241,6 +285,7 @@ class OsHMAStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track buy/sell entry counts and closed-trade win/loss stats."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -273,6 +318,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against BASE_DIR and verify existence.
+
+    Args:
+        filename (str): Relative data file name.
+
+    Returns:
+        Path: Absolute path to an existing data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -280,6 +333,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the backtest input frame from disk based on config range.
+
+    Args:
+        config (dict): Strategy test configuration.
+
+    Returns:
+        dict: Frame dict with bars and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -296,6 +357,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro, attach feed, strategy, and analyzers.
+
+    Args:
+        config (dict): Strategy and backtest settings.
+        frame (dict): Prepared frame payload from `load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured backtesting engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -319,6 +389,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect full regression metrics from analyzers and strategy state.
+
+    Args:
+        strat (OsHMAStrategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Backtesting engine with final broker state.
+        frame (dict): Input frame metadata.
+        config (dict): Strategy configuration.
+
+    Returns:
+        dict: Metric map for assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -359,6 +440,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the OsHMA strategy backtest and return result payload.
+
+    Args:
+        plot (bool): Whether to plot after run.
+
+    Returns:
+        tuple: (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

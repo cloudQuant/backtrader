@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The EMA and Parabolic SAR
+    are computed directly on the M15 feed; no separate signal feed is used.
+
+Strategy Principle:
+    This is a simplified port of the MT5 expert advisor
+    ``Exp_ColorX2MA-Parabolic``. A Parabolic SAR is compared against an EMA of
+    the close to gauge trend direction: when the SAR flips from above the EMA to
+    below it, the trend is read as turning up (long signal); when it flips from
+    below to above, the trend is read as turning down (short signal). The
+    strategy enters on the flip and reverses on the opposite flip; risk is
+    bounded by the SAR-driven reversal rather than fixed stops.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers. Each bar the strategy compares the SAR to
+    the EMA and tracks whether the SAR sits above or below; on a flip it opens a
+    long/short when flat or closes and reverses when in a position. notify_trade
+    counts entries on open and win/loss on close. extract_metrics consolidates
+    analyzer output, and the test forces runonce=True, runs the module's
+    run()/main(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -72,6 +97,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -93,6 +131,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +156,7 @@ class MAParabolicStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the EMA and Parabolic SAR indicators and reset counters."""
         self.ema = bt.indicators.EMA(self.data.close, period=self.p.ema_period)
         self.sar = bt.indicators.ParabolicSAR(
             self.data, af=self.p.sar_af, afmax=self.p.sar_afmax)
@@ -129,10 +170,22 @@ class MAParabolicStrategy(bt.Strategy):
         self._prev_sar_above = None
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Open or reverse positions on a Parabolic SAR / EMA flip each bar.
+
+        Increments the bar counter, skips during warm-up, tracks whether the SAR
+        sits above or below the EMA, and on a flip opens a long (SAR moves below)
+        or short (SAR moves above) when flat, or closes and reverses when in a
+        position.
+        """
         self.bar_num += 1
         if len(self.data) < self.p.ema_period + 5:
             return
@@ -171,6 +224,12 @@ class MAParabolicStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -195,11 +254,35 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load the M15 XAUUSD frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -210,6 +293,16 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -227,6 +320,19 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding trade counters and
+            attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and entry/exit counts) used by the assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -247,6 +353,16 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the full backtest pipeline and return results, metrics, and engine.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
+        and ``cerebro`` is the engine instance.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

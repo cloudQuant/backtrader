@@ -1,6 +1,24 @@
 """Inlined regression test for multi_indicator_system/0028_perceptron.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    - Symbol: XAUUSD
+    - Source data: tests/datas/XAUUSD_M15.csv
+    - Timeframe: M15 bars with 15-minute shift in test.
+    - Backtest period: 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+
+Strategy Principle:
+    This strategy evaluates five indicator conditions and combines them through
+    a lightweight perceptron-style scoring function to determine long/short bias.
+    Position management uses fixed stop-loss and take-profit levels.
+
+Strategy Logic:
+    1) Load MT5 M15 bars and apply the test date window.
+    2) Compute indicator deltas for MA cross, RSI, CCI, momentum and AO.
+    3) Feed signals into a weighted perceptron and generate directional entry orders.
+    4) Enforce exit levels each bar and clear order/trade state on callbacks.
+    5) Assert migration metrics in the regression test.
 """
 from __future__ import annotations
 
@@ -17,6 +35,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and return an indexed DataFrame.
+
+    Args:
+        filepath: Path to source CSV.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional index shift in minutes.
+
+    Returns:
+        DataFrame with datetime index and OHLCV columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -38,6 +67,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas data feed mapping OHLCV fields for Backtrader."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -45,6 +75,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class PerceptronStrategy(bt.Strategy):
+    """Multi-indicator perceptron strategy with bounded position sizing and exits."""
     params = dict(
         lots=0.1, stop_loss=100, take_profit=40, point=0.01,
         sin_max=5.0, sin_min=0.0, sin_plus=0.03, sin_minus=0.03,
@@ -53,6 +84,7 @@ class PerceptronStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, weights, and state fields."""
         self.base = self.datas[0]
         self.ma_fast = bt.indicators.SMA(self.base.close, period=self.p.ma1)
         self.ma_slow = bt.indicators.SMA(self.base.close, period=self.p.ma2)
@@ -157,6 +189,7 @@ class PerceptronStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Run risk checks, compute brain score, and submit entry orders."""
         self.bar_num += 1
         if len(self.base) < max(self.p.ma2 + 3, self.p.rsi_period + 3, self.p.cci_period + 3, 36):
             return
@@ -189,6 +222,7 @@ class PerceptronStrategy(bt.Strategy):
             self.last_trade_type = 1
 
     def notify_order(self, order):
+        """Record fill outcomes and reset active entry tracking."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -206,6 +240,7 @@ class PerceptronStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes and reset open-position marker."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return

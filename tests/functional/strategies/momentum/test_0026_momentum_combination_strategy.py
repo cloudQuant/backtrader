@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Five daily (D1) ETF feeds exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: IVV (US large cap), IWM (US small cap), GLD
+    (gold), IEF (Treasuries), and DBC (broad commodities). The series cover
+    2008-01-01 to 2025-12-31 and are aligned on their common trading dates; IVV
+    also serves as the benchmark for the residual-momentum regression.
+
+Strategy Principle:
+    A port of the "Momentum Combination" strategy that blends five momentum
+    sub-signals: classic 12-month momentum, residual (beta-adjusted) momentum,
+    trend following versus a long moving average, overlapping-horizon momentum,
+    and short-horizon momentum. Each sub-signal is cross-sectionally ranked, the
+    sub-signals are inverse-volatility weighted into a composite asset score, and
+    the top half of assets receive score-proportional long weights.
+
+Strategy Logic:
+    prepare_momentum_inputs aligns the feeds and build_weight_lookup precomputes
+    per-rebalance-date target weights from the combined momentum score. The
+    strategy walks the daily bars, records broker value, and on each date present
+    in the weight lookup converts target percentages into target sizes via
+    order_target_size, counting buys/sells and rebalances. notify_order clears
+    settled orders and notify_trade tallies win/loss. extract_metrics
+    consolidates analyzer output plus an Ulcer Index; the test hooks the metric
+    extractor, forces runonce=True via main(), and asserts each metric against
+    migration-time values.
 """
 from __future__ import annotations
 import math
@@ -80,6 +106,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,6 +143,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_momentum_inputs(asset_map):
+    """Align the asset feeds and build the shared close-price matrix.
+
+    Args:
+        asset_map: Mapping of asset name to its loaded OHLCV DataFrame.
+
+    Returns:
+        A tuple of ``(prepared, close_df, aligned_index)`` where ``prepared``
+        holds the aligned per-asset OHLCV frames, ``close_df`` is the aligned
+        close-price matrix, and ``aligned_index`` is the shared datetime index.
+    """
     aligned_index = None
     prepared = {}
     for symbol, frame in asset_map.items():
@@ -118,6 +165,21 @@ def prepare_momentum_inputs(asset_map):
 
 
 def build_weight_lookup(close_df, params):
+    """Precompute per-rebalance-date combined-momentum target weights.
+
+    On each rebalance date it ranks the five momentum sub-signals (classic,
+    residual, trend, overlapping, short), inverse-volatility weights them into a
+    composite asset score, and assigns score-proportional long weights to the
+    top half of assets.
+
+    Args:
+        close_df: The aligned close-price matrix across assets.
+        params: Strategy parameters supplying the sub-signal lookbacks, trend MA,
+            and rebalance interval.
+
+    Returns:
+        A dict mapping each rebalance timestamp to a per-asset target weight dict.
+    """
     classic = int(params.get('classic_lookback', 252))
     residual = int(params.get('residual_lookback', 126))
     trend_ma = int(params.get('trend_ma_period', 200))
@@ -167,6 +229,13 @@ def build_weight_lookup(close_df, params):
 
 
 class MomentumCombinationStrategy(bt.Strategy):
+    """Rebalance toward precomputed combined-momentum target weights.
+
+    Reads per-date target weights from ``weight_lookup`` and, on each rebalance
+    date, issues order_target_size orders toward those weights when a holding
+    drifts, tracking buy/sell and rebalance counts.
+    """
+
     params = dict(
         weight_lookup=None,
         classic_lookback=252,
@@ -179,6 +248,7 @@ class MomentumCombinationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise counters, the order-ref set, and the rebalance counter."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -207,6 +277,14 @@ class MomentumCombinationStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rebalance toward the date's combined-momentum target weights.
+
+        Increments the bar counter, records broker value, and skips while orders
+        are pending or no weights exist for the current date. When rebalancing it
+        converts each asset's target percent into a target size and issues
+        order_target_size orders for holdings that have drifted, counting buys and
+        sells.
+        """
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         self.broker_value_series.append((bt.num2date(self.datas[0].datetime[0]), float(self.broker.getvalue())))
@@ -229,11 +307,22 @@ class MomentumCombinationStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed orders from the pending-ref set once they settle.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears its ref.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -253,10 +342,27 @@ class MomentumCombinationStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -270,6 +376,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load every asset feed and precompute the combined-momentum weights.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the asset
+            file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the prepared per-asset frames, the aligned index, the
+        per-date weight lookup, and the effective ``fromdate`` and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -280,6 +396,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the asset feeds, strategy, and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, and strategy
+            parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -298,6 +424,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, the rebalance count, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and bar count.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and trade/rebalance counts) used by
+        the assertions.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -338,6 +479,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -349,6 +499,11 @@ def normalize(value):
 
 
 def main():
+    """Run the momentum-combination backtest end to end.
+
+    Loads the config and inputs, builds the engine, runs the backtest, and
+    extracts the metrics (used by the test harness via its hooks).
+    """
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded momentum-combination bars: {len(inputs['aligned_index'])}")

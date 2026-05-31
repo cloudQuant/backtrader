@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` for execution
+    context and optionally resampled H4 indicator context.
+    The timeframe window is ``fromdate=2025-12-03 01:15:00`` to
+    ``todate=2026-03-10 09:00:00`` with a 15-minute bar shift.
+
+Strategy Principle:
+    Maintains a Laguerre-filter indicator on a higher timeframe (signal feed).
+    Long signals are generated when the FIR line crosses below Laguerre; short
+    signals when FIR crosses above Laguerre. Entries use fixed-position sizing and
+    attach pip-like fixed stop-loss and take-profit levels.
+
+Strategy Logic:
+    The module loads MT5 CSV data, builds execution and optional indicator feeds,
+    runs Backtrader with analyzers, and tracks order/trade lifecycle events.
+    During each bar the strategy checks risk exits first, then evaluates crossing
+    conditions, manages reversals, and finally emits metrics used by deterministic
+    assertions in the migrated regression test.
 """
 from __future__ import annotations
 import math
@@ -80,6 +99,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 formatted CSV into a sorted, datetime-indexed Backtrader frame.
+
+    Args:
+        filepath: MT5 export file path.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+        bar_shift_minutes: Optional timestamp shift in minutes.
+
+    Returns:
+        pd.DataFrame: Sorted DataFrame indexed by datetime containing OHLCV,
+        spread and open interest columns used by feeds.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -106,6 +137,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom feed extension to expose MT5 ``spread`` as an extra line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -120,10 +152,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class LaguerreFilterIndicator(bt.Indicator):
+    """Laguerre smoothing indicator with finite impulse response fallback lines."""
     lines = ('laguerre', 'fir')
     params = dict(gamma=0.7)
 
     def __init__(self):
+        """Initialize internal Laguerre filter state and warm-up requirements."""
         self.addminperiod(4)
         self._l0 = None
         self._l1 = None
@@ -134,6 +168,7 @@ class LaguerreFilterIndicator(bt.Indicator):
         return (float(self.data.high[ago]) + float(self.data.low[ago])) / 2.0
 
     def next(self):
+        """Compute current Laguerre and FIR values for the current bar."""
         price = self._price(0)
         if self._l0 is None:
             self._l0 = price
@@ -170,6 +205,7 @@ class LaguerreFilterIndicator(bt.Indicator):
 
 
 class LaguerreFilterStrategy(bt.Strategy):
+    """Trend strategy using Laguerre/FIR cross signals with fixed risk exits."""
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -189,6 +225,7 @@ class LaguerreFilterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, indicators, and execution counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = LaguerreFilterIndicator(self.signal_feed, gamma=self.p.gamma)
@@ -211,6 +248,11 @@ class LaguerreFilterStrategy(bt.Strategy):
         self.warmup = int(self.p.signal_bar) + 7
 
     def log(self, text):
+        """Log execution messages with the execution feed timestamp.
+
+        Args:
+            text: Human-readable message.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -298,6 +340,12 @@ class LaguerreFilterStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process one bar of signal and execution logic.
+
+        The method enforces a one-trade-at-a-time policy, applies protective
+        exits before considering entries, evaluates FIR/Laguerre cross directions,
+        and schedules close/reopen actions for reversals.
+        """
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -343,6 +391,7 @@ class LaguerreFilterStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Update counters and internal risk state when an order is completed."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -386,6 +435,7 @@ class LaguerreFilterStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track closed-trade count and clear state when exits close flat."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -410,6 +460,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a test data file path relative to this test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -417,6 +468,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load bar data and metadata required for the backtest run.
+
+    Args:
+        config: Loaded configuration dictionary.
+
+    Returns:
+        dict: Frame map containing ``data``, ``fromdate``, and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -447,6 +506,15 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Create and configure the Backtrader Cerebro for this strategy.
+
+    Args:
+        config: Full test configuration.
+        frame: Backtest frame from :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Cerebro instance with data feeds, strategy and analyzers set up.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -478,6 +546,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Compile strategy and analyzer outputs into a stable metrics payload."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -520,6 +589,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest and return execution artifacts.
+
+    Args:
+        plot: Whether to render the strategy chart.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

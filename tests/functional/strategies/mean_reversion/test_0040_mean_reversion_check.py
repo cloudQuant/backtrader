@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily XAUUSD OHLCV data in ``tests/datas/XAUUSD_1d.csv`` from 2008-01-01
+    to 2025-12-31.
+
+Strategy Principle:
+    Uses RSI thresholds to identify extreme oversold/overbought conditions and
+    open long positions on oversold periods, with forced exit on overbought
+    reversals or holding-time limits.
+
+Strategy Logic:
+    Precomputes RSI and boolean entry/exit signals from OHLCV, feeds features into
+    a custom data feed, executes entry/exit operations per signal and holding
+    window, and validates metrics through analyzer outputs.
 """
 from __future__ import annotations
 import math
@@ -77,6 +91,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV OHLCV data.
+
+    Args:
+        filepath: Source CSV path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+
+    Returns:
+        Datetime-indexed OHLCV dataframe.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,7 +127,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(close, period=2):
-    """计算RSI指标"""
+    """Calculate RSI for a close price series.
+
+    Args:
+        close: Close price series.
+        period: RSI lookback period.
+
+    Returns:
+        RSI series.
+    """
     delta = close.diff()
     gain = delta.where(delta > 0, 0)
     loss = (-delta).where(delta < 0, 0)
@@ -115,19 +147,27 @@ def calculate_rsi(close, period=2):
 
 
 def prepare_mean_reversion_check_features(df, params):
-    """准备均值回归检查策略特征"""
+    """Prepare RSI-based mean-reversion check features.
+
+    Args:
+        df: Raw OHLCV dataframe.
+        params: Strategy parameter map.
+
+    Returns:
+        Feature dataframe with RSI, entry, and exit signals.
+    """
     out = df.copy()
     rsi_period = int(params.get('rsi_period', 2))
     rsi_oversold = float(params.get('rsi_oversold', 1))
     rsi_overbought = float(params.get('rsi_overbought', 70))
     
-    # 计算RSI
+    # Compute RSI over rolling period.
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
     
-    # 入场信号：RSI极度超卖
+    # Enter long when RSI is below oversold threshold.
     out['entry_signal'] = (out['rsi'] < rsi_oversold).astype(float)
     
-    # 出场信号：RSI超过超买阈值
+    # Exit when RSI rises above overbought threshold.
     out['exit_signal'] = (out['rsi'] > rsi_overbought).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -136,6 +176,7 @@ def prepare_mean_reversion_check_features(df, params):
 
 
 class Mt5MeanReversionCheckFeed(bt.feeds.PandasData):
+    """Pandas feed exposing RSI-based mean-reversion signals."""
     lines = ('rsi', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -145,6 +186,7 @@ class Mt5MeanReversionCheckFeed(bt.feeds.PandasData):
 
 
 class MeanReversionCheckStrategy(bt.Strategy):
+    """RSI oversold/overbought mean-reversion strategy."""
     params = dict(
         rsi_period=2,
         rsi_oversold=1,
@@ -154,6 +196,7 @@ class MeanReversionCheckStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize bar counters and execution state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -180,6 +223,7 @@ class MeanReversionCheckStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance a single bar and apply entry and exit checks."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -189,7 +233,7 @@ class MeanReversionCheckStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Enter only when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -197,18 +241,20 @@ class MeanReversionCheckStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Exit when hold window ends or exit signal is true.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order reference when no longer pending."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade counters on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -220,7 +266,8 @@ class MeanReversionCheckStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Mean Reversion Check 策略回测"""
+"""Mean Reversion Check backtest helpers."""
+"""Mean Reversion Check backtest helpers."""
 
 
 
@@ -230,6 +277,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe analyzer kwargs from timeframe config.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Sharpe analyzer kwargs.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -242,10 +297,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return value if finite, otherwise ``None``.
+
+    Args:
+        x: Candidate numeric value.
+
+    Returns:
+        Input value when finite; else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate ulcer index from a sequence of values.
+
+    Args:
+        values: Time series of values.
+
+    Returns:
+        Ulcer index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -260,6 +331,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve configured filename to an existing file path.
+
+    Args:
+        filename: Input filename from config.
+
+    Returns:
+        Absolute path candidate.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -276,6 +355,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load data and generate feature frame.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Prepared input payload.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -288,6 +375,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build Cerebro with strategy, feed, and analyzers.
+
+    Args:
+        frame: Prepared data payload.
+        config: Test configuration.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -310,6 +406,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzer metrics for assertions.
+
+    Args:
+        strat: Strategy instance after execution.
+        cerebro: Running Cerebro engine.
+        frame: Input payload.
+        config: Test configuration.
+
+    Returns:
+        Dictionary of metrics and statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -344,6 +451,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for JSON serialization.
+
+    Args:
+        v: Input value.
+
+    Returns:
+        Serializable value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the M15 (15-minute) timeframe loaded from the MT5
+    export ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. A
+    single M15 feed drives the multi-bar pattern detection.
+
+Strategy Principle:
+    A port of the MT5 expert advisor OpenTicks. It looks for a monotonic
+    four-bar pattern: four consecutive bars whose highs and opens are strictly
+    rising (long) or strictly falling (short), reading this as a short-term
+    momentum thrust to ride. Risk is managed with a fixed point stop-loss plus a
+    stair-step trailing stop, and an optional half-lot rule scales out half the
+    position as the trailing stop advances.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_cerebro wires the feed,
+    commission, strategy, and analyzers. Each bar (after warm-up) the strategy
+    first checks the stop and trailing-stair logic (optionally partial-closing),
+    then, while flat and under the max-orders limit, opens a long or short when
+    the four-bar monotonic pattern fires and sets the initial stop. notify_order
+    counts entries on fill and clears state on close; notify_trade tallies
+    win/loss. extract_metrics consolidates analyzer output; the test hooks
+    extract_metrics, forces runonce=True via run(), and asserts each metric
+    against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -76,6 +101,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -97,6 +135,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -104,6 +144,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class OpenTicksStrategy(bt.Strategy):
+    """Trade monotonic four-bar thrusts with a stair-step trailing stop.
+
+    Enters long when four consecutive bars have strictly rising highs and opens
+    (short on the mirror), protects the position with a fixed point stop-loss and
+    a stair-step trailing stop, and optionally scales out half the position as
+    the trailing stop advances.
+    """
+
     params = dict(
         trailing_stop=300,
         stop_loss=300,
@@ -116,6 +164,7 @@ class OpenTicksStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset bar/trade counters, order state, and trailing/partial markers."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -128,6 +177,11 @@ class OpenTicksStrategy(bt.Strategy):
         self._last_partial_bar = None
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -189,6 +243,13 @@ class OpenTicksStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage stops and trailing logic, then open on a four-bar thrust.
+
+        Increments the bar counter and skips during warm-up or while an order is
+        pending. When holding it applies the stop-loss and stair-step trailing
+        logic; when flat and within the max-orders limit it opens a long or short
+        on the monotonic four-bar pattern and sets the initial stop.
+        """
         self.bar_num += 1
         if len(self.data) < 5:
             return
@@ -228,6 +289,13 @@ class OpenTicksStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.lot)
 
     def notify_order(self, order):
+        """Count entries on fill, clear state on close, and reset the order slot.
+
+        Args:
+            order: The order whose status changed. A completed fill increments
+                the buy/sell counter when opening or clears stop/partial state
+                when closing; terminal states release the entry order slot.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -247,6 +315,12 @@ class OpenTicksStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Count entries on open and win/loss on close.
+
+        Args:
+            trade: The trade whose status changed; opening marks the position
+                open and closing updates the win/loss counters.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return
@@ -276,6 +350,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -283,6 +368,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 XAUUSD frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -294,6 +392,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -311,6 +419,19 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding trade counters and
+            attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and entry/exit counts) used by the assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -336,6 +457,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest pipeline and return results, metrics, and engine.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
+        and ``cerebro`` is the engine instance.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

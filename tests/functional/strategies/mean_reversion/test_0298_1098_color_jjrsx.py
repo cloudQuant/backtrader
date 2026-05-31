@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10).
+
+Strategy Principle:
+    ColorJJRSX strategy combines a JurX smoothing filter with a JJMA adaptive
+    smoother applied to a Color RSX momentum indicator to generate entry signals
+    based on momentum direction changes.
+
+Strategy Logic:
+    1. Compute Color RSX indicator (JurX smoothing on price deltas).
+    2. Smooth RSX output with adaptive JJMA filter.
+    3. Enter long when JJRSX crosses above its prior value and position allows.
+    4. Enter short when JJRSX crosses below its prior value and position allows.
+    5. Exit via stop-loss and take-profit levels from entry price.
+    6. Assert bar_num, signal counts, buy/sell counts, trade counts, win/loss.
 """
 from __future__ import annotations
 import math
@@ -88,6 +104,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader5 CSV export into a DataFrame with datetime index."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -113,6 +130,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample a DataFrame to a higher timeframe using specified rule."""
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -127,6 +145,7 @@ def resample_frame(df, rule):
 
 
 def applied_price_series(df, applied_price):
+    """Extract a price series from a DataFrame based on an applied price constant."""
     key = str(applied_price)
     if key in ('PRICE_CLOSE', 'PRICE_CLOSE_', 'close'):
         return df['close'].astype(float)
@@ -150,7 +169,15 @@ def applied_price_series(df, applied_price):
 
 
 class JurXState(object):
+    """Stateful JurX smoothing filter for a single price series.
+
+    JurX is a non-lag smoothing filter that adapts its smoothing factor
+    based on the ratio of the current input to the previous output.
+    """
+
     def __init__(self, length):
+        """Initialize the JurX filter with a given length parameter."""
+        self.length = None
         self.length = None
         self.kg = None
         self.hg = None
@@ -165,6 +192,7 @@ class JurXState(object):
         self.reset(length)
 
     def reset(self, length, series=None):
+        """Reset filter coefficients and optionally seed with a series value."""
         self.length = max(float(length), 1.0)
         self.kg = 3.0 / (self.length + 2.0)
         self.hg = 1.0 - self.kg
@@ -174,6 +202,7 @@ class JurXState(object):
             self.f1 = self.f2 = self.f3 = self.f4 = self.f5 = self.f6 = None
 
     def update(self, series):
+        """Apply JurX smoothing and return the filtered value."""
         series = float(series)
         if self.f1 is None:
             self.reset(self.length, series=series)
@@ -189,7 +218,15 @@ class JurXState(object):
 
 
 class JJMAState(object):
+    """Stateful adaptive JMA (Jurik-like) smoothing filter with phase control.
+
+    JJMA adapts its smoothing speed based on market volatility and applies
+    a phase parameter to control the lag/lead characteristics of the filter.
+    """
+
     def __init__(self, length, phase):
+        """Initialize the JJMA filter with length and phase parameters."""
+        self.length = float(length)
         self.length = float(length)
         self.phase_input = float(phase)
         self.array = [0.0] * 62
@@ -199,6 +236,7 @@ class JJMAState(object):
         self.reset(length, phase)
 
     def reset(self, length=None, phase=None, series=None):
+        """Reset the JJMA state buffers, parameters, and running accumulators."""
         if length is not None:
             self.length = max(float(length), 1.0)
         if phase is not None:
@@ -246,6 +284,7 @@ class JJMAState(object):
         self.kct = self.krx / (self.krx + 1.0)
 
     def update(self, series):
+        """Apply JJMA adaptive smoothing and return the filtered value."""
         series = float(series)
         if self.loop1 == 0 and self.jma == 0.0:
             self.reset(series=series)
@@ -459,6 +498,12 @@ class JJMAState(object):
 
 
 def compute_color_jjrsx(frame, jurx_period=8, jma_period=3, jma_phase=100, applied_price='PRICE_CLOSE'):
+    """Compute the Color JJRSX indicator series from a price DataFrame.
+
+    ColorJJRSX applies JurX smoothing to price deltas and their absolute values,
+    then feeds the ratio through an adaptive JJMA smoother to produce the final
+    momentum signal.
+    """
     prices = applied_price_series(frame, applied_price).to_numpy(dtype=float)
     jur_up = JurXState(jurx_period)
     jur_dn = JurXState(jurx_period)
@@ -483,6 +528,7 @@ def compute_color_jjrsx(frame, jurx_period=8, jma_period=3, jma_phase=100, appli
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MetaTrader5 CSV data (no extra lines)."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -490,6 +536,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class Mt5JJRSXFeed(bt.feeds.PandasData):
+    """PandasData feed for H4 data augmented with a JJRSX indicator column."""
     lines = ('jjrsx',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -498,6 +545,12 @@ class Mt5JJRSXFeed(bt.feeds.PandasData):
 
 
 class ColorJJRSXStrategy(bt.Strategy):
+    """ColorJJRSX strategy using dual-data (M15 base + H4 signal) architecture.
+
+    Enters long when JJRSX crosses above its prior value and no long position is open.
+    Enters short when JJRSX crosses below its prior value and no short position is open.
+    Exits via stop-loss and take-profit levels; supports buy/sell position open/close flags.
+    """
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -520,6 +573,7 @@ class ColorJJRSXStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize datas, JJRSX reference, order state, and trade counters."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.jjrsx = self.h4.jjrsx
@@ -542,6 +596,7 @@ class ColorJJRSXStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log message."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -614,6 +669,7 @@ class ColorJJRSXStrategy(bt.Strategy):
         self.current_side = side
 
     def next(self):
+        """Evaluate JJRSX crossover signals, manage pending orders, enter/exit positions."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -653,6 +709,7 @@ class ColorJJRSXStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Handle order completion: clear entry state or reset risk prices on fill/cancel."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -675,6 +732,7 @@ class ColorJJRSXStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Track trade counts and win/loss on close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -700,6 +758,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve filename relative to BASE_DIR and verify the file exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -707,6 +766,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and resample XAUUSD M15 data, compute H4 signal feed with JJRSX."""
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -734,6 +794,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro instance with dual feeds and all analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -759,6 +820,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract all backtest metrics from strategy analyzers and broker state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -804,6 +866,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Load config, run backtest, and return results with extracted metrics."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

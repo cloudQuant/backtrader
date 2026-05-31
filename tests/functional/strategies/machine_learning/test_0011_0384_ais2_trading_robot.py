@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M1.csv"
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom MT5 data feed that includes spread as an extra line."""
     lines = ("spread",)
     params = (
         ("datetime", None),
@@ -26,6 +27,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated bars and return a sorted DataFrame index by datetime."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -48,6 +50,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Ais2TradingRobotStrategy(bt.Strategy):
+    """Timeframe-based breakout strategy with dynamic position sizing and exits."""
     params = dict(
         account_reserve=0.20,
         order_reserve=0.04,
@@ -64,6 +67,7 @@ class Ais2TradingRobotStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feed references and lifecycle counters."""
         self.data0 = self.datas[0]
         self.data1 = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.data2 = self.datas[2] if len(self.datas) > 2 else self.data0
@@ -147,6 +151,7 @@ class Ais2TradingRobotStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Generate trade commands from multi-timeframe range context."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -220,6 +225,7 @@ class Ais2TradingRobotStrategy(bt.Strategy):
             self.order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Track completion or rejection of currently pending orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -235,6 +241,7 @@ class Ais2TradingRobotStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update PnL counters and clear level state after closing trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1

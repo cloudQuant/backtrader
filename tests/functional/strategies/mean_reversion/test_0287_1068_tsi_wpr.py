@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV data from ``tests/datas/XAUUSD_M15.csv`` (2025-12-03 to
+    2026-03-10), shifted by 15 minutes.
+    Resampled 240-minute bars provide TSI/WPR signal features.
+
+Strategy Principle:
+    The strategy builds a smoothed TSI indicator from WPR momentum,
+    compares current vs previous values and trigger lines, and trades sign reversals.
+    It combines fixed stop-loss and take-profit constraints.
+
+Strategy Logic:
+    Data is prepared into M15 and signal feeds, then Backtrader runs with analyzer
+    stack and signal-aware order flow. Risk control and one-order-at-time behavior
+    are enforced before re-entering on opposite signals.
 """
 from __future__ import annotations
 import math
@@ -91,6 +106,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV into normalized OHLCV DataFrame indexed by datetime.
+
+    Parameters:
+        filepath: MT5 CSV file path.
+        fromdate: Optional inclusive lower datetime filter.
+        todate: Optional inclusive upper datetime filter.
+        bar_shift_minutes: Minutes to shift timestamps.
+
+    Returns:
+        DataFrame with open, high, low, close, tick/real volume and openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -117,6 +143,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Aggregate OHLCV data to a given timeframe.
+
+    Parameters:
+        df: Base DataFrame with tick columns.
+        rule: Resample frequency string (e.g. ``"240min"``).
+
+    Returns:
+        Resampled DataFrame with normalized OHLCV fields.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -132,6 +167,16 @@ def resample_frame(df, rule):
 
 
 def smooth_series(series, period, method='MODE_SMA'):
+    """Apply one of configured smoothing methods.
+
+    Args:
+        series: Input pandas Series.
+        period: Smoothing period.
+        method: One of ``MODE_SMA`` / ``MODE_EMA`` / ``MODE_SMMA`` / ``MODE_LWMA``.
+
+    Returns:
+        Smoothed series.
+    """
     period = max(int(period), 1)
     if method == 'MODE_EMA':
         return series.ewm(span=period, adjust=False).mean()
@@ -144,6 +189,20 @@ def smooth_series(series, period, method='MODE_SMA'):
 
 
 def compute_tsi_wpr(frame, xma_method='MODE_SMA', wpr_period=25, mom_period=1, xlength1=5, xlength2=8, xlength3=20):
+    """Compute TSI/WPR indicator and corresponding signal line.
+
+    Parameters:
+        frame: OHLCV DataFrame.
+        xma_method: Smoothing method key.
+        wpr_period: Williams %R lookback window.
+        mom_period: Momentum shift period.
+        xlength1: Inner smooth period.
+        xlength2: Outer smooth period.
+        xlength3: Signal smooth period.
+
+    Returns:
+        Frame with added ``ind`` and ``sign`` columns.
+    """
     out = frame.copy()
     close = out['close']
     highest = out['high'].rolling(wpr_period, min_periods=wpr_period).max()
@@ -166,6 +225,7 @@ def compute_tsi_wpr(frame, xma_method='MODE_SMA', wpr_period=25, mom_period=1, x
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed for base MT5 OHLCV bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
         ('volume', 4), ('openinterest', 5),
@@ -173,6 +233,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class TsiWprFeed(bt.feeds.PandasData):
+    """Backtrader feed exposing TSI indicator and signal values."""
     lines = ('ind', 'sign',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -181,6 +242,7 @@ class TsiWprFeed(bt.feeds.PandasData):
 
 
 class TsiWprStrategy(bt.Strategy):
+    """Trade when TSI crosses its smoothed signal line."""
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -206,6 +268,7 @@ class TsiWprStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy counters, risk state, and bar references."""
         self.m15 = self.datas[0]
         self.signal = self.datas[1]
         self.ind = self.signal.ind
@@ -228,6 +291,7 @@ class TsiWprStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Write timestamped debug output."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -297,6 +361,7 @@ class TsiWprStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, debug
 
     def next(self):
+        """Main stepping logic for signal crossover entry/exit and risk management."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -336,6 +401,7 @@ class TsiWprStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and clear active order reference."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -354,6 +420,7 @@ class TsiWprStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update closed-trade win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -378,6 +445,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve local data path for configured symbol files.
+
+    Args:
+        filename: Path-like relative filename.
+
+    Returns:
+        Absolute ``Path`` after resolution.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -385,6 +460,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load bars and compute TSI/WPR signal frame.
+
+    Args:
+        config: Strategy config.
+
+    Returns:
+        Dict with ``m15`` and ``signal`` frames and backtest time bounds.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -409,6 +492,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feeds, strategy params, and analyzers."""
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -432,6 +516,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate strategy and analyzer outputs for deterministic assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -475,6 +560,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return ``(results, metrics, cerebro)``."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    The UmnickTrader self-adapting bracket system. A new trade is taken only when
+    the typical price moves at least ``stop_base`` from the previous entry price.
+    The stop and limit distances are adapted from rolling 8-trade averages of
+    realized profit and loss excursions, so the bracket tightens or widens with
+    recent performance. After a losing trade the system flips its preferred
+    direction (buy/sell), seeking to fade an unfavorable bias.
+
+Strategy Logic:
+    ``__init__`` seeds the direction flag, the rolling profit/loss arrays, and
+    the trade counters. ``next`` tracks excursions while in a position and, when
+    flat and the price has moved enough, submits a buy or sell bracket with
+    adapted stop/limit prices. ``notify_order`` records the entry fill and side
+    and tracks the bracket exit refs; ``notify_trade`` updates the rolling
+    profit/loss arrays, flips direction on a loss, and tallies win/loss.
+    ``_update_excursions`` records the max favorable/adverse moves. The
+    module-level helpers load the CSV, build the cerebro with analyzers, and
+    extract a metrics dictionary that the test compares against migration-time
+    expected values.
 """
 from __future__ import annotations
 import math
@@ -71,6 +99,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -96,6 +137,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -108,6 +151,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class UmnickTraderStrategy(bt.Strategy):
+    """Self-adapting bracket system with rolling profit/loss-driven stop/limit."""
+
     params = dict(
         stop_base=0.0170,
         lot=0.1,
@@ -115,6 +160,7 @@ class UmnickTraderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Seed the direction flag, rolling profit/loss arrays, and counters."""
         self.current_buy_sell = 1
         self.price_prev = 0.0
         self.array_profit = [0.0] * 8
@@ -133,6 +179,7 @@ class UmnickTraderStrategy(bt.Strategy):
         self.loss_count = 0
 
     def next(self):
+        """Track excursions in a position, else submit an adapted bracket when flat."""
         self.bar_num += 1
         if len(self.data) < 2:
             return
@@ -182,6 +229,13 @@ class UmnickTraderStrategy(bt.Strategy):
         self.exit_order_refs = {orders[1].ref, orders[2].ref}
 
     def notify_order(self, order):
+        """Record the entry fill and side and track the bracket exit refs.
+
+        Args:
+            order: The order whose status changed; a completed entry records the
+                entry price and bumps the buy/sell counter, and exit orders are
+                discarded from the tracked refs on a terminal status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -207,6 +261,13 @@ class UmnickTraderStrategy(bt.Strategy):
             self.exit_order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update rolling profit/loss arrays, flip direction on loss, tally win/loss.
+
+        Args:
+            trade: The trade whose status changed; on close it records the
+                profit/loss excursions into the rolling arrays, flips the
+                preferred direction after a loss, and bumps the win/loss counters.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -225,6 +286,7 @@ class UmnickTraderStrategy(bt.Strategy):
         self.entry_price = None
 
     def _update_excursions(self):
+        """Record the max favorable profit and adverse drawdown for the open trade."""
         if self.entry_price is None:
             return
         high = float(self.data.high[0])
@@ -251,6 +313,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative data filename from the strategy test directory.
+
+    Args:
+        filename: Relative file path string under the current test directory.
+
+    Returns:
+        pathlib.Path: Absolute path to the resolved file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -258,6 +328,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and sanitize backtest data from the migrated configuration.
+
+    Args:
+        config: Inline configuration containing the ``data`` block.
+
+    Returns:
+        dict: Backtest context with DataFrame and datetime bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -274,6 +352,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Backtrader engine with analyzers for this regression test.
+
+    Args:
+        config: Inline configuration containing backtest and data settings.
+        frame: Dictionary returned by :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured engine with strategy, feed, and analyzers attached.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -297,6 +384,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract deterministic metrics used by regression assertions.
+
+    Args:
+        strat: Finished strategy instance after ``cerebro.run``.
+        cerebro: Cerebro instance used to execute the backtest.
+        frame: Dictionary holding the loaded data and date window.
+        config: Inline configuration carrying backtest metadata.
+
+    Returns:
+        dict: Normalized dictionary of returns, drawdown, and trade statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -335,6 +433,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run regression backtest end-to-end and return run artifacts.
+
+    Args:
+        plot: If True, plot the Backtrader result after execution.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

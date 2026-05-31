@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) base timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The base frame is
+    resampled to a 240-minute (H4) signal timeframe on which the AFIRMA filter is
+    computed. Two feeds are delivered: the raw M15 OHLCV feed for execution and
+    an H4 feed carrying the precomputed ``firma`` and ``arma`` lines, both priced
+    as a futures-like instrument (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    AFIRMA (Adaptive Finite Impulse Response Moving Average) applies a windowed
+    FIR low-pass filter (Blackman by default) to smooth price, then fits a local
+    polynomial to project an adaptive moving average (ARMA line). Turns in the
+    ARMA slope on the higher H4 timeframe identify trend reversals: a slope
+    turning up is a long signal and a slope turning down is a short signal, while
+    the opposite slope closes the corresponding side. Trades are sized in fixed
+    lots with ATR-free fixed stop-loss and take-profit distances expressed in
+    points.
+
+Strategy Logic:
+    ``load_backtest_frames`` loads the M15 frame, resamples it to H4, and runs
+    ``compute_afirma`` to add the firma/arma lines. ``__init__`` binds the M15 and
+    H4 feeds and zeroes the signal, order, and trade counters. ``next`` waits for
+    enough ARMA history, manages stop-loss/take-profit exits, then—once per new
+    H4 signal bar—evaluates AFIRMA slope signals to open or close longs/shorts
+    with fixed stop and target prices. ``notify_order`` updates order/position
+    counters and clears the pending entry order, and ``notify_trade`` tallies
+    wins and losses. ``extract_metrics`` consolidates analyzer output and the
+    strategy counters into a metrics dict that the test compares against
+    migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -96,6 +128,19 @@ WINDOW_MAP = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -121,6 +166,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser bar size using right-closed bins.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        rule: A pandas offset alias (e.g. ``'240min'``) for the target bar size.
+
+    Returns:
+        The resampled OHLCV frame with rows missing price data dropped and
+        openinterest gaps filled with zero.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -135,6 +190,17 @@ def resample_frame(df, rule):
 
 
 def _window_weights(periods, taps, window):
+    """Build the windowed FIR low-pass filter weights used by AFIRMA.
+
+    Args:
+        periods: The cutoff period controlling the sinc low-pass response.
+        taps: The (odd) number of filter taps.
+        window: Window name (Rectangular, Hanning1/2, Blackman, Blackman_Harris)
+            mapped through ``WINDOW_MAP``.
+
+    Returns:
+        A tuple ``(weights, weight_sum)`` of the per-tap weight array and its sum.
+    """
     pi = np.pi
     mode = WINDOW_MAP.get(str(window), 4)
     w = np.zeros(int(taps), dtype=float)
@@ -157,6 +223,22 @@ def _window_weights(periods, taps, window):
 
 
 def compute_afirma(frame, periods=4, taps=21, window='Blackman'):
+    """Add the AFIRMA ``firma`` and ``arma`` lines to a signal-timeframe frame.
+
+    Applies the windowed FIR filter to close prices to produce the smoothed
+    ``firma`` line, then fits a local cubic polynomial to project the adaptive
+    ``arma`` line.
+
+    Args:
+        frame: The signal-timeframe OHLCV DataFrame indexed by datetime.
+        periods: The cutoff period for the FIR low-pass filter.
+        taps: The number of filter taps (forced odd internally).
+        window: Window name passed to :func:`_window_weights`.
+
+    Returns:
+        A copy of ``frame`` with ``firma`` and ``arma`` columns, with rows that
+        have no ARMA value dropped.
+    """
     taps = int(taps)
     if taps % 2 == 0:
         taps += 1
@@ -205,6 +287,8 @@ def compute_afirma(frame, periods=4, taps=21, window='Blackman'):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -212,6 +296,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AfirmaFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the H4 AFIRMA ``firma`` and ``arma`` lines."""
+
     lines = ('firma', 'arma')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -221,6 +307,8 @@ class AfirmaFeed(bt.feeds.PandasData):
 
 
 class AfirmaStrategy(bt.Strategy):
+    """Trade H4 AFIRMA slope reversals on M15 with fixed stop/take-profit."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -242,6 +330,7 @@ class AfirmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15/H4 feeds and AFIRMA lines and zero all counters/state."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.firma = self.h4.firma
@@ -264,6 +353,7 @@ class AfirmaStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current M15 bar's ISO timestamp."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -330,6 +420,13 @@ class AfirmaStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close
 
     def next(self):
+        """Manage risk exits, then act on new H4 AFIRMA signals each M15 bar.
+
+        Increments the bar counter, skips while an entry order is pending or ARMA
+        history is insufficient, handles stop-loss/take-profit exits, and—once
+        per new H4 signal bar—opens or closes longs/shorts based on the evaluated
+        AFIRMA slope signals.
+        """
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -364,6 +461,13 @@ class AfirmaStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Update order/position counters and clear the pending entry order.
+
+        Args:
+            order: The order whose status changed; completed orders bump the
+                buy/sell counters or reset risk prices when flat, and rejected
+                orders bump the rejected counter.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -382,6 +486,12 @@ class AfirmaStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -406,6 +516,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -413,6 +534,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the M15 frame, resample to H4, and compute AFIRMA lines.
+
+    Args:
+        config: Resolved configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the ``m15`` base frame, the AFIRMA-augmented ``h4`` frame,
+        and the ``fromdate``/``todate`` bounds.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -427,6 +561,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro with broker, M15+H4 feeds, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dictionary.
+        frame: Output of :func:`load_backtest_frames`.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -446,6 +589,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro that ran the backtest.
+        frame: Output of :func:`load_backtest_frames`.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict of bar/signal/order counts, trade counts, returns, drawdown,
+        Sharpe, SQN, and related performance metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -489,6 +644,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the end-to-end AFIRMA backtest and return results, metrics, cerebro.
+
+    Args:
+        plot: When True, render the cerebro plot after the run.
+
+    Returns:
+        A tuple ``(results, metrics, cerebro)`` from the executed backtest.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

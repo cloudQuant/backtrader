@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with each bar timestamp shifted forward by 15 minutes. The backtest
+    window spans 2025-12-03 01:15 to 2026-03-10 09:00. Indicators are computed
+    on the single 15-minute feed.
+
+Strategy Principle:
+    This is a port of the Exp_MovingAverage_FN MetaTrader expert advisor. It
+    builds a finite-impulse-response (FIR) moving average by convolving the
+    applied price with a named filter coefficient set (``filter_number``, parsed
+    from the original MQ5 source) and then optionally re-smooths the filtered
+    output. Direction changes of the resulting line drive the signals: an
+    up-turn from a falling line opens a long, a down-turn from a rising line
+    opens a short, and the opposite turn closes or reverses.
+
+Strategy Logic:
+    1. ``load_fn_coefficients`` extracts the FIR coefficients for the selected
+       filter from the MQ5 source; ``MovingAverageFNIndicator`` convolves them
+       with the applied price and re-smooths the result.
+    2. ``load_backtest_frame`` loads the data; ``build_cerebro`` wires the feed,
+       broker, strategy, and analyzers.
+    3. ``MovingAverageFNStrategy._signals`` reads three recent values to detect
+       turning points; ``next`` opens, closes, or reverses positions accordingly
+       after a warmup period.
+    4. ``notify_trade`` counts opened and closed trades into win/loss tallies.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_19_0019_1276_movingaverage_fn`` forces ``runonce=True``, captures
+       the metrics dict via an ``extract_metrics`` hook, and asserts each value
+       against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -84,6 +115,17 @@ SOURCE_MQ5 = Path(__file__).resolve().parents[2] / 'ea' / '1276_Exp_MovingAverag
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,6 +147,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column layout."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -112,6 +156,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Return the backtrader moving-average class for a method name.
+
+    Args:
+        name: MA method name (sma, ema, smma, or a weighted fallback).
+
+    Returns:
+        The corresponding backtrader moving-average indicator class.
+    """
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SMA
@@ -123,6 +175,16 @@ def resolve_ma_class(name):
 
 
 def resolve_price_line(data, mode):
+    """Return the price line selected by an MT5 applied-price mode.
+
+    Args:
+        data: The data feed providing OHLC lines.
+        mode: Applied-price mode name (e.g. ``price_close``, ``price_median``).
+
+    Returns:
+        The line or line expression for the requested applied price; defaults
+        to the close line for unrecognized modes.
+    """
     price_mode = str(mode).lower()
     if price_mode in {'price_open', 'open'}:
         return data.open
@@ -141,6 +203,18 @@ def resolve_price_line(data, mode):
 
 @lru_cache(maxsize=None)
 def load_fn_coefficients(filter_name='N44'):
+    """Parse FIR filter coefficients for a named filter from the MQ5 source.
+
+    Args:
+        filter_name: Filter case name (e.g. ``N44``) to extract.
+
+    Returns:
+        List of float coefficients ordered by price-series offset; ``[1.0]`` if
+        the source file is missing.
+
+    Raises:
+        ValueError: If the filter or the following case marker is not found.
+    """
     if not SOURCE_MQ5.exists():
         return [1.0]
     raw = SOURCE_MQ5.read_bytes()
@@ -172,6 +246,8 @@ def load_fn_coefficients(filter_name='N44'):
 
 
 class MovingAverageFNIndicator(bt.Indicator):
+    """FIR moving average built from named filter coefficients plus smoothing."""
+
     lines = ('mafn',)
     params = dict(
         filter_number='N44',
@@ -183,6 +259,7 @@ class MovingAverageFNIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Load the filter coefficients and set up the smoothing buffer."""
         self._coeffs = load_fn_coefficients(self.p.filter_number)
         self._price_line = resolve_price_line(self.data, self.p.ipc)
         self._smooth_values = deque(maxlen=max(1, int(self.p.xlength)))
@@ -207,6 +284,7 @@ class MovingAverageFNIndicator(bt.Indicator):
         return sum(v * w for v, w in zip(values, weights)) / weight_sum
 
     def next(self):
+        """Convolve the filter coefficients with price and emit the smoothed value."""
         filtered = 0.0
         for offset, coef in enumerate(self._coeffs):
             filtered += coef * float(self._price_line[-offset])
@@ -214,6 +292,12 @@ class MovingAverageFNIndicator(bt.Indicator):
 
 
 class MovingAverageFNStrategy(bt.Strategy):
+    """FIR moving-average direction strategy ported from Exp_MovingAverage_FN.
+
+    Opens, closes, or reverses positions on turning points of the FN moving
+    average line.
+    """
+
     params = dict(
         filter_number='N44',
         xma_method='jjma',
@@ -225,6 +309,7 @@ class MovingAverageFNStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate the FN moving-average indicator and reset counters."""
         self.indicator = MovingAverageFNIndicator(
             self.data,
             filter_number=self.p.filter_number,
@@ -242,10 +327,20 @@ class MovingAverageFNStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a log message prefixed with the current bar timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _signals(self):
+        """Detect FN moving-average turning-point open/close signals.
+
+        Returns:
+            Tuple of (buy_open, sell_open, buy_close, sell_close) booleans.
+        """
         shift = max(1, int(self.p.signal_bar))
         value0 = float(self.indicator.mafn[-shift + 1]) if shift > 1 else float(self.indicator.mafn[0])
         value1 = float(self.indicator.mafn[-shift])
@@ -265,6 +360,7 @@ class MovingAverageFNStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse positions on FN moving-average turning points."""
         self.bar_num += 1
         warmup = len(load_fn_coefficients(self.p.filter_number)) + int(self.p.xlength) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -303,6 +399,7 @@ class MovingAverageFNStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries and closed trades, and track win/loss results."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -335,6 +432,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy-relative data filename to an absolute path.
+
+    Args:
+        filename: Relative data file path from this module.
+
+    Returns:
+        Absolute path to the target file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -342,6 +447,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate backtest data for the given config.
+
+    Args:
+        config: Resolved strategy configuration.
+
+    Returns:
+        Dict containing frame DataFrame and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -358,6 +471,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with data feed, strategy, and analyzers.
+
+    Args:
+        config: Strategy and broker configuration.
+        frame: Prepared backtest frame.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -381,6 +503,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Build regression metrics from analyzer output and strategy counters.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro engine after run.
+        frame: Backtest frame metadata.
+        config: Strategy/backtest config.
+
+    Returns:
+        Metrics dictionary used by pytest assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -421,6 +554,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run this strategy test scenario and return run artifacts.
+
+    Args:
+        plot: Whether to plot the result chart.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

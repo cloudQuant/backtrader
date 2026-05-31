@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily MT5 data from `tests/datas/mt5_1d_data/XAUUSD_1d.csv`.
+    Symbol: `XAUUSD`
+    Timeframe: `D1`
+    Backtest range:
+        2024-01-01 00:00:00 -> 2025-12-31 00:00:00
+
+Strategy Principle:
+    Builds volatility/momentum regime features and retrains a K-Means state model
+    periodically. The state with highest confidence and persistence maps to
+    long/short/neutral exposure targets, subject to minimum probability and
+    persistence thresholds.
+
+Strategy Logic:
+    `load_data()` loads and filters OHLCV data, then enriches it with regime
+    features (`prepare_regime_switching_features`).
+    `RegimeSwitchingFeed` exposes these features for each bar. Strategy logic
+    tracks `signal_change` and submits target-percent orders when regimes change.
+    Analyzers and trade counters are collected into `extract_metrics()` and
+    validated in the migrated regression assertions.
 """
 from __future__ import annotations
 import math
@@ -83,6 +104,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted CSV/TSV data into a sorted datetime-indexed DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -179,6 +201,15 @@ def _estimate_transition(states, n_states):
 
 
 def prepare_regime_switching_features(df, params):
+    """Build and return feature-enriched frame for regime inference.
+
+    Args:
+        df: Raw OHLCV DataFrame indexed by datetime.
+        params: Strategy parameters controlling windows and thresholds.
+
+    Returns:
+        DataFrame containing original market columns plus regime prediction fields.
+    """
     out = df.copy()
     train_window = int(params.get('train_window', 252))
     retrain_interval = int(params.get('retrain_interval', 21))
@@ -286,6 +317,7 @@ def prepare_regime_switching_features(df, params):
 
 
 class RegimeSwitchingFeed(bt.feeds.PandasData):
+    """PandasData extension adding regime and signal feature lines."""
     lines = (
         'predicted_state', 'regime_score', 'state_confidence', 'persistence_prob',
         'target_exposure', 'retrain_point', 'bull_signal', 'bear_signal', 'neutral_signal',
@@ -300,6 +332,7 @@ class RegimeSwitchingFeed(bt.feeds.PandasData):
 
 
 class RegimeSwitchingModelingStrategy(bt.Strategy):
+    """Trend exposure strategy driven by regime prediction confidence and persistence."""
     params = dict(
         n_states=2,
         train_window=252,
@@ -316,6 +349,7 @@ class RegimeSwitchingModelingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state counters, order tracking, and broker value snapshots."""
         self.bar_num = 0
         self.pending_order = None
         self.trade_count = 0
@@ -326,6 +360,7 @@ class RegimeSwitchingModelingStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Capture equity curve snapshots and issue target exposure orders on signals."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if float(self.data.retrain_point[0]) > 0.5:
@@ -338,11 +373,13 @@ class RegimeSwitchingModelingStrategy(bt.Strategy):
         self.pending_order = self.order_target_percent(target=float(self.data.target_exposure[0]))
 
     def notify_order(self, order):
+        """Clear pending order marker when the order is completed/failed."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters after trade close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -360,6 +397,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 class SpotCommissionInfo(CommInfoBase):
+    """Commission info used by this strategy with percentage commissions."""
     params = (
         ('commission', 0.0002),
         ('stocklike', True),
@@ -369,10 +407,12 @@ class SpotCommissionInfo(CommInfoBase):
 
 
 def finite_or_none(x):
+    """Convert non-finite numeric values to ``None``."""
     return x if x is not None and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index from a sequence of equity values."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -387,6 +427,7 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_file(file_value):
+    """Resolve an input data file path from several repository-relative candidates."""
     path_value = Path(str(file_value))
     candidates = []
     if path_value.is_absolute():
@@ -401,6 +442,7 @@ def resolve_data_file(file_value):
 
 
 def load_data(config):
+    """Load data, apply feature generation, and return runnable backtest frame."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -412,6 +454,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build a Backtrader engine with configured data, strategy and analyzers."""
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -429,6 +472,7 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy, drawdown, and risk metrics for regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -484,6 +528,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Load config, prepare data, execute backtest, and compute metrics."""
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

@@ -4,6 +4,30 @@
 
 Reference: backtrader-master2/samples/writer-test/
 Tests Writer output functionality using a price and SMA crossover strategy.
+
+Data Used:
+    Daily OHLC bars from ``2005-2006-day-001.txt`` (the standard backtrader
+    sample file in BacktraderCSVData format), located via resolve_data_path and
+    clipped to the 2006-01-01 through 2006-12-31 calendar year. A single daily
+    feed drives the backtest.
+
+Strategy Principle:
+    A minimal price-versus-SMA crossover used as a vehicle to exercise the
+    WriterFile reporting component. A simple moving average tracks the trend;
+    when price closes above the SMA the trend is considered up (go long) and when
+    it closes below the SMA the trend is considered down (exit). The trading
+    logic is intentionally simple so the test can focus on verifying Writer
+    output and deterministic analyzer results.
+
+Strategy Logic:
+    WriterTestStrategy builds an SMA and a CrossOver of close versus the SMA.
+    Each bar it increments the bar counter, buys when the crossover turns
+    positive while flat, and closes when the crossover turns negative while in a
+    position. notify_order increments buy/sell counters on completed orders. The
+    parametrized test attaches a WriterFile (csv=False) plus Sharpe, Returns,
+    DrawDown, and TradeAnalyzer analyzers, runs both runonce=True and
+    runonce=False, and asserts bar count, final value, Sharpe, annual return,
+    drawdown, and trade count against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

@@ -16,6 +16,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 export into an intraday OHLCV frame.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV data file.
+        fromdate: Optional inclusive lower date bound.
+        todate: Optional inclusive upper date bound.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        Datetime-indexed DataFrame with OHLCV and openinterest columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +48,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed exposing standard OHLCV columns by position."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,13 +56,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class I4DRFV3(bt.Indicator):
+    """Indicator producing a direction color and synthetic value from highs/lows."""
     lines = ("color", "value")
     params = dict(period=11)
 
     def __init__(self):
+        """Initialize minimum history and derived signal parameters."""
         self.addminperiod(int(self.p.period) + 2)
 
     def next(self):
+        """Calculate directional value and color for the current bar."""
         total = 0.0
         period = int(self.p.period)
         for i in range(period):
@@ -66,6 +81,7 @@ class I4DRFV3(bt.Indicator):
 
 
 class ExpI4DRFV3Strategy(bt.Strategy):
+    """Trend-following strategy using I4DRF color flips on delayed signal bars."""
     params = dict(
         period=11,
         signal_bar=1,
@@ -82,6 +98,7 @@ class ExpI4DRFV3Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind feeds and initialize counters/order-state tracking."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = I4DRFV3(self.signal_data, period=self.p.period)
@@ -112,6 +129,7 @@ class ExpI4DRFV3Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate signal flips, manage exits, and submit entries."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -144,6 +162,7 @@ class ExpI4DRFV3Strategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track order flow and trade outcome counters."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

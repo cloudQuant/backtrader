@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv`` at the 15-minute base timeframe spanning
+    2025-12-03 01:15 to 2026-03-10 09:00. Each base bar is shifted forward by 15
+    minutes (``bar_shift_minutes``) so it is stamped at close. A second, derived
+    signal feed is built by resampling the base frame to a 240-minute (H4) bar
+    (``indicator_minutes``) and computing the AMA line plus up/down signal
+    columns, so the strategy runs on two synchronized data feeds.
+
+Strategy Principle:
+    This is the "AMkA" (Exp_AMkA) strategy, built around an Adaptive Moving
+    Average (AMA / Kaufman-style) computed on H4 bars. The AMA's efficiency ratio
+    scales its smoothing constant between a fast and slow EMA so it reacts in
+    trends and flattens in noise. Turning points in the AMA slope, filtered by a
+    standard-deviation band (``dk`` multiple), produce up/down signals. The
+    strategy fades or follows those signals subject to last-trend confirmation,
+    and protects each position with fixed point-based stop-loss and take-profit
+    distances.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro resamples it into the
+    H4 AMA signal frame via build_amka_signal_frame, wires both the base and
+    signal feeds, a fixed-commission futures broker, the strategy, and the
+    analyzers. Each base bar the strategy first checks fixed stop/take-profit
+    exits, then—once per new signal bar—reads the latest up/down signal and the
+    prior trend, sizing a new long/short entry (closing the opposite side first)
+    when permitted by the open/close flags. notify_trade counts opened positions
+    and tallies wins/losses on close. extract_metrics consolidates analyzer
+    output, and the test forces runonce=True, runs the module's run(), and
+    asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -90,6 +121,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset added to each timestamp so the
+            bar is stamped at its close.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +155,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed exposing the base M15 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -118,6 +164,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AMkASignalFeed(btfeeds.PandasData):
+    """PandasData feed exposing the resampled H4 AMA and up/down signal lines."""
+
     lines = ('ama', 'dn_signal', 'up_signal')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -127,6 +175,16 @@ class AMkASignalFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample the base M15 frame to the indicator timeframe.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Bar size in minutes for the resampled signal frame.
+
+    Returns:
+        A resampled OHLCV DataFrame (right label, right closed) with warm-up rows
+        lacking OHLC dropped and openinterest gaps filled with zero.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -142,6 +200,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def point_to_digits(point):
+    """Derive the price decimal precision from a point size.
+
+    Args:
+        point: The instrument point size (e.g. 0.01).
+
+    Returns:
+        The number of decimal digits implied by the point size, defaulting to 2
+        for non-positive values.
+    """
     point_value = float(point)
     if point_value <= 0:
         return 2
@@ -149,6 +216,27 @@ def point_to_digits(point):
 
 
 def build_amka_signal_frame(df, indicator_minutes, ama_period, fast_ma_period, slow_ma_period, g_power, dk, point):
+    """Build the H4 AMA signal frame with adaptive MA and up/down signals.
+
+    Computes a Kaufman-style Adaptive Moving Average on the resampled close
+    series, then derives up/down signal columns where the AMA slope exceeds a
+    standard-deviation band scaled by ``dk``.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Bar size in minutes for the resampled signal frame.
+        ama_period: Lookback used for the efficiency ratio and slope statistics.
+        fast_ma_period: Fast EMA period feeding the adaptive smoothing constant.
+        slow_ma_period: Slow EMA period feeding the adaptive smoothing constant.
+        g_power: Exponent applied to the smoothing constant (acceleration).
+        dk: Multiplier applied to the slope standard deviation for the signal
+            filter band.
+        point: Instrument point size used to derive rounding precision.
+
+    Returns:
+        The resampled frame with ``ama``, ``dn_signal``, and ``up_signal``
+        columns appended.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     price_series = signal_df['close'].astype(float).tolist()
     ama_values = [0.0] * len(price_series)
@@ -202,6 +290,8 @@ def build_amka_signal_frame(df, indicator_minutes, ama_period, fast_ma_period, s
 
 
 class AMkAStrategy(bt.Strategy):
+    """Trade AMA slope up/down signals with fixed stop-loss and take-profit."""
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -222,6 +312,7 @@ class AMkAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind execution/signal feeds and initialize counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.bar_num = 0
@@ -235,6 +326,11 @@ class AMkAStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Log a timestamped strategy message.
+
+        Args:
+            text: Text to print with current bar timestamp.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -294,6 +390,7 @@ class AMkAStrategy(bt.Strategy):
         return 0
 
     def next(self):
+        """Process each bar: close at risk exits and open/flip positions on signal lines."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -341,6 +438,7 @@ class AMkAStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Track open/closed trade counters and win/loss results."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -374,6 +472,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a local strategy file path.
+
+    Args:
+        filename: Relative data filename in test directory.
+
+    Returns:
+        Absolute path for the requested resource.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -381,6 +487,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load data from config and return a prepared backtest frame.
+
+    Args:
+        config: Strategy config dictionary.
+
+    Returns:
+        Dict with parsed data and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -397,6 +511,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure the Backtrader engine for AMKA strategy.
+
+    Args:
+        config: Strategy config dictionary.
+        frame: Dictionary containing loaded input DataFrame.
+
+    Returns:
+        Prepared ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -446,6 +569,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy/analyzer metrics for regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Engine after run.
+        frame: Backtest frame used for run.
+        config: Strategy config dictionary.
+
+    Returns:
+        Dict of test assertion fields.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -487,6 +621,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return execution results, metrics, and cerebro.
+
+    Args:
+        plot: Whether to render an equity chart.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily ``D1`` bars loaded from ``tests/datas/XAUUSD_1d.csv``
+    via the MetaTrader-5 style CSV reader. The backtest window spans 2008-01-01
+    to 2025-12-31. Fast and slow momentum features plus a binary signal are
+    precomputed and fed through a custom ``PandasData`` subclass.
+
+Strategy Principle:
+    A simple dual-horizon momentum filter. The strategy goes long only when both
+    a fast (20-bar) and a slow (60-bar) percentage-change momentum are positive,
+    interpreting agreement across horizons as a confirmed uptrend, and exits to
+    flat when that agreement breaks.
+
+Strategy Logic:
+    1. ``prepare_online_momentum_features`` computes the fast and slow momentum
+       series and the combined long signal.
+    2. ``load_data`` builds the feature frame; ``build_cerebro`` wires the feed,
+       broker (percent futures commission), strategy, and analyzers.
+    3. ``OnlineMomentumStrategy.next`` opens a notionally-sized long when the
+       signal is on and closes the position when it turns off.
+    4. ``notify_order`` clears the pending-order reference; ``notify_trade`` is a
+       no-op placeholder.
+    5. ``extract_metrics`` collects analyzer output and the equity-curve Ulcer
+       index, and ``test_24_0024_online_momentum`` forces ``runonce=True``,
+       captures the metrics dict, and asserts each value against migration-time
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -75,6 +101,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MetaTrader-5 style CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,6 +138,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_online_momentum_features(df, params):
+    """Compute fast/slow momentum features and the combined long signal.
+
+    Args:
+        df: Raw daily OHLCV DataFrame.
+        params: Strategy parameters providing the fast and slow periods.
+
+    Returns:
+        Copy of the frame with ``fast_mom``, ``slow_mom``, and ``signal``
+        columns, dropping rows with incomplete momentum values.
+    """
     fast = int(params.get('fast_period', 20))
     slow = int(params.get('slow_period', 60))
 
@@ -116,6 +162,8 @@ def prepare_online_momentum_features(df, params):
 
 
 class Mt5OnlineMomentumFeed(bt.feeds.PandasData):
+    """PandasData feed exposing fast/slow momentum and signal lines."""
+
     lines = ('fast_mom', 'slow_mom', 'signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -127,6 +175,8 @@ class Mt5OnlineMomentumFeed(bt.feeds.PandasData):
 
 
 class OnlineMomentumStrategy(bt.Strategy):
+    """Dual-horizon momentum strategy that holds long while both trends agree."""
+
     params = dict(
         fast_period=20,
         slow_period=60,
@@ -134,6 +184,7 @@ class OnlineMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset bar, trade, and order tracking state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -157,6 +208,7 @@ class OnlineMomentumStrategy(bt.Strategy):
 
 
     def next(self):
+        """Open a long while the signal is on, close it when the signal clears."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -172,17 +224,27 @@ class OnlineMomentumStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear the pending-order reference once an order finalizes.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Handle trade notifications (no bookkeeping needed here).
+
+        Args:
+            trade: The trade whose status changed.
+        """
         pass
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Online Momentum 策略回测"""
+"""Online Momentum strategy backtest."""
 
 
 
@@ -193,6 +255,15 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build SharpeRatio analyzer kwargs matched to the data timeframe.
+
+    Args:
+        config: Resolved configuration dict (or any object) with a ``data``
+            section providing the timeframe.
+
+    Returns:
+        Dict of keyword arguments for the SharpeRatio analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -205,10 +276,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return ``x`` when it is finite, otherwise ``None``.
+
+    Args:
+        x: Numeric value candidate.
+
+    Returns:
+        The original value if it is non-None and finite, else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index from a sequence of equity-curve values.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        Ulcer Index computed as the square root of average squared drawdowns.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -223,6 +310,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and feature-engineer the backtest input frame from config.
+
+    Args:
+        config: Resolved strategy configuration with ``data`` and ``params``.
+
+    Returns:
+        Dictionary containing the prepared dataframe and testing window bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -235,6 +330,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build a Backtrader cerebro instance for this strategy test.
+
+    Args:
+        frame: Dict with preprocessed feature dataframe under key ``data``.
+        config: Runtime and backtest settings (cash, commissions, and symbol).
+
+    Returns:
+        A configured `backtrader.Cerebro` object.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -257,6 +361,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy, trade, and risk metrics from a completed backtest.
+
+    Args:
+        strat: Backtrader strategy instance after `cerebro.run()`.
+        cerebro: Backtrader engine used to execute the run.
+        frame: Input frame dictionary containing metadata and bar data.
+        config: Active configuration carrying backtest metadata and parameters.
+
+    Returns:
+        Dictionary of metrics used by the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -291,6 +406,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for JSON-safe metric serialization.
+
+    Args:
+        v: Value to normalize (datetime, float, or arbitrary object).
+
+    Returns:
+        ISO format for datetimes, ``None`` for NaN/inf floats, otherwise unchanged.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -302,6 +425,7 @@ def normalize(v):
 
 
 def main():
+    """Run the strategy backtest end-to-end and compute regression metrics."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")

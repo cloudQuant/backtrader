@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted CSV bars and return a normalized OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +38,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed mapping MT5 positional OHLCV columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +46,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DoubleUpStrategy(bt.Strategy):
+    """CCI+MACD reversal strategy with position scaling and reopen-on-reverse."""
     params = dict(
         cci_period=8,
         macd_fast_period=13, macd_slow_period=33, macd_signal_period=2,
@@ -54,6 +57,7 @@ class DoubleUpStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, trading counters, and scaling state."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -136,6 +140,7 @@ class DoubleUpStrategy(bt.Strategy):
         return True
 
     def next(self):
+        """Evaluate signals, open/reverse positions, and process profit exits."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -162,6 +167,7 @@ class DoubleUpStrategy(bt.Strategy):
         self._check_profit_close()
 
     def notify_order(self, order):
+        """Track order completion and perform post-close reopening when needed."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -184,6 +190,7 @@ class DoubleUpStrategy(bt.Strategy):
                 self._submit_open(reopen_side)
 
     def notify_trade(self, trade):
+        """Update trade counters and win/loss classification on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

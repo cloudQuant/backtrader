@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    This regression uses XAUUSD 15-minute OHLCV data from
+    `tests/datas/XAUUSD_M15.csv`, loaded through `_CONFIG['data']['file']`.
+    The base feed runs on the original 15-minute bars, while a derived signal feed
+    is created from 240-minute resampled candles. Bar timestamps are shifted by 15
+    minutes as configured by `bar_shift_minutes`.
+    The tested period is 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    The strategy builds an adaptive Renko-style signal from either ATR or rolling
+    close-price volatility. It tracks upward/downward trend lines and emits a buy
+    when up_trend appears from zero while emitting sell when dn_trend appears.
+    Entries and exits are gated by configuration toggles and position size controls.
+
+Strategy Logic:
+    After loading and time-warping data, `build_adaptive_renko_frame()` creates
+    signal thresholds from volatility and price mode settings.
+    `build_cerebro()` adds base and signal feeds, then executes
+    `ExpAdaptiveRenkoDuplexStrategy` in run-once mode.
+    The strategy checks exit levels first, then reacts to new trend flips and logs
+    metrics for later assertion in `test_59_0059_0184_exp_adaptiverenko_duplex()`.
 """
 from __future__ import annotations
 import math
@@ -99,6 +121,17 @@ PRICE_CLOSE = 1
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-style TSV CSV file into a timestamp-indexed DataFrame.
+
+    Args:
+        filepath: Source CSV path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional index shift applied after parsing timestamps.
+
+    Returns:
+        DataFrame with datetime index and standard OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -120,6 +153,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Backtrader feed for base OHLCV columns parsed from MT5 migration CSV."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -127,6 +161,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AdaptiveRenkoFeed(btfeeds.PandasData):
+    """Signal feed exposing adaptive Renko up/down trend buffers."""
     lines = ('up_trend', 'dn_trend')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -135,6 +170,15 @@ class AdaptiveRenkoFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample base OHLCV data into indicator bars for signal generation.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Resample interval in minutes.
+
+    Returns:
+        Resampled and cleaned DataFrame with aggregated OHLCV fields.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -150,6 +194,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def atr_wilder(df, period):
+    """Compute ATR using Wilder's smoothing method.
+
+    Args:
+        df: DataFrame containing `high`, `low`, and `close`.
+        period: ATR period.
+
+    Returns:
+        Series of ATR values.
+    """
     period = int(period)
     high = df['high'].astype(float)
     low = df['low'].astype(float)
@@ -164,12 +217,36 @@ def atr_wilder(df, period):
 
 
 def stddev_sma_close(df, period):
+    """Calculate rolling close-price standard deviation.
+
+    Args:
+        df: DataFrame containing `close`.
+        period: Rolling window size.
+
+    Returns:
+        Rolling standard deviation series of close prices.
+    """
     period = int(period)
     close = df['close'].astype(float)
     return close.rolling(period, min_periods=period).std(ddof=0)
 
 
 def build_adaptive_renko_frame(df, indicator_minutes, k, indicator_mode, vlt_period, price_mode, wide_min, point):
+    """Create adaptive Renko signal bars using volatility-derived brick size.
+
+    Args:
+        df: Input OHLCV DataFrame.
+        indicator_minutes: Resampling window in minutes.
+        k: Brick scaling multiplier.
+        indicator_mode: 0 for ATR, 1 for standard deviation.
+        vlt_period: Volatility lookback period.
+        price_mode: Price source selector.
+        wide_min: Minimum brick width multiplier.
+        point: Instrument price point size.
+
+    Returns:
+        DataFrame containing up/down trend line buffers used by the strategy.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     indicator_mode = int(indicator_mode)
     price_mode = int(price_mode)
@@ -262,6 +339,7 @@ def build_adaptive_renko_frame(df, indicator_minutes, k, indicator_mode, vlt_per
 
 
 class ExpAdaptiveRenkoDuplexStrategy(bt.Strategy):
+    """Adaptive Renko duplex strategy with configurable volatility and trend filters."""
     params = dict(
         l_signal_bar=1,
         s_signal_bar=1,
@@ -285,6 +363,7 @@ class ExpAdaptiveRenkoDuplexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, data feeds, and outcome counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -301,6 +380,11 @@ class ExpAdaptiveRenkoDuplexStrategy(bt.Strategy):
         self._current_take_profit = None
 
     def log(self, text):
+        """Print log lines with the current bar datetime.
+
+        Args:
+            text: Message to print.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -358,6 +442,7 @@ class ExpAdaptiveRenkoDuplexStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate exits and new adaptive Renko signals to open/close positions."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -416,6 +501,11 @@ class ExpAdaptiveRenkoDuplexStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_order(self, order):
+        """Update pending-side risk levels after order updates.
+
+        Args:
+            order: Backtrader order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -429,6 +519,7 @@ class ExpAdaptiveRenkoDuplexStrategy(bt.Strategy):
             self._pending_side = None
 
     def notify_trade(self, trade):
+        """Update trade counters and clear risk tracking when a trade closes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -463,6 +554,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a configured relative data filename from the test directory.
+
+    Args:
+        filename: Relative path configured in data section.
+
+    Returns:
+        Absolute path to an existing file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -470,6 +569,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest OHLCV data and apply configured date bounds.
+
+    Args:
+        config: Loaded strategy configuration.
+
+    Returns:
+        Mapping with loaded DataFrame and date window values.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -486,6 +593,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, data feeds, strategy, and analyzers.
+
+    Args:
+        config: Loaded configuration dictionary.
+        frame: Backtest frame generated by `load_backtest_frame`.
+
+    Returns:
+        Configured `bt.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -531,6 +647,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract normalized strategy metrics for deterministic assertions.
+
+    Args:
+        strat: Strategy instance after run completion.
+        cerebro: The cerebro object used for execution.
+        frame: Backtest frame metadata.
+        config: Configuration dictionary.
+
+    Returns:
+        Dictionary of trade and performance metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

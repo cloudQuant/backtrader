@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H4 (240-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close. The signal feed
+    carries a Commodity Channel Index (CCI) computed in pandas.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``probe``. A CCI is computed on the
+    higher H4 timeframe; the strategy treats CCI crossings of symmetric
+    overbought/oversold thresholds (``+/-cci_max_min``) as breakout cues. When
+    CCI climbs back above the lower threshold it arms a buy stop above price,
+    and when CCI falls back below the upper threshold it arms a sell stop below
+    price. Positions are protected with a fixed stop-loss and a trailing stop
+    measured in pips, and stale pending stop orders far from price are removed.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 base frame and build_signal_frame
+    resamples it to the H4 CCI signal frame. build_cerebro wires both feeds and
+    the default analyzers. Each bar the strategy deletes far pending orders,
+    maintains the trailing stop, and once per new signal bar (and only when flat
+    with no pending order) places a buy or sell stop based on the CCI threshold
+    crossing. notify_order manages pending-order fills, attaches protective
+    stops, and handles trailing-stop replacement; notify_trade tallies win/loss
+    counts. The test forces runonce=True, runs main(), and asserts trade counts
+    and analyzer metrics against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -24,7 +52,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Probe',
-        'source_ea': 'ea/0175_探索/probe.mq5',
+        'source_ea': 'ea/0175_probe/probe.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -81,6 +109,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, sorted ascending and filtered to the
+        date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,6 +149,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed exposing the MT5 ``spread`` column as an extra line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -115,6 +159,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class SignalFeed(btfeeds.PandasData):
+    """PandasData feed exposing the precomputed ``cci`` signal line."""
+
     lines = ('cci',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -123,6 +169,20 @@ class SignalFeed(btfeeds.PandasData):
 
 
 def build_signal_frame(df, indicator_minutes, cci_period):
+    """Resample to the signal timeframe and compute a CCI column.
+
+    Aggregates the base frame into ``indicator_minutes`` bars and adds a
+    Commodity Channel Index built from the typical price and its mean absolute
+    deviation over ``cci_period`` bars.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Signal bar size in minutes.
+        cci_period: Lookback period for the CCI calculation.
+
+    Returns:
+        The resampled signal DataFrame with an added ``cci`` column.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -145,6 +205,26 @@ def build_signal_frame(df, indicator_minutes, cci_period):
 
 
 class ProbeStrategy(bt.Strategy):
+    """Port of the MT5 ``probe`` expert advisor using a CCI breakout signal.
+
+    Arms stop-entry orders when the H4 CCI crosses back inside its symmetric
+    thresholds, protects filled positions with a fixed stop-loss and a trailing
+    stop, and prunes pending stop orders that drift too far from price. Executes
+    on the M15 feed while reading signals from a separate H4 CCI feed.
+
+    Args:
+        lots: Order size in lots for each stop-entry order.
+        point_size: Price value of one pip for distances and rounding.
+        price_digits: Number of decimals used when rounding order prices.
+        stoploss_pips: Initial stop-loss distance in pips (0 disables).
+        trailing_stop_pips: Trailing-stop distance in pips (0 disables).
+        trailing_step_pips: Minimum favorable move before trailing again.
+        cci_max_min: Symmetric CCI threshold for arming entries.
+        indent_pips: Distance in pips from price for the stop-entry orders.
+        signal_bar: Which completed signal bar to read the CCI from.
+        cci_period: Lookback period for the CCI (used when building the feed).
+    """
+
     params = dict(
         lots=1.0,
         point_size=0.01,
@@ -159,6 +239,11 @@ class ProbeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution and signal feeds and reset order/trade state.
+
+        Captures the M15 execution feed and the H4 signal feed, then clears all
+        pending-order, stop-order, trailing and trade-counter state.
+        """
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1]
         self.pending_buy = None
@@ -177,6 +262,11 @@ class ProbeStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -267,6 +357,13 @@ class ProbeStrategy(bt.Strategy):
         self.log(f'set sell stop {price:.2f}')
 
     def next(self):
+        """Maintain orders and arm CCI-breakout stop entries each bar.
+
+        Increments the bar counter, prunes far pending orders, updates the
+        trailing stop, and once per new signal bar (only when flat with no
+        pending order) arms a buy stop above price on an upward CCI threshold
+        re-cross or a sell stop below price on a downward re-cross.
+        """
         self.bar_num += 1
         self._delete_far_pending()
         self._apply_trailing()
@@ -286,6 +383,16 @@ class ProbeStrategy(bt.Strategy):
             self._set_sell_stop()
 
     def notify_order(self, order):
+        """Handle pending-entry fills, protective stops, and trailing replacement.
+
+        On a filled buy/sell stop, increments the counter, cancels the opposing
+        pending order, and attaches a protective stop; on a filled or canceled
+        position stop, resets stop state or re-places the trailing stop at the
+        pending replacement price.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         if self._same_order(order, self.pending_buy):
@@ -333,6 +440,12 @@ class ProbeStrategy(bt.Strategy):
                 self.stop_replace_price = None
 
     def notify_trade(self, trade):
+        """Tally closed trades and reset stop/position tracking state.
+
+        Args:
+            trade: The trade whose status changed; only closed trades update the
+                win/loss counters and clear active stop state.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -359,6 +472,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data filename against the current test directory.
+
+    Args:
+        filename: Relative or absolute data file path from configuration.
+
+    Returns:
+        Normalized absolute path to the data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -366,12 +487,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO8601 timestamp value from config.
+
+    Args:
+        value: Timestamp string in ISO format or falsy value.
+
+    Returns:
+        Parsed datetime object, or ``None`` if input is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Build execution and signal dataframes from the given config.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Mapping with ``data`` (execution feed) and ``signal`` (H4 CCI feed).
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -384,6 +521,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach a standardized set of analyzers used by regression checks.
+
+    Args:
+        cerebro: The Cerebro instance to augment.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -392,6 +534,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro with feeds, strategy, commission, and analyzers.
+
+    Args:
+        config: Config dictionary containing execution/backtest settings.
+        frame: Prepared frame data produced by ``load_backtest_frame``.
+
+    Returns:
+        A configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = dict(config.get('params', {}))
@@ -410,6 +561,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize missing or non-finite metric values to ``None``.
+
+    Args:
+        value: Numeric candidate value.
+
+    Returns:
+        ``None`` when the value is missing/non-finite, else the value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -418,6 +577,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Collect and print analyzer summary values for the finished run.
+
+    Args:
+        results: Backtrader run result list.
+        start_value: Starting portfolio value at the beginning of the backtest.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -444,6 +609,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run Probe backtest from CLI arguments and optional plotting."""
     parser = argparse.ArgumentParser(description='Run Probe backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

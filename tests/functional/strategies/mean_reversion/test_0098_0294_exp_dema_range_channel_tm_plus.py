@@ -82,6 +82,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -108,6 +109,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -122,14 +124,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DemaRangeChannelColor(bt.Indicator):
+    """Indicator computing DEMA-based upper/lower range channels with a color index for breakout direction."""
     lines = ('color_idx', 'upper', 'lower')
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize DEMA channels from high/low inputs."""
         self.upper_dema = bt.indicators.DoubleExponentialMovingAverage(self.data.high, period=self.p.period)
         self.lower_dema = bt.indicators.DoubleExponentialMovingAverage(self.data.low, period=self.p.period)
 
     def next(self):
+        """Set the upper, lower, and color_idx line values based on close position relative to DEMA band."""
         upper = float(self.upper_dema[0])
         lower = float(self.lower_dema[0])
         close = float(self.data.close[0])
@@ -145,6 +150,7 @@ class DemaRangeChannelColor(bt.Indicator):
 
 
 class ExpDemaRangeChannelTmPlusStrategy(bt.Strategy):
+    """DEMA range channel breakout strategy with timed exits and bracket order management."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -161,6 +167,7 @@ class ExpDemaRangeChannelTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.channel = DemaRangeChannelColor(self.signal_feed, period=self.p.ma_period)
@@ -173,6 +180,7 @@ class ExpDemaRangeChannelTmPlusStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log message with the current execution bar datetime."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -210,6 +218,7 @@ class ExpDemaRangeChannelTmPlusStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse=None')
 
     def next(self):
+        """Process channel state transitions and trigger entry/exit logic."""
         if len(self.signal_feed) < self.p.ma_period + self.p.signal_bar + 2:
             return
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
@@ -246,6 +255,7 @@ class ExpDemaRangeChannelTmPlusStrategy(bt.Strategy):
                 self._submit_entry('short', 'channel transition from lower breakout state')
 
     def notify_order(self, order):
+        """Track order lifecycle: clear references on fill/cancel, record entry and close state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -284,6 +294,7 @@ class ExpDemaRangeChannelTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log closed trade details and reset side/entry context when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -302,6 +313,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to this test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -309,12 +321,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO date strings used by the config."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load frame from MT5 CSV and return trading data dictionary."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -326,6 +340,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach common analyzers (Sharpe, Returns, DrawDown, TradeAnalyzer, SQN)."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -334,6 +349,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and return cerebro with both execution and signal feeds."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -350,6 +366,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for missing or non-finite numeric values."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -358,6 +375,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact backtest summary with return/drawdown/trade stats."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -384,6 +402,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entrypoint for optional manual execution and plotting."""
     parser = argparse.ArgumentParser(description='Run Exp DEMA Range Channel Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

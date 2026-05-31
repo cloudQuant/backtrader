@@ -5,6 +5,31 @@ Test Case: Data Replay - MACD Strategy
 
 Reference source: test_58_data_replay.py
 Tests the data replay functionality using MACD crossover strategy.
+
+Data Used:
+    Daily OHLC bars for 2005-2006 from ``2005-2006-day-001.txt`` (the standard
+    backtrader sample file in BacktraderCSVData format), located via
+    resolve_data_path. The daily feed is replayed into weekly bars through
+    ``cerebro.replaydata`` with timeframe=Weeks, so the strategy sees a forming
+    weekly bar rebuilt from each incoming daily bar.
+
+Strategy Principle:
+    A textbook MACD crossover trend follower used here to exercise the data
+    replay machinery. MACD measures the gap between a fast and slow EMA, and its
+    signal line smooths that gap. A MACD-over-signal cross signals strengthening
+    momentum (go long) and the reverse cross signals weakening momentum (exit).
+    Running it on replayed weekly bars verifies that intrabar replay produces the
+    same deterministic results as a normal weekly feed.
+
+Strategy Logic:
+    ReplayMACDStrategy builds a MACD indicator and a CrossOver of MACD versus its
+    signal line. Each bar it logs indicator values, skips while an order is
+    pending, opens (or reverses into) a long on a positive crossover, and closes
+    on a negative crossover. notify_order counts completed buys/sells and clears
+    the order reference; notify_trade logs open/close PnL. The parametrized test
+    runs both runonce=True and runonce=False with preload=False, then asserts bar
+    count, final value, Sharpe, annual return, drawdown, and trade count against
+    expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

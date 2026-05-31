@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) timeframe, loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 00:00 to
+    2026-03-10 23:59, with each bar timestamp shifted forward by 15 minutes.
+
+Strategy Principle:
+    This is the "Robot_MACD" strategy (MT5 Robot_MACD EA). It trades MACD/signal
+    line crossovers filtered by zone: a buy occurs when the MACD line crosses up
+    through the signal line while both are still below zero (a turn from
+    oversold), and a sell when the MACD crosses down through the signal while
+    both are above zero (a turn from overbought). Each position carries a fixed
+    point-based take profit and is also closed when an opposite crossover signal
+    appears.
+
+Strategy Logic:
+    load_backtest_frame loads and date-filters the frame; build_cerebro adds the
+    M15 feed, configures a fixed-commission futures broker, the strategy with a
+    12/26/9 MACD indicator, and the analyzers. Each bar the strategy waits for
+    MACD warm-up, skips while an order is pending, then either manages the open
+    position (opposite-signal or take-profit exit) or, while flat, opens a
+    long/short on the zone-filtered crossover and sets the take-profit price.
+    notify_order tracks completed/rejected orders and buy/sell counts and clears
+    the working order, while notify_trade tallies wins and losses. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run(), and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -73,6 +99,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -100,12 +139,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class RobotMACDStrategy(bt.Strategy):
+    """Trade zone-filtered MACD/signal crossovers with a fixed take profit."""
+
     params = dict(
         take_profit=300.0,
         lots=1.0,
@@ -115,6 +158,7 @@ class RobotMACDStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the 12/26/9 MACD indicator and reset counters and order state."""
         self.macd = bt.indicators.MACD(self.data.close, period_me1=12, period_me2=26, period_signal=9)
 
         self.bar_num = 0
@@ -163,6 +207,14 @@ class RobotMACDStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage an open position or open a new zone-filtered MACD-cross trade.
+
+        Increments the bar counter, waits for MACD warm-up, skips while an order
+        is pending, then either manages the open position (opposite-signal or
+        take-profit exit) or, while flat, opens a long on a bullish below-zero
+        crossover or a short on a bearish above-zero crossover and sets the
+        take-profit price.
+        """
         self.bar_num += 1
         if len(self) < 35:
             return
@@ -184,6 +236,13 @@ class RobotMACDStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completed/rejected orders, buy/sell counts, and clear state.
+
+        Args:
+            order: The order whose status changed; completed fills update the
+                buy/sell counters or clear the take-profit price when flat, and
+                any terminal status releases the working order reference.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -201,6 +260,12 @@ class RobotMACDStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -225,6 +290,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a config data path relative to this file and verify it exists.
+
+    Args:
+        filename: Configured data path, absolute or relative to this directory.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -232,6 +308,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the OHLCV frame for the configured symbol and date range.
+
+    Args:
+        config: Parsed configuration providing the ``data`` section.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate``/``todate``
+        bounds.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -243,6 +331,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration with ``backtest`` and ``data`` sections.
+        frame: The loaded data dict produced by ``load_backtest_frame``.
+
+    Returns:
+        A configured Cerebro instance ready to run, with the M15 feed, the
+        Robot_MACD strategy, and Sharpe/Returns/DrawDown/TradeAnalyzer/SQN
+        analyzers attached.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -260,6 +359,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run.
+        frame: The loaded data dict (for bar counts and date range).
+        config: Parsed configuration (for the initial cash baseline).
+
+    Returns:
+        A dict of summary metrics including trade counts, win rate, profit
+        factor, final value, returns, drawdown, Sharpe ratio, and SQN.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -301,6 +412,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest pipeline and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro chart after the run.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

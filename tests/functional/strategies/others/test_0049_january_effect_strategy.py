@@ -22,6 +22,7 @@ ASSET_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 daily export CSV into a sorted datetime-indexed dataframe."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -46,6 +47,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_january_inputs(asset_map):
+    """Align assets by calendar and build January-effect winner lookup."""
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -75,9 +77,11 @@ def prepare_january_inputs(asset_map):
 
 
 class JanuaryEffectStrategy(bt.Strategy):
+    """Rotate exposure into the weakest-performing asset entering Jan/Feb."""
     params = dict(signal_lookup=None)
 
     def __init__(self):
+        """Initialize order tracking, counters, and calendar state."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -105,6 +109,7 @@ class JanuaryEffectStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Check signal day allocations and rebalance each data feed accordingly."""
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         if self.order_refs:
@@ -128,11 +133,13 @@ class JanuaryEffectStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed order refs from the tracking set."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes and outcome counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv``, with each bar timestamp shifted
+    forward by 15 minutes so it marks the candle close, clipped to 2025-12-03
+    01:15:00 through 2026-03-10 09:00:00. A single M15 feed drives the squeeze
+    indicator and execution, priced as a futures-like instrument (multiplier
+    100, margin 0.01).
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_BBSqueeze built on John Carter's TTM
+    Squeeze. When the Bollinger Bands contract inside the Keltner Channel the
+    market is in a low-volatility "squeeze" that tends to precede an explosive
+    move. The strategy waits for the squeeze to release (bands expanding back
+    outside the channel) and then trades in the direction of momentum: a release
+    with positive momentum goes long and a release with negative momentum goes
+    short, betting the breakout continues.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed,
+    commission, strategy, and analyzers. The BBSqueezeIndicator computes a
+    squeeze flag (Bollinger width versus Keltner width) and a momentum line each
+    bar. Once warmed up the strategy opens longs/shorts on a squeeze release in
+    the momentum direction (with a momentum-flip fallback while still squeezed),
+    and exits when the squeeze fires again or momentum reverses, optionally
+    flipping into the opposite side. notify_trade tallies buy/sell on open and
+    win/loss on close. extract_metrics consolidates analyzer output; the test
+    hooks the metric extractor, forces runonce=True, and asserts each metric
+    against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -74,6 +103,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 export data and return an indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the raw MT5 CSV.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Minutes to shift each bar timestamp.
+
+    Returns:
+        pandas.DataFrame: Data indexed by datetime and limited to requested range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -95,6 +135,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 export columns to Backtrader OHLCV fields."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -119,12 +161,14 @@ class BBSqueezeIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Instantiate BB, ATR, SMA, and momentum indicators used by the squeeze."""
         self.bb = bt.indicators.BollingerBands(self.data.close, period=self.p.bb_period, devfactor=self.p.bb_dev)
         self.atr = bt.indicators.ATR(self.data, period=self.p.kc_period)
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.kc_period)
         self.mom = bt.indicators.Momentum(self.data.close, period=self.p.mom_period)
 
     def next(self):
+        """Calculate squeeze state and momentum for every new bar."""
         bb_upper = float(self.bb.top[0])
         bb_lower = float(self.bb.bot[0])
         bb_width = bb_upper - bb_lower
@@ -156,6 +200,7 @@ class BBSqueezeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator and all strategy counters for assertions."""
         self.squeeze = BBSqueezeIndicator(
             self.data,
             bb_period=self.p.bb_period,
@@ -173,10 +218,12 @@ class BBSqueezeStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Emit a timestamped strategy log line."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Run squeeze and momentum state machine to open/close positions."""
         self.bar_num += 1
         if len(self.data) < max(self.p.bb_period, self.p.kc_period, self.p.mom_period) + 5:
             return
@@ -225,6 +272,7 @@ class BBSqueezeStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update order counters when a trade is opened or closed."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -249,11 +297,27 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve and validate dataset file path.
+
+    Args:
+        filename: Relative filename from config.
+
+    Returns:
+        Path: Absolute path to existing file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load test data and return frame and backtest date bounds.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        dict: Backtest payload with data and boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -264,6 +328,7 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Create and configure the Cerebro engine with strategy, data, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -281,6 +346,7 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Gather analyzer outputs and strategy counters into a metric dictionary."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -301,6 +367,7 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the regression strategy once and return results and metrics."""
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

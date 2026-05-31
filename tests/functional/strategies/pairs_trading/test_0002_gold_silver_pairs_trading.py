@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Two H1 (60-minute) feeds loaded from MT5 exports: gold (XAUUSD) from
+    ``tests/datas/XAUUSD_H1.csv`` and silver (XAGUSD) from
+    ``tests/datas/XAGUSD_H1.csv``, aligned on their common timestamps from
+    2025-07-01 to 2025-12-31. Both legs trade on the same hourly clock.
+
+Strategy Principle:
+    This is the "Gold Silver Pairs Trading" strategy. It assumes the log-price
+    spread between gold and silver (with a fixed hedge ratio) is mean-reverting.
+    A rolling z-score of the spread drives the trade: when the spread stretches
+    beyond the entry threshold the strategy fades it (long the cheap leg, short
+    the rich leg), exits as the z-score reverts toward zero, and bails out if the
+    spread blows past the stop threshold.
+
+Strategy Logic:
+    load_inputs loads and aligns the gold and silver H1 frames; build_cerebro
+    wires both feeds, a percentage futures commission, the strategy, and the
+    analyzers. Each bar the strategy appends the current spread, computes the
+    rolling z-score, and—when flat—opens a long or short spread at the entry
+    threshold, or—when in a position—closes both legs at the exit or stop
+    threshold, sizing each leg to ``max_notional_pct`` of portfolio value.
+    notify_order tracks pending order refs and notify_trade logs closed-trade
+    PnL. extract_metrics consolidates analyzer output (plus an Ulcer Index), and
+    the test forces runonce=True, runs the module's run()/main(), and asserts
+    each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -78,6 +104,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Supports both the modern ``time`` column format and the legacy
+    ``<DATE>``/``<TIME>`` tab-separated format.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -120,6 +160,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_pair_data(gold_df, silver_df):
+    """Align the gold and silver frames on their common timestamps.
+
+    Args:
+        gold_df: The gold (XAUUSD) OHLCV frame.
+        silver_df: The silver (XAGUSD) OHLCV frame.
+
+    Returns:
+        A tuple ``(gold, silver)`` of the two frames restricted to and ordered by
+        their shared datetime index.
+    """
     common_index = gold_df.index.intersection(silver_df.index).sort_values()
     gold = gold_df.loc[common_index].copy()
     silver = silver_df.loc[common_index].copy()
@@ -127,6 +177,8 @@ def prepare_pair_data(gold_df, silver_df):
 
 
 class GoldSilverPairsTradingStrategy(bt.Strategy):
+    """Mean-reversion pairs trade on the gold/silver log-price spread z-score."""
+
     params = dict(
         hedge_ratio=1.0,
         zscore_window=192,
@@ -139,6 +191,7 @@ class GoldSilverPairsTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the gold/silver feeds and reset counters and spread trackers."""
         self.gold = self.datas[0]
         self.silver = self.datas[1]
         self.order_refs = set()
@@ -211,6 +264,14 @@ class GoldSilverPairsTradingStrategy(bt.Strategy):
         self.current_spread_side = 0
 
     def next(self):
+        """Track the spread z-score and open or close the pair each bar.
+
+        Increments the bar counter, records broker value and the latest spread,
+        and computes the rolling z-score. While flat it opens a long or short
+        spread once the z-score exceeds the entry threshold; while in a position
+        it closes both legs once the z-score reverts within the exit threshold or
+        blows past the stop threshold.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.gold.datetime[0]), float(self.broker.getvalue())))
         self.spread_history.append(self._spread())
@@ -230,11 +291,22 @@ class GoldSilverPairsTradingStrategy(bt.Strategy):
             self._close_all()
 
     def notify_order(self, order):
+        """Drop completed or dead orders from the pending-order ref set.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Log the commission-adjusted PnL of each closed trade.
+
+        Args:
+            trade: The trade whose status changed; closed trades append their
+                ``pnlcomm`` to the trade log.
+        """
         if trade.isclosed:
             self.trade_log.append({'pnlcomm': trade.pnlcomm})
 
@@ -245,14 +317,33 @@ class GoldSilverPairsTradingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 class FuturesCommission(bt.CommInfoBase):
+    """Percentage, stock-like commission scheme for the pair legs."""
+
     params = (('commission', 0.0005), ('commtype', bt.CommInfoBase.COMM_PERC), ('stocklike', True))
 
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -266,6 +357,16 @@ def calculate_ulcer_index(values):
 
 
 def get_timeframe_kwargs(config):
+    """Map the config timeframe label to backtrader feed/analyzer kwargs.
+
+    Args:
+        config: Parsed configuration whose ``data.timeframe`` is a label such as
+            ``H1`` or ``M15``.
+
+    Returns:
+        A dict of ``timeframe`` and ``compression`` kwargs for feeds and
+        time-aware analyzers (defaulting to daily for unknown labels).
+    """
     timeframe_value = str(config.get('data', {}).get('timeframe', 'M15')).upper()
     if timeframe_value.startswith('H') and timeframe_value[1:].isdigit():
         return dict(timeframe=bt.TimeFrame.Minutes, compression=max(1, int(timeframe_value[1:])) * 60)
@@ -275,6 +376,16 @@ def get_timeframe_kwargs(config):
 
 
 def load_inputs(config):
+    """Load and align the gold and silver frames for the backtest.
+
+    Args:
+        config: Parsed configuration providing the ``data`` section with both
+            file paths and the date range.
+
+    Returns:
+        A dict with the aligned ``gold_df`` and ``silver_df`` frames and the
+        ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -285,6 +396,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, gold/silver feeds, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest, commission, and
+            timeframe settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with both price feeds, a
+        percentage commission, the strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.addcommissioninfo(FuturesCommission(commission=float(config['params'].get('commission_pct', 0.0005))))
@@ -303,6 +425,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, annualized return, SQN, and Ulcer
+        Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -342,6 +477,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -353,6 +497,7 @@ def normalize(value):
 
 
 def main():
+    """Run the full pairs-trading backtest end-to-end and compute its metrics."""
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded aligned {config['data'].get('timeframe', 'bars')} bars: {len(inputs['gold_df'])}")

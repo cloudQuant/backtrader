@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated CSV and return a datetime-indexed OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +40,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping MT5 positional columns to OHLCV fields."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -61,6 +63,7 @@ class IvanStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and counters for signal/trade state tracking."""
         self.cci100 = bt.indicators.CCI(self.data, period=100)
         self.cci13 = bt.indicators.CCI(self.data, period=self.p.cci13_period)
         self.ma_sl = bt.indicators.SmoothedMovingAverage(self.data.close, period=self.p.ma_sl_period)
@@ -151,6 +154,7 @@ class IvanStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Advance strategy state, maintain trailing stops, and issue entry/exit orders."""
         self.bar_num += 1
         if len(self) < 102:
             return
@@ -194,6 +198,7 @@ class IvanStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completed and rejected orders, updating counters and stop state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -211,6 +216,7 @@ class IvanStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Increment trade counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1

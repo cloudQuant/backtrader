@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) from ``tests/datas/XAUUSD_M15.csv``.
+    Base M15 data are shifted 15 minutes and resampled to H4 for signal
+    feature generation.
+
+Strategy Principle:
+    This strategy calculates a smoothed color trend-cycle from relative vigor
+    index fast/slow divergence and trades color-based crossovers under fixed
+    stop-loss and take-profit constraints.
+
+Strategy Logic:
+    Two data feeds are used: raw M15 prices and enriched H4 indicator feed.
+    On each qualifying H4 bar timestamp, the strategy optionally closes open
+    positions and opens/reverses based on buy/sell signals, updates protective
+    levels, and records trade/order counters for metric assertions.
 """
 from __future__ import annotations
 import math
@@ -89,6 +105,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported tab-separated OHLCV into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: CSV file to parse.
+        fromdate: Optional floor datetime filter.
+        todate: Optional ceiling datetime filter.
+        bar_shift_minutes: Optional timestamp shift in minutes.
+
+    Returns:
+        Parsed DataFrame with columns required for Backtrader consumption.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,6 +141,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample source bars into coarser bars using right-closed intervals.
+
+    Args:
+        df: Source OHLCV frame indexed by datetime.
+        rule: Pandas resample rule string.
+
+    Returns:
+        Aggregated DataFrame.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -128,6 +164,15 @@ def resample_frame(df, rule):
 
 
 def compute_rvi_main(frame, period):
+    """Compute a smoothed relative vigor index main component over ``period``.
+
+    Args:
+        frame: OHLCV DataFrame.
+        period: Lookback period for rolling averages.
+
+    Returns:
+        Smoothed numerator/denominator ratio series.
+    """
     num = (frame['close'] - frame['open']).astype(float)
     den = (frame['high'] - frame['low']).astype(float)
     num_w = (num + 2.0 * num.shift(1) + 2.0 * num.shift(2) + num.shift(3)) / 6.0
@@ -138,6 +183,17 @@ def compute_rvi_main(frame, period):
 
 
 def rolling_stochastic(series, window, scale_min=0.0, scale_max=100.0):
+    """Normalize a series into a bounded stochastic-like range.
+
+    Args:
+        series: Source data series.
+        window: Window size for rolling min/max.
+        scale_min: Lower bound.
+        scale_max: Upper bound.
+
+    Returns:
+        Bounded series with NaNs propagated.
+    """
     llv = series.rolling(window, min_periods=1).min()
     hhv = series.rolling(window, min_periods=1).max()
     out = pd.Series(index=series.index, dtype='float64')
@@ -157,6 +213,15 @@ def rolling_stochastic(series, window, scale_min=0.0, scale_max=100.0):
 
 
 def recursive_smooth(series, factor=0.5):
+    """Apply lightweight exponential smoothing to reduce series noise.
+
+    Args:
+        series: Input pandas Series.
+        factor: Smoothing coefficient in [0, 1].
+
+    Returns:
+        Smoothed series.
+    """
     out = []
     prev = np.nan
     for value in series.tolist():
@@ -173,6 +238,19 @@ def recursive_smooth(series, factor=0.5):
 
 
 def compute_color_schaff_rvi_trend_cycle(frame, fast_rvi=23, slow_rvi=50, cycle=10, high_level=60, low_level=-60):
+    """Build STC-style smoothed trend-cycle signals from RVI components.
+
+    Args:
+        frame: OHLCV frame for signal generation.
+        fast_rvi: Fast RVI period.
+        slow_rvi: Slow RVI period.
+        cycle: Smoother cycle length.
+        high_level: Upper trigger boundary.
+        low_level: Lower trigger boundary.
+
+    Returns:
+        Frame with STC/color/signal columns.
+    """
     fast = compute_rvi_main(frame, fast_rvi)
     slow = compute_rvi_main(frame, slow_rvi)
     macd = fast - slow
@@ -217,6 +295,7 @@ def compute_color_schaff_rvi_trend_cycle(frame, fast_rvi=23, slow_rvi=50, cycle=
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base data feed for MT5 CSV converted OHLCV data."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -229,6 +308,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorSchaffRVITrendCycleFeed(bt.feeds.PandasData):
+    """Feed containing precomputed STC and color signal lines for H4 input."""
     lines = ('stc', 'color_code', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -246,6 +326,8 @@ class ColorSchaffRVITrendCycleFeed(bt.feeds.PandasData):
 
 
 class ColorSchaffRVITrendCycleStrategy(bt.Strategy):
+    """Trend strategy driven by color Schaff RVI trend-cycle signals."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -269,6 +351,7 @@ class ColorSchaffRVITrendCycleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize datastructures, signal caches, and position/risk state."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.stc = self.h4.stc
@@ -293,6 +376,7 @@ class ColorSchaffRVITrendCycleStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Emit a timestamped log message for traceability."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -346,6 +430,7 @@ class ColorSchaffRVITrendCycleStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Process new bars: avoid duplicate H4 processing, manage risk, and place orders."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -395,6 +480,7 @@ class ColorSchaffRVITrendCycleStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/cancelled entries and clear dependent state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -413,6 +499,7 @@ class ColorSchaffRVITrendCycleStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Increment trade counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -437,6 +524,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path from test directory and validate file existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -444,6 +532,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load M15/H4 frames used by this regression run.
+
+    Args:
+        config: Inline configuration object.
+
+    Returns:
+        Dictionary with ``m15`` and ``h4`` frames plus date bounds.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -458,6 +554,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro, data feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -479,6 +576,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract key strategy metrics and analyzer outputs for strict assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -524,6 +622,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the strategy and collect the resulting metrics.
+
+    Args:
+        plot: Whether to generate chart output.
+
+    Returns:
+        Tuple of (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

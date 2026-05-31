@@ -17,6 +17,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and return a normalized OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -41,6 +42,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_sentiment_analysis_features(df, params):
+    """Compute sentiment-derived indicators and breakout signals for trading."""
     sentiment_window = int(params.get("sentiment_window", 30))
     return_z_window = int(params.get("return_z_window", 20))
     volume_window = int(params.get("volume_window", 30))
@@ -90,6 +92,7 @@ def prepare_sentiment_analysis_features(df, params):
 
 
 class Mt5SentimentAnalysisFeed(bt.feeds.PandasData):
+    """PandasData feed carrying sentiment feature columns for the strategy."""
     lines = (
         "returns", "return_z", "volume_z", "range_z",
         "safe_haven_proxy", "speculative_proxy", "dollar_proxy",
@@ -104,6 +107,7 @@ class Mt5SentimentAnalysisFeed(bt.feeds.PandasData):
 
 
 class SentimentAnalysisStrategy(bt.Strategy):
+    """Contrarian sentiment strategy with time/condition-based exits and fixed position sizing."""
     params = dict(
         stop_loss=0.03,
         take_profit=0.06,
@@ -121,6 +125,7 @@ class SentimentAnalysisStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, order state, and entry tracking fields."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -146,6 +151,7 @@ class SentimentAnalysisStrategy(bt.Strategy):
         return direction * round(size, 2)
 
     def next(self):
+        """Run per-bar signal processing and manage entry/exit operations."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -198,6 +204,7 @@ class SentimentAnalysisStrategy(bt.Strategy):
         self.pending_order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Reset pending order state and clear entry context on order completion."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -206,6 +213,7 @@ class SentimentAnalysisStrategy(bt.Strategy):
             self.target_direction = 0
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1

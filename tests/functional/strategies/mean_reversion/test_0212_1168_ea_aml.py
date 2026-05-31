@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from tests/datas/XAUUSD_M15.csv (2025-12-03 to 2026-03-10),
+    with an AML (Adaptive Market Level) signal feed built by pre-computing
+    the AmlIndicator on the same M15 bars.
+
+Strategy Principle:
+    AML is a fractal-dimension-adaptive indicator combining multi-fractal range
+    measurements with exponential smoothing. The strategy generates buy/sell signals
+    when AML crosses between open and close prices, with optional reversal when
+    use_opposite is enabled.
+
+Strategy Logic:
+    1. Pre-compute AmlIndicator values on M15 bars to build a signal feed.
+    2. On each bar, compare prior AML value to prior open/close to detect
+       bullish (AML between open and close) or bearish (reverse) conditions.
+    3. Enter long on bullish, short on bearish; reverse on opposite signal
+       when use_opposite is True.
+    4. Manage positions with fixed SL (500 pts) and TP (3500 pts).
+    5. Assert trade counts, win/loss, Sharpe, SQN, drawdown, and returns.
 """
 from __future__ import annotations
 import math
@@ -85,6 +105,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Parse an MT5-exported tab-separated CSV into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional minimum datetime.
+        todate: Optional maximum datetime.
+        bar_shift_minutes: Optional minutes to shift the datetime index.
+
+    Returns:
+        pd.DataFrame with columns [datetime, open, high, low, close, volume, openinterest].
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -110,6 +141,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed for loading MT5-formatted CSV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -117,6 +149,14 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AdaptiveMarketLevel(bt.Indicator):
+    """Adaptive Market Level indicator using fractal dimension and exponential smoothing.
+
+    Lines:
+        aml (bt.LineSeries): Adaptive smoothed price level.
+
+    The indicator measures multi-fractal ranges and applies an alpha that adapts
+    based on the estimated fractal dimension of the price series.
+    """
     lines = ('aml',)
     params = dict(
         fractal=70,
@@ -126,11 +166,13 @@ class AdaptiveMarketLevel(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize rolling history buffers and compute minperiod."""
         self._smooth_history = []
         self._aml_history = []
         self._min_period = max(int(self.p.fractal) * 2 + int(self.p.lag), 1)
 
     def _range(self, count, start):
+        """Compute range (max high - min low) over a sliding window."""
         highs = []
         lows = []
         for idx in range(start, start + count):
@@ -140,6 +182,7 @@ class AdaptiveMarketLevel(bt.Indicator):
         return max(highs) - min(lows)
 
     def next(self):
+        """Compute AML value: fractal-dimension-adaptive smoothed price level."""
         fractal = int(self.p.fractal)
         lag = int(self.p.lag)
         if len(self.data) < self._min_period:
@@ -170,7 +213,13 @@ class AdaptiveMarketLevel(bt.Indicator):
         self.lines.aml[0] = aml
 
 
+
 class EaAmlStrategy(bt.Strategy):
+    """AML-based strategy using inline AdaptiveMarketLevel indicator.
+
+    Generates buy/sell signals based on AML crossing between prior open and close.
+    Supports opposite-direction reversal, adaptive lot sizing, and fixed SL/TP exits.
+    """
     params = dict(
         lots=0.1,
         tp=3500.0,
@@ -186,6 +235,7 @@ class EaAmlStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy: AML indicator, trade counters, and order state."""
         self.aml = AdaptiveMarketLevel(
             self.data,
             fractal=self.p.fractal,
@@ -206,6 +256,7 @@ class EaAmlStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log a timestamped message to stdout."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -274,6 +325,7 @@ class EaAmlStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate AML signal vs prior open/close; enter, exit, or reverse positions."""
         self.bar_num += 1
         if len(self.data) < max(int(self.p.fractal) * 2 + int(self.p.lag), 3):
             return
@@ -312,6 +364,7 @@ class EaAmlStrategy(bt.Strategy):
             self.order = self.close()
 
     def notify_order(self, order):
+        """Handle order completion, cancellation, margin, or rejection."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -326,6 +379,7 @@ class EaAmlStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters (buy/sell/win/loss) on position open and close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -345,35 +399,8 @@ class EaAmlStrategy(bt.Strategy):
         self.log(f'trade closed pnl={trade.pnlcomm:.2f}')
 
 
-
-
-
-def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
-    with open(filepath, 'r', encoding='utf-8') as f:
-        lines = f.read().strip().split('\n')
-    cleaned = '\n'.join(line.strip().strip('"') for line in lines)
-    df = pd.read_csv(io.StringIO(cleaned), sep='\t')
-    df['datetime'] = pd.to_datetime(df['<DATE>'] + ' ' + df['<TIME>'], format='%Y.%m.%d %H:%M:%S')
-    df = df.rename(columns={
-        '<OPEN>': 'open',
-        '<HIGH>': 'high',
-        '<LOW>': 'low',
-        '<CLOSE>': 'close',
-        '<TICKVOL>': 'volume',
-        '<VOL>': 'openinterest',
-    })
-    df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    df = df.set_index('datetime')
-    if bar_shift_minutes:
-        df.index = df.index + pd.Timedelta(minutes=bar_shift_minutes)
-    if fromdate is not None:
-        df = df[df.index >= fromdate]
-    if todate is not None:
-        df = df[df.index <= todate]
-    return df
-
-
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed for loading MT5-formatted CSV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -381,6 +408,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AmlSignalFeed(btfeeds.PandasData):
+    """PandasData feed that carries a pre-computed AML signal line."""
     lines = ('aml',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -390,6 +418,17 @@ class AmlSignalFeed(btfeeds.PandasData):
 
 
 def build_aml_signal_frame(df, fractal, lag, point):
+    """Pre-compute AML indicator values on a DataFrame and return a copy with an 'aml' column.
+
+    Args:
+        df: DataFrame with [high, low, open, close] columns.
+        fractal: Fractal period for range measurement.
+        lag: Exponential smoothing lag parameter.
+        point: Point size for AML threshold.
+
+    Returns:
+        DataFrame with an additional 'aml' column of pre-computed signal values.
+    """
     fractal = max(1, int(fractal))
     lag = max(1, int(lag))
     point = float(point)
@@ -432,6 +471,14 @@ def build_aml_signal_frame(df, fractal, lag, point):
 
 
 class AmlIndicator(bt.Indicator):
+    """Adaptive Market Level indicator for backtesting signal generation.
+
+    Lines:
+        aml (bt.LineSeries): Adaptive smoothed price level using fractal
+        dimension and exponential smoothing.
+
+    Uses deque-based rolling history instead of circular buffer for simplicity.
+    """
     lines = ('aml',)
     params = dict(
         fractal=70,
@@ -441,6 +488,7 @@ class AmlIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize deque-based rolling history and set minperiod."""
         lag = max(1, int(self.p.lag))
         fractal = max(1, int(self.p.fractal))
         self._smooth = deque(maxlen=lag + 1)
@@ -452,6 +500,7 @@ class AmlIndicator(bt.Indicator):
         return max(highs) - min(lows)
 
     def next(self):
+        """Compute AML value using deque rolling history and fractal smoothing."""
         fractal = max(1, int(self.p.fractal))
         lag = max(1, int(self.p.lag))
         price = (
@@ -489,6 +538,12 @@ class AmlIndicator(bt.Indicator):
 
 
 class EaAmlStrategy(bt.Strategy):
+    """AML-based strategy consuming a pre-computed AmlSignalFeed as data1.
+
+    Uses a two-data architecture: base feed (data0) for OHLCV and AML signal
+    feed (data1) for the AML line. Generates signals when AML crosses between
+    prior open and close, with fixed SL/TP and optional reversal.
+    """
     params = dict(
         lots=0.1,
         tp=3500.0,
@@ -504,6 +559,7 @@ class EaAmlStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy: assign base/signal feeds, counters, and order state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.aml = self.signal.aml
@@ -521,6 +577,7 @@ class EaAmlStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log a timestamped message to stdout using base feed datetime."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -571,6 +628,7 @@ class EaAmlStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate AML signal on pre-computed signal feed; enter, exit, or reverse positions."""
         self.bar_num += 1
         warmup = max(int(self.p.fractal) * 2 + 2, int(self.p.lag) + 3)
         if len(self.base) < warmup or len(self.signal) < warmup:
@@ -627,6 +685,7 @@ class EaAmlStrategy(bt.Strategy):
             self.order = self.close()
 
     def notify_order(self, order):
+        """Handle order completion, cancellation, margin, or rejection."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -641,6 +700,7 @@ class EaAmlStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters (buy/sell/win/loss) on position open and close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -675,6 +735,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to the test file's directory.
+
+    Args:
+        filename: Data file name relative to the test directory.
+
+    Returns:
+        Resolved absolute Path.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -682,6 +753,15 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 CSV data into a DataFrame per the config's data section.
+
+    Args:
+        config: Dict with 'data' key containing file, fromdate, todate,
+        and optional bar_shift_minutes.
+
+    Returns:
+        Dict with 'data' (DataFrame), 'fromdate', and 'todate'.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -698,6 +778,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a Cerebro engine with base feed, AML signal feed, and analyzers.
+
+    Args:
+        config: Dict containing 'backtest', 'data', and 'params' sections.
+        frame: Dict with 'data' (DataFrame) from load_backtest_frame.
+
+    Returns:
+        Configured bt.Cerebro instance.
+    """
     bt_cfg = config['backtest']
     params = dict(config.get('params', {}))
     signal_frame = build_aml_signal_frame(
@@ -732,6 +821,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract metrics from strategy analyzers and broker for assertion.
+
+    Args:
+        strat: Strategy instance after cerebro.run().
+        cerebro: Cerebro instance.
+        frame: Data frame dict from load_backtest_frame.
+        config: Full config dict.
+
+    Returns:
+        Dict with sharpe, annual_return, max_drawdown, trade_count,
+        win_count, loss_count, final_value, initial_cash.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The F2a_AO arrows are
+    computed directly on the M15 feed; no separate signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_F2a_AO``. The F2a_AO indicator
+    works on a weighted price and looks for a turn in the fast-minus-slow EMA
+    spread that is confirmed by a filter EMA, plotting a buy arrow below the bar
+    on a bullish turn and a sell arrow above on a bearish turn (with a latch so
+    arrows alternate). The strategy enters in the arrow direction, gated by a
+    simple candle-direction trend filter, and reverses on the opposite arrow;
+    risk is bounded by the reversing signal rather than fixed stops.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers, building the F2aAOIndicator (which
+    supports both event-driven ``next`` and vectorized ``once`` evaluation). Each
+    bar the strategy reads the buy/sell arrows at the configured signal bar plus
+    a candle-direction trend filter to derive open/close signals, then opens,
+    closes, or reverses a fixed-lot position. notify_trade counts entries on open
+    and win/loss on close. extract_metrics consolidates analyzer output, and the
+    test forces runonce=True, runs the module's run()/main(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -80,6 +107,19 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,6 +141,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -108,10 +150,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class F2aAOIndicator(bt.Indicator):
+    """F2a_AO arrow indicator from a fast/slow/filter EMA system.
+
+    Builds fast, slow and filter EMAs of a weighted price and emits a ``buy``
+    arrow below the bar when the fast-minus-slow spread turns up with filter
+    confirmation, or a ``sell`` arrow above the bar on the bearish turn, using an
+    internal latch so arrows alternate direction.
+    """
+
     lines = ('sell', 'buy')
     params = dict(ma_filtr=3, ma_fast=13, ma_slow=144)
 
     def __init__(self):
+        """Build the fast/slow/filter EMAs and set the minimum period."""
         series = (self.data.close * 5.0 + self.data.open * 2.0 + self.data.high + self.data.low) / 9.0
         self._fast = bt.indicators.ExponentialMovingAverage(series, period=max(1, int(self.p.ma_fast)))
         self._slow = bt.indicators.ExponentialMovingAverage(series, period=max(1, int(self.p.ma_slow)))
@@ -120,6 +171,12 @@ class F2aAOIndicator(bt.Indicator):
         self._trend = 0
 
     def next(self):
+        """Compute buy/sell arrows for the current bar (event-driven mode).
+
+        Detects a confirmed turn in the fast-minus-slow spread and plots a buy
+        arrow below the low or a sell arrow above the high, offset by half the
+        recent average range, toggling the internal trend latch.
+        """
         value1_0 = float(self._fast[0]) - float(self._slow[0])
         value1_1 = float(self._fast[-1]) - float(self._slow[-1])
         value1_2 = float(self._fast[-2]) - float(self._slow[-2])
@@ -141,6 +198,16 @@ class F2aAOIndicator(bt.Indicator):
                 self._trend = -1
 
     def once(self, start, end):
+        """Compute buy/sell arrows over a range of bars (vectorized mode).
+
+        Vectorized equivalent of ``next`` used under ``runonce``: iterates the
+        arrays from ``start`` to ``end``, detecting confirmed spread turns and
+        writing buy/sell arrow values while maintaining the trend latch.
+
+        Args:
+            start: First bar index to process.
+            end: Stop index (exclusive) for processing.
+        """
         fast = self._fast.array
         slow = self._slow.array
         filtr = self._filter.array
@@ -180,6 +247,22 @@ class F2aAOIndicator(bt.Indicator):
 
 
 class F2aAOStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_F2a_AO`` arrow strategy with a trend filter.
+
+    Trades the F2aAOIndicator buy/sell arrows, gated by a simple
+    candle-direction trend filter, entering in the arrow direction and reversing
+    on the opposite arrow with a fixed lot.
+
+    Args:
+        inp_timeframe: Source-EA timeframe label retained for provenance.
+        trend_bar: Bar offset used by the candle-direction trend filter.
+        ma_filtr: Filter EMA period passed to the indicator.
+        ma_fast: Fast EMA period passed to the indicator.
+        ma_slow: Slow EMA period passed to the indicator.
+        signal_bar: Which completed bar to read arrows from.
+        lot: Fixed order size in lots.
+    """
+
     params = dict(
         inp_timeframe='D1',
         trend_bar=1,
@@ -191,6 +274,7 @@ class F2aAOStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the F2aAO indicator and reset bar/trade counters."""
         self.indicator = F2aAOIndicator(self.data, ma_filtr=self.p.ma_filtr, ma_fast=self.p.ma_fast, ma_slow=self.p.ma_slow)
         self.bar_num = 0
         self.buy_count = 0
@@ -201,6 +285,11 @@ class F2aAOStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -237,6 +326,14 @@ class F2aAOStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close, trend
 
     def next(self):
+        """Open, close, or reverse on F2a_AO arrow signals each bar.
+
+        Increments the bar counter, skips during warm-up, derives open/close
+        signals from the buy/sell arrows and the candle-direction trend filter at
+        the configured signal bar, and acts: when flat it opens a long or short;
+        when in a position it closes on the close signal or closes and reverses
+        on the opposite open signal.
+        """
         self.bar_num += 1
         warmup = max(int(self.p.ma_slow), int(self.p.ma_fast), int(self.p.ma_filtr)) + int(self.p.signal_bar) + int(self.p.trend_bar) + 20
         if len(self.data) < warmup:
@@ -274,6 +371,12 @@ class F2aAOStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -306,6 +409,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -313,6 +427,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -329,6 +455,19 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy and analyzers.
+
+    Adds the M15 feed, the strategy and the standard analyzers, and optionally
+    attaches a TradeLogger observer when a trade-log directory environment
+    variable is set.
+
+    Args:
+        config: Resolved configuration dict with data, params and backtest.
+        frame: Dict containing the loaded OHLCV frame under ``data``.
+
+    Returns:
+        A configured Cerebro instance ready to run the strategy.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -374,6 +513,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run completes.
+        frame: Dict of prepared frames from load_backtest_frame.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A dict of summary metrics (returns, drawdown, Sharpe, trade statistics,
+        SQN) keyed for the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -414,6 +565,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the F2a_AO backtest and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

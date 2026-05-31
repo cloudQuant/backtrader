@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    M15 XAUUSD OHLCV series from ``tests/datas/XAUUSD_M15.csv`` (MetaTrader 5
+    TSV export), shifted by bar close and clipped from 2025-12-03 01:15 to 2026-03-10 09:00.
+    The same source stream is also resampled to H4 for MACD signal generation.
+
+Strategy Principle:
+    The strategy computes MACD cloud/histogram signals on the resampled feed and
+    opens long/short positions when the configured trend mode conditions turn true.
+    Signals can be based on histogram slope, zero-line crossing, or moving cloud
+    line crossovers; entries and exits are managed with fixed/ticket size and
+    explicit stop-loss/take-profit risk points.
+
+Strategy Logic:
+    ``Macd2Indicator`` builds ``cloud_a``, ``cloud_b``, histogram and color
+    state from MACD lines, while ``Macd2Strategy`` filters duplicate signal bars,
+    enforces warmup, submits entries, protects open positions with stop/take levels,
+    and updates runtime counters for signals/orders/trades. Module helpers parse
+    MT5 input, build the in-memory backtest engine, and extract a normalized
+    metrics dict for migrated assertions.
 """
 from __future__ import annotations
 import math
@@ -86,6 +106,14 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported TSV data into a timestamp-indexed pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 TSV data file.
+        fromdate: Optional lower-bound datetime for slicing rows.
+        todate: Optional upper-bound datetime for slicing rows.
+        bar_shift_minutes: Optional minutes to shift timestamps by.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -112,6 +140,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom MT5 feed adapter exposing the spread column to Backtrader."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -126,14 +155,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class Macd2Indicator(bt.Indicator):
+    """MACD-derived indicator carrying cloud and histogram state for MACD-2."""
     lines = ('cloud_a', 'cloud_b', 'hist', 'color')
     params = dict(fast_macd=12, slow_macd=26, signal_macd=9)
 
     def __init__(self):
+        """Create MACD-based cloud and initialize indicator warmup."""
         self.macd = bt.indicators.MACD(self.data, period_me1=int(self.p.fast_macd), period_me2=int(self.p.slow_macd), period_signal=int(self.p.signal_macd))
         self.addminperiod(int(self.p.signal_macd) + max(int(self.p.fast_macd), int(self.p.slow_macd)) + 2)
 
     def next(self):
+        """Populate cloud, histogram, and trend color lines each bar."""
         main = float(self.macd.macd[0])
         signal = float(self.macd.signal[0])
         hist = 3.0 * (main - signal)
@@ -157,6 +189,7 @@ class Macd2Indicator(bt.Indicator):
 
 
 class Macd2Strategy(bt.Strategy):
+    """MACD trend strategy with optional trend modes and risk controls."""
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -179,6 +212,7 @@ class Macd2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, indicator, execution state, and counters."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = Macd2Indicator(
@@ -206,6 +240,7 @@ class Macd2Strategy(bt.Strategy):
         self.warmup = int(self.p.signal_macd) + max(int(self.p.fast_macd), int(self.p.slow_macd)) + int(self.p.signal_bar) + 8
 
     def log(self, text):
+        """Emit timestamped strategy debug output."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -316,6 +351,7 @@ class Macd2Strategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Generate mode-specific signals, manage open positions and exits each bar."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -352,6 +388,7 @@ class Macd2Strategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track completed/failed orders and schedule reverse entries when needed."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -395,6 +432,7 @@ class Macd2Strategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Increase trade counter and clear risk levels after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -419,6 +457,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path from the test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -426,6 +465,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the source CSV into a normalized DataFrame and return run window context."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -457,6 +497,7 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Build the backtest engine with feeds, strategy params, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -488,6 +529,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs into a migration-safe metrics dictionary."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

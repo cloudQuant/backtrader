@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the M15 (15-minute) timeframe loaded from the MT5
+    export ``tests/datas/XAUUSD_M15.csv``, covering 2025-12-03 01:15 to
+    2026-03-10 09:00 with each bar timestamp shifted forward by 15 minutes. A
+    single M15 feed drives the BlauCMomentum indicator.
+
+Strategy Principle:
+    A port of the MT5 expert advisor Exp_BlauCMomentum. William Blau's composite
+    momentum takes the difference between two price lines and triple-smooths it
+    with a configurable moving average to produce a slow momentum oscillator.
+    Two trade modes are supported: ``breakdown`` trades the oscillator's zero-
+    line crossings, while ``twist`` trades changes in the oscillator's slope
+    (turning points), entering long on an up-turn and short on a down-turn.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame and build_cerebro wires the feed, the
+    indicator-driven strategy, and analyzers. Each bar (after warm-up) the
+    strategy reads the BlauCMomentum value at the signal bar, derives buy/sell
+    open and close signals from the selected mode, and opens, closes, or reverses
+    the position accordingly. notify_trade counts entries on open and win/loss on
+    close. extract_metrics consolidates analyzer output; the test hooks the
+    metric extractor, forces runonce=True via run(), and asserts each metric
+    against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -83,6 +107,19 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +141,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +150,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Map a moving-average mode name to a backtrader indicator class.
+
+    Args:
+        name: The MA mode name (e.g. ``sma``, ``ema``, ``smma``, or a MODE_*
+            alias).
+
+    Returns:
+        The matching backtrader moving-average indicator class, defaulting to
+        the weighted moving average for unrecognised names.
+    """
     mode = str(name).lower()
     if mode in {'mode_sma', 'sma'}:
         return bt.indicators.SimpleMovingAverage
@@ -122,6 +171,17 @@ def resolve_ma_class(name):
 
 
 def resolve_price_line(data, mode):
+    """Map a price mode name to the corresponding feed price line.
+
+    Args:
+        data: The data feed whose OHLC lines are referenced.
+        mode: The price mode name (e.g. ``close``, ``median``, ``typical``,
+            ``weighted``).
+
+    Returns:
+        The selected price line or derived price expression, defaulting to the
+        close for unrecognised modes.
+    """
     price_mode = str(mode).lower()
     if price_mode in {'price_close', 'close'}:
         return data.close
@@ -145,6 +205,8 @@ def resolve_price_line(data, mode):
 
 
 class BlauCMomentumIndicator(bt.Indicator):
+    """Blau composite momentum: triple-smoothed price-difference oscillator."""
+
     lines = ('value',)
     params = dict(
         xma_method='ema',
@@ -158,6 +220,7 @@ class BlauCMomentumIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Build the price difference, triple-smooth it, and set the min period."""
         ma_cls = resolve_ma_class(self.p.xma_method)
         price1 = resolve_price_line(self.data, self.p.ipc1)
         price2 = resolve_price_line(self.data, self.p.ipc2)
@@ -171,6 +234,13 @@ class BlauCMomentumIndicator(bt.Indicator):
 
 
 class BlauCMomentumStrategy(bt.Strategy):
+    """Trade BlauCMomentum zero-line crossings or slope turns.
+
+    Reads the BlauCMomentum oscillator at the signal bar and, depending on the
+    ``mode`` (breakdown or twist), opens, closes, or reverses positions on
+    zero-line crossings or oscillator turning points.
+    """
+
     params = dict(
         mode='twist',
         xma_method='ema',
@@ -186,6 +256,7 @@ class BlauCMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the BlauCMomentum indicator and reset counters."""
         self.indicator = BlauCMomentumIndicator(
             self.data,
             xma_method=self.p.xma_method,
@@ -206,6 +277,11 @@ class BlauCMomentumStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -239,6 +315,13 @@ class BlauCMomentumStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse positions on the BlauCMomentum signals.
+
+        Increments the bar counter, skips during warm-up, and derives the
+        buy/sell open/close signals for the current bar. When in a position it
+        closes or reverses on the appropriate signal; when flat it opens a long
+        or short on a buy/sell-open signal.
+        """
         self.bar_num += 1
         warmup = int(self.p.xlength) + int(self.p.xlength1) + int(self.p.xlength2) + int(self.p.xlength3) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup + 2:
@@ -277,6 +360,12 @@ class BlauCMomentumStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries on open and win/loss on close.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -309,6 +398,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -316,6 +416,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 XAUUSD frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -332,6 +445,16 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, feed, strategy, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -355,6 +478,19 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding trade counters and
+            attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the initial cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, and entry/exit counts) used by the assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -395,6 +531,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest pipeline and return results, metrics, and engine.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)`` where ``results`` is the list
+        returned by ``cerebro.run()``, ``metrics`` is the extracted metrics dict,
+        and ``cerebro`` is the engine instance.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

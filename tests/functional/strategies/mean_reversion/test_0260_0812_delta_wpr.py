@@ -1,6 +1,25 @@
 """Inlined regression test for mean_reversion/0260_0812_delta_wpr.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+- XAUUSD M15 (primary): 2025-12-03 01:15 to 2026-03-10 09:00
+- XAUUSD H4 (signal): resampled from M15
+
+Strategy Principle:
+Delta WPR is a dual-timeframe mean-reversion strategy that uses the
+difference between two Williams %R periods (fast 14 vs slow 30) to detect
+divergence/convergence. A color signal encodes the relative position and
+direction of the two WPR lines relative to a configurable level threshold.
+
+Strategy Logic:
+- DeltaWPR indicator computes WPR(14) and WPR(30) on H4 data
+- color=0 (buy): WPR(30) > level AND fast WPR > slow WPR (upward momentum)
+- color=2 (sell): WPR(30) < -100-level AND fast WPR < slow WPR (downward)
+- color=1: neutral (default)
+- Entry: transition into color 0 or 2 triggers a buy or sell
+- Exit: transition to the opposite color closes the current position
+- Fixed stop-loss/take-profit at configured point distances
 """
 from __future__ import annotations
 
@@ -16,6 +35,19 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-format CSV file into a Pandas DataFrame.
+
+    Strips quotes, handles empty lines, and sorts the resulting index.
+
+    Args:
+        filepath: Path to the CSV file.
+        fromdate: Optional start date filter.
+        todate: Optional end date filter.
+        bar_shift_minutes: Minutes to shift the datetime index by.
+
+    Returns:
+        DataFrame with columns [open, high, low, close, volume, openinterest].
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +69,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column ordering."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,10 +77,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DeltaWPR(bt.Indicator):
+    """Delta Williams %R — WPR spread and color-coded momentum regime.
+
+    Computes two WPRs with different periods and derives:
+    - delta: WPR(fast) - WPR(slow), measuring short-term vs medium-term
+    - color: 0=bullish alignment, 1=neutral, 2=bearish alignment
+    """
     lines = ("color", "delta")
     params = dict(wpr_period1=14, wpr_period2=30, level=-50)
 
     def __init__(self):
+        """Create fast/slow Williams %R indicators and precompute level thresholds."""
         self.addminperiod(max(int(self.p.wpr_period1), int(self.p.wpr_period2)) + 3)
         self.wpr1 = bt.indicators.WilliamsR(self.data, period=int(self.p.wpr_period1))
         self.wpr2 = bt.indicators.WilliamsR(self.data, period=int(self.p.wpr_period2))
@@ -55,6 +95,7 @@ class DeltaWPR(bt.Indicator):
         self.min_level = int(-100 - self.p.level)
 
     def next(self):
+        """Compute delta WPR and color signal for the current bar."""
         w1 = float(self.wpr1[0])
         w2 = float(self.wpr2[0])
         self.lines.delta[0] = w1 - w2
@@ -67,6 +108,7 @@ class DeltaWPR(bt.Indicator):
 
 
 class ExpDeltaWPRStrategy(bt.Strategy):
+    """Dual-timeframe strategy trading color transitions from DeltaWPR on H4 data."""
     params = dict(
         wpr_period1=14,
         wpr_period2=30,
@@ -84,6 +126,7 @@ class ExpDeltaWPRStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize data handles, indicator, and run-time counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = DeltaWPR(
@@ -119,6 +162,7 @@ class ExpDeltaWPRStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """React on fresh signal changes and place directional market orders."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -146,6 +190,7 @@ class ExpDeltaWPRStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track open/close trade events and win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

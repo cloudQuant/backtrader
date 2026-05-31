@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) from ``tests/datas/XAUUSD_M15.csv`` using M15 bars.
+    Data are shifted by 15 minutes to align each bar with its close timestamp.
+    Strategy signals are generated on an indicator-timeframe derived from H4 bars.
+
+Strategy Principle:
+    Combines color zerolag and HLR components: multiple HLR oscillators are blended
+    into a two-line output (fast/slow). A crossover of these lines drives direction
+    decisions, while fixed-distance stops and targets are applied after entry fills.
+
+Strategy Logic:
+    run/load helpers build one Backtrader frame and add strategy/analyzers.
+    On each bar, signals are derived from recent fast/slow HLR values and bar
+    direction. Orders are opened on signal events, then managed by the same
+    strategy loop via close-on-cross and stop/target checks. notify_order/notify_trade
+    update execution counters, and extract_metrics maps analyzers + counters to assertable
+    outputs for this migration test.
 """
 from __future__ import annotations
 import math
@@ -96,6 +114,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 tab-separated CSV export as an OHLCV DataFrame for Backtrader.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional minutes to offset the parsed datetime index.
+
+    Returns:
+        DataFrame with datetime index and columns required by pandas data feeds.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -121,6 +150,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom pandas feed mapping MT5 columns into Backtrader data lines."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -133,10 +163,13 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class HLRIndicator(Indicator):
+    """Base HLR indicator returning a normalized high-low range position."""
+
     lines = ('value',)
     params = dict(period=40)
 
     def __init__(self):
+        """Initialize highest/lowest trackers and line averaging setup."""
         period = int(self.p.period)
         self.highest = bt.indicators.Highest(self.data.high, period=period)
         self.lowest = bt.indicators.Lowest(self.data.low, period=period)
@@ -144,6 +177,7 @@ class HLRIndicator(Indicator):
         self.addminperiod(period + 1)
 
     def next(self):
+        """Compute the HLR oscillator value for current bar."""
         hh = float(self.highest[0])
         ll = float(self.lowest[0])
         span = hh - ll
@@ -151,6 +185,8 @@ class HLRIndicator(Indicator):
 
 
 class ZeroLagHLRIndicator(Indicator):
+    """Zero-lag variant of HLR computed from a blended set of HLR periods."""
+
     lines = ('fast', 'slow')
     params = dict(
         smoothing=15,
@@ -168,6 +204,7 @@ class ZeroLagHLRIndicator(Indicator):
     )
 
     def __init__(self):
+        """Instantiate source HLR components and initialize smoothing state."""
         self.hlr1 = HLRIndicator(self.data, period=int(self.p.hlr_period1))
         self.hlr2 = HLRIndicator(self.data, period=int(self.p.hlr_period2))
         self.hlr3 = HLRIndicator(self.data, period=int(self.p.hlr_period3))
@@ -185,6 +222,7 @@ class ZeroLagHLRIndicator(Indicator):
         self.addminperiod((3 * max_period) + 3)
 
     def next(self):
+        """Update fast and smoothed slow HLR outputs."""
         fast = (
             float(self.p.factor1) * float(self.hlr1.value[0])
             + float(self.p.factor2) * float(self.hlr2.value[0])
@@ -201,6 +239,8 @@ class ZeroLagHLRIndicator(Indicator):
 
 
 class ColorZeroLagHLRStrategy(Strategy):
+    """Trend strategy built around fast/slow ZeroLagHLR crossovers."""
+
     params = dict(
         signal_bar=1,
         smoothing=15,
@@ -226,6 +266,7 @@ class ColorZeroLagHLRStrategy(Strategy):
     )
 
     def __init__(self):
+        """Create indicator instances and initialize state counters and warm-up window."""
         self.indicator = ZeroLagHLRIndicator(self.data, **{
             'smoothing': self.p.smoothing,
             'factor1': self.p.factor1,
@@ -264,6 +305,7 @@ class ColorZeroLagHLRStrategy(Strategy):
         self.warmup = (3 * max_period) + max(int(self.p.signal_bar), 1) + 5
 
     def log(self, text):
+        """Print strategy events with current bar timestamp."""
         dt = num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -327,6 +369,7 @@ class ColorZeroLagHLRStrategy(Strategy):
         return False
 
     def next(self):
+        """Process signal transitions, manage exits, and place or reverse entries."""
         self.bar_num += 1
         if len(self.data) < self.warmup:
             return
@@ -368,6 +411,7 @@ class ColorZeroLagHLRStrategy(Strategy):
                 return
 
     def notify_order(self, order):
+        """Track completed and rejected orders, including filled entries and protective levels."""
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.rejected_order_count += 1
             self.pending_entry_direction = 0
@@ -394,6 +438,7 @@ class ColorZeroLagHLRStrategy(Strategy):
             self._reset_levels()
 
     def notify_trade(self, trade):
+        """Update trade counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -419,6 +464,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate fixture path from this strategy module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -426,6 +472,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the backtest frame and return data plus parsed test interval metadata.
+
+    Args:
+        config: Inline configuration dictionary.
+
+    Returns:
+        Mapping containing loaded frame and interval boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -456,6 +510,15 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Assemble Cerebro with feeds, strategy parameters, and standard analyzers.
+
+    Args:
+        config: Backtest and strategy configuration.
+        frame: Loaded input frame.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -485,6 +548,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract numeric metrics for regression assertions from analyzer outputs."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -527,6 +591,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run strategy backtest and return execution results and metrics.
+
+    Args:
+        plot: Whether to render Backtrader plot output.
+
+    Returns:
+        Tuple of (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

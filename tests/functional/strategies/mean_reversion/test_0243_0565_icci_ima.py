@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV from ``tests/datas/XAUUSD_M15.csv``.
+    The test window spans 2025-12-03 01:15 to 2026-03-10 09:00 with a
+    15-minute bar shift.
+
+Strategy Principle:
+    Port of ``iCCI_iMA`` using CCI, close-CCI and EMA of CCI to derive
+    momentum/mean-reversion turns. The strategy alternates between long/short
+    entries and exits when CCI/MA relationships cross key thresholds.
+
+Strategy Logic:
+    ``load_backtest_frame`` loads and filters the source bars.
+    ``build_cerebro`` wires one M15 feed plus required analyzers.
+    ``next`` applies signal detection and optional reversal logic, while
+    callbacks maintain counters and reset risk state.
 """
 from __future__ import annotations
 import math
@@ -80,6 +96,18 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting.
+
+    Args:
+        filepath: Absolute or relative path to the MT5 CSV file.
+        fromdate: Optional lower bound for the datetime index.
+        todate: Optional upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset applied to every bar timestamp.
+
+    Returns:
+        A pandas DataFrame with columns ``open``, ``high``, ``low``, ``close``,
+        ``volume``, ``openinterest`` and a ``datetime`` index.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,12 +131,13 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 OHLCV columns used by the strategy."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
-
 class ICCIIMAStrategy(bt.Strategy):
+    """Momentum strategy based on smoothed CCI regime transitions."""
     params = dict(
         cci_ma_period=14,
         cci_close_ma_period=14,
@@ -123,6 +152,7 @@ class ICCIIMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, lot sizing and risk state."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=int(self.p.cci_ma_period))
         self.cci_close = bt.indicators.CommodityChannelIndex(self.data, period=int(self.p.cci_close_ma_period))
         self.cci_ma = bt.indicators.ExponentialMovingAverage(self.cci, period=15)
@@ -192,6 +222,7 @@ class ICCIIMAStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Run one strategy step: manage exits, reversals, and conditional entries."""
         if self._debug_once:
             inds = getattr(self, '_lineiterators', {}).get(bt.LineIterator.IndType, [])
             print(
@@ -257,6 +288,7 @@ class ICCIIMAStrategy(bt.Strategy):
                 self._arm('sell', float(self.data.close[0]))
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and reset risk state on exits."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -275,6 +307,7 @@ class ICCIIMAStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count completed trades and accumulate win/loss statistics."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -298,9 +331,18 @@ bt.indicators.CCI = _CommodityChannelIndex
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
-
-
 def resolve_data_path(filename):
+    """Resolve a filename relative to the test file directory.
+
+    Args:
+        filename: File path from configuration, usually relative to the test folder.
+
+    Returns:
+        Absolute path for the resolved file.
+
+    Raises:
+        FileNotFoundError: If the resolved file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -308,6 +350,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter the strategy's test data frame from config definition.
+
+    Args:
+        config: Strategy configuration dictionary containing ``data`` section.
+
+    Returns:
+        A dictionary with keys ``data`` (dataframe), ``fromdate`` and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -319,6 +369,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a ``bt.Cerebro`` instance for this regression.
+
+    Args:
+        config: Strategy and backtest configuration.
+        frame: Data payload returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured ``bt.Cerebro`` object ready for execution.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -351,6 +410,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs and strategy counters into a single result dict."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

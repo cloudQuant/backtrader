@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD 15-minute OHLCV bars are loaded from
+    ``tests/datas/XAUUSD_M15.csv`` and shifted by 15 minutes.
+    The dataset is filtered between 2025-12-03 and 2026-03-10 and resampled
+    to 240 minutes for indicator computation.
+
+Strategy Principle:
+    The strategy builds a composite Color ZeroLag RVI from weighted RVI periods
+    and a smoothed baseline.
+    Buy/sell signals are generated from fast/slow crossover logic and filtered by
+    confirmation bars; long/short entries are controlled by simple stop-loss and
+    take-profit rules.
+
+Strategy Logic:
+    The module prepares two feeds (M15 and H4), adds a strategy with stateful
+    order/risk tracking, and executes with analyzer collection.
+    Strategy execution includes signal de-duplication per H4 bar, conditional exits,
+    re-entries, and post-trade counters that are consolidated by ``extract_metrics``.
 """
 from __future__ import annotations
 import math
@@ -95,6 +114,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-style tab-delimited CSV into a datetime-indexed OHLCV DataFrame.
+
+    Parameters:
+        filepath: Source CSV path.
+        fromdate: Optional left filter boundary.
+        todate: Optional right filter boundary.
+        bar_shift_minutes: Minute offset for timestamp alignment.
+
+    Returns:
+        A DataFrame with columns ``open``, ``high``, ``low``, ``close``,
+        ``volume`` and ``openinterest`` indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -120,6 +151,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample OHLCV data with trading convention OHLC aggregation.
+
+    Parameters:
+        df: OHLCV DataFrame indexed by datetime.
+        rule: Pandas resample rule such as ``"240min"``.
+
+    Returns:
+        Aggregated DataFrame with OHLCV fields and last known open interest.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -134,6 +174,15 @@ def resample_frame(df, rule):
 
 
 def compute_rvi_main(frame, period):
+    """Compute a single RVI line with weighted close/open and high/low components.
+
+    Parameters:
+        frame: OHLCV frame used for price source fields.
+        period: Window length used for rolling mean.
+
+    Returns:
+        The smoothed raw RVI series.
+    """
     num = (frame['close'] - frame['open']).astype(float)
     den = (frame['high'] - frame['low']).astype(float)
     num_w = (num + 2.0 * num.shift(1) + 2.0 * num.shift(2) + num.shift(3)) / 6.0
@@ -144,6 +193,26 @@ def compute_rvi_main(frame, period):
 
 
 def compute_color_zerolag_rvi(frame, smoothing=15, factor1=0.05, rvi_period1=8, factor2=0.10, rvi_period2=21, factor3=0.16, rvi_period3=34, factor4=0.26, rvi_period4=55, factor5=0.43, rvi_period5=89):
+    """Build fast and slow Color ZeroLag RVI lines plus binary trading signals.
+
+    Parameters:
+        frame: Input OHLCV DataFrame.
+        smoothing: Exponential smoothing factor for the slow component.
+        factor1: Weight for RVI period 1.
+        rvi_period1: RVI period 1.
+        factor2: Weight for RVI period 2.
+        rvi_period2: RVI period 2.
+        factor3: Weight for RVI period 3.
+        rvi_period3: RVI period 3.
+        factor4: Weight for RVI period 4.
+        rvi_period4: RVI period 4.
+        factor5: Weight for RVI period 5.
+        rvi_period5: RVI period 5.
+
+    Returns:
+        DataFrame with added columns ``fast``, ``slow``, ``buy_signal``,
+        and ``sell_signal``.
+    """
     rvi1 = compute_rvi_main(frame, rvi_period1)
     rvi2 = compute_rvi_main(frame, rvi_period2)
     rvi3 = compute_rvi_main(frame, rvi_period3)
@@ -177,6 +246,7 @@ def compute_color_zerolag_rvi(frame, smoothing=15, factor1=0.05, rvi_period1=8, 
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping for MT5-formatted OHLCV data."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -189,6 +259,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorZerolagRVIFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping for Color Zerolag RVI signal columns."""
     lines = ('fast', 'slow', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -206,6 +277,7 @@ class ColorZerolagRVIFeed(bt.feeds.PandasData):
 
 
 class ColorZerolagRviStrategy(bt.Strategy):
+    """Strategy logic that trades M15/H4 signals from Color Zerolag RVI crossovers."""
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -235,6 +307,7 @@ class ColorZerolagRviStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize risk controls, signal counters, and order tracking fields."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.fast = self.h4.fast
@@ -259,6 +332,7 @@ class ColorZerolagRviStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log line for M15 bars."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -313,6 +387,7 @@ class ColorZerolagRviStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Step through bar close logic and execute signal-based order actions."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -362,6 +437,7 @@ class ColorZerolagRviStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Update counters and clear entry references when orders complete/fail."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -380,6 +456,7 @@ class ColorZerolagRviStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Track closed-trade statistics for final extraction."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -404,6 +481,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path under the current strategy directory.
+
+    Args:
+        filename: Relative data filename from config.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -411,6 +496,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load, validate, resample and enrich backtest data frames.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary with ``m15`` and ``h4`` frames and date bounds.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -425,6 +518,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine with feed, strategy, analyzers and broker settings.
+
+    Args:
+        config: Test configuration dict.
+        frame: Preloaded backtest frame bundle.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -446,6 +548,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest metrics used in migration assertions.
+
+    Args:
+        strat: Strategy instance.
+        cerebro: Executed Backtrader engine.
+        frame: Frame bundle used in this run.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dict with trade counts, returns, drawdown and risk statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -491,6 +604,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the strategy backtest and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: Whether to display Backtrader plot output.
+
+    Returns:
+        Tuple with backtest results, extracted metrics, and cerebro instance.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

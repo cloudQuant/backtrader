@@ -1,6 +1,24 @@
 """Inlined regression test for multi_indicator_system/0021_macdcci.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    - Symbol: XAUUSD
+    - Source file: tests/datas/XAUUSD_M15.csv
+    - Timeframe: M15 bars, shifted by 15 minutes in load.
+    - Backtest window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+
+Strategy Principle:
+    The strategy uses CCI and MACD signals to enable buy/sell readiness states.
+    It sizes positions by a martingale-like multiplier after consecutive losses and
+    closes opposing positions when opposite signals appear.
+
+Strategy Logic:
+    1) Load historical MT5 bars and create a pandas feed.
+    2) Compute CCI and scaled MACD in `next`.
+    3) Set readiness flags from combined indicator thresholds.
+    4) Submit bracket-free market entries/exits depending on position state.
+    5) Track order/trade lifecycle and validate migrated assertions.
 """
 from __future__ import annotations
 
@@ -16,6 +34,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV bars into a datetime-indexed DataFrame.
+
+    Args:
+        filepath: Source CSV path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute shift for index.
+
+    Returns:
+        DataFrame with OHLCV fields and openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +68,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed for MT5-style OHLCV data."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -46,6 +76,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MACDCCIStrategy(bt.Strategy):
+    """Strategy combining CCI and MACD thresholds with dynamic position sizing."""
     params = dict(
         inp_lot=0.01,
         cci_ma_period=8,
@@ -56,6 +87,7 @@ class MACDCCIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and state counters."""
         self.cci = bt.indicators.CCI(self.data, period=self.p.cci_ma_period)
         self.macd = bt.indicators.MACD(self.data.close, period_me1=self.p.macd_fast_ema_period,
                                         period_me2=self.p.macd_slow_ema_period, period_signal=2)
@@ -81,6 +113,7 @@ class MACDCCIStrategy(bt.Strategy):
         return min(lot, float(self.p.max_lot))
 
     def next(self):
+        """Evaluate readiness flags and submit one order per bar."""
         self.bar_num += 1
         if len(self) < max(self.p.cci_ma_period, self.p.macd_slow_ema_period) + 5:
             return
@@ -114,6 +147,7 @@ class MACDCCIStrategy(bt.Strategy):
             self.sell_ready = False
 
     def notify_order(self, order):
+        """Count completed/rejected orders and reset pending order reference."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -128,6 +162,7 @@ class MACDCCIStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters and adaptive lot-loss state."""
         if not trade.isclosed:
             return
         self.trade_count += 1

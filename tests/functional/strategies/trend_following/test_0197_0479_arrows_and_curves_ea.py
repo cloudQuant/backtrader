@@ -24,7 +24,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'ARROWS_AND_CURVES_EA',
-        'source_ea': 'ea/0479_箭头和曲线_EA/arrows_and_curves_ea.mq5',
+        'source_ea': 'ea/0479_\u7bad\u5934\u548c\u66f2\u7ebf_EA/arrows_and_curves_ea.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -81,6 +81,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Loads MT5 CSV data and parses it into a Pandas DataFrame.
+
+    Cleans double quotes, strips whitespaces, and aligns the datetime index. Optionally shifts K-line datetime
+    and filters by date range.
+
+    Args:
+        filepath (str or Path): Path to the CSV data file.
+        fromdate (datetime, optional): Start date filter. Defaults to None.
+        todate (datetime, optional): End date filter. Defaults to None.
+        bar_shift_minutes (int, optional): Number of minutes to shift datetime index. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Processed OHLCV DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -106,6 +120,10 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom Pandas Data Feed for MT5 CSV format.
+
+    Maps MT5 CSV columns (open, high, low, close, volume, openinterest) to Backtrader-compatible fields.
+    """
     params = (
         ('datetime', None),
         ('open', 0),
@@ -118,10 +136,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ArrowsCurvesIndicator(bt.Indicator):
+    """Custom Arrows and Curves technical indicator.
+
+    Calculates channel boundaries (smax, smin, smax2, smin2) based on highest high and lowest low windows
+    and returns trade entry signals (buy, sell, buy_stop, sell_stop).
+    """
     lines = ('sell', 'buy', 'sell_stop', 'buy_stop', 'smax', 'smin', 'smax2', 'smin2')
     params = dict(ssp=20, channel=0, ch_stop=30, relay=10)
 
     def __init__(self):
+        """Initializes trends, state flags, and sets indicator minimum period requirement."""
         self.addminperiod(self.p.ssp + self.p.relay + 2)
         self._uptrend = False
         self._old = False
@@ -129,6 +153,11 @@ class ArrowsCurvesIndicator(bt.Indicator):
         self._old2 = False
 
     def next(self):
+        """Calculates channel lines and signals for each bar.
+
+        Generates buy/sell and buy_stop/sell_stop triggers based on price crossovers
+        and trend state switches.
+        """
         if len(self.data) <= self.p.ssp + self.p.relay:
             for line in self.lines:
                 line[0] = 0.0
@@ -196,6 +225,14 @@ class ArrowsCurvesIndicator(bt.Indicator):
 
 
 class ArrowsAndCurvesEAStrategy(bt.Strategy):
+    """Arrows and Curves Expert Advisor trend-following strategy.
+
+    Trading logic:
+        - Long entry: Buy signal triggered from `ArrowsCurvesIndicator` (bullish cross).
+        - Short entry: Sell signal triggered from `ArrowsCurvesIndicator` (bearish cross).
+        - Stop Loss & Take Profit: Configured via pip distances.
+        - Trailing Stop: Optionally moves stop price with trend momentum.
+    """
     params = dict(
         lots=0.1,
         stop_loss_pips=50,
@@ -213,6 +250,7 @@ class ArrowsAndCurvesEAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initializes indicator, orders, variables, and position tracking counters."""
         self.signal = ArrowsCurvesIndicator(
             self.data,
             ssp=self.p.ssp,
@@ -308,6 +346,11 @@ class ArrowsAndCurvesEAStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Executes core strategy logic on every K-line bar.
+
+        Coordinates position initialization, trailing stops, protection level evaluation,
+        and indicators crossovers to open or close long and short positions.
+        """
         self.bar_num += 1
         if len(self.data) <= self.p.ssp + self.p.relay + 2:
             return
@@ -341,6 +384,11 @@ class ArrowsAndCurvesEAStrategy(bt.Strategy):
                 return
 
     def notify_order(self, order):
+        """Tracks order status and coordinates protection levels for completed transactions.
+
+        Args:
+            order (bt.Order): Backtrader order status notification object.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed and self.position:
@@ -354,6 +402,13 @@ class ArrowsAndCurvesEAStrategy(bt.Strategy):
             self._last_position_size = 0.0
 
     def notify_trade(self, trade):
+        """Logs and records trade closure and profit statistics.
+
+        Tracks trade performance including win/loss counts, net PnL, and total transactions.
+
+        Args:
+            trade (bt.Trade): Backtrader trade notification object.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -389,6 +444,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolves target data file path relative to strategy directory.
+
+    Args:
+        filename (str): Name or path string of the data file.
+
+    Returns:
+        Path: Absolute path to the existing data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -396,6 +462,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Prepares and loads historical data frame based on configuration parameters.
+
+    Args:
+        config (dict): Strategy configuration dictionary containing data parameters.
+
+    Returns:
+        dict: Preprocessed data frame and datetime filters.
+
+    Raises:
+        ValueError: If loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -412,6 +489,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Builds and configures the Backtrader Cerebro backtesting engine.
+
+    Sets initial capital, commissions, margin, data feeds, strategy instance, and analytical monitors.
+
+    Args:
+        config (dict): Configuration dictionary containing backtest parameters.
+        frame (dict): Loaded historical data frame dictionary with datetime filters.
+
+    Returns:
+        bt.Cerebro: Fully configured backtesting engine instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -435,6 +523,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extracts performance metrics from completed strategy and engine analyzer outputs.
+
+    Args:
+        strat (bt.Strategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Completed backtesting engine.
+        frame (dict): Loaded historical data frame dictionary.
+        config (dict): Strategy configuration dictionary.
+
+    Returns:
+        dict: Performance summary statistics including Sharpe, return, drawdowns, and trade counts.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -475,6 +574,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Orchestrates strategy loading, execution, evaluation, and optional plotting.
+
+    Args:
+        plot (bool, optional): Whether to plot backtest chart. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) containing strategy results, metrics dict, and engine.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

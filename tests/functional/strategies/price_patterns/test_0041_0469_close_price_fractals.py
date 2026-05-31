@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Close Price Fractals") uses a custom 5-period fractal indicator calculated based on closing prices rather than high/low prices.
+    - Market Assumptions: Standard Williams Fractals rely on extreme highs and lows, which can be noisy in high-volatility environments. Closing price fractals represent more stable, consensus value extremes.
+    - Indicators:
+        - ClosePriceFractals: A custom 5-period indicator. An upper fractal forms when the close of candle -2 is greater than the closes of the preceding two candles (-3, -4) and greater than or equal to the following two candles (-1, 0). A lower fractal forms conversely.
+    - Entry Signals:
+        - Buy Entry: A new higher-low fractal forms (the latest lower fractal value is greater than the previous lower fractal value).
+        - Sell Entry: A new lower-high fractal forms (the latest upper fractal value is less than the previous upper fractal value).
+    - Exit Signals:
+        - Stop Loss & Take Profit: Set at execution price plus/minus SL/TP distance.
+        - Trailing Stop: Updates when price moves in favor by `trailing_stop_pips` plus `trailing_step_pips`.
+        - Reverse Signal: Reversing fractals trigger immediate closing of the active position.
 """
 from __future__ import annotations
 import math
@@ -24,7 +43,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Close_Price_Fractals',
-        'source_ea': 'ea/0469_收盘价分形_EA/fractals_at_close_prices_ea.mq5',
+        'source_ea': 'ea/0469_Close_Price_Fractals_EA/fractals_at_close_prices_ea.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -67,15 +86,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,6 +138,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -113,12 +151,20 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ClosePriceFractals(bt.Indicator):
+    """Custom 5-period Fractal indicator calculated solely on closing prices.
+
+    Lines:
+        upper: Contains fractal peak closing price if upper fractal is formed.
+        lower: Contains fractal valley closing price if lower fractal is formed.
+    """
     lines = ('upper', 'lower')
 
     def __init__(self):
+        """Initialize the indicator with a minimum period of 5 bars."""
         self.addminperiod(5)
 
     def next(self):
+        """Determine if a peak or valley fractal forms on bar -2 based on close prices."""
         self.lines.upper[0] = float('nan')
         self.lines.lower[0] = float('nan')
         candidate = float(self.data.close[-2])
@@ -129,6 +175,11 @@ class ClosePriceFractals(bt.Indicator):
 
 
 class ClosePriceFractalsStrategy(bt.Strategy):
+    """Strategy class implementing close price fractal trend following and trailing stops.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         start_hour=10,
         end_hour=22,
@@ -141,6 +192,7 @@ class ClosePriceFractalsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator instance, backtest metrics, and position stop loss/take profit levels."""
         self.fractals = ClosePriceFractals(self.data)
         self.order = None
         self.bar_num = 0
@@ -154,6 +206,11 @@ class ClosePriceFractalsStrategy(bt.Strategy):
         self.trailing_anchor = None
 
     def _in_trade_window(self):
+        """Verify if current time falls within the configured start/end hour range.
+
+        Returns:
+            bool: True if inside the trading window, otherwise False.
+        """
         dt = self.data.datetime.datetime(0)
         hour = dt.hour
         if self.p.start_hour < self.p.end_hour:
@@ -163,11 +220,18 @@ class ClosePriceFractalsStrategy(bt.Strategy):
         return True
 
     def _clear_risk(self):
+        """Reset active stop loss, take profit and trailing anchor references."""
         self.stop_price = None
         self.take_profit_price = None
         self.trailing_anchor = None
 
     def _set_entry_risk(self, price, direction):
+        """Calculate and set the initial stop loss and take profit price levels.
+
+        Args:
+            price (float): Order execution price.
+            direction (int): Position direction (1 for Long, -1 for Short).
+        """
         sl = self.p.stop_loss_pips * self.p.point
         tp = self.p.take_profit_pips * self.p.point
         if direction > 0:
@@ -179,6 +243,11 @@ class ClosePriceFractalsStrategy(bt.Strategy):
         self.trailing_anchor = price
 
     def _update_trailing(self):
+        """Update trailing stop loss level based on price movements in trade direction.
+
+        Returns:
+            bool: False always.
+        """
         if not self.position or self.p.trailing_stop_pips <= 0:
             return False
         trail = self.p.trailing_stop_pips * self.p.point
@@ -199,6 +268,11 @@ class ClosePriceFractalsStrategy(bt.Strategy):
         return False
 
     def _check_exit_levels(self):
+        """Check if the low/high prices of current bar touch or cross risk exit levels.
+
+        Returns:
+            bool: True if an exit order was placed, otherwise False.
+        """
         if not self.position:
             self._clear_risk()
             return False
@@ -219,6 +293,14 @@ class ClosePriceFractalsStrategy(bt.Strategy):
         return False
 
     def _last_two_fractals(self, line):
+        """Retrieve the last two valid fractal values by looking back through history.
+
+        Args:
+            line (bt.LineSeries): Indicator line to look back into.
+
+        Returns:
+            tuple: (latest_fractal, previous_fractal) or (None, None).
+        """
         values = []
         lookback = min(len(self.data) - 1, 30)
         for i in range(0, lookback):
@@ -232,6 +314,7 @@ class ClosePriceFractalsStrategy(bt.Strategy):
         return None, None
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self.data) < 8:
             return
@@ -264,6 +347,11 @@ class ClosePriceFractalsStrategy(bt.Strategy):
                 self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Handle order life cycle updates and trigger risk level calculations.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -281,6 +369,11 @@ class ClosePriceFractalsStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -306,6 +399,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -313,6 +417,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -329,6 +444,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -352,6 +476,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -390,8 +525,25 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -399,6 +551,7 @@ def run(plot=False):
     results = cerebro.run()
     strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config)
+    print_report(metrics)
 
     if plot:
         cerebro.plot()
@@ -406,7 +559,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -415,8 +575,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

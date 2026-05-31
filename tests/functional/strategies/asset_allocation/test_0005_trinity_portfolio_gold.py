@@ -7,6 +7,40 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single MT5 daily CSV feed, ``XAUUSD_1d.csv`` (gold) under
+    ``tests/datas/mt5_1d_data``, defined in ``_CONFIG['data']``. Daily bars are
+    clipped to 2008-01-01 through 2025-12-31. No resampling is applied; the
+    daily series is enriched with trend/tactical moving averages, momentum,
+    per-sleeve allocations, the combined target weight and a monthly rebalance
+    signal before being fed to the strategy.
+
+Strategy Principle:
+    A gold-only adaptation of the Trinity Portfolio that blends three return
+    sources at roughly equal weight: a permanent core (always invested), a
+    long-term trend sleeve that only invests when price is above its 200-day
+    moving average, and a tactical sleeve that invests only when price is above
+    its 50-day moving average and 20-day momentum is positive. Summing the three
+    sleeve allocations yields the target exposure, expressing the thesis that
+    combining buy-and-hold, trend-following and shorter-term momentum diversifies
+    across regimes.
+
+Strategy Logic:
+    1. ``load_inputs`` loads the gold CSV and ``prepare_trinity_features``
+       computes the trend/tactical moving averages, momentum, per-sleeve
+       allocations, combined target weight and monthly rebalance flag.
+    2. ``TrinityGoldFeed`` exposes those columns as extra data lines;
+       ``TrinityPortfolioGoldStrategy.__init__`` resets the bar/order counters
+       and last-target tracker.
+    3. ``next`` rebalances on flagged bars when the target weight changes,
+       issuing an ``order_target_percent`` order and updating buy/sell counts;
+       ``notify_order`` clears the pending order once settled.
+    4. ``build_cerebro`` wires the feed, commission and
+       Sharpe/Returns/DrawDown/Trade/SQN analyzers; ``extract_metrics`` (with
+       ``finite_or_none`` and ``calculate_ulcer_index``) builds the metrics dict
+       and ``test_5_0005_trinity_portfolio_gold`` asserts the captured
+       expectations.
 """
 from __future__ import annotations
 import math
@@ -76,6 +110,23 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,6 +157,23 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_trinity_features(df, params):
+    """Compute the three Trinity sleeves, target weight and rebalance flags.
+
+    Builds the long-term trend and tactical moving averages plus tactical
+    momentum, then derives the always-on core allocation, the trend allocation
+    (active only above the trend MA) and the tactical allocation (active only
+    above the tactical MA with positive momentum), sums them into the target
+    weight, and marks rebalance bars per the configured frequency.
+
+    Args:
+        df: Daily OHLCV DataFrame for gold.
+        params: Strategy parameter dictionary controlling windows and weights.
+
+    Returns:
+        pandas.DataFrame: OHLCV plus the moving averages, momentum, per-sleeve
+        allocations, combined ``target_weight`` and ``rebalance_signal``, with
+        the moving-average warm-up rows dropped.
+    """
     out = df.copy()
     trend_ma_window = int(params.get('trend_ma_window', 200))
     tactical_ma_window = int(params.get('tactical_ma_window', 50))
@@ -138,6 +206,13 @@ def prepare_trinity_features(df, params):
 
 
 class TrinityGoldFeed(bt.feeds.PandasData):
+    """PandasData feed exposing Trinity allocation signals as extra lines.
+
+    Extends the standard OHLCV feed with the trend and tactical moving averages,
+    tactical momentum, the three per-sleeve allocations, the combined target
+    weight and the rebalance signal so the strategy can read them directly.
+    """
+
     lines = ('trend_ma', 'tactical_ma', 'tactical_momentum', 'core_alloc', 'trend_alloc', 'tactical_alloc', 'target_weight', 'rebalance_signal')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -146,6 +221,24 @@ class TrinityGoldFeed(bt.feeds.PandasData):
 
 
 class TrinityPortfolioGoldStrategy(bt.Strategy):
+    """Gold-only Trinity portfolio that rebalances to a blended target weight.
+
+    Reads the precomputed combined target weight and rebalance signal from the
+    feed and resizes the gold position toward that weight on flagged bars when
+    the target changes. Tracks bar, order and trade statistics for the
+    regression assertions.
+
+    Args:
+        core_weight: Weight of the always-on core sleeve.
+        trend_weight: Weight of the trend-following sleeve.
+        tactical_weight: Weight of the tactical momentum sleeve.
+        trend_ma_window: Lookback for the long-term trend moving average.
+        tactical_ma_window: Lookback for the tactical moving average.
+        tactical_momentum_window: Lookback for tactical momentum.
+        rebalance_frequency: Rebalance cadence (monthly by default).
+        commission_pct: Commission rate passed to the broker.
+    """
+
     params = dict(
         core_weight=0.33,
         trend_weight=0.33,
@@ -158,6 +251,11 @@ class TrinityPortfolioGoldStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset bar, order and trade trackers for the run.
+
+        Initializes the bar/buy/sell counters, the pending-order handle, the
+        last-target tracker and the equity-value series.
+        """
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -166,6 +264,12 @@ class TrinityPortfolioGoldStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Resize the gold position toward the target weight on flagged bars.
+
+        Records equity, skips while an order is pending or the rebalance signal
+        is unset, and when the target weight has changed issues an
+        ``order_target_percent`` order while updating buy/sell counters.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -185,6 +289,14 @@ class TrinityPortfolioGoldStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def notify_order(self, order):
+        """Clear the pending-order handle once the order settles.
+
+        Ignores intermediate Submitted/Accepted states and resets the pending
+        order to ``None`` on any terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -196,10 +308,29 @@ class TrinityPortfolioGoldStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return ``value`` when it is a finite number, else ``None``.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value if it is non-``None`` and finite, otherwise ``None``.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-value series.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, emphasizing deep and sustained declines.
+
+    Args:
+        values: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when fewer than two values exist.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -213,6 +344,18 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load gold daily data and derive the Trinity feature frame.
+
+    Reads the configured date bounds, loads the gold CSV, and runs
+    ``prepare_trinity_features`` to produce the enriched daily frame.
+
+    Args:
+        config: Resolved configuration dictionary (see ``load_config``).
+
+    Returns:
+        dict: Contains ``data`` (the feature DataFrame) and the parsed
+        ``fromdate`` and ``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -222,6 +365,19 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the cerebro engine, feed, commission and analyzers.
+
+    Creates a cerebro instance with the configured starting cash and commission,
+    adds the Trinity gold feed, registers the strategy with its parameters, and
+    attaches the Sharpe/Returns/DrawDown/Trade/SQN analyzers.
+
+    Args:
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        bt.Cerebro: The fully configured engine ready to run.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -237,6 +393,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Compile the performance metrics dictionary from a finished run.
+
+    Reads the Sharpe, returns, drawdown, trade and SQN analyzers, derives win
+    rate, profit factor, total/annual return, net PnL and the Ulcer Index, and
+    combines them with the strategy's own counters.
+
+    Args:
+        strat: The executed strategy instance carrying counters and analyzers.
+        cerebro: The cerebro engine used for the run (for final broker value).
+        inputs: Loaded inputs dictionary from ``load_inputs``.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        dict: Metric name to value mapping asserted by the test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -276,6 +447,17 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert a value into a JSON-serializable form.
+
+    Datetimes become ISO strings and non-finite floats become ``None``; all
+    other values pass through unchanged.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        A JSON-friendly representation of ``value``.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

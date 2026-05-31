@@ -12,6 +12,29 @@ the VWR analyzer produces correct results along with other performance metrics
 including Sharpe ratio, SQN (System Quality Number), drawdown, and returns.
 
 Reference Source: backtrader-master2/samples/vwr/vwr.py
+
+Data Used:
+    Daily OHLC bars from ``2005-2006-day-001.txt`` (the standard backtrader
+    sample file in BacktraderCSVData format), located via resolve_data_path and
+    consumed in full as a single daily feed.
+
+Strategy Principle:
+    A plain dual-SMA crossover used purely to generate a realistic stream of
+    trades and equity-curve volatility against which the VWR (Variability-
+    Weighted Return) analyzer can be validated. A fast and a slow simple moving
+    average define trend: a fast-over-slow cross is a long entry and the reverse
+    cross is an exit. The trading edge is incidental; the goal is exercising the
+    analyzer pipeline.
+
+Strategy Logic:
+    VWRTestStrategy builds fast/slow SMAs and a CrossOver indicator. Each bar it
+    skips while an order is pending, then opens (or reverses into) a long on a
+    bullish crossover and closes on a bearish crossover. notify_order counts
+    completed buys/sells and clears the order reference. The parametrized test
+    attaches Returns, SQN, SharpeRatio, DrawDown, TradeAnalyzer, and VWR
+    analyzers, runs both runonce=True and runonce=False, and asserts bar count,
+    final value, Sharpe, annual return, drawdown, trade count, VWR, and SQN
+    against expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

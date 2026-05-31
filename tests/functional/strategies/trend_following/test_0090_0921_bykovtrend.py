@@ -7,6 +7,41 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Source file ``tests/datas/XAUUSD_M15.csv``, a MetaTrader 5 export for the
+    ``XAUUSD`` (gold versus US dollar) symbol on the ``M15`` (15-minute)
+    timeframe. The base frame is loaded by :func:`load_mt5_csv`, shifted forward
+    by ``bar_shift_minutes=15`` so each row is stamped at the bar close, then
+    sliced to the window ``2025-12-03 01:15:00`` through
+    ``2026-03-10 09:00:00`` (6129 bars). :func:`build_signal_frame` resamples
+    the M15 base into an H1 (``indicator_minutes=60``) signal frame, so the
+    strategy runs on two feeds: M15 for execution and H1 for the BykovTrend
+    indicator.
+
+Strategy Principle:
+    A dual-timeframe trend-flip system based on the BykovTrend MQL indicator.
+    On the higher (H1) timeframe a Williams %R oscillator over ``ssp`` bars,
+    combined with a ``risk``-derived threshold, detects when the trend flips up
+    or down; ATR(15) scales the visual arrow offset. A fresh up-flip prints a
+    buy arrow and a fresh down-flip prints a sell arrow. Entries follow the
+    arrows on the M15 feed and are protected by fixed point-based stop-loss and
+    take-profit distances, betting that confirmed higher-timeframe flips
+    persist long enough to capture trend moves.
+
+Strategy Logic:
+    1. :class:`BykovTrendIndicator` recomputes Williams %R and ATR each H1 bar
+       and emits ``buy_arrow`` / ``sell_arrow`` price levels on trend flips.
+    2. The strategy binds the M15 base feed and H1 signal feed, attaches the
+       indicator, and resets bar/order/trade counters.
+    3. Each M15 bar first checks fixed stop-loss / take-profit exits, then only
+       acts once per new H1 signal bar.
+    4. A buy arrow opens/holds long (and closes shorts); a sell arrow opens/holds
+       short (and closes longs); when no fresh signal closes the position it
+       scans recent indicator history for an opposing arrow.
+    5. ``notify_trade`` counts entries on open and tallies wins/losses on close.
+    6. :func:`extract_metrics` aggregates analyzer output and the test asserts
+       the captured metrics against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -86,6 +121,21 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export (tab-delimited columns such
+            as ``<DATE>``, ``<TIME>``, ``<OPEN>`` ... ``<VOL>``).
+        fromdate: Optional inclusive lower datetime bound for the returned rows.
+        todate: Optional inclusive upper datetime bound for the returned rows.
+        bar_shift_minutes: Minutes to add to every timestamp, used to stamp
+            each bar at its close time rather than its open time.
+
+    Returns:
+        pandas.DataFrame: A datetime-indexed frame with ``open``, ``high``,
+        ``low``, ``close``, ``volume``, and ``openinterest`` columns, sorted by
+        time and filtered to the requested date window.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +161,13 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapping MT5 OHLCV columns by positional index.
+
+    The ``params`` map each backtrader line to its column position in the
+    DataFrame produced by :func:`load_mt5_csv` (datetime taken from the index);
+    the same feed class is reused for both the M15 base and H1 signal frames.
+    """
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -132,6 +189,7 @@ class BykovTrendIndicator(bt.Indicator):
     params = dict(risk=3, ssp=9)
 
     def __init__(self):
+        """Cache WPR/ATR periods, the risk threshold, and set indicator warmup."""
         self._k = 33 - int(self.p.risk)
         self._atr_period = 15
         self._wpr_period = int(self.p.ssp)
@@ -164,6 +222,7 @@ class BykovTrendIndicator(bt.Indicator):
         return total / period
 
     def next(self):
+        """Update the trend state and emit buy/sell arrow offsets on flips."""
         k = self._k
         wpr = self._calc_wpr()
         atr = self._calc_atr()
@@ -190,6 +249,13 @@ class BykovTrendIndicator(bt.Indicator):
 
 
 class ExpBykovTrendStrategy(bt.Strategy):
+    """Dual-timeframe BykovTrend strategy trading H1 arrows on M15 execution.
+
+    Reads ``buy_arrow`` / ``sell_arrow`` signals from the H1
+    :class:`BykovTrendIndicator` and opens, holds, or closes M15 positions
+    accordingly, with fixed point-based stop-loss and take-profit protection.
+    """
+
     params = dict(
         risk=3,
         ssp=9,
@@ -206,6 +272,7 @@ class ExpBykovTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind base/signal feeds, build the BykovTrend indicator, reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = BykovTrendIndicator(self.signal_data, risk=self.p.risk, ssp=self.p.ssp)
@@ -220,6 +287,11 @@ class ExpBykovTrendStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line using the current base bar datetime.
+
+        Args:
+            text: Message to log alongside the current bar timestamp.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -279,6 +351,13 @@ class ExpBykovTrendStrategy(bt.Strategy):
                     return
 
     def next(self):
+        """Manage exits and open/close positions on BykovTrend arrow signals.
+
+        Checks fixed stop-loss / take-profit first, then acts once per new H1
+        signal bar: a buy arrow opens/holds long and closes shorts, a sell arrow
+        opens/holds short and closes longs, and history is scanned for an
+        opposing arrow when no fresh signal closes the position.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -348,6 +427,13 @@ class ExpBykovTrendStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count entries on open and tally win/loss on close.
+
+        Args:
+            trade: The trade whose status changed. The first open event
+                increments the buy/sell counter; a closed trade increments the
+                trade count and the win or loss counter based on ``pnlcomm``.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -381,6 +467,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an existing absolute path.
+
+    Args:
+        filename: Absolute or base-relative path to the data file.
+
+    Returns:
+        pathlib.Path: The resolved, verified path.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -388,6 +485,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and window the M15 base market data described by the config.
+
+    Args:
+        config: Parsed configuration dict whose ``data`` section provides the
+            file path, ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        dict: Mapping with the loaded ``data`` DataFrame and the resolved
+        ``fromdate`` / ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded frame is empty after filtering.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -404,6 +514,16 @@ def load_backtest_frame(config):
 
 
 def build_signal_frame(df, indicator_minutes):
+    """Resample the M15 base frame into the higher-timeframe signal frame.
+
+    Args:
+        df: The M15 OHLCV DataFrame returned by :func:`load_backtest_frame`.
+        indicator_minutes: Resampling period in minutes (e.g. 60 for H1).
+
+    Returns:
+        pandas.DataFrame: The aggregated OHLCV frame with rows lacking price
+        data dropped and ``openinterest`` gaps filled with zero.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -420,6 +540,22 @@ def build_signal_frame(df, indicator_minutes):
 
 
 def build_cerebro(config, frame):
+    """Assemble a configured Cerebro engine for the BykovTrend backtest.
+
+    Args:
+        config: Parsed configuration dict providing the ``backtest`` (cash,
+            commission, margin, multiplier) settings, ``data`` symbols, and
+            strategy ``params`` (including ``indicator_minutes``).
+        frame: The loaded data mapping returned by :func:`load_backtest_frame`.
+
+    Returns:
+        backtrader.Cerebro: An engine with broker, M15 base and H1 signal feeds,
+        the strategy, and the Sharpe / Returns / DrawDown / TradeAnalyzer / SQN
+        analyzers attached.
+
+    Raises:
+        ValueError: If the resampled signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 60)
@@ -455,6 +591,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying the bar/trade counters.
+        cerebro: The Cerebro engine, used to read the final broker value.
+        frame: The loaded data mapping (for date range and bar count).
+        config: Parsed configuration dict (for initial cash).
+
+    Returns:
+        dict: Summary metrics including counts, returns, win rate, profit
+        factor, max drawdown, Sharpe ratio, annualized return, and SQN.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -496,6 +644,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the end-to-end BykovTrend backtest and return its results.
+
+    Args:
+        plot: When True, render the Cerebro chart after the run completes.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)`` where ``results`` is the list of
+        strategy instances, ``metrics`` is the dict from :func:`extract_metrics`,
+        and ``cerebro`` is the engine that executed the backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

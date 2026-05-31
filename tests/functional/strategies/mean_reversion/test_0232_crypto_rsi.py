@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Daily XAUUSD bars from ``tests/datas/XAUUSD_1d.csv``.
+    Window: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    RSI-based mean-reversion system:
+    open long when RSI is below oversold level, close and reverse when RSI exceeds
+    overbought level.
+
+Strategy Logic:
+    Pre-compute RSI and signal columns during data loading.
+    Run a two-state strategy over one feed, track entries/exits and broker value.
+    Aggregate analyzers and calculate derived metrics for assertions.
 """
 from __future__ import annotations
 import math
@@ -76,6 +90,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional date filtering.
+
+    Args:
+        filepath: Absolute or relative MT5 export path.
+        fromdate: Optional left datetime bound.
+        todate: Optional right datetime bound.
+
+    Returns:
+        Parsed and indexed pandas DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,6 +127,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_crypto_rsi_features(df, params):
+    """Calculate RSI signal features from raw bars.
+
+    Args:
+        df: Base OHLCV DataFrame.
+        params: Dictionary containing RSI period and threshold parameters.
+
+    Returns:
+        DataFrame enriched with ``rsi`` and ``signal`` columns.
+    """
     rsi_period = int(params.get('rsi_period', 14))
     oversold = float(params.get('oversold', 30))
     overbought = float(params.get('overbought', 70))
@@ -125,6 +158,7 @@ def prepare_crypto_rsi_features(df, params):
 
 
 class Mt5CryptoRsiFeed(bt.feeds.PandasData):
+    """Custom feed for inlined regression test."""
     lines = ('rsi', 'signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -135,6 +169,7 @@ class Mt5CryptoRsiFeed(bt.feeds.PandasData):
 
 
 class CryptoRsiStrategy(bt.Strategy):
+    """RSI signal strategy for inlined regression test."""
     params = dict(
         rsi_period=14,
         oversold=30,
@@ -143,6 +178,7 @@ class CryptoRsiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize trade counters and state."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -151,6 +187,7 @@ class CryptoRsiStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Estimate position size from broker equity and price."""
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -166,6 +203,7 @@ class CryptoRsiStrategy(bt.Strategy):
 
 
     def next(self):
+        """Run signal-based entry/exit logic on each bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -181,17 +219,19 @@ class CryptoRsiStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order tracker after order state leaves in-flight."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Handle completed trade notifications."""
         pass
 
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Crypto RSI 策略回测"""
+"""Crypto RSI backtest script metadata."""
 
 
 
@@ -202,6 +242,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe analyzer arguments according to selected timeframe."""
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -212,12 +253,13 @@ def get_sharpe_analyzer_kwargs(config):
         return dict(timeframe=bt.TimeFrame.Minutes, compression=hours * 60, factor=252 * 24 / hours, annualize=True, riskfreerate=0)
     return dict(timeframe=bt.TimeFrame.Days, compression=1, factor=252, annualize=True, riskfreerate=0)
 
-
 def finite_or_none(x):
+    """Return ``None`` for NaN/infinite values and keep finite values unchanged."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index for drawdown risk measurement."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -232,6 +274,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load and feature-engineer MT5 data for crypto RSI backtest."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -244,6 +287,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct a Cerebro instance with broker setup, feed, strategy, and analyzers."""
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -266,6 +310,7 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract and return key metrics from backtest results."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -300,6 +345,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a series to a standardized range."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

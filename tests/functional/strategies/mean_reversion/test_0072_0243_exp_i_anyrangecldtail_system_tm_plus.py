@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bar data from `tests/datas/XAUUSD_M15.csv`.
+    A resampled M30 signal series is derived with right-labeled buckets.
+
+Strategy Principle:
+    Intraday breakout logic tracks a daily time window to build a price channel.
+    Color states indicate price position versus the channel and drive mean-reverting
+    or breakout entries under fixed risk constraints.
+
+Strategy Logic:
+    The script loads and rescales market data, builds execution/signal feeds,
+    evaluates the inlined range-tail indicator each signal bar, executes entries,
+    bracket exits, optional timed exits, and verifies migrated regression metrics.
 """
 from __future__ import annotations
 import math
@@ -88,6 +102,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 TSV file and normalize columns for Backtrader.
+
+    Args:
+        filepath: Input MT5 CSV path.
+        fromdate: Optional lower date bound.
+        todate: Optional upper date bound.
+        bar_shift_minutes: Timestamp shift in minutes for each bar.
+
+    Returns:
+        DataFrame indexed by datetime containing OHLCV spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed that includes spread as an extra data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -128,10 +154,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AnyRangeCldTailIndicator(bt.Indicator):
+    """Compute a session-based daily channel and color-state trend signal."""
     lines = ('color_state', 'upper', 'lower')
     params = dict(time1='02:00', time2='07:00')
 
     def __init__(self):
+        """Initialize session boundaries and window tracking state."""
         self._time1 = self._parse_hhmm(self.p.time1)
         self._time2 = self._parse_hhmm(self.p.time2)
         self._window_start = min(self._time1, self._time2)
@@ -150,6 +178,7 @@ class AnyRangeCldTailIndicator(bt.Indicator):
         return int(hour) * 60 + int(minute)
 
     def next(self):
+        """Update channel bounds and emit color state for the current bar."""
         dt = bt.num2date(self.data.datetime[0])
         day = dt.date()
         minute = dt.hour * 60 + dt.minute
@@ -184,6 +213,7 @@ class AnyRangeCldTailIndicator(bt.Indicator):
 
 
 class ExpAnyRangeCldTailSystemTmPlusStrategy(bt.Strategy):
+    """Session-range breakout strategy with MM sizing, reversals, and exits."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -205,6 +235,7 @@ class ExpAnyRangeCldTailSystemTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feed references, indicator, and runtime order state."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = AnyRangeCldTailIndicator(self.signal_data, time1=self.p.time1, time2=self.p.time2)
@@ -219,10 +250,12 @@ class ExpAnyRangeCldTailSystemTmPlusStrategy(bt.Strategy):
         self.entry_dt = None
 
     def log(self, text):
+        """Log execution messages with timestamp."""
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run main logic in pre-next path until startup history is available."""
         self.next()
 
     @staticmethod
@@ -312,6 +345,7 @@ class ExpAnyRangeCldTailSystemTmPlusStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate hold timers, handle reversal flow, and submit entries/exits."""
         if len(self.signal_data) < 3:
             return
         if self._check_time_close():
@@ -338,6 +372,7 @@ class ExpAnyRangeCldTailSystemTmPlusStrategy(bt.Strategy):
             self._submit_entry('short', 'channel breakout sell')
 
     def notify_order(self, order):
+        """Record completed or failed order transitions and propagate reverse orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -380,6 +415,7 @@ class ExpAnyRangeCldTailSystemTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Reset side tracking and record closed-trade outcomes."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.closing_side or self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -399,6 +435,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve dataset path against the test directory.
+
+    Args:
+        filename: Data filename.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -406,12 +450,21 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime value when provided."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Build the backtest DataFrame from configured data source.
+
+    Args:
+        config: Strategy test config.
+
+    Returns:
+        Dict with key ``data`` containing OHLCV series.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -423,6 +476,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach sharpe/return/drawdown/trade analyzers used by assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -431,6 +485,7 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample input bars to higher timeframe using right edge aggregation."""
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -440,6 +495,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with execution feed, signal feed, strategy, and analyzers.
+
+    Args:
+        config: Strategy configuration.
+        frame: Prepared data frame dictionary.
+
+    Returns:
+        Configured Cerebro object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -457,6 +521,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize NaN-like numeric values to ``None`` for assertions."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -465,6 +530,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact summary of test metrics for backtest review."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -491,6 +557,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the inlined backtest and print summaries to stdout."""
     parser = argparse.ArgumentParser(description='Run Exp_i-AnyRangeCldTail_System_Tm_Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
@@ -515,10 +582,7 @@ def _close(actual, expected, *, tol, key):
 
 
 def test_72_0072_0243_exp_i_anyrangecldtail_system_tm_plus() -> None:
-    """Migrated regression test (runonce=True only).
-
-    Originally located at tests/functional/strategies_regression/mean_reversion/0072_0243_exp_i_anyrangecldtail_system_tm_plus.
-    """
+    """Execute migrated regression assertions for the inlined backtest."""
     captured = {}
 
     import sys as _sys

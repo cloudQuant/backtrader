@@ -16,6 +16,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a minute OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Minutes to shift bar timestamps (close alignment).
+
+    Returns:
+        DataFrame indexed by datetime containing open/high/low/close/volume/openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -37,6 +48,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed exposing OHLCV columns for backtrader ingestion."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,10 +56,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class TriggerLine(bt.Indicator):
+    """Trigger-line indicator tracking momentum-driven main and signal lines."""
     lines = ("main", "signal")
     params = dict(rperiod=24, lsma_period=6, price="close")
 
     def __init__(self):
+        """Initialize indicator coefficients and warmup."""
         self.addminperiod(int(self.p.rperiod) + 3)
         self.lengthvar = (int(self.p.rperiod) + 1) / 3.0
         self.kr = 6.0 / (float(self.p.rperiod) * (float(self.p.rperiod) + 1.0))
@@ -70,6 +84,7 @@ class TriggerLine(bt.Indicator):
         return float(self.data.close[index])
 
     def next(self):
+        """Compute main and signal values for current bar."""
         total = 0.0
         rp = int(self.p.rperiod)
         for iii in range(rp, 0, -1):
@@ -82,6 +97,7 @@ class TriggerLine(bt.Indicator):
 
 
 class ExpTriggerLineStrategy(bt.Strategy):
+    """Monthly trigger-line rebalance strategy using buy/sell cross signals."""
     params = dict(
         rperiod=24, lsma_period=6, price="close",
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -92,6 +108,7 @@ class ExpTriggerLineStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach signal indicator, initialize per-bar counters and state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = TriggerLine(
@@ -125,6 +142,7 @@ class ExpTriggerLineStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance each bar, enforce exits and open/close logic on new signal bars."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -154,6 +172,7 @@ class ExpTriggerLineStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Update entry/exit counters from trade lifecycle events."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

@@ -7,6 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - `tests/datas/XAUUSD_M15.csv` (symbol XAUUSD, 15-minute candles).
+    - Date range: `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    - Two data streams are built from the same source: base M15 execution data
+      and a resampled indicator frame for Super Woodies signals.
+
+Strategy Principle:
+    - The strategy is a mean-reversion signal model driven by CCI histogram
+      transitions calculated on a higher-timeframe reconstruction.
+    - A pair of CCI measures (CCI and fast TCCI) are used to detect sustained
+      directional bias (persistent positives/negatives) and color-state changes.
+    - Position management is constrained by fixed stop-loss and take-profit rules
+      with configurable directional open/close toggles.
+
+Strategy Logic:
+    - `load_backtest_frame` loads the MT5 export and applies the configured date
+      window and timezone/bar-shift adjustments.
+    - `build_super_woodies_cci_frame` resamples to indicator timeframe and
+      computes CCI, TCCI, histogram and histogram color metadata.
+    - `build_cerebro` wires base and signal feeds, strategy parameters,
+      commission/margin settings, and analyzers.
+    - `SuperWoodiesCciStrategy.next` handles signal edge detection, exits, and
+      order placement on buy/sell transitions.
+    - `extract_metrics` aggregates strategy counters and analyzer outputs for
+      deterministic regression assertions.
 """
 from __future__ import annotations
 import math
@@ -87,6 +113,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 tab-separated CSV data into a pandas DataFrame.
+
+    Args:
+        filepath: Path to the CSV-like data export.
+        fromdate: Optional lower timestamp bound.
+        todate: Optional upper timestamp bound.
+        bar_shift_minutes: Minutes to shift timestamps before filtering.
+
+    Returns:
+        DataFrame indexed by `datetime` with normalized OHLCV fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -108,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Base pandas feed mapping for OHLCV columns from MT5-style data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -115,6 +153,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class SuperWoodiesCciFeed(btfeeds.PandasData):
+    """Signal feed extension that exposes CCI, TCCI, histogram, and color lines."""
     lines = ('cci', 'tcci', 'hist', 'hist_color')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -123,6 +162,15 @@ class SuperWoodiesCciFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample OHLCV bars to the indicator timeframe used for signal generation.
+
+    Args:
+        df: Base frame indexed by datetime.
+        indicator_minutes: Target resample period in minutes.
+
+    Returns:
+        Resampled frame with OHLCV columns and valid rows only.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -138,6 +186,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def applied_price_series(df, applied_price):
+    """Select a bar price source used for CCI computation.
+
+    Args:
+        df: Input DataFrame with open/high/low/close fields.
+        applied_price: Price type string from config (e.g., PRICE_OPEN, PRICE_CLOSE).
+
+    Returns:
+        A pandas Series representing the selected price basis.
+    """
     price = str(applied_price).upper()
     if price == 'PRICE_OPEN':
         return df['open'].astype(float)
@@ -155,6 +212,15 @@ def applied_price_series(df, applied_price):
 
 
 def cci_series(price_series, period):
+    """Calculate Commodity Channel Index over a rolling window.
+
+    Args:
+        price_series: Price input used as numerator of CCI formula.
+        period: Rolling period length.
+
+    Returns:
+        Rolling CCI series.
+    """
     period = int(period)
     s = pd.Series(price_series, dtype=float).reset_index(drop=True)
     sma = s.rolling(period).mean()
@@ -165,6 +231,18 @@ def cci_series(price_series, period):
 
 
 def build_super_woodies_cci_frame(df, indicator_minutes, cci_period, tcci_period, applied_price):
+    """Build indicator frame with CCI/TCCI and histogram color state.
+
+    Args:
+        df: Source market data.
+        indicator_minutes: Resampling period for signal frame.
+        cci_period: Standard CCI period.
+        tcci_period: Fast/short CCI period used for momentum contrast.
+        applied_price: Price basis selector passed to `applied_price_series`.
+
+    Returns:
+        DataFrame enriched with CCI, TCCI, histogram and color columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     price = applied_price_series(signal_df, applied_price)
     cci = cci_series(price, cci_period)
@@ -213,6 +291,7 @@ def build_super_woodies_cci_frame(df, indicator_minutes, cci_period, tcci_period
 
 
 class SuperWoodiesCciStrategy(bt.Strategy):
+    """Mean-reversion strategy driven by cross-state transitions in CCI histogram colors."""
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -230,6 +309,7 @@ class SuperWoodiesCciStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, data references, and performance counters."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -243,6 +323,7 @@ class SuperWoodiesCciStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Log strategy messages with current bar timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -287,6 +368,7 @@ class SuperWoodiesCciStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate risk exits and trigger buy/sell transitions on histogram flips."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -338,6 +420,7 @@ class SuperWoodiesCciStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Update strategy counters on trade open/close events."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -371,6 +454,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative filename against this module's directory.
+
+    Args:
+        filename: Data file path configured in test settings.
+
+    Returns:
+        Absolute existing path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -378,6 +469,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load, validate, and window the market data for backtest execution.
+
+    Args:
+        config: Strategy config dictionary with data settings.
+
+    Returns:
+        Dictionary containing filtered frame and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -394,6 +493,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create a configured Backtrader Cerebro engine and attach analyzers.
+
+    Args:
+        config: Merged configuration with strategy and backtest parameters.
+        frame: Data frame dictionary from `load_backtest_frame`.
+
+    Returns:
+        Configured `bt.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -436,6 +544,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract runtime counters and analyzers into a stable comparison payload.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Finished cerebro object.
+        frame: Frame metadata used by the run.
+        config: Original normalized configuration.
+
+    Returns:
+        Dictionary of deterministic metrics used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -477,6 +596,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest once and return execution result objects.
+
+    Args:
+        plot: Whether to display the Backtrader chart output.
+
+    Returns:
+        Tuple `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

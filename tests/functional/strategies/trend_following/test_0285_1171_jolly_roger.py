@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` from `tests/datas/` as MT5 OHLCV data.
+    The backtest runs on symbol `XAUUSD`, timeframe `M15`, spanning
+    `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    Bars are optionally shifted by 15 minutes via `bar_shift_minutes`.
+    Only one data source is used, with no multi-symbol feed composition.
+
+Strategy Principle:
+    Builds RSI-based momentum signals with fixed thresholds.
+    Long entries are triggered when RSI is below `rsi_level`.
+    Short entries are triggered when RSI is above `100 - rsi_level`.
+    Each signal is split into multiple stop-entry legs to match the legacy
+    scaling/lot-splitting behavior.
+    Risk is controlled by per-leg take-profit / stop-loss updates and trailing stop
+    movement as market prices evolve.
+
+Strategy Logic:
+    `load_mt5_csv()` parses MT5 CSV exports into a normalized pandas DataFrame.
+    `load_backtest_frame()` trims rows to the configured date range.
+    `build_cerebro()` wires feed, strategy, broker, commissions, analyzers and run-time settings.
+    The strategy records per-bar RSI signals in `next()`, submits batched stop orders,
+    updates pending entries, and checks exit conditions each bar.
+    `notify_order()` and `notify_trade()` maintain counters and trade-leg state.
+    Assertions compare extracted metrics against migrated expected values in `pytest`.
 """
 from __future__ import annotations
 import math
@@ -82,6 +107,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated OHLCV export data and normalize it for Backtrader.
+
+    Args:
+        filepath: Path to a MT5 CSV file.
+        fromdate: Optional lower-bound datetime to filter rows.
+        todate: Optional upper-bound datetime to filter rows.
+        bar_shift_minutes: Optional minute offset to shift index for broker alignment.
+
+    Returns:
+        pd.DataFrame: Data indexed by datetime with columns:
+            datetime, open, high, low, close, volume, openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,6 +144,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Backtrader data feed adapter for MT5-derived pandas OHLCV frames."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -114,6 +152,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class JollyRogerStrategy(bt.Strategy):
+    """Backtrader strategy implementing a multi-leg RSI threshold breakout system."""
     params = dict(
         tp=150,
         sl=50,
@@ -130,6 +169,7 @@ class JollyRogerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and state counters required by the strategy run."""
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
         self.bar_num = 0
         self.signal_count = 0
@@ -149,6 +189,7 @@ class JollyRogerStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Output a timestamped event message for runtime diagnostics."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -292,6 +333,12 @@ class JollyRogerStrategy(bt.Strategy):
         return True
 
     def next(self):
+        """Advance strategy logic on every bar.
+
+        The method waits for enough warm-up bars, updates trailing stops, re-prices
+        pending entry orders when distance exceeds the repricing threshold, and then
+        submits a fresh RSI-based batch order set only when flat and not in-flight.
+        """
         self.bar_num += 1
         if len(self.data) < max(self.p.rsi_period + 2, 20):
             return
@@ -317,6 +364,11 @@ class JollyRogerStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Update bookkeeping when entry or exit orders change state.
+
+        Handles entry fill bookkeeping (including leg construction, position counters,
+        and optional re-queuing of repriced stop orders) and exit fill cleanup.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -361,6 +413,11 @@ class JollyRogerStrategy(bt.Strategy):
             return
 
     def notify_trade(self, trade):
+        """Track completed-trade outcome counters for wins and losses.
+
+        Ignores intermediate open updates and only increments totals when a trade
+        closes successfully.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return
@@ -390,6 +447,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data file path relative to the current test directory.
+
+    Args:
+        filename: Data filename in the same folder as this test module.
+
+    Returns:
+        Path: Absolute path to the requested data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -397,6 +462,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Create a normalized frame configuration for the backtest.
+
+    Args:
+        config: Full strategy configuration including data, timeframe, and bounds.
+
+    Returns:
+        dict: Dictionary containing:
+            - data: normalized DataFrame
+            - fromdate: test range start datetime
+            - todate: test range end datetime
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -413,6 +489,18 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Instantiate and configure a Cerebro engine for this strategy script.
+
+    Adds the MT5 pandas feed, strategy instance, broker settings, and core analyzers
+    required by the migrated expectation checks.
+
+    Args:
+        config: Strategy/backtest parameter block.
+        frame: Normalized in-memory data frame payload.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -436,6 +524,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzers and runtime counters used in regression assertions.
+
+    Args:
+        strat: Backtrader strategy instance after run.
+        cerebro: Cerebro instance used for the run.
+        frame: Backtest frame payload.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        dict: Standardized metric dictionary for test assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -477,6 +576,17 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the test strategy and return raw results and metrics.
+
+    Args:
+        plot: Whether to call Backtrader plotting after execution.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+            - results: list-like output from `cerebro.run()`
+            - metrics: extracted metric dictionary
+            - cerebro: used engine instance
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

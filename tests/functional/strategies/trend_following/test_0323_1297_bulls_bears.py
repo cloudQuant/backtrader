@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The Bulls/Bears Power
+    values are computed directly on the M15 feed; no separate signal feed is
+    used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_BullsBears``. Using an EMA of
+    the close, Bull Power is ``high - EMA`` and Bear Power is ``low - EMA``; their
+    sum is a combined oscillator measuring net buying/selling pressure relative
+    to trend. The strategy treats a sign flip of the combined value as a
+    momentum-shift signal: a flip from negative to positive is a long signal and
+    a flip from positive to negative is a short signal. It reverses on the
+    opposite flip; risk is bounded by the reversing signal rather than fixed
+    stops.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers. Each bar the strategy computes the
+    combined Bulls/Bears value on the two prior bars to detect a sign flip, then
+    opens a long/short when flat or closes and reverses when in a position.
+    notify_trade counts entries on open and win/loss on close. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -70,6 +98,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -91,6 +132,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping normalized MT5 OHLCV export columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -113,6 +155,7 @@ class BullsBearsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize EMA indicator and strategy counters."""
         self.ema = bt.indicators.EMA(self.data.close, period=self.p.ema_period)
         self.bar_num = 0
         self.buy_count = 0
@@ -123,6 +166,7 @@ class BullsBearsStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log strategy messages with current timestamp."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -132,6 +176,7 @@ class BullsBearsStrategy(bt.Strategy):
         return bull + bear
 
     def next(self):
+        """Process each bar, detect sign flips, and reverse or open positions."""
         self.bar_num += 1
         if len(self.data) < self.p.ema_period + 5:
             return
@@ -164,6 +209,7 @@ class BullsBearsStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count opened and closed trades, then update win/loss counters."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -188,11 +234,27 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve a data file path under the current strategy directory.
+
+    Args:
+        filename: Relative file name from the strategy module.
+
+    Returns:
+        Absolute file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load and normalize M15 OHLCV data for backtest execution.
+
+    Args:
+        config: Resolved test config.
+
+    Returns:
+        Dict containing data frame and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -203,6 +265,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feed, strategy, broker settings, and analyzers.
+
+    Args:
+        config: Test config including backtest defaults.
+        frame: Prepared backtest frame from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -220,6 +291,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Build metric dictionary used by regression assertions.
+
+    Args:
+        strat: Strategy instance after run.
+        cerebro: Cerebro instance after run.
+        frame: Backtest frame metadata.
+        config: Resolved config.
+
+    Returns:
+        Dictionary of counters and analyzer outputs.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -240,6 +322,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the benchmark once and return execution artifacts.
+
+    Args:
+        plot: Toggle plotting.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

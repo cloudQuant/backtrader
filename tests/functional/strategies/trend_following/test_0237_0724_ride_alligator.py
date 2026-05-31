@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe loaded from the
+    MT5 export ``tests/datas/XAUUSD_M15.csv``, with each bar timestamp shifted
+    forward by 15 minutes so it marks the candle close, clipped to 2025-12-03
+    01:15:00 through 2026-03-10 09:00:00. A single M15 feed drives the
+    Alligator indicator and execution, priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    A port of the MT5 expert advisor RideAlligator built on Bill Williams'
+    Alligator indicator. Three weighted moving averages of the (high+low)/2
+    median price — the fast Lips, medium Teeth, and slow Jaws, with periods
+    spaced by the golden ratio — describe trend direction and strength. When the
+    Lips push above the Jaws while the Teeth sit below (a fanning-up alignment)
+    the strategy rides the emerging uptrend long; the mirror alignment opens a
+    short. The slow Jaws line doubles as a trailing stop, riding the move until
+    the trend reverses.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed,
+    commission, strategy, and analyzers. Each bar (after warm-up) the strategy
+    sizes the lot from account equity and the risk factor. While in a position
+    it trails the Jaws-based stop and closes when price crosses it. While flat it
+    opens a long on a fanning-up Lips/Teeth/Jaws alignment or a short on the
+    mirror. notify_order counts fills and clears the stop on close; notify_trade
+    tallies win/loss. extract_metrics consolidates analyzer output; the test
+    hooks the metric extractor (or derives from analyzers), forces runonce=True,
+    and asserts each metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -72,6 +101,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound; earlier rows are dropped.
+        todate: Optional inclusive upper bound; later rows are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,12 +141,22 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class RideAlligatorStrategy(bt.Strategy):
+    """Ride Alligator trend alignments with a Jaws-based trailing stop.
+
+    Enters long when the fast Lips line fans above the slow Jaws while the Teeth
+    sit below (and the mirror for shorts), sizes the lot from account equity and
+    the risk factor, and trails the stop along the Jaws line until price crosses
+    it.
+    """
+
     params = dict(
         alligator_period=5,
         risk_factor=0.5,
@@ -116,6 +168,7 @@ class RideAlligatorStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the golden-ratio-spaced Alligator WMAs and reset counters."""
         period = int(self.p.alligator_period)
         a1 = max(1, int(round(period * 1.61803398874989)))
         a2 = max(1, int(round(a1 * 1.61803398874989)))
@@ -145,6 +198,7 @@ class RideAlligatorStrategy(bt.Strategy):
         return max(min_lot, min(max_lot, round(lot, 2)))
 
     def next(self):
+        """Advance one bar, manage trailing stops and process entry signals."""
         self.bar_num += 1
         if len(self) < 20:
             return
@@ -185,6 +239,7 @@ class RideAlligatorStrategy(bt.Strategy):
             self.stop_price = round(jaws_now, int(self.p.price_digits)) if jaws_now > 0 else None
 
     def notify_order(self, order):
+        """Update order state and counters for completed/failed orders."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -202,6 +257,7 @@ class RideAlligatorStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track completed trade count and win/loss classification."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -226,6 +282,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve an input filename relative to this test module."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -233,6 +290,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and clip MT5 data using migration configuration."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -244,6 +302,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the cerebro engine with feed, strategy, commission, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -264,6 +323,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs and strategy counters for assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -305,6 +365,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute a full backtest run and return results, metrics, and cerebro."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

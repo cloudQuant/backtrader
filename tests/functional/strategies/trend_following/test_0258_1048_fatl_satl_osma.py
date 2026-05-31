@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) base timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The base frame is
+    resampled to a 720-minute (H12) signal timeframe on which the FATL/SATL OsMA
+    oscillator is computed. Two feeds are delivered: the raw M15 OHLCV feed for
+    execution and an H12 feed carrying the precomputed ``fatl_satl_osma`` line,
+    both priced as a futures-like instrument (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    FATL (Fast Adaptive Trend Line) and SATL (Slow Adaptive Trend Line) are
+    fixed-coefficient digital low-pass filters from the FATL/SATL family. Their
+    difference, scaled by point, forms an OsMA-style oscillator that measures
+    fast-versus-slow trend divergence on the higher H12 timeframe. A turn upward
+    in the oscillator is a long signal and a turn downward is a short signal,
+    with the opposite turn closing the corresponding side. Risk is framed with
+    fixed stop-loss and take-profit distances expressed in points.
+
+Strategy Logic:
+    ``load_backtest_frames`` loads the M15 frame, resamples it to H12, and runs
+    ``compute_fatl_satl_osma`` to add the oscillator line. ``__init__`` binds the
+    M15 and H12 feeds and zeroes the signal, order, and trade counters. ``next``
+    waits for enough oscillator history, manages stop-loss/take-profit exits,
+    then—once per new H12 signal bar—evaluates the oscillator turn signals to
+    open or close longs/shorts with fixed stop and target prices. ``notify_order``
+    updates order/position counters and clears the pending entry order, and
+    ``notify_trade`` tallies wins and losses. ``extract_metrics`` consolidates
+    analyzer output and the strategy counters into a metrics dict that the test
+    compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -84,6 +115,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,6 +149,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser bar size using right-closed bins.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        rule: A pandas offset alias (e.g. ``'720min'``) for the target bar size.
+
+    Returns:
+        The resampled OHLCV frame with rows missing price data dropped and
+        openinterest gaps filled with zero.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -147,6 +201,16 @@ SATL_COEFFS = np.array([
 
 
 def compute_fatl_satl_osma(frame, point=0.01):
+    """Compute the FATL/SATL OsMA oscillator line.
+
+    Args:
+        frame: Signal-timeframe OHLCV DataFrame indexed by datetime.
+        point: Point size used to normalize the FATL-SATL difference.
+
+    Returns:
+        A copy of ``frame`` including the ``fatl_satl_osma`` column, with initial
+        warm-up rows removed.
+    """
     price = frame['close'].to_numpy(dtype=float)
     values = np.full(len(frame), np.nan, dtype=float)
     min_rates_total = int(max(len(FATL_COEFFS), len(SATL_COEFFS)))
@@ -160,6 +224,8 @@ def compute_fatl_satl_osma(frame, point=0.01):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping MT5 OHLCV columns by positional indexes."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -167,6 +233,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FatlSatlOsmaFeed(bt.feeds.PandasData):
+    """Backtrader feed exposing the H12 ``fatl_satl_osma`` oscillator line."""
+
     lines = ('fatl_satl_osma',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -175,6 +243,8 @@ class FatlSatlOsmaFeed(bt.feeds.PandasData):
 
 
 class FatlSatlOsmaStrategy(bt.Strategy):
+    """Trade H12 FATL/SATL OsMA turns on M15 with fixed stop/take-profit."""
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -193,6 +263,7 @@ class FatlSatlOsmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind feeds and initialize runtime counters and local order state."""
         self.m15 = self.datas[0]
         self.h12 = self.datas[1]
         self.osma = self.h12.fatl_satl_osma
@@ -214,6 +285,11 @@ class FatlSatlOsmaStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Log a timestamped debug message for the current bar.
+
+        Args:
+            text: Message to print.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -280,6 +356,7 @@ class FatlSatlOsmaStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, prev2_val, prev_val, curr_val
 
     def next(self):
+        """Evaluate signal history and manage exits/entries for one bar."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -314,6 +391,11 @@ class FatlSatlOsmaStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track order results and clear pending entry order references.
+
+        Args:
+            order: Order callback object from the broker.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -332,6 +414,11 @@ class FatlSatlOsmaStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Count trade closure outcomes into win/loss and total counters.
+
+        Args:
+            trade: Closed trade callback object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -356,6 +443,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative dataset path against the strategy test directory.
+
+    Args:
+        filename: Relative path to a data file.
+
+    Returns:
+        Absolute path of the dataset file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -363,6 +458,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load raw M15 data, resample to H12, and compute oscillator values.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dictionary with prepared frames and date boundaries.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -377,6 +480,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Backtrader's cerebro engine.
+
+    Args:
+        config: Strategy configuration dictionary.
+        frame: Dict with loaded ``m15`` and ``h12`` data frames.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -396,6 +508,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzer and strategy counters used by regression assertions.
+
+    Args:
+        strat: Strategy instance after execution.
+        cerebro: Executed backtrader engine.
+        frame: Backtest frames used for the run.
+        config: Strategy configuration dictionary.
+
+    Returns:
+        A dict with all metrics asserted by the regression test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -423,6 +546,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run a full backtest and return execution artifacts.
+
+    Args:
+        plot: Render a matplotlib chart if ``True``.
+
+    Returns:
+        A tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

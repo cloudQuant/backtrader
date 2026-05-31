@@ -22,8 +22,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': 'MTC_神经网络_加上_MACD',
-        'source_ea': 'ea/0715_MTC_神经网络,_加上_MACD',
+        'name': 'MTC Neural Network Plus MACD',
+        'source_ea': 'ea/0715_MTC_Neural_Network_Plus_MACD',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -91,6 +91,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 tab-delimited CSV file into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -118,12 +119,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed adapter for MT5-formatted OHLCV columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class MTCNeuralNetworkPlusMACDStrategy(bt.Strategy):
+    """MACD-assisted neural network ensemble strategy."""
     params = dict(
         x11=100,
         x12=100,
@@ -152,6 +155,7 @@ class MTCNeuralNetworkPlusMACDStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, counters, and order state fields."""
         self.macd = bt.indicators.MACD(self.data.close, period_me1=12, period_me2=26, period_signal=9)
 
         self.bar_num = 0
@@ -246,6 +250,7 @@ class MTCNeuralNetworkPlusMACDStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Generate trading signals, place entries, and manage position exits."""
         self.bar_num += 1
         need_bars = max(int(self.p.p1), int(self.p.p2), int(self.p.p3)) * 4 + 5
         if len(self) < need_bars:
@@ -274,6 +279,7 @@ class MTCNeuralNetworkPlusMACDStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.m_lots)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and clear active order references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -292,6 +298,7 @@ class MTCNeuralNetworkPlusMACDStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -316,6 +323,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate path for a local data source file."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -323,6 +331,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load input data and enforce configured date boundaries."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -334,6 +343,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build the Cerebro engine with feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -351,6 +361,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Return all metrics and counters required by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

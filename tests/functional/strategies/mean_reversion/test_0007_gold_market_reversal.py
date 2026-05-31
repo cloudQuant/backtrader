@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) daily data from 2008-01-01 to 2025-12-31.
+    Derived features: rolling max, drawdown, reversal count, entry/exit signals.
+
+Strategy Principle:
+    A mean-reversion strategy based on the hypothesis that extreme and
+    sustained drawdowns in gold are followed by reversals. The strategy
+    counts the number of distinct drawdown events over a long lookback
+    window (756 days). When few reversals have occurred ("extreme" state)
+    and the current drawdown is severe enough, it enters a long position.
+    Exits occur when the price recovers near the rolling maximum or after
+    a maximum holding period of 30 days.
+
+Strategy Logic:
+    __init__: Track bar count, entry bar, order state, and broker value
+        series for Ulcer index calculation.
+    next(): In a flat position, buy when the entry signal fires (extreme
+        state with active drawdown). In a position, sell when the exit
+        signal fires or holding period exceeds the limit.
+    notify_order(): Clear the pending order guard on terminal status.
+    notify_trade(): Update win/loss counters.
+    test_7_0007_gold_market_reversal(): Backtest with 1M capital, futures
+        margin (1%, 0.02% commission). Asserts bar count, trade statistics,
+        final equity, Sharpe, drawdown, SQN, and Ulcer index.
 """
 from __future__ import annotations
 import math
@@ -77,6 +102,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,10 +129,10 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def count_drawdowns(price, window, threshold):
-    """计算窗口内超过阈值的回调次数"""
+    """Count drawdown occurrences exceeding threshold within a rolling window."""
     roll_max = price.rolling(window=window, min_periods=1).max()
     drawdown = (price - roll_max) / roll_max
-    # 统计回调次数
+    # Count distinct drawdown events.
     count = 0
     in_drawdown = False
     for dd in drawdown.iloc[-window:]:
@@ -119,31 +145,31 @@ def count_drawdowns(price, window, threshold):
 
 
 def prepare_gold_market_reversal_features(df, params):
-    """准备黄金市场反转策略特征"""
+    """Prepare Gold Market Reversal strategy features."""
     out = df.copy()
     lookback = int(params.get('lookback', 756))
     drawdown_threshold = float(params.get('drawdown_threshold', -0.10))
     min_reversals = int(params.get('min_reversals', 2))
     
-    # 计算滚动最大值和回撤
+    # Compute rolling maximum and drawdown.
     out['roll_max'] = out['close'].rolling(window=lookback, min_periods=1).max()
     out['drawdown'] = (out['close'] - out['roll_max']) / out['roll_max']
     
-    # 计算反转次数（简化版）
+    # Count distinct reversal events (simplified).
     out['reversal_count'] = out['drawdown'].rolling(window=lookback).apply(
         lambda x: count_drawdowns(pd.Series(x), len(x), drawdown_threshold) if len(x) > 0 else 0
     )
     
-    # 极端状态：反转次数少于阈值
+    # Extreme: reversal count below threshold.
     out['is_extreme'] = (out['reversal_count'] < min_reversals).astype(float)
     
-    # 入场信号：极端状态且当前有回调
+    # Entry: extreme state with active drawdown.
     out['entry_signal'] = (
         (out['is_extreme'] > 0.5) & 
         (out['drawdown'] < drawdown_threshold * 0.5)
     ).astype(float)
     
-    # 出场信号：价格回归到滚动最大值附近
+    # Exit: price recovers near rolling max.
     out['exit_signal'] = (out['drawdown'] > -0.05).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -152,6 +178,7 @@ def prepare_gold_market_reversal_features(df, params):
 
 
 class Mt5GoldMarketReversalFeed(bt.feeds.PandasData):
+    """Backtrader data feed containing gold market reversal feature lines."""
     lines = ('drawdown', 'reversal_count', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -161,6 +188,7 @@ class Mt5GoldMarketReversalFeed(bt.feeds.PandasData):
 
 
 class GoldMarketReversalStrategy(bt.Strategy):
+    """Gold market reversal strategy with drawdown-based entry and time/price exit."""
     params = dict(
         lookback=756,
         drawdown_threshold=-0.10,
@@ -170,6 +198,7 @@ class GoldMarketReversalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, order state, and broker value tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -196,6 +225,7 @@ class GoldMarketReversalStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar: check entry when flat, exit when in position."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -205,7 +235,7 @@ class GoldMarketReversalStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -213,18 +243,20 @@ class GoldMarketReversalStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Reset pending order guard once order reaches a terminal status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters after a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -236,7 +268,7 @@ class GoldMarketReversalStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Gold Market Reversal 策略回测"""
+"""Gold Market Reversal strategy backtest."""
 
 
 
@@ -246,6 +278,16 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe-ratio analyzer kwargs for the configured timeframe.
+
+    Args:
+        config: Strategy configuration dictionary that contains the data section.
+
+    Returns:
+        Keyword arguments for ``bt.analyzers.SharpeRatio`` including
+        ``timeframe``, ``compression``, ``factor``, ``annualize`` and
+        ``riskfreerate``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -258,10 +300,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return a finite analyzer value or ``None``.
+
+    Args:
+        x: Analyzer output to validate.
+
+    Returns:
+        ``x`` when it is finite and non-falsy, otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the ulcer index from a time series of broker values.
+
+    Args:
+        values: Sequence of broker account values ordered in time.
+
+    Returns:
+        Ulcer index based on squared percentage drawdowns.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -276,6 +334,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load raw data and generate strategy features.
+
+    Args:
+        config: Resolved strategy configuration including data path and date range.
+
+    Returns:
+        Dictionary with keys ``data``, ``fromdate`` and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -289,6 +355,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Create and configure a Backtrader engine for regression execution.
+
+    Args:
+        frame: Prepared data payload from ``load_data``.
+        config: Strategy and backtest configuration.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance with feed, strategy, and analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -311,6 +386,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract key strategy metrics after cerebro execution.
+
+    Args:
+        strat: Strategy instance returned from ``cerebro.run``.
+        cerebro: Running ``bt.Cerebro`` instance with broker state.
+        frame: Input payload including prepared data and date range.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary containing assertion fields for the migrated regression test.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -345,6 +431,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for stable JSON-style output.
+
+    Args:
+        v: Arbitrary value to serialize.
+
+    Returns:
+        ``v.isoformat()`` when the input is ``datetime``, ``None`` for non-finite
+        floats, otherwise the original value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

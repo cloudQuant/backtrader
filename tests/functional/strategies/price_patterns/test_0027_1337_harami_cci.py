@@ -16,6 +16,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-delimited data into a backtrader-ready OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +38,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping MT5 OHLCV positional columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +46,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class HaramiCCIStrategy(bt.Strategy):
+    """Harami pattern + CCI reversal strategy."""
     params = dict(
         cci_period=11, ma_period=5,
         lot=0.1, point=0.01, price_digits=2,
@@ -52,6 +55,7 @@ class HaramiCCIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create CCI/SMA indicators and trading counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.cci_period)
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
@@ -100,6 +104,7 @@ class HaramiCCIStrategy(bt.Strategy):
         return (c1 < o1 and (c2 - o2) > avg and c1 > o2 and o1 < c2 and mid2 > close_avg)
 
     def next(self):
+        """Evaluate harami signals and CCI levels, then issue/close positions."""
         self.bar_num += 1
         if len(self.data) < max(self.p.cci_period, self.p.ma_period) + 5:
             return
@@ -133,6 +138,7 @@ class HaramiCCIStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track opened and closed trades for counters."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

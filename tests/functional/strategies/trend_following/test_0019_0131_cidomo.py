@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv`` at the 15-minute base timeframe and resampled
+    to 4-hour (H4) execution bars. Each base bar is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at close, then resampled with the
+    ``4h`` rule (right label, right closed). The window spans 2025-12-03 01:15 to
+    2026-03-10 09:00, and the feed exposes an extra ``spread`` line.
+
+Strategy Principle:
+    This is the "Cidomo" breakout strategy. It frames a channel from the highest
+    high and lowest low over the last ``number_of_bars`` bars and arms pending
+    buy-stop and sell-stop orders an ``indent`` distance beyond that channel
+    (with a minimum offset enforced). A breakout in either direction fills one
+    side and cancels the other (OCO), expecting momentum continuation. Risk is
+    managed with fixed pip-based stop-loss and take-profit orders plus an
+    optional trailing stop that ratchets in steps once price moves favourably.
+
+Strategy Logic:
+    load_backtest_frame loads and resamples the H4 frame; build_cerebro wires the
+    pandas feed, a fixed-commission futures broker, the strategy, and the
+    analyzers. Each new bar the strategy either updates the trailing stop for an
+    open position or, when flat and outside any pending order, places fresh
+    breakout stop orders (subject to optional time control). notify_order tracks
+    fills—incrementing buy/sell counts, cancelling the opposite pending order,
+    and placing bracket exit orders—while notify_trade tallies wins/losses on
+    close. extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -89,6 +118,18 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style CSV into an OHLCV DataFrame filtered by date range.
+
+    Args:
+        filepath: Path to the MT5 export.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -116,6 +157,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_ohlcv(df, rule):
+    """Resample OHLCV bars with standard aggregation and right-aligned labels."""
     agg = {
         'open': 'first',
         'high': 'max',
@@ -130,6 +172,7 @@ def resample_ohlcv(df, rule):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed extending base fields with spread."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -138,6 +181,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class CidomoStrategy(bt.Strategy):
+    """Breakout strategy with paired stop-entry and exit management."""
     params = dict(
         fixed_lot=1.0,
         stop_loss_pips=50,
@@ -154,6 +198,7 @@ class CidomoStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize order/position state and counters used by metrics."""
         self.last_bar_dt = None
         self.buy_stop_order = None
         self.sell_stop_order = None
@@ -169,6 +214,7 @@ class CidomoStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Conditionally print a message when ``verbose`` is enabled."""
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data.datetime[0])
@@ -281,6 +327,7 @@ class CidomoStrategy(bt.Strategy):
         self.log(f'PLACE BUY STOP {buy_price:.2f} / SELL STOP {sell_price:.2f}')
 
     def next(self):
+        """Advance one bar: manage trailing stops or place breakout entries."""
         self.bar_num += 1
         if not self._new_bar():
             return
@@ -294,6 +341,7 @@ class CidomoStrategy(bt.Strategy):
         self._place_breakout_orders()
 
     def notify_order(self, order):
+        """React to order state changes and update internal order handles."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.buy_stop_order:
@@ -341,6 +389,7 @@ class CidomoStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters when a round-trip closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -371,6 +420,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data path under the module directory and validate it exists.
+
+    Args:
+        filename: Relative path to the data file.
+
+    Returns:
+        Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -379,6 +436,7 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings to ``datetime`` or return ``None``."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -386,6 +444,14 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Load and resample backtest data according to configuration.
+
+    Args:
+        config: Strategy config with data source and timeframe options.
+
+    Returns:
+        Dictionary containing the backtest DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -404,6 +470,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a configured Cerebro instance for this Cidomo setup."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -429,6 +496,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``value`` when finite, otherwise ``None``."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -438,6 +506,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Compute strategy and analyzer statistics into a metric dictionary.
+
+    Args:
+        results: Result list returned by ``cerebro.run()``.
+        start_value: Initial broker value before running.
+
+    Returns:
+        Aggregated metrics for regression assertions.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -475,6 +552,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Execute the strategy backtest and return ``results``, ``metrics``, ``cerebro``.
+
+    Args:
+        plot: Whether to render charts after the run.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

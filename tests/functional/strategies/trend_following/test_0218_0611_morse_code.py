@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Spot gold symbol ``XAUUSD`` from ``tests/datas/XAUUSD_M15.csv`` on M15 bars.
+    The source MT5 export is normalized, optional date-filtered to
+    2025-12-03 01:15:00 through 2026-03-10 09:00:00, and all bars are shifted by
+    15 minutes so timestamps represent bar close.
+
+Strategy Principle:
+    The strategy converts a configurable integer pattern mask into a binary candle
+    sequence and matches that sequence against recent bar direction history.
+    When the configured pattern appears, it enters a fixed-direction position
+    (``pos_type``), then manages a fixed stop-loss and take-profit envelope.
+
+Strategy Logic:
+    ``load_mt5_csv``/``load_backtest_frame`` import and window the OHLCV data.
+    ``build_cerebro`` wires a pandas feed, commission, analyzer stack, and strategy.
+    ``MorseCodeStrategy`` keeps signal and position counters, checks for a new pattern
+    each bar, submits market orders, and exits when TP/SL levels are reached.
+    ``notify_order``/``notify_trade`` capture completion, rejection, win/loss, and
+    risk reset status, while ``extract_metrics`` aggregates the expected deterministic
+    performance outputs asserted by regression checks.
 """
 from __future__ import annotations
 import math
@@ -24,7 +45,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Morse_Code',
-        'source_ea': 'ea/0611_摩斯代码/morse_code.mq5',
+        'source_ea': 'ea/0611_morse_code/morse_code.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -76,6 +97,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated OHLC data into a timestamp-indexed DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Inclusive lower-bound datetime filter.
+        todate: Inclusive upper-bound datetime filter.
+        bar_shift_minutes: Minutes to shift timestamps to bar close time.
+
+    Returns:
+        DataFrame indexed by datetime with open, high, low, close, volume,
+        and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +132,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom Pandas feed mapping MT5 CSV columns to Backtrader data lines."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -141,6 +176,7 @@ class MorseCodeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Set up counters, order tracking, and decoded pattern string."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -178,6 +214,7 @@ class MorseCodeStrategy(bt.Strategy):
         return True
 
     def next(self):
+        """Process one bar: close exits first, then submit entries on pattern match."""
         self.bar_num += 1
         if self.order is not None:
             return
@@ -220,6 +257,7 @@ class MorseCodeStrategy(bt.Strategy):
                 return
 
     def notify_order(self, order):
+        """Update order and risk state on completion, failure, and post-fill cleanup."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -238,6 +276,7 @@ class MorseCodeStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Record trade outcome counters and mark trade count on each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -261,6 +300,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path relative to test file and ensure it exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -268,6 +308,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and clip historical data based on configuration window."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -283,6 +324,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and return a configured Cerebro engine for this strategy."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -308,6 +350,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer and strategy counters into the regression metrics payload."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -342,6 +385,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return (results, metrics, cerebro)."""
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

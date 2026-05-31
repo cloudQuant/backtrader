@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol GLD (SPDR Gold Shares ETF) on the D1 (daily) timeframe loaded from
+    ``tests/datas/mt5_1d_data/GLD_1d.csv`` in MetaTrader 5 export format, clipped
+    to 2008-01-01 through 2025-12-31. A single daily PandasData feed drives the
+    backtest.
+
+Strategy Principle:
+    A short-term mean-reversion overlay on a long-term trend filter. A 200-day
+    SMA defines the regime: price below it marks a downtrend. Within that
+    downtrend, a fast 2-period RSI rising above 70 flags a short-term overbought
+    bounce that is statistically likely to fade. The strategy fades that bounce
+    with a short position held for a fixed number of days, betting the dominant
+    downtrend reasserts itself.
+
+Strategy Logic:
+    load_inputs loads and trims the daily frame; build_cerebro wires the feed,
+    commission, strategy, and analyzers. Each bar (after the SMA warm-up) the
+    strategy recomputes the 200-day SMA and 2-period RSI, and when flat in a
+    downtrend with RSI overbought it opens a short sized by order_target_size and
+    arms a holding-day countdown. While short it holds until the countdown
+    expires, then targets flat. notify_order tracks pending order refs;
+    notify_trade tallies win/loss. extract_metrics consolidates analyzer output
+    plus an ulcer index; the test hooks the metric extractor, forces
+    runonce=True, and asserts each metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -73,6 +98,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize an MT5 CSV dump into a datetime-indexed OHLC DataFrame.
+
+    Args:
+        filepath: Path to the raw CSV file.
+        fromdate: Optional lower bound datetime filter for rows.
+        todate: Optional upper bound datetime filter for rows.
+
+    Returns:
+        Pandas DataFrame with columns ``open``, ``high``, ``low``, ``close``,
+        ``volume``, and ``openinterest`` indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -99,10 +135,13 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_overbought_data(frame):
+    """Return a cleaned price frame compatible with Backtrader data feeds."""
     return frame[['open', 'high', 'low', 'close', 'volume', 'openinterest']].copy()
 
 
 class ShortTermOverboughtInDowntrendStrategy(bt.Strategy):
+    """Trend strategy that opens short exposure on RSI overbought pullbacks."""
+
     params = dict(
         sma_period=200,
         rsi_period=2,
@@ -113,6 +152,7 @@ class ShortTermOverboughtInDowntrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state and trading counters."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -154,6 +194,7 @@ class ShortTermOverboughtInDowntrendStrategy(bt.Strategy):
         return float(rsi.iloc[-1]) if not rsi.empty and pd.notna(rsi.iloc[-1]) else 50.0
 
     def next(self):
+        """Evaluate signals and submit target-size orders on each new bar."""
         self.bar_num += 1
         data = self.datas[0]
         self.broker_value_series.append((bt.num2date(data.datetime[0]), float(self.broker.getvalue())))
@@ -191,11 +232,13 @@ class ShortTermOverboughtInDowntrendStrategy(bt.Strategy):
         self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Track live orders until they are accepted or finalized."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update trade counters when a position is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -215,10 +258,12 @@ class ShortTermOverboughtInDowntrendStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Normalize a number to ``None`` when it is invalid or not finite."""
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from a chronological sequence of portfolio values."""
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -232,6 +277,7 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load input data and prepare it for running the Backtrader strategy."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -241,6 +287,7 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Create and configure a Backtrader engine for this strategy test."""
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -256,6 +303,7 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Extract a deterministic metric snapshot from a finished strategy run."""
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -297,6 +345,7 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Convert unsupported value types into JSON-safe equivalents."""
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -308,6 +357,7 @@ def normalize(value):
 
 
 def main():
+    """Execute the migration-equivalent backtest flow and compute metrics."""
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded short-term-overbought-downtrend bars: {len(inputs['prepared'])}")

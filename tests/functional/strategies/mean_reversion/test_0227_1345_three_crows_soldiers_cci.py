@@ -1,6 +1,19 @@
-"""Inlined regression test for mean_reversion/0227_1345_three_crows_soldiers_cci.
+"""Inlined regression test for a three-crow/soldiers trend-reversal strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``, filtered from
+    ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00`` with a 15-minute bar shift.
+
+Strategy Principle:
+    The strategy identifies 3 white soldiers / 3 black crows candlestick
+    formations and confirms entries with CCI regime thresholds.
+
+Strategy Logic:
+    It computes CCI and a moving average, detects continuation patterns, opens long
+    on white-soldier exhaustion and short on black-crow exhaustion, and exits
+    when CCI crosses back into neutral zones.
 """
 from __future__ import annotations
 
@@ -16,6 +29,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 tab-separated CSV file into a datetime-indexed DataFrame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +51,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 OHLCV columns into Backtrader data lines."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -48,6 +63,7 @@ class ThreeCrowsSoldiersCCIStrategy(bt.Strategy):
     params = dict(cci_period=37, ma_period=13, lot=0.1, point=0.01, price_digits=2)
 
     def __init__(self):
+        """Initialize CCI and MA indicators plus entry/exit counters."""
         self.cci = bt.indicators.CCI(self.data, period=self.p.cci_period)
         self.sma = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.bar_num = 0
@@ -99,6 +115,7 @@ class ThreeCrowsSoldiersCCIStrategy(bt.Strategy):
         )
 
     def next(self):
+        """Evaluate candle-pattern and CCI conditions, then enter/exit positions."""
         self.bar_num += 1
         if len(self.data) < max(self.p.cci_period, self.p.ma_period) + 5:
             return
@@ -124,6 +141,7 @@ class ThreeCrowsSoldiersCCIStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count trade lifecycle events and classify win/loss outcomes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD M15 OHLCV data loaded from ``tests/datas/XAUUSD_M15.csv``.
+    - Data window: ``fromdate=2025-12-03 01:15:00`` to ``todate=2026-03-10 09:00:00``.
+    - Single base feed (M15) plus a secondary H4 signal feed (240-min resample)
+      containing buy/sell stop levels and trigger lines.
+    - No additional external feature files are referenced.
+
+Strategy Principle:
+    - Compute adaptive trend bands with fractal/ATR/smoothed extreme levels
+      (JBrainTrend1Stop).
+    - Generate ``buy_open``/``sell_open`` when stop lines appear in opposite trend
+      direction and optionally emit closes/reopens based on configured flags.
+    - Support layered/pyramiding entries with shared per-layer stop-loss/take-profit
+      controls and trade-side state tracking.
+
+Strategy Logic:
+    - Load and normalize CSV bars, resample to signal timeframe, and compute
+      stop-line features.
+    - Register base and signal feeds with custom line definitions.
+    - At each bar, process active layer risk exits, evaluate latest signal,
+      and optionally add pyramid layers when price deviates from last layer entry.
+    - Order notifications keep layer bookkeeping and optional reopen flow.
+    - Metrics extraction is captured by the generated test wrapper and compared
+      against expected regression values.
 """
 from __future__ import annotations
 import math
@@ -93,6 +118,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a tab-separated MT5 export into a clean datetime-indexed dataframe."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -119,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample OHLCV bars using standard ``open/high/low/close`` aggregation."""
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -134,6 +161,7 @@ def resample_frame(df, rule):
 
 
 def smooth_series(series, period, method='MODE_SMA'):
+    """Return moving-average-smoothed series using the requested smoothing mode."""
     period = max(int(period), 1)
     if method == 'MODE_EMA':
         return series.ewm(span=period, adjust=False).mean()
@@ -146,6 +174,12 @@ def smooth_series(series, period, method='MODE_SMA'):
 
 
 def compute_jbraintrend1stop(frame, atr_period=7, sto_period=9, ma_method='MODE_SMA', stop_dperiod=3, length_=7, point=0.01):
+    """Compute JBrainTrend1Stop lines used by the strategy signal feed.
+
+    The function outputs non-empty stop/trigger lines for downstream signal
+    evaluation and preserves a deterministic set of columns expected by the
+    migrated inline regression fixture.
+    """
     out = frame.copy()
     d = 2.3
     s = 1.5
@@ -219,12 +253,16 @@ def compute_jbraintrend1stop(frame, atr_period=7, sto_period=9, ma_method='MODE_
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Base OHLCV feed adapter for normalized MT5 minute data."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class JBrainTrend1StopFeed(bt.feeds.PandasData):
+    """Signal feed that adds JBrain trend stop and trigger lines."""
+
     lines = ('sell_stop', 'buy_stop', 'sell_stop_line', 'buy_stop_line')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -233,6 +271,8 @@ class JBrainTrend1StopFeed(bt.feeds.PandasData):
 
 
 class ExpJBrainTrend1StopReopenStrategy(bt.Strategy):
+    """Re-open-enabled trend strategy with layered positions and per-layer risk control."""
+
     params = dict(
         signal_bar=1,
         size=0.1,
@@ -255,6 +295,7 @@ class ExpJBrainTrend1StopReopenStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feed bindings, layer state, and strategy statistics."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.buy_stop = self.signal.buy_stop
@@ -276,6 +317,7 @@ class ExpJBrainTrend1StopReopenStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Emit timestamp-prefixed log text for strategy lifecycle events."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -437,6 +479,13 @@ class ExpJBrainTrend1StopReopenStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one bar:
+
+        - Skip until no pending order exists.
+        - Enforce per-layer stop/TP exits.
+        - Evaluate new indicator signals once per source bar time.
+        - Optionally add pyramid layers when price drift triggers expansion.
+        """
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -447,6 +496,7 @@ class ExpJBrainTrend1StopReopenStrategy(bt.Strategy):
         self._check_pyramid()
 
     def notify_order(self, order):
+        """Update counters and layer states when orders complete or fail."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         action = self.pending_action if self.pending_order is not None and order.ref == self.pending_order.ref else None
@@ -501,6 +551,7 @@ class ExpJBrainTrend1StopReopenStrategy(bt.Strategy):
                 self._submit_open(reopen_side, 'signal_reopen')
 
     def notify_trade(self, trade):
+        """Update trade result counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -526,6 +577,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative test data path to an existing absolute path."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -533,6 +585,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Prepare base and signal dataframes from config settings."""
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -557,6 +610,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro with feeds, strategy, analyzers, and optional logger."""
     bt_cfg = config['backtest']
     signal_minutes = config['data'].get('signal_tf_minutes', 240)
     cerebro = bt.Cerebro(stdstats=True)
@@ -593,6 +647,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Build the full metric payload used by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -630,6 +685,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the configured backtest and return strategy/analyzer outputs."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

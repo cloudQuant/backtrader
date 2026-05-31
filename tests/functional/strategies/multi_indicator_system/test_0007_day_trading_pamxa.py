@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 OHLCV from ``tests/datas/XAUUSD_M15.csv`` is loaded, shifted by
+    15 minutes, and then downsampled into H1 and D1 frames for multi-timeframe
+    signals.
+    The backtest window is ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    This strategy combines Awesome Oscillator direction change and stochastic momentum
+    triggers to define trade bias, with optional bracket exits (stop-loss/take-profit)
+    and trailing-stop adjustments while a position is open.
+
+Strategy Logic:
+    The test feeds M15/H1/D1 data into a single strategy instance, checks signal
+    readiness, enters positions according to pending direction, places protective
+    orders, tracks trailing updates, and verifies execution and risk metrics.
 """
 from __future__ import annotations
 import math
@@ -24,7 +40,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Day Trading PAMXA',
-        'source_ea': 'ea/0142_日交易_PAMXA',
+        'source_ea': 'ea/0142_day_trading_pamxa',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -88,6 +104,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 export data and normalize it into ordered datetime OHLCV DataFrame.
+
+    Args:
+        filepath: Input CSV file path.
+        fromdate: Optional start datetime for filtering.
+        todate: Optional end datetime for filtering.
+        bar_shift_minutes: Optional minute shift applied to timestamps.
+
+    Returns:
+        Sorted DataFrame with OHLCV columns and spread.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +141,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData extension exposing an extra spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -122,6 +151,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class DayTradingPamxaStrategy(bt.Strategy):
+    """Day trading strategy using AO direction and stochastic regime transitions."""
+
     params = dict(
         fixed_lot=1.0,
         stop_loss_pips=50,
@@ -138,6 +169,7 @@ class DayTradingPamxaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, state variables, and counters."""
         self.data_m15 = self.datas[0]
         self.data_h1 = self.datas[1]
         self.data_d1 = self.datas[2]
@@ -158,6 +190,7 @@ class DayTradingPamxaStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Conditionally print timestamped strategy messages."""
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data_m15.datetime[0])
@@ -230,9 +263,11 @@ class DayTradingPamxaStrategy(bt.Strategy):
                 self.stop_order = self.buy(size=size, exectype=bt.Order.Stop, price=self.stop_price, oco=self.limit_order)
 
     def _signal_ready(self):
+        """Return True when all required indicator histories are available."""
         return len(self.data_d1) >= 3 and len(self.data_h1) >= 2 and len(self.ao) >= 3 and len(self.sto.percK) >= 2
 
     def _check_signal(self):
+        """Evaluate AO/stochastic rules and return ``buy``/``sell``/None."""
         ao_prev2 = float(self.ao[-2])
         ao_prev1 = float(self.ao[-1])
         sto_main = float(self.sto.percK[-1])
@@ -250,6 +285,7 @@ class DayTradingPamxaStrategy(bt.Strategy):
         return None
 
     def next(self):
+        """Advance counters and apply signal-driven entry/exit orchestration."""
         self.bar_num += 1
         if not self._new_bar():
             return
@@ -295,6 +331,7 @@ class DayTradingPamxaStrategy(bt.Strategy):
             self.log(f'OPEN {signal.upper()}')
 
     def notify_order(self, order):
+        """Track entry and protective order lifecycle state transitions."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.entry_order:
@@ -326,6 +363,7 @@ class DayTradingPamxaStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update trade statistics when a trade is closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -356,6 +394,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a fixture file relative to the current strategy directory.
+
+    Args:
+        filename: Relative fixture file path.
+
+    Returns:
+        Absolute file path.
+
+    Raises:
+        FileNotFoundError: If fixture path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -364,6 +413,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO timestamp string to datetime.
+
+    Args:
+        value: ISO datetime string or falsy value.
+
+    Returns:
+        ``datetime`` object or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -371,6 +428,14 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Build M15, H1, and D1 frames required by the strategy.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dict containing base, H1, and D1 DataFrames.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -406,6 +471,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct Cerebro with three timeframe feeds and analyzers.
+
+    Args:
+        config: Strategy config.
+        frame: Backtest frame payload.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -435,6 +509,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return None for non-finite numeric values."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -444,6 +519,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Generate summary metrics from strategy/analyzer outputs.
+
+    Args:
+        results: Result list returned by Cerebro.run().
+        start_value: Initial broker value before execution.
+
+    Returns:
+        Dictionary of bar, return, trade, drawdown and efficiency metrics.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -483,6 +567,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run the backtest and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: Whether to display a candlestick plot.
+
+    Returns:
+        ``(results, metrics, cerebro)`` tuple.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

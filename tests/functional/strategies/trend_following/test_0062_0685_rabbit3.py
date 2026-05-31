@@ -1,6 +1,25 @@
 """Inlined regression test for trend_following/0062_0685_rabbit3.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
+Self-contained single-file test (manually authored). Runs with runonce=True
+only and validates the migrated strategy output directly against regression
+assertions.
+
+Data Used:
+- XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` shifted by 15 minutes.
+- Backtest window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+Rabbit3 combines CCI and Williams %R momentum filters with a two-MA regime.
+It opens and closes layered positions with per-layer stop-loss/take-profit
+levels, and scales lot size upward after profitable exits while respecting a
+maximum layer constraint.
+
+Strategy Logic:
+- Build CCI, fast/slow EMAs, and WPR indicators on M15.
+- Track open layers with their entry, stop, and take-profit prices.
+- Manage close candidates when risk levels are reached, or open new layers when
+  WPR and CCI alignment criteria are satisfied.
+- Update counters on completed/rejected orders and closed trades for test checks.
 """
 from __future__ import annotations
 
@@ -16,6 +35,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data into an indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV export.
+        fromdate: Optional lower datetime bound for filtering rows.
+        todate: Optional upper datetime bound for filtering rows.
+        bar_shift_minutes: Optional minute offset to shift timestamps.
+
+    Returns:
+        pandas.DataFrame: Cleaned OHLCV data with a datetime index.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -42,6 +72,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader PandasData feed mapping MT5-exported OHLCV columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -49,6 +80,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class Rabbit3Strategy(bt.Strategy):
+    """Multi-layer trend-following strategy using CCI, EMAs, and WPR."""
     params = dict(
         cci_level_sell=80,
         cci_level_buy=-80,
@@ -70,6 +102,7 @@ class Rabbit3Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, layer state, and strategy counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.ma_period_cci)
         self.ema_fast = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.ma_period_fast)
         self.ema_slow = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.ma_period_slow)
@@ -175,6 +208,7 @@ class Rabbit3Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one bar: check exits, gate entries, and schedule actions."""
         self.bar_num += 1
         warmup = max(self.p.ma_period_slow, self.p.calc_period_wpr, self.p.ma_period_cci) + 3
         if len(self.data) < warmup:
@@ -186,6 +220,11 @@ class Rabbit3Strategy(bt.Strategy):
         self._check_entries()
 
     def notify_order(self, order):
+        """Handle order completion/rejection and update position layers.
+
+        Args:
+            order: Backtrader order instance whose state changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         action = self.pending_action if self.pending_order is not None and order.ref == self.pending_order.ref else None
@@ -227,6 +266,11 @@ class Rabbit3Strategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Record win/loss counters for each closed trade.
+
+        Args:
+            trade: Backtrader trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

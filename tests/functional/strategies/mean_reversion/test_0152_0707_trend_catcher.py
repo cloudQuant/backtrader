@@ -98,6 +98,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated export into a backtrader-ready DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -125,12 +126,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapped to OHLCV fields expected by strategy."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class TrendCatcherStrategy(bt.Strategy):
+    """MA/SAR trend-catcher with directional entries, dynamic lot sizing, and adaptive stops."""
     params = dict(
         close_opposite_signal=True,
         reverse_sig_open=False,
@@ -161,6 +164,7 @@ class TrendCatcherStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize MA/SAR indicators, risk counters, and order state."""
         self.ma_slow = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.period_ma_slow)
         self.ma_fast = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.period_ma_fast)
         self.ma_fast2 = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.period_ma_fast2)
@@ -269,6 +273,7 @@ class TrendCatcherStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process each bar for signal detection, risk management and order placement."""
         self.bar_num += 1
         if len(self) < max(self.p.period_ma_slow, 220):
             return
@@ -294,6 +299,7 @@ class TrendCatcherStrategy(bt.Strategy):
             self.order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Update counters and clear active pending order references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -312,6 +318,7 @@ class TrendCatcherStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track closed trades and update win/loss accounting."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -337,6 +344,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a path under the strategy test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -344,6 +352,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load frame from config data path and return date-windowed DataFrame."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -355,6 +364,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro with one feed, optional trade logger, and analyzer stack."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -387,6 +397,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer and strategy counters for regression comparison."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

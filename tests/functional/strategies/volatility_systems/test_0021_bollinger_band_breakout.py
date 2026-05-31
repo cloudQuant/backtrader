@@ -7,12 +7,32 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a breakout strategy based on standard Bollinger Bands.
+    - Market Assumptions: Markets exhibit periods of low volatility (consolidation) followed by extreme volatility breakouts. Entry on a significant standard deviation breakout (e.g., 3.0 dev upper band) identifies highly persistent trend-following momentum.
+    - Indicators:
+        - bb_middle: rolling 100-day Simple Moving Average.
+        - bb_std: rolling 100-day standard deviation of close prices.
+        - bb_upper_entry: upper breakout band (bb_middle + 3.0 * bb_std).
+        - bb_lower_exit: lower trend stop band (bb_middle - 1.0 * bb_std).
+    - Entry Signals:
+        - Buy Entry: Close price crosses above `bb_upper_entry` (entry_signal > 0.5).
+    - Exit Signals:
+        - Close/Sell Entry: Close price crosses below `bb_lower_exit` (exit_signal > 0.5).
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
 import json
+import csv
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
@@ -67,7 +87,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -75,6 +103,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -101,26 +139,34 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_bollinger_features(df, params):
-    """准备布林带突破策略特征"""
+    """Prepare and compute indicators for the Bollinger Band Breakout strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing standard deviations and periods.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing bb_middle, bb_upper_entry, and signals.
+    """
     out = df.copy()
     bb_period = int(params.get('bb_period', 100))
     entry_dev = float(params.get('bb_entry_dev', 3.0))
     exit_dev = float(params.get('bb_exit_dev', 1.0))
     
-    # 计算布林带
+    # Calculate Bollinger Bands
     out['bb_middle'] = out['close'].rolling(bb_period).mean()
     out['bb_std'] = out['close'].rolling(bb_period).std()
     
-    # 入场上轨（3倍标准差）
+    # Entry Upper Band (3.0 dev)
     out['bb_upper_entry'] = out['bb_middle'] + entry_dev * out['bb_std']
     
-    # 出场下轨（1倍标准差）
+    # Exit Lower Band (1.0 dev)
     out['bb_lower_exit'] = out['bb_middle'] - exit_dev * out['bb_std']
     
-    # 入场信号：收盘价突破上轨
+    # Entry Signal: close price crosses above the upper band
     out['entry_signal'] = (out['close'] > out['bb_upper_entry']).astype(float)
     
-    # 出场信号：收盘价跌破下轨
+    # Exit Signal: close price falls below the lower band
     out['exit_signal'] = (out['close'] < out['bb_lower_exit']).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -130,6 +176,7 @@ def prepare_bollinger_features(df, params):
 
 
 class Mt5BollingerFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Bollinger Band strategy lines."""
     lines = ('bb_middle', 'bb_upper_entry', 'bb_lower_exit', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -140,6 +187,11 @@ class Mt5BollingerFeed(bt.feeds.PandasData):
 
 
 class BollingerBreakoutStrategy(bt.Strategy):
+    """Strategy class implementing Bollinger Band upper band breakout trend following.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         bb_period=100,
         bb_entry_dev=3.0,
@@ -148,6 +200,7 @@ class BollingerBreakoutStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -159,6 +212,15 @@ class BollingerBreakoutStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -173,30 +235,41 @@ class BollingerBreakoutStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
         if self.pending_order is not None:
             return
         
-        # 出场优先
+        # Exit Signal priority
         if self.position:
             if float(self.data.exit_signal[0]) > 0.5:
                 self.sell_count += 1
                 self.pending_order = self.close()
             return
         
-        # 入场
+        # Entry Signal
         if float(self.data.entry_signal[0]) > 0.5:
             self.buy_count += 1
             self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -208,7 +281,7 @@ class BollingerBreakoutStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Bollinger Band Breakout 策略回测"""
+"""Bollinger Band Breakout strategy backtest."""
 
 
 
@@ -218,6 +291,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -230,10 +311,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -248,6 +345,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Bollinger Band Breakout features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -260,6 +365,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -282,6 +396,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -316,6 +441,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -323,10 +456,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -346,124 +477,70 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_21_0021_bollinger_band_breakout() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/volatility_systems/0021_bollinger_band_breakout.
     """
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function (returns a dict).
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "extracted" not in captured:
-                        captured["extracted"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Hook cerebro.run() to (a) force runonce=True and (b) capture results
-    # so we can derive metrics directly from analyzers when no extractor returns a dict.
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _hooked_cerebro_run(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        _r = _orig_run(self, *args, **kwargs)
-        captured["cerebro"] = self
-        captured["results"] = _r
-        try:
-            captured["initial_cash"] = float(self.broker.startingcash)
-        except Exception:
-            pass
-        return _r
-    _bt.Cerebro.run = _hooked_cerebro_run
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "extracted" not in captured:
-                    captured["extracted"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "extracted" not in captured:
-                            captured["extracted"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "cerebro" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("extracted")
-    if metrics is None:
-        # Derive from cerebro/analyzers
-        cerebro = captured.get("cerebro")
-        results = captured.get("results") or []
-        assert cerebro is not None and results, "no metrics or cerebro captured"
-        strat = results[0] if not isinstance(results[0], list) else results[0][0]
-        metrics = {}
-        metrics["final_value"] = float(cerebro.broker.getvalue())
-        if "initial_cash" in captured:
-            metrics["initial_cash"] = captured["initial_cash"]
-        analyzers = getattr(strat, "analyzers", None)
-        if analyzers is not None:
-            for name in dir(analyzers):
-                if name.startswith("_"):
-                    continue
-                try:
-                    an = getattr(analyzers, name)
-                    analysis = an.get_analysis()
-                except Exception:
-                    continue
-                if "sharperatio" in analysis and "sharpe_ratio" not in metrics:
-                    metrics["sharpe_ratio"] = analysis.get("sharperatio")
-                if "rnorm" in analysis and "annual_return" not in metrics:
-                    metrics["annual_return"] = analysis.get("rnorm")
-                if "rtot" in analysis and "return_rate" not in metrics:
-                    metrics["return_rate"] = analysis.get("rtot")
-                if "max" in analysis and isinstance(analysis["max"], dict) and "drawdown" in analysis["max"] and "max_drawdown" not in metrics:
-                    metrics["max_drawdown"] = analysis["max"]["drawdown"]
-                if "sqn" in analysis and "sqn" not in metrics:
-                    metrics["sqn"] = analysis.get("sqn")
-                if "total" in analysis and isinstance(analysis["total"], dict) and "total_trades" not in metrics:
-                    metrics["total_trades"] = analysis["total"].get("closed", analysis["total"].get("total", 0))
-                    metrics["trade_num"] = metrics.get("total_trades", 0)
-                if "won" in analysis and isinstance(analysis["won"], dict) and "win_count" not in metrics:
-                    metrics["win_count"] = analysis["won"].get("total", 0)
-                if "lost" in analysis and isinstance(analysis["lost"], dict) and "loss_count" not in metrics:
-                    metrics["loss_count"] = analysis["lost"].get("total", 0)
-        for attr in ("bar_num", "buy_count", "sell_count", "rebalance_count"):
-            if hasattr(strat, attr) and attr not in metrics:
-                metrics[attr] = getattr(strat, attr)
-
-    assert metrics, "no metrics derived"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4539, f"bar_num: expected=4539, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 7, f"buy_count: expected=7, got={metrics.get('buy_count')!r}"

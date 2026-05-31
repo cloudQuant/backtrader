@@ -89,6 +89,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated export and normalize to a Backtrader OHLCV frame.
+
+    Args:
+        filepath: Path to the MT5 CSV export.
+        fromdate: Optional lower datetime bound for filtering.
+        todate: Optional upper datetime bound for filtering.
+        bar_shift_minutes: Minutes to shift each timestamp.
+
+    Returns:
+        pandas.DataFrame: normalized frame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +121,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData subclass mapping index-based MT5 OHLCV columns."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2),
               ('close', 3), ('volume', 4), ('openinterest', 5))
 
@@ -148,6 +161,7 @@ class BezierStDevIndicator(bt.Indicator):
     params = dict(bperiod=8, t_param=0.5, ipc=6, dk=2.0, std_period=9)
 
     def __init__(self):
+        """Cache parameters and precompute coefficients for Bezier interpolation."""
         self._bp = int(self.p.bperiod)
         self._t = float(self.p.t_param)
         self._ipc = int(self.p.ipc)
@@ -160,6 +174,7 @@ class BezierStDevIndicator(bt.Indicator):
         self.addminperiod(self._bp + self._sp + 3)
 
     def next(self):
+        """Compute Bezier line, color, and bullish/bearish derivative filters."""
         bp = self._bp
         t = self._t
         ipc = self._ipc
@@ -242,6 +257,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Wire base/signal feeds, instantiate indicator, and reset counters."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = BezierStDevIndicator(
@@ -260,6 +276,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Write a timestamped strategy event message."""
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -287,6 +304,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
         return 0.0 if math.isnan(v) else v
 
     def next(self):
+        """Evaluate entry/exit conditions and submit or close orders as needed."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -374,6 +392,7 @@ class ExpBezierStDevStrategy(bt.Strategy):
                 self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Track open/close trade events and update win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0: self.buy_count += 1
             elif trade.size < 0: self.sell_count += 1
@@ -394,11 +413,27 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(fn):
+    """Resolve a dataset path relative to this test module.
+
+    Args:
+        fn: Data file path from configuration.
+
+    Returns:
+        Path: Absolute path for the requested file.
+    """
     p = (BASE_DIR / fn).resolve()
     if not p.exists(): raise FileNotFoundError(f'Data file not found: {p}')
     return p
 
 def load_backtest_frame(cfg):
+    """Load and date-filter data for the configured backtest window.
+
+    Args:
+        cfg: Backtest configuration dictionary.
+
+    Returns:
+        dict: includes filtered DataFrame and from/to bounds.
+    """
     dc = cfg['data']
     fd = datetime.datetime.fromisoformat(dc['fromdate'])
     td = datetime.datetime.fromisoformat(dc['todate'])
@@ -408,6 +443,15 @@ def load_backtest_frame(cfg):
     return {'data': df, 'fromdate': fd, 'todate': td}
 
 def build_signal_frame(df, mins):
+    """Resample raw data into compressed signal timeframe bars.
+
+    Args:
+        df: Base OHLCV frame indexed by datetime.
+        mins: Compression window in minutes.
+
+    Returns:
+        pandas.DataFrame: Resampled signal frame.
+    """
     r = f'{int(mins)}min'
     s = df.resample(r, label='right', closed='right').agg({'open':'first','high':'max','low':'min','close':'last','volume':'sum','openinterest':'last'})
     s = s.dropna(subset=['open','high','low','close'])
@@ -415,6 +459,7 @@ def build_signal_frame(df, mins):
     return s
 
 def build_cerebro(cfg, frame):
+    """Create configured Cerebro with base and signal feeds plus analyzers."""
     bc = cfg['backtest']; p = cfg.get('params', {}); im = p.get('indicator_minutes', 240)
     sf = build_signal_frame(frame['data'], im)
     if sf.empty: raise ValueError('Empty signal frame')
@@ -434,6 +479,17 @@ def build_cerebro(cfg, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, cfg):
+    """Extract strategy counters and analyzer metrics for regression checks.
+
+    Args:
+        strat: Executed strategy object.
+        cerebro: Cerebro instance after run.
+        frame: Loaded backtest payload.
+        cfg: Configuration dictionary.
+
+    Returns:
+        dict: Flattened metrics used by assertions.
+    """
     sh = strat.analyzers.sharpe.get_analysis(); rt = strat.analyzers.returns.get_analysis()
     dd = strat.analyzers.drawdown.get_analysis(); tr = strat.analyzers.trades.get_analysis()
     sq = strat.analyzers.sqn.get_analysis(); ic = cfg['backtest']['initial_cash']; fv = cerebro.broker.getvalue()
@@ -448,6 +504,7 @@ def extract_metrics(strat, cerebro, frame, cfg):
             'sharpe_ratio':sh.get('sharperatio'),'annual_return_pct':(rt.get('rnorm') or 0)*100,'sqn':sq.get('sqn')}
 
 def run(plot=False):
+    """Execute backtest and return strategy results, metrics, and engine."""
     cfg = load_config(); frame = load_backtest_frame(cfg); cerebro = build_cerebro(cfg, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, cfg); print_report(metrics)

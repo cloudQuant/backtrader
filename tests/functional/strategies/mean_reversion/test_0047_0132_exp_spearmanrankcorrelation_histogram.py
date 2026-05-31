@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv`` and
+    resamples to 4-hour bars for signal generation.
+    Backtest interval is ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Builds a custom Spearman rank correlation histogram signal and maps correlation
+    states to color-coded trend regimes, then opens/reverses positions according
+    to trade mode and regime transitions.
+
+Strategy Logic:
+    Resamples input data, computes histogram color transitions, manages pending
+    directional signals and position reversals, places bracket exits with stop/limit
+    targets, and validates trade/analyzer-derived metrics.
 """
 from __future__ import annotations
 import math
@@ -87,6 +102,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and normalize schema for Backtrader ingestion.
+
+    Args:
+        filepath: Source file path.
+        fromdate: Optional start datetime boundary.
+        todate: Optional end datetime boundary.
+        bar_shift_minutes: Optional timestamp shift in minutes.
+
+    Returns:
+        Time-indexed OHLCV dataframe.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -114,6 +140,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_ohlcv(df, rule):
+    """Resample OHLCV dataframe into a new timeframe using candlestick aggregation.
+
+    Args:
+        df: Source OHLCV dataframe.
+        rule: Pandas resampling rule (for example ``4h``).
+
+    Returns:
+        Aggregated dataframe.
+    """
     agg = {
         'open': 'first',
         'high': 'max',
@@ -128,6 +163,7 @@ def resample_ohlcv(df, rule):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Pandas feed extension with spread line passthrough."""
     lines = ('spread',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -136,10 +172,12 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class SpearmanRankCorrelationHistogram(bt.Indicator):
+    """Compute a Spearman-rank-style correlation histogram and regime color."""
     lines = ('value', 'color')
     params = dict(range_n=14, direction=True, in_high_level=0.5, in_low_level=-0.5)
 
     def __init__(self):
+        """Set the indicator minimum period."""
         self.addminperiod(int(self.p.range_n) + 2)
 
     def _ranks(self, values):
@@ -158,6 +196,7 @@ class SpearmanRankCorrelationHistogram(bt.Indicator):
         return ranks
 
     def next(self):
+        """Compute one step of correlation value and color code."""
         n = int(self.p.range_n)
         values = [int(round(float(self.data.close[-i]) * 100.0)) for i in range(n)]
         ranks = self._ranks(values)
@@ -175,6 +214,7 @@ class SpearmanRankCorrelationHistogram(bt.Indicator):
 
 
 class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
+    """Histogram-driven regime strategy for Spearman rank transitions."""
     params = dict(
         fixed_lot=0.1,
         stop_loss_pips=1000,
@@ -189,6 +229,7 @@ class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator, state, and counters."""
         self.signal = SpearmanRankCorrelationHistogram(
             self.data,
             range_n=self.p.range_n,
@@ -211,6 +252,11 @@ class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print verbose logs with timestamp.
+
+        Args:
+            text: Log message.
+        """
         if not self.p.verbose:
             return
         dt = bt.num2date(self.data.datetime[0])
@@ -298,6 +344,7 @@ class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Process one bar and execute close/reverse/open flow."""
         self.bar_num += 1
         if not self._new_bar():
             return
@@ -339,6 +386,7 @@ class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
             self.log('OPEN SELL')
 
     def notify_order(self, order):
+        """Track order lifecycle and clear references."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order == self.entry_order:
@@ -370,6 +418,7 @@ class ExpSpearmanRankCorrelationHistogramStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters and reset exits on close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -400,6 +449,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a configured dataset path under the strategy directory.
+
+    Args:
+        filename: Relative path in config.
+
+    Returns:
+        Absolute resolved path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -408,6 +465,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse datetime string from config into :class:`datetime`.
+
+    Args:
+        value: ISO format timestamp or empty value.
+
+    Returns:
+        Parsed datetime object or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
@@ -415,6 +480,14 @@ def parse_dt(value):
 
 
 def load_backtest_frame(config):
+    """Load and resample bars for the execution timeframe.
+
+    Args:
+        config: Full strategy configuration.
+
+    Returns:
+        Dictionary with downsampled dataframe payload.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -433,6 +506,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro engine with data feed, strategy, and analyzers.
+
+    Args:
+        config: Test and broker configuration.
+        frame: Backtest frame from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -458,6 +540,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize non-finite analyzer values to ``None``.
+
+    Args:
+        value: Numeric value candidate.
+
+    Returns:
+        ``None`` or original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -467,6 +557,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Collect and return a structured metric dictionary.
+
+    Args:
+        results: Cerebro result list.
+        start_value: Initial account value.
+
+    Returns:
+        Metrics dictionary for assertion.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -504,6 +603,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run strategy and return results, metrics, and engine.
+
+    Args:
+        plot: Whether to render candlestick chart.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

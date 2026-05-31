@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) from ``tests/datas/XAUUSD_M15.csv`` on the M15
+    timeframe, clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00.
+    A 15-minute timestamp shift is applied so bars align to close time.
+
+Strategy Principle:
+    The strategy follows a Williams Alligator crossover style signal with
+    smoothed moving averages: jaw (13/8), teeth (8/5), and lips (5/3). A long
+    is opened when aligned upward crossover conditions are met, and a short when
+    aligned downward conditions are met.
+
+Strategy Logic:
+    ``__init__`` builds jaw/teeth/lips SMMA indicators and internal counters.
+    ``next`` waits for sufficient warm-up bars, optionally closes existing
+    positions by close signals, or opens new positions from long/short crossover
+    signals. ``notify_trade`` updates counters for opened and closed trades.
+    Module helpers load MT5 CSV data, build a compressed-backtest cerebro instance,
+    run analyzers, and validate metrics versus migration snapshots.
 """
 from __future__ import annotations
 import math
@@ -23,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Alligator Crossover Signal',
-        'source_ea': 'ea/1348_MQL5_向导_-_基于Alligator(鳄鱼)指标交叉线的交易信号/expert_alligator.mq5',
+        'source_ea': 'ea/1348_MQL5_\\u5411\\u5bfc_-_\\u57fa\\u4e8eAlligator(\\u9cb8\\u9c7c)\\u6307\\u6807\\u4ea4\\u53c9\\u7ebf\\u7684\\u4ea4\\u6613\\u4fe1\\u53f7/expert_alligator.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -76,6 +95,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-delimited export into a Backtrader OHLCV frame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export file.
+        fromdate: Optional lower bound for row datetimes.
+        todate: Optional upper bound for row datetimes.
+        bar_shift_minutes: Minutes to shift each timestamp to close time.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV/openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -101,6 +131,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter mapping MT5 export columns into OHLCV fields."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -139,6 +171,7 @@ class AlligatorStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate Alligator SMMA lines and initialize trade counters."""
         # SMMA(N) can be approximated as EMA(2*N-1) for practical purposes
         # But for fidelity, we use bt.indicators.SmoothedMovingAverage which IS SMMA
         self.jaw = bt.indicators.SmoothedMovingAverage(self.data.close, period=self.p.jaw_period)
@@ -155,6 +188,11 @@ class AlligatorStrategy(bt.Strategy):
         self._crossed = False
 
     def log(self, text):
+        """Print a timestamped log entry for strategy events.
+
+        Args:
+            text: Message to print.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -261,6 +299,7 @@ class AlligatorStrategy(bt.Strategy):
         return lt_m1 > 0 and lt_0 <= 0 and lt_1 < 0
 
     def next(self):
+        """Process one bar: close matched positions or open new Alligator signals."""
         self.bar_num += 1
         min_bars = self.p.jaw_period + self.p.jaw_shift + 5
         if len(self.data) < min_bars:
@@ -288,6 +327,7 @@ class AlligatorStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Record open/close trade lifecycle counts and pnl outcomes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -316,6 +356,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path under the current test directory.
+
+    Args:
+        filename: Relative path string from config.
+
+    Returns:
+        Path: Absolute filesystem path.
+
+    Raises:
+        FileNotFoundError: If the file cannot be found.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -323,6 +374,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and clip strategy data for the configured date range.
+
+    Args:
+        config: Strategy configuration containing the ``data`` section.
+
+    Returns:
+        dict: Backtest payload with dataframe, from/to dates.
+
+    Raises:
+        ValueError: If the filtered dataframe is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -339,6 +401,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the default analyzer set used by this migration test.
+
+    Args:
+        cerebro: A configured Backtrader ``Cerebro`` engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -347,6 +414,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build a Backtrader engine with feed, broker, strategy, and analyzers.
+
+    Args:
+        config: Strategy/backtest configuration dictionary.
+        frame: Loaded backtest frame payload.
+
+    Returns:
+        bt.Cerebro: Ready-to-run cerebro instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -366,6 +442,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Compose the verification metrics consumed by regression assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Engine used for execution.
+        frame: Loaded frame metadata and data.
+        config: Backtest configuration dictionary.
+
+    Returns:
+        dict: Consolidated performance and trade counters.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -406,6 +493,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest once and return results, extracted metrics, and engine.
+
+    Args:
+        plot: If True, render the cerebro chart after execution.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

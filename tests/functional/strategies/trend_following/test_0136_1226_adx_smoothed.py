@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (gold spot).
+    - Base timeframe: M15 (15 minutes), source '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Derived timeframe: H4 (240 minutes), used for ADX signal line generation.
+    - Date window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - Bar handling: shift by `bar_shift_minutes`, with optional inclusive date filtering.
+
+Strategy Principle:
+    - The strategy computes directional movement index components (+DI/-DI/ADX) on a
+      resampled signal timeframe using a Wilder-style smooth.
+    - It applies a two-stage smoothing process (alpha1 and alpha2) to reduce ADX noise.
+    - Signals are generated from smoothed +DI and -DI crossovers.
+    - Each open trade is protected by stop-loss and take-profit thresholds.
+
+Strategy Logic:
+    - `build_adx_smoothed_frame` builds the H4 signal feed.
+    - `AdxSmoothedStrategy` consumes base M15 and signal bars, checks risk exits each bar,
+      triggers buy/sell on validated DI crossovers, and tracks counters for entries and PnL.
+    - `notify_trade` separates open/close accounting, and `extract_metrics` packs
+      analyzer outputs and counters for the regression assertions.
 """
 from __future__ import annotations
 import math
@@ -87,6 +108,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 CSV export into a Backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath (str): MT5 tab-separated file path.
+        fromdate (datetime.datetime | None): Optional inclusive start date filter.
+        todate (datetime.datetime | None): Optional inclusive end date filter.
+        bar_shift_minutes (int): Optional minute shift for bar timestamps.
+
+    Returns:
+        pd.DataFrame: Data indexed by `datetime`.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -108,6 +140,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Base feed mapping standard MT5 OHLCV openinterest columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -115,6 +149,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class AdxSmoothedFeed(btfeeds.PandasData):
+    """Signal feed exposing smoothed DI and ADX components."""
+
     lines = ('di_plus', 'di_minus', 'adx_value')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -123,6 +159,15 @@ class AdxSmoothedFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample base data into indicator timeframe bars.
+
+    Args:
+        df (pd.DataFrame): Base OHLCV dataframe.
+        indicator_minutes (int): Target interval in minutes.
+
+    Returns:
+        pd.DataFrame: Right-labeled resampled frame.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -138,6 +183,15 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def adx_components(df, period):
+    """Calculate DI+/DI-/ADX series using Wilder-style smoothing.
+
+    Args:
+        df (pd.DataFrame): Source OHLC frame.
+        period (int): Wilder period.
+
+    Returns:
+        tuple: (plus_di, minus_di, adx) as pandas Series.
+    """
     period = int(period)
     high = df['high'].astype(float).reset_index(drop=True)
     low = df['low'].astype(float).reset_index(drop=True)
@@ -199,6 +253,18 @@ def adx_components(df, period):
 
 
 def build_adx_smoothed_frame(df, indicator_minutes, adx_period, alpha1, alpha2):
+    """Build indicator bars with smoothed DI and ADX values for strategy consumption.
+
+    Args:
+        df (pd.DataFrame): Base minute bars.
+        indicator_minutes (int): Resample cadence in minutes.
+        adx_period (int): ADX period.
+        alpha1 (float): Initial smoothing coefficient.
+        alpha2 (float): Second-stage smoothing coefficient.
+
+    Returns:
+        pd.DataFrame: Signal frame with `di_plus`, `di_minus`, `adx_value`.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     dip_raw, dim_raw, adx_raw = adx_components(signal_df, adx_period)
     n = len(signal_df)
@@ -242,6 +308,8 @@ def build_adx_smoothed_frame(df, indicator_minutes, adx_period, alpha1, alpha2):
 
 
 class AdxSmoothedStrategy(bt.Strategy):
+    """Crossover strategy using smoothed DI+/DI- from ADX-derived signals."""
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -259,6 +327,7 @@ class AdxSmoothedStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize references, counters, and signal dedupe state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -272,6 +341,7 @@ class AdxSmoothedStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print timestamped trading logs from the current base bar."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -316,6 +386,7 @@ class AdxSmoothedStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate risk exits and DI crossover signals before routing orders."""
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -369,6 +440,7 @@ class AdxSmoothedStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Update open/close trade counters for regression metrics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -402,6 +474,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an existing absolute path.
+
+    Args:
+        filename (str): Relative file path.
+
+    Returns:
+        Path: Absolute path to the data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -409,6 +489,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load raw bars and build the backtest frame metadata.
+
+    Args:
+        config (dict): Full strategy configuration.
+
+    Returns:
+        dict: Bar data plus from/to date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -425,6 +513,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro with feeds, strategy, and analyzers.
+
+    Args:
+        config (dict): Strategy/backtest settings.
+        frame (dict): Prepared input data frame.
+
+    Returns:
+        bt.Cerebro: Ready-to-run backtest engine.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -467,6 +564,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer output and strategy counters into metric values.
+
+    Args:
+        strat (AdxSmoothedStrategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Engine that ran the backtest.
+        frame (dict): Input frame details.
+        config (dict): Strategy configuration.
+
+    Returns:
+        dict: Metric dictionary used in assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -508,6 +616,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest end-to-end and return results, metrics, and engine.
+
+    Args:
+        plot (bool): Whether to plot after execution.
+
+    Returns:
+        tuple: (results, metrics, cerebro).
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

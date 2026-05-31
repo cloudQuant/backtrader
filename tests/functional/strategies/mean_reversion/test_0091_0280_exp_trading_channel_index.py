@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Loads XAUUSD M15 OHLCV+spread data from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest window is fixed from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    Data is shifted by 15 minutes per strategy configuration to align bar timestamps.
+
+Strategy Principle:
+    The strategy creates a Trading Channel Index based on a short SMA baseline and
+    price standard deviation channel. It maps channel extremes into a color state and
+    uses color transitions to determine directional entry and exit actions.
+    Entries and exits are bracketed by fixed stop-loss and take-profit distances.
+
+Strategy Logic:
+    Parse inline configuration, load MT5-export CSV bars, and build a custom MT5
+    feed with spread for Backtrader.
+    Build strategy indicators, emit bracket orders on crossover-style color state changes,
+    and track order callbacks to keep state consistent.
+    A wrapped run captures analyzer metrics and validates expected backtest outputs.
 """
 from __future__ import annotations
 import math
@@ -83,6 +101,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported bars and normalize them for Backtrader.
+
+    Args:
+        filepath: Path to the MT5 text export.
+        fromdate: Optional lower bound timestamp.
+        todate: Optional upper bound timestamp.
+        bar_shift_minutes: Optional minute offset applied to each timestamp.
+
+    Returns:
+        A datetime-indexed OHLCV spread DataFrame.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -109,6 +138,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed that exposes MT5 spread field as an extra data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -123,15 +153,18 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class TradingChannelIndexProxy(bt.Indicator):
+    """Indicator computing Trading Channel Index (TCI) and quantized state."""
     lines = ('tci', 'color_index')
     params = dict(length1=60, length2=30, coeff=0.015, high_level=50, low_level=-50)
 
     def __init__(self):
+        """Initialize indicator inputs used by the TCI computation."""
         self.sma1 = bt.indicators.SimpleMovingAverage(self.data.close, period=self.p.length1)
         self.dev = bt.indicators.StandardDeviation(self.data.close, period=self.p.length1)
         self.addminperiod(max(self.p.length1, self.p.length2) + 5)
 
     def next(self):
+        """Compute raw TCI and discretized color state for the current bar."""
         base = float(self.sma1[0])
         dev = max(float(self.dev[0]), 1e-8)
         raw = (float(self.data.close[0]) - base) / (dev * self.p.coeff)
@@ -145,6 +178,7 @@ class TradingChannelIndexProxy(bt.Indicator):
 
 
 class ExpTradingChannelIndexStrategy(bt.Strategy):
+    """Mean-reversion style strategy based on Trading Channel Index transitions."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -163,6 +197,7 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, indicators, order references, and execution state."""
         self.data0_feed = self.datas[0]
         self.tci = TradingChannelIndexProxy(
             self.data0_feed,
@@ -181,10 +216,16 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print a timestamped strategy event log.
+
+        Args:
+            text: Message text.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run the same logic as next() during data warm-up."""
         self.next()
 
     def _new_bar(self):
@@ -203,6 +244,12 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
             self.limit_order = None
 
     def _submit_entry(self, side, reason):
+        """Submit a market bracket entry order if no conflicting order exists.
+
+        Args:
+            side: ``long`` or ``short``.
+            reason: Human-readable reason for audit logging.
+        """
         if self.position or self.entry_order is not None or self.close_order is not None:
             return
         size = max(0.01, float(self.p.fixed_lot))
@@ -229,6 +276,7 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Evaluate signal transitions and manage open/close/reverse actions."""
         if len(self.data0_feed) < max(self.p.length1, self.p.length2) + self.p.signal_bar + 3:
             return
         if not self._new_bar():
@@ -260,6 +308,11 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
                 self._submit_entry('short', 'tci left overbought zone')
 
     def notify_order(self, order):
+        """Update local order state when broker callbacks fire.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -299,6 +352,7 @@ class ExpTradingChannelIndexStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log completed trade PnL and clear active-side marker when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -316,6 +370,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a configured data filename relative to the test module directory.
+
+    Args:
+        filename: File path string from config.
+
+    Returns:
+        Absolute path to the existing data file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -323,12 +388,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Convert ISO8601-like strings to ``datetime`` objects.
+
+    Args:
+        value: String datetime or ``None``.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load backtest data frame from test config and apply configured date window.
+
+    Args:
+        config: Backtest configuration dictionary.
+
+    Returns:
+        Mapping with key ``data`` containing normalized bar data.
+
+    Raises:
+        ValueError: If loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -340,6 +424,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach analyzers used by downstream metric assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -348,6 +433,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro instance with data feed and strategy.
+
+    Args:
+        config: Parsed configuration.
+        frame: Prepared backtest data payload.
+
+    Returns:
+        Configured ``Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -362,6 +456,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite numeric values, otherwise original value."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -370,6 +465,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print backtest summary fields used by legacy reports.
+
+    Args:
+        results: Results list from ``cerebro.run``.
+        start_value: Starting account value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -396,6 +497,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the configured strategy once and optionally plot the chart."""
     parser = argparse.ArgumentParser(description='Run Exp_Trading_Channel_Index backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

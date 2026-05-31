@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Five daily (D1) ETF feeds exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: GLD and IAU (gold), IVV (US equity), IEF
+    (Treasuries), and DBC (broad commodities). The series cover 2008-01-01 to
+    2025-12-31 and are aligned on their common trading dates; GLD's frame also
+    carries the precomputed per-asset rotation weight, score, and rebalance
+    lines on the signal feed.
+
+Strategy Principle:
+    A port of the "Gold Momentum Rotation" strategy. Once per month it ranks the
+    asset universe by trailing multi-month total return and rotates the whole
+    book into the single strongest asset (top_n), holding it until the next
+    rebalance or until a trailing stop is hit. The premise is that recent
+    relative strength persists, so concentrating in the leading asset captures
+    cross-sectional momentum while the trailing stop caps drawdowns.
+
+Strategy Logic:
+    prepare_rotation_inputs aligns the feeds, computes each asset's momentum
+    score, and precomputes per-month target weights and a rebalance flag stored
+    on a signal feed. The strategy walks the daily bars, records broker value,
+    and first checks the trailing stop on the held asset (closing it if
+    breached). On each rebalance month it selects the top-scoring asset and
+    issues order_target_size orders to rotate into it, counting buys/sells and
+    rebalances. notify_order clears settled orders and notify_trade tallies
+    win/loss. extract_metrics consolidates analyzer output plus an Ulcer Index;
+    the test hooks extract_metrics, forces runonce=True via main(), and asserts
+    each metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -84,6 +112,17 @@ ASSET_ORDER = ['GLD', 'IAU', 'IVV', 'IEF', 'DBC']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -110,6 +149,22 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_rotation_inputs(asset_frames, params):
+    """Align the asset feeds and precompute monthly rotation weights and scores.
+
+    Aligns all frames on common dates, computes each asset's lookback momentum
+    score, and on each month-end rebalance date selects the top_n assets,
+    assigning equal weights stored as extra columns on the GLD signal frame.
+
+    Args:
+        asset_frames: Mapping of asset name to its loaded OHLCV DataFrame.
+        params: Strategy parameters supplying the momentum lookback (months) and
+            the number of assets to hold (top_n).
+
+    Returns:
+        A tuple of ``(aligned, signal_df)`` where ``aligned`` holds the
+        per-asset frames restricted to the signal dates and ``signal_df`` carries
+        the per-asset weight/score columns and the rebalance flag.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -145,6 +200,8 @@ def prepare_rotation_inputs(asset_frames, params):
 
 
 class RotationSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing per-asset weight/score and rebalance lines."""
+
     lines = (
         'gld_weight', 'iau_weight', 'ivv_weight', 'ief_weight', 'dbc_weight',
         'gld_score', 'iau_score', 'ivv_score', 'ief_score', 'dbc_score',
@@ -159,6 +216,14 @@ class RotationSignalFeed(bt.feeds.PandasData):
 
 
 class GoldMomentumRotationStrategy(bt.Strategy):
+    """Rotate the whole book into the top-momentum asset with a trailing stop.
+
+    On each monthly rebalance it reads the precomputed weights and concentrates
+    into the strongest asset via order_target_size, holding it until the next
+    rebalance or until a trailing stop from the running high is breached, while
+    tracking buy/sell/rebalance and win/loss counts.
+    """
+
     params = dict(
         trailing_stop_pct=0.20,
         lot_size=1.0,
@@ -168,6 +233,7 @@ class GoldMomentumRotationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset rotation/order state."""
         self.signal = self.datas[0]
         self.asset_map = {name: self.getdatabyname(name) for name in ASSET_ORDER}
         self.order_refs = set()
@@ -208,6 +274,14 @@ class GoldMomentumRotationStrategy(bt.Strategy):
         return best_name, best_weight
 
     def next(self):
+        """Apply the trailing stop, then rotate into the top asset on rebalance.
+
+        Increments the bar counter and records broker value. If a position is
+        held it updates the trailing high and closes when the trailing stop is
+        breached. Otherwise, on a rebalance month it selects the top-scoring
+        asset and issues order_target_size orders to rotate into it, tracking
+        buy/sell and rebalance counts.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal.datetime[0]), float(self.broker.getvalue())))
         if self.current_asset is not None and self.getposition(self.asset_map[self.current_asset]).size > 0:
@@ -240,11 +314,22 @@ class GoldMomentumRotationStrategy(bt.Strategy):
         self.trailing_high = float(self.asset_map[selected_asset].close[0]) if selected_asset else None
 
     def notify_order(self, order):
+        """Drop completed orders from the pending-ref set once they settle.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears its ref.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -262,10 +347,27 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def finite_or_none(x):
+    """Return the value if it is finite and truthy, otherwise None.
+
+    Args:
+        x: The numeric value to validate.
+
+    Returns:
+        The original value when finite and truthy, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -280,6 +382,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load all asset feeds and prepare the rotation signal frame.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the asset
+            file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the aligned ``asset_frames``, the ``signal_df``, and the
+        effective ``fromdate`` and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -292,6 +404,16 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine with the signal and asset feeds and analyzers.
+
+    Args:
+        inputs: Prepared inputs dict from :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission/margin, and
+            strategy parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -316,6 +438,21 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        inputs: Prepared inputs dict providing date bounds and the signal frame.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and trade/rebalance counts) used by
+        the assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -363,6 +500,11 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def main():
+    """Run the gold momentum rotation backtest end to end.
+
+    Loads the config and inputs, builds the engine, runs the backtest, and
+    extracts the metrics (used by the test harness via its hooks).
+    """
     config = load_config()
     inputs = load_inputs(config)
     cerebro = build_cerebro(inputs, config)

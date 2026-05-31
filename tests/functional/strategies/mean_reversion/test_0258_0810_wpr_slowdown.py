@@ -1,6 +1,28 @@
 """Inlined regression test for mean_reversion/0258_0810_wpr_slowdown.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+- XAUUSD M15 (primary): 2025-12-03 01:15 to 2026-03-10 09:00
+- XAUUSD H4 (signal): resampled from M15
+
+Strategy Principle:
+WPR Slowdown is a mean-reversion strategy that detects Williams %R reaching
+extreme overbought/oversold levels with a "slowdown" condition (the %R line
+stops moving rapidly, suggesting impending reversal). Entries are filtered
+through a dual-timeframe setup: price action on M15 but indicator computed
+on the H4 signal chart.
+
+Strategy Logic:
+- A custom WPRSlowdown indicator computes Williams %R(12) on H4 data
+- When %R >= level_max (-20), a buy signal fires if slowdown is detected
+  (|wpr[0] - wpr[-1]| < 1.0) — the line is flattening at the extreme
+- When %R <= level_min (-80), a sell signal fires with the same slowdown check
+- Signal lines store ATR-derived price levels (low - 3/8 ATR for buys,
+  high + 3/8 ATR for sells) as trigger/confluence levels
+- The strategy tracks signal freshness (only reacts once per new H4 bar),
+  manages stop-loss / take-profit exits at fixed point distances, and
+  tracks buy/sell/wins/losses for assertion verification
 """
 from __future__ import annotations
 
@@ -17,6 +39,19 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-format CSV file into a Pandas DataFrame with deduplication.
+
+    Strips quotes, handles empty lines, and sorts the resulting index.
+
+    Args:
+        filepath: Path to the CSV file.
+        fromdate: Optional start date filter.
+        todate: Optional end date filter.
+        bar_shift_minutes: Minutes to shift the datetime index by.
+
+    Returns:
+        DataFrame with columns [open, high, low, close, volume, openinterest].
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +73,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed configured for MT5-exported CSV column ordering."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -45,15 +81,28 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class WPRSlowdown(bt.Indicator):
+    """Williams %R Slowdown — detects %R extreme flattening as reversal signal.
+
+    Fires buy when %R >= level_max (overbought) and the change between
+    consecutive bars is small (slowdown), indicating exhaustion. Fires sell
+    symmetrically at level_min (oversold). Signal lines store ATR-scaled
+    price levels.
+    """
     lines = ("sell", "buy")
     params = dict(wpr_period=12, level_max=-20.0, level_min=-80.0, seek_slowdown=True)
 
     def __init__(self):
+        """Set Williams %R and ATR indicators used by slowdown logic."""
         self.addminperiod(max(int(self.p.wpr_period) + 2, 18))
         self.wpr = bt.indicators.WilliamsR(self.data, period=int(self.p.wpr_period))
         self.atr = bt.indicators.ATR(self.data, period=15)
 
     def next(self):
+        """Compute WPR slowdown signal for the current bar.
+
+        Sets buy/sell lines to ATR-derived price levels when the WPR extreme
+        + slowdown condition is met, or NaN otherwise.
+        """
         self.lines.buy[0] = float("nan")
         self.lines.sell[0] = float("nan")
         w0 = float(self.wpr[0])
@@ -68,6 +117,13 @@ class WPRSlowdown(bt.Indicator):
 
 
 class ExpWPRSlowdownStrategy(bt.Strategy):
+    """WPR Slowdown strategy — trades WPR extreme + slowdown signals on H4.
+
+    Receives WPRSlowdown indicator signals from the H4 signal data and
+    executes M15 entries with fixed stop-loss/take-profit. Tracks signal
+    freshness (one reaction per new H4 bar), allows separate enable/disable
+    of buy and sell opens and closes.
+    """
     params = dict(
         wpr_period=12,
         level_max=-20.0,
@@ -86,6 +142,7 @@ class ExpWPRSlowdownStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize signal references and strategy state for one-trade-cycle flow."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = WPRSlowdown(
@@ -126,6 +183,13 @@ class ExpWPRSlowdownStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the main trading logic on each M15 bar.
+
+        Checks stop-loss/take-profit exit levels first, then evaluates
+        WPRSlowdown indicator signals from the H4 data. Only reacts to
+        fresh signals (once per new H4 bar). Manages open/close polarity
+        according to configured buy/sell flags and signal state.
+        """
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -162,6 +226,7 @@ class ExpWPRSlowdownStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track trade open and close events for win/loss/buy/sell counters."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:
@@ -180,6 +245,15 @@ class ExpWPRSlowdownStrategy(bt.Strategy):
 
 
 def _build_signal_frame(df, minutes):
+    """Resample a DataFrame to a higher timeframe for signal computation.
+
+    Args:
+        df: Source minute-level DataFrame.
+        minutes: Target bar duration in minutes.
+
+    Returns:
+        Resampled DataFrame with OHLCV aggregation.
+    """
     out = df.resample(
         f"{int(minutes)}min", label="right", closed="right",
     ).agg({

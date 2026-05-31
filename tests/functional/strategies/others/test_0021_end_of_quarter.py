@@ -1,7 +1,23 @@
-"""Inlined regression test for others/0021_end_of_quarter.
+"""Inlined regression test for the end-of-quarter pair strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Pair trading: long XAGUSD / short XAUUSD on quarter-end days.
+
+Data Used:
+    Daily XAUUSD and XAGUSD data from ``tests/datas/XAUUSD_1d.csv`` and
+    ``tests/datas/mt5_1d_data/XAGUSD_1d.csv`` covering the configured
+    2008-01-01 to 2025-12-31 window.
+
+Strategy Principle:
+    The strategy looks for quarter-end days and opens a long/short pair only when
+    spread volatility is within risk tolerance, with position sizing adjusted by
+    quarter-specific multiplier.
+
+Strategy Logic:
+    ``prepare_end_of_quarter_features`` aligns both symbols, calculates pair spread
+    and volatility, then emits ``entry_signal`` and quarter context features.
+    ``EndOfQuarterStrategy.next`` opens paired positions on signal bars and closes
+    them when stop-loss spread breaches or holding period expires.
 """
 from __future__ import annotations
 
@@ -19,6 +35,16 @@ SILVER_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "XAGUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize a MetaTrader-5 CSV file into an OHLCV DataFrame.
+
+    Args:
+        filepath: MT5 export path.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+
+    Returns:
+        Datetime-indexed OHLCV DataFrame.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -43,11 +69,32 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_pair_data(df_a, df_b):
+    """Align two symbol frames to a shared datetime index.
+
+    Args:
+        df_a: First symbol DataFrame.
+        df_b: Second symbol DataFrame.
+
+    Returns:
+        A tuple ``(df_a_aligned, df_b_aligned)`` sharing the same timestamp
+        index.
+    """
     aligned_index = df_a.index.intersection(df_b.index).sort_values()
     return df_a.loc[aligned_index].copy(), df_b.loc[aligned_index].copy()
 
 
 def prepare_end_of_quarter_features(gold_df, silver_df, params):
+    """Generate quarter-end pair-trading features for gold/silver spread.
+
+    Args:
+        gold_df: XAUUSD OHLCV DataFrame.
+        silver_df: XAGUSD OHLCV DataFrame.
+        params: Parameter dictionary including volatility lookback and thresholds.
+
+    Returns:
+        Tuple ``(gold_signal_df, silver_df_aligned)`` with all signal columns in
+        ``gold_signal_df`` and the aligned silver frame as the second element.
+    """
     gold_df, silver_df = prepare_pair_data(gold_df, silver_df)
     out = gold_df[["open", "high", "low", "close", "volume", "openinterest"]].copy()
     quarter_period = pd.Series(out.index.to_period("Q"), index=out.index)
@@ -72,6 +119,7 @@ def prepare_end_of_quarter_features(gold_df, silver_df, params):
 
 
 class EndOfQuarterFeed(bt.feeds.PandasData):
+    """Pandas feed exposing quarter-end pair-trading signal columns."""
     lines = ("quarter_trading_days_to_end", "quarter", "is_quarter_end", "pair_spread", "pair_vol", "entry_signal", "quarter_multiplier",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -81,6 +129,7 @@ class EndOfQuarterFeed(bt.feeds.PandasData):
 
 
 class EndOfQuarterStrategy(bt.Strategy):
+    """End-of-quarter long/short pair strategy with holding and spread stop logic."""
     params = dict(
         pair_position_size=0.90,
         holding_days=1,
@@ -91,6 +140,7 @@ class EndOfQuarterStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize pair references, counters, and order state."""
         self.gold = self.datas[0]
         self.silver = self.datas[1]
         self.signal = self.datas[0]
@@ -125,6 +175,7 @@ class EndOfQuarterStrategy(bt.Strategy):
                 self.pending_orders.append(order)
 
     def next(self):
+        """Evaluate existing pair positions and open/close on quarter-end signals."""
         self.bar_num += 1
         if self.pending_orders:
             return
@@ -155,6 +206,11 @@ class EndOfQuarterStrategy(bt.Strategy):
             self.entry_spread = current_spread
 
     def notify_order(self, order):
+        """Clear pending orders and reset entry context on flat pair state.
+
+        Args:
+            order: The order whose status was updated.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [pending for pending in self.pending_orders if pending is not None and pending.ref != order.ref]
@@ -162,6 +218,11 @@ class EndOfQuarterStrategy(bt.Strategy):
             self.entry_spread = None
 
     def notify_trade(self, trade):
+        """Accumulate win/loss counters for closed pair trades.
+
+        Args:
+            trade: The closed trade instance from Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

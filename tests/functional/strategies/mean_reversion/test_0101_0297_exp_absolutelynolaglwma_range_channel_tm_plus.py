@@ -7,6 +7,27 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold spot) 15-minute OHLCV bars from
+    ``tests/datas/XAUUSD_M15.csv``.
+    Bars are shifted forward by 15 minutes so each bar is timestamped at
+    close. The strategy executes on M15 and derives signals from a 240-minute
+    synthetic frame inside the test harness.
+
+Strategy Principle:
+    Ports ``Exp AbsolutelyNoLagLwma Range Channel Tm Plus`` from MT5.
+    The no-lag LWMA channel creates upper/lower boundaries from recursive
+    weighting of high/low data; a color index marks whether price is above,
+    below, or inside the channel. Trading follows color transitions.
+
+Strategy Logic:
+    ``load_backtest_frame`` loads the M15 source bars.
+    ``build_cerebro`` wires execution and signal feeds (with signal compression)
+    and registers analyzers.
+    The strategy evaluates channel color changes on each new signal bar in
+    ``next``, opens fixed-size bracket entries on transition points, and closes
+    on opposite transitions or timed hold exits.
 """
 from __future__ import annotations
 import math
@@ -82,6 +103,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -108,6 +130,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed extending PandasData with a spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -122,16 +145,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AbsolutelyNoLagLwmaColor(bt.Indicator):
+    """Indicator computing WMA-of-WMA (no-lag) upper/lower channels with color breakout signal."""
     lines = ('color_idx', 'upper', 'lower')
     params = dict(length=7)
 
     def __init__(self):
+        """Initialize double-WMA smoothing for high and low inputs."""
         self.up_lwma_1 = bt.indicators.WeightedMovingAverage(self.data.high, period=self.p.length)
         self.up_lwma_2 = bt.indicators.WeightedMovingAverage(self.up_lwma_1, period=self.p.length)
         self.dn_lwma_1 = bt.indicators.WeightedMovingAverage(self.data.low, period=self.p.length)
         self.dn_lwma_2 = bt.indicators.WeightedMovingAverage(self.dn_lwma_1, period=self.p.length)
 
     def next(self):
+        """Set the color index based on close position relative to the no-lag WMA channel."""
         upper = float(self.up_lwma_2[0])
         lower = float(self.dn_lwma_2[0])
         close = float(self.data.close[0])
@@ -147,6 +173,7 @@ class AbsolutelyNoLagLwmaColor(bt.Indicator):
 
 
 class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
+    """Double-WMA no-lag channel breakout strategy with timed exits and bracket order management."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -163,6 +190,7 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize dual data references, indicator, order trackers, and entry state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[1]
         self.channel = AbsolutelyNoLagLwmaColor(self.signal_feed, length=self.p.length)
@@ -175,6 +203,7 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a timestamped log message with the current execution bar datetime."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -212,6 +241,14 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse=None')
 
     def next(self):
+        """Evaluate channel-color transitions and issue bracket entry/close orders.
+
+        On each new signal bar, the method:
+        1) enforces time-based exits,
+        2) avoids duplicate processing of the same signal timestamp,
+        3) opens/closes/reverses positions according to color flips and
+           permission flags.
+        """
         if len(self.signal_feed) < self.p.length * 2 + self.p.signal_bar + 2:
             return
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
@@ -248,6 +285,7 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
                 self._submit_entry('short', 'absolutely no lag lwma transition from lower breakout state')
 
     def notify_order(self, order):
+        """Track order lifecycle: clear references on fill/cancel, record entry and close state."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -286,6 +324,7 @@ class ExpAbsolutelyNoLagLwmaRangeChannelTmPlusStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Log trade close events and reset active-side state when flat."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -304,6 +343,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a filename relative to the test file directory, raising FileNotFoundError if missing."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -311,12 +351,21 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional ISO date strings used by the config."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and prepare the execution frame from configured test data.
+
+    Args:
+        config: Loaded inline configuration.
+
+    Returns:
+        A dict containing key ``data`` with a prefiltered, shifted OHLCV DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -328,7 +377,9 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
+    """Register Sharpe, Returns, DrawDown, TradeAnalyzer, and SQN analyzers on the cerebro instance."""
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes,
+                        factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
@@ -336,6 +387,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build the Backtrader engine for the no-lag LWMA channel test.
+
+    Args:
+        config: Loaded configuration dict.
+        frame: Backtest frame dictionary from ``load_backtest_frame``.
+
+    Returns:
+        Configured ``bt.Cerebro`` ready to run.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -352,6 +412,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for NaN/infinite values and keep finite values unchanged."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -360,6 +421,15 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact metrics summary after a Backtrader run.
+
+    Args:
+        results: Output from ``cerebro.run()``.
+        start_value: Initial account value before execution.
+
+    Returns:
+        ``None``.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -386,6 +456,10 @@ def summarize(results, start_value):
 
 
 def main():
+    """Execute the inlined strategy backtest from CLI.
+
+    Parses ``--plot`` and runs Backtrader with run-once disabled by default.
+    """
     parser = argparse.ArgumentParser(description='Run Exp AbsolutelyNoLagLwma Range Channel Tm Plus backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

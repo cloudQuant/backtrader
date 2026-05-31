@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("MACD Sample") implements a classic MT5-equivalent MACD Sample EA trend-following breakout strategy.
+    - Market Assumptions: Entering on crossovers between MACD line and its Signal line (12, 26, 9 parameters) is highly reliable when aligned with the major long-term EMA trend (e.g. 26-period EMA).
+    - Indicators:
+        - MACD: Standard MACD indicator with 12-period fast EMA, 26-period slow EMA, and 9-period signal SMA.
+        - EMA: 26-period (`ma_trend_period`) Exponential Moving Average (EMA) of close prices to define trend direction.
+    - Entry Signals:
+        - Buy Entry: MACD crosses above the Signal line below 0.0, the absolute MACD line value exceeds `macd_open_level_pips` * `point`, and the 26 EMA is rising.
+        - Sell Entry: MACD crosses below the Signal line above 0.0, the absolute MACD line value exceeds `macd_open_level_pips` * `point`, and the 26 EMA is falling.
+    - Exit Signals:
+        - Take Profit: Symmetrical profit targets set at `take_profit_pips` (50 pips).
+        - Trailing Stop: Shifts stop price to `trailing_stop_pips` (30 pips) once price moves in favor.
+        - MACD Reversal: Active position is closed immediately if a reverse MACD crossover occurs (using `macd_close_level_pips` as a threshold).
 """
 from __future__ import annotations
 import math
@@ -31,7 +51,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'MACD Sample',
-        'source_ea': 'ea/1107_MACD_样本',
+        'source_ea': 'ea/1107_MACD_Sample/macd_sample.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -74,15 +94,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +142,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +150,11 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class MacdSampleStrategy(Strategy):
+    """Strategy class implementing the standard MT5 MACD Sample trading rules.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lots=0.1,
         take_profit_pips=50,
@@ -123,6 +167,7 @@ class MacdSampleStrategy(Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.macd = btind.MACD(self.data.close, period_me1=12, period_me2=26, period_signal=9)
         self.ema = btind.ExponentialMovingAverage(self.data.close, period=self.p.ma_trend_period)
         self.bar_num = 0
@@ -144,42 +189,81 @@ class MacdSampleStrategy(Strategy):
         self.warmup = max(self.p.ma_trend_period + 5, 35)
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _adjusted_point(self):
+        """Calculate the decimal point unit adjusted for 3/5 price digits.
+
+        Returns:
+            float: Adjusted point unit.
+        """
         return self.p.point * (10 if self.p.price_digits in (3, 5) else 1)
 
     def _take_profit_distance(self):
+        """Calculate absolute take profit target distance.
+
+        Returns:
+            float: Symmetrical take profit price range.
+        """
         return self.p.take_profit_pips * self._adjusted_point()
 
     def _trailing_distance(self):
+        """Calculate absolute trailing stop target distance.
+
+        Returns:
+            float: Symmetrical trailing stop price range.
+        """
         return self.p.trailing_stop_pips * self._adjusted_point()
 
     def _open_level(self):
+        """Calculate the MACD open trigger threshold.
+
+        Returns:
+            float: MACD trigger threshold.
+        """
         return self.p.macd_open_level_pips * self._adjusted_point()
 
     def _close_level(self):
+        """Calculate the MACD close reversal trigger threshold.
+
+        Returns:
+            float: MACD close threshold.
+        """
         return self.p.macd_close_level_pips * self._adjusted_point()
 
     def _reset_levels(self):
+        """Reset active position entry price, stop price, and take profit protective targets."""
         self.entry_price = None
         self.take_profit_price = None
         self.trailing_stop_price = None
 
     def _open_long(self):
+        """Submit a buy entry order and record long pending status."""
         self.pending_entry_direction = 1
         self.buy(size=self.p.lots)
 
     def _open_short(self):
+        """Submit a sell entry order and record short pending status."""
         self.pending_entry_direction = -1
         self.sell(size=self.p.lots)
 
     def _close_position(self, reason):
+        """Close any active position.
+
+        Args:
+            reason (str): Cause of position liquidation.
+        """
         self.log(reason)
         self.close()
 
     def _update_trailing_levels(self):
+        """Recalculate trailing stop protective prices when price advances in favor."""
         if not self.position or self.entry_price is None or self.p.trailing_stop_pips <= 0:
             return
 
@@ -196,6 +280,11 @@ class MacdSampleStrategy(Strategy):
                     self.trailing_stop_price = round(candidate, self.p.price_digits)
 
     def _manage_exit_orders(self):
+        """Monitor open positions and submit close orders if stop loss or take profit levels are hit.
+
+        Returns:
+            bool: True if an exit order was placed, otherwise False.
+        """
         if not self.position or self.entry_price is None:
             return False
 
@@ -221,6 +310,11 @@ class MacdSampleStrategy(Strategy):
         return False
 
     def _long_open_signal(self):
+        """Verify buy breakout signals (MACD > Signal below 0.0 with EMA uptrend).
+
+        Returns:
+            bool: True if buy signal is triggered, otherwise False.
+        """
         macd_now = float(self.macd.macd[0])
         macd_prev = float(self.macd.macd[-1])
         signal_now = float(self.macd.signal[0])
@@ -236,6 +330,11 @@ class MacdSampleStrategy(Strategy):
         )
 
     def _short_open_signal(self):
+        """Verify sell breakout signals (MACD < Signal above 0.0 with EMA downtrend).
+
+        Returns:
+            bool: True if sell signal is triggered, otherwise False.
+        """
         macd_now = float(self.macd.macd[0])
         macd_prev = float(self.macd.macd[-1])
         signal_now = float(self.macd.signal[0])
@@ -251,6 +350,11 @@ class MacdSampleStrategy(Strategy):
         )
 
     def _long_close_signal(self):
+        """Verify long reversal signals.
+
+        Returns:
+            bool: True if long reversal signal is triggered, otherwise False.
+        """
         macd_now = float(self.macd.macd[0])
         macd_prev = float(self.macd.macd[-1])
         signal_now = float(self.macd.signal[0])
@@ -263,6 +367,11 @@ class MacdSampleStrategy(Strategy):
         )
 
     def _short_close_signal(self):
+        """Verify short reversal signals.
+
+        Returns:
+            bool: True if short reversal signal is triggered, otherwise False.
+        """
         macd_now = float(self.macd.macd[0])
         macd_prev = float(self.macd.macd[-1])
         signal_now = float(self.macd.signal[0])
@@ -275,6 +384,7 @@ class MacdSampleStrategy(Strategy):
         )
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self.data) < self.warmup:
             return
@@ -312,9 +422,13 @@ class MacdSampleStrategy(Strategy):
         if short_open:
             self.log('sell macd bearish cross above zero with ema downtrend')
             self._open_short()
-            return
 
     def notify_order(self, order):
+        """Handle order life cycle updates and set protective stop loss / take profit levels.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
             self.rejected_order_count += 1
             self.pending_entry_direction = 0
@@ -346,6 +460,11 @@ class MacdSampleStrategy(Strategy):
             self._reset_levels()
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -358,8 +477,6 @@ class MacdSampleStrategy(Strategy):
 
 
 
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -367,6 +484,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -374,6 +502,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -390,6 +529,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -413,6 +561,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -457,8 +616,25 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -466,6 +642,7 @@ def run(plot=False):
     results = cerebro.run()
     strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config)
+    print_report(metrics)
 
     if plot:
         cerebro.plot()
@@ -473,7 +650,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -482,8 +666,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

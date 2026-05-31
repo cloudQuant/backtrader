@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H1 (60-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close. The H1 signal feed
+    carries precomputed +DI/-DI, ATR, and buy/sell crossing lines.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_ADXCrossing``. On the higher
+    H1 timeframe a Wilder-smoothed ADX directional system computes +DI and -DI
+    over ``adx_period``; a cross of +DI above -DI flags a buy and a cross below
+    flags a sell. The strategy enters in the crossing direction and exits on the
+    opposite crossing, with fixed stop-loss and take-profit distances scaled by
+    the point size and digits adjustment.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame, resamples it to H1, and
+    precomputes the DI/ATR/signal columns; build_cerebro wires both feeds and
+    the default analyzers. Each bar the strategy enforces stop-loss/take-profit
+    exits, then on each new H1 signal bar reads the crossing lines to close
+    opposing positions and open a long or short sized by ``size``. notify_order
+    counts completed/rejected orders and entries while notify_trade tallies
+    win/loss on close. extract_metrics consolidates analyzer output, and the
+    test forces runonce=True, runs the module's main()/run(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +113,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +151,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample an OHLCV frame to a coarser bar size using right-closed bins.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        rule: Pandas offset alias for the target bar size (e.g. ``'60min'``).
+
+    Returns:
+        The resampled DataFrame with rows lacking OHLC data dropped.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -125,10 +174,30 @@ def resample_frame(df, rule):
 
 
 def wilder_smooth(series, period):
+    """Apply Wilder's exponential smoothing to a series.
+
+    Args:
+        series: The input pandas Series to smooth.
+        period: Wilder smoothing period (alpha = 1/period).
+
+    Returns:
+        The Wilder-smoothed Series with NaN until ``period`` observations exist.
+    """
     return series.ewm(alpha=1.0 / float(period), adjust=False, min_periods=int(period)).mean()
 
 
 def compute_adx_crossing(frame, adx_period=50, atr_period=14):
+    """Compute +DI/-DI, ATR, and DI-crossing buy/sell signals.
+
+    Args:
+        frame: OHLCV DataFrame indexed by datetime.
+        adx_period: Wilder period for the directional movement smoothing.
+        atr_period: Wilder period for the Average True Range.
+
+    Returns:
+        A copy of ``frame`` with ``plus_di``, ``minus_di``, ``atr``,
+        ``buy_signal``, and ``sell_signal`` columns, with warmup rows dropped.
+    """
     high = frame['high']
     low = frame['low']
     close = frame['close']
@@ -166,6 +235,8 @@ def compute_adx_crossing(frame, adx_period=50, atr_period=14):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -178,6 +249,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AdxCrossingSignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing precomputed ADX crossing signals.
+
+    Extends the standard OHLCV feed with the +DI/-DI lines, ATR, and the
+    buy/sell DI-crossing flags so the strategy can read them directly.
+    """
+
     lines = ('plus_di', 'minus_di', 'atr', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -196,6 +273,14 @@ class AdxCrossingSignalFeed(bt.feeds.PandasData):
 
 
 class AdxCrossingStrategy(bt.Strategy):
+    """ADX DI-crossing strategy ported from the MT5 Exp_ADXCrossing advisor.
+
+    Reads the precomputed +DI/-DI crossing signals from the H1 feed and trades
+    the M15 execution feed: a +DI/-DI bullish cross opens a long and a bearish
+    cross opens a short, with positions closed on the opposite cross or on the
+    fixed stop-loss/take-profit distances.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -216,6 +301,7 @@ class AdxCrossingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Cache the execution and signal feeds and reset counters/state."""
         self.m15 = self.datas[0]
         self.h1 = self.datas[1]
         self.plus_di = self.h1.plus_di
@@ -240,6 +326,7 @@ class AdxCrossingStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print ``text`` prefixed with the current execution bar timestamp."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -294,6 +381,7 @@ class AdxCrossingStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Enforce risk exits, then act on new H1 DI-crossing signals."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -343,6 +431,7 @@ class AdxCrossingStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Count completed/rejected orders and clear the pending entry order."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -361,6 +450,7 @@ class AdxCrossingStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -385,6 +475,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this file's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute path.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -392,6 +493,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load the M15 frame and build the H1 ADX-crossing signal frame.
+
+    Args:
+        config: Resolved configuration dictionary with ``data`` and ``params``.
+
+    Returns:
+        A dict with the ``m15`` base frame, the ``h1`` signal frame, and the
+        resolved ``fromdate`` and ``todate`` bounds.
+
+    Raises:
+        ValueError: If the loaded base frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -406,6 +519,15 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with broker, both feeds, and analyzers.
+
+    Args:
+        config: Resolved configuration dictionary.
+        frame: Mapping produced by load_backtest_frames holding both frames.
+
+    Returns:
+        The configured Cerebro instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -427,6 +549,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying analyzers and counters.
+        cerebro: The Cerebro instance used to read the final portfolio value.
+        frame: Mapping with both data frames and date bounds.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict of performance and trade-activity metrics for assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -472,6 +605,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full ADX-crossing backtest and return results, metrics, cerebro.
+
+    Args:
+        plot: When True, render the cerebro chart after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

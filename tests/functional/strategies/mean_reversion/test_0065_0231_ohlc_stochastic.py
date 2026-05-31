@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+This module verifies an OHLC stochastic mean-reversion strategy in a consolidated
+test harness. It keeps the execution flow and expected assertions from the
+migrated regression while documenting the underlying data, strategy assumptions,
+and test execution pipeline in a stable, lint-friendly form.
+
+Data Used:
+    Uses XAUUSD M1 historical data from `tests/datas/XAUUSD_M1.csv` as the
+    base feed and resamples it to H12 (`720` minutes) for signal generation.
+    The backtest is bounded by `fromdate=2025-12-12 00:00:00` and
+    `todate=2025-12-20 23:59:59`.
+
+Strategy Principle:
+    The strategy generates long and short signals from a full stochastic
+    oscillator (percent K and percent D) on a higher-timeframe stream.
+    Entries are opened when a momentum cross and extreme zone conditions are met,
+    while risk is controlled through optional directional flags and trailing stop
+    management.
+
+Strategy Logic:
+    The script loads embedded configuration, parses MT5-style OHLC records, builds
+    a two-feed cerebro setup (execution + signal feeds), and runs a single
+    inlined regression with analyzer extraction. Assertions compare broker and
+    analyzer metrics against expected baseline values.
 """
 from __future__ import annotations
 import math
@@ -23,7 +47,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'OHLC Stochastic',
-        'source_ea': 'ea/0231_OHLC_随机振荡/ohlc_stochastic.mq5',
+        'source_ea': 'ea/0231_OHLC_RANDOM_OSCILLATOR/ohlc_stochastic.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -87,6 +111,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-style tab-separated OHLC file into a cleaned, time-indexed DataFrame.
+
+    Args:
+        filepath: Path to the source CSV file.
+        fromdate: Optional lower datetime bound; rows before this value are removed.
+        todate: Optional upper datetime bound; rows after this value are removed.
+        bar_shift_minutes: Optional minute offset applied to every bar timestamp.
+
+    Returns:
+        Pandas DataFrame with columns [datetime, open, high, low, close, volume,
+        openinterest, spread], indexed by timezone-naive datetime in ascending order.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -113,6 +149,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom pandas feed that injects spread as an additional data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -127,6 +164,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class OhlcStochasticStrategy(bt.Strategy):
+    """Two-timeframe stochastic strategy with directional entries and trailing stops.
+
+    The strategy trades long or short based on stochastic cross signals across a
+    higher timeframe while controlling open risk with optional directional flags and
+    stop-loss trail updates.
+    """
     params = dict(
         trailing_stop_pips=5.0,
         trailing_step_pips=2.0,
@@ -147,6 +190,7 @@ class OhlcStochasticStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, indicators, and performance counters."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.stochastic = bt.indicators.StochasticFull(
@@ -171,9 +215,15 @@ class OhlcStochasticStrategy(bt.Strategy):
         self.loss_count = 0
 
     def prenext(self):
+        """Call ``next`` while data is still warming up."""
         self.next()
 
     def log(self, text):
+        """Emit a timestamped diagnostic message for traceability.
+
+        Args:
+            text: The message to print.
+        """
         dt = bt.num2date(self.exec_data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -280,6 +330,7 @@ class OhlcStochasticStrategy(bt.Strategy):
             self.log(f'TRAIL SHORT stop={candidate:.5f}')
 
     def next(self):
+        """Main event loop for signal detection, entry/exit, and reverse handling."""
         self._update_trailing()
 
         if self.entry_order is not None or self.close_order is not None:
@@ -301,6 +352,11 @@ class OhlcStochasticStrategy(bt.Strategy):
             self._submit_entry('short', 'sell signal')
 
     def notify_order(self, order):
+        """Handle lifecycle callbacks for entry, close, and stop orders.
+
+        Args:
+            order: The backtrader Order instance whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -333,6 +389,11 @@ class OhlcStochasticStrategy(bt.Strategy):
                 self.stop_order = None
 
     def notify_trade(self, trade):
+        """Track trade completion counts and emit trade summary logs.
+
+        Args:
+            trade: The completed or updated backtrader Trade object.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -353,6 +414,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a local regression data path and validate existence.
+
+    Args:
+        filename: Data filename relative to the current strategy test directory.
+
+    Returns:
+        Absolute path to the requested data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -360,12 +429,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO timestamp string into a datetime object.
+
+    Args:
+        value: None or an ISO 8601 compatible datetime string.
+
+    Returns:
+        Parsed datetime object, or None when the input is empty.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and trim the primary backtest market data frame.
+
+    Args:
+        config: Strategy configuration dictionary produced by ``load_config``.
+
+    Returns:
+        Dictionary containing filtered DataFrame and effective date bounds.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -382,6 +467,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach the shared analyzer set used for migrated regression assertions.
+
+    Args:
+        cerebro: The ``bt.Cerebro`` instance under construction.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -390,6 +480,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample OHLC bars to a higher compression level.
+
+    Args:
+        df: Source OHLC DataFrame indexed by datetime.
+        minutes: Target resample interval in minutes.
+
+    Returns:
+        DataFrame resampled with open/high/low/close/volume/openinterest/spread.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -407,6 +506,15 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Build a complete cerebro instance with execution and signal data feeds.
+
+    Args:
+        config: Strategy and backtest config dictionary.
+        frame: Loaded market frame bundle from ``load_backtest_frame``.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -435,6 +543,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize finite numeric values by converting infinities to None.
+
+    Args:
+        value: Numeric value to validate.
+
+    Returns:
+        ``None`` for NaN/inf-like values, otherwise the original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -443,6 +559,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact backtest summary derived from analyzer outputs.
+
+    Args:
+        results: Backtest result list returned by ``Cerebro.run``.
+        start_value: Portfolio value before running the strategy.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -471,6 +593,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the strategy backtest and print the summary output."""
     parser = argparse.ArgumentParser(description='Run OHLC Stochastic backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

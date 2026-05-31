@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) base timeframe, loaded from
+    the MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each base bar is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at close, and a 60-minute (H1) signal
+    feed is produced by resampling, so the strategy runs on two synchronized
+    feeds (M15 execution, H1 indicator). The feed also carries a ``spread`` line.
+
+Strategy Principle:
+    This is the "Exp_i-GAP" strategy, which trades opening gaps. When the prior
+    bar's close sits more than ``size_gap`` points above the current bar's open it
+    flags a buy (with an ATR-offset arrow), and a symmetric condition below flags
+    a sell. The strategy enters on those gap arrows and can reverse on an opposing
+    future signal, protecting each position with fixed point-based stop-loss and
+    take-profit distances.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the M15 execution
+    feed plus an H1 resampled signal feed, a fixed-commission futures broker, the
+    strategy, and the analyzers. IGapStrategy computes IGapIndicator (ATR plus
+    gap arrows) on the signal feed and, once per new signal bar after warm-up,
+    first checks protective exits, then reads the buy/sell arrows to open, close,
+    or reverse positions subject to the open/close flags. notify_order tracks
+    fills, sets entry risk prices, counts completed/rejected orders, and submits
+    any pending reverse, while notify_trade tallies trades on close.
+    extract_metrics consolidates analyzer output and signal/order counters, and
+    the test forces runonce=True, runs the module via the loader/build/extract
+    compatibility helpers, and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -84,6 +114,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset added to each timestamp so the
+            bar is stamped at its close.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -110,6 +153,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the standard OHLCV columns plus a spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -124,15 +169,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class IGapIndicator(bt.Indicator):
+    """Detect opening gaps and emit ATR-offset buy/sell arrow levels."""
+
     lines = ('sell_signal', 'buy_signal', 'atr_value')
     params = dict(size_gap=5, point=0.01, atr_period=15)
 
     def __init__(self):
+        """Set the warm-up period, build the ATR, and cache the gap distance."""
         self.addminperiod(int(self.p.atr_period) + int(self.p.size_gap) + 4)
         self.atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
         self.gap_distance = float(self.p.size_gap) * float(self.p.point)
 
     def next(self):
+        """Emit buy/sell arrow levels when the prior close gaps past the open."""
         self.lines.sell_signal[0] = 0.0
         self.lines.buy_signal[0] = 0.0
         atr_value = float(self.atr[0])
@@ -146,6 +195,8 @@ class IGapIndicator(bt.Indicator):
 
 
 class IGapStrategy(bt.Strategy):
+    """Trade opening-gap arrows with fixed SL/TP and optional reversal."""
+
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -166,6 +217,7 @@ class IGapStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution/signal feeds, build the indicator, reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = IGapIndicator(
@@ -193,6 +245,7 @@ class IGapStrategy(bt.Strategy):
         self.warmup = int(self.p.atr_period) + int(self.p.size_gap) + int(self.p.signal_bar) + 6
 
     def log(self, text):
+        """Print a timestamped strategy message for traceability."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -289,6 +342,14 @@ class IGapStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Manage protective exits, then open, close, or reverse on gap arrows.
+
+        Increments the bar counter and runs only once per new signal bar after
+        warm-up. It first handles stop/take-profit exits, then reads the buy/sell
+        gap arrows (and any opposing future signal) to close or reverse the
+        current position, or—when flat—open a long on a buy arrow or short on a
+        sell arrow, subject to the open/close flags.
+        """
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -328,6 +389,13 @@ class IGapStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track fills, set entry risk, count orders, and submit pending reversals.
+
+        Args:
+            order: The order whose status changed; completed entries record the
+                entry price and stop/take levels, completed exits clear risk and
+                trigger any pending reverse, and failures bump the rejected count.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -371,6 +439,12 @@ class IGapStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades and clear risk state when flat.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and, once flat, clear the risk levels.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -395,6 +469,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a relative test data path and verify the target file exists."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -402,6 +477,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5-exported OHLCV data and cut it to the configured backtest window."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -433,6 +509,7 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Build a Cerebro instance with execution/signal feeds, strategy, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -464,6 +541,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer and strategy metrics for exact migration-time assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

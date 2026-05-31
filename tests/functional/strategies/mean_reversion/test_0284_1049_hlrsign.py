@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD 15-minute historical OHLCV data from ``tests/datas/XAUUSD_M15.csv``.
+    Data is filtered to the configured 2025-12-03..2026-03-10 window and
+    shifted by 15 minutes for alignment.
+    A 60-minute signal series is derived via resampling to generate HLR arrows.
+
+Strategy Principle:
+    The strategy computes an HLR/ATR-signaling component, producing buy/sell
+    arrows from high-low range conditions.
+    It then executes directional entries when arrows persist according to signal bar
+    checks, with symmetrical stop-loss / take-profit management.
+
+Strategy Logic:
+    Data is split into base M15 and derived H1 signal feeds.
+    The strategy class filters duplicate signal timestamps, manages one active order at
+    a time, and tracks trade/order counters.
+    Backtest metrics are collected from analyzers and custom counters for assertion.
 """
 from __future__ import annotations
 import math
@@ -88,6 +106,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 export CSV to a normalized datetime-indexed OHLCV frame.
+
+    Parameters:
+        filepath: Source file path.
+        fromdate: Optional left boundary timestamp.
+        todate: Optional right boundary timestamp.
+        bar_shift_minutes: Minute offset for row timestamps.
+
+    Returns:
+        DataFrame with columns ``open``/``high``/``low``/``close``/``volume``/
+        ``openinterest`` indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +139,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample OHLCV data for multi-timeframe signal generation.
+
+    Parameters:
+        df: OHLCV DataFrame indexed by datetime.
+        rule: Pandas resample rule string.
+
+    Returns:
+        Aggregated frame with cleaned OHLC values and filled openinterest.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last',
     })
@@ -118,6 +157,15 @@ def resample_frame(df, rule):
 
 
 def compute_atr(frame, period=100):
+    """Compute ATR (average true range) from true-range components.
+
+    Parameters:
+        frame: OHLCV frame.
+        period: Rolling period for ATR mean.
+
+    Returns:
+        Rolling ATR series.
+    """
     prev_close = frame['close'].shift(1)
     tr = pd.concat([
         frame['high'] - frame['low'],
@@ -128,6 +176,19 @@ def compute_atr(frame, period=100):
 
 
 def compute_hlrsign(frame, mode='OUT', hlr_range=40, hlr_up_level=80, hlr_dn_level=20, atr_period=100):
+    """Compute HLR sign arrows from range and ATR filters.
+
+    Parameters:
+        frame: OHLCV frame.
+        mode: `'OUT'` or `'IN'` interpretation mode.
+        hlr_range: Lookback range in bars for high/low channel.
+        hlr_up_level: Upper signal level threshold.
+        hlr_dn_level: Lower signal level threshold.
+        atr_period: ATR rolling period.
+
+    Returns:
+        Frame with added ``buy_arrow`` and ``sell_arrow`` columns.
+    """
     hlr_range = max(int(hlr_range), 1)
     mode = str(mode).upper()
     atr = compute_atr(frame, atr_period)
@@ -166,6 +227,7 @@ def compute_hlrsign(frame, mode='OUT', hlr_range=40, hlr_up_level=80, hlr_dn_lev
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed wrapper for base MT5 OHLCV columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -173,6 +235,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class HLRSignFeed(bt.feeds.PandasData):
+    """Backtrader feed wrapper exposing HLR buy/sell arrow signals."""
     lines = ('buy_arrow', 'sell_arrow')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -181,6 +244,7 @@ class HLRSignFeed(bt.feeds.PandasData):
 
 
 class HLRSignStrategy(bt.Strategy):
+    """Trade on HLR-sign crossover arrows with risk and counter checks."""
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -203,6 +267,7 @@ class HLRSignStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, counters, and tracked references."""
         self.m15 = self.datas[0]
         self.h1 = self.datas[1]
         self.buy_arrow = self.h1.buy_arrow
@@ -225,6 +290,7 @@ class HLRSignStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print timestamped debug text for each processed M15 bar."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -310,6 +376,7 @@ class HLRSignStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, has_buy, has_sell
 
     def next(self):
+        """Process risk exits and optional buy/sell signals on each new bar."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -347,6 +414,7 @@ class HLRSignStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and reset active order state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -364,6 +432,7 @@ class HLRSignStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Increment closed-trade and win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -388,6 +457,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve relative data paths against the test file directory.
+
+    Parameters:
+        filename: Relative path string from config.
+
+    Returns:
+        Absolute path object.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -395,6 +472,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load and preprocess raw + resampled data for backtest.
+
+    Parameters:
+        config: Config object containing data/backtest params.
+
+    Returns:
+        Dict containing M15 and H1 frames plus from/to boundaries.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -409,6 +494,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Backtrader engine with analyzers and feeds."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -428,6 +514,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract analyzers and custom strategy counters for verification.
+
+    Parameters:
+        strat: Executed strategy instance.
+        cerebro: Backtrader engine.
+        frame: Frame bundle used by the run.
+        config: Config for backtest metadata.
+
+    Returns:
+        Dict of backtest evaluation metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -455,6 +552,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run full backtest for the current configuration.
+
+    Parameters:
+        plot: Whether to generate strategy plot output.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

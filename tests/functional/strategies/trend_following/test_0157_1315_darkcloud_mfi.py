@@ -7,6 +7,28 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - XAUUSD_M15 tick data loaded from tests/datas/XAUUSD_M15.csv.
+    - Timeframe is M15, sampled from 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+    - A 15-minute bar shift is applied when loading data (bar_shift_minutes).
+    - No secondary feeds or resampling steps are configured.
+
+Strategy Principle:
+    - Detects Dark Cloud Cover and Piercing Line candlestick reversals.
+    - Requires Money Flow Index (MFI) confirmation before placing entries.
+    - Short entries trigger on Dark Cloud Cover with MFI above the configured short
+      threshold; long entries on Piercing Line with MFI below the configured long
+      threshold.
+    - Exits are controlled by MFI crosses over bought/oversold levels and trade side.
+
+Strategy Logic:
+    - build_backtest_frame loads and filters M15 bars with the configured date window.
+    - build_cerebro configures broker, custom feed, strategy parameters, and analyzers.
+    - next() tracks warm-up, evaluates candlestick patterns and MFI state, then submits
+      market orders and managed exits.
+    - notify_trade() updates counters for buys, sells, and closed trade outcomes.
+    - extract_metrics() aggregates analyzer output into deterministic values asserted below.
 """
 from __future__ import annotations
 import math
@@ -81,6 +103,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-delimited data into a backtest-ready dataframe.
+
+    Args:
+        filepath: Input data path.
+        fromdate: Optional start datetime (inclusive).
+        todate: Optional end datetime (inclusive).
+        bar_shift_minutes: Optional minute offset to apply to each timestamp.
+
+    Returns:
+        Parsed dataframe indexed by datetime with standard OHLCV fields.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +135,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Minimal pandas feed mapping for the normalized MT5 OHLCV dataframe."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,13 +144,20 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class MoneyFlowIndex(bt.Indicator):
+    """Simple Money Flow Index indicator using a rolling positive/negative money flow.
+
+    Args:
+        period: Lookback window used for the MFI calculation.
+    """
     lines = ('mfi',)
     params = (('period', 14),)
 
     def __init__(self):
+        """Set minimum required bars according to MFI period."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute positive and negative money flow and emit the MFI value for bar 0."""
         positive_flow = 0.0
         negative_flow = 0.0
         for i in range(self.p.period):
@@ -161,6 +203,7 @@ class DarkCloudMfiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create indicators and initialize runtime counters."""
         self.mfi = MoneyFlowIndex(self.data, period=self.p.mfi_period)
         self.close_avg = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.sma_body = bt.indicators.SMA(
@@ -174,6 +217,7 @@ class DarkCloudMfiStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log message for traceability."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -204,6 +248,7 @@ class DarkCloudMfiStrategy(bt.Strategy):
                 o1 < l2)
 
     def next(self):
+        """Advance counters and enforce entry/exit rules using candle patterns + MFI."""
         self.bar_num += 1
         warmup = max(self.p.mfi_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -236,6 +281,7 @@ class DarkCloudMfiStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update strategy statistics when a trade opens or closes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -268,6 +314,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data path relative to this test module directory.
+
+    Args:
+        filename: Relative data filename from config.
+
+    Returns:
+        Absolute path to the requested data file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -275,6 +329,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build a filtered backtest dataframe using the inlined config window.
+
+    Args:
+        config: Inline merged backtest configuration.
+
+    Returns:
+        Dictionary with dataframe and resolved date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -291,6 +353,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a Backtrader Cerebro instance.
+
+    Args:
+        config: Inline merged backtest configuration.
+        frame: Output from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -314,6 +385,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer outputs for assertions.
+
+    Args:
+        strat: Executed strategy object.
+        cerebro: Backtrader engine instance.
+        frame: Prepared data context.
+        config: Inline merged configuration.
+
+    Returns:
+        Dictionary containing deterministic metrics checked by tests.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -354,6 +436,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the backtest and return results, metrics, and engine object.
+
+    Args:
+        plot: Whether to render the backtest chart.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -24,6 +24,7 @@ ASSET_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and return a cleaned OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -48,6 +49,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_long_short_inputs(asset_map):
+    """Align multiple assets on a common date index and return aligned frame map/close matrix."""
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -61,6 +63,7 @@ def prepare_long_short_inputs(asset_map):
 
 
 def build_weight_lookup(close_df, params):
+    """Build periodic rebalance target weights from momentum and inverse-volatility score."""
     momentum_lookback = int(params.get("momentum_lookback", 252))
     volatility_lookback = int(params.get("volatility_lookback", 60))
     n_long = int(params.get("n_long", 2))
@@ -88,9 +91,11 @@ def build_weight_lookup(close_df, params):
 
 
 class LongShortEquityStrategy(bt.Strategy):
+    """Long/short equity allocator with periodic rebalance based on precomputed weights."""
     params = dict(weight_lookup=None)
 
     def __init__(self):
+        """Initialize order tracking and execution counters."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -118,6 +123,7 @@ class LongShortEquityStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rebalance holdings toward target weights on scheduled rebalance dates."""
         self.bar_num += 1
         current_dt = pd.Timestamp(bt.num2date(self.datas[0].datetime[0])).tz_localize(None)
         if self.order_refs:
@@ -139,11 +145,13 @@ class LongShortEquityStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Remove completed order refs to allow next rebalance cycle."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count trade closes and separate win/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1

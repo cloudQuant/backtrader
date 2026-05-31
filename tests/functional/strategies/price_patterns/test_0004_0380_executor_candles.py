@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("Executor Candles") implements a candlestick pattern recognition system covering 10 classic Japanese Candlestick Patterns.
+    - Market Assumptions: Candlestick patterns reflect shifts in market sentiment at critical trend turning points, predicting potential reversals.
+    - Patterns Detected:
+        - Bullish: Hammer, Bullish Engulfing, Piercing Line, Morning Star, Morning Doji Star.
+        - Bearish: Hanging Man, Bearish Engulfing, Dark Cloud Cover, Evening Star, Evening Doji Star.
+    - Entry Signals:
+        - Buy Entry: Any of the 5 bullish reversal patterns are identified.
+        - Sell Entry: Any of the 5 bearish reversal patterns are identified.
+    - Exit Signals:
+        - Target Exits: Fixed Stop Loss (`stoploss_buy_pips`/`stoploss_sell_pips`) and Take Profit (`takeprofit_buy_pips`/`takeprofit_sell_pips`).
+        - Trailing stop exit manages active open profit using trailing parameters.
 """
 from __future__ import annotations
 import math
@@ -23,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Executor Candles',
-        'source_ea': 'ea/0380_执行者蜡�?executor_candles.mq5',
+        'source_ea': 'ea/0380_Executor_Candles/executor_candles.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -70,15 +89,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -105,6 +142,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with supplementary spread line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -119,6 +157,11 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ExecutorCandlesStrategy(bt.Strategy):
+    """Strategy class implementing multi-pattern candlestick recognition.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -134,6 +177,7 @@ class ExecutorCandlesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -145,10 +189,23 @@ class ExecutorCandlesStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _bar(self, n):
+        """Construct dictionary containing candles OHLC values at index offset n.
+
+        Args:
+            n (int): Bar offset index (1-based, 1 is previous complete bar).
+
+        Returns:
+            dict: Dictionary with keys open, high, low, close.
+        """
         idx = 1 - n
         return {
             'open': float(self.data0_feed.open[idx]),
@@ -158,14 +215,25 @@ class ExecutorCandlesStrategy(bt.Strategy):
         }
 
     def _compare_doubles(self, a, b):
+        """Compare two floating point values for equality up to configured price digits.
+
+        Args:
+            a (float): First value.
+            b (float): Second value.
+
+        Returns:
+            bool: True if values are close enough to be considered equal, otherwise False.
+        """
         digits = max(int(self.p.price_digits) - 1, 0)
         return round(a - b, digits) == 0
 
     def _reset_exit_levels(self):
+        """Reset target stop-loss and take-profit prices to None."""
         self.stop_price = None
         self.limit_price = None
 
     def _initialize_exit_levels(self):
+        """Calculate and establish target stop-loss and take-profit exit prices based on entry price."""
         if self.entry_price is None or self.active_side is None:
             return
         if self.active_side == 'long':
@@ -176,12 +244,23 @@ class ExecutorCandlesStrategy(bt.Strategy):
             self.limit_price = None if self.p.takeprofit_sell_pips <= 0 else self.entry_price - self.p.takeprofit_sell_pips * self.p.point_size
 
     def _submit_close(self, reason):
+        """Submit a market order to close any active open position.
+
+        Args:
+            reason (str): Label indicating exit trigger.
+        """
         if not self.position or self.close_order is not None:
             return
         self.close_order = self.close()
         self.log(f'CLOSE side={self.active_side} reason={reason}')
 
     def _submit_entry(self, side, reason):
+        """Submit a new long or short market order or handle reverse positions.
+
+        Args:
+            side (str): Direction of order ('long' or 'short').
+            reason (str): Label indicating entry trigger.
+        """
         if self.entry_order is not None or self.close_order is not None or self.position:
             return
         size = max(0.01, float(self.p.fixed_lot))
@@ -196,6 +275,11 @@ class ExecutorCandlesStrategy(bt.Strategy):
         self.active_side = side
 
     def _check_exit_thresholds(self):
+        """Check active position status for target stop-loss or take-profit price breaches.
+
+        Returns:
+            bool: True if an exit order was successfully placed, otherwise False.
+        """
         if not self.position or self.close_order is not None:
             return False
         bar_high = float(self.data0_feed.high[0])
@@ -217,6 +301,7 @@ class ExecutorCandlesStrategy(bt.Strategy):
         return False
 
     def _update_trailing(self):
+        """Calculate and update dynamic trailing stop levels based on trailing parameters."""
         if not self.position or self.entry_price is None:
             return
         if self.position.size > 0:
@@ -242,6 +327,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                     self.log(f'UPDATE SHORT TRAIL stop={self.stop_price:.5f}')
 
     def _is_hammer(self, trend_up):
+        """Identify if a bullish Hammer pattern is formed on the previous bars.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         if self._compare_doubles(r1['close'], r1['open']):
@@ -253,6 +346,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and (r2['open'] - r2['close'] > 0))
 
     def _is_bull(self, trend_up):
+        """Identify if a Bullish Engulfing pattern is formed.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         if self._compare_doubles(r2['open'], r2['close']):
@@ -265,6 +366,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and ((r1['close'] - r1['open']) / (r2['open'] - r2['close']) > 1.5))
 
     def _is_piercing(self, trend_up):
+        """Identify if a bullish Piercing Line pattern is formed.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         if self._compare_doubles(r2['high'], r2['low']):
@@ -277,6 +386,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and (r1['close'] > (r2['close'] + (r2['open'] - r2['close']) / 2.0)))
 
     def _is_morning_star(self, trend_up):
+        """Identify if a bullish Morning Star pattern is formed.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         r3 = self._bar(3)
@@ -293,6 +410,11 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and ((r1['close'] - r1['open']) / (r1['high'] - r1['low']) > 0.8))
 
     def _is_morning_doji_star(self):
+        """Identify if a bullish Morning Doji Star pattern is formed.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         r3 = self._bar(3)
@@ -306,6 +428,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and (((abs(r3['open'] - r1['close']) + abs(r1['open'] - r3['close'])) / (r3['open'] - r3['close'])) < 0.1))
 
     def _is_hanging_man(self, trend_up):
+        """Identify if a bearish Hanging Man pattern is formed on the previous bars.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         if self._compare_doubles(r1['open'], r1['close']):
@@ -317,6 +447,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and (r2['open'] - r2['close'] < 0))
 
     def _is_bear(self, trend_up):
+        """Identify if a Bearish Engulfing pattern is formed.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         if self._compare_doubles(r2['close'], r2['open']):
@@ -329,6 +467,14 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and ((r1['open'] - r1['close']) / (r2['close'] - r2['open']) > 1.5))
 
     def _is_dark_cloud_cover(self, trend_up):
+        """Identify if a bearish Dark Cloud Cover pattern is formed.
+
+        Args:
+            trend_up (bool): True if short-term trend is upward.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         if self._compare_doubles(r2['high'], r2['low']):
@@ -341,6 +487,11 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and (r1['close'] < (r2['open'] + (r2['close'] - r2['open']) / 2.0)))
 
     def _is_evening_star(self):
+        """Identify if a bearish Evening Star pattern is formed.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         r3 = self._bar(3)
@@ -357,6 +508,11 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and ((r1['open'] - r1['close']) / (r1['high'] - r1['low']) > 0.8))
 
     def _is_evening_doji_star(self):
+        """Identify if a bearish Evening Doji Star pattern is formed.
+
+        Returns:
+            bool: True if pattern is formed, otherwise False.
+        """
         r1 = self._bar(1)
         r2 = self._bar(2)
         r3 = self._bar(3)
@@ -370,6 +526,7 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 and (((abs(r3['open'] - r1['close']) + abs(r1['open'] - r3['close'])) / (r3['open'] - r3['close'])) < 0.1))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         if len(self.data0_feed) < 4:
             return
         if self._check_exit_thresholds():
@@ -405,6 +562,11 @@ class ExecutorCandlesStrategy(bt.Strategy):
             self._submit_entry(signal[0], signal[1])
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -427,6 +589,11 @@ class ExecutorCandlesStrategy(bt.Strategy):
                 self.close_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -437,8 +604,6 @@ class ExecutorCandlesStrategy(bt.Strategy):
 
 
 
-
-
 BASE_DIR = Path(__file__).resolve().parent
 
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
@@ -446,6 +611,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -453,12 +629,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO format datetime string value into datetime object.
+
+    Args:
+        value (str): Datetime string value.
+
+    Returns:
+        datetime.datetime or None: Parsed datetime object.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -470,6 +665,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Configure default analyzers on a Cerebro backtest engine.
+
+    Args:
+        cerebro (bt.Cerebro): Target Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -478,6 +678,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -492,6 +701,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Filter out infinite or NaN values, returning None instead.
+
+    Args:
+        value (float): Input value to inspect.
+
+    Returns:
+        float or None: Filtered float value or None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -500,6 +717,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Calculate and print backtest statistics and performance metrics summary.
+
+    Args:
+        results (list): Output strategy instances from cerebro run.
+        start_value (float): Initial account equity value.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -528,6 +751,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Main execution function to parse arguments and run the backtest."""
     parser = argparse.ArgumentParser(description='Run Executor Candles backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
@@ -539,6 +763,40 @@ def main():
     summarize(results, start_value)
     if args.plot:
         cerebro.plot(style='candlestick')
+
+
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
 
 
 def _close(actual, expected, *, tol, key):

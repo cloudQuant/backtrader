@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+This module documents a dual-filter X2MA candle mean-reversion strategy while
+keeping all migrated execution logic untouched.
+
+Data Used:
+    Uses XAUUSD M15 history from `tests/datas/XAUUSD_M15.csv` as the base feed.
+    A resampled H6 (`360` minute) dataset is created for signal evaluation.
+
+Strategy Principle:
+    It computes two-stage smoothed candle states and triggers directional entries
+    when candle color transitions align with configured open/close flags.
+    Position sizing and reversal intent are managed with optional MM recovery logic.
+
+Strategy Logic:
+    The script loads config and MT5 data, builds execution and signal feeds in
+    Cerebro, runs analyzers, and validates summary metrics from analyzer results
+    against the expected migration baseline.
 """
 from __future__ import annotations
 import math
@@ -93,6 +110,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Read MT5 tab-separated OHLC data and normalize it for Backtrader input.
+
+    Args:
+        filepath: File path to an MT5-exported data file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Timestamp minute offset to apply.
+
+    Returns:
+        Parsed and indexed DataFrame with OHLCV/spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -119,6 +147,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed wrapper that includes spread as an extra data line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -133,10 +162,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class X2MACandleApprox(bt.Indicator):
+    """Dual-stage MA candle approximation producing candle color and values."""
     lines = ('open_value', 'high_value', 'low_value', 'close_value', 'color_state')
     params = dict(length1=12, phase1=15, length2=5, phase2=15, gap=10.0)
 
     def __init__(self):
+        """Initialize queues, state, and smoothing parameters."""
         self._length1 = max(1, int(self.p.length1))
         self._length2 = max(2, int(self.p.length2))
         self._phase2 = max(-100, min(100, int(self.p.phase2)))
@@ -185,6 +216,7 @@ class X2MACandleApprox(bt.Indicator):
         return self._smooth(key, sma_value)
 
     def next(self):
+        """Compute smoothed open/high/low/close and color for each bar."""
         open_value = self._stage_value('open', self.data.open)
         high_value = self._stage_value('high', self.data.high)
         low_value = self._stage_value('low', self.data.low)
@@ -212,6 +244,7 @@ class X2MACandleApprox(bt.Indicator):
 
 
 class ExpX2MACandleMMRecStrategy(bt.Strategy):
+    """MM recovery strategy using X2MA candle transitions."""
     params = dict(
         point_size=0.01,
         lot_min=0.01,
@@ -237,6 +270,7 @@ class ExpX2MACandleMMRecStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build signals, order state, and MM recovery tracking on initialization."""
         self.exec_data = self.datas[0]
         self.signal_data = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.indicator = X2MACandleApprox(
@@ -342,6 +376,7 @@ class ExpX2MACandleMMRecStrategy(bt.Strategy):
         self.close_order = self.close()
 
     def next(self):
+        """Evaluate signal transitions and submit entries, exits, or reversals."""
         min_bars = max(self.p.length1 + self.p.length2 + 2, 20)
         if len(self.signal_data) < min_bars:
             return
@@ -369,6 +404,11 @@ class ExpX2MACandleMMRecStrategy(bt.Strategy):
             self._submit_entry('short')
 
     def notify_order(self, order):
+        """Handle lifecycle changes for entry, close, stop, and take-profit orders.
+
+        Args:
+            order: The order object currently reporting status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -397,6 +437,11 @@ class ExpX2MACandleMMRecStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update loss counters and active-side bookkeeping on closed trades.
+
+        Args:
+            trade: Closed trade event to inspect.
+        """
         if not trade.isclosed:
             return
         side = self.closing_side or self.active_side or ('long' if trade.long else 'short')
@@ -420,6 +465,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset path relative to this test module.
+
+    Args:
+        filename: Relative data filename.
+
+    Returns:
+        Resolved absolute file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -427,12 +480,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Convert ISO datetime strings while preserving optional empty values.
+
+    Args:
+        value: Datetime string or None.
+
+    Returns:
+        Parsed datetime instance or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and filter the configured market dataset.
+
+    Args:
+        config: Strategy config dictionary.
+
+    Returns:
+        Dict with loaded DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -444,6 +513,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Register standard analyzers used in post-run assertions.
+
+    Args:
+        cerebro: Target Cerebro engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -452,6 +526,15 @@ def add_default_analyzers(cerebro):
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV data to a coarser minute bucket.
+
+    Args:
+        df: Source DataFrame indexed by datetime.
+        minutes: Target minute interval.
+
+    Returns:
+        Cleaned resampled DataFrame.
+    """
     rule = f'{minutes}min'
     resampled = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last', 'spread': 'last'})
     resampled = resampled.dropna(subset=['open', 'high', 'low', 'close'])
@@ -461,6 +544,8 @@ def resample_frame(df, minutes):
 
 
 def build_cerebro(config, frame):
+    """Create and configure Cerebro with two feeds and strategy instance."""
+    
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -478,6 +563,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite or None values into ``None`` for safe prints.
+
+    Args:
+        value: Candidate float-like value.
+
+    Returns:
+        ``None`` if not finite or original value otherwise.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -486,6 +579,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print key strategy metrics for migration-era regression review."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -512,6 +606,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run backtest and print generated summary metrics."""
     parser = argparse.ArgumentParser(description='Run Exp_X2MACandle_MMRec backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

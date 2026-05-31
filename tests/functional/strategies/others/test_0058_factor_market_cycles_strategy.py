@@ -33,6 +33,16 @@ ALLOCATION = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported CSV and normalize it for Backtrader ingestion.
+
+    Args:
+        filepath: Source CSV path.
+        fromdate: Optional starting datetime filter.
+        todate: Optional ending datetime filter.
+
+    Returns:
+        Dataframe indexed by ``datetime`` with normalized OHLCV fields.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -57,6 +67,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_factor_data(asset_map):
+    """Align factor and benchmark dataframes on the same timestamp index.
+
+    Args:
+        asset_map: Mapping of symbol names to source dataframes.
+
+    Returns:
+        Dictionary of aligned OHLCV dataframes keyed by symbol.
+    """
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -68,6 +86,7 @@ def prepare_factor_data(asset_map):
 
 
 class FactorMarketCyclesStrategy(bt.Strategy):
+    """Regime-based allocation strategy for a multi-factor market basket."""
     params = dict(
         equity_sma=200,
         inflation_lookback=126,
@@ -78,6 +97,7 @@ class FactorMarketCyclesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counter and order-tracking state used by diagnostics."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -134,6 +154,7 @@ class FactorMarketCyclesStrategy(bt.Strategy):
         }
 
     def next(self):
+        """Evaluate the current market cycle and rebalance according to allocation map."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -168,11 +189,13 @@ class FactorMarketCyclesStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Clear pending order references when an order transitions out of hold."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Count completed trades and win/loss outcomes for test assertions."""
         if not trade.isclosed:
             return
         self.trade_count += 1

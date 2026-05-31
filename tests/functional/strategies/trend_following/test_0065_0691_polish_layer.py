@@ -7,6 +7,37 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("PolishLayer") is a trend-following multi-indicator breakout strategy that combines Exponential Moving Average (EMA) crossovers, Relative Strength Index (RSI), Stochastic Oscillator, Williams %R, and DeMarker indicators.
+    - Market Assumptions: Markets exhibit high momentum during trend breakouts. Dual moving average crossovers (9 EMA and 45 EMA) define trend directions, while crossovers in oscillator indicators (Stochastic, DeMarker, Williams %R) filter noise and confirm entries during momentum spikes.
+    - Indicators:
+        - MA Short: 9-period (`ma_period_short`) Exponential Moving Average (EMA).
+        - MA Long: 45-period (`ma_period_long`) Exponential Moving Average (EMA).
+        - RSI: 14-period (`ma_period_rsi`) Relative Strength Index.
+        - Stochastic: 5-period K, 3-period dFast, 3-period dSlow (`k_period_stoch`, `d_period_stoch`, `slowing_stoch`) Stochastic Oscillator.
+        - Williams %R: 14-period (`calc_period_wpr`) Williams %R.
+        - DeMarker: Custom 14-period (`ma_period_demarker`) DeMarker Indicator.
+    - Entry Signals:
+        - Trend Direction: Long trend established when 9 EMA > 45 EMA and RSI(14) > previous RSI(14). Short trend conversely.
+        - Buy Entry (Triple Oscillator Confirmation): During an active long trend, we buy if:
+            - Stochastic %K crosses up through 19.0.
+            - DeMarker crosses up through 0.35.
+            - Williams %R crosses up through -81.0.
+        - Sell Entry (Triple Oscillator Confirmation): During an active short trend, we sell if:
+            - Stochastic %K crosses down through 81.0.
+            - DeMarker crosses down through 0.63.
+            - Williams %R crosses down through -19.0.
+        - Relaxed Entry (Optional): If `relaxed_entries` is enabled, we buy/sell if Stochastic, DeMarker, and Williams %R are all sequentially rising/falling in the direction of the trend.
+    - Exit Signals:
+        - Symmetrical Stop Loss and Take Profit: Symmetrical levels are set relative to entry execution price (77 pips SL, 17 pips TP).
+        - Ensure Trade Expiry: If no trade is opened within `ensure_trade_after_bars` (100 bars), we force-submit a buy order.
 """
 from __future__ import annotations
 import math
@@ -24,7 +55,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'polish_layer',
-        'source_ea': 'ea/0691_抛光�?polish_layer.mq5',
+        'source_ea': 'ea/0691_Polish_Layer/polish_layer.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -74,15 +105,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -112,6 +161,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -124,10 +174,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DeMarker(bt.Indicator):
+    """Custom implementation of standard DeMarker Indicator.
+
+    Lines:
+        demarker: Normalized value line calculated by dividing high difference simple averages by range sums.
+    """
     lines = ('demarker',)
     params = dict(period=14)
 
     def __init__(self):
+        """Initialize indicators, compute high/low differentials, and averages over period parameter."""
         high_diff = self.data.high - self.data.high(-1)
         low_diff = self.data.low(-1) - self.data.low
         demax = bt.If(high_diff > 0, high_diff, 0.0)
@@ -139,6 +195,11 @@ class DeMarker(bt.Indicator):
 
 
 class PolishLayerStrategy(bt.Strategy):
+    """Strategy class implementing moving average crossover, RSI trend, and triple oscillator momentum breakouts.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         ma_period_short=9,
         ma_period_long=45,
@@ -158,6 +219,7 @@ class PolishLayerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicator instances, backtest tracking metrics, and state variables."""
         self.ma_short = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.ma_period_short)
         self.ma_long = bt.indicators.ExponentialMovingAverage(self.data.close, period=self.p.ma_period_long)
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.ma_period_rsi)
@@ -182,14 +244,25 @@ class PolishLayerStrategy(bt.Strategy):
         self._forced_entry_done = False
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _pip_size(self):
+        """Calculate real pip size based on price_digits configuration.
+
+        Returns:
+            float: Size of one pip.
+        """
         digits_adjust = 10 if int(self.p.price_digits) in (3, 5) else 1
         return float(self.p.point) * digits_adjust
 
     def _sync_position_state(self):
+        """Synchronize active position entry price, stop price, and take profit protective targets."""
         if not self.position:
             self._entry_price = None
             self._stop_price = None
@@ -211,6 +284,11 @@ class PolishLayerStrategy(bt.Strategy):
             self._take_profit_price = self._entry_price - take_distance if take_distance > 0 else None
 
     def _manage_risk(self):
+        """Check if active position stop loss or take profit price levels have been breached.
+
+        Returns:
+            bool: True if an exit order was placed, otherwise False.
+        """
         if not self.position:
             return False
         high = float(self.data.high[0])
@@ -236,12 +314,33 @@ class PolishLayerStrategy(bt.Strategy):
         return False
 
     def _crosses_up(self, prev_value, curr_value, level):
+        """Evaluate if line crosses up through a target boundary level.
+
+        Args:
+            prev_value (float): Last bar value.
+            curr_value (float): Active bar value.
+            level (float): Target boundary level.
+
+        Returns:
+            bool: True if cross-up occurs, otherwise False.
+        """
         return prev_value < level and curr_value >= level
 
     def _crosses_down(self, prev_value, curr_value, level):
+        """Evaluate if line crosses down through a target boundary level.
+
+        Args:
+            prev_value (float): Last bar value.
+            curr_value (float): Active bar value.
+            level (float): Target boundary level.
+
+        Returns:
+            bool: True if cross-down occurs, otherwise False.
+        """
         return prev_value > level and curr_value <= level
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         warmup = max(self.p.ma_period_long, self.p.ma_period_rsi, self.p.calc_period_wpr, self.p.ma_period_demarker, self.p.k_period_stoch + self.p.d_period_stoch + self.p.slowing_stoch) + 3
         if len(self.data) < warmup:
@@ -303,6 +402,11 @@ class PolishLayerStrategy(bt.Strategy):
             self.order = self.buy(size=self.p.lot)
 
     def notify_order(self, order):
+        """Handle order life cycle updates and trigger protective stop-loss alignments.
+
+        Args:
+            order (bt.Order): Updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -313,12 +417,19 @@ class PolishLayerStrategy(bt.Strategy):
                     self.buy_count += 1
                 elif order.executed.size < 0:
                     self.sell_count += 1
+            else:
+                self.stop_price = None; self.take_profit_price = None
         elif order.status in [bt.Order.Canceled, bt.Order.Margin, bt.Order.Rejected, bt.Order.Expired]:
             self.rejected_order_count += 1
         if self.order is not None and order.ref == self.order.ref and order.status not in [bt.Order.Submitted, bt.Order.Accepted]:
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return
@@ -348,6 +459,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -355,6 +477,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -371,6 +504,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -398,6 +540,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -437,8 +590,25 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
+def print_report(metrics):
+    """Print the backtest metrics report.
+
+    Args:
+        metrics (dict): Performance metrics.
+    """
+    for k, v in metrics.items():
+        print(f'{k}: {v}')
+
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -446,6 +616,7 @@ def run(plot=False):
     results = cerebro.run()
     strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config)
+    print_report(metrics)
 
     if plot:
         cerebro.plot()
@@ -453,7 +624,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -462,8 +640,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

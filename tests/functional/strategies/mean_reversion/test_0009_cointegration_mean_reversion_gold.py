@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (Gold) daily data from 2008-01-01 to 2025-12-31.
+    Derived features: spread, rolling mean and std, z-score, entry/exit signals.
+
+Strategy Principle:
+    A mean-reversion strategy that assumes extreme deviations of a synthetic
+    spread (close-minus-rolling-mean) revert to zero, so it buys after large
+    negative z-score moves and exits when spread reverts near equilibrium.
+
+Strategy Logic:
+    __init__: Track bars, counters, order state, entry bar, and broker value
+        series for ulcer-index calculation.
+    next(): Enter on entry signal, exit when z-score reverts or holding period
+        limit is reached.
+    notify_order(): Reset order guard when an order is no longer pending.
+    notify_trade(): Update win/loss counts for each closed trade.
+    test_9_0009_cointegration_mean_reversion_gold(): Execute the backtest and assert
+        all configured expectation fields.
 """
 from __future__ import annotations
 import math
@@ -76,6 +95,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,23 +122,23 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_cointegration_mean_reversion_features(df, params):
-    """准备协整均值回归策略特征"""
+    """Prepare spread-based features for the cointegration strategy."""
     out = df.copy()
     lookback = int(params.get('lookback', 100))
     zscore_threshold = float(params.get('zscore_threshold', 2.0))
     
-    # 计算滚动均值和标准差（模拟协整价差的均值回归）
+    # Compute rolling spread mean and standard deviation.
     out['spread'] = out['close'] - out['close'].rolling(window=lookback).mean()
     out['spread_mean'] = out['spread'].rolling(window=lookback).mean()
     out['spread_std'] = out['spread'].rolling(window=lookback).std()
     
-    # 计算Z-score
+    # Derive z-score from rolling spread statistics.
     out['zscore'] = (out['spread'] - out['spread_mean']) / out['spread_std']
     
-    # 入场信号：Z-score低于负阈值（超卖）
+    # Generate entry on oversold spread conditions.
     out['entry_signal'] = (out['zscore'] < -zscore_threshold).astype(float)
     
-    # 出场信号：Z-score回归到零附近
+    # Exit when spread reverts toward zero.
     out['exit_signal'] = (abs(out['zscore']) < 0.5).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -127,6 +147,7 @@ def prepare_cointegration_mean_reversion_features(df, params):
 
 
 class Mt5CointegrationMeanReversionGoldFeed(bt.feeds.PandasData):
+    """Backtrader data feed exposing cointegration spread feature lines."""
     lines = ('zscore', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -136,6 +157,7 @@ class Mt5CointegrationMeanReversionGoldFeed(bt.feeds.PandasData):
 
 
 class CointegrationMeanReversionGoldStrategy(bt.Strategy):
+    """Cointegration mean-reversion strategy for gold with z-score signals."""
     params = dict(
         lookback=100,
         zscore_threshold=2.0,
@@ -144,6 +166,7 @@ class CointegrationMeanReversionGoldStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, order state, and broker value tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -170,6 +193,7 @@ class CointegrationMeanReversionGoldStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar and apply entry/exit logic with holding-day timeout."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -179,7 +203,7 @@ class CointegrationMeanReversionGoldStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -187,18 +211,20 @@ class CointegrationMeanReversionGoldStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position.
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear the pending-order guard when order reaches terminal status."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increment trade-level win/loss counters after closure."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -210,7 +236,7 @@ class CointegrationMeanReversionGoldStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Cointegration Mean Reversion Gold 策略回测"""
+"""Cointegration Mean Reversion Gold strategy backtest."""
 
 
 
@@ -220,6 +246,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build Sharpe analyzer kwargs based on configured timeframe.
+
+    Args:
+        config: Strategy configuration including the data timeframe.
+
+    Returns:
+        Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -232,10 +266,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return a finite analyzer metric, otherwise ``None``.
+
+    Args:
+        x: Metric candidate.
+
+    Returns:
+        ``x`` when finite and non-falsy; ``None`` for missing/non-finite values.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate ulcer index from a broker value history.
+
+    Args:
+        values: Sequence of broker account values.
+
+    Returns:
+        Ulcer index as a float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -250,6 +300,7 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load market data and build strategy features."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -263,6 +314,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure ``bt.Cerebro`` for regression execution.
+
+    Args:
+        frame: Prepared input payload.
+        config: Strategy and backtest configuration.
+
+    Returns:
+        Configured Cerebro engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -285,6 +345,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract metrics and counters used in migration assertions.
+
+    Args:
+        strat: Strategy instance from ``cerebro.run``.
+        cerebro: Executing Cerebro object.
+        frame: Prepared input payload.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Dictionary of assertion metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -319,6 +390,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize values for output-compatible serialization.
+
+    Args:
+        v: Value to serialize.
+
+    Returns:
+        ISO string for datetime values, ``None`` for non-finite floats,
+        otherwise original value.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

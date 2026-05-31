@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol: XAUUSD from ``tests/datas/XAUUSD_M15.csv``.
+    Multi-timeframe data is derived from M15 base bars and resampled to H1, D1.
+    Backtest window: ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    Base bars are shifted by 15 minutes to align to close timestamps.
+
+Strategy Principle:
+    FX Chaos Scalp uses a fractal breakout setup filtered by AO momentum and
+    multi-timeframe extremes.
+    A long/short is opened on momentum-aligned breakout conditions and managed
+    with point-based stop-loss and take-profit levels.
+
+Strategy Logic:
+    ``load_mt5_csv`` loads and normalizes source MT5 data, ``resample_frame``
+    builds H1 and D1 feeds, and ``build_cerebro`` wires three feeds into strategy.
+    ``next`` computes signal conditions from AO, fractal pivots, and entry candles,
+    while ``notify_order``/``notify_trade`` control order lifecycle and counters.
+    The regression test captures summary/analyzer metrics and validates them against
+    baseline baselines.
 """
 from __future__ import annotations
 import math
@@ -80,6 +100,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 tab file into a normalized Backtrader dataframe.
+
+    Args:
+        filepath: Path to the MT5-exported TSV data file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV (+spread) columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -111,6 +142,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData with an extra spread line from MT5 exports."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -125,6 +157,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FxChaosScalpStrategy(bt.Strategy):
+    """Fractal and AO-filtered chaos scalp strategy across M15/H1/D1 feeds.
+
+    Collects fractal pivot points and AO direction from higher timeframes, then
+    issues market entries with fixed stop-loss/take-profit distances and tracks
+    wins/losses through notifier callbacks.
+    """
     params = dict(
         lot=0.10,
         stop_loss_pips=50,
@@ -136,6 +174,7 @@ class FxChaosScalpStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize all data references, indicators, and trade state counters."""
         self.base_feed = self.datas[0]
         self.h1_feed = self.datas[1]
         self.d1_feed = self.datas[2]
@@ -156,10 +195,16 @@ class FxChaosScalpStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print a timestamped message for debugging/backtest traceability.
+
+        Args:
+            text: Text to emit with current bar timestamp.
+        """
         dt = bt.num2date(self.base_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Process one new base bar: calculate signals and manage entry/exit flow."""
         dt = bt.num2date(self.base_feed.datetime[0])
         if self.last_base_dt == dt:
             return
@@ -197,6 +242,7 @@ class FxChaosScalpStrategy(bt.Strategy):
             self.log(f'OPEN SHORT close={close_0:.5f} h1_low_1={low1:.5f} zz_h1={zzf_h1:.5f} zz_d1={zzf_d1:.5f} ao={ao_h1:.5f}')
 
     def notify_order(self, order):
+        """Update counters and pending state as orders complete, fail or cancel."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -219,6 +265,7 @@ class FxChaosScalpStrategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Update trade result counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -319,6 +366,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve file path under current test directory and validate existence.
+
+    Args:
+        filename: Path-like string from config.
+
+    Returns:
+        Absolute path object.
+
+    Raises:
+        FileNotFoundError: If file cannot be found.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -326,12 +384,29 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO8601 datetime string from config.
+
+    Args:
+        value: Datetime string or ``None``.
+
+    Returns:
+        Parsed datetime object, or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV frame to the requested minute interval.
+
+    Args:
+        df: Input dataframe with datetime index.
+        minutes: Resample period in minutes.
+
+    Returns:
+        Resampled dataframe with OHLCV (+spread) filled.
+    """
     rule = f'{minutes}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -349,6 +424,17 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config):
+    """Load base data and precomputed multi-timeframe feeds for backtest.
+
+    Args:
+        config: Strategy configuration containing ``data`` section.
+
+    Returns:
+        Dict with ``base``, ``h1`` and ``d1`` dataframes.
+
+    Raises:
+        ValueError: If the base dataframe is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -369,6 +455,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used in regression assertions.
+
+    Args:
+        cerebro: Cerebro instance to attach analyzers to.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -377,6 +468,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with three timeframe feeds and the target strategy.
+
+    Args:
+        config: Strategy/backtest configuration.
+        frame: Dict containing base/h1/d1 frames.
+
+    Returns:
+        Ready-to-run Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -401,6 +501,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert non-finite numeric values to ``None``.
+
+    Args:
+        value: Number-like value.
+
+    Returns:
+        Original value if finite, else None.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -409,6 +517,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Summarize analyzer outputs and print key metrics.
+
+    Args:
+        results: Result list returned by ``cerebro.run``.
+        start_value: Starting portfolio value before execution.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -437,6 +551,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entrypoint: run strategy and optionally render candlestick plot."""
     parser = argparse.ArgumentParser(description='Run FX-CHAOS_SCALP backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

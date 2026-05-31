@@ -89,6 +89,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted tabular data into a backtrader-ready OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -116,12 +117,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapping MT5 CSV columns to Backtrader OHLCV fields."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ExpBuySellSideStrategy(bt.Strategy):
+    """Buy/sell-side breakout strategy with optional trailing stops and reverse closes."""
     params = dict(
         risk_percentage=0.10,
         tp_vs_sl_ratio=3.0,
@@ -143,6 +146,7 @@ class ExpBuySellSideStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build indicators, sizing helpers, and lifecycle counters."""
         self.base = self.datas[0]
         self.h1 = self.datas[1]
 
@@ -373,6 +377,7 @@ class ExpBuySellSideStrategy(bt.Strategy):
             self.order = self.sell(size=lots)
 
     def next(self):
+        """Evaluate reversal logic and emit entries/exits on H1 signal flips."""
         self.bar_num += 1
         self._manage_position()
         self._close_profitable_on_step_flip()
@@ -404,6 +409,7 @@ class ExpBuySellSideStrategy(bt.Strategy):
             self._open_side('sell')
 
     def notify_order(self, order):
+        """Track order completions/failures and clear pending reverse signals."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -428,6 +434,7 @@ class ExpBuySellSideStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome counters when a position closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -452,6 +459,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a file path relative to the test module directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -459,6 +467,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest OHLCV frame using config date windows."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -475,6 +484,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure cerebro with feed, strategy, and analyzer stack."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -511,6 +521,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble regression metrics from analyzers and strategy state."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

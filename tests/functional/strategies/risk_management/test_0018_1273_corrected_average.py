@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with each bar timestamp shifted forward by 15 minutes. The backtest
+    window spans 2025-12-03 01:15 to 2026-03-10 09:00. Indicators are computed
+    on the single 15-minute feed.
+
+Strategy Principle:
+    This is a port of the Exp_CorrectedAverage MetaTrader expert advisor. The
+    Corrected Average is an adaptive moving average that only follows the base
+    MA when price deviation exceeds its own variance (an Ehlers-style noise
+    filter), staying flat otherwise. The strategy treats price crossing a band
+    around the corrected average (offset by ``level`` points) as a reversion
+    signal: crossing back toward the average from above opens a long, from below
+    opens a short, and the opposite crossing closes or reverses the position.
+
+Strategy Logic:
+    1. ``CorrectedAverageIndicator`` computes the adaptive corrected average from
+       the chosen applied price and a rolling standard deviation, in both event
+       (``next``) and vectorized (``once``) modes.
+    2. ``load_backtest_frame`` loads the data; ``build_cerebro`` wires the feed,
+       broker, strategy, and analyzers.
+    3. ``CorrectedAverageStrategy._signals`` detects band crossings and ``next``
+       opens, closes, or reverses positions accordingly after a warmup period.
+    4. ``notify_trade`` counts opened and closed trades into win/loss tallies.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_18_0018_1273_corrected_average`` forces ``runonce=True``, captures
+       the metrics dict via an ``extract_metrics`` hook, and asserts each value
+       against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -78,6 +108,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,6 +140,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column layout."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -106,6 +149,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Return the backtrader moving-average class for a method name.
+
+    Args:
+        name: MA method name (sma, ema, smma, or a weighted fallback).
+
+    Returns:
+        The corresponding backtrader moving-average indicator class.
+    """
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SimpleMovingAverage
@@ -117,6 +168,16 @@ def resolve_ma_class(name):
 
 
 def resolve_price_line(data, mode):
+    """Return the price line selected by an MT5 applied-price mode.
+
+    Args:
+        data: The data feed providing OHLC lines.
+        mode: Applied-price mode name (e.g. ``price_close``, ``price_median``).
+
+    Returns:
+        The line or line expression for the requested applied price; defaults
+        to the close line for unrecognized modes.
+    """
     price_mode = str(mode).lower()
     if price_mode in {'price_open', 'open'}:
         return data.open
@@ -134,16 +195,20 @@ def resolve_price_line(data, mode):
 
 
 class CorrectedAverageIndicator(bt.Indicator):
+    """Ehlers-style adaptive Corrected Average with event and vectorized modes."""
+
     lines = ('corrected',)
     params = dict(ma_method='sma', length=12, applied_price='price_close')
 
     def __init__(self):
+        """Build the base MA and standard deviation and set the min period."""
         price_line = resolve_price_line(self.data, self.p.applied_price)
         self._ma = resolve_ma_class(self.p.ma_method)(price_line, period=self.p.length)
         self._std = bt.indicators.StandardDeviation(price_line, period=self.p.length)
         self.addminperiod(int(self.p.length) + 3)
 
     def next(self):
+        """Compute the corrected average for the current bar."""
         ma = float(self._ma[0])
         std = float(self._std[0])
         prev = float(self.lines.corrected[-1]) if len(self) > 0 else ma
@@ -158,6 +223,12 @@ class CorrectedAverageIndicator(bt.Indicator):
         self.lines.corrected[0] = prev + k * (ma - prev)
 
     def once(self, start, end):
+        """Vectorized corrected-average computation over the array index range.
+
+        Args:
+            start: Start index (inclusive) of the range to compute.
+            end: End index (exclusive) of the range to compute.
+        """
         ma_array = self._ma.array
         std_array = self._std.array
         corrected_line = self.lines.corrected.array
@@ -182,6 +253,12 @@ class CorrectedAverageIndicator(bt.Indicator):
 
 
 class CorrectedAverageStrategy(bt.Strategy):
+    """Corrected-average band reversion strategy ported from the EA.
+
+    Opens, closes, or reverses positions on price crossings of a level-offset
+    band around the adaptive corrected average.
+    """
+
     params = dict(
         ma_method='sma',
         length=12,
@@ -192,6 +269,7 @@ class CorrectedAverageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Instantiate the corrected-average indicator and reset counters."""
         self.indicator = CorrectedAverageIndicator(
             self.data,
             ma_method=self.p.ma_method,
@@ -208,10 +286,20 @@ class CorrectedAverageStrategy(bt.Strategy):
         self._level = float(self.p.level) * 0.01
 
     def log(self, text):
+        """Print a log message prefixed with the current bar timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _signals(self):
+        """Detect band-crossing buy/sell open/close signals.
+
+        Returns:
+            Tuple of (buy_open, sell_open, buy_close, sell_close) booleans.
+        """
         shift = max(1, int(self.p.signal_bar))
         close_prev = float(self.data.close[-shift])
         close_cur = float(self.data.close[-shift + 1]) if shift > 1 else float(self.data.close[0])
@@ -232,6 +320,7 @@ class CorrectedAverageStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse positions on corrected-average band crossings."""
         self.bar_num += 1
         warmup = int(self.p.length) + int(self.p.signal_bar) + 10
         if len(self.data) < warmup:
@@ -270,6 +359,11 @@ class CorrectedAverageStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Tally opened and closed trades into win/loss counts.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -302,6 +396,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename against this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute ``Path`` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -309,6 +414,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter the market data frame described by the config.
+
+    Args:
+        config: Resolved configuration dict with a ``data`` section.
+
+    Returns:
+        Dict with ``data``, ``fromdate``, and ``todate`` keys.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -325,6 +441,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a cerebro with broker, data feed, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dict.
+        frame: Dict containing the loaded ``data`` DataFrame.
+
+    Returns:
+        The configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -348,6 +473,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect strategy counters and analyzer output into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The cerebro instance after the run.
+        frame: Dict with the loaded ``data`` frame and date bounds.
+        config: Resolved configuration dict.
+
+    Returns:
+        Dict of backtest metrics keyed by metric name.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -388,6 +524,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest end to end and optionally plot the result.
+
+    Args:
+        plot: Whether to render the chart after the run.
+
+    Returns:
+        Tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

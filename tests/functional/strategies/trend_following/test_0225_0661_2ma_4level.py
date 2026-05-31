@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each bar timestamp is shifted forward by 15 minutes, and
+    the M15 frame is fed to Cerebro at a 60-minute (H1) compression so the
+    strategy effectively trades on hourly bars.
+
+Strategy Principle:
+    This is the "2MA_4Level" strategy (MT5 2MA_4Level EA). It runs two smoothed
+    moving averages (fast 50, slow 130) over the median price and looks for the
+    fast MA crossing the slow MA not just at parity but also at four configurable
+    offset levels above and below it (most-top/top/lower/lowermost). A bullish
+    cross at any level triggers a long, a bearish cross a short. Risk is a fixed
+    point-based stop loss and take profit.
+
+Strategy Logic:
+    load_backtest_frame loads and date-filters the frame; build_cerebro adds the
+    feed at H1 compression, configures a fixed-commission futures broker, the
+    strategy with its two SMMAs, and the analyzers. Each bar the strategy waits
+    for MA warm-up, skips while an order is pending, then either manages the open
+    position (stop/take-profit touch) or evaluates the multi-level cross signal
+    to open a long/short and set the risk prices. notify_order tracks
+    completed/rejected orders and buy/sell counts and clears the working order,
+    while notify_trade tallies wins and losses. extract_metrics consolidates
+    analyzer output, and the test forces runonce=True, runs the module's run(),
+    and asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -83,6 +110,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -110,12 +150,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class TwoMAFourLevelStrategy(bt.Strategy):
+    """Trade fast/slow SMMA crossovers at four offset levels with fixed risk."""
+
     params = dict(
         take_profit=55,
         stop_loss=260,
@@ -134,6 +178,7 @@ class TwoMAFourLevelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the fast/slow SMMAs on median price and reset state."""
         median = (self.data.high + self.data.low) / 2.0
         self.ma_fast = bt.indicators.SmoothedMovingAverage(median, period=self.p.ma_period_fast)
         self.ma_slow = bt.indicators.SmoothedMovingAverage(median, period=self.p.ma_period_slow)
@@ -215,6 +260,11 @@ class TwoMAFourLevelStrategy(bt.Strategy):
                 return
 
     def next(self):
+        """Advance one bar: manage open positions, evaluate signals, and submit orders.
+
+        Args:
+            self: Strategy instance (bound by Backtrader at runtime).
+        """
         self.bar_num += 1
         if len(self) < self.p.ma_period_slow + 2:
             return
@@ -236,6 +286,11 @@ class TwoMAFourLevelStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Update internal counters and state transitions when order status changes.
+
+        Args:
+            order: Backtrader order object whose status transitioned.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -254,6 +309,7 @@ class TwoMAFourLevelStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades and classify win/loss outcomes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -278,6 +334,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a strategy data path relative to the test module directory.
+
+    Args:
+        filename: Data file path as declared in ``_CONFIG['data']['file']``.
+
+    Returns:
+        Path: Absolute path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -285,6 +352,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and filter the MT5 frame for the configured backtest period.
+
+    Args:
+        config: Inline configuration dictionary built by ``load_config()``.
+
+    Returns:
+        dict: A dict containing the OHLCV DataFrame and resolved ``fromdate``/
+            ``todate`` boundaries.
+
+    Raises:
+        ValueError: If the filtered dataset is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -301,6 +380,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure a Backtrader Cerebro instance for this strategy.
+
+    Args:
+        config: Strategy/backtest configuration dictionary.
+        frame: Prepared backtest frame payload from ``load_backtest_frame``.
+
+    Returns:
+        bt.Cerebro: A configured engine with data feed, strategy, and analyzers.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -329,6 +417,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate performance metrics used by migration assertions.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Backtrader engine instance after ``cerebro.run``.
+        frame: Backtest payload containing frame and bounds.
+        config: Strategy/backtest configuration dictionary.
+
+    Returns:
+        dict: A dictionary of numeric and categorical metrics for assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -370,6 +469,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run a full backtest and return raw results, metrics, and engine.
+
+    Args:
+        plot: Whether to render cerebro plots after the run.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)`` from the strategy run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

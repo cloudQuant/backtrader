@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Four daily (D1) tradable feeds exported from MT5 under
+    ``tests/datas/mt5_1d_data/``: GLD (gold), GDX (gold miners), XAGUSD
+    (silver), and IEF (Treasuries), plus an IVV (US equity) factor proxy. The
+    series cover 2018-01-01 to 2025-12-31 and are aligned on common dates; IVV
+    drives the alpha regression but is not traded.
+
+Strategy Principle:
+    A port of the "Alpha Momentum" strategy. For each asset it runs a rolling
+    regression of the asset's returns on the equity-market factor (IVV) and
+    keeps the regression intercept (alpha). The trailing sum of daily alpha is
+    the alpha-momentum score. Once per rebalance window the strategy goes long
+    the highest-alpha asset(s) and short the lowest, capturing cross-sectional
+    market-neutral momentum at a fixed gross exposure.
+
+Strategy Logic:
+    prepare_alpha_momentum_inputs aligns the feeds, computes each asset's rolling
+    alpha and its momentum, and precomputes per-date long/short target weights
+    (with a signal delay) and a rebalance flag stored on a signal feed.
+    build_cerebro adds the signal feed plus the four asset feeds. Each bar the
+    strategy records broker value and, when the target weights change, issues
+    order_target_percent orders per asset (counting rebalances). notify_order
+    clears settled orders and notify_trade tallies win/loss. extract_metrics
+    consolidates analyzer output plus an Ulcer Index (falling back to the
+    rebalance count when no trades closed); the test hooks the metric extractor,
+    forces runonce=True via main(), and asserts each metric against
+    migration-time values.
 """
 from __future__ import annotations
 import math
@@ -84,6 +112,17 @@ FACTOR_ORDER = ['IVV']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -135,6 +174,23 @@ def _rolling_alpha(asset_returns, factor_returns, lookback_window):
 
 
 def prepare_alpha_momentum_inputs(asset_frames, factor_frames, params):
+    """Align feeds, compute rolling alpha momentum, and build target weights.
+
+    Aligns the asset and factor feeds, computes each asset's rolling regression
+    alpha against the factor and the trailing sum (alpha momentum), then on each
+    rebalance date (with a signal delay) assigns long weights to the highest-
+    alpha assets and short weights to the lowest.
+
+    Args:
+        asset_frames: Mapping of tradable asset name to its OHLCV DataFrame.
+        factor_frames: Mapping of factor proxy name to its OHLCV DataFrame.
+        params: Strategy parameters supplying the lookback window, rebalance and
+            signal-delay days, gross exposure, and selection count.
+
+    Returns:
+        A dict with ``signal_df`` (the alpha-momentum and target columns plus
+        rebalance/signal-change flags) and the aligned ``asset_frames``.
+    """
     common_index = None
     for frame in list(asset_frames.values()) + list(factor_frames.values()):
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -204,6 +260,8 @@ def prepare_alpha_momentum_inputs(asset_frames, factor_frames, params):
 
 
 class AlphaMomentumFeed(bt.feeds.PandasData):
+    """PandasData feed exposing per-asset alpha-momentum, target, and flag lines."""
+
     lines = (
         'gld_alpha_mom', 'gdx_alpha_mom', 'xagusd_alpha_mom', 'ief_alpha_mom',
         'gld_target', 'gdx_target', 'xagusd_target', 'ief_target',
@@ -218,6 +276,13 @@ class AlphaMomentumFeed(bt.feeds.PandasData):
 
 
 class AlphaMomentumStrategyBT(bt.Strategy):
+    """Long high-alpha and short low-alpha assets, rebalancing on signal changes.
+
+    Reads the precomputed per-asset target weights from the signal feed and, when
+    they change, issues order_target_percent orders across the asset feeds while
+    tracking rebalance and win/loss counts.
+    """
+
     params = dict(
         lookback_window=252,
         rebalance_days=21,
@@ -228,6 +293,7 @@ class AlphaMomentumStrategyBT(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset order state and counters."""
         self.signal_data = self.datas[0]
         self.asset_data = {data._name: data for data in self.datas[1:]}
         self.pending_orders = []
@@ -239,6 +305,13 @@ class AlphaMomentumStrategyBT(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Rebalance across the assets toward target weights on signal changes.
+
+        Increments the bar counter, records broker value, and skips while orders
+        are pending or the target weights are unchanged. On a change it counts a
+        rebalance and issues order_target_percent orders for each asset toward
+        its precomputed target weight.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal_data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_orders:
@@ -258,11 +331,23 @@ class AlphaMomentumStrategyBT(bt.Strategy):
                 self.pending_orders.append(order)
 
     def notify_order(self, order):
+        """Drop completed orders from the pending list once they settle.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears it from the pending
+                list.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [pending for pending in self.pending_orders if pending.ref != order.ref]
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -278,10 +363,27 @@ class AlphaMomentumStrategyBT(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is a finite number, otherwise None.
+
+    Args:
+        value: The numeric value to validate.
+
+    Returns:
+        The original value when finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -295,6 +397,16 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load the tradable and factor feeds and prepare the alpha-momentum inputs.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the asset
+            and factor proxy file paths and inclusive date bounds.
+
+    Returns:
+        A dict with the prepared ``inputs`` (signal frame and asset frames) and
+        the effective ``fromdate`` and ``todate``.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -311,6 +423,16 @@ def load_inputs(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the Cerebro engine with the signal and asset feeds and analyzers.
+
+    Args:
+        frame: The loaded frame dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing cash, commission, and strategy
+            parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -329,6 +451,22 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, the rebalance count, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and rebalance/trade counts) used by
+        the assertions; total trades falls back to the rebalance count when no
+        trades closed.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -369,6 +507,15 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(value):
+    """Convert datetimes and non-finite floats into JSON-safe values.
+
+    Args:
+        value: The value to normalize.
+
+    Returns:
+        An ISO-format string for datetimes, None for NaN/inf floats, and the
+        value unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -380,6 +527,11 @@ def normalize(value):
 
 
 def main():
+    """Run the alpha-momentum backtest end to end.
+
+    Loads the config and inputs, builds the engine, runs the backtest, and
+    extracts the metrics (used by the test harness via its hooks).
+    """
     config = load_config()
     frame = load_inputs(config)
     cerebro = build_cerebro(frame, config)

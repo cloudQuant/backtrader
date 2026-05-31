@@ -7,6 +7,22 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Multi-asset daily data from MT5 files under ``tests/datas/mt5_1d_data/``:
+    GLD, GDX, XAGUSD, and IEF from 2008-01-01 to 2025-12-31. A synthetic
+    signal dataframe aligns all assets on a weekly rebalance calendar.
+
+Strategy Principle:
+    The strategy rotates long and short exposures across a small universe based on
+    weekly return ranking while managing gross exposure with rebalance delay and
+    optional cross-asset selection constraints.
+
+Strategy Logic:
+    Data loaders align asset calendars and compute weekly return ranks. On rebalance
+    days, target weights are set and propagated via ``signal_change`` flags. The
+    strategy submits target-percent orders for each asset and tracks rebalance and
+    trade outcomes with analyzers.
 """
 from __future__ import annotations
 import math
@@ -80,6 +96,16 @@ ASSET_ORDER = ['GLD', 'GDX', 'XAGUSD', 'IEF']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and normalize into OHLCV datetime index.
+
+    Args:
+        filepath: Input data file path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+
+    Returns:
+        Parsed OHLCV dataframe sorted by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -110,6 +136,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_cross_market_mr_inputs(asset_frames, params):
+    """Build synchronized cross-market signal data with target exposures.
+
+    Args:
+        asset_frames: Mapping of asset names to OHLCV dataframes.
+        params: Strategy params including lookback, rebalancing, and exposure caps.
+
+    Returns:
+        Dict containing aligned signal dataframe and aligned asset frames.
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -173,6 +208,7 @@ def prepare_cross_market_mr_inputs(asset_frames, params):
 
 
 class CrossMarketMRFeed(bt.feeds.PandasData):
+    """Pandas feed exposing weekly returns and cross-market target lines."""
     lines = (
         'gld_weekly_return', 'gdx_weekly_return', 'xagusd_weekly_return', 'ief_weekly_return',
         'gld_target', 'gdx_target', 'xagusd_target', 'ief_target',
@@ -187,6 +223,7 @@ class CrossMarketMRFeed(bt.feeds.PandasData):
 
 
 class MeanReversionAcrossMarketsStrategy(bt.Strategy):
+    """Cross-market mean-reversion rebalancer operating on target signals."""
     params = dict(
         weekly_lookback=5,
         signal_delay_days=1,
@@ -197,6 +234,7 @@ class MeanReversionAcrossMarketsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize internal data references and counters."""
         self.signal_data = self.datas[0]
         self.asset_data = {data._name: data for data in self.datas[1:]}
         self.pending_orders = []
@@ -208,6 +246,7 @@ class MeanReversionAcrossMarketsStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Rebalance portfolios when a new target signal is emitted."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal_data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_orders:
@@ -227,11 +266,13 @@ class MeanReversionAcrossMarketsStrategy(bt.Strategy):
                 self.pending_orders.append(order)
 
     def notify_order(self, order):
+        """Remove finalized orders from pending list."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [pending for pending in self.pending_orders if pending.ref != order.ref]
 
     def notify_trade(self, trade):
+        """Record closed-trade win/loss result."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -247,10 +288,19 @@ class MeanReversionAcrossMarketsStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return finite scalar values, else ``None``."""
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from equity trajectory.
+
+    Args:
+        values: Equity values ordered in time.
+
+    Returns:
+        Ulcer index float.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -264,6 +314,14 @@ def calculate_ulcer_index(values):
 
 
 def load_inputs(config):
+    """Load all asset data and build synchronized cross-market inputs.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Input payload for backtest execution.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -276,6 +334,15 @@ def load_inputs(config):
 
 
 def build_cerebro(frame, config):
+    """Build Cerebro with signal feed, per-asset feeds, and analyzers.
+
+    Args:
+        frame: Prepared payload with inputs.
+        config: Strategy/backtest configuration.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -294,6 +361,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract strategy metrics for regression assertions.
+
+    Args:
+        strat: Strategy instance after run.
+        cerebro: Cerebro engine.
+        frame: Input payload.
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of KPIs used in this regression test.
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -334,6 +412,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(value):
+    """Normalize output values for serializer compatibility.
+
+    Args:
+        value: Raw value to normalize.
+
+    Returns:
+        JSON-safe representation.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` execution bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` via the MetaTrader-5 style tab-separated CSV
+    reader, with each bar timestamp shifted forward by 15 minutes. A second feed
+    is resampled to 480-minute (``signal_tf_minutes``) bars on which the
+    DigVariation oscillator is computed. The backtest window spans
+    2025-12-03 01:15 to 2026-03-10 09:00.
+
+Strategy Principle:
+    This is a port of the Exp_DigVariation MetaTrader expert advisor. The
+    DigVariation oscillator removes a moving average and its own variation from
+    price, then applies a digital low-pass smoothing filter (``apply_sp`` with
+    precomputed coefficients). Turning points of the smoothed oscillator on the
+    higher timeframe generate signals: an up-turn from a falling state is a buy,
+    a down-turn from a rising state is a sell. Orders execute on the M15 feed
+    with fixed point-based stop-loss and take-profit levels.
+
+Strategy Logic:
+    1. ``load_backtest_frames`` reads the MT5 CSV, resamples to the signal
+       timeframe, and ``compute_dig_variation`` builds the oscillator and
+       buy/sell signal lines.
+    2. ``build_cerebro`` wires the M15 and H8 feeds, broker, strategy, and
+       analyzers.
+    3. ``DigVariationStrategy.next`` manages stop/target risk first, then on each
+       new signal bar opens, closes, or reverses positions from the signals.
+    4. ``notify_order`` tracks fills and order counts; ``notify_trade`` tallies
+       win/loss counts.
+    5. ``extract_metrics`` collects analyzer output, and
+       ``test_275_0274_1012_dig_variation`` forces ``runonce=True``, captures the
+       metrics dict via an ``extract_metrics`` hook, and asserts each value
+       against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -137,6 +169,17 @@ SP_COEFFICIENTS = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MetaTrader-5 tab-separated CSV bars into a sorted DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export CSV file.
+        fromdate: Optional lower datetime bound (inclusive) for filtering.
+        todate: Optional upper datetime bound (inclusive) for filtering.
+        bar_shift_minutes: Minutes to add to each bar timestamp.
+
+    Returns:
+        pandas.DataFrame indexed by datetime with OHLCV and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -162,6 +205,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample bars to the given pandas offset rule with OHLCV aggregation.
+
+    Args:
+        df: Base DataFrame indexed by datetime.
+        rule: Pandas resample rule string (e.g. ``480min``).
+
+    Returns:
+        Resampled pandas.DataFrame with empty buckets dropped.
+    """
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -176,6 +228,16 @@ def resample_frame(df, rule):
 
 
 def apply_ma(series, period, method):
+    """Apply a moving average of the requested method to a series.
+
+    Args:
+        series: Input pandas.Series.
+        period: Moving-average lookback length.
+        method: MA method name (sma, ema, smma, or a weighted fallback).
+
+    Returns:
+        pandas.Series of the smoothed values.
+    """
     period = max(1, int(period))
     mode = str(method).lower()
     if mode in ('mode_sma', 'sma', '0'):
@@ -190,6 +252,15 @@ def apply_ma(series, period, method):
 
 
 def apply_sp(series, smooth_power):
+    """Apply the digital smoothing filter using precomputed SP coefficients.
+
+    Args:
+        series: Input pandas.Series to smooth.
+        smooth_power: Smoothing power key selecting the coefficient set.
+
+    Returns:
+        pandas.Series of the filtered values (NaN until the window fills).
+    """
     coeffs = SP_COEFFICIENTS.get(int(smooth_power), SP_COEFFICIENTS[1])
     window = len(coeffs)
     values = series.to_numpy(dtype='float64')
@@ -203,6 +274,18 @@ def apply_sp(series, smooth_power):
 
 
 def compute_dig_variation(frame, period_=12, ma_method='mode_sma', smooth_power=1):
+    """Compute the DigVariation oscillator and buy/sell signal columns.
+
+    Args:
+        frame: DataFrame providing a ``close`` column.
+        period_: Moving-average lookback length.
+        ma_method: MA method name passed to ``apply_ma``.
+        smooth_power: Smoothing power key passed to ``apply_sp``.
+
+    Returns:
+        Copy of ``frame`` with ``variation``, ``buy_signal``, and ``sell_signal``
+        columns, dropping rows without a variation value.
+    """
     price = frame['close'].astype(float)
     ma = apply_ma(price, period_, ma_method)
     vr = apply_ma(price - ma, period_, ma_method)
@@ -220,6 +303,8 @@ def compute_dig_variation(frame, period_=12, ma_method='mode_sma', smooth_power=
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column layout."""
+
     params = (
         ('datetime', None),
         ('open', 0),
@@ -232,6 +317,8 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DigVariationFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the DigVariation oscillator and signal lines."""
+
     lines = ('variation', 'buy_signal', 'sell_signal')
     params = (
         ('datetime', None),
@@ -248,6 +335,12 @@ class DigVariationFeed(bt.feeds.PandasData):
 
 
 class DigVariationStrategy(bt.Strategy):
+    """DigVariation oscillator strategy ported from the Exp_DigVariation EA.
+
+    Trades higher-timeframe oscillator turning points on the M15 feed with
+    fixed point-based stop-loss and take-profit risk management.
+    """
+
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -269,6 +362,7 @@ class DigVariationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the M15 and signal feeds and reset order/state counters."""
         self.m15 = self.datas[0]
         self.h8 = self.datas[1]
         self.variation = self.h8.variation
@@ -292,6 +386,11 @@ class DigVariationStrategy(bt.Strategy):
         self.last_signal_dt = None
 
     def log(self, text):
+        """Print a log message prefixed with the current M15 timestamp.
+
+        Args:
+            text: Message to log.
+        """
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -345,6 +444,7 @@ class DigVariationStrategy(bt.Strategy):
             self.take_profit_price = round(price - self.p.take_profit * unit, self.p.price_digits) if self.p.take_profit > 0 else None
 
     def next(self):
+        """Manage risk, then act on new higher-timeframe oscillator signals."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -394,6 +494,11 @@ class DigVariationStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track fill direction and completed/rejected order counts.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -412,6 +517,11 @@ class DigVariationStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Tally closed-trade win/loss counts.
+
+        Args:
+            trade: The trade whose status changed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -436,6 +546,16 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """
+    Resolve a configured data path relative to the test module directory.
+
+    Args:
+        filename: Filename from strategy configuration.
+
+    Returns:
+        Absolute path to the data file.
+
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -443,6 +563,16 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """
+    Load and slice MT5 bars, then build signal bars with DigVariation feature.
+
+    Args:
+        config: Strategy configuration dict.
+
+    Returns:
+        Backtest frame bundle with base and H8 signal data.
+
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -457,6 +587,17 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """
+    Create a configured Cerebro with broker setup, feeds, strategy and analyzers.
+
+    Args:
+        config: Strategy and broker configuration.
+        frame: Output from ``load_backtest_frames``.
+
+    Returns:
+        A ready-to-run Cerebro instance.
+
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -478,6 +619,19 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """
+    Collect strategy counters and analyzer results into assertion metrics.
+
+    Args:
+        strat: Completed strategy instance from cerebro run.
+        cerebro: Cerebro engine that executed the backtest.
+        frame: Data bundle used for execution.
+        config: Backtest configuration.
+
+    Returns:
+        Dict with normalized numeric metrics for the regression test.
+
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -523,6 +677,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """
+    Run backtest once and return ``(results, metrics, cerebro)``.
+
+    Args:
+        plot: Whether to plot cerebro after running.
+
+    Returns:
+        Tuple of results, extracted metrics, and cerebro engine.
+
+    """
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

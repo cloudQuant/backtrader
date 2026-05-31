@@ -4,6 +4,32 @@ Test R-Breaker intraday breakout strategy using rebar futures data RB889.csv.
 - Load single contract data using PandasData
 - Intraday strategy based on support/resistance levels calculated from
   previous day's high, low, and close
+
+Data Used:
+    Rebar (steel) continuous futures contract RB889 loaded from
+    ``tests/datas/RB889.csv`` via resolve_data_path, capped to the most recent
+    20,000 intraday bars (datetime-indexed OHLCV plus open interest). A single
+    PandasData feed drives the backtest, priced as a futures instrument
+    (multiplier 10, 10% margin) starting from 50,000 cash.
+
+Strategy Principle:
+    The classic R-Breaker pivot system. From the prior session's high, low, and
+    close it derives a pivot plus a ladder of resistance (R1, R3) and support
+    (S1, S3) levels. A break above R3 signals trend strength (go long) and a
+    break below S3 signals weakness (go short), while pullbacks through R1/S1
+    trigger reversals — combining breakout and reversal logic around the daily
+    pivot. Positions are intraday only and flattened before the close.
+
+Strategy Logic:
+    load_rb889_data loads and trims the futures frame. Each bar RBreakerStrategy
+    tracks the running session high/low/close, appends them to daily history at
+    the 15:00 bar, and once two prior sessions exist computes the pivot and
+    R1/R3/S1/S3 levels. During the 21:00-23:00 and 09:00-11:00 windows it opens
+    longs above R3 / shorts below S3 and reverses through R1/S1, then closes any
+    position at 14:55. notify_order and notify_trade log fills and PnL; stop
+    reports final counters. The parametrized test runs both runonce=True and
+    runonce=False, collecting analyzer metrics and asserting them against
+    expected values.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)

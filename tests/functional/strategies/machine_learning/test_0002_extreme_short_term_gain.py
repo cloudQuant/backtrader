@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    This test reads `tests/datas/XAUUSD_1d.csv`, filtered from
+    `2008-01-01 00:00:00` to `2025-12-31 00:00:00`.
+    The strategy feed carries engineered return/extreme-gain/entry/exit features.
+
+Strategy Principle:
+    This strategy detects large multi-day positive returns and waits for a pullback
+    entry signal the next day. After entry, it exits at a fixed holding horizon.
+    Performance metrics include Sharpe, drawdown, trade analyzer, and ulcer index.
+
+Strategy Logic:
+    Raw MT5 daily data is converted to normalized OHLCV data and feature signals are
+    prepared with lookback return and threshold filtering.
+    A market long is opened when `entry_signal` is active, and closed after
+    `holding_days` bars. Analyzer output is normalized and assertions validate
+    regression expectations.
 """
 from __future__ import annotations
 import math
@@ -76,6 +93,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize an MT5 CSV export for daily backtests.
+
+    Args:
+        filepath: Path to the MT5 source CSV file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+
+    Returns:
+        Normalized OHLCV DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,21 +129,21 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_extreme_gain_features(df, params):
-    """准备极端短期收益策略特征"""
+    """Prepare feature columns used by the extreme short-term gain strategy."""
     out = df.copy()
     lookback_days = int(params.get('lookback_days', 15))
     gain_threshold = float(params.get('gain_threshold', 0.15))
-    
-    # 计算N日收益率
+
+    # Compute N-day rolling return.
     out['return_n'] = out['close'] / out['close'].shift(lookback_days) - 1
-    
-    # 极端收益信号
+
+    # Mark extreme-gain events above threshold.
     out['extreme_gain'] = (out['return_n'] >= gain_threshold).astype(float)
-    
-    # 入场信号：极端收益后等待回调
+
+    # Shifted entry signal after extreme gain confirmation.
     out['entry_signal'] = out['extreme_gain'].shift(1)
-    
-    # 出场信号：持有N天后
+
+    # Exit signal is driven by holding period in strategy logic.
     out['exit_signal'] = 0.0
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -125,6 +152,8 @@ def prepare_extreme_gain_features(df, params):
 
 
 class Mt5ExtremeGainFeed(bt.feeds.PandasData):
+    """Pandas feed exposing engineered extreme-gain feature fields."""
+
     lines = ('return_n', 'extreme_gain', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -135,6 +164,8 @@ class Mt5ExtremeGainFeed(bt.feeds.PandasData):
 
 
 class ExtremeShortTermGainStrategy(bt.Strategy):
+    """Daily long-holding strategy based on extreme gain and fixed holding rules."""
+
     params = dict(
         lookback_days=15,
         gain_threshold=0.15,
@@ -143,6 +174,7 @@ class ExtremeShortTermGainStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state trackers and order/session bookkeeping."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -169,6 +201,7 @@ class ExtremeShortTermGainStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Handle entry/exit decisions and track broker value for ulcer index."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -177,26 +210,28 @@ class ExtremeShortTermGainStrategy(bt.Strategy):
         
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry conditions when no position is open.
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
                 self.entry_bar = self.bar_num
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
-        
-        # 有持仓时检查出场：固定持有天数
+
+        # Check exit after the fixed holding period.
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order marker when order lifecycle is final."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -206,18 +241,18 @@ class ExtremeShortTermGainStrategy(bt.Strategy):
             self.loss_count += 1
 
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""Extreme Short Term Gain 策略回测"""
-
-
-
-
-
 BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build analyzer keyword arguments according to selected timeframe.
+
+    Args:
+        config: Strategy/backtest configuration.
+
+    Returns:
+        A dictionary of sharpe-ratio analyzer parameters.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -230,10 +265,12 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return ``None`` for non-finite values."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate ulcer index from a list of broker values."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -248,6 +285,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load data and derived feature DataFrame for the current test config.
+
+    Args:
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary containing the prepared DataFrame and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -261,6 +306,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Create a Cerebro instance with strategy, data feed, and analyzers.
+
+    Args:
+        frame: Prepared data frame dictionary.
+        config: Backtest configuration.
+
+    Returns:
+        Configured `bt.Cerebro` instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -283,6 +337,7 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate trade, return, risk, and broker metrics for assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -317,6 +372,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize datetime/float values for JSON-like serialization."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

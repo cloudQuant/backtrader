@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD 15-minute OHLCV data from ``tests/datas/XAUUSD_M15.csv`` and
+    builds H4 derived signals before backtesting.
+    Period: ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Builds a custom fine-tuning moving-candle feature with weighted price math,
+    identifies color-state transitions, and trades long/short on transition signals
+    with stop-loss and take-profit exits.
+
+Strategy Logic:
+    Data is cleaned, resampled, transformed into custom candle signals, then
+    consumed by a strategy that manages open/close/reverse flows and bracket exits.
+    Metrics are derived from strategy/analyzer outputs for deterministic assertions.
 """
 from __future__ import annotations
 import math
@@ -90,6 +105,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load and normalize MT5 CSV bars into a DataFrame.
+
+    Args:
+        filepath: Source path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional timestamp shift in minutes.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -116,6 +142,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_ohlcv(df, minutes):
+    """Resample OHLCV series to a coarser period.
+
+    Args:
+        df: Original dataframe.
+        minutes: Target resample size in minutes.
+
+    Returns:
+        Aggregated dataframe with canonical OHLCV fields.
+    """
     rule = f'{int(minutes)}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -133,6 +168,20 @@ def resample_ohlcv(df, minutes):
 
 
 def build_pm(ftma, rank1, rank2, rank3, shift1, shift2, shift3):
+    """Build fine-tuning moving-average weights.
+
+    Args:
+        ftma: Window length.
+        rank1: Exponent for first weighting phase.
+        rank2: Exponent for second weighting phase.
+        rank3: Exponent for symmetric edge weighting.
+        shift1: Initial weight bias.
+        shift2: Secondary weight bias.
+        shift3: Edge weight bias.
+
+    Returns:
+        Normalized weight list.
+    """
     pm = []
     total = 0.0
     for h in range(int(ftma)):
@@ -148,6 +197,15 @@ def build_pm(ftma, rank1, rank2, rank3, shift1, shift2, shift3):
 
 
 def weighted_series(values, weights):
+    """Calculate a custom weighted moving value for each index.
+
+    Args:
+        values: Numeric sequence.
+        weights: Weight sequence aligned from current to history.
+
+    Returns:
+        Weighted series list with leading NaNs.
+    """
     window = len(weights)
     out = [math.nan] * len(values)
     for idx in range(window - 1, len(values)):
@@ -159,6 +217,24 @@ def weighted_series(values, weights):
 
 
 def build_signal_frame(df, execution_minutes, ftma, rank1, rank2, rank3, shift1, shift2, shift3, gap_points, signal_bar):
+    """Build feature frame for fine tuning candle signals.
+
+    Args:
+        df: Raw minute bars.
+        execution_minutes: Signal timeframe in minutes.
+        ftma: Fine tuning MA window.
+        rank1: Rank exponent 1.
+        rank2: Rank exponent 2.
+        rank3: Rank exponent 3.
+        shift1: Bias shift 1.
+        shift2: Bias shift 2.
+        shift3: Bias shift 3.
+        gap_points: Maximum gap to reuse previous close.
+        signal_bar: Number of bars used for transition detection.
+
+    Returns:
+        DataFrame with OHLCV and Boolean signal columns.
+    """
     frame = resample_ohlcv(df, execution_minutes)
     weights = build_pm(ftma, rank1, rank2, rank3, shift1, shift2, shift3)
     wopen = weighted_series(frame['open'].tolist(), weights)
@@ -224,6 +300,7 @@ def build_signal_frame(df, execution_minutes, ftma, rank1, rank2, rank3, shift1,
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Custom feed with buy/sell signal and close-flag lines."""
     lines = ('spread', 'buy_open', 'sell_open', 'buy_close', 'sell_close')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3),
@@ -232,6 +309,7 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class FineTuningMacandleStrategy(bt.Strategy):
+    """Fine-tuning candle strategy using precomputed signal flags."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -249,6 +327,7 @@ class FineTuningMacandleStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state and signal-tracking fields."""
         self.data0_feed = self.datas[0]
         self.entry_order = None
         self.close_order = None
@@ -265,6 +344,7 @@ class FineTuningMacandleStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Print strategy event log."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -312,6 +392,7 @@ class FineTuningMacandleStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Handle bar-level entry/close/reverse transitions."""
         self.bar_num += 1
         if len(self.data0_feed) < 5:
             return
@@ -336,6 +417,7 @@ class FineTuningMacandleStrategy(bt.Strategy):
                 self._submit_entry('short', 'fine tuning candle bearish transition')
 
     def notify_order(self, order):
+        """Track and react to filled or failed orders."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -380,6 +462,7 @@ class FineTuningMacandleStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Update counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -407,6 +490,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve test data path relative to this file.
+
+    Args:
+        filename: Raw dataset path.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -414,12 +505,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse optional datetime string from config.
+
+    Args:
+        value: ISO datetime string or empty value.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load base data and build the signal frame consumed by strategy.
+
+    Args:
+        config: Full strategy/backtest config.
+
+    Returns:
+        Dict with transformed data and date boundaries.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = parse_dt(data_cfg.get('fromdate'))
@@ -445,6 +552,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine with signal feed and analyzers.
+
+    Args:
+        config: Full config.
+        frame: Backtest frame from :func:`load_backtest_frame`.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = dict(config.get('params', {}))
@@ -466,6 +582,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite values.
+
+    Args:
+        value: Input value from analyzer.
+
+    Returns:
+        ``None`` or input unchanged.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -474,6 +598,15 @@ def finite_or_none(value):
 
 
 def extract_metrics(results, start_value):
+    """Aggregate key performance metrics from analyzers and strategy counters.
+
+    Args:
+        results: Strategy result list.
+        start_value: Initial account value.
+
+    Returns:
+        Dictionary of backtest metrics.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -511,6 +644,14 @@ def extract_metrics(results, start_value):
 
 
 def run(plot=False):
+    """Run the strategy backtest and return raw and summarized outputs.
+
+    Args:
+        plot: Optional candlestick rendering.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

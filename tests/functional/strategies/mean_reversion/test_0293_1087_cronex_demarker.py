@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars covering 2025-12-03 01:15 to 2026-03-10 09:00 with each timestamp
+    shifted forward by 15 minutes so bars are stamped at their close. A second
+    signal feed is resampled to H4 (240-minute) bars and carries the precomputed
+    Cronex DeMarker indicator line (``ind``) and its signal line (``sign``).
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_CronexDeMarker``. The DeMarker
+    oscillator measures demand vs supply from rolling high/low differences; here
+    it is double-smoothed into a fast indicator line and a slower signal line. A
+    crossover of the indicator above the signal flags upward momentum and below
+    flags downward momentum. The strategy enters in the crossover direction and
+    exits on the opposite crossover, protected by fixed point-based stop-loss and
+    take-profit distances.
+
+Strategy Logic:
+    load_backtest_frames loads the M15 frame, resamples it to H4, and calls
+    compute_demarker to precompute the indicator/signal lines; build_cerebro
+    wires the M15 base feed, the H4 DeMarker feed, the strategy and analyzers.
+    Each bar the strategy waits for enough indicator history, enforces
+    stop-loss/take-profit exits, then on each new signal bar evaluates the
+    indicator/signal crossover to close opposing positions and open a long or
+    short sized by ``size`` while setting risk prices. notify_order tracks
+    completed/rejected orders and entry counts, notify_trade tallies win/loss.
+    extract_metrics consolidates analyzer output, and the test hooks
+    extract_metrics, forces runonce=True, runs run()/main(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -89,6 +119,7 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and return a datetime-indexed OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -114,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def resample_frame(df, rule):
+    """Resample OHLCV bars to a new cadence."""
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
         'high': 'max',
@@ -143,6 +175,7 @@ def _smooth(series, method, period):
 
 
 def compute_demarker(frame, demarker_period=25, xma_method='MODE_SMA', fast_period=14, slow_period=25):
+    """Compute Demarker oscillator and smoothed signal line."""
     high_diff = frame['high'].diff()
     low_diff = frame['low'].shift(1) - frame['low']
     demax = high_diff.where(high_diff > 0, 0.0)
@@ -159,6 +192,7 @@ def compute_demarker(frame, demarker_period=25, xma_method='MODE_SMA', fast_peri
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Minimal feed wrapper for base MT5 M15 bars."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -166,6 +200,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class CronexDeMarkerFeed(bt.feeds.PandasData):
+    """Feed extension exposing Demarker `ind` and `sign` indicator fields."""
     lines = ('ind', 'sign')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -175,6 +210,7 @@ class CronexDeMarkerFeed(bt.feeds.PandasData):
 
 
 class CronexDeMarkerStrategy(bt.Strategy):
+    """Crossover strategy based on Demarker indicator and signal line."""
     params = dict(
         mm=0.1,
         mm_mode='LOT',
@@ -198,6 +234,7 @@ class CronexDeMarkerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach data handles and initialize strategy state counters."""
         self.m15 = self.datas[0]
         self.h4 = self.datas[1]
         self.ind = self.h4.ind
@@ -221,6 +258,7 @@ class CronexDeMarkerStrategy(bt.Strategy):
         self.min_signal_bars = int(self.p.demarker_period) + int(self.p.fast_period) + int(self.p.slow_period) + max(int(self.p.signal_bar), 1)
 
     def log(self, text):
+        """Emit timestamped strategy log message."""
         dt = bt.num2date(self.m15.datetime[0])
         print('{0}, {1}'.format(dt.isoformat(), text))
 
@@ -290,6 +328,7 @@ class CronexDeMarkerStrategy(bt.Strategy):
         return buy_open, buy_close, sell_open, sell_close, curr_ind, curr_sign, prev_ind, prev_sign
 
     def next(self):
+        """Advance per tick: manage risk and execute long/short crossover trades."""
         self.bar_num += 1
         if self.entry_order is not None:
             return
@@ -325,6 +364,7 @@ class CronexDeMarkerStrategy(bt.Strategy):
             self.entry_order = self.sell(size=self.p.size)
 
     def notify_order(self, order):
+        """Track order lifecycle, completed/rejected counts and entry sizing."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -343,6 +383,7 @@ class CronexDeMarkerStrategy(bt.Strategy):
             self.entry_order = None
 
     def notify_trade(self, trade):
+        """Update cumulative trade and win/loss counters when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -367,6 +408,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path relative to current test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError('Data file not found: {0}'.format(path))
@@ -374,6 +416,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frames(config):
+    """Load base and signal-frame data for backtest execution."""
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -388,6 +431,7 @@ def load_backtest_frames(config):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro engine with both M15 and H4 data feeds and analyzers."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -407,6 +451,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect execution metrics used by this regression assertion suite."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -450,6 +495,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest flow and return `(results, metrics, cerebro)`."""
     config = load_config()
     frame = load_backtest_frames(config)
     cerebro = build_cerebro(config, frame)

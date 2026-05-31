@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The base M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. A second signal feed is
+    resampled to ``indicator_minutes`` (240 / H4) and carries two channel-midline
+    values; orders execute on the M15 feed.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_2MoHLC``. It builds two
+    "middle of high/low channel" lines over different periods on the higher
+    timeframe. In cloud-colour mode it trades the crossover of the two midlines;
+    in breakdown mode (the default) it trades a close breaking above both
+    midlines (long) or below both (short). Each position is protected by fixed
+    point-based stop loss and take profit.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro resamples it to the
+    H4 signal frame (build_2mohlc_frame adds the two channel midlines), then adds
+    the base feed, the signal feed, the strategy, and the default analyzers. Each
+    new signal bar the strategy checks fixed stop/take-profit exits, evaluates the
+    mode-specific buy/sell signal, and opens or reverses a position sized by the
+    money-management rule. notify_trade counts entries on open and win/loss on
+    close. extract_metrics consolidates analyzer output, and the test forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -91,6 +118,19 @@ MODE_BREAKDOWN = 2
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -112,6 +152,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV column positions."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -119,6 +161,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class TwoMoHLCFeed(btfeeds.PandasData):
+    """PandasData feed adding the two channel-midline signal lines."""
+
     lines = ('up_value', 'dn_value')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -127,6 +171,16 @@ class TwoMoHLCFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample the base OHLCV frame to the indicator timeframe.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target bar size in minutes (e.g. 240 for H4).
+
+    Returns:
+        A resampled DataFrame with right-labelled, right-closed bars, rows
+        lacking OHLC dropped, and openinterest filled with zeros.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -142,12 +196,33 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def channel_mid(high_series, low_series, period):
+    """Compute the midline of a rolling high/low channel.
+
+    Args:
+        high_series: Series of bar highs.
+        low_series: Series of bar lows.
+        period: Rolling window length for the channel extremes.
+
+    Returns:
+        A Series equal to the average of the rolling highest high and lowest low.
+    """
     hh = high_series.astype(float).rolling(int(period), min_periods=int(period)).max()
     ll = low_series.astype(float).rolling(int(period), min_periods=int(period)).min()
     return (hh + ll) / 2.0
 
 
 def build_2mohlc_frame(df, indicator_minutes, period1, period2):
+    """Build the resampled signal frame with the two channel midlines.
+
+    Args:
+        df: The base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target bar size in minutes for the signal frame.
+        period1: Channel window for the ``up_value`` midline.
+        period2: Channel window for the ``dn_value`` midline.
+
+    Returns:
+        The resampled DataFrame with added ``up_value`` and ``dn_value`` columns.
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     signal_df = signal_df.copy()
     signal_df['up_value'] = channel_mid(signal_df['high'], signal_df['low'], period1)
@@ -156,6 +231,8 @@ def build_2mohlc_frame(df, indicator_minutes, period1, period2):
 
 
 class TwoMoHLCStrategy(bt.Strategy):
+    """Trade two HL-channel midlines via crossover or breakdown mode."""
+
     params = dict(
         mode=MODE_BREAKDOWN,
         signal_bar=1,
@@ -174,6 +251,7 @@ class TwoMoHLCStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base and signal feeds and reset counters and state."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -187,6 +265,11 @@ class TwoMoHLCStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current base bar.
+
+        Args:
+            text: Message to emit alongside the current base bar datetime.
+        """
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -231,6 +314,13 @@ class TwoMoHLCStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Check exits then act on the mode-specific midline signal each bar.
+
+        Increments the bar counter, applies the fixed stop/take-profit exits,
+        runs only on a new signal bar, then evaluates the crossover (cloud) or
+        breakdown signal and opens or reverses a position sized by the
+        money-management rule.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -294,6 +384,12 @@ class TwoMoHLCStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count entries on open and win/loss on close.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -327,6 +423,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -334,6 +441,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 OHLCV frame described by the config into a date range.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path, inclusive ``fromdate``/``todate`` bounds, and bar shift.
+
+    Returns:
+        A dict with the loaded ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes used to filter it.
+
+    Raises:
+        ValueError: If the loaded DataFrame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -350,6 +470,20 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, base and H4 signal feeds, and analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the M15 base feed, the
+        resampled H4 2MoHLC signal feed, the strategy, and the default analyzers.
+
+    Raises:
+        ValueError: If the computed signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -393,6 +527,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying signal/trade counters.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frame dict providing the date range and bar count.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/signal/trade counts, PnL, return, win
+        rate, profit factor, drawdown, Sharpe, annualized return, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -434,6 +580,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The MACD and its signal
+    line are computed directly on the M15 feed; no separate signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_XMACD``. A configurable MACD
+    (difference of fast and slow moving averages, smoothed into a signal line
+    with selectable MA methods and applied price) drives the entries. Several
+    signal modes are supported: ``MACDdisposition`` (MACD crossing its signal
+    line, the default), ``breakdown`` (MACD crossing zero), ``macdtwist`` (a turn
+    in the MACD slope), and ``signaltwist`` (a turn in the signal-line slope).
+    The strategy enters in the signalled direction and reverses on the opposite
+    signal; risk is bounded by the reversing signal rather than fixed stops.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers, and the XMACDIndicator computes MACD and
+    signal lines on the feed. Each bar the strategy reads three consecutive
+    values at the configured signal bar to derive buy/sell signals per the mode,
+    then opens, closes, or reverses a fixed-lot position. notify_trade counts
+    entries on open and win/loss on close. extract_metrics consolidates analyzer
+    output, and the test forces runonce=True, runs the module's run()/main(), and
+    asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -83,6 +110,19 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,6 +144,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -111,6 +153,14 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class XMACDIndicator(bt.Indicator):
+    """Configurable MACD indicator with selectable MA methods and price.
+
+    Computes the MACD line as the difference of a fast and slow moving average
+    of a chosen applied price, then a signal line by smoothing the MACD. The
+    moving-average type, signal-smoothing type, periods and applied price are all
+    configurable via parameters.
+    """
+
     lines = ('macd', 'signal',)
     params = dict(
         ma_method='ema',
@@ -122,6 +172,7 @@ class XMACDIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Build the fast/slow MAs, MACD and signal lines and set min period."""
         ma_cls = bt.indicators.EMA if str(self.p.ma_method).lower() == 'ema' else bt.indicators.SMA
         signal_cls = bt.indicators.EMA if str(self.p.signal_method).lower() == 'ema' else bt.indicators.SMA
         price = self._price_line()
@@ -153,6 +204,27 @@ class XMACDIndicator(bt.Indicator):
 
 
 class XMACDStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_XMACD`` multi-mode MACD strategy.
+
+    Reads the configurable MACD/signal lines and produces buy/sell signals per
+    the selected ``mode`` (MACD-vs-signal crossover, zero-line breakdown, MACD
+    twist, or signal twist), entering in the signalled direction and reversing on
+    the opposite signal with a fixed lot size.
+
+    Args:
+        mode: Signal mode (MACDdisposition, breakdown, macdtwist, signaltwist).
+        signal_bar: Which completed bar to evaluate signals on.
+        ma_method: Moving-average type for the MACD legs (ema or sma).
+        signal_method: Smoothing type for the signal line (ema or sma).
+        fast_period: Fast moving-average period.
+        slow_period: Slow moving-average period.
+        signal_period: Signal-line smoothing period.
+        applied_price: Applied-price selector for the MACD input.
+        lot: Fixed order size in lots.
+        point: Price value of one point.
+        price_digits: Decimals used when rounding prices.
+    """
+
     params = dict(
         mode='MACDdisposition',
         signal_bar=1,
@@ -168,6 +240,7 @@ class XMACDStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the XMACD indicator and reset bar/trade counters."""
         self.xmacd = XMACDIndicator(
             self.data,
             ma_method=self.p.ma_method,
@@ -186,6 +259,11 @@ class XMACDStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -212,6 +290,12 @@ class XMACDStrategy(bt.Strategy):
         return buy, sell, m1, s1, m0, s0
 
     def next(self):
+        """Open or reverse positions on the configured MACD signal each bar.
+
+        Increments the bar counter, skips during warm-up, derives buy/sell
+        signals via the selected mode, and opens a long/short when flat or closes
+        and reverses when the opposite signal fires, using a fixed lot size.
+        """
         self.bar_num += 1
         if len(self.data) < max(self.p.fast_period, self.p.slow_period) + self.p.signal_period + self.p.signal_bar + 5:
             return
@@ -240,6 +324,12 @@ class XMACDStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -272,6 +362,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to this test file.
+
+    Args:
+        filename: Relative data filename from config.
+
+    Returns:
+        Absolute path to the resolved file.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -279,6 +380,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 backtest DataFrame and validate it is non-empty.
+
+    Args:
+        config: Backtest configuration containing data range and file info.
+
+    Returns:
+        Dict with ``data`` and date bounds.
+
+    Raises:
+        ValueError: If loaded data is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -295,6 +407,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble and configure a Cerebro engine for XMACD backtest.
+
+    Args:
+        config: Strategy and backtest configuration.
+        frame: Loaded frame payload from :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` instance.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -318,6 +439,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Build a metrics dictionary used by regression assertions.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Cerebro engine after execution.
+        frame: Frame metadata used by the run.
+        config: Backtest configuration.
+
+    Returns:
+        Dict of key performance and trade statistics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -358,6 +490,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run XMACD backtest end-to-end and return execution outputs.
+
+    Args:
+        plot: Whether to plot the cerebro result.
+
+    Returns:
+        Tuple of ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

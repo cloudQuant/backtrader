@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` are loaded, timestamps
+    shifted by ``bar_shift_minutes`` and filtered to the configured interval.
+
+Strategy Principle:
+    Builds an XMA-smoothed midpoint channel from recent high/low extremes and
+    trades cross-through behavior of price against upper/lower bounds.
+
+Strategy Logic:
+    Data are normalized, indicator lines are produced in ``XMAIshimokuChannelIndicator``,
+    then the strategy emits buy/sell open/close signals from bar-by-bar state
+    transitions against channel boundaries. Trade counters and analyzer metrics are
+    asserted in the regression block.
 """
 from __future__ import annotations
 import math
@@ -84,6 +98,17 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and return an index-normalized OHLCV DataFrame.
+
+    Args:
+        filepath: Source file path.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional minute shift applied to index.
+
+    Returns:
+        DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -105,6 +130,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Standard OHLCV feed for MT5-normalized price data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -112,6 +138,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Resolve a moving-average identifier into a Backtrader indicator class."""
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SMA
@@ -123,6 +150,7 @@ def resolve_ma_class(name):
 
 
 class XMAIshimokuChannelIndicator(bt.Indicator):
+    """Compute XMA-smoothed midpoint channel lines."""
     lines = ('mid', 'upper', 'lower',)
     params = dict(
         up_period=3,
@@ -138,6 +166,7 @@ class XMAIshimokuChannelIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Prepare indicator buffers and min-period for channel outputs."""
         ma_cls = resolve_ma_class(self.p.xma_method)
         highest = bt.indicators.Highest(self.data.high, period=self.p.up_period)
         lowest = bt.indicators.Lowest(self.data.low, period=self.p.dn_period)
@@ -149,6 +178,7 @@ class XMAIshimokuChannelIndicator(bt.Indicator):
 
 
 class XMAIshimokuChannelStrategy(bt.Strategy):
+    """Ishimoku-channel style crossover strategy."""
     params = dict(
         up_period=3,
         dn_period=3,
@@ -165,6 +195,7 @@ class XMAIshimokuChannelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize channel indicator and counters."""
         self.channel = XMAIshimokuChannelIndicator(
             self.data,
             up_period=self.p.up_period,
@@ -187,6 +218,7 @@ class XMAIshimokuChannelStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped strategy log message."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -213,6 +245,7 @@ class XMAIshimokuChannelStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Evaluate crossover conditions and apply reversal/exit logic."""
         self.bar_num += 1
         warmup = max(int(self.p.up_period), int(self.p.dn_period), int(self.p.xlength)) + int(self.p.signal_bar) + 5
         if len(self.data) < warmup:
@@ -252,6 +285,7 @@ class XMAIshimokuChannelStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update position and win/loss counters on closed trades."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -284,6 +318,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate file path relative to this test module.
+
+    Args:
+        filename: Relative path within tests directory.
+
+    Returns:
+        Absolute path to the file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -291,6 +333,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and return backtest frame and period metadata.
+
+    Args:
+        config: Inline test configuration.
+
+    Returns:
+        Dict containing loaded data and boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -307,6 +357,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Backtrader engine with strategy and analyzers.
+
+    Args:
+        config: Config dict.
+        frame: Loaded data frame dictionary.
+
+    Returns:
+        Configured ``bt.Cerebro`` object.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -330,6 +389,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect deterministic metric fields for regression assertions.
+
+    Args:
+        strat: Strategy instance.
+        cerebro: Engine after run.
+        frame: Run metadata and frame data.
+        config: Config dictionary.
+
+    Returns:
+        Dictionary of metrics used in asserts.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -370,6 +440,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run backtest and return run results with extracted metrics.
+
+    Args:
+        plot: Whether to draw chart.
+
+    Returns:
+        ``(results, metrics, cerebro)`` tuple.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

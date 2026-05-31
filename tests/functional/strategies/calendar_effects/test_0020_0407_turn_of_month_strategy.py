@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the daily (D1) timeframe, loaded from the MT5
+    export ``tests/datas/XAUUSD_1d.csv`` and spanning 2008-01-01 to 2025-12-31. A
+    derived signal feed adds month-end/month-start window flags and entry/exit
+    signals computed from each bar's rank within its calendar month.
+
+Strategy Principle:
+    This is the "Turn of Month" seasonality strategy. It assumes gold tends to
+    drift up around the boundary between months, so it is long only during a
+    window spanning the last ``last_days`` of one month and the first
+    ``first_days`` of the next, and flat otherwise. A percentage stop loss caps
+    the downside on each held position.
+
+Strategy Logic:
+    load_inputs loads the daily frame and prepare_turn_of_month_features flags
+    the turn-of-month window and the entry/exit transitions; build_cerebro wires
+    the signal feed, a percentage commission, the strategy, and the analyzers. On
+    an entry signal the strategy goes fully long (order_target_percent 1.0) and
+    sets a percentage stop; it closes on the exit signal or when the stop is hit.
+    notify_order tracks the pending order and clears risk when flat, and
+    notify_trade tallies wins and losses. extract_metrics consolidates analyzer
+    output (plus window-day count and an Ulcer Index), and the test forces
+    runonce=True, runs the module's run()/main(), and asserts each metric against
+    migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -72,6 +97,20 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Handles both tab- and comma-separated exports and either ``HH:MM`` or
+    ``HH:MM:SS`` time formats.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -98,6 +137,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_turn_of_month_features(price_df, params):
+    """Add turn-of-month window flags and entry/exit signals to the frame.
+
+    Args:
+        price_df: The daily OHLCV DataFrame indexed by datetime.
+        params: Parameters providing ``last_days`` and ``first_days`` window
+            lengths.
+
+    Returns:
+        A copy of ``price_df`` with month-end/month-start window flags, an
+        in-window flag, and entry/exit signal columns (1.0 on the bar the window
+        opens/closes).
+    """
     last_days = int(params.get('last_days', 3))
     first_days = int(params.get('first_days', 3))
     out = price_df.copy()
@@ -115,6 +166,8 @@ def prepare_turn_of_month_features(price_df, params):
 
 
 class TurnOfMonthFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the turn-of-month window and signal lines."""
+
     lines = ('is_month_end_window', 'is_month_start_window', 'in_turn_window', 'entry_signal', 'exit_signal')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -123,6 +176,8 @@ class TurnOfMonthFeed(bt.feeds.PandasData):
 
 
 class TurnOfMonthStrategy(bt.Strategy):
+    """Go long during the turn-of-month window with a percentage stop loss."""
+
     params = dict(
         stop_loss_pct=0.02,
         last_days=3,
@@ -131,6 +186,7 @@ class TurnOfMonthStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, order/risk state, and window-day tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -144,6 +200,13 @@ class TurnOfMonthStrategy(bt.Strategy):
         self.window_days = 0
 
     def next(self):
+        """Enter long on the window-open signal and exit on signal or stop.
+
+        Increments the bar counter, records broker value and window-day count,
+        skips while an order is pending, then—when in a position—closes on the
+        exit signal or a stop-loss breach, or—when flat—goes fully long on the
+        entry signal and arms the percentage stop.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if float(self.data.in_turn_window[0]) > 0.5:
@@ -169,6 +232,11 @@ class TurnOfMonthStrategy(bt.Strategy):
             self.stop_price = close * (1.0 - float(self.p.stop_loss_pct))
 
     def notify_order(self, order):
+        """Clear the pending order and reset risk prices once flat.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
@@ -177,6 +245,12 @@ class TurnOfMonthStrategy(bt.Strategy):
             self.stop_price = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -196,10 +270,27 @@ class TurnOfMonthStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -213,6 +304,18 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_file(file_value):
+    """Resolve a configured data file path against several candidate locations.
+
+    Args:
+        file_value: The configured file path (absolute or relative).
+
+    Returns:
+        The first existing candidate :class:`~pathlib.Path` (as-is, relative to
+        this directory, or under the repo ``tests/datas`` folder).
+
+    Raises:
+        FileNotFoundError: If none of the candidate paths exist.
+    """
     path_value = Path(str(file_value))
     candidates = []
     if path_value.is_absolute():
@@ -226,6 +329,16 @@ def resolve_data_file(file_value):
 
 
 def load_inputs(config):
+    """Load the daily frame and add the turn-of-month feature columns.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -235,6 +348,17 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, signal feed, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest, commission, and symbol
+            settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with the turn-of-month feed, a
+        percentage commission, the strategy, and the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -250,6 +374,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, window days, PnL, return,
+        win rate, profit factor, drawdown, Sharpe, annualized return, SQN, and
+        Ulcer Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -290,6 +427,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):

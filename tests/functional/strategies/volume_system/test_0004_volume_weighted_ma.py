@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. The execution feed uses M15 (15-minute)
+    bars and a separate signal feed is resampled to H4 (240-minute) bars; both
+    cover 2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted
+    forward by 15 minutes so bars are stamped at their close. The signal feed
+    drives a volume-weighted moving average.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_Volume_Weighted_MA``. On the
+    higher H4 timeframe a Volume-Weighted Moving Average (VWMA) weights each
+    bar's applied price by its (tick) volume over ``length`` bars. The slope of
+    the VWMA is the signal: when it turns up (the latest value rises after a
+    prior decline) the strategy favors longs and closes shorts, and when it
+    turns down it favors shorts and closes longs. Each position carries fixed
+    stop-loss and take-profit distances in points.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 base frame and build_signal_frame
+    resamples it to the H4 frame; build_cerebro wires both feeds, the optional
+    trade logger and the default analyzers, and builds the VWMA indicator on the
+    signal feed. Each bar the strategy first enforces stop-loss/take-profit
+    exits, then once per new signal bar reads three consecutive VWMA values to
+    detect a slope turn and open, close, or reverse a fixed-lot position.
+    notify_trade counts entries on open and win/loss on close. extract_metrics
+    consolidates analyzer output, and the test forces runonce=True, runs the
+    module's run()/main(), and asserts each metric against migration-time
+    expectations.
 """
 from __future__ import annotations
 import math
@@ -89,6 +118,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted ascending and filtered to the date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,6 +149,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
 
 
@@ -133,13 +177,23 @@ def _applied_price(data, price_type, ago=0):
 
 
 class VolumeWeightedMAIndicator(bt.Indicator):
+    """Volume-weighted moving average of an applied price.
+
+    Averages the applied price (selected by ``ipc``) over ``length`` bars,
+    weighting each bar by its tick volume (or open interest when
+    ``use_tick_volume`` is False); falls back to the plain applied price when
+    the total weight is zero.
+    """
+
     lines = ('vwma',)
     params = dict(length=12, ipc=0, use_tick_volume=True)
 
     def __init__(self):
+        """Set the minimum period to cover the averaging window."""
         self.addminperiod(int(self.p.length) + 2)
 
     def next(self):
+        """Compute the volume-weighted average price for the current bar."""
         length = int(self.p.length)
         weights = []
         total = 0.0
@@ -159,6 +213,28 @@ class VolumeWeightedMAIndicator(bt.Indicator):
 
 
 class ExpVolumeWeightedMAStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_Volume_Weighted_MA`` slope-following strategy.
+
+    Reads the VWMA slope from the H4 signal feed and opens or closes positions
+    on slope turns, executing on the M15 feed with fixed stop-loss and
+    take-profit distances in points.
+
+    Args:
+        length: VWMA averaging window length.
+        ipc: Applied-price selector passed to the VWMA indicator.
+        use_tick_volume: Weight by tick volume when True, else open interest.
+        signal_bar: Which completed signal bar to read the VWMA from.
+        stop_loss_points: Stop-loss distance in points (0 disables).
+        take_profit_points: Take-profit distance in points (0 disables).
+        fixed_lot: Fixed order size in lots.
+        point: Price value of one point for stop/target distances.
+        buy_pos_open: Whether long entries are permitted.
+        sell_pos_open: Whether short entries are permitted.
+        buy_pos_close: Whether long positions may be closed on signal.
+        sell_pos_close: Whether short positions may be closed on signal.
+        indicator_minutes: Signal timeframe size in minutes.
+    """
+
     params = dict(
         length=12,
         ipc=0,
@@ -176,6 +252,12 @@ class ExpVolumeWeightedMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution and signal feeds and reset counters.
+
+        Captures the M15 execution feed and the H4 signal feed, builds the VWMA
+        indicator on the signal feed, and clears bar/signal/trade counters and
+        position-tracking state.
+        """
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.indicator = VolumeWeightedMAIndicator(self.signal_data, length=self.p.length, ipc=self.p.ipc, use_tick_volume=self.p.use_tick_volume)
@@ -190,6 +272,11 @@ class ExpVolumeWeightedMAStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print a timestamped log line for the current execution bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         print(f'{bt.num2date(self.base.datetime[0]).isoformat()}, {text}')
 
     def _check_exit_levels(self):
@@ -225,6 +312,13 @@ class ExpVolumeWeightedMAStrategy(bt.Strategy):
         return 0.0 if math.isnan(v) else v
 
     def next(self):
+        """Enforce exits, then open/close on a VWMA slope turn each signal bar.
+
+        Increments the bar counter, applies stop-loss/take-profit exits, and
+        once per new signal bar reads three consecutive VWMA values to detect a
+        slope turn, then closes opposing positions and opens a fixed-lot long or
+        short per the configured permissions.
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -278,6 +372,12 @@ class ExpVolumeWeightedMAStrategy(bt.Strategy):
                 self.sell(size=sz)
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -311,6 +411,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -318,6 +429,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the base M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -329,6 +452,16 @@ def load_backtest_frame(config):
 
 
 def build_signal_frame(df, indicator_minutes):
+    """Resample the base frame to the indicator (signal) timeframe.
+
+    Args:
+        df: Base OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Signal bar size in minutes.
+
+    Returns:
+        A right-labeled, right-closed resampled OHLCV DataFrame with bars
+        lacking complete OHLC data dropped and open interest zero-filled.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({'open': 'first', 'high': 'max', 'low': 'min', 'close': 'last', 'volume': 'sum', 'openinterest': 'last'})
     signal_df = signal_df.dropna(subset=['open', 'high', 'low', 'close'])
@@ -337,6 +470,16 @@ def build_signal_frame(df, indicator_minutes):
 
 
 def build_cerebro(config, frame):
+    """Build and configure a ``bt.Cerebro`` engine for this regression.
+
+    Args:
+        config: Loaded inline configuration dictionary.
+        frame: Preloaded M15 backtest frame.
+
+    Returns:
+        Configured ``bt.Cerebro`` instance with datas, strategy, analyzers, and
+        optional trade logger observer.
+    """
     backtest_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -375,6 +518,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strategy, cerebro, frame, config):
+    """Extract normalized performance metrics from the finished strategy run.
+
+    Args:
+        strategy: Completed strategy instance from ``cerebro.run()``.
+        cerebro: The engine used for execution.
+        frame: Backtest frame dictionary returned by ``load_backtest_frame``.
+        config: Backtest configuration.
+
+    Returns:
+        Dictionary of metrics used by the file's regression assertions.
+    """
     sharpe = strategy.analyzers.sharpe.get_analysis()
     returns = strategy.analyzers.returns.get_analysis()
     drawdown = strategy.analyzers.drawdown.get_analysis()
@@ -392,6 +546,14 @@ def extract_metrics(strategy, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return results, metrics, and engine.
+
+    Args:
+        plot: If True, render the Backtrader chart after execution.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

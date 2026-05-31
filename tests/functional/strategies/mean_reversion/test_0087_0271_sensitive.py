@@ -7,6 +7,19 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``.
+    Test window is from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    MACD momentum transitions are used as directional triggers around zero-crossing
+    and threshold levels.
+    Entries are bracketed with stop-loss, take-profit, and trailing stop adjustments.
+
+Strategy Logic:
+    Read MT5 bars, build the feed and strategy in Backtrader, react to MACD-based
+    signal transitions, and verify analyzer metrics against migrated expectations.
 """
 from __future__ import annotations
 import math
@@ -79,6 +92,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted market data and normalize required OHLCV fields.
+
+    Args:
+        filepath: Path to MT5 TSV source file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Optional timestamp shift in minutes.
+
+    Returns:
+        DataFrame indexed by datetime including spread.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -105,6 +129,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed extension for MT5 bars with explicit spread column."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -119,6 +144,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SensitiveStrategy(bt.Strategy):
+    """MACD-sensitive trend strategy with bracketed entries and trailing exits."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -133,6 +159,7 @@ class SensitiveStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, order state, and bar tracking."""
         self.data0_feed = self.datas[0]
         self.macd = bt.indicators.MACD(
             self.data0_feed.close,
@@ -150,10 +177,16 @@ class SensitiveStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Log information with current bar timestamp.
+
+        Args:
+            text: Text to print.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Run core logic during the warm-up phase."""
         self.next()
 
     def _new_bar(self):
@@ -218,6 +251,7 @@ class SensitiveStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Apply trailing stop and evaluate MACD open-level trading rules."""
         self._apply_trailing()
         if len(self.data0_feed) < self.p.macd_slow_period + self.p.macd_signal_period + 3:
             return
@@ -250,6 +284,11 @@ class SensitiveStrategy(bt.Strategy):
                 self._submit_entry('short', 'macd sell signal')
 
     def notify_order(self, order):
+        """Process completed and canceled orders, including reversals.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -292,6 +331,11 @@ class SensitiveStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Reset active side on closed trades.
+
+        Args:
+            trade: Closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -310,6 +354,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset filename against the module directory.
+
+    Args:
+        filename: Relative path defined in config.
+
+    Returns:
+        Absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -317,12 +369,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Convert config date string into datetime.
+
+    Args:
+        value: Date string or falsy value.
+
+    Returns:
+        Parsed datetime or None.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load and validate the market data used for backtesting.
+
+    Args:
+        config: Full strategy configuration.
+
+    Returns:
+        Dict with single key ``data`` holding a DataFrame.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -334,6 +402,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Add analyzers required by downstream regression assertions.
+
+    Args:
+        cerebro: Backtrader Cerebro instance.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -342,6 +415,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build configured Cerebro engine and attach strategy/analyzers.
+
+    Args:
+        config: Migration config.
+        frame: Prepared data frame dictionary.
+
+    Returns:
+        Cerebro object ready for execution.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -356,6 +438,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for unsupported or non-finite numeric values.
+
+    Args:
+        value: Any analyzable value.
+
+    Returns:
+        ``None`` if value is None/non-finite, else the value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -364,6 +454,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print key backtest metrics and trade statistics.
+
+    Args:
+        results: Output list from Cerebro run.
+        start_value: Portfolio value before simulation.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -390,6 +486,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the inlined Sensitive backtest and optional chart rendering."""
     parser = argparse.ArgumentParser(description='Run Sensitive backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

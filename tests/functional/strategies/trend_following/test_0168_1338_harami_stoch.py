@@ -7,6 +7,33 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. Data is delivered
+    through a single PandasData feed priced as a futures-like instrument
+    (multiplier 100, margin 0.01).
+
+Strategy Principle:
+    Combines the two-bar Harami candlestick pattern with a Stochastic filter. A
+    bullish Harami (a small up candle contained within a prior large down candle,
+    near a swing low) signals a potential reversal up; a bearish Harami signals a
+    reversal down. Trades are only taken when the slow Stochastic %D confirms the
+    move starts from a non-extreme zone (oversold for longs, overbought for
+    shorts). Body sizes are measured against an average of recent bodies so only
+    meaningful prior candles anchor the pattern.
+
+Strategy Logic:
+    ``__init__`` builds the StochasticSlow oscillator and a close SMA and zeroes
+    the trade counters. ``next`` waits for a warmup window, manages %D-crossing
+    exits (optionally flipping on an opposite confirmed Harami), and otherwise
+    opens a long on a confirmed bullish Harami or a short on a confirmed bearish
+    Harami. ``notify_trade`` tracks buy/sell on open and win/loss on close. The
+    module-level helpers load the CSV, build the cerebro with analyzers, and
+    extract a metrics dictionary that the test compares against migration-time
+    expected values.
 """
 from __future__ import annotations
 import math
@@ -22,7 +49,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Harami + Stochastic',
-        'source_ea': 'ea/1338_MQL5_向导_-_基于_牛市孕育_熊市孕育形态的交易信号_+_Stochastic',
+        'source_ea': 'ea/1338_MQL5_\u5411\u5bfc_-_\u57fa\u4e8e_\u725b\u5e02\u5b55\u80b2_\u718a\u5e02\u5b55\u80b2\u5f62\u6001\u7684\u4ea4\u6613\u4fe1\u53f7_+_Stochastic',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -73,6 +100,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -94,6 +134,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -118,6 +160,7 @@ class HaramiStochStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the StochasticSlow oscillator and close SMA and zero counters."""
         self.stoch = bt.indicators.StochasticSlow(
             self.data, period=self.p.stoch_k, period_dfast=self.p.stoch_d,
             period_dslow=self.p.stoch_slow)
@@ -131,6 +174,7 @@ class HaramiStochStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print ``text`` prefixed with the current bar's ISO timestamp."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -169,6 +213,7 @@ class HaramiStochStrategy(bt.Strategy):
                 mid2 > close_avg)
 
     def next(self):
+        """Manage Stochastic-based exits, then open Harami-confirmed entries."""
         self.bar_num += 1
         if len(self.data) < max(self.p.stoch_k, self.p.ma_period) + 5:
             return
@@ -207,6 +252,13 @@ class HaramiStochStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track buy/sell on open and win/loss on close for each trade.
+
+        Args:
+            trade: The trade whose status changed; the first open bumps the
+                buy or sell counter and a close bumps the trade and win/loss
+                counters by sign of PnL.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -231,11 +283,33 @@ BASE_DIR = Path(__file__).resolve().parent
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename (str): Name or relative path to the data file.
+
+    Returns:
+        Path: The resolved absolute path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Prepare and clip the OHLCV data frame specified by ``config['data']``.
+
+    Args:
+        config (dict): Resolved configuration dictionary.
+
+    Returns:
+        dict: A dict with loaded ``data`` frame and date boundaries.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -246,6 +320,21 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build a configured ``bt.Cerebro`` instance for deterministic testing.
+
+    Args:
+        config (dict): Resolved configuration containing strategy and backtest settings.
+        frame (dict): Loaded frame and date range metadata.
+
+    Args:
+        frame (dict): Output of :func:`load_backtest_frame` with OHLCV data.
+
+    Returns:
+        bt.Cerebro: The configured backtest engine with analyzers attached.
+
+    Raises:
+        KeyError: If required keys are missing in config sections.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -263,6 +352,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract benchmark metrics from backtest outputs and strategy counters.
+
+    Args:
+        strat (bt.Strategy): Executed strategy instance returned by cerebro.
+        cerebro (bt.Cerebro): Engine used for the backtest.
+        frame (dict): Loaded data frame container.
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Normalized performance and trade metrics used by migration tests.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -283,6 +383,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'sqn':sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the backtest and return results, metrics, and the engine object.
+
+    Args:
+        plot (bool, optional): Whether to render Cerebro's plot window.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config=load_config(); frame=load_backtest_frame(config); cerebro=build_cerebro(config,frame)
     print('\nStarting backtest...'); results=cerebro.run(); strat=results[0]
     metrics=extract_metrics(strat,cerebro,frame,config); print_report(metrics)

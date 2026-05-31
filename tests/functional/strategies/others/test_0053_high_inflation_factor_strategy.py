@@ -3,6 +3,33 @@
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Factor universe: value=IWD, momentum=PDP, quality=DBMF, size=IWM, low_vol=GLD.
 Inflation proxy: DBC (added last so the strategy looks at datas[-1]).
+
+Data Used:
+    Six daily ETF feeds from ``tests/datas/mt5_1d_data`` in MetaTrader 5 export
+    format, clipped to 2008-01-01 through 2025-12-31 and aligned to a common
+    trading calendar: a five-factor basket (value=IWD, momentum=PDP,
+    quality=DBMF, size=IWM, low_vol=GLD) plus an inflation proxy (DBC, added last
+    so it is addressed as datas[-1]).
+
+Strategy Principle:
+    A factor-rotation overlay driven by the inflation regime. The DBC commodity
+    proxy stands in for inflation: its year-over-year change, confirmed over a
+    multi-month window, classifies the environment as high-inflation or normal.
+    The strategy holds an equal-weight factor basket in normal times and tilts
+    toward inflation-resilient factors (more value, quality, and low-vol; less
+    momentum and size) when high inflation is confirmed, rebalancing on a fixed
+    cadence rather than reacting to every bar.
+
+Strategy Logic:
+    load_mt5_csv loads each ETF, prepare_factor_inputs intersects their dates
+    into a common index, and the test adds all six feeds plus the inflation proxy
+    last. Each bar HighInflationFactorStrategy evaluates the confirmed inflation
+    regime, selects the matching weight set, and — only on the rebalance interval
+    — issues order_target_size orders to move each factor ETF toward its target
+    weight. notify_order tracks pending references and notify_trade tallies
+    closed trades. The test builds cerebro, forces runonce=True, and asserts the
+    regime-day counters, order counts, and final portfolio value against
+    migration-time values.
 """
 from __future__ import annotations
 
@@ -26,6 +53,18 @@ INFLATION_FILE = DATA_DIR / "DBC_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV export and return a normalized dataframe.
+
+    Args:
+        filepath: Path to the raw MetaTrader 5 exported data file.
+        fromdate: Optional lower bound timestamp for filtering rows.
+        todate: Optional upper bound timestamp for filtering rows.
+
+    Returns:
+        A dataframe indexed by ``datetime`` with columns
+        ``open``, ``high``, ``low``, ``close``, ``volume``, and
+        ``openinterest`` suitable for ``bt.feeds.PandasData``.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -50,6 +89,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_factor_inputs(asset_map):
+    """Align factor dataframes and select OHLCV columns for each symbol.
+
+    Args:
+        asset_map: Mapping of symbol names to dataframes with a datetime index.
+
+    Returns:
+        A dictionary of aligned dataframes keyed by symbol.
+    """
     aligned_index = None
     prepared = {}
     for _, frame in asset_map.items():
@@ -61,6 +108,11 @@ def prepare_factor_inputs(asset_map):
 
 
 class HighInflationFactorStrategy(bt.Strategy):
+    """Rebalance factor-weighted portfolio by inflation regime state.
+
+    The strategy monitors an inflation proxy and shifts exposure between a
+    normal factor basket and a high-inflation variant after regime confirmation.
+    """
     params = dict(
         inflation_threshold=0.0562,
         confirm_days=63,
@@ -72,6 +124,7 @@ class HighInflationFactorStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize order tracking and run-time diagnostic counters."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -114,6 +167,7 @@ class HighInflationFactorStrategy(bt.Strategy):
         return yoy > float(self.p.inflation_threshold) and all(value > float(self.p.inflation_threshold) for value in recent)
 
     def next(self):
+        """Run strategy logic each bar and submit rebalance orders when due."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -139,11 +193,13 @@ class HighInflationFactorStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Release locally tracked references when an order is no longer pending."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update closed-trade counters for later assertion checks in tests."""
         if not trade.isclosed:
             return
         self.trade_count += 1

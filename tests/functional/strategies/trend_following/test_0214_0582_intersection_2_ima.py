@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` from `tests/datas/`.
+    Backtest runs `XAUUSD`, timeframe `M15`, between `2025-12-03 01:15:00` and
+    `2026-03-10 09:00:00`, with 15-minute time shifting.
+    Single input feed only; no paired symbols.
+
+Strategy Principle:
+    Uses two EMA lines and detects fast/slow line cross over an MA history window.
+    Opens buy or sell according to bullish/bearish crossing state transitions.
+    Uses a fixed-size position size and optional trailing stop with forced close when
+    stop line is violated.
+
+Strategy Logic:
+    `load_mt5_csv()` normalizes source data into pandas OHLCV rows.
+    `load_backtest_frame()` restricts date range and validates non-empty dataset.
+    `build_cerebro()` configures broker settings, analyzers, and strategy parameters.
+    `next()` checks cross-over signals and exits before issuing opposite directions.
+    Runtime notifies update order and trade counters; `extract_metrics()` collects
+    both strategy counters and analyzer outputs for assertions.
 """
 from __future__ import annotations
 import math
@@ -76,6 +96,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV file and return normalized pandas data for Backtrader.
+
+    Args:
+        filepath: Raw MT5 file path.
+        fromdate: Start datetime filter.
+        todate: End datetime filter.
+        bar_shift_minutes: Minute shift for index alignment.
+
+    Returns:
+        pd.DataFrame: Data indexed by datetime with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,12 +130,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter configured for MT5-formatted column order."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class Intersection2IMAStrategy(bt.Strategy):
+    """Dual-EMA crossover strategy with optional trailing stop behavior."""
     params = dict(
         lots=0.1,
         fast_per=4,
@@ -116,6 +149,7 @@ class Intersection2IMAStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize EMA indicators, counters, and position tracking fields."""
         self.fast = bt.indicators.ExponentialMovingAverage(self.data.close, period=int(self.p.fast_per))
         self.slow = bt.indicators.ExponentialMovingAverage(self.data.close, period=int(self.p.slow_per))
         self.bar_num = 0
@@ -161,6 +195,11 @@ class Intersection2IMAStrategy(bt.Strategy):
             self.order = self.close(); return
 
     def next(self):
+        """Advance one bar, check crossover transitions and manage exits.
+
+        Handles EMA crossover-derived entry signals and closes opposing positions
+        before opening a new one when reversal is detected.
+        """
         self.bar_num += 1
         if len(self) < max(int(self.p.fast_per), int(self.p.slow_per)) + 4:
             return
@@ -197,6 +236,7 @@ class Intersection2IMAStrategy(bt.Strategy):
                 self.order = self.sell(size=float(self.p.lots))
 
     def notify_order(self, order):
+        """Track order completion/rejection and reset pending state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -215,6 +255,7 @@ class Intersection2IMAStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update win/loss counts after trade close."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -238,6 +279,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve module-local data filename to an absolute path.
+
+    Args:
+        filename: Data file name.
+
+    Returns:
+        Path: Absolute path that exists on disk.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -245,6 +294,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load dataset and return test frame boundaries from configuration.
+
+    Args:
+        config: Loaded strategy config.
+
+    Returns:
+        dict: Includes DataFrame, fromdate, and todate.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -256,6 +313,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build cerebro engine for this inlined regression test.
+
+    Args:
+        config: Combined strategy/backtest config.
+        frame: Normalized bar data.
+
+    Returns:
+        bt.Cerebro: Initialized engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -274,6 +340,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Gather analyzer metrics and strategy counters.
+
+    Args:
+        strat: Strategy instance after execution.
+        cerebro: The engine that executed strategy.
+        frame: Data and bounds context.
+        config: Config dictionary used in run.
+
+    Returns:
+        dict: A single metrics map for assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -301,6 +378,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return results, metrics, and engine.
+
+    Args:
+        plot: Whether to call plotting after the run.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

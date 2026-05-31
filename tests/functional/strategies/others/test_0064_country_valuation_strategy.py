@@ -1,7 +1,23 @@
-"""Inlined regression test for others/0064_country_valuation_strategy.
+"""Regression test for cross-country ETF relative valuation rotation.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 Universe: country ETFs EWA, EWC, EWG, EWJ, EWQ, EWU, EWY, EWH.
+
+Data Used:
+    Daily country-ETF OHLCV files from ``tests/datas/mt5_1d_data`` for
+    EWA, EWC, EWG, EWJ, EWQ, EWU, EWY, and EWH are loaded and aligned on the
+    common trading calendar from 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    The strategy values each market by valuation-adjusted momentum, ranks countries
+    every rebalance cycle, and allocates to the cheapest/most attractive
+    ``n_long`` countries while shorting the most expensive ``n_short`` markets.
+
+Strategy Logic:
+    ``prepare_country_valuation_data`` builds a valuation score from normalized
+    price-to-mean and momentum features. On a periodic schedule the strategy
+    submits target-size orders for each ETF to rebalance the portfolio into the
+    ranked long/short baskets and tracks order/trade lifecycle counters.
 """
 from __future__ import annotations
 
@@ -28,6 +44,16 @@ COUNTRY_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 export and return an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV/TSV data file.
+        fromdate: Optional inclusive datetime lower bound.
+        todate: Optional inclusive datetime upper bound.
+
+    Returns:
+        Datetime-indexed OHLCV DataFrame with backtrader-compatible columns.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -52,6 +78,17 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_country_valuation_data(price_map, params):
+    """Prepare aligned data and valuation scores for the country ETF basket.
+
+    Args:
+        price_map: Mapping from symbol to OHLCV DataFrame.
+        params: Strategy parameters containing valuation and momentum lookbacks.
+
+    Returns:
+        A tuple ``(prepared_map, score_df)`` where ``prepared_map`` contains each
+        symbol frame with ``valuation_score`` and ``score_df`` is the wide score
+        matrix used for diagnostics.
+    """
     aligned_index = None
     prepared = {}
     valuation_lookback = int(params.get("valuation_lookback", 252))
@@ -72,6 +109,7 @@ def prepare_country_valuation_data(price_map, params):
 
 
 class CountryValuationFeed(bt.feeds.PandasData):
+    """Pandas feed carrying each ETF's valuation score line."""
     lines = ("valuation_score",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -80,6 +118,11 @@ class CountryValuationFeed(bt.feeds.PandasData):
 
 
 class CountryValuationStrategy(bt.Strategy):
+    """Long-short country basket strategy driven by cross-sectional valuation.
+
+    At each rebalance, selects top and bottom valuation ranks and sizes each leg
+    to a fixed notional budget per basket member.
+    """
     params = dict(
         n_long=3,
         n_short=3,
@@ -88,6 +131,7 @@ class CountryValuationStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and active order tracking state."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -116,6 +160,7 @@ class CountryValuationStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rebalance the long and short baskets on the configured interval."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -154,11 +199,13 @@ class CountryValuationStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Drop completed order refs from the local pending set."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update closed-trade win/loss counters."""
         if not trade.isclosed:
             return
         self.trade_count += 1

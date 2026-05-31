@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This strategy uses historical daily volatility and volatility percentiles (relative ranking) to adjust position sizes.
+    - Market Assumptions: Volatility is cyclical and mean-reverting. Low-volatility regimes are ideal for entering/re-leveraging positions, whereas high-volatility regimes dictate protective deleveraging or profit-taking.
+    - Indicators:
+        - Daily Returns: Simple percentage change of close price.
+        - Volatility: 20-day standard deviation of daily returns annualized.
+        - Volatility Percentile: Rolling 252-day percentile rank of annualized volatility.
+        - Position Size: Low volatility (<20th percentile) allocates 100%, high volatility (>80th percentile) allocates 50%, normal volatility allocates 75%.
+    - Entry Signals:
+        - Buy Entry: Volatility percentile falls below `low_vol_threshold` (0.2).
+    - Exit Signals:
+        - Close/Reduce Entry: Volatility percentile rises above `high_vol_threshold` (0.8).
+
+Strategy Logic:
+    - Initialization: Load daily MT5 gold CSV data, build volatility percentiles, position sizes, and signals.
+    - Core Strategy Loop (next):
+        - If flat, open long position when entry_signal triggers, scaling position size based on low-vol allocation.
+        - If holding long, close/deleverage when exit_signal triggers.
 """
 from __future__ import annotations
 import math
@@ -69,7 +94,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -77,6 +110,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -103,40 +146,57 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_volatility_percentile(returns, vol_window, rank_window):
-    """计算波动率百分位"""
-    # 计算历史波动率
+    """Calculate the rolling volatility percentile rank.
+
+    Args:
+        returns (pd.Series): Daily asset percentage returns series.
+        vol_window (int): Moving window for standard deviation calculation.
+        rank_window (int): Lookback window for ranking percentiles.
+
+    Returns:
+        pd.Series: Volatility percentile ranking values.
+    """
+    # Calculate historical volatility
     volatility = returns.rolling(vol_window).std() * np.sqrt(252)
-    # 计算波动率百分位
+    # Calculate volatility percentile
     vol_percentile = volatility.rolling(rank_window).rank(pct=True)
     return vol_percentile
 
 
 def prepare_volatility_features(df, params):
-    """准备波动率仓位调整策略特征"""
+    """Prepare and compute indicators for the Gold Volatility strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback windows and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing vol_percentile and signals.
+    """
     out = df.copy()
     vol_window = int(params.get('vol_window', 20))
     rank_window = int(params.get('rank_window', 252))
     high_vol_threshold = float(params.get('high_vol_threshold', 0.8))
     low_vol_threshold = float(params.get('low_vol_threshold', 0.2))
     
-    # 计算收益率
+    # Calculate return rate
     out['returns'] = out['close'].pct_change()
     
-    # 计算波动率百分位
+    # Calculate volatility percentile
     out['vol_percentile'] = calculate_volatility_percentile(out['returns'], vol_window, rank_window)
     
-    # 生成仓位信号
-    # 高波动：仓位50%
-    # 低波动：仓位100%
-    # 正常波动：仓位75%
-    out['position_size'] = 0.75  # 默认正常波动
+    # Generate position sizing signals
+    # High Vol: position size 50%
+    # Low Vol: position size 100%
+    # Normal Vol: position size 75%
+    out['position_size'] = 0.75  # Default normal vol position
     out.loc[out['vol_percentile'] > high_vol_threshold, 'position_size'] = 0.5
     out.loc[out['vol_percentile'] < low_vol_threshold, 'position_size'] = 1.0
     
-    # 生成入场信号：低波动时买入
+    # Generate entry signals: buy when low volatility occurs
     out['entry_signal'] = (out['vol_percentile'] < low_vol_threshold).astype(float)
     
-    # 生成出场信号：高波动时减仓
+    # Generate exit signals: deleverage/close when high volatility occurs
     out['exit_signal'] = (out['vol_percentile'] > high_vol_threshold).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -145,6 +205,7 @@ def prepare_volatility_features(df, params):
 
 
 class Mt5VolatilityFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Volatility position sizing lines."""
     lines = ('vol_percentile', 'position_size', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -154,6 +215,11 @@ class Mt5VolatilityFeed(bt.feeds.PandasData):
 
 
 class GoldVolatilityPositionStrategy(bt.Strategy):
+    """Strategy class implementing Volatility Regime Position Sizing.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         vol_window=20,
         rank_window=252,
@@ -163,6 +229,7 @@ class GoldVolatilityPositionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -173,8 +240,16 @@ class GoldVolatilityPositionStrategy(bt.Strategy):
         self.broker_value_series = []
 
 
-
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -189,6 +264,7 @@ class GoldVolatilityPositionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -198,24 +274,34 @@ class GoldVolatilityPositionStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when not in a position
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.base_lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if exit_signal:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -227,7 +313,7 @@ class GoldVolatilityPositionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Gold Volatility Position Sizing 策略回测"""
+"""Gold Volatility Position Sizing strategy backtest."""
 
 
 
@@ -237,6 +323,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -249,10 +343,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -267,6 +377,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Gold Volatility strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -282,6 +400,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -304,6 +431,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -338,6 +476,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -345,10 +491,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -368,78 +512,59 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy)."""
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used."""
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used."""
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_5_0005_0053_gold_volatility_position() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/volatility_systems/0005_0053_gold_volatility_position.
+
+    Raises:
+        Exception: If the metrics capture or execution fails.
+
+    Returns:
+        None
     """
-    # Capture metrics by hooking extract_metrics() (or similar) and invoking the
-    # original main()/run(). This reuses whatever loader / build_cerebro /
-    # metrics-extraction signatures the strategy used internally.
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function.
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "summarize", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "metrics" not in captured:
-                        captured["metrics"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Force runonce=True for the cerebro.run() call inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "metrics" not in captured:
-                    captured["metrics"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "metrics" not in captured:
-                            captured["metrics"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "no metrics captured during run"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4367, f"bar_num: expected=4367, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 27, f"buy_count: expected=27, got={metrics.get('buy_count')!r}"

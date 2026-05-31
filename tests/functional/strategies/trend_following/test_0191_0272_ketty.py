@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol: XAUUSD from ``tests/datas/XAUUSD_M15.csv``.
+    Single M15 feed from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+    Bars are shifted by 15 minutes so timestamps align to the bar close.
+
+Strategy Principle:
+    Ketty is a channel-breakout breakout strategy.
+    During the formation window it tracks daily high/low bounds; after that window
+    it submits stop orders when price breaks out beyond a channel threshold.
+    Open positions use predefined stop-loss/take-profit orders with order-size fixed
+    by parameter.
+
+Strategy Logic:
+    ``load_mt5_csv`` parses the MT5 export into an indexed OHLCV dataframe.
+    ``load_backtest_frame`` filters the data frame to the configured period.
+    ``build_cerebro`` wires the custom feed, strategy, broker, and analyzers.
+    ``next`` updates channel, checks order placement window, manages pending entry,
+    and ``notify_order``/``notify_trade`` maintain trade lifecycle state.
+    ``test_190_0191_0272_ketty`` then validates the captured metrics.
 """
 from __future__ import annotations
 import math
@@ -81,6 +101,18 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported TSV data into a sorted DataFrame used by Cerebro.
+
+    Args:
+        filepath: Path of the MT5 TSV file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Minute offset applied to each bar timestamp.
+
+    Returns:
+        DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -107,6 +139,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed subclass that exposes MT5 spread and OHLCV columns."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -121,6 +154,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class KettyStrategy(bt.Strategy):
+    """Intraday channel-breakout strategy with stop-limit entries and fixed exits."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -137,6 +171,7 @@ class KettyStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state for channel tracking, orders, and active position flags."""
         self.data0_feed = self.datas[0]
         self.pending_entry = None
         self.stop_order = None
@@ -150,10 +185,16 @@ class KettyStrategy(bt.Strategy):
         self.sell_price = None
 
     def log(self, text):
+        """Emit a timestamped log line for the current bar.
+
+        Args:
+            text: Text to print.
+        """
         dt0 = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt0.isoformat()}, {text}')
 
     def prenext(self):
+        """Forward to ``next`` while indicators/data are warming up."""
         self.next()
 
     def _new_bar(self):
@@ -235,6 +276,7 @@ class KettyStrategy(bt.Strategy):
             self.limit_order = self.buy(size=abs(size), exectype=bt.Order.Limit, price=limit_price)
 
     def next(self):
+        """Drive one-bar flow: collect channel, expire pending, and place entries."""
         if not self._new_bar():
             return
         current_dt = self._current_dt()
@@ -258,6 +300,7 @@ class KettyStrategy(bt.Strategy):
             self._submit_pending('short')
 
     def notify_order(self, order):
+        """Handle completed/cancelled orders and keep order/trade state aligned."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -285,6 +328,7 @@ class KettyStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Clear active side when a trade closes and log close-time PnL."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -302,6 +346,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve configured filename to an absolute path and ensure it exists.
+
+    Args:
+        filename: Relative path from the config.
+
+    Returns:
+        Absolute path object.
+
+    Raises:
+        FileNotFoundError: If resolved file path is missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -309,12 +364,31 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO datetime strings used in strategy config.
+
+    Args:
+        value: Datetime string or ``None``.
+
+    Returns:
+        datetime object when parsable, otherwise ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load strategy data frame and normalize the in-scope date interval.
+
+    Args:
+        config: Strategy configuration with `data` section.
+
+    Returns:
+        Dictionary containing dataframe for backtest execution.
+
+    Raises:
+        ValueError: If loaded dataframe is empty.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -326,6 +400,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach baseline analyzers required by downstream assertions.
+
+    Args:
+        cerebro: Cerebro instance to attach analyzers on.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -334,6 +413,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and return a configured Cerebro object for backtesting.
+
+    Args:
+        config: Strategy and backtest configuration.
+        frame: Backtest input payload from ``load_backtest_frame``.
+
+    Returns:
+        Cerebro engine with feed, strategy, broker, and analyzers configured.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -348,6 +436,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Normalize NaN/inf values to None for readable outputs."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -356,6 +445,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a backtest summary from analyzers and final portfolio value.
+
+    Args:
+        results: Cerebro.run() result list.
+        start_value: Starting account value used in the run.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -382,6 +477,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entrypoint for optional plotting and backtest execution."""
     parser = argparse.ArgumentParser(description='Run Ketty backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

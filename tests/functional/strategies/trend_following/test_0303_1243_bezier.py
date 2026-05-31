@@ -7,6 +7,38 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single XAUUSD (spot gold) 15-minute (M15) series exported from
+    MetaTrader 5 and read from ``tests/datas/XAUUSD_M15.csv``. Every bar
+    timestamp is shifted forward by 15 minutes (``bar_shift_minutes``) so the
+    stamp marks the bar close. The M15 frame is resampled to a 240-minute (H4)
+    signal timeframe on which the Bezier curve indicator is computed, and both
+    feeds are clipped to 2025-12-03 01:15:00 .. 2026-03-10 09:00:00.
+
+Strategy Principle:
+    A port of the ``Exp_Bezier`` MetaTrader expert. The Bezier indicator fits a
+    Bezier curve of order ``bperiod`` to the H4 applied-price window using
+    binomial weights evaluated at parameter ``t``, producing a smoothed line.
+    The strategy reads three consecutive Bezier values (old, mid, recent): a
+    local trough (old and recent both above mid) signals a long, and a local
+    peak (old and recent both below mid) signals a short. Fixed point-based
+    stop-loss/take-profit levels bound each position and a fixed lot is used.
+
+Strategy Logic:
+    ``load_config`` materialises the inlined configuration and
+    ``load_backtest_frame`` loads the M15 CSV via ``load_mt5_csv``.
+    ``build_cerebro`` resamples to H4 with ``build_resampled_frame`` and
+    computes the curve with ``build_bezier_frame`` (using ``applied_price`` and
+    ``factorial`` for the binomial weights), then wires the M15
+    ``Mt5PandasFeed``, the H4 ``BezierFeed``, the ``BezierStrategy`` and the
+    analyzer stack (Sharpe, Returns, DrawDown, TradeAnalyzer, SQN). On each M15
+    bar the strategy enforces stop/target exits, waits for a fresh signal bar,
+    evaluates the three-point Bezier turn and opens/reverses the fixed-size
+    position; ``notify_trade`` maintains the entry, trade and win/loss counters.
+    ``extract_metrics`` builds the metrics dict that
+    ``test_302_0303_1243_bezier`` captures and asserts against the migration
+    baseline.
 """
 from __future__ import annotations
 import math
@@ -88,6 +120,22 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV frame.
+
+    Parses the ``<DATE> <TIME>`` columns into a datetime index, renames the
+    bracketed MT5 columns to backtrader names, optionally shifts every bar
+    timestamp forward and clips the frame to the requested date range.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each bar timestamp (0 disables).
+
+    Returns:
+        A pandas DataFrame indexed by datetime with ``open``, ``high``, ``low``,
+        ``close``, ``volume`` and ``openinterest`` columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -109,6 +157,12 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Standard OHLCV pandas feed for the M15 execution data.
+
+    Maps the open/high/low/close/volume/openinterest columns to the default
+    backtrader line positions.
+    """
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -116,6 +170,12 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class BezierFeed(btfeeds.PandasData):
+    """Signal-timeframe feed exposing the Bezier curve line.
+
+    Extends the standard OHLCV mapping with the ``bezier`` column produced by
+    :func:`build_bezier_frame` so the strategy can read it as a data line.
+    """
+
     lines = ('bezier',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -124,6 +184,16 @@ class BezierFeed(btfeeds.PandasData):
 
 
 def build_resampled_frame(df, indicator_minutes):
+    """Resample an M15 OHLCV frame to the indicator timeframe.
+
+    Args:
+        df: Source M15 OHLCV DataFrame indexed by datetime.
+        indicator_minutes: Target bar size in minutes (e.g. 240 for H4).
+
+    Returns:
+        The resampled OHLCV DataFrame with price-missing bars dropped and
+        ``openinterest`` filled with zeros.
+    """
     rule = f'{int(indicator_minutes)}min'
     signal_df = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -139,6 +209,14 @@ def build_resampled_frame(df, indicator_minutes):
 
 
 def factorial(value):
+    """Return the integer factorial of ``value``.
+
+    Args:
+        value: Non-negative integer (or value coercible to int).
+
+    Returns:
+        The factorial of ``value`` as an int (1 for 0 or 1).
+    """
     result = 1
     for i in range(2, int(value) + 1):
         result *= i
@@ -146,6 +224,17 @@ def factorial(value):
 
 
 def applied_price(df, code):
+    """Select a price series from an OHLC frame by MT5 applied-price code.
+
+    Args:
+        df: OHLC DataFrame to derive the price series from.
+        code: MT5 applied-price integer code (1=close, 2=open, 3=high,
+            4=low, 5=median, 6=typical, 7=weighted, 8=open/close average,
+            9=OHLC average, 10/11 candle-direction blends).
+
+    Returns:
+        A float pandas Series with the requested price (close by default).
+    """
     open_ = df['open'].astype(float)
     high = df['high'].astype(float)
     low = df['low'].astype(float)
@@ -191,6 +280,25 @@ def applied_price(df, code):
 
 
 def build_bezier_frame(df, indicator_minutes, bperiod, t, ipc, price_shift_points=0, point=0.01):
+    """Build the H4 frame with the Bezier curve indicator column.
+
+    Resamples to the indicator timeframe, fits an order-``bperiod`` Bezier curve
+    to the applied-price window using binomial weights at parameter ``t``, and
+    records the curve value per bar (offset by an optional price shift).
+
+    Args:
+        df: Source M15 OHLCV DataFrame.
+        indicator_minutes: Indicator bar size in minutes.
+        bperiod: Bezier curve order (number of control points minus one).
+        t: Bezier parameter in [0, 1] at which the curve is evaluated.
+        ipc: Applied-price code passed to :func:`applied_price`.
+        price_shift_points: Number of points to add to each curve value.
+        point: Price value of one point for the shift.
+
+    Returns:
+        The resampled DataFrame with an added ``bezier`` column (NaN until the
+        curve window is filled).
+    """
     signal_df = build_resampled_frame(df, indicator_minutes)
     period = int(bperiod)
     t = min(max(float(t), 0.0), 1.0)
@@ -220,6 +328,15 @@ def build_bezier_frame(df, indicator_minutes, bperiod, t, ipc, price_shift_point
 
 
 class BezierStrategy(bt.Strategy):
+    """Bezier curve turn strategy with fixed lot and point-based risk caps.
+
+    Reads three consecutive H4 Bezier values (old, mid, recent): a trough
+    (old and recent both above mid) opens or reverses to long, a peak (both
+    below mid) opens or reverses to short. Fixed point-based stop-loss and
+    take-profit levels bound each position and signal/order/trade/win/loss
+    counters feed the regression assertions.
+    """
+
     params = dict(
         signal_bar=1,
         stop_loss_points=1000,
@@ -238,6 +355,7 @@ class BezierStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the base/signal feeds and reset all counters and state flags."""
         self.base = self.datas[0]
         self.signal = self.datas[1]
         self.bar_num = 0
@@ -251,6 +369,7 @@ class BezierStrategy(bt.Strategy):
         self._last_signal_len = 0
 
     def log(self, text):
+        """Print ``text`` prefixed with the current base bar's ISO timestamp."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -298,6 +417,12 @@ class BezierStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance one base bar: manage risk, then act on the Bezier turn.
+
+        Enforces stop/target exits, waits for a fresh signal bar with valid
+        old/mid/recent Bezier values, and opens or reverses the fixed-size
+        position on a Bezier trough (long) or peak (short).
+        """
         self.bar_num += 1
         if len(self.base) < 2:
             return
@@ -351,6 +476,12 @@ class BezierStrategy(bt.Strategy):
                 self.sell(size=size)
 
     def notify_trade(self, trade):
+        """Count entries on trade open and win/loss tallies on trade close.
+
+        Args:
+            trade: The trade being notified; opens increment buy/sell counts
+                once, closes increment trade and win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -384,6 +515,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test file.
+
+    Args:
+        filename: Absolute or relative path to a data file.
+
+    Returns:
+        The resolved absolute :class:`pathlib.Path`.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -391,6 +533,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and validate the M15 price frame described by the config.
+
+    Args:
+        config: Resolved configuration mapping with a ``data`` section.
+
+    Returns:
+        A dict with the ``data`` DataFrame plus ``fromdate`` and ``todate``
+        datetimes.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -407,6 +561,22 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine, both feeds, strategy and analyzers.
+
+    Computes the H4 Bezier signal frame, configures the broker, adds the M15
+    execution feed and H4 signal feed, and registers the strategy (with
+    indicator-only params stripped) plus the analyzer stack.
+
+    Args:
+        config: Resolved configuration mapping.
+        frame: Mapping from :func:`load_backtest_frame` with the M15 frame.
+
+    Returns:
+        A configured :class:`bt.Cerebro` instance ready to run.
+
+    Raises:
+        ValueError: If the computed signal frame is empty.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
     indicator_minutes = params.get('indicator_minutes', 240)
@@ -454,6 +624,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer outputs and strategy counters into test metrics.
+
+    Args:
+        strat: Backtrader strategy instance after execution.
+        cerebro: Running `bt.Cerebro` instance with broker/analyzers.
+        frame: Dict containing backtest dataframe and date bounds.
+        config: Resolved strategy configuration.
+
+    Returns:
+        Dictionary of normalized metrics used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -495,6 +676,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the inlined Bezier strategy backtest.
+
+    Args:
+        plot: Whether to render cerebro charts after execution.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (rsi, ma200, trend_filter,
+    entry_signal, exit_signal) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    Mean Reversion Guide is an RSI(2)-based mean-reversion strategy that
+    enters long when RSI drops below an oversold threshold while price is
+    above the 200-period moving average (trend filter). It exits when RSI
+    exceeds a neutral threshold or after a fixed holding period.
+
+Strategy Logic:
+    1. load_config() / load_data() loads the CSV, computes RSI(2), a 200-bar
+       SMA trend filter, entry and exit signals based on RSI thresholds.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. MeanReversionGuideStrategy checks entry_signal on flat positions (RSI
+       oversold AND uptrend) and checks exit_signal (RSI above exit threshold
+       OR holding_days exceeded).
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_24_0024_mean_reversion_guide() runs the strategy and validates
+       all expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -78,6 +102,22 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-format CSV file into a pandas DataFrame with parsed datetime index.
+
+    Parameters
+    ----------
+    filepath : str or Path
+        Path to the CSV file.
+    fromdate : datetime or None
+        Earliest date to include (inclusive).
+    todate : datetime or None
+        Latest date to include (inclusive).
+
+    Returns
+    -------
+    pd.DataFrame
+        Columns: datetime (index), open, high, low, close, volume, openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -104,7 +144,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(close, period=2):
-    """计算RSI指标"""
+    """Calculate the Relative Strength Index (RSI) for the given series."""
     delta = close.diff()
     gain = delta.where(delta > 0, 0)
     loss = (-delta).where(delta < 0, 0)
@@ -116,26 +156,26 @@ def calculate_rsi(close, period=2):
 
 
 def prepare_mean_reversion_guide_features(df, params):
-    """准备均值回归指南策略特征"""
+    """Prepare RSI mean-reversion guide strategy features on the input DataFrame."""
     out = df.copy()
     rsi_period = int(params.get('rsi_period', 2))
     rsi_oversold = float(params.get('rsi_oversold', 10))
     rsi_exit = float(params.get('rsi_exit', 50))
     ma_period = int(params.get('ma_period', 200))
     
-    # 计算RSI
+    # Compute RSI
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
     
-    # 计算MA200趋势过滤
+    # Compute 200-period moving average for trend filter
     out['ma200'] = out['close'].rolling(window=ma_period).mean()
     
-    # 趋势过滤：价格在MA200之上
+    # Trend filter: price above MA200
     out['trend_filter'] = (out['close'] > out['ma200']).astype(float)
     
-    # 入场信号：RSI超卖且趋势过滤通过
+    # Entry signal: RSI oversold AND trend filter passes
     out['entry_signal'] = ((out['rsi'] < rsi_oversold) & (out['trend_filter'] > 0.5)).astype(float)
     
-    # 出场信号：RSI超过出场阈值
+    # Exit signal: RSI exceeds exit threshold
     out['exit_signal'] = (out['rsi'] > rsi_exit).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -144,6 +184,10 @@ def prepare_mean_reversion_guide_features(df, params):
 
 
 class Mt5MeanReversionGuideFeed(bt.feeds.PandasData):
+    """PandasData feed extended with RSI mean-reversion guide feature columns.
+
+    Additional lines: rsi, ma200, trend_filter, entry_signal, exit_signal.
+    """
     lines = ('rsi', 'ma200', 'trend_filter', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -153,6 +197,12 @@ class Mt5MeanReversionGuideFeed(bt.feeds.PandasData):
 
 
 class MeanReversionGuideStrategy(bt.Strategy):
+    """Trend-filtered RSI(2) mean-reversion strategy.
+
+    Enters long when RSI drops below an oversold threshold while price is
+    above the 200-period moving average. Exits when RSI rises above a
+    neutral threshold or after a fixed holding period.
+    """
     params = dict(
         rsi_period=2,
         rsi_oversold=10,
@@ -163,6 +213,7 @@ class MeanReversionGuideStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy state counters and order tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -175,6 +226,7 @@ class MeanReversionGuideStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate position size as a fraction of broker equity."""
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -189,6 +241,7 @@ class MeanReversionGuideStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Core strategy logic: enter on entry_signal, exit on exit_signal or holding limit."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -198,7 +251,7 @@ class MeanReversionGuideStrategy(bt.Strategy):
         entry_signal = float(self.data.entry_signal[0]) > 0.5
         exit_signal = float(self.data.exit_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if entry_signal:
                 self.buy_count += 1
@@ -206,18 +259,20 @@ class MeanReversionGuideStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when in position
         holding_days = self.bar_num - self.entry_bar
         if exit_signal or holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order reference when order reaches a terminal state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade win/loss count on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -229,7 +284,7 @@ class MeanReversionGuideStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Mean Reversion Guide 策略回测"""
+"""Mean Reversion Guide backtest entry point."""
 
 
 
@@ -239,6 +294,7 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Resolve SharpeRatio analyzer kwargs from the config timeframe string."""
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -251,10 +307,12 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return *x* unchanged if it is finite, else None."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index measuring downside volatility from an equity curve."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -269,6 +327,7 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an absolute path by checking several candidate directories."""
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -285,6 +344,7 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load CSV data and compute RSI mean-reversion guide features."""
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -297,6 +357,7 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure a Cerebro engine for the mean-reversion guide strategy."""
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -319,6 +380,25 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate metrics from completed cerebro run for assertion.
+
+    Parameters
+    ----------
+    strat : bt.Strategy
+        The strategy instance after run.
+    cerebro : bt.Cerebro
+        The cerebro instance after run.
+    frame : dict
+        Data frame metadata from ``load_data()``.
+    config : dict
+        Full config dict.
+
+    Returns
+    -------
+    dict
+        Aggregated metrics (bar_num, buy/sell/trade counts, drawdown,
+        Sharpe, returns, SQN, Ulcer Index, etc.).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -353,6 +433,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize a value for JSON serialisation (datetime→iso, NaN/Inf→None)."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

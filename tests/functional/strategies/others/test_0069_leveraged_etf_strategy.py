@@ -1,6 +1,22 @@
-"""Inlined regression test for others/0069_leveraged_etf_strategy.
+"""Regression test for volatility-targeted leveraged ETF exposure control.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    Daily XAUUSD OHLCV from ``tests/datas/XAUUSD_1d.csv`` is loaded and used as
+    the leveraged ETF proxy for the full period 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    The strategy scales position exposure according to realized-volatility regime.
+    Higher volatility compresses exposure toward the minimum target, while lower
+    volatility allows higher leverage.
+
+Strategy Logic:
+    ``prepare_leveraged_etf_features`` computes realized volatility, maps it to a
+    bounded ``target_exposure``, and tracks entry/exit regime flags. On periodic
+    rebalance bars, ``next`` computes the notional target, sends
+    ``order_target_size`` when drift exceeds tolerance, and updates trade counters
+    via order/trade notifications.
 """
 from __future__ import annotations
 
@@ -17,6 +33,16 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load a MetaTrader 5 CSV/TSV file into a datetime-indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+
+    Returns:
+        DataFrame with open/high/low/close/volume/openinterest indexed by datetime.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -54,6 +80,16 @@ def _compute_target_exposure(realized_vol, threshold_low, threshold_high, min_ex
 
 
 def prepare_leveraged_etf_features(df, params):
+    """Create leveraged ETF volatility regime features and exposure targets.
+
+    Args:
+        df: Source OHLCV DataFrame indexed by datetime.
+        params: Parameter map containing volatility windows and exposure bounds.
+
+    Returns:
+        Feature DataFrame with realized volatility, target exposure, and regime
+        entry/exit flags.
+    """
     out = df.copy()
     vol_window = int(params.get("vol_window", 21))
     threshold_low = float(params.get("threshold_low", 0.15))
@@ -85,6 +121,7 @@ def prepare_leveraged_etf_features(df, params):
 
 
 class Mt5LeveragedETFFeed(bt.feeds.PandasData):
+    """Feed exposing leveraged ETF strategy-specific feature lines."""
     lines = ("returns", "realized_vol", "target_exposure", "vol_regime", "entry_signal", "exit_signal",)
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
@@ -95,6 +132,7 @@ class Mt5LeveragedETFFeed(bt.feeds.PandasData):
 
 
 class LeveragedETFStrategy(bt.Strategy):
+    """Volatility-aware leveraged ETF strategy with periodic rebalancing."""
     params = dict(
         vol_window=21,
         threshold_low=0.15,
@@ -106,6 +144,7 @@ class LeveragedETFStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize bar counters and trade/order bookkeeping."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -139,6 +178,7 @@ class LeveragedETFStrategy(bt.Strategy):
         return abs(float(self.position.size)) * price * multiplier / broker_value
 
     def next(self):
+        """Rebalance exposure on schedule according to target exposure delta."""
         self.bar_num += 1
         if self.pending_order is not None:
             return
@@ -167,11 +207,13 @@ class LeveragedETFStrategy(bt.Strategy):
         self.pending_order = self.order_target_size(target=target_size)
 
     def notify_order(self, order):
+        """Clear pending-order lock when order leaves working state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increment trade counters after each closed trade."""
         if not trade.isclosed:
             return
         self.trade_count += 1

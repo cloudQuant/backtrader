@@ -16,6 +16,14 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-delimited CSV data and return a datetime-indexed dataframe.
+
+    Parameters:
+        filepath: Path to the source MT5 export file.
+        fromdate: Optional start time to filter rows.
+        todate: Optional end time to filter rows.
+        bar_shift_minutes: Optional timestamp shift applied to every bar.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +45,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed that maps MT5 export columns to pandas OHLCV fields."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -58,6 +67,7 @@ class EngulfingCciStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create CCI and moving-average helpers plus execution counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.cci_period)
         self.close_avg = bt.indicators.SMA(self.data.close, period=self.p.ma_period)
         self.sma_body = bt.indicators.SMA(
@@ -94,6 +104,7 @@ class EngulfingCciStrategy(bt.Strategy):
         return (o2 < c2 and (o1 - c1) > avg and c1 < o2 and mid2 > cavg and o1 > c2)
 
     def next(self):
+        """Advance the strategy each bar and manage engulfing-confirmed entries/exits."""
         self.bar_num += 1
         warmup = max(self.p.cci_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -122,6 +133,7 @@ class EngulfingCciStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track entry and exit statistics for open/closed trades."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

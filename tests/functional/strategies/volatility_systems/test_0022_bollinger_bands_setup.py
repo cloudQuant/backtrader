@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold) on the daily (D1) timeframe loaded from the MT5 export
+    ``tests/datas/mt5_1d_data/XAUUSD_1d.csv``, covering 2008-01-01 to
+    2025-12-31. A single daily feed carries the OHLCV lines plus precomputed
+    Bollinger Band, %B, trend MA, and entry/exit signal lines.
+
+Strategy Principle:
+    A port of the "Bollinger Bands Setup" mean-reversion strategy. It buys when
+    price reaches the lower band (%B oversold) and sells short when price reaches
+    the upper band (%B overbought), optionally requiring a longer-period trend
+    filter to align (only longs in uptrends, shorts in downtrends). Positions are
+    exited when price reverts to the middle band, harvesting the snap-back toward
+    the moving average.
+
+Strategy Logic:
+    prepare_bollinger_features computes the bands, bandwidth, %B, trend filter,
+    and long/short entry/exit flags, storing them as extra feed lines.
+    build_cerebro wires the feed, a percentage futures commission, the strategy,
+    and analyzers. Each bar the strategy records broker value and, while flat,
+    opens a long/short on an entry flag, then exits when the matching exit flag
+    fires. notify_order clears the pending order and notify_trade tallies
+    win/loss. extract_metrics consolidates analyzer output plus an Ulcer Index;
+    the test hooks the metric extractor, forces runonce=True via main(), and
+    asserts each metric against migration-time values.
 """
 from __future__ import annotations
 import math
@@ -80,6 +105,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export (tab- or comma-separated).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, sorted and filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -106,6 +142,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_bollinger_features(df, params):
+    """Compute Bollinger bands, %B, the trend filter, and entry/exit flags.
+
+    Args:
+        df: The daily OHLCV DataFrame to operate on.
+        params: Strategy parameters supplying the band period, standard
+            deviations, oversold/overbought thresholds, trend MA period, and
+            whether to apply the trend filter.
+
+    Returns:
+        A copy of ``df`` augmented with band, bandwidth, %B, trend MA, and the
+        long/short entry/exit columns, with warm-up rows dropped.
+    """
     out = df.copy()
     period = int(params.get('period', 20))
     num_std = float(params.get('num_std', 2.0))
@@ -137,6 +185,8 @@ def prepare_bollinger_features(df, params):
 
 
 class Mt5BollingerFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the Bollinger band, %B, trend, and signal lines."""
+
     lines = ('upper', 'middle', 'lower', 'bandwidth', 'percent_b', 'trend_ma', 'long_entry', 'short_entry', 'long_exit', 'short_exit')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -145,6 +195,13 @@ class Mt5BollingerFeed(bt.feeds.PandasData):
 
 
 class BollingerBandsSetupStrategy(bt.Strategy):
+    """Mean-revert at the Bollinger bands and exit at the middle band.
+
+    Opens a long at the lower band (oversold %B) or a short at the upper band
+    (overbought %B), optionally gated by a trend filter, and closes the position
+    when price reverts to the middle band, tracking buy/sell and win/loss counts.
+    """
+
     params = dict(
         lot_size=1.0,
         period=20,
@@ -156,6 +213,7 @@ class BollingerBandsSetupStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters, the pending order slot, and the position-type marker."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -181,6 +239,13 @@ class BollingerBandsSetupStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Open at the bands and exit at the middle band each bar.
+
+        Increments the bar counter, records broker value, and skips while an
+        order is pending. When holding it closes on the matching exit flag; when
+        flat it opens a sized long or short on the corresponding entry flag,
+        counting buys and sells.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -205,11 +270,22 @@ class BollingerBandsSetupStrategy(bt.Strategy):
             self.pending_order = self.sell(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
 
     def notify_order(self, order):
+        """Clear the pending order slot once an order leaves flight.
+
+        Args:
+            order: The order whose status changed; submitted/accepted states are
+                ignored and any other terminal state clears the pending slot.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Tally closed trades into win/loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades count.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -227,6 +303,16 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build SharpeRatio analyzer kwargs matching the data timeframe.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the
+            timeframe code (e.g. ``D1``, ``M15``, ``H1``).
+
+    Returns:
+        A dict of keyword arguments (timeframe, compression, annualization
+        factor, etc.) for the SharpeRatio analyzer.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -239,10 +325,27 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite and truthy, otherwise None.
+
+    Args:
+        x: The numeric value to validate.
+
+    Returns:
+        The original value when finite and truthy, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-curve value series.
+
+    Args:
+        values: Sequence of portfolio values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks); 0.0 when fewer than two values are supplied.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -257,6 +360,16 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load the XAUUSD feed and compute the Bollinger Bands features.
+
+    Args:
+        config: Parsed configuration whose ``data`` section provides the file
+            path and inclusive date bounds.
+
+    Returns:
+        A dict with the feature-augmented ``data`` DataFrame and the
+        ``fromdate``/``todate`` datetimes.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -266,6 +379,16 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Assemble the Cerebro engine with the feed, strategy, and analyzers.
+
+    Args:
+        frame: The loaded frame dict returned by :func:`load_data`.
+        config: Parsed configuration providing cash, commission/margin, and
+            strategy parameters.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` ready to run the backtest.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -288,6 +411,21 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance holding counters, the broker value
+            series, and attached analyzers.
+        cerebro: The Cerebro engine used to read the final broker value.
+        frame: The loaded frame dict providing date bounds and bar count.
+        config: Parsed configuration supplying the strategy name and initial
+            cash baseline.
+
+    Returns:
+        A dict of performance metrics (returns, win rate, profit factor,
+        drawdown, Sharpe, SQN, Ulcer index, and trade counts) used by the
+        assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -334,6 +472,11 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Run the Bollinger Bands setup backtest end to end.
+
+    Loads the config and data, builds the engine, runs the backtest, and
+    extracts the metrics (used by the test harness via its hooks).
+    """
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

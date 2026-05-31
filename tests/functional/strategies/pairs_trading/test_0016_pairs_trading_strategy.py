@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Two H1 (60-minute) feeds loaded from MT5 exports: gold (XAUUSD) from
+    ``tests/datas/XAUUSD_H1.csv`` and silver (XAGUSD) from
+    ``tests/datas/XAGUSD_H1.csv``, aligned on their common timestamps from
+    2025-07-01 to 2025-12-31. Signals are precomputed off-feed and supplied to
+    the strategy through a datetime-keyed lookup.
+
+Strategy Principle:
+    This is the "Pairs Trading Strategy" for gold versus silver. It assumes the
+    hedged log-price spread is mean-reverting, but only trades when the rolling
+    return correlation clears ``min_correlation``. A rolling-regression beta sets
+    the hedge ratio and a z-score of the spread drives a flat/long-spread/
+    short-spread state machine: enter beyond ``entry_z``, exit within ``exit_z``,
+    and stop out beyond ``stop_loss_z``. Leg weights are beta-scaled so the pair
+    is roughly dollar-neutral.
+
+Strategy Logic:
+    load_inputs loads and aligns the two H1 frames, prepare_pair_inputs computes
+    correlation, beta, spread, and z-score, and a datetime-keyed signal lookup is
+    built; build_cerebro wires both feeds, a percentage commission, the strategy
+    (seeded with the lookup), and the analyzers. Each bar the strategy reads the
+    precomputed signal, advances its spread state, and applies beta-scaled target
+    sizes to both legs via order_target_size. notify_order tracks pending refs
+    and notify_trade tallies wins and losses. extract_metrics consolidates
+    analyzer output (plus spread-state day counts and an Ulcer Index), and the
+    test forces runonce=True, runs the module's run()/main(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -77,6 +105,20 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Supports both the modern ``time`` column format and the legacy
+    ``<DATE>``/``<TIME>`` tab-separated format.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -115,6 +157,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_pair_inputs(frame_a, frame_b, params):
+    """Align the two frames and compute the pairs-trading signal columns.
+
+    Args:
+        frame_a: The first asset's (gold) OHLCV frame.
+        frame_b: The second asset's (silver) OHLCV frame.
+        params: Parameters controlling the rolling lookback window.
+
+    Returns:
+        A tuple ``(frame_a, frame_b, signal_df)`` aligned on the common index,
+        where signal_df carries rolling correlation, regression beta, spread, and
+        spread z-score (warm-up and non-finite rows dropped).
+    """
     aligned_index = frame_a.index.intersection(frame_b.index).sort_values()
     frame_a = frame_a.loc[aligned_index][['open', 'high', 'low', 'close', 'volume', 'openinterest']].copy()
     frame_b = frame_b.loc[aligned_index][['open', 'high', 'low', 'close', 'volume', 'openinterest']].copy()
@@ -140,6 +194,8 @@ def prepare_pair_inputs(frame_a, frame_b, params):
 
 
 class PairsTradingStrategy(bt.Strategy):
+    """Correlation-gated mean-reversion pairs trade on a beta-hedged spread."""
+
     params = dict(
         asset_a_symbol='XAUUSD',
         asset_b_symbol='XAGUSD',
@@ -154,6 +210,7 @@ class PairsTradingStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset order tracking, counters, and spread-state day tallies."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -197,6 +254,14 @@ class PairsTradingStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def next(self):
+        """Read the precomputed signal and update the hedged spread position.
+
+        Increments the bar counter and records broker value, skips while orders
+        are pending or when no signal exists for the bar, flattens when
+        correlation drops below the minimum, otherwise advances the flat/long/
+        short spread state machine on the z-score and applies beta-scaled target
+        weights to both legs.
+        """
         self.bar_num += 1
         data_a = self.datas[0]
         data_b = self.datas[1]
@@ -242,11 +307,22 @@ class PairsTradingStrategy(bt.Strategy):
         self._apply_targets(data_a, data_b, pct_a, pct_b)
 
     def notify_order(self, order):
+        """Drop completed or dead orders from the pending-order ref set.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -266,10 +342,27 @@ class PairsTradingStrategy(bt.Strategy):
 BASE_DIR = Path(__file__).resolve().parent
 
 def finite_or_none(value):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        value: A numeric value or None.
+
+    Returns:
+        The value when it is non-None and finite, else None.
+    """
     return value if value is not None and math.isfinite(value) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity series.
+
+    Args:
+        values: Sequence of broker/equity values in chronological order.
+
+    Returns:
+        The Ulcer Index (root-mean-square percentage drawdown from running
+        peaks), or 0.0 when there are fewer than two values.
+    """
     if len(values) < 2:
         return 0.0
     peak = values[0]
@@ -283,6 +376,16 @@ def calculate_ulcer_index(values):
 
 
 def get_timeframe_kwargs(config):
+    """Map the config timeframe label to backtrader feed/analyzer kwargs.
+
+    Args:
+        config: Parsed configuration whose ``data.timeframe`` is a label such as
+            ``H1`` or ``M15``.
+
+    Returns:
+        A dict of ``timeframe`` and ``compression`` kwargs for feeds and
+        time-aware analyzers (defaulting to daily for unknown labels).
+    """
     timeframe_value = str(config.get('data', {}).get('timeframe', 'M15')).upper()
     if timeframe_value.startswith('H') and timeframe_value[1:].isdigit():
         return dict(timeframe=bt.TimeFrame.Minutes, compression=max(1, int(timeframe_value[1:])) * 60)
@@ -292,6 +395,15 @@ def get_timeframe_kwargs(config):
 
 
 def get_annualization_factor(config):
+    """Derive the annualization factor for the config's timeframe.
+
+    Args:
+        config: Parsed configuration whose ``data.timeframe`` sets the bar size.
+
+    Returns:
+        The number of bars per year used to annualize Sharpe and returns
+        (252 trading days, scaled up for intraday timeframes).
+    """
     timeframe_kwargs = get_timeframe_kwargs(config)
     if timeframe_kwargs['timeframe'] == bt.TimeFrame.Minutes:
         return int(252 * 24 * 60 / max(1, timeframe_kwargs['compression']))
@@ -299,6 +411,17 @@ def get_annualization_factor(config):
 
 
 def load_inputs(config):
+    """Load and align the two frames and build the precomputed signal lookup.
+
+    Args:
+        config: Parsed configuration providing the ``data`` and ``params``
+            sections.
+
+    Returns:
+        A dict with the aligned ``frame_a`` and ``frame_b`` frames, the derived
+        ``signal_df``, a datetime-keyed ``signal_lookup``, and the
+        ``fromdate``/``todate`` bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -324,6 +447,18 @@ def load_inputs(config):
 
 
 def build_cerebro(inputs, config):
+    """Assemble the Cerebro engine, both feeds, strategy, and analyzers.
+
+    Args:
+        inputs: The loaded inputs dict returned by :func:`load_inputs`.
+        config: Parsed configuration providing backtest, commission, timeframe,
+            and symbol settings.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with both price feeds, a
+        percentage commission, the strategy (seeded with the signal lookup), and
+        the default analyzers.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     cerebro.broker.setcash(float(config['backtest']['initial_cash']))
     cerebro.broker.setcommission(commission=float(config['params'].get('commission_pct', 0.0005)))
@@ -347,6 +482,19 @@ def build_cerebro(inputs, config):
 
 
 def extract_metrics(strat, cerebro, inputs, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying counters and value series.
+        cerebro: The Cerebro engine used to read final broker value.
+        inputs: The loaded inputs dict providing the date range and bar count.
+        config: Parsed configuration providing the strategy name and initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, spread-state day counts,
+        PnL, return, win rate, profit factor, drawdown, Sharpe, annualized
+        return, SQN, and Ulcer Index).
+    """
     trades = strat.analyzers.trades.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
@@ -389,6 +537,15 @@ def extract_metrics(strat, cerebro, inputs, config):
 
 
 def normalize(value):
+    """Coerce a metric value into a JSON-serializable form.
+
+    Args:
+        value: An arbitrary metric value.
+
+    Returns:
+        An ISO string for datetimes, None for non-finite floats, or the value
+        unchanged otherwise.
+    """
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
@@ -400,6 +557,7 @@ def normalize(value):
 
 
 def main():
+    """Run the full pairs-trading backtest end-to-end and compute its metrics."""
     config = load_config()
     inputs = load_inputs(config)
     print(f"Loaded pairs-trading bars: {len(inputs['signal_df'])}")

@@ -7,6 +7,31 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Data source: tests/datas/XAUUSD_M15.csv (MT5 tab-separated export)
+    - Symbol: XAUUSD
+    - Timeframe: M15, compression 15
+    - Date window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00
+    - Preprocess: parse MT5 OHLC columns, optional bar timestamp shift (15 min),
+      and clip bars by fromdate/todate.
+
+Strategy Principle:
+    - Trend state is confirmed when price crosses a smoothed moving average.
+    - ADX filter (`porog_adx`) gates signal generation for momentum conditions.
+    - Long/short entries include configurable stop-loss, take-profit and trailing
+      stop distances in point units.
+    - Trade exits are triggered by MA cross, stop, or take-profit, plus automatic
+      direction state updates on each order/trade event.
+
+Strategy Logic:
+    - Compute MA and ADX indicators in ``__init__`` and initialize counters.
+    - On each bar, update trailing stops and risk rules.
+    - If flat and signal conditions align, submit market order and track order refs.
+    - On order/trade callbacks update position state, entry stats, completions and
+      win/loss counters.
+    - Backtest pipeline loads data, builds cerebro/analyzers, extracts metrics, and
+      validates regression assertions.
 """
 from __future__ import annotations
 import math
@@ -80,6 +105,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data and normalize it into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path of the MT5 export file.
+        fromdate: Optional lower datetime filter (inclusive).
+        todate: Optional upper datetime filter (inclusive).
+        bar_shift_minutes: Optional minute offset applied to bar timestamp.
+
+    Returns:
+        pd.DataFrame: DataFrame indexed by datetime with OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -109,6 +145,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData wrapper for normalized MT5 OHLCV DataFrame fields."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -121,6 +158,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AdxMaStrategy(bt.Strategy):
+    """ADX + MA crossover strategy with thresholded risk controls."""
     params = dict(
         per_ma=15,
         per_adx=12,
@@ -137,6 +175,7 @@ class AdxMaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, execution state, and test counters."""
         median_price = (self.data.high + self.data.low) / 2.0
         self.ma = bt.indicators.SmoothedMovingAverage(median_price, period=self.p.per_ma)
         self.adx = bt.indicators.AverageDirectionalMovementIndex(self.data, period=self.p.per_adx)
@@ -157,14 +196,25 @@ class AdxMaStrategy(bt.Strategy):
         self._last_position_size = 0.0
 
     def log(self, text):
+        """Print a timestamped strategy log line for diagnostics.
+
+        Args:
+            text: Message content.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _pip_size(self):
+        """Calculates adjusted pip price distance unit based on digits.
+
+        Returns:
+            float: Value of a pip adjusted for digits.
+        """
         digits_adjust = 10 if int(self.p.price_digits) in (3, 5) else 1
         return float(self.p.point) * digits_adjust
 
     def _sync_position_state(self):
+        """Syncs entry price and buy/sell-specific SL/TP targets upon entering positions."""
         if not self.position:
             self._entry_price = None
             self._stop_price = None
@@ -188,6 +238,7 @@ class AdxMaStrategy(bt.Strategy):
             self._take_profit_price = self._entry_price - take_distance if take_distance > 0 else None
 
     def _update_trailing(self):
+        """Calculates and updates trailing stop levels based on market movements."""
         if not self.position:
             return
         close = float(self.data.close[0])
@@ -206,6 +257,11 @@ class AdxMaStrategy(bt.Strategy):
                     self._stop_price = candidate
 
     def _manage_risk(self):
+        """Checks if current high/low prices hit stop loss or take profit limits, or if price crossed back over MA.
+
+        Returns:
+            bool: True if position was closed, False otherwise.
+        """
         if not self.position:
             return False
         high = float(self.data.high[0])
@@ -239,6 +295,7 @@ class AdxMaStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Advance strategy each bar: update trailing/exit and open new positions."""
         self.bar_num += 1
         warmup = max(self.p.per_ma, self.p.per_adx) + 3
         if len(self.data) < warmup:
@@ -268,6 +325,11 @@ class AdxMaStrategy(bt.Strategy):
             self.order = self.sell(size=float(self.p.lots))
 
     def notify_order(self, order):
+        """Track completed/rejected orders and keep the active order pointer clean.
+
+        Args:
+            order: Backtrader order object.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -284,6 +346,7 @@ class AdxMaStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track trade lifecycle counters and direction for closed rounds."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             return
@@ -313,6 +376,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a dataset filename to an absolute filesystem path.
+
+    Args:
+        filename: Relative filename under the test directory.
+
+    Returns:
+        pathlib.Path: Absolute file path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -320,6 +391,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load backtest data and return frame metadata.
+
+    Args:
+        config: Inlined regression config.
+
+    Returns:
+        dict: Loaded DataFrame and date boundaries.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -336,6 +415,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build a Backtrader Cerebro instance with strategy and analyzers.
+
+    Args:
+        config: Inlined regression config.
+        frame: Dictionary from :func:`load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Ready-to-run engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -363,6 +451,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract deterministic metrics used by the regression assertions.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Cerebro engine after execution.
+        frame: Backtest frame and metadata.
+        config: Inlined config.
+
+    Returns:
+        dict: Summary metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -404,6 +503,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute regression backtest and return artifacts.
+
+    Args:
+        plot: If true, render Backtrader chart.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

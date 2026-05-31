@@ -7,6 +7,24 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This strategy ("LongShortExpertMACD") implements a trend-following crossover strategy based on the Moving Average Convergence Divergence (MACD) indicator, with configurable trade direction constraints (Allowed Sides: BOTH, LONG, SHORT).
+    - Market Assumptions: Crossovers of the MACD line and its Signal line (12, 24, 9 parameters) indicate robust momentum waves. Trading only in the direction allowed by `allowed_positions` parameter limits risk during strong unilateral trends.
+    - Indicators:
+        - MACD: Standard MACD indicator with 12-period fast EMA (`period_fast`), 24-period slow EMA (`period_slow`), and 9-period signal SMA (`period_signal`).
+        - CrossOver: Detects crossovers between MACD line and Signal line.
+    - Entry Signals:
+        - Buy Entry: MACD crosses above the Signal line (`crossover[0] > 0`), and `allowed_positions` allows long entries (e.g. 'BOTH' or 'LONG'). Any active short position is closed beforehand.
+        - Sell Entry: MACD crosses below the Signal line (`crossover[0] < 0`), and `allowed_positions` allows short entries (e.g. 'BOTH' or 'SHORT'). Any active long position is closed beforehand.
+    - Exit Signals:
+        - Symmetrical Stop Loss & Take Profit: Set at execution price plus/minus SL/TP distance (20 pips SL, 50 pips TP).
 """
 from __future__ import annotations
 import math
@@ -24,7 +42,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'LongShortExpertMACD',
-        'source_ea': 'ea/0868_基于_CExpert_的多空单边_EA',
+        'source_ea': 'ea/0868_CExpert_Based_Long_Short_Unilateral_EA/expert_macd_longshort.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -67,9 +85,18 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
+
 
 
 
@@ -80,7 +107,19 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 
+
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -99,13 +138,20 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5))
 
 
 class LongShortExpertMACDStrategy(bt.Strategy):
+    """Strategy class implementing MACD crossover with directional trade filters.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(period_fast=12, period_slow=24, period_signal=9, take_profit_points=50, stop_loss_points=20, fixed_lot=0.1, point=0.01, allowed_positions='BOTH')
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.data0 = self.datas[0]
         self.macd = bt.indicators.MACD(self.data0.close, period_me1=self.p.period_fast, period_me2=self.p.period_slow, period_signal=self.p.period_signal)
         self.crossover = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
@@ -119,15 +165,35 @@ class LongShortExpertMACDStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Log message with current bar's timestamp.
+
+        Args:
+            text (str): Content string to log.
+        """
         print(f'{bt.num2date(self.data0.datetime[0]).isoformat()}, {text}')
 
     def _can_long(self):
+        """Verify if long positions are allowed under the allowed_positions configuration.
+
+        Returns:
+            bool: True if allowed, otherwise False.
+        """
         return self.p.allowed_positions in ('BOTH', 'LONG')
 
     def _can_short(self):
+        """Verify if short positions are allowed under the allowed_positions configuration.
+
+        Returns:
+            bool: True if allowed, otherwise False.
+        """
         return self.p.allowed_positions in ('BOTH', 'SHORT')
 
     def _check_exit_levels(self):
+        """Check if active position needs to be closed due to SL/TP breaches.
+
+        Returns:
+            bool: True if an exit order was placed, otherwise False.
+        """
         if not self.position:
             return False
         cp = float(self.data0.close[0])
@@ -145,6 +211,7 @@ class LongShortExpertMACDStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -165,6 +232,11 @@ class LongShortExpertMACDStrategy(bt.Strategy):
                 self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -198,6 +270,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -205,6 +288,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -216,6 +310,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     backtest_cfg = config['backtest']
     params = config.get('params', {})
     cerebro = bt.Cerebro(stdstats=True)
@@ -234,6 +337,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strategy, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strategy (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strategy.analyzers.sharpe.get_analysis()
     returns = strategy.analyzers.returns.get_analysis()
     drawdown = strategy.analyzers.drawdown.get_analysis()
@@ -251,6 +365,14 @@ def extract_metrics(strategy, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Execute the full backtest workflow.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) instances.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -265,7 +387,14 @@ def run(plot=False):
 
 
 def _close(actual, expected, *, tol, key):
-    """Assert ``actual`` is finite and within ``tol`` of ``expected``."""
+    """Assert ``actual`` is finite and within ``tol`` of ``expected``.
+
+    Args:
+        actual (float): Calculated actual value.
+        expected (float): Baseline target value.
+        tol (float): Precision tolerance.
+        key (str): Label for target value.
+    """
     assert actual is not None, f"{key}: expected={expected}, got=None"
     a = float(actual)
     assert math.isfinite(a), f"{key}: expected={expected}, got non-finite {actual}"
@@ -274,8 +403,71 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
+    """Call main() or run() depending on what the original script defined.
+
+    Returns:
+        Any: Strategy execution output.
+    """
     import sys as _sys
     _mod = _sys.modules[__name__]
     if hasattr(_mod, "main") and callable(_mod.main):

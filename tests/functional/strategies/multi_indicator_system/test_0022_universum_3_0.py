@@ -1,6 +1,32 @@
-"""Inlined regression test for multi_indicator_system/0022_universum_3_0.
+"""Inlined regression test for the Universum 3.0 DeMarker multi-indicator strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD (gold) 15-minute ``M15`` bars loaded from
+    ``tests/datas/XAUUSD_M15.csv`` through the MetaTrader-5 style CSV reader.
+    The backtest window runs from 2025-12-03 01:15 to 2026-03-10 09:00 with a
+    15-minute bar shift, delivered to the engine through a single
+    :class:`Mt5PandasFeed` data source on the 15-minute timeframe.
+
+Strategy Principle:
+    Trades a single DeMarker oscillator, which compares directional high/low
+    movement to gauge whether buyers or sellers dominate over a lookback
+    window. A reading above 0.5 is treated as buy-biased and at or below 0.5 as
+    sell-biased. The system pairs this directional bias with a martingale-style
+    money-management scheme that scales position size up after losing trades to
+    recover prior losses, capped by a maximum lot and a consecutive-loss limit.
+
+Strategy Logic:
+    ``__init__`` builds the :class:`DeMarkerIndicator` and initialises bar,
+    signal, order and loss counters. ``next`` waits for the indicator warm-up,
+    manages open positions against fixed take-profit/stop-loss levels, and
+    otherwise opens a long or short of the next martingale-scaled lot based on
+    the DeMarker bias. ``notify_order`` tracks completed and rejected orders
+    and clears the pending order reference, while ``notify_trade`` tallies wins
+    and losses and resets or increments the loss streak that drives lot sizing.
+    The test asserts bar, trade and final-value counts against the captured
+    baseline.
 """
 from __future__ import annotations
 
@@ -16,6 +42,18 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader-5 style CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 CSV export to read.
+        fromdate: Optional inclusive lower bound used to trim the index.
+        todate: Optional inclusive upper bound used to trim the index.
+        bar_shift_minutes: Minutes to shift the datetime index forward.
+
+    Returns:
+        A datetime-indexed DataFrame with open, high, low, close, volume and
+        openinterest columns in ascending time order.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +77,13 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping standard OHLCV columns by position.
+
+    Binds the open, high, low, close, volume and openinterest lines to fixed
+    column indices so the prepared DataFrame can be consumed directly by the
+    engine.
+    """
+
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -46,13 +91,22 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class DeMarkerIndicator(bt.Indicator):
+    """DeMarker oscillator measuring directional high/low pressure.
+
+    Sums the positive high-to-high and low-to-low moves over ``period`` bars
+    and normalises the up moves by the total, producing a single ``dem`` line
+    bounded in [0, 1] where higher values indicate stronger buying pressure.
+    """
+
     lines = ("dem",)
     params = (("period", 14),)
 
     def __init__(self):
+        """Reserve the minimum lookback needed for the period-based window."""
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Compute the DeMarker value for the current bar."""
         de_max_sum = 0.0
         de_min_sum = 0.0
         for i in range(self.p.period):
@@ -70,6 +124,14 @@ class DeMarkerIndicator(bt.Indicator):
 
 
 class Universum30Strategy(bt.Strategy):
+    """DeMarker-driven strategy with martingale position sizing.
+
+    Enters long or short each bar based on whether the DeMarker oscillator is
+    above or below 0.5, protects positions with fixed take-profit and
+    stop-loss offsets, and scales the lot size up after consecutive losses up
+    to a maximum lot and loss-streak limit.
+    """
+
     params = dict(
         ma_period=10,
         take_profit=50, stop_loss=50,
@@ -80,6 +142,7 @@ class Universum30Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the DeMarker indicator and initialise counters and state."""
         self.demarker = DeMarkerIndicator(self.data, period=self.p.ma_period)
         self.bar_num = 0
         self.signal_count = 0
@@ -138,6 +201,7 @@ class Universum30Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate Demarker bias, open/exit positions, and apply martingale sizing."""
         self.bar_num += 1
         if len(self) < self.p.ma_period + 1:
             return
@@ -160,6 +224,7 @@ class Universum30Strategy(bt.Strategy):
             self.order = self.sell(size=size)
 
     def notify_order(self, order):
+        """Update counters, reset risk state, and clear pending references."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -178,6 +243,7 @@ class Universum30Strategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade statistics and reset/increment the consecutive-loss counter."""
         if not trade.isclosed:
             return
         self.trade_count += 1

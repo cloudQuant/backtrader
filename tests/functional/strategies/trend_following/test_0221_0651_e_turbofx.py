@@ -7,6 +7,34 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each bar timestamp is shifted forward by 15 minutes, and
+    the M15 frame is fed to Cerebro at a 60-minute (H1) compression so the
+    strategy effectively trades on hourly bars.
+
+Strategy Principle:
+    This is the "e-TurboFx" strategy (MT5 e-turbofx EA). It looks for a short run
+    of consecutive same-direction candles whose bodies are progressively
+    expanding (accelerating momentum). When the last ``depth_analysis`` bars are
+    all bullish with growing bodies it buys; when they are all bearish with
+    growing bodies it sells. Each trade carries a fixed point-based stop loss and
+    take profit.
+
+Strategy Logic:
+    load_backtest_frame loads and date-filters the frame; build_cerebro adds it
+    at H1 compression, configures a fixed-commission futures broker, the
+    strategy, and the analyzers. Each bar the strategy waits for warm-up, skips
+    while an order is pending, and either manages the open position (take-profit
+    or stop-loss touch) or, while flat, scans the last ``depth_analysis`` candles
+    for an all-up or all-down expanding-body pattern to open a long/short with
+    ATR-free point-based risk prices. notify_order tracks completed/rejected
+    orders and buy/sell counts and clears the working order, while notify_trade
+    tallies wins and losses. extract_metrics consolidates analyzer output, and
+    the test forces runonce=True, runs the module's run(), and asserts each
+    metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -74,6 +102,19 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to every timestamp so that the index
+            marks the close of each bar.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -97,12 +138,16 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the MT5 OHLCV columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ETurboFxStrategy(bt.Strategy):
+    """Trade expanding-body candle runs with fixed point stop and take profit."""
+
     params = dict(
         depth_analysis=3,
         lots=0.1,
@@ -113,6 +158,7 @@ class ETurboFxStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset counters and order/risk-price state."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -159,6 +205,14 @@ class ETurboFxStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Manage an open position or open a trade on an expanding-body run.
+
+        Increments the bar counter, waits for warm-up, skips while an order is
+        pending, then either manages the open position (take-profit/stop touch)
+        or, while flat, counts the last ``depth_analysis`` candles for an all-up
+        or all-down pattern with progressively larger bodies and opens a
+        long/short with point-based risk prices.
+        """
         self.bar_num += 1
         depth = int(self.p.depth_analysis)
         if len(self) < depth + 2:
@@ -199,6 +253,7 @@ class ETurboFxStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Count completed/rejected orders and reset working order state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -214,6 +269,7 @@ class ETurboFxStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count closed trades and update win/loss totals."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -233,12 +289,28 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve an input data path from the module directory.
+
+    Args:
+        filename: Relative path from the inlined test configuration.
+
+    Returns:
+        pathlib.Path: Absolute path that points to an existing file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load MT5 data, apply date filtering, and return frame metadata.
+
+    Args:
+        config: Backtest configuration dictionary.
+
+    Returns:
+        dict: Backtest payload with filtered data and date bounds.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -249,6 +321,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build Cerebro with data, strategy, commission, and analyzers.
+
+    Args:
+        config: Runtime configuration dictionary.
+        frame: Backtest payload generated by ``load_backtest_frame``.
+
+    Returns:
+        bt.Cerebro: Prepared backtest engine.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -265,6 +346,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Assemble strategy state and analyzer outputs used by regression assertions.
+
+    Args:
+        strat: Strategy instance from ``cerebro.run``.
+        cerebro: Executed Cerebro object with broker value state.
+        frame: Backtest payload used in run.
+        config: Inlined backtest configuration.
+
+    Returns:
+        dict: Structured metrics dictionary.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -283,6 +375,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Execute a single backtest and return results, metrics, and engine.
+
+    Args:
+        plot: Whether to render a cerebro chart after execution.
+
+    Returns:
+        tuple: ``(results, metrics, cerebro)``.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

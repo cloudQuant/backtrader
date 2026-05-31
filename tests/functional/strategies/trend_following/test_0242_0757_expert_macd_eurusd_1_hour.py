@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Base Timeframe: M15 (15 Minutes).
+    - Data Path: '{repo}/tests/datas/XAUUSD_M15.csv'.
+    - Date Range: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+    - This is a trend-following strategy based on MACD (Moving Average Convergence Divergence) signals (originally optimized for EURUSD on 1-hour timeframe).
+    - Market Assumptions: Markets establish strong momentum-driven trends. Standard MACD line crossover signals (when the MACD line crosses its signal line) provide highly reliable entry triggers during sustained trend breakouts.
+    - Indicators:
+        - MACD line: difference between fast EMA (5) and slow EMA (15).
+        - Signal line: 3-period EMA of the MACD line.
+    - Entry Signals:
+        - Buy Entry: Confirmed MACD line crossover signal where MACD crosses above the signal line.
+        - Sell Entry: Confirmed MACD line crossover signal where MACD crosses below the signal line.
+    - Exit Signals:
+        - Trailing stop-loss: 25 pips dynamic trailing.
+        - Reverse crossover: Exit long when MACD crosses back below signal line, exit short when MACD crosses back above signal line.
 """
 from __future__ import annotations
 import math
@@ -23,8 +42,8 @@ _REPO = Path(__file__).resolve().parents[4]
 
 _CONFIG = {
     'strategy': {
-        'name': '交易系统_MACD_EURUSD_1_小时',
-        'source_ea': 'ea/0757_交易系统_MACD_EURUSD_1_小时',
+        'name': 'Trading_System_MACD_EURUSD_1_Hour',
+        'source_ea': 'ea/0757_Trading_System_MACD_EURUSD_1_Hour',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -68,15 +87,33 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
 
 
 
-
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+        bar_shift_minutes (int): Minutes to shift data timestamps. Defaults to 0.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -104,12 +141,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with default columns."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class ExpertMacdEurusd1HourStrategy(bt.Strategy):
+    """Strategy class implementing the MACD crossover pattern.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         trailing=25,
         risk=0.01,
@@ -123,6 +166,7 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.macd = bt.indicators.MACD(self.data.close, period_me1=self.p.macd_fast, period_me2=self.p.macd_slow, period_signal=self.p.macd_signal)
         self.bar_num = 0
         self.signal_count = 0
@@ -138,20 +182,49 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
         self.stop_price = None
 
     def log(self, text):
+        """Log the given message with a timestamp prefix.
+
+        Args:
+            text (str): Message to log.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _unit(self):
+        """Calculate the price unit value based on point size and digit adjustments.
+
+        Returns:
+            float: Calculated price step unit.
+        """
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _lots_optimized(self):
+        """Calculate risk-optimized position size.
+
+        Returns:
+            float: Risk-optimized lot size.
+        """
         volume = round(float(self.broker.getcash()) * float(self.p.risk) / 1000.0, 2)
         return max(volume, float(self.p.min_lot))
 
     def _mac(self, line, index):
+        """Safely fetch historical line values relative to current bar.
+
+        Args:
+            line (bt.LineSeries): Target indicator line.
+            index (int): Lookback offset.
+
+        Returns:
+            float: Historical indicator value.
+        """
         return float(line[-index]) if index > 0 else float(line[0])
 
     def _buy_signal(self):
+        """Evaluate MACD buy entry pattern rules.
+
+        Returns:
+            bool: True if buy signal is triggered, otherwise False.
+        """
         mac1 = self._mac(self.macd.macd, 0)
         mac2 = self._mac(self.macd.macd, 1)
         mac3 = self._mac(self.macd.macd, 2)
@@ -163,6 +236,11 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
         return sig4 > sig3 and sig3 > sig2 and sig2 < sig1 and mac4 > mac3 and mac3 < mac2 and mac2 < mac1 and mac2 < -0.00020 and mac4 < 0 and mac1 > 0.00020
 
     def _sell_signal(self):
+        """Evaluate MACD sell entry pattern rules.
+
+        Returns:
+            bool: True if sell signal is triggered, otherwise False.
+        """
         mac1 = self._mac(self.macd.macd, 0)
         mac2 = self._mac(self.macd.macd, 1)
         mac3 = self._mac(self.macd.macd, 2)
@@ -174,6 +252,11 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
         return sig4 < sig3 and sig3 < sig2 and sig2 > sig1 and mac4 < mac3 and mac3 > mac2 and mac2 > mac1 and mac2 > 0.00020 and mac4 > 0 and mac1 < -0.00035
 
     def _manage_position(self):
+        """Manage active trade risk, checking trailing stop limits and reverse crossovers.
+
+        Returns:
+            bool: True if an exit order was successfully placed, otherwise False.
+        """
         if not self.position or self.order is not None:
             return False
         mac1 = self._mac(self.macd.macd, 0)
@@ -205,6 +288,7 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         if len(self) < 10:
             return
@@ -229,6 +313,11 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
             self.log(f'sell signal volume={volume:.2f}')
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -246,6 +335,11 @@ class ExpertMacdEurusd1HourStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -270,6 +364,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -277,6 +382,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load high-frequency M15 gold data.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+
+    Returns:
+        dict: Loaded data frame dictionary containing base bars.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -288,6 +404,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        config (dict): Backtest configuration.
+        frame (dict): Loaded and processed data frame dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -305,6 +430,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -344,8 +480,15 @@ def extract_metrics(strat, cerebro, frame, config):
     }
 
 
-
 def run(plot=False):
+    """Main execution function to run the strategy backtest.
+
+    Args:
+        plot (bool, optional): Whether to plot results. Defaults to False.
+
+    Returns:
+        tuple: (results, metrics, cerebro) backtest output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -369,124 +512,75 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_241_0242_0757_expert_macd_eurusd_1_hour() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/trend_following/0242_0757_expert_macd_eurusd_1_hour.
     """
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function (returns a dict).
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "extracted" not in captured:
-                        captured["extracted"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Hook cerebro.run() to (a) force runonce=True and (b) capture results
-    # so we can derive metrics directly from analyzers when no extractor returns a dict.
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _hooked_cerebro_run(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        _r = _orig_run(self, *args, **kwargs)
-        captured["cerebro"] = self
-        captured["results"] = _r
-        try:
-            captured["initial_cash"] = float(self.broker.startingcash)
-        except Exception:
-            pass
-        return _r
-    _bt.Cerebro.run = _hooked_cerebro_run
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "extracted" not in captured:
-                    captured["extracted"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "extracted" not in captured:
-                            captured["extracted"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "cerebro" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("extracted")
-    if metrics is None:
-        # Derive from cerebro/analyzers
-        cerebro = captured.get("cerebro")
-        results = captured.get("results") or []
-        assert cerebro is not None and results, "no metrics or cerebro captured"
-        strat = results[0] if not isinstance(results[0], list) else results[0][0]
-        metrics = {}
-        metrics["final_value"] = float(cerebro.broker.getvalue())
-        if "initial_cash" in captured:
-            metrics["initial_cash"] = captured["initial_cash"]
-        analyzers = getattr(strat, "analyzers", None)
-        if analyzers is not None:
-            for name in dir(analyzers):
-                if name.startswith("_"):
-                    continue
-                try:
-                    an = getattr(analyzers, name)
-                    analysis = an.get_analysis()
-                except Exception:
-                    continue
-                if "sharperatio" in analysis and "sharpe_ratio" not in metrics:
-                    metrics["sharpe_ratio"] = analysis.get("sharperatio")
-                if "rnorm" in analysis and "annual_return" not in metrics:
-                    metrics["annual_return"] = analysis.get("rnorm")
-                if "rtot" in analysis and "return_rate" not in metrics:
-                    metrics["return_rate"] = analysis.get("rtot")
-                if "max" in analysis and isinstance(analysis["max"], dict) and "drawdown" in analysis["max"] and "max_drawdown" not in metrics:
-                    metrics["max_drawdown"] = analysis["max"]["drawdown"]
-                if "sqn" in analysis and "sqn" not in metrics:
-                    metrics["sqn"] = analysis.get("sqn")
-                if "total" in analysis and isinstance(analysis["total"], dict) and "total_trades" not in metrics:
-                    metrics["total_trades"] = analysis["total"].get("closed", analysis["total"].get("total", 0))
-                    metrics["trade_num"] = metrics.get("total_trades", 0)
-                if "won" in analysis and isinstance(analysis["won"], dict) and "win_count" not in metrics:
-                    metrics["win_count"] = analysis["won"].get("total", 0)
-                if "lost" in analysis and isinstance(analysis["lost"], dict) and "loss_count" not in metrics:
-                    metrics["loss_count"] = analysis["lost"].get("total", 0)
-        for attr in ("bar_num", "buy_count", "sell_count", "rebalance_count"):
-            if hasattr(strat, attr) and attr not in metrics:
-                metrics[attr] = getattr(strat, attr)
-
-    assert metrics, "no metrics derived"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 6113, f"bar_num: expected=6113, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 10, f"buy_count: expected=10, got={metrics.get('buy_count')!r}"

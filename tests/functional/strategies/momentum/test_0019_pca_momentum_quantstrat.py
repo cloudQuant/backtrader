@@ -7,12 +7,47 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a quantitative momentum strategy based on a simplified Principal Component Analysis (PCA) proxy of price returns.
+    - Market Assumptions: Markets exhibit persistent momentum trends that are best captured by isolating and aggregating the dominant factors of standardized returns (the PCA proxy) rather than raw returns.
+    - Indicators:
+        - returns: Daily percentage return rate of close prices.
+        - returns_mean: rolling 252-day mean of daily returns.
+        - returns_std: rolling 252-day standard deviation of returns.
+        - standardized_return: standardized returns (returns - mean) / std.
+        - momentum: standard rolling 63-day percentage close price change.
+        - pca_momentum: rolling 63-day cumulative sum of standardized_return.
+    - Entry Signals:
+        - Buy Entry: pca_momentum crosses above 0 (signal > 0.5).
+    - Exit Signals:
+        - Close Entry: pca_momentum crosses below 0 (signal < 0.5).
+
+Strategy Logic:
+    load_data loads the daily XAUUSD frame and prepare_pca_momentum_features
+    precomputes standardized returns, the rolling PCA-proxy momentum, and a
+    binary entry signal; build_cerebro wires the custom feed, a futures-percent
+    commission scheme, the strategy, and analyzers. Each bar the strategy records
+    broker value, skips while an order is pending, and — when the signal is
+    active (>0.5) and flat — opens a notional-sized long, or — when the signal
+    turns inactive (<0.5) while holding — closes the position. notify_order
+    clears the pending reference and notify_trade tallies win/loss.
+    extract_metrics consolidates analyzer output plus an ulcer index; the test
+    loads inputs, builds cerebro, forces runonce=True, and asserts each metric
+    against migration-time values.
 """
 from __future__ import annotations
 import math
 from pathlib import Path
 import io
 import json
+import csv
 from datetime import datetime
 from backtrader.comminfo import ComminfoFuturesPercent
 import backtrader as bt
@@ -67,7 +102,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -75,6 +118,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -107,30 +160,38 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_pca_momentum_features(df, params):
-    """PCA动量策略特征"""
+    """Prepare and compute indicators for the PCA Momentum strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback and momentum windows.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing standardized_return, pca_momentum, and signals.
+    """
     out = df.copy()
     lookback = int(params.get("lookback", 252))
     momentum_window = int(params.get("momentum_window", 63))
 
-    # 计算收益率
+    # Calculate returns
     returns = out["close"].pct_change()
 
-    # 计算滚动均值和标准差（简化版PCA - 使用第一主成分的代理）
+    # Calculate rolling mean and std (simplified PCA - proxy of 1st principal component)
     out["returns_mean"] = returns.rolling(lookback).mean()
     out["returns_std"] = returns.rolling(lookback).std()
 
-    # 标准化收益
+    # Standardize returns
     out["standardized_return"] = (returns - out["returns_mean"]) / out[
         "returns_std"
     ].replace(0, np.nan)
 
-    # 计算动量信号
+    # Calculate momentum
     out["momentum"] = out["close"].pct_change(momentum_window)
 
-    # PCA动量信号：基于标准化收益的累积
+    # PCA Momentum signal: cumulative rolling sum of standardized returns
     out["pca_momentum"] = out["standardized_return"].rolling(momentum_window).sum()
 
-    # 信号：PCA动量为正做多，为负做空
+    # Signals: buy when positive, flat when negative
     out["signal"] = (out["pca_momentum"] > 0).astype(float)
 
     out = out[
@@ -152,6 +213,8 @@ def prepare_pca_momentum_features(df, params):
 
 
 class Mt5PcaMomentumFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with PCA Momentum strategy lines."""
+
     lines = (
         "returns_mean",
         "returns_std",
@@ -176,6 +239,11 @@ class Mt5PcaMomentumFeed(bt.feeds.PandasData):
 
 
 class PcaMomentumStrategy(bt.Strategy):
+    """Strategy class implementing PCA-based returns momentum logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         lookback=252,
         momentum_window=63,
@@ -183,6 +251,7 @@ class PcaMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -209,6 +278,7 @@ class PcaMomentumStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append(
             (bt.num2date(self.data.datetime[0]), float(self.broker.getvalue()))
@@ -219,7 +289,7 @@ class PcaMomentumStrategy(bt.Strategy):
 
         signal = float(self.data.signal[0])
 
-        # 无持仓时检查入场
+        # Check entry when flat
         if not self.position:
             if signal > 0.5:
                 self.buy_count += 1
@@ -230,17 +300,27 @@ class PcaMomentumStrategy(bt.Strategy):
                 )
             return
 
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if signal < 0.5:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -252,7 +332,7 @@ class PcaMomentumStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""PCA Momentum Strategy QuantStrat 回测"""
+"""PCA Momentum Strategy QuantStrat backtest."""
 
 
 
@@ -263,6 +343,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get("data", {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get("timeframe", "D1")).upper()
     if timeframe_value.startswith("M") and timeframe_value[1:].isdigit():
@@ -293,10 +381,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -311,6 +415,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare PCA Momentum strategy features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config["data"]
     fromdate = datetime.fromisoformat(data_cfg["fromdate"])
     todate = datetime.fromisoformat(data_cfg["todate"])
@@ -325,6 +437,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config["backtest"]
     cerebro.broker.setcash(float(bt_cfg["initial_cash"]))
@@ -351,6 +472,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -396,13 +528,19 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
         return None
     return v
-
-
 
     summary_path = (BASE_DIR / config["outputs"]["global_summary_csv"]).resolve()
     fieldnames = [
@@ -469,8 +607,8 @@ def normalize(v):
         writer.writerows(rows)
 
 
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -490,78 +628,70 @@ def _close(actual, expected, *, tol, key):
     )
 
 
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
+
+
 def test_19_0019_pca_momentum_quantstrat() -> None:
     """Migrated regression test (runonce=True only).
 
     Originally located at tests/functional/strategies_regression/momentum/0019_pca_momentum_quantstrat.
     """
-    # Capture metrics by hooking extract_metrics() (or similar) and invoking the
-    # original main()/run(). This reuses whatever loader / build_cerebro /
-    # metrics-extraction signatures the strategy used internally.
-    captured = {}
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-
-    # Hook any plausible metrics-extraction function.
-    _hook_targets = []
-    _metric_names = (
-        "extract_metrics", "summarize", "build_metrics", "compute_metrics",
-        "calculate_metrics", "collect_metrics", "gather_metrics", "extract_results",
-    )
-    for _name in _metric_names:
-        _orig = getattr(_mod, _name, None)
-        if callable(_orig):
-            def _make_hook(orig):
-                def _hook(*a, **kw):
-                    m = orig(*a, **kw)
-                    if isinstance(m, dict) and m and "metrics" not in captured:
-                        captured["metrics"] = m
-                    return m
-                return _hook
-            setattr(_mod, _name, _make_hook(_orig))
-            _hook_targets.append((_name, _orig))
-
-    # Force runonce=True for the cerebro.run() call inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            if hasattr(_mod, "main") and callable(_mod.main):
-                _mod.main()
-            elif hasattr(_mod, "run") and callable(_mod.run):
-                result = _mod.run()
-                if isinstance(result, dict) and "metrics" not in captured:
-                    captured["metrics"] = result
-                elif isinstance(result, (list, tuple)):
-                    for item in result:
-                        if isinstance(item, dict) and "metrics" not in captured:
-                            captured["metrics"] = item
-                            break
-            else:
-                raise RuntimeError("Neither main() nor run() found in inlined module")
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        for _name, _orig in _hook_targets:
-            setattr(_mod, _name, _orig)
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "no metrics captured during run"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4324, f"bar_num: expected=4324, got={metrics.get('bar_num')!r}"
     assert metrics.get('buy_count') == 121, f"buy_count: expected=121, got={metrics.get('buy_count')!r}"

@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (rsi, entry_signal,
+    confirmed_entry, exit_signal) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    Mean Reversion Entry is a momentum-confirmed mean-reversion strategy that
+    enters long when RSI drops into oversold territory AND the current close
+    breaks above the previous bar's high (confirmation). The position is held
+    for a fixed holding period regardless of intermediate price action.
+
+Strategy Logic:
+    1. load_config() / load_data() loads and preprocesses the CSV, computes
+       RSI(2), detects oversold conditions (RSI < threshold), and confirms
+       entries when close > previous high.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. MeanReversionEntryStrategy checks confirmed_entry on flat positions and
+       exits after holding_days bars.
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_38_0038_mean_reversion_entry() runs the strategy and validates all
+       expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -76,6 +100,27 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file and return a cleaned pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported CSV file.
+        fromdate: Optional start datetime to filter data.
+        todate: Optional end datetime to filter data.
+
+    Returns:
+        pd.DataFrame with columns datetime, open, high, low, close, volume,
+        openinterest; indexed by datetime and sorted.
+    """
+    """Load and normalize MT5 CSV OHLCV data.
+
+    Args:
+        filepath: Source CSV file path.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+
+    Returns:
+        Datetime-indexed OHLCV dataframe.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -102,7 +147,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def calculate_rsi(close, period=2):
-    """计算RSI指标"""
+    """Calculate RSI indicator from a close price series."""
     delta = close.diff()
     gain = delta.where(delta > 0, 0)
     loss = (-delta).where(delta < 0, 0)
@@ -114,28 +159,28 @@ def calculate_rsi(close, period=2):
 
 
 def prepare_mean_reversion_entry_features(df, params):
-    """准备均值回归入场策略特征"""
+    """Prepare Mean Reversion Entry strategy features from raw OHLCV data."""
     out = df.copy()
     rsi_period = int(params.get('rsi_period', 2))
     rsi_oversold = float(params.get('rsi_oversold', 10))
     
-    # 计算RSI
+    # Compute RSI.
     out['rsi'] = calculate_rsi(out['close'], rsi_period)
     
-    # 计算前一日高点
+    # Compute previous bar high.
     out['prev_high'] = out['high'].shift(1)
     
-    # 入场信号：RSI超卖
+    # Entry signal: RSI oversold.
     out['entry_signal'] = (out['rsi'] < rsi_oversold).astype(float)
     
-    # 确认入场：价格突破前一日高点
+    # Confirmation: close breaks above previous high.
     out['confirmation'] = (out['close'] > out['prev_high']).astype(float)
     
-    # 综合入场信号：RSI超卖 + 确认突破
+    # Combined entry: RSI oversold + confirmation.
     out['confirmed_entry'] = ((out['entry_signal'] > 0.5) & 
                                (out['confirmation'] > 0.5)).astype(float)
     
-    # 出场信号：持有N天后
+    # Exit signal: hold for N days.
     out['exit_signal'] = 0.0
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -144,6 +189,7 @@ def prepare_mean_reversion_entry_features(df, params):
 
 
 class Mt5MeanReversionEntryFeed(bt.feeds.PandasData):
+    """Custom PandasData feed that exposes RSI and entry/exit signal lines."""
     lines = ('rsi', 'entry_signal', 'confirmed_entry', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -153,6 +199,7 @@ class Mt5MeanReversionEntryFeed(bt.feeds.PandasData):
 
 
 class MeanReversionEntryStrategy(bt.Strategy):
+    """RSI-confirmed mean-reversion strategy with fixed holding duration."""
     params = dict(
         rsi_period=2,
         rsi_oversold=10,
@@ -161,6 +208,7 @@ class MeanReversionEntryStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize bar counters and execution tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -173,6 +221,7 @@ class MeanReversionEntryStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate position size based on target notional percentage of broker value."""
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -187,6 +236,7 @@ class MeanReversionEntryStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Advance one bar and apply entry/exit logic."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -195,7 +245,7 @@ class MeanReversionEntryStrategy(bt.Strategy):
         
         confirmed_entry = float(self.data.confirmed_entry[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Entry check when no position is held.
         if not self.position:
             if confirmed_entry:
                 self.buy_count += 1
@@ -203,18 +253,20 @@ class MeanReversionEntryStrategy(bt.Strategy):
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场：固定持有天数
+        # Exit check when holding: fixed holding days.
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order reference after state transition."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Update trade outcome metrics when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -226,7 +278,7 @@ class MeanReversionEntryStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Mean Reversion Entry 策略回测"""
+"""Mean Reversion Entry strategy backtest."""
 
 
 
@@ -236,6 +288,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe analyzer kwargs from configured timeframe.
+
+    Args:
+        config: Test/backtest configuration.
+
+    Returns:
+        Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -248,10 +308,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return finite value or ``None`` when non-finite.
+
+    Args:
+        x: Input value.
+
+    Returns:
+        Input value when finite; else ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate ulcer index from a sequence.
+
+    Args:
+        values: Value sequence such as broker equity.
+
+    Returns:
+        Ulcer index as float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -266,6 +342,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve the configured data path to an existing absolute path.
+
+    Args:
+        filename: Data filename/path string.
+
+    Returns:
+        Resolved absolute path candidate.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -282,6 +366,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and preprocess feature data for this strategy.
+
+    Args:
+        config: Test configuration.
+
+    Returns:
+        Prepared payload with frame and date range.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -294,6 +386,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure Cerebro engine for regression execution.
+
+    Args:
+        frame: Prepared data payload.
+        config: Test/backtest configuration.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -316,6 +417,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract metrics from completed backtest run.
+
+    Args:
+        strat: Executed strategy instance.
+        cerebro: Cerebro engine instance.
+        frame: Prepared data payload.
+        config: Backtest configuration.
+
+    Returns:
+        Metric dictionary used by assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -350,6 +462,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize value for serialization.
+
+    Args:
+        v: Value to normalize.
+
+    Returns:
+        Serialized form for JSON output.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

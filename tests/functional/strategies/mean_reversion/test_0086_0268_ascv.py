@@ -7,6 +7,20 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv``.
+    Backtest runs from ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    Builds volatility/signal-based trend triggers by combining ATR context and
+    stochastic turning points to issue directional reversals.
+    Risk control is handled through bracket entries with optional trailing stop.
+
+Strategy Logic:
+    Reads MT5 CSV bars, builds a custom feed, executes the proxy indicator and
+    strategy in Cerebro, handles order/trade lifecycle updates, then validates
+    migrated analyzer metrics.
 """
 from __future__ import annotations
 import math
@@ -78,6 +92,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 TSV data and return a cleaned OHLCV DataFrame.
+
+    Args:
+        filepath: Source path for the MT5 export.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute shift to apply to timestamps.
+
+    Returns:
+        DataFrame with datetime index and spread field.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -104,6 +129,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader pandas feed including spread as additional line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -118,15 +144,18 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class BrainTrendSignalProxy(bt.Indicator):
+    """Signal proxy that combines ATR and stochastic cross conditions."""
     lines = ('buy_signal', 'sell_signal')
     params = dict(atr_period=14, sto_period=12)
 
     def __init__(self):
+        """Initialize indicators and required warm-up bars."""
         self.atr = bt.indicators.AverageTrueRange(self.data, period=self.p.atr_period)
         self.stoch = bt.indicators.Stochastic(self.data, period=self.p.sto_period)
         self.addminperiod(max(self.p.atr_period, self.p.sto_period) + 3)
 
     def next(self):
+        """Emit buy and sell trigger levels for the latest bar."""
         buy_signal = 0.0
         sell_signal = 0.0
         close0 = float(self.data.close[0])
@@ -142,6 +171,7 @@ class BrainTrendSignalProxy(bt.Indicator):
 
 
 class ASCVStrategy(bt.Strategy):
+    """Adaptive signal/CCI variant strategy with bracket entries and risk management."""
     params = dict(
         fixed_lot=0.1,
         point_size=0.01,
@@ -155,6 +185,7 @@ class ASCVStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy state, signal proxy, and tracking variables."""
         self.data0_feed = self.datas[0]
         self.signal = BrainTrendSignalProxy(self.data0_feed, atr_period=self.p.atr_period, sto_period=self.p.sto_period)
         self.entry_order = None
@@ -167,10 +198,16 @@ class ASCVStrategy(bt.Strategy):
         self.last_bar_dt = None
 
     def log(self, text):
+        """Log messages with the current bar timestamp.
+
+        Args:
+            text: Message content.
+        """
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def prenext(self):
+        """Reuse normal ``next`` behavior during startup period."""
         self.next()
 
     def _new_bar(self):
@@ -235,6 +272,7 @@ class ASCVStrategy(bt.Strategy):
         self.log(f'CLOSE side={self.active_side} reason={reason} reverse={reverse}')
 
     def next(self):
+        """Apply trailing stop and evaluate signal-based entry/exit transitions."""
         self._apply_trailing()
         if len(self.data0_feed) < max(self.p.atr_period, self.p.sto_period) + 3:
             return
@@ -263,6 +301,11 @@ class ASCVStrategy(bt.Strategy):
                 self._submit_entry('short', 'braintrend sell signal')
 
     def notify_order(self, order):
+        """Update strategy state based on order completion or cancellation.
+
+        Args:
+            order: Backtrader order instance.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -305,6 +348,11 @@ class ASCVStrategy(bt.Strategy):
                 self.limit_order = None
 
     def notify_trade(self, trade):
+        """Handle closed trade notifications and reset directional context.
+
+        Args:
+            trade: Backtrader trade object.
+        """
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED side={self.active_side or ("long" if trade.long else "short")} pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -323,6 +371,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve path to a data file from module base.
+
+    Args:
+        filename: Relative filename.
+
+    Returns:
+        Absolute path object.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -330,12 +386,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO8601 date-time strings from the migration config.
+
+    Args:
+        value: Datetime string or falsy value.
+
+    Returns:
+        Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load data frame and ensure it is non-empty.
+
+    Args:
+        config: Inlined strategy configuration.
+
+    Returns:
+        Dictionary containing cleaned market data.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -347,6 +419,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used by the regression assertions.
+
+    Args:
+        cerebro: Configured Cerebro engine.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -355,6 +432,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro for backtest run.
+
+    Args:
+        config: Runtime configuration.
+        frame: Prepared backtest frame dictionary.
+
+    Returns:
+        A configured Cerebro instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -369,6 +455,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert NaN/inf values to ``None`` for stable metric output.
+
+    Args:
+        value: Numeric or None.
+
+    Returns:
+        ``None`` for non-finite values, else original value.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -377,6 +471,12 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a summary of final performance metrics.
+
+    Args:
+        results: Backtrader run results list.
+        start_value: Starting account equity.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -403,6 +503,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run backtest execution and optionally display candle chart."""
     parser = argparse.ArgumentParser(description='Run ASCV backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

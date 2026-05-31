@@ -79,6 +79,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 TSV export into a standardized OHLCV DataFrame.
+
+    Args:
+        filepath: Data file path.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional minute shift to apply.
+
+    Returns:
+        DataFrame indexed by datetime with columns required by Backtrader feed.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +113,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData adapter for MT5-style OHLCV frames."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
@@ -129,6 +142,7 @@ class DoubleMACrossoverStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create moving-average indicators and initialize counters/state."""
         self.ma_fast = bt.indicators.SMA(self.data.close, period=self.p.fast_ma_period)
         self.ma_slow = bt.indicators.SMA(self.data.close, period=self.p.slow_ma_period)
 
@@ -200,6 +214,7 @@ class DoubleMACrossoverStrategy(bt.Strategy):
                 self.order = self.close(); return
 
     def next(self):
+        """Evaluate crossover signals and manage open positions per bar."""
         self.bar_num += 1
         if len(self) < max(self.p.fast_ma_period, self.p.slow_ma_period) + 2:
             return
@@ -226,6 +241,11 @@ class DoubleMACrossoverStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and clear temporary order state.
+
+        Args:
+            order: Updated order instance.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -241,6 +261,11 @@ class DoubleMACrossoverStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Count each closed trade as win/loss.
+
+        Args:
+            trade: Trade object emitted by Backtrader.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -260,11 +285,33 @@ if LOCAL_BACKTRADER_REPO.exists() and str(LOCAL_BACKTRADER_REPO) not in sys.path
 MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path relative to BASE_DIR.
+
+    Args:
+        filename: Configured file path.
+
+    Returns:
+        Absolute resolved path.
+
+    Raises:
+        FileNotFoundError: If file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists(): raise FileNotFoundError(f'Data file not found: {path}')
     return path
 
 def load_backtest_frame(config):
+    """Load and validate the backtest DataFrame from configuration.
+
+    Args:
+        config: Strategy/backtest config.
+
+    Returns:
+        Dict containing data and from/to datetime bounds.
+
+    Raises:
+        ValueError: If dataframe is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -274,6 +321,15 @@ def load_backtest_frame(config):
     return {'data': df, 'fromdate': fromdate, 'todate': todate}
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro for the Double MA crossover strategy.
+
+    Args:
+        config: Strategy/backtest config.
+        frame: Loaded data payload.
+
+    Returns:
+        A configured Cerebro engine.
+    """
     bt_cfg = config['backtest']; data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -290,6 +346,17 @@ def build_cerebro(config, frame):
     return cerebro
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs into assertion-ready metrics.
+
+    Args:
+        strat: Completed strategy instance.
+        cerebro: Cerebro instance after run.
+        frame: Frame dictionary with backtest date/bars.
+        config: Backtest configuration.
+
+    Returns:
+        Metrics dictionary.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis(); returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis(); trades = strat.analyzers.trades.get_analysis(); sqn = strat.analyzers.sqn.get_analysis()
     initial_cash = config['backtest']['initial_cash']; final_value = cerebro.broker.getvalue()
@@ -308,6 +375,14 @@ def extract_metrics(strat, cerebro, frame, config):
         'max_drawdown': drawdown.get('max', {}).get('drawdown', 0), 'sqn': sqn.get('sqn')}
 
 def run(plot=False):
+    """Run the double MA crossover backtest and return execution results.
+
+    Args:
+        plot: Whether to render a plot after execution.
+
+    Returns:
+        Tuple ``(results, metrics, cerebro)``.
+    """
     config = load_config(); frame = load_backtest_frame(config); cerebro = build_cerebro(config, frame)
     print('\nStarting backtest...'); results = cerebro.run(); strat = results[0]
     metrics = extract_metrics(strat, cerebro, frame, config); print_report(metrics)

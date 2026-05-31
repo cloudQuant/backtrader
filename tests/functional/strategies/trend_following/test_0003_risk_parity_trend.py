@@ -7,6 +7,42 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Five MT5 daily CSV feeds defined in ``_CONFIG['data']``: ``XAUUSD_1d.csv``
+    (gold), ``XAGUSD_1d.csv`` (silver), ``USDJPY_1d.csv`` and ``USDCHF_1d.csv``
+    (inverted into yen- and franc-strength safe-haven series), and
+    ``IEF_1d.csv`` (US Treasuries), all under ``tests/datas/mt5_1d_data``. Daily
+    bars are clipped to 2008-01-01 through 2025-12-31 and aligned to a shared
+    date index. A derived signal feed carries per-asset weights, a cash weight
+    and a monthly rebalance flag alongside the gold OHLCV bars.
+
+Strategy Principle:
+    Risk parity combined with a trend filter across a basket of safe havens.
+    Each month the assets are weighted inversely to their trailing volatility
+    (equal risk contribution), but an asset only receives its weight while its
+    price is above its 200-day moving average; otherwise that capital stays in
+    cash. The yen and franc are converted to strength series (inverse of
+    USDJPY/USDCHF) so a rising series means a strengthening safe haven. The
+    thesis is that equal-risk diversification across uncorrelated havens plus a
+    trend gate produces steadier returns.
+
+Strategy Logic:
+    1. ``load_data`` loads and aligns the five asset CSVs (inverting the FX
+       pairs via ``invert_price_frame``), and ``prepare_risk_parity_inputs``
+       computes inverse-volatility weights gated by the trend signal plus the
+       residual cash weight at each month-end.
+    2. ``RiskParitySignalFeed`` exposes the per-asset weights and rebalance flag
+       as extra data lines; ``RiskParityTrendStrategy.__init__`` binds the
+       signal and asset feeds and resets counters.
+    3. ``next`` rebalances on flagged month-ends, issuing
+       ``order_target_percent`` orders for each asset; ``notify_order`` clears
+       settled orders and ``notify_trade`` tallies win/loss counts.
+    4. ``build_cerebro`` wires the feeds, an ``ETFCommissionInfo`` scheme and the
+       Sharpe/Trade/DrawDown/Returns/SQN analyzers; ``extract_metrics`` (with
+       ``finite_or_none`` and ``calculate_ulcer_index``) builds the metrics dict
+       and ``test_3_0003_risk_parity_trend`` runs ``main`` under forced
+       ``runonce=True`` and asserts the captured expectations.
 """
 from __future__ import annotations
 import math
@@ -81,6 +117,23 @@ ASSET_ORDER = ['XAUUSD', 'XAGUSD', 'JPY_SAFE', 'CHF_SAFE', 'IEF']
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load an MT5-exported daily CSV into a backtrader-ready DataFrame.
+
+    Reads a tab- or comma-separated MetaTrader 5 export, parses the ``<DATE>``
+    and ``<TIME>`` columns into a datetime index, renames the OHLC/volume
+    columns to backtrader's lowercase convention, and clips the frame to the
+    requested date range.
+
+    Args:
+        filepath: Path to the MT5 CSV file to read.
+        fromdate: Optional inclusive lower bound on the datetime index.
+        todate: Optional inclusive upper bound on the datetime index.
+
+    Returns:
+        pandas.DataFrame: OHLCV data indexed by datetime with ``open``,
+        ``high``, ``low``, ``close``, ``volume`` and ``openinterest`` columns,
+        sorted ascending and restricted to the requested window.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -107,6 +160,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def invert_price_frame(df):
+    """Return an OHLC frame for the inverse (reciprocal) of a price series.
+
+    Converts a quote like USDJPY into JPY strength by taking reciprocals;
+    high and low are swapped because inversion reverses their ordering.
+
+    Args:
+        df: OHLC DataFrame to invert.
+
+    Returns:
+        pandas.DataFrame: A copy with ``open``/``high``/``low``/``close`` set to
+        the reciprocal prices (high and low swapped).
+    """
     inverse = df.copy()
     inverse['open'] = 1.0 / df['open']
     inverse['high'] = 1.0 / df['low']
@@ -116,6 +181,22 @@ def invert_price_frame(df):
 
 
 def prepare_risk_parity_inputs(asset_frames, params):
+    """Align assets and compute monthly risk-parity-with-trend weights.
+
+    Aligns the five assets (inverting the FX pairs into safe-haven strength
+    series), computes inverse-volatility risk-parity weights gated by a 200-day
+    trend filter at each month-end, carries weights forward between rebalances,
+    and records the residual cash weight and rebalance flag.
+
+    Args:
+        asset_frames: Mapping of asset name to daily OHLCV DataFrame.
+        params: Strategy parameter dictionary providing SMA and risk lookbacks.
+
+    Returns:
+        dict: Contains ``signal_df`` (gold OHLCV plus per-asset weights, cash
+        weight and rebalance flag) and ``asset_frames`` (the transformed,
+        index-aligned per-asset frames).
+    """
     common_index = None
     for frame in asset_frames.values():
         common_index = frame.index if common_index is None else common_index.intersection(frame.index)
@@ -184,6 +265,12 @@ def prepare_risk_parity_inputs(asset_frames, params):
 
 
 class RiskParitySignalFeed(bt.feeds.PandasData):
+    """PandasData feed exposing risk-parity weights as extra lines.
+
+    Extends the standard OHLCV feed with the rebalance flag, cash weight and the
+    five per-asset target weights so the strategy can read them directly.
+    """
+
     lines = ('rebalance_flag', 'cash_weight', 'xau_weight', 'xag_weight', 'jpy_weight', 'chf_weight', 'ief_weight')
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -192,6 +279,18 @@ class RiskParitySignalFeed(bt.feeds.PandasData):
 
 
 class RiskParityTrendStrategy(bt.Strategy):
+    """Risk-parity-with-trend strategy rebalanced monthly across safe havens.
+
+    Reads precomputed per-asset target weights from the signal feed and
+    rebalances the five asset feeds toward those weights on flagged month-ends.
+    Tracks bar, rebalance and trade statistics for the regression assertions.
+
+    Args:
+        sma_period: Period of the trend moving average.
+        risk_lookback: Lookback for the inverse-volatility risk-parity weights.
+        rebalance_freq: Rebalance cadence (monthly).
+    """
+
     params = dict(
         sma_period=200,
         risk_lookback=252,
@@ -199,6 +298,12 @@ class RiskParityTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the signal and asset feeds and reset tracking counters.
+
+        Captures the signal feed and the per-asset feeds keyed by name, then
+        initializes the pending-order list, bar/rebalance/trade/win/loss
+        counters and the equity-value series.
+        """
         self.signal_data = self.datas[0]
         self.asset_data = {data._name: data for data in self.datas[1:]}
         self.pending_orders = []
@@ -210,6 +315,12 @@ class RiskParityTrendStrategy(bt.Strategy):
         self.broker_value_series = []
 
     def next(self):
+        """Rebalance toward target weights on flagged month-ends.
+
+        Records equity, skips while orders are pending or the rebalance flag is
+        unset, and otherwise issues ``order_target_percent`` orders for each of
+        the five assets toward their signal weights.
+        """
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.signal_data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_orders:
@@ -230,11 +341,25 @@ class RiskParityTrendStrategy(bt.Strategy):
                 self.pending_orders.append(order)
 
     def notify_order(self, order):
+        """Remove settled orders from the pending-order list.
+
+        Ignores intermediate Submitted/Accepted states and drops the order from
+        the pending list once it reaches a terminal status.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_orders = [o for o in self.pending_orders if o.ref != order.ref]
 
     def notify_trade(self, trade):
+        """Tally closed trades into win and loss counters.
+
+        Args:
+            trade: The trade whose status changed; only closed trades are
+                counted.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -252,6 +377,12 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 class ETFCommissionInfo(CommInfoBase):
+    """Percentage commission scheme for stock-like ETF assets.
+
+    A thin ``CommInfoBase`` subclass charging an absolute percentage commission
+    and treating instruments as stock-like.
+    """
+
     params = (
         ('commission', 0.001),
         ('stocklike', True),
@@ -261,10 +392,29 @@ class ETFCommissionInfo(CommInfoBase):
 
 
 def finite_or_none(x):
+    """Return ``x`` when it is a finite, truthy number, else ``None``.
+
+    Args:
+        x: The numeric value to validate.
+
+    Returns:
+        The original value if it is truthy and finite, otherwise ``None``.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute the Ulcer Index of an equity-value series.
+
+    The Ulcer Index is the root-mean-square of percentage drawdowns from the
+    running peak, emphasizing deep and sustained declines.
+
+    Args:
+        values: Sequence of portfolio values ordered in time.
+
+    Returns:
+        float: The Ulcer Index, or ``0.0`` when fewer than two values exist.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -278,11 +428,27 @@ def calculate_ulcer_index(values):
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build runtime kwargs for the Sharpe analyzer from strategy config.
+
+    Args:
+        config: Strategy configuration dictionary.
+
+    Returns:
+        Dict[str, object]: Keyword arguments for ``bt.analyzers.SharpeRatio``.
+    """
     return dict(timeframe=bt.TimeFrame.Days, compression=1, factor=252, annualize=True, riskfreerate=0)
 
 
 
 def load_data(config):
+    """Load aligned OHLCV frames for each risk-parity basket asset.
+
+    Args:
+        config: Full configuration including data source paths and date bounds.
+
+    Returns:
+        Dict[str, object]: Prepared inputs and date bounds for cerebro wiring.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -295,6 +461,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Create the Backtrader engine with signal feed, strategy feeds, and analyzers.
+
+    Args:
+        frame: Prepared input frame from :func:`load_data`.
+        config: Fully resolved configuration object.
+
+    Returns:
+        bt.Cerebro: Configured backtesting engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -315,6 +490,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and normalize strategy/analyzer outputs into a metrics payload.
+
+    Args:
+        strat: Strategy instance returned by ``cerebro.run()``.
+        cerebro: Executed Backtrader engine.
+        frame: Data payload from :func:`load_data`.
+        config: Configuration used for execution.
+
+    Returns:
+        Dict[str, object]: Metrics dictionary consumed by regression checks.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     drawdown = strat.analyzers.drawdown.get_analysis()
     trades = strat.analyzers.trades.get_analysis()
@@ -362,6 +548,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def main():
+    """Run the full strategy backtest and produce the extracted metrics."""
     config = load_config()
     frame = load_data(config)
     cerebro = build_cerebro(frame, config)

@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `tests/datas/XAUUSD_M15.csv` as execution data (`M15` base timeframe),
+    resampled to `H1` for signal generation.
+    Uses date range `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+
+Strategy Principle:
+    The strategy computes a moving average on the selected price source and
+    generates stochastic long/short entries by comparing MA distance with price.
+    It applies random gating with a deterministic RNG seed and optional reverse
+    mode to emulate the source strategy's event-style trade triggers.
+    Hard-coded TP/SL distances protect each open position.
+
+Strategy Logic:
+    On each new base bar, refresh indicators and skip duplicate timestamps.
+    If flat and trigger conditions are met, submit open orders for enabled
+    directions with RNG filtering.
+    If in position, check stop loss / take profit intrabar and close first.
+    Analyzer metrics are extracted from the engine result and asserted against
+    captured baseline values.
 """
 from __future__ import annotations
 import math
@@ -89,6 +109,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tabular data and normalize it to a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional start datetime filter.
+        todate: Optional end datetime filter.
+        bar_shift_minutes: Minutes to shift bar timestamps before backtest.
+
+    Returns:
+        DataFrame indexed by datetime with OHLCV columns and optional spread.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -120,6 +151,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed wrapper adding a `spread` custom line."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -134,6 +166,12 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class PokerShowStrategy(bt.Strategy):
+    """MA-distance crossover strategy with optional reverse-signal and RNG gate.
+
+    Uses a dedicated signal feed (aggregated timeframe) for MA and baseline data
+    for execution. Tracks entry direction counts and win/loss statistics for
+    regression assertion.
+    """
     params = dict(
         lot=0.10,
         stop_loss_pips=50,
@@ -152,6 +190,7 @@ class PokerShowStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize internal state, deterministic RNG, and signal moving average."""
         self.base_feed = self.datas[0]
         self.signal_feed = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.order = None
@@ -171,10 +210,20 @@ class PokerShowStrategy(bt.Strategy):
         self.ma_signal = self._build_ma(price_line, self.p.ma_method, self.p.ma_period)
 
     def log(self, text):
+        """Print the current base-bar timestamp with a text message."""
         dt = bt.num2date(self.base_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Evaluate MA signals and submit new orders or exit controls.
+
+        Steps:
+            - Skip repeated bars from Backtrader timestamp recycling.
+            - Enforce indicator warm-up before trading.
+            - If already positioned, prioritize exit checks.
+            - Evaluate stochastic MA distance and optional reverse mode.
+            - Open a position when threshold and RNG gate are both passed.
+        """
         dt = bt.num2date(self.base_feed.datetime[0])
         if self.last_base_dt == dt:
             return
@@ -212,6 +261,11 @@ class PokerShowStrategy(bt.Strategy):
             self.log(f'OPEN SHORT lot={self.p.lot:.2f} ma={ma_value:.5f} close={close_0:.5f}')
 
     def notify_order(self, order):
+        """Update state after order completion or failures.
+
+        Args:
+            order: Backtrader order with execution/status fields.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -236,6 +290,7 @@ class PokerShowStrategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Update trade counters and clear levels when the strategy exits."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -330,6 +385,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data file path for the current test workspace."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -337,12 +393,19 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse a timestamp string into `datetime.datetime` or return ``None``."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def resample_frame(df, minutes):
+    """Resample a bar DataFrame into a coarser minute grid.
+
+    Args:
+        df: Base OHLCV DataFrame.
+        minutes: Target timeframe in minutes.
+    """
     rule = f'{minutes}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -360,6 +423,11 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config):
+    """Load and prepare execution/signal frames from config settings.
+
+    Returns:
+        Dict containing `base` and `signal` frames for cerebri ingestion.
+    """
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -378,6 +446,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach analyzer set required by assertion and reporting logic."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -386,6 +455,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build the Cerebro engine with feeds, strategy parameters, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -408,6 +478,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Convert missing/invalid scalar values to ``None``."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -416,6 +487,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a concise backtest summary from analyzer output."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -444,6 +516,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """Run the inlined Poker_SHOW backtest from CLI entry point."""
     parser = argparse.ArgumentParser(description='Run Poker_SHOW backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) on the 15-minute (M15) base timeframe, loaded from
+    the MT5 export ``tests/datas/XAUUSD_M15.csv`` and spanning 2025-12-03 01:15 to
+    2026-03-10 09:00. Each base bar is shifted forward by 15 minutes
+    (``bar_shift_minutes``) so it is stamped at close, and an 8-hour (H8) signal
+    feed is produced by resampling, so the strategy runs on two synchronized
+    feeds (M15 execution, H8 indicator). The feed also carries a ``spread`` line.
+
+Strategy Principle:
+    This is the "Exp_ColorMETRO_WPR" strategy, built on a ColorMETRO indicator
+    applied to Williams %R. Two NRTR-style step lines (a fast and a slow) ratchet
+    around the %R value; their crossover defines a cloud-flip regime. A fast line
+    crossing above the slow line is bullish (buy), and crossing below is bearish
+    (sell). The strategy opens, closes, and optionally reverses positions on those
+    flips, with fixed point-based stop-loss and take-profit protection.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the M15 execution
+    feed plus an H8 resampled signal feed, a fixed-commission futures broker, the
+    strategy, the analyzers, and an optional TradeLogger observer.
+    ColorMetroWprStrategy computes ColorMetroWprIndicator on the signal feed and,
+    once per new signal bar after warm-up, first checks protective exits, then
+    reads the fast/slow line crossover to open, close, or reverse positions
+    subject to the open/close flags. notify_order tracks fills, sets entry risk
+    prices, counts completed/rejected orders, and submits any pending reverse,
+    while notify_trade tallies trades on close. extract_metrics consolidates
+    analyzer output and signal/order counters, and the test forces runonce=True,
+    runs the module via the loader/build/extract compatibility helpers, and
+    asserts each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +116,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the tab-separated MT5 export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Optional minute offset added to each timestamp so the
+            bar is stamped at its close.
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume,
+        openinterest, and spread columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -112,6 +155,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the standard OHLCV columns plus a spread line."""
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -126,10 +171,13 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorMetroWprIndicator(bt.Indicator):
+    """ColorMETRO step lines (fast/slow NRTR) computed over Williams %R."""
+
     lines = ('fast_line', 'slow_line', 'wpr_shifted')
     params = dict(period_wpr=7, step_size_fast=5, step_size_slow=15)
 
     def __init__(self):
+        """Build the Highest/Lowest sub-indicators and reset NRTR step state."""
         period = int(self.p.period_wpr)
         self.highest = bt.indicators.Highest(self.data.high, period=period)
         self.lowest = bt.indicators.Lowest(self.data.low, period=period)
@@ -142,6 +190,7 @@ class ColorMetroWprIndicator(bt.Indicator):
         self._strend = 0
 
     def next(self):
+        """Update the fast and slow NRTR step lines from the current %R value."""
         highest = float(self.highest[0])
         lowest = float(self.lowest[0])
         close = float(self.data.close[0])
@@ -179,6 +228,8 @@ class ColorMetroWprIndicator(bt.Indicator):
 
 
 class ColorMetroWprStrategy(bt.Strategy):
+    """Trade ColorMETRO_WPR fast/slow cloud flips with fixed SL/TP and reversal."""
+
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -200,6 +251,7 @@ class ColorMetroWprStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the execution/signal feeds, build the indicator, reset state."""
         self.data0_feed = self.datas[0]
         self.signal_feed = self.datas[-1]
         self.indicator = ColorMetroWprIndicator(
@@ -227,6 +279,7 @@ class ColorMetroWprStrategy(bt.Strategy):
         self.warmup = int(self.p.period_wpr) + int(self.p.signal_bar) + 8
 
     def log(self, text):
+        """Print timestamped strategy log entries for this execution bar."""
         dt = bt.num2date(self.data0_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -311,6 +364,7 @@ class ColorMetroWprStrategy(bt.Strategy):
         return float(line[-idx] if idx else line[0])
 
     def next(self):
+        """Advance on each new H8 signal bar and handle close/reverse/entry decisions."""
         self.bar_num += 1
         signal_dt = bt.num2date(self.signal_feed.datetime[0])
         if self.last_signal_dt == signal_dt:
@@ -356,6 +410,7 @@ class ColorMetroWprStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Handle order state transitions, risk reset, and pending reverse entries."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -399,6 +454,7 @@ class ColorMetroWprStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Record closed trade results and clear risk state for the next signal."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -423,6 +479,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data filename relative to test directory and enforce file existence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -430,6 +487,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load MT5 CSV data into a cleaned frame filtered by the configured date window."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -460,6 +518,7 @@ def _timeframe_spec(label):
 
 
 def build_cerebro(config, frame):
+    """Configure broker settings, feed stack, strategy, and analyzers for one run."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -502,6 +561,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer and strategy counters into a deterministic test metrics dict."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

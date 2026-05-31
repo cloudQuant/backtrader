@@ -73,6 +73,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a Pandas DataFrame with OHLC columns."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -100,12 +101,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed for MT5-exported CSV with standard OHLC column mapping."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class StochStrategy(bt.Strategy):
+    """Stochastic-based strategy with daily breakout limits and pending order management."""
     params = dict(
         take_profit=57,
         lots=0.1,
@@ -116,6 +119,7 @@ class StochStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize state counters, pending orders, and position tracking."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -135,17 +139,21 @@ class StochStrategy(bt.Strategy):
         self.last_day = None
 
     def log(self, text):
+        """Print a timestamped log message from the current bar."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _unit(self):
+        """Return the minimum price unit (point × digits_adjust)."""
         return float(self.p.point) * float(self.p.digits_adjust)
 
     def _clear_pending(self):
+        """Clear pending buy/sell order references."""
         self.pending_buy = None
         self.pending_sell = None
 
     def _delete_all_positions_and_orders(self):
+        """Close open positions and clear all pending orders."""
         if self.position:
             self.close()
             self.completed_order_count += 1
@@ -156,6 +164,7 @@ class StochStrategy(bt.Strategy):
         self._clear_pending()
 
     def _place_daily_limits(self):
+        """Place pending buy/sell limit orders using yesterday's range projection."""
         prev_high = float(self.data.high[-1])
         prev_low = float(self.data.low[-1])
         prev_close = float(self.data.close[-1])
@@ -178,6 +187,7 @@ class StochStrategy(bt.Strategy):
         self.log(f'place limits buy={self.pending_buy["entry"]:.2f} sell={self.pending_sell["entry"]:.2f}')
 
     def _trigger_pending(self):
+        """Execute pending limit orders when price reaches entry level."""
         if self.position:
             return
         high = float(self.data.high[0])
@@ -205,6 +215,7 @@ class StochStrategy(bt.Strategy):
             self.pending_sell = None
 
     def _manage_position(self):
+        """Check SL/TP for the open position and close if triggered by price action."""
         if not self.position_side:
             return
         high = float(self.data.high[0])
@@ -227,6 +238,7 @@ class StochStrategy(bt.Strategy):
                 self.take_profit_price = None
 
     def next(self):
+        """Bar-by-bar logic: manage positions, trigger pending orders, place daily limits."""
         self.bar_num += 1
         dt = bt.num2date(self.data.datetime[0])
         if len(self) < 2:
@@ -244,6 +256,7 @@ class StochStrategy(bt.Strategy):
                 self._place_daily_limits()
 
     def notify_trade(self, trade):
+        """Update counters when a trade is fully closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -268,6 +281,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a data file path from the test directory."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -275,6 +289,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load market data and return the frame plus requested date boundaries."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -286,6 +301,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build Cerebro with feed, strategy, and analyzers from backtest inputs."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -303,6 +319,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect key performance and trade metrics for assertion checks."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

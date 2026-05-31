@@ -1,6 +1,21 @@
-"""Inlined regression test for multi_indicator_system/0014_steve_cartwright_trader_camel_cci_macd.
+"""Regression test for the inlined strategy in
+multi_indicator_system/0014_steve_cartwright_trader_camel_cci_macd.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+The test prints captured metrics and validates expected historical behavior.
+
+Data Used:
+    XAUUSD M15 OHLCV from ``tests/datas/XAUUSD_M15.csv`` with a 15-minute shift,
+    covering ``2025-12-03 01:15:00`` to ``2026-03-10 09:00:00``.
+
+Strategy Principle:
+    The strategy combines CCI, MACD, and EMA-based “camel” channels.
+    It enters long/short when trend and momentum indicators agree and exits
+    on signal degradation or take-profit touches.
+
+Strategy Logic:
+    It initializes MACD/CCI/EMA indicators, tracks entries/exits and take-profit
+    levels in callbacks, and asserts core counters in the regression test.
 """
 from __future__ import annotations
 
@@ -16,6 +31,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-separated data into a Backtrader-ready dataframe.
+
+    Args:
+        filepath: MT5 export file path.
+        fromdate: Optional start datetime.
+        todate: Optional end datetime.
+        bar_shift_minutes: Optional minute shift for data timestamps.
+
+    Returns:
+        DataFrame with datetime index and OHLCV columns.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +63,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData mapping for MT5 OHLCV series."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -44,6 +71,21 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class SteveCartwrightTraderCamelCciMacdStrategy(bt.Strategy):
+    """Trend-following momentum strategy combining CCI, MACD, and EMA camel bands.
+
+    The strategy opens long/short positions only after all configured
+    momentum and trend filters align, then manages exits using signal reversal
+    or a fixed pip-based take-profit level.
+
+    Args:
+        ma_period_ma_high: EMA period for the upper/lower camel channel base.
+        ma_period_ma_low: EMA period for the secondary camel band input.
+        ma_period_cci: Period used for Commodity Channel Index calculations.
+        take_profit_pips: Take-profit offset in pips from the entry price.
+        lot: Position size used for each entry order.
+        point: Instrument point value used to convert pip offsets.
+        price_digits: Instrument display precision; affects effective pip size.
+    """
     params = dict(
         ma_period_ma_high=40, ma_period_ma_low=5, ma_period_cci=30,
         take_profit_pips=40, lot=1.0,
@@ -51,6 +93,7 @@ class SteveCartwrightTraderCamelCciMacdStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators and strategy state for position/trade accounting."""
         self.camel_high = bt.indicators.ExponentialMovingAverage(self.data.high, period=self.p.ma_period_ma_high)
         self.camel_low = bt.indicators.ExponentialMovingAverage(self.data.low, period=self.p.ma_period_ma_low)
         self.macd = bt.indicators.MACD(self.data.close, period_me1=12, period_me2=26, period_signal=9)
@@ -105,6 +148,7 @@ class SteveCartwrightTraderCamelCciMacdStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate indicator conditions and submit entries, exits and take-profit close."""
         self.bar_num += 1
         warmup = max(self.p.ma_period_ma_high + 5, 35)
         if len(self.data) < warmup:
@@ -146,6 +190,7 @@ class SteveCartwrightTraderCamelCciMacdStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Track completed/cancelled orders and reset position state."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed and self.position:
@@ -156,6 +201,7 @@ class SteveCartwrightTraderCamelCciMacdStrategy(bt.Strategy):
             self._clear_position_state()
 
     def notify_trade(self, trade):
+        """Update order counters and win/loss statistics."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

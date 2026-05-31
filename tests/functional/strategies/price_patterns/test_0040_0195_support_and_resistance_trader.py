@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The moving averages and the
+    support/resistance levels are precomputed off-feed and carried on a single
+    signal feed alongside the OHLCV columns.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor "Support and Resistance Trader". It
+    finds price levels that recur often within a recent window (clusters that
+    appear more than ``resistance`` times) and treats them as support/resistance.
+    When price sits just above a frequent level with a fast MA above a slow MA it
+    buys (support holding in an uptrend); the mirror condition sells. Each trade
+    carries fixed point-based stop loss and take profit. Orders are placed on the
+    bar open (cheat-on-open) to mimic the EA's tick-level entry.
+
+Strategy Logic:
+    load_backtest_frame builds the signal frame (build_signal_frame computes the
+    two open/prev-close moving averages and the nearest frequent buy/sell levels
+    and signals); build_cerebro wires the signal feed with cheat_on_open, the
+    strategy, and the default analyzers. In next_open the strategy manages
+    protective exits for any open position or, while flat, opens a long/short on
+    the precomputed buy/sell signal with stop and take-profit prices.
+    notify_order confirms fills and arms the risk prices, and notify_trade
+    tallies wins and losses. extract_metrics consolidates analyzer output, and
+    the test forces runonce=True, runs the module's run()/main(), and asserts
+    each metric against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -86,6 +115,19 @@ if str(LOCAL_BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -111,6 +153,18 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=15):
 
 
 def signal_ma_from_open_and_prev_closes(frame, period):
+    """Compute a moving average from the current open and prior closes.
+
+    Mirrors the MT5 EA's averaging convention: the average of the current bar's
+    open with the previous ``period - 1`` closes.
+
+    Args:
+        frame: OHLC DataFrame with open and close columns.
+        period: Number of bars contributing to the average.
+
+    Returns:
+        A pandas Series of the moving-average value for each bar.
+    """
     total = frame['open'].copy()
     for shift in range(1, period):
         total = total + frame['close'].shift(shift)
@@ -131,6 +185,27 @@ def build_signal_frame(
     price_decimals=3,
     near_threshold=0.0005,
 ):
+    """Load the M15 frame and add the MA and support/resistance signal columns.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        symbol: Instrument symbol (selects the gold-specific cluster period).
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp.
+        ma_period1: Fast moving-average period.
+        ma_period2: Slow moving-average period.
+        cluster_period: Lookback for frequent-level clustering (non-gold).
+        xau_cluster_period: Lookback for frequent-level clustering (XAUUSD).
+        resistance: Minimum occurrence count for a level to count as support/
+            resistance.
+        price_decimals: Rounding precision used when clustering prices.
+        near_threshold: Maximum distance for price to be "near" a level.
+
+    Returns:
+        The frame with ma_fast_signal/ma_slow_signal, closest buy/sell levels,
+        and boolean buy/sell signal columns (warm-up MA rows dropped).
+    """
     frame = load_mt5_csv(filepath, fromdate=fromdate, todate=todate, bar_shift_minutes=bar_shift_minutes).copy()
     frame['ma_fast_signal'] = signal_ma_from_open_and_prev_closes(frame, ma_period1)
     frame['ma_slow_signal'] = signal_ma_from_open_and_prev_closes(frame, ma_period2)
@@ -160,6 +235,8 @@ def build_signal_frame(
 
 
 class SupportResistanceFeed(bt.feeds.PandasData):
+    """PandasData feed exposing the MA, level, and signal lines."""
+
     lines = ('ma_fast_signal', 'ma_slow_signal', 'closest_buy_level', 'closest_sell_level', 'buy_signal', 'sell_signal',)
     params = (
         ('datetime', None),
@@ -179,6 +256,8 @@ class SupportResistanceFeed(bt.feeds.PandasData):
 
 
 class SupportAndResistanceTraderStrategy(bt.Strategy):
+    """Trade MA-filtered bounces off frequent support/resistance price levels."""
+
     params = dict(
         lot=1.0,
         stop_loss_points=30,
@@ -195,6 +274,7 @@ class SupportAndResistanceTraderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Reset order handles, risk prices, counters, and forced-entry flag."""
         self.order = None
         self.current_stop = None
         self.current_take_profit = None
@@ -210,10 +290,16 @@ class SupportAndResistanceTraderStrategy(bt.Strategy):
         self._forced_entry_done = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: Message to emit alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Advance the bar counter each bar (entries are handled in next_open)."""
         self.bar_num += 1
 
     def _close_long_if_needed(self):
@@ -243,6 +329,14 @@ class SupportAndResistanceTraderStrategy(bt.Strategy):
         return False
 
     def next_open(self):
+        """Manage exits or open a new position at the bar open.
+
+        While an order is pending or before warm-up it does nothing. With an open
+        position it checks the protective stop/take-profit for the held side.
+        While flat it opens a long or short on the precomputed buy/sell signal
+        (or a one-off forced sample entry after ``ensure_trade_after_bars``),
+        staging the stop and take-profit prices for the fill.
+        """
         if self.order:
             return
         if len(self.data) < 2:
@@ -297,6 +391,16 @@ class SupportAndResistanceTraderStrategy(bt.Strategy):
             self.order = self.buy(size=self.p.lot)
 
     def notify_order(self, order):
+        """Confirm fills, arm risk prices, and clear staged order state.
+
+        On a completed entry it increments the buy/sell count and promotes the
+        staged stop/take-profit to active; on a completed exit it clears the
+        active risk prices. Always clears the tracked order and staged state once
+        the order is resolved.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -317,6 +421,12 @@ class SupportAndResistanceTraderStrategy(bt.Strategy):
         self.pending_side = None
 
     def notify_trade(self, trade):
+        """Tally win/loss counts when a trade closes.
+
+        Args:
+            trade: The trade whose status changed; closed trades increment the
+                trade counter and the win or loss count by sign of PnL.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -342,6 +452,17 @@ MINUTES_PER_TRADING_YEAR = 252 * 24 * 60
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename relative to this test module's directory.
+
+    Args:
+        filename: Path to the data file, absolute or relative to ``BASE_DIR``.
+
+    Returns:
+        The resolved absolute :class:`~pathlib.Path` to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -349,6 +470,19 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build the support/resistance signal frame for the backtest.
+
+    Args:
+        config: Parsed configuration whose ``data`` and ``params`` sections
+            provide the file path, date range, and indicator settings.
+
+    Returns:
+        A dict with the signal ``data`` DataFrame and the ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the computed signal frame is empty.
+    """
     data_cfg = config['data']
     params = config['params']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
@@ -374,6 +508,17 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine (cheat-on-open), feed, strategy, analyzers.
+
+    Args:
+        config: Parsed configuration providing backtest, data, and strategy
+            parameter sections.
+        frame: The loaded frame dict returned by :func:`load_backtest_frame`.
+
+    Returns:
+        A configured :class:`backtrader.Cerebro` with cheat_on_open enabled, the
+        support/resistance signal feed, the strategy, and the default analyzers.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True, cheat_on_open=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -404,6 +549,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance carrying trade counters.
+        cerebro: The Cerebro engine used to read final broker value.
+        frame: The loaded frame dict providing the date range and bar count.
+        config: Parsed configuration providing the initial cash.
+
+    Returns:
+        A dict of summary metrics (bar/trade counts, PnL, return, win rate,
+        profit factor, drawdown, Sharpe, a clamped annualized return, and SQN).
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -448,6 +605,16 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the full backtest end-to-end and return its results.
+
+    Args:
+        plot: If True, render the Cerebro plot after the run completes.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) where results is the list of
+        strategy instances, metrics is the extract_metrics() dict, and cerebro
+        is the engine used for the run.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -17,6 +17,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 M15 export into a datetime-indexed OHLCV frame.
+
+    Args:
+        filepath: Path to MT5 CSV/TSV data file.
+        fromdate: Optional inclusive lower datetime bound.
+        todate: Optional inclusive upper datetime bound.
+        bar_shift_minutes: Minutes to shift timestamps for bar close alignment.
+
+    Returns:
+        DataFrame containing datetime, open, high, low, close, volume, openinterest.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines if line.strip())
@@ -38,6 +49,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed mapping default OHLCV columns for this test."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -45,14 +57,17 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class AroonOscillatorSignAlert(bt.Indicator):
+    """Aroon oscillator alert indicator with buy/sell level trigger lines."""
     lines = ("sell", "buy", "osc")
     params = dict(atr_period=14, aroon_period=9, up_level=50, dn_level=-50)
 
     def __init__(self):
+        """Initialize ATR/Aroon period constraints and ATR helper indicator."""
         self.addminperiod(max(int(self.p.atr_period), int(self.p.aroon_period)) + 3)
         self.atr = bt.indicators.ATR(self.data, period=int(self.p.atr_period))
 
     def next(self):
+        """Compute oscillator and emit trigger prices when levels are crossed."""
         p = int(self.p.aroon_period)
         highs = [float(self.data.high[-i]) for i in range(p)]
         lows = [float(self.data.low[-i]) for i in range(p)]
@@ -71,6 +86,7 @@ class AroonOscillatorSignAlert(bt.Indicator):
 
 
 class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
+    """Crosses-based trend-following strategy using Aroon oscillator alerts."""
     params = dict(
         atr_period=14, aroon_period=9, up_level=50, dn_level=-50,
         signal_bar=1, stop_loss_points=1000, take_profit_points=2000,
@@ -81,6 +97,7 @@ class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Attach data feeds and indicator; initialize counters/state."""
         self.base = self.datas[0]
         self.signal_data = self.datas[1]
         self.ind = AroonOscillatorSignAlert(
@@ -119,6 +136,7 @@ class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
         return not math.isnan(v) and v != 0.0
 
     def next(self):
+        """Evaluate exit conditions, optional signal history, and place entries."""
         self.bar_num += 1
         if self._check_exit_levels():
             return
@@ -155,6 +173,7 @@ class ExpAroonOscillatorSignAlertStrategy(bt.Strategy):
             self.sell(size=float(self.p.fixed_lot))
 
     def notify_trade(self, trade):
+        """Track entry direction and win/loss counters for closed trades."""
         if trade.isopen and not self._position_was_open:
             self._position_was_open = True
             if trade.size > 0:

@@ -7,6 +7,25 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a seasonal calendar-effect strategy known as "Sell in May and Go Away".
+    - Market Assumptions: Historical equity and commodity markets show persistent seasonal variations, with stronger average returns in winter/spring months (November to April) and weaker or negative average returns during summer/autumn months (May to October).
+    - Indicators:
+        - month: Current month of the calendar year.
+        - buy_signal: Month transitions from previous month to `buy_month` (November, month 11).
+        - sell_signal: Month transitions from previous month to `sell_month` (May, month 5).
+        - holding: Flag representing the seasonal holding period (November to April).
+    - Entry Signals:
+        - Buy Entry: Month transitions to November (month 11).
+    - Exit Signals:
+        - Sell/Close Entry: Month transitions to May (month 5).
 """
 from __future__ import annotations
 import math
@@ -66,7 +85,11 @@ def _resolve_repo_paths(node):
 
 
 def load_config():
-    """Inlined config (was config.yaml)."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -74,6 +97,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -100,38 +133,46 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_seasonal_features(df, params):
-    """准备季节性策略特征"""
+    """Prepare and compute indicators for the Sell in May seasonal strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing buy and sell months.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing seasonal signals and monthly indicators.
+    """
     out = df.copy()
     buy_month = int(params.get('buy_month', 11))
     sell_month = int(params.get('sell_month', 5))
     
-    # 提取月份
+    # Extract month
     out['month'] = out.index.month
     
-    # 生成信号：11月买入，5月卖出
-    # 持有期：11月-4月
-    # 空仓期：5月-10月
+    # Generate signals: buy in November, sell in May
+    # Holding Period: November to April
+    # Flat Period: May to October
     out['signal'] = 0.0
     
-    # 买入信号：月份等于买入月份(11月)
+    # Buy signal: month matches buy_month (11)
     buy_signal = out['month'] == buy_month
     
-    # 卖出信号：月份等于卖出月份(5月)
+    # Sell signal: month matches sell_month (5)
     sell_signal = out['month'] == sell_month
     
-    # 只在月份变化时触发信号
+    # Trigger signals only when the month transitions
     prev_month = out['month'].shift(1)
     
-    # 买入信号：进入买入月份
+    # Buy signal: enter buy month
     buy_entry = (prev_month != buy_month) & buy_signal
     
-    # 卖出信号：进入卖出月份
+    # Sell signal: enter sell month
     sell_entry = (prev_month != sell_month) & sell_signal
     
     out['buy_signal'] = buy_entry.astype(float)
     out['sell_signal'] = sell_entry.astype(float)
     
-    # 持有状态：11月-4月持有
+    # Holding state: hold from November to April
     out['holding'] = ((out['month'] >= buy_month) | (out['month'] <= 4)).astype(float)
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -140,6 +181,7 @@ def prepare_seasonal_features(df, params):
 
 
 class Mt5SeasonalFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with seasonal calendar-effect lines."""
     lines = ('month', 'buy_signal', 'sell_signal', 'holding',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -149,6 +191,11 @@ class Mt5SeasonalFeed(bt.feeds.PandasData):
 
 
 class SellInMaySeasonalStrategy(bt.Strategy):
+    """Strategy class implementing the Sell in May calendar effect logic.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         buy_month=11,
         sell_month=5,
@@ -156,6 +203,7 @@ class SellInMaySeasonalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -167,6 +215,15 @@ class SellInMaySeasonalStrategy(bt.Strategy):
 
 
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -181,6 +238,7 @@ class SellInMaySeasonalStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -190,24 +248,34 @@ class SellInMaySeasonalStrategy(bt.Strategy):
         buy_signal = float(self.data.buy_signal[0]) > 0.5
         sell_signal = float(self.data.sell_signal[0]) > 0.5
         
-        # 无持仓时检查入场
+        # Check entry when not in a position
         if not self.position:
             if buy_signal:
                 self.buy_count += 1
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场
+        # Check exit when holding a position
         if sell_signal:
             self.sell_count += 1
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -219,7 +287,7 @@ class SellInMaySeasonalStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Sell in May Seasonal 策略回测"""
+"""Sell in May Seasonal strategy backtest."""
 
 
 
@@ -229,6 +297,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -241,10 +317,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -259,6 +351,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load daily market data and prepare Sell in May seasonal features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -274,6 +374,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -296,6 +405,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -330,6 +450,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

@@ -1,6 +1,23 @@
-"""Inlined regression test for price_patterns/0019_1318_morningstar_cci.
+"""Inlined regression test for the Morning Star CCI pattern strategy.
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
+
+Data Used:
+    XAUUSD 15-minute bars from ``tests/datas/XAUUSD_M15.csv`` between
+    ``2025-12-03 01:15:00`` and ``2026-03-10 09:00:00``, shifted by
+    15 minutes.
+
+Strategy Principle:
+    The strategy detects Morning/Evening Star and doji variants and uses CCI
+    as confirmation/exit filter. A bullish star with bearish-to-bullish momentum
+    and CCI below entry threshold opens long; a bearish star with bullish-to-bearish
+    momentum and CCI above threshold opens short.
+
+Strategy Logic:
+    On each bar, after warmup, it evaluates star pattern conditions and CCI regime.
+    In-position, it exits when CCI exits configured upper/lower bands.
+    Trade notifications update buy/sell/win/loss counters and the test asserts
+    regression metrics from the final run.
 """
 from __future__ import annotations
 
@@ -16,6 +33,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-style tab-separated CSV into a Backtrader-ready DataFrame.
+
+    Args:
+        filepath: Path of the MT5 export file.
+        fromdate: Optional start datetime for slicing.
+        todate: Optional end datetime for slicing.
+        bar_shift_minutes: Optional minutes to shift bar timestamps.
+
+    Returns:
+        DataFrame indexed by datetime with open/high/low/close and volume lines.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +65,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping MT5 export columns to Backtrader lines."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -52,6 +81,7 @@ class MorningStarCciStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise CCI/SMA bodies and strategy counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=self.p.cci_period)
         self.sma_body = bt.indicators.SMA(abs(self.data.close - self.data.open), period=self.p.ma_period)
         self.bar_num = 0
@@ -109,6 +139,7 @@ class MorningStarCciStrategy(bt.Strategy):
                 c2 > c3 and o2 > o3 and o1 < c2 and c1 < c2)
 
     def next(self):
+        """Advance signals, manage entries, and close on CCI exits."""
         self.bar_num += 1
         warmup = max(self.p.cci_period, self.p.ma_period) + 5
         if len(self.data) < warmup:
@@ -137,6 +168,7 @@ class MorningStarCciStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Track trade lifecycle events and win/loss accounting."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

@@ -16,6 +16,14 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 historical CSV data and return a DataFrame ready for Backtrader.
+
+    Parameters:
+        filepath: Path to the tab-delimited MT5 export file.
+        fromdate: Optional lower bound used to filter rows by index datetime.
+        todate: Optional upper bound used to filter rows by index datetime.
+        bar_shift_minutes: Optional minute offset applied to each bar timestamp.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -37,6 +45,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed mapping MT5 dataframe columns for XAUUSD bars."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -48,6 +57,11 @@ class RSICCIStrategy(bt.Strategy):
     params = dict(rsi_period=14, cci_period=14, lot=0.1, point=0.01, price_digits=2)
 
     def __init__(self):
+        """Build RSI and CCI indicators and initialize trade counters.
+
+        The strategy uses short-term momentum cross signals on RSI and CCI to
+        drive entry and exit actions while tracking buy/sell activity.
+        """
         self.rsi = bt.indicators.RSI(self.data.close, period=self.p.rsi_period)
         self.cci = bt.indicators.CCI(self.data, period=self.p.cci_period)
         self.bar_num = 0
@@ -59,6 +73,7 @@ class RSICCIStrategy(bt.Strategy):
         self._position_was_open = False
 
     def next(self):
+        """Evaluate the latest RSI/CCI bar and execute trend-following transitions."""
         self.bar_num += 1
         if len(self.data) < max(self.p.rsi_period, self.p.cci_period) + 5:
             return
@@ -98,6 +113,7 @@ class RSICCIStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Update trade counters when positions open and close."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1

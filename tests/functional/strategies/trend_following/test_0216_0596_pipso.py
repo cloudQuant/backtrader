@@ -7,6 +7,26 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `XAUUSD_M15.csv` from `tests/datas/` as the single input feed.
+    Backtests symbol `XAUUSD` on `M15` from `2025-12-03 01:15:00` to
+    `2026-03-10 09:00:00`.
+    Bars are shifted by 15 minutes at load time.
+
+Strategy Principle:
+    Detects range breaks within a lookback period and trades breakouts within a
+    configurable session window.
+    Uses deferred reversal behavior (`pending_direction`) and fixed lot size.
+    Exit occurs when price violates a stop-distance from entry direction.
+
+Strategy Logic:
+    `load_mt5_csv()` normalizes MT5 export data and applies date filtering.
+    `load_backtest_frame()` builds the execution frame.
+    `build_cerebro()` constructs engine, feed, strategy, and analyzers.
+    In `next()`, pending reversals are executed first, then current position exits
+    are checked, then new directional breakout signals are prepared.
+    `extract_metrics()` compiles counters/analyzers used in regression assertions.
 """
 from __future__ import annotations
 import math
@@ -76,6 +96,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 data and normalize it to a pandas OHLCV frame.
+
+    Args:
+        filepath: Input MT5 file path.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute shift for timestamp alignment.
+
+    Returns:
+        pd.DataFrame: Standardized OHLCV data with datetime index.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -99,12 +130,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Data feed adapter mapping MT5 normalized columns to Backtrader."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class PipsoStrategy(bt.Strategy):
+    """Session-aware breakout strategy with pending reversal handoff."""
     params = dict(
         lots=0.1,
         start_hour=21,
@@ -116,6 +149,7 @@ class PipsoStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters and state used for pending reversal and stops."""
         self.bar_num = 0
         self.signal_count = 0
         self.buy_count = 0
@@ -165,6 +199,12 @@ class PipsoStrategy(bt.Strategy):
             self.order = self.close()
 
     def next(self):
+        """Execute one-bar state transitions.
+
+        Gives priority to pending direction execution, then handles exit checks,
+        then evaluates breakout/high-low extremes to schedule reversals or new
+        entries within the allowed trading window.
+        """
         self.bar_num += 1
         if len(self) < int(self.p.period) + 2:
             return
@@ -213,6 +253,7 @@ class PipsoStrategy(bt.Strategy):
                 self.order = self.buy(size=self.p.lots)
 
     def notify_order(self, order):
+        """Track completed/rejected orders and reset state variables."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -230,6 +271,7 @@ class PipsoStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Update trade counters when closed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -253,6 +295,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve data path relative to the test module directory.
+
+    Args:
+        filename: Data file basename.
+
+    Returns:
+        Path: Absolute path to existing file.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -260,6 +310,14 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load data frame and apply configured temporal filters.
+
+    Args:
+        config: Strategy data configuration.
+
+    Returns:
+        dict: `{data, fromdate, todate}` for execution.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -271,6 +329,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Create and configure a Backtrader cerebro instance.
+
+    Args:
+        config: Strategy/backtest settings.
+        frame: Prepared data payload.
+
+    Returns:
+        bt.Cerebro: Configured engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -289,6 +356,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate analyzer outputs and runtime counters.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: Cerebro engine.
+        frame: Data frame dictionary.
+        config: Test configuration.
+
+    Returns:
+        dict: Metrics used by migration assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -316,6 +394,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the backtest and return results and computed metrics.
+
+    Args:
+        plot: If True, draw cerebro chart.
+
+    Returns:
+        tuple: (results, metrics, cerebro)
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

@@ -17,6 +17,7 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported tab-delimited data into a pandas OHLCV frame."""
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -40,6 +41,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed mapping MT5 positional OHLCV columns."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -47,6 +49,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class FrankUdStrategy(bt.Strategy):
+    """XAUUSD hedge-grid strategy using paired long/short legs and martingale adds."""
     params = dict(
         takeprofit=12,
         stoploss=12,
@@ -63,6 +66,7 @@ class FrankUdStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize virtual equity tracking, trade counters, and hedging state."""
         self.bar_num = 0
         self.buy_leg_count = 0
         self.sell_leg_count = 0
@@ -79,6 +83,7 @@ class FrankUdStrategy(bt.Strategy):
         self.virtual_equity = None
 
     def start(self):
+        """Capture initial broker cash as baseline virtual-equity anchor."""
         self.initial_virtual_cash = float(self.broker.getcash())
         self.virtual_equity = self.initial_virtual_cash
 
@@ -229,6 +234,7 @@ class FrankUdStrategy(bt.Strategy):
             self.addon_count += 1
 
     def next(self):
+        """Advance one bar: close triggered legs, open/rebalance hedge grid pairs."""
         self.bar_num += 1
         self._close_hit_legs()
         if not self.legs:

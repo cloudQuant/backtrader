@@ -95,6 +95,17 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 CSV data into a normalized, time-indexed DataFrame with optional bar shifting.
+
+    Args:
+        filepath: Absolute or relative path to a MT5-export CSV file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+        bar_shift_minutes: Optional minute offset applied to each bar timestamp.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with normalized OHLCV columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -121,6 +132,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader data feed mapping MT5 columns including spread."""
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -135,16 +147,19 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class ColorX2MA(bt.Indicator):
+    """Indicator that outputs smoothed MA value and directional color index."""
     lines = ('value', 'color_idx')
     params = dict(length1=12, length2=5)
 
     def __init__(self):
+        """Initialize MA stacks and minimum period."""
         ma1 = bt.indicators.SimpleMovingAverage(self.data.close, period=max(2, self.p.length1))
         ma2 = bt.indicators.SimpleMovingAverage(ma1, period=max(2, self.p.length2))
         self.lines.value = ma2
         self.addminperiod(self.p.length1 + self.p.length2 + 2)
 
     def next(self):
+        """Update color index based on value momentum."""
         current = float(self.lines.value[0])
         prev = float(self.lines.value[-1]) if len(self) > 1 and math.isfinite(float(self.lines.value[-1])) else current
         color = 0.0
@@ -156,6 +171,7 @@ class ColorX2MA(bt.Indicator):
 
 
 class ExpColorX2MAX2Strategy(bt.Strategy):
+    """Trading strategy for ExpColorX2MA X2 regression with explicit risk gates."""
     params = dict(
         fixed_lot=0.1,
         risk_percent=0.0,
@@ -181,6 +197,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize feeds, indicators, and runtime state."""
         self.fast_feed = self.datas[0]
         self.slow_feed = self.datas[1]
         self.fast_ind = ColorX2MA(self.fast_feed, length1=self.p.fast_length1, length2=self.p.fast_length2)
@@ -194,15 +211,18 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, text):
+        """Print a formatted timestamped message."""
         dt = bt.num2date(self.fast_feed.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def _round_size(self, size):
+        """Round lot size to valid min/max and step constraints."""
         bounded = min(max(size, self.p.lot_min), self.p.lot_max)
         steps = round(bounded / self.p.lot_step)
         return min(max(steps * self.p.lot_step, self.p.lot_min), self.p.lot_max)
 
     def _position_size(self):
+        """Compute order size from fixed lot size or risk budget."""
         if self.p.fixed_lot > 0:
             return self._round_size(self.p.fixed_lot)
         stop_distance = self.p.stoploss_pips * self.p.point_size
@@ -213,6 +233,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         return self._round_size(raw_size)
 
     def _line_value(self, line, signal_bar, previous=False):
+        """Safely read an indicator value at a shifted index."""
         shift = int(signal_bar) + (1 if previous else 0)
         if len(line.array) <= shift:
             return None
@@ -222,6 +243,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         return value
 
     def _derived_color(self, current_value, previous_value):
+        """Derive color transition direction from two values."""
         if current_value is None or previous_value is None:
             return None
         if current_value > previous_value:
@@ -231,6 +253,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         return 0.0
 
     def _trend(self):
+        """Compute trend direction from slow color transitions."""
         slow_now = self._line_value(self.slow_ind.value, self.p.slow_signal_bar)
         slow_prev = self._line_value(self.slow_ind.value, self.p.slow_signal_bar, previous=True)
         clr = self._derived_color(slow_now, slow_prev)
@@ -241,6 +264,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         return 0
 
     def _set_entry_risk(self, price, direction):
+        """Set stop-loss and take-profit based on direction."""
         stop_distance = self.p.stoploss_pips * self.p.point_size
         take_distance = self.p.takeprofit_pips * self.p.point_size
         if direction > 0:
@@ -251,10 +275,12 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
             self.take_profit_price = price - take_distance if self.p.takeprofit_pips > 0 else None
 
     def _clear_risk(self):
+        """Clear stop-loss and take-profit levels."""
         self.stop_price = None
         self.take_profit_price = None
 
     def _check_exit_levels(self):
+        """Close position if exit rules (TP/SL) are hit."""
         if not self.position:
             return False
         low = float(self.fast_feed.low[0])
@@ -280,6 +306,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
         return False
 
     def next(self):
+        """Process one fast bar and handle exits/entries."""
         fast_dt = bt.num2date(self.fast_feed.datetime[0])
         if self.last_fast_dt == fast_dt:
             return
@@ -324,6 +351,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
             self.log(f'OPEN SHORT size={size:.2f} trend={trend} clr_now={clr_now} clr_prev={clr_prev}')
 
     def notify_order(self, order):
+        """Handle completed, canceled, or failed orders and counters."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -346,6 +374,7 @@ class ExpColorX2MAX2Strategy(bt.Strategy):
                 self.entry_side = None
 
     def notify_trade(self, trade):
+        """Reset risk state after each closed trade."""
         if not trade.isclosed:
             return
         self.log(f'TRADE CLOSED pnl={trade.pnlcomm:.2f} net={self.broker.getvalue():.2f}')
@@ -368,6 +397,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a filename relative to this test directory.
+
+    Args:
+        filename: Relative path from configuration.
+
+    Returns:
+        Absolute resolved path.
+
+    Raises:
+        FileNotFoundError: If the target file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -375,12 +415,14 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse an ISO-8601 datetime string, returning ``None`` if empty."""
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def resample_frame(df, minutes):
+    """Resample OHLCV bars to a specified minute rule."""
     rule = f'{minutes}min'
     out = df.resample(rule, label='right', closed='right').agg({
         'open': 'first',
@@ -398,6 +440,7 @@ def resample_frame(df, minutes):
 
 
 def load_backtest_frame(config):
+    """Load base data and produce fast/slow resampled inputs."""
     data_cfg = config['data']
     fromdate = parse_dt(data_cfg.get('fromdate'))
     todate = parse_dt(data_cfg.get('todate'))
@@ -418,6 +461,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach baseline analyzers used by most regression scripts."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=60, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -426,6 +470,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Construct a Cerebro instance with two data feeds and strategy parameters.
+
+    Args:
+        config: Test configuration dictionary.
+        frame: Dictionary with keys ``fast`` and ``slow`` frames.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -450,6 +503,7 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return ``None`` for non-finite numeric values, else the original value."""
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -458,6 +512,7 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Print a compact backtest summary from analyzer outputs."""
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -486,6 +541,7 @@ def summarize(results, start_value):
 
 
 def main():
+    """CLI entry point to run the inlined regression script."""
     parser = argparse.ArgumentParser(description='Run Exp ColorX2MA X2 backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()

@@ -25,6 +25,7 @@ ASSET_FILES = {
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV data and return a normalized daily OHLCV DataFrame."""
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -61,6 +62,7 @@ def _latent_scores(window_returns, n_factors):
 
 
 def prepare_latent_factor_data(asset_map, params):
+    """Build SVD-based latent-factor targets and per-asset signal frames."""
     aligned_index = None
     prepared = {}
     lookback = int(params.get("lookback", 252))
@@ -91,6 +93,7 @@ def prepare_latent_factor_data(asset_map, params):
 
 
 class LatentFactorFeed(bt.feeds.PandasData):
+    """Pandas feed including latent factor scores and target percent allocation."""
     lines = ("latent_signal", "target_percent")
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2), ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -99,6 +102,7 @@ class LatentFactorFeed(bt.feeds.PandasData):
 
 
 class LatentTradingFactorsStrategy(bt.Strategy):
+    """Multi-asset latent-factor allocator rebalancing on a fixed interval."""
     params = dict(
         rebalance_interval_days=21,
         lookback=252,
@@ -109,6 +113,7 @@ class LatentTradingFactorsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize order tracking and signal counters."""
         self.order_refs = set()
         self.bar_num = 0
         self.buy_count = 0
@@ -138,6 +143,7 @@ class LatentTradingFactorsStrategy(bt.Strategy):
         return size if target_pct >= 0 else -size
 
     def next(self):
+        """Rebalance each asset toward its target weight on rebalance dates."""
         self.bar_num += 1
         if self.order_refs:
             return
@@ -162,11 +168,13 @@ class LatentTradingFactorsStrategy(bt.Strategy):
             self._submit(self.order_target_size(data=data, target=target_size))
 
     def notify_order(self, order):
+        """Clear tracked order refs when an order completes or fails."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.order_refs.discard(order.ref)
 
     def notify_trade(self, trade):
+        """Update trade counters and PnL outcome on closed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1

@@ -84,6 +84,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-formatted tabular export into a backtrader DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -107,12 +108,14 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas data feed mapping datetime/OHLCV columns used by the EA."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2), ('close', 3), ('volume', 4), ('openinterest', 5),
     )
 
 
 class PRExp3Strategy(bt.Strategy):
+    """Session-based breakout strategy with SAR-based exits and optional time gating."""
     params = dict(
         take_profit=20,
         trailing_stop=10,
@@ -128,6 +131,7 @@ class PRExp3Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, state variables, and entry/exit counters."""
         self.data_base = self.datas[0]
         self.data_vol = self.datas[1] if len(self.datas) > 1 else self.datas[0]
         self.sar = bt.indicators.ParabolicSAR(self.data_base, af=self.p.sar_af, afmax=self.p.sar_afmax)
@@ -250,6 +254,7 @@ class PRExp3Strategy(bt.Strategy):
         return 0
 
     def next(self):
+        """Advance one bar: update session state and apply entry/exit rules."""
         self.bar_num += 1
         self._update_session_levels()
 
@@ -280,6 +285,7 @@ class PRExp3Strategy(bt.Strategy):
             self.order = self.sell(size=self.p.lots)
 
     def notify_order(self, order):
+        """Update order counters and clear in-flight state after terminal order states."""
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -298,6 +304,7 @@ class PRExp3Strategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Record trade close outcome statistics."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -321,6 +328,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve strategy data file path relative to this test module."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -328,6 +336,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build backtest input frame by loading and slicing configured data file."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -344,6 +353,7 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build backtest engine with data feeds, strategy params, and analyzers."""
     bt_cfg = config['backtest']
     data_cfg = config['data']
     params = dict(config.get('params', {}))
@@ -389,6 +399,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract and return regression metrics from analyzers and trade counters."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

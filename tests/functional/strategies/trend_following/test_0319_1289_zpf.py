@@ -7,6 +7,35 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (gold spot) loaded from the MT5 export
+    ``tests/datas/XAUUSD_M15.csv``. A single M15 (15-minute) feed covers
+    2025-12-03 01:15 to 2026-03-10 09:00 with each bar timestamp shifted forward
+    by 15 minutes so bars are stamped at their close. The ZPF oscillator is
+    computed directly on the M15 feed; no separate signal feed is used.
+
+Strategy Principle:
+    This is a port of the MT5 expert advisor ``Exp_ZPF``. The ZPF (Zero Power
+    Flow) oscillator multiplies a moving average of volume by the gap between a
+    short and a long moving average of an applied price, producing a
+    volume-weighted trend-strength value that oscillates around zero. The
+    strategy treats zero-line behavior as the trigger: when the oscillator is
+    positive it favors closing/reversing toward short as it crosses down through
+    zero, and when negative it favors closing/reversing toward long as it crosses
+    up. Risk is bounded by the reversing zero-cross signal rather than fixed
+    stops.
+
+Strategy Logic:
+    load_backtest_frame loads the M15 frame; build_cerebro wires the feed, the
+    strategy and the default analyzers, and the ZPFIndicator computes the
+    oscillator (with helpers resolve_ma_class and resolve_price_line selecting
+    the MA type and applied price). Each bar the strategy reads the oscillator at
+    the configured signal bar to derive open/close signals, then opens, closes,
+    or reverses a fixed-lot position. notify_trade counts entries on open and
+    win/loss on close. extract_metrics consolidates analyzer output, and the test
+    forces runonce=True, runs the module's run()/main(), and asserts each metric
+    against migration-time expectations.
 """
 from __future__ import annotations
 import math
@@ -79,6 +108,19 @@ if str(REPO_ROOT) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-exported CSV into a backtrader-ready OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 tab-separated export file.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each timestamp (e.g. to stamp bars
+            at their close).
+
+    Returns:
+        A DataFrame indexed by datetime with open, high, low, close, volume, and
+        openinterest columns, filtered to the requested date range.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -100,6 +142,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """PandasData feed mapping the standard MT5 OHLCV columns."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -107,6 +151,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 def resolve_ma_class(name):
+    """Map a moving-average name to its backtrader indicator class.
+
+    Args:
+        name: MA type name (e.g. ``sma``, ``ema``, ``smma`` or MT5-style
+            ``mode_*`` variants).
+
+    Returns:
+        The matching backtrader moving-average indicator class, defaulting to
+        the weighted moving average for unrecognized names.
+    """
     mode = str(name).lower()
     if mode in {'sma', 'mode_sma'}:
         return bt.indicators.SMA
@@ -118,6 +172,17 @@ def resolve_ma_class(name):
 
 
 def resolve_price_line(data, mode):
+    """Return the applied-price line for a data feed given a price mode.
+
+    Args:
+        data: The data feed providing OHLC lines.
+        mode: Applied-price selector (e.g. ``price_close``, ``price_median``,
+            ``price_typical`` or their short forms).
+
+    Returns:
+        A line expression for the selected applied price, defaulting to the
+        close for unrecognized modes.
+    """
     price_mode = str(mode).lower()
     if price_mode in {'price_open', 'open'}:
         return data.open
@@ -143,6 +208,14 @@ def resolve_price_line(data, mode):
 
 
 class ZPFIndicator(bt.Indicator):
+    """Zero Power Flow oscillator (volume-weighted MA spread).
+
+    Multiplies a moving average of volume by the gap between a short and a long
+    moving average of an applied price, producing a volume-weighted
+    trend-strength value (``zpf``) that oscillates around zero, with symmetric
+    ``line1``/``line2`` envelopes.
+    """
+
     lines = ('line1', 'line2', 'zpf',)
     params = dict(
         xma_method='sma',
@@ -153,6 +226,7 @@ class ZPFIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Build the price/volume moving averages and the ZPF lines."""
         ma_cls = resolve_ma_class(self.p.xma_method)
         price_line = resolve_price_line(self.data, self.p.ipc)
         volume_line = self.data.volume if str(self.p.volume_type).lower() == 'tick' else self.data.openinterest
@@ -166,6 +240,23 @@ class ZPFIndicator(bt.Indicator):
 
 
 class ZPFStrategy(bt.Strategy):
+    """Port of the MT5 ``Exp_ZPF`` zero-line oscillator strategy.
+
+    Reads the ZPF oscillator and trades its zero-line behavior at the configured
+    signal bar: a cross down through zero from positive opens/keeps shorts and a
+    cross up through zero from negative opens/keeps longs, closing or reversing
+    the opposite side with a fixed lot size.
+
+    Args:
+        xma_method: Moving-average type for the price/volume averages.
+        xlength: Base length for the moving averages.
+        xphase: Phase parameter retained from the source EA (unused here).
+        ipc: Applied-price selector for the price moving averages.
+        volume_type: ``tick`` to use tick volume, otherwise open interest.
+        signal_bar: Which completed bar to evaluate signals on.
+        lot: Fixed order size in lots.
+    """
+
     params = dict(
         xma_method='sma',
         xlength=12,
@@ -177,6 +268,7 @@ class ZPFStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the ZPF indicator and reset bar/trade counters."""
         self.zpf = ZPFIndicator(
             self.data,
             xma_method=self.p.xma_method,
@@ -194,6 +286,11 @@ class ZPFStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print a timestamped log line for the current bar.
+
+        Args:
+            text: The message to log alongside the current bar datetime.
+        """
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -216,6 +313,13 @@ class ZPFStrategy(bt.Strategy):
         return buy_open, sell_open, buy_close, sell_close
 
     def next(self):
+        """Open, close, or reverse on ZPF zero-line signals each bar.
+
+        Increments the bar counter, skips during warm-up, derives open/close
+        signals from the oscillator at the configured signal bar, and acts: when
+        flat it opens a long or short; when in a position it closes on the
+        close signal or closes and reverses on the opposite open signal.
+        """
         self.bar_num += 1
         if len(self.data) < max(2 * int(self.p.xlength), int(self.p.signal_bar)) + 5:
             return
@@ -255,6 +359,12 @@ class ZPFStrategy(bt.Strategy):
                 return
 
     def notify_trade(self, trade):
+        """Count entries when a trade opens and win/loss when it closes.
+
+        Args:
+            trade: The trade whose status changed; opening increments the
+                buy/sell entry counter and closing updates win/loss counts.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -287,6 +397,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data file path relative to this test's directory.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -294,6 +415,18 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load the M15 frame for the backtest from the configured CSV.
+
+    Args:
+        config: Resolved configuration dict containing the ``data`` section.
+
+    Returns:
+        A dict with the loaded OHLCV frame and the resolved ``fromdate`` and
+        ``todate`` datetimes.
+
+    Raises:
+        ValueError: If the loaded data frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -310,6 +443,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble the Cerebro engine with the feed, strategy and analyzers.
+
+    Args:
+        config: Resolved configuration dict with data, params and backtest.
+        frame: Dict containing the loaded OHLCV frame under ``data``.
+
+    Returns:
+        A configured Cerebro instance ready to run the strategy.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -333,6 +475,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Consolidate analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro engine after the run completes.
+        frame: Dict of prepared frames from load_backtest_frame.
+        config: Resolved configuration mapping.
+
+    Returns:
+        A dict of summary metrics (returns, drawdown, Sharpe, trade statistics,
+        SQN) keyed for the regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -373,6 +527,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the ZPF backtest and optionally plot the result.
+
+    Args:
+        plot: When True, render the Cerebro plot after the run.
+
+    Returns:
+        A tuple of (results, metrics, cerebro) from the completed backtest.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

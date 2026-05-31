@@ -23,7 +23,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'Heads or Tails',
-        'source_ea': 'ea/0007_交易策略正面或反面_(Heads_or_Tails)/VR_Heads_or_Tails.mq5',
+        'source_ea': 'ea/0007_Heads_or_Tails/VR_Heads_or_Tails.mq5',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -78,6 +78,7 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 tab-delimited CSV data into a normalized OHLCV DataFrame."""
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -103,6 +104,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader feed adapter for MT5 OHLCV columns."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -115,6 +117,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class HeadsOrTailsStrategy(bt.Strategy):
+    """Random-direction strategy with stop-loss and take-profit management."""
     params = dict(
         iLots=0.01,
         iTakeProfit=450,
@@ -130,6 +133,7 @@ class HeadsOrTailsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize lot sizing, RNG seed, and counters."""
         self.lt = 0.0
         self.entry_order = None
         self.stop_order = None
@@ -144,6 +148,7 @@ class HeadsOrTailsStrategy(bt.Strategy):
         self._prepare_lot()
 
     def log(self, text):
+        """Print a timestamped debug line."""
         dt = bt.num2date(self.data.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -160,6 +165,7 @@ class HeadsOrTailsStrategy(bt.Strategy):
             self.lt = self.p.volume_max
 
     def start(self):
+        """Warn when effective lot sizing becomes zero."""
         if self.lt <= 0:
             print('effective lot size is 0.0 after original MT5 volume normalization; strategy will not open trades with current defaults')
 
@@ -188,6 +194,7 @@ class HeadsOrTailsStrategy(bt.Strategy):
         self.log(f'apply exits sl={stop_price:.2f} tp={tp_price:.2f}')
 
     def next(self):
+        """Choose a random side, place entry, and monitor exits when open."""
         self.bar_num += 1
         if self.lt <= 0:
             return
@@ -207,6 +214,7 @@ class HeadsOrTailsStrategy(bt.Strategy):
             self.log(f'random sell signal size={self.lt:.2f}')
 
     def notify_order(self, order):
+        """Track entry/stop/take-profit orders through lifecycle."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order is self.entry_order:
@@ -234,6 +242,7 @@ class HeadsOrTailsStrategy(bt.Strategy):
                 self.tp_order = None
 
     def notify_trade(self, trade):
+        """Update counters when a trade closes and clear associated exits."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -255,6 +264,7 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a test data file path and validate presence."""
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -262,6 +272,7 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and clip raw input bars by configured date range."""
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -278,6 +289,7 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach standard analyzers used by assertions."""
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=5, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -286,6 +298,7 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Create and return an initialized Cerebro with strategy and data."""
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -305,6 +318,7 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect and return all metrics used by regression assertions."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

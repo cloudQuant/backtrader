@@ -7,6 +7,40 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    A single XAUUSD (spot gold) 15-minute (M15) series exported from
+    MetaTrader 5 and read from ``tests/datas/XAUUSD_M15.csv``. The frame is
+    clipped to 2025-12-03 01:15:00 .. 2026-03-10 09:00:00 and every bar
+    timestamp is shifted forward by 15 minutes (``bar_shift_minutes``) so the
+    bar stamp marks the close rather than the open of each interval. The feed
+    keeps OHLCV plus a tick-spread column exposed through ``Mt5PandasFeed``.
+
+Strategy Principle:
+    A direct port of the ``ea_moving_average`` MetaTrader expert advisor. It
+    uses four exponential moving averages of close — separate fast/slow pairs
+    for the long and short sides — and trades close-versus-EMA crossings. A
+    long opens when price crosses up through the buy-open EMA and a short opens
+    when price crosses down through the sell-open EMA; positions are flattened
+    on the opposite crossing of their dedicated close EMA. An optional
+    ``consider_price_last_out`` gate blocks re-entries until price moves back
+    through the price of the previous exit, providing simple risk control
+    against immediately re-entering at a worse level.
+
+Strategy Logic:
+    ``load_config`` materialises the inlined configuration and
+    ``load_backtest_frame`` loads the M15 CSV via ``load_mt5_csv`` with the
+    configured date bounds and bar shift. ``build_cerebro`` wires the
+    ``Mt5PandasFeed`` feed, the ``EAMovingAverageStrategy`` and the analyzer
+    stack (Sharpe, Returns, DrawDown, TradeAnalyzer, SQN) on a fixed-commission
+    futures-like broker. On each new bar the strategy waits for at least 100
+    bars of warm-up, then either checks for an exit (``_check_for_close``) when
+    in a position or for an entry (``_check_for_open``) when flat, sizing orders
+    with a fixed lot and tracking buy/sell/trade/win/loss counters.
+    ``notify_order`` and ``notify_trade`` update those counters and the
+    last-exit price, ``summarize`` builds the metrics dict, and
+    ``test_15_0015_0407_ea_moving_average`` forces ``runonce=True``, captures the
+    metrics and asserts them against the migration baseline.
 """
 from __future__ import annotations
 import math
@@ -82,6 +116,23 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV frame.
+
+    Parses the ``<DATE> <TIME>`` columns into a datetime index, renames the
+    bracketed MT5 columns to backtrader names, optionally shifts every bar
+    timestamp forward and clips the frame to the requested date range.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional inclusive lower bound for the datetime index.
+        todate: Optional inclusive upper bound for the datetime index.
+        bar_shift_minutes: Minutes to add to each bar timestamp (0 disables).
+
+    Returns:
+        A pandas DataFrame indexed by datetime with ``open``, ``high``, ``low``,
+        ``close``, ``volume``, ``openinterest`` and ``spread`` columns, sorted
+        ascending.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines if line.strip())
@@ -113,6 +164,12 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Pandas feed that adds a ``spread`` line to the standard OHLCV mapping.
+
+    Maps the columns produced by :func:`load_mt5_csv` so the MT5 tick spread
+    travels alongside the usual price/volume lines.
+    """
+
     lines = ('spread',)
     params = (
         ('datetime', None),
@@ -127,6 +184,16 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class EAMovingAverageStrategy(bt.Strategy):
+    """EMA close-crossing strategy ported from the ea_moving_average expert.
+
+    Maintains four EMAs (buy-open, buy-close, sell-open, sell-close) and trades
+    close-versus-EMA crossings: longs and shorts open on opposite crossings of
+    their open EMAs and flatten on crossings of their close EMAs. An optional
+    last-exit-price gate suppresses immediate re-entries, and order/trade
+    notifications maintain the buy/sell/trade/win/loss counters used by the
+    regression assertions.
+    """
+
     params = dict(
         maximum_risk=0.02,
         decrease_factor=3,
@@ -145,6 +212,7 @@ class EAMovingAverageStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Build the four EMAs and reset order/position bookkeeping state."""
         self.data0 = self.datas[0]
         self.ma_buy_open = bt.indicators.ExponentialMovingAverage(self.data0.close, period=self.p.moving_period_buy_open)
         self.ma_buy_close = bt.indicators.ExponentialMovingAverage(self.data0.close, period=self.p.moving_period_buy_close)
@@ -161,10 +229,17 @@ class EAMovingAverageStrategy(bt.Strategy):
         self.loss_count = 0
 
     def log(self, text):
+        """Print ``text`` prefixed with the current bar's ISO timestamp."""
         dt = bt.num2date(self.data0.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
     def next(self):
+        """Advance one bar, then check for an exit or entry once warmed up.
+
+        Skips duplicate bar timestamps, requires at least 100 bars of history,
+        and does nothing while an order is pending. When in a position it
+        evaluates exits, otherwise it evaluates entries.
+        """
         dt = bt.num2date(self.data0.datetime[0])
         if self.last_bar_dt == dt:
             return
@@ -179,6 +254,15 @@ class EAMovingAverageStrategy(bt.Strategy):
             self._check_for_open()
 
     def notify_order(self, order):
+        """Update entry/exit counters and clear the order slot on completion.
+
+        Increments buy/sell counts when the matching open action completes,
+        records the last exit price when a close completes, logs failures and
+        resets the pending-order/action state once the order is no longer live.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -195,6 +279,11 @@ class EAMovingAverageStrategy(bt.Strategy):
             self.pending_action = None
 
     def notify_trade(self, trade):
+        """Tally closed trades and win/loss counts, and store the exit price.
+
+        Args:
+            trade: The trade being notified; ignored unless closed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -275,6 +364,14 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an absolute file path.
+
+    Args:
+        filename (str): Data file name from configuration.
+
+    Returns:
+        Path: Resolved absolute path; raises ``FileNotFoundError`` if missing.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -282,12 +379,28 @@ def resolve_data_path(filename):
 
 
 def parse_dt(value):
+    """Parse ISO date/time strings into ``datetime`` objects.
+
+    Args:
+        value (str | None): ISO-formatted date/time string.
+
+    Returns:
+        datetime.datetime | None: Parsed datetime or ``None``.
+    """
     if not value:
         return None
     return datetime.datetime.fromisoformat(value)
 
 
 def load_backtest_frame(config):
+    """Load backtest dataframe for configured symbol and date range.
+
+    Args:
+        config (dict): Strategy config with data section.
+
+    Returns:
+        pandas.DataFrame: Prepared frame indexed by datetime.
+    """
     data_cfg = config['data']
     frame = load_mt5_csv(
         resolve_data_path(data_cfg['file']),
@@ -302,6 +415,11 @@ def load_backtest_frame(config):
 
 
 def add_default_analyzers(cerebro):
+    """Attach shared analyzers used by the migration assertions.
+
+    Args:
+        cerebro (bt.Cerebro): Engine to augment.
+    """
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', timeframe=bt.TimeFrame.Minutes, factor=MINUTES_PER_TRADING_YEAR, annualize=True, riskfreerate=0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns', timeframe=bt.TimeFrame.Minutes, compression=15, tann=MINUTES_PER_TRADING_YEAR)
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -310,6 +428,15 @@ def add_default_analyzers(cerebro):
 
 
 def build_cerebro(config, frame):
+    """Build a Backtrader instance with feed, strategy, and analyzers.
+
+    Args:
+        config (dict): Backtest and strategy parameters.
+        frame (pandas.DataFrame): Market dataframe from loader.
+
+    Returns:
+        bt.Cerebro: Configured engine.
+    """
     bt_cfg = config['backtest']
     data_cfg = config['data']
     cerebro = bt.Cerebro(stdstats=True)
@@ -330,6 +457,14 @@ def build_cerebro(config, frame):
 
 
 def finite_or_none(value):
+    """Return a finite number or ``None`` when absent/non-finite.
+
+    Args:
+        value: Any scalar value.
+
+    Returns:
+        Optional[float]: The same finite value or ``None``.
+    """
     if value is None:
         return None
     if isinstance(value, (int, float)) and not math.isfinite(value):
@@ -338,6 +473,15 @@ def finite_or_none(value):
 
 
 def summarize(results, start_value):
+    """Summarize analyzer outputs into a migration-compatible metric map.
+
+    Args:
+        results (list): Strategy run output.
+        start_value (float): Initial cash value.
+
+    Returns:
+        dict: Metrics used by assertions.
+    """
     strat = results[0]
     end_value = strat.broker.getvalue()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -380,6 +524,14 @@ def summarize(results, start_value):
 
 
 def run(plot=False):
+    """Run strategy and return results, metrics, and engine.
+
+    Args:
+        plot (bool): Whether to draw chart after run.
+
+    Returns:
+        tuple: `(results, metrics, cerebro)`.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)
@@ -397,6 +549,7 @@ def run(plot=False):
 
 
 def main():
+    """CLI entrypoint to execute backtest and optionally render a chart."""
     parser = argparse.ArgumentParser(description='Run EA Moving Average backtest')
     parser.add_argument('--plot', action='store_true', help='Plot result chart')
     args = parser.parse_args()
@@ -414,10 +567,7 @@ def _close(actual, expected, *, tol, key):
 
 
 def test_15_0015_0407_ea_moving_average() -> None:
-    """Migrated regression test (runonce=True only).
-
-    Originally located at tests/functional/strategies_regression/risk_management/0015_0407_ea_moving_average.
-    """
+    """Migrated regression test (runonce=True only)."""
     # Capture metrics by hooking extract_metrics() (or similar) and invoking the
     # original main()/run(). This reuses whatever loader / build_cerebro /
     # metrics-extraction signatures the strategy used internally.

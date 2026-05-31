@@ -7,6 +7,36 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Symbol XAUUSD (spot gold) on the M15 (15-minute) timeframe, loaded from
+    ``tests/datas/XAUUSD_M15.csv`` in MetaTrader 5 tab-separated export format.
+    Each timestamp is shifted forward by 15 minutes to mark the bar close, then
+    clipped to 2025-12-03 01:15:00 through 2026-03-10 09:00:00. The M15 frame is
+    also resampled to a daily (D1) feed in the engine to compute pivot levels.
+    Both feeds are priced as a futures-like instrument (multiplier 100, margin
+    0.01).
+
+Strategy Principle:
+    A classic pivot-point limit system. Daily high/low/close build the pivot and
+    three resistance/support levels. Around a chosen support/resistance band the
+    strategy fades rejections: a bar that pierces the buy level but closes back
+    above it triggers a long, and the mirror condition at the sell level triggers
+    a short. Each trade carries a pivot-derived stop and take-profit, an optional
+    move-to-breakeven once the first target is reached, and an optional intraday
+    time exit. Lot sizing supports a fixed lot or a risk-based size with
+    martingale-style reduction after losing streaks.
+
+Strategy Logic:
+    ``__init__`` binds the intraday and daily feeds, zeroes the counters, and
+    sets the minimum period. ``_levels`` computes the pivot band for the selected
+    target-profit mode. ``next`` handles the intraday close rule, breakeven stop
+    move, and stop/take exits, then evaluates the pivot rejection signals to open
+    a long or short with stop/take/first-target prices. ``notify_order`` clears
+    the working order and resets risk prices on failure; ``notify_trade`` tracks
+    buy/sell on open and win/loss (and per-trade PnL) on close. The module-level
+    helpers load the CSV, build the cerebro with analyzers, and extract a metrics
+    dictionary that the test compares against migration-time expected values.
 """
 from __future__ import annotations
 import math
@@ -77,6 +107,19 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load a MetaTrader 5 tab-separated CSV export into an OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 ``.csv`` export to read.
+        fromdate: Optional lower bound; rows before it are dropped.
+        todate: Optional upper bound; rows after it are dropped.
+        bar_shift_minutes: Minutes to add to each timestamp so the index marks
+            the bar close rather than the bar open.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with open, high, low, close,
+        volume, and openinterest columns.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +145,8 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """PandasData feed mapping the M15 OHLCV frame columns by position."""
+
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,6 +154,8 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class GpfTcpivotlimitStrategy(bt.Strategy):
+    """Daily-pivot limit system fading level rejections with pivot-based risk."""
+
     params = dict(
         lots=0.1,
         max_risk=0.02,
@@ -121,6 +168,7 @@ class GpfTcpivotlimitStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Bind the intraday/daily feeds, zero the counters, and set min period."""
         self.data_intraday = self.datas[0]
         self.data_daily = self.datas[1]
 
@@ -142,6 +190,7 @@ class GpfTcpivotlimitStrategy(bt.Strategy):
         self.addminperiod(4)
 
     def log(self, text):
+        """Print ``text`` prefixed with the current intraday bar's ISO timestamp."""
         dt = bt.num2date(self.data_intraday.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -241,6 +290,7 @@ class GpfTcpivotlimitStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Handle time/breakeven/risk exits, then open on a pivot-level rejection."""
         if len(self.data_daily) < 2:
             return
         self.bar_num += 1
@@ -289,6 +339,11 @@ class GpfTcpivotlimitStrategy(bt.Strategy):
             return
 
     def notify_order(self, order):
+        """Clear the working order and reset risk prices on a failed order.
+
+        Args:
+            order: The order whose status changed.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status in [order.Canceled, order.Margin, order.Rejected]:
@@ -300,6 +355,13 @@ class GpfTcpivotlimitStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Track buy/sell on open and win/loss (and per-trade PnL) on close.
+
+        Args:
+            trade: The trade whose status changed; the first open bumps the
+                buy or sell counter and a close records the PnL, resets risk
+                prices, and bumps the trade and win/loss counters by sign of PnL.
+        """
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -337,6 +399,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve ``filename`` against this test's directory and verify it exists.
+
+    Args:
+        filename: Absolute or relative path to the data file.
+
+    Returns:
+        The resolved absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the resolved path does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -344,6 +417,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Load and date-clip the OHLCV frame described by ``config['data']``.
+
+    Args:
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict with the loaded ``data`` frame plus ``fromdate`` and ``todate``.
+
+    Raises:
+        ValueError: If the loaded frame is empty.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -360,6 +444,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Assemble a Cerebro with broker, intraday + resampled daily feeds, strategy, and analyzers.
+
+    Args:
+        config: Resolved configuration dictionary.
+        frame: Output of :func:`load_backtest_frame`.
+
+    Returns:
+        A configured ``bt.Cerebro`` instance ready to run.
+    """
     bt_cfg = config['backtest']
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(bt_cfg['initial_cash'])
@@ -385,6 +478,18 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzer output and strategy counters into a metrics dict.
+
+    Args:
+        strat: The executed strategy instance.
+        cerebro: The Cerebro that ran the backtest.
+        frame: Output of :func:`load_backtest_frame`.
+        config: Resolved configuration dictionary.
+
+    Returns:
+        A dict of trade counts, returns, drawdown, Sharpe, SQN, open-position
+        state, and related performance metrics.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()

@@ -7,6 +7,30 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    XAUUSD (gold) daily bar data from 2008-01-01 to 2025-12-31, loaded from
+    tests/datas/XAUUSD_1d.csv. Additional features (week_return, entry_signal,
+    exit_signal) are computed on top of raw OHLCV.
+
+Strategy Principle:
+    Weekly Reversal is a mean-reversion strategy that exploits V-shaped and
+    inverted-V-shaped weekly return patterns. When a week of strong decline is
+    followed by a strong rally (V), the strategy shorts; when a strong rally is
+    followed by a sharp decline (inverted-V), it goes long. The position is held
+    for a fixed holding period regardless of intermediate price action.
+
+Strategy Logic:
+    1. load_config() / load_data() loads and preprocesses the CSV, computes
+       weekly returns, and detects V / inverted-V reversal patterns.
+    2. build_cerebro() wires feed, strategy, and analyzers (Sharpe, DrawDown,
+       TradeAnalyzer, Returns, SQN).
+    3. WeeklyReversalStrategy checks entry_signal on flat positions (go long
+       for inverted-V, go short for V) and exits after holding_days bars.
+    4. extract_metrics() aggregates per-trade and per-bar statistics for
+       assertion.
+    5. test_34_0034_weekly_reversal() runs the strategy and validates all
+       expected metrics against hard-coded reference values.
 """
 from __future__ import annotations
 import math
@@ -75,6 +99,17 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 CSV file and return a cleaned pandas DataFrame.
+
+    Args:
+        filepath: Path to the MT5 exported CSV file.
+        fromdate: Optional start datetime to filter data.
+        todate: Optional end datetime to filter data.
+
+    Returns:
+        pd.DataFrame with columns datetime, open, high, low, close, volume,
+        openinterest; indexed by datetime and sorted.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -101,7 +136,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_weekly_reversal_features(df, params):
-    """准备周度反转策略特征"""
+    """Prepare Weekly Reversal strategy features from raw OHLCV data."""
     out = df.copy()
     threshold_pct = float(params.get('threshold_pct', 0.05))
 
@@ -114,24 +149,24 @@ def prepare_weekly_reversal_features(df, params):
     out['week_return'] = week_periods.map(weekly_return).astype(float)
     out['prev_week_return'] = week_periods.map(prev_week_return).astype(float)
 
-    # 判断是否为大跌后大涨（V型反转）
+    # Detect V-shaped reversal: sharp decline followed by sharp rally.
     out['v_reversal'] = (
         (out['prev_week_return'] < -threshold_pct)
         & (out['week_return'] > threshold_pct)
     ).astype(float)
 
-    # 判断是否为大涨后大跌（倒V型）
+    # Detect inverted-V reversal: sharp rally followed by sharp decline.
     out['inverted_v_reversal'] = (
         (out['prev_week_return'] > threshold_pct)
         & (out['week_return'] < -threshold_pct)
     ).astype(float)
     
-    # 入场信号：V型反转后做空，倒V型反转后做多
+    # Entry signal: short on V reversal, long on inverted-V reversal.
     out['entry_signal'] = 0.0
-    out.loc[out['v_reversal'] > 0.5, 'entry_signal'] = -1.0  # V型反转后做空
-    out.loc[out['inverted_v_reversal'] > 0.5, 'entry_signal'] = 1.0  # 倒V型反转后做多
+    out.loc[out['v_reversal'] > 0.5, 'entry_signal'] = -1.0  # Short after V reversal.
+    out.loc[out['inverted_v_reversal'] > 0.5, 'entry_signal'] = 1.0  # Long after inverted-V.
     
-    # 出场信号：持有N天后
+    # Exit signal: hold for N days.
     out['exit_signal'] = 0.0
     
     out = out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 
@@ -140,6 +175,8 @@ def prepare_weekly_reversal_features(df, params):
 
 
 class Mt5WeeklyReversalFeed(bt.feeds.PandasData):
+    """Custom PandasData feed that exposes weekly return and entry/exit signal lines."""
+
     lines = ('week_return', 'entry_signal', 'exit_signal',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -149,6 +186,13 @@ class Mt5WeeklyReversalFeed(bt.feeds.PandasData):
 
 
 class WeeklyReversalStrategy(bt.Strategy):
+    """Mean-reversion strategy that trades V-shaped and inverted-V weekly reversals.
+
+    Shorts when a sharp weekly decline is followed by a sharp rally (V),
+    goes long when a sharp rally is followed by a sharp decline (inverted-V),
+    and exits after a fixed holding period.
+    """
+
     params = dict(
         threshold_pct=0.05,
         holding_days=5,
@@ -156,6 +200,7 @@ class WeeklyReversalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialise strategy state counters and order tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -182,6 +227,7 @@ class WeeklyReversalStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next(self):
+        """Execute per-bar logic: entry on reversal signal, exit after holding_days."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -190,29 +236,31 @@ class WeeklyReversalStrategy(bt.Strategy):
         
         entry_signal = float(self.data.entry_signal[0])
         
-        # 无持仓时检查入场
+        # Check entry when no position is held.
         if not self.position:
-            if entry_signal > 0.5:  # 做多
+            if entry_signal > 0.5:  # Long.
                 self.buy_count += 1
                 self.entry_bar = self.bar_num
                 self.pending_order = self.buy(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
-            elif entry_signal < -0.5:  # 做空
+            elif entry_signal < -0.5:  # Short.
                 self.sell_count += 1
                 self.entry_bar = self.bar_num
                 self.pending_order = self.sell(size=self._get_position_size(target_notional_pct=float(self.p.lot_size)))
             return
         
-        # 有持仓时检查出场：固定持有天数
+        # Check exit when holding: fixed holding days.
         holding_days = self.bar_num - self.entry_bar
         if holding_days >= self.p.holding_days:
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order once it reaches a final state."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Track trade outcome (win/loss) when a trade closes."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -224,7 +272,7 @@ class WeeklyReversalStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Weekly Reversal 策略回测"""
+"""Weekly Reversal strategy backtest."""
 
 
 
@@ -234,6 +282,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build kwargs dict for SharpeRatio analyzer from config.
+
+    Args:
+        config: Dict with 'data' key containing timeframe specification.
+
+    Returns:
+        Dict with timeframe, compression, factor, annualize, riskfreerate.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -246,10 +302,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return x if it is a finite number, otherwise None.
+
+    Args:
+        x: Value to check.
+
+    Returns:
+        The original value if finite, else None.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate Ulcer Index from a series of portfolio values.
+
+    Args:
+        values: Sequence of numeric portfolio values.
+
+    Returns:
+        Ulcer Index as a float.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -264,6 +336,14 @@ def calculate_ulcer_index(values):
 
 
 def resolve_data_path(filename):
+    """Resolve a data filename to an absolute path.
+
+    Args:
+        filename: Relative or absolute path string.
+
+    Returns:
+        Resolved absolute Path.
+    """
     path = Path(filename)
     if path.is_absolute() and path.exists():
         return path
@@ -280,6 +360,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load and preprocess the CSV data with strategy features.
+
+    Args:
+        config: Dict containing data, params, and backtest sections.
+
+    Returns:
+        Dict with 'data' (enriched DataFrame), 'fromdate', and 'todate'.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -292,6 +380,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build and configure a Cerebro instance for the backtest.
+
+    Args:
+        frame: Dict with 'data' DataFrame and date range.
+        config: Dict with backtest, data, and params sections.
+
+    Returns:
+        Configured bt.Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -314,6 +411,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate performance metrics from strategy analyzers and state.
+
+    Args:
+        strat: The run strategy instance.
+        cerebro: The Cerebro instance after run().
+        frame: Dict with 'data' DataFrame and date range.
+        config: Dict with backtest, data, and params sections.
+
+    Returns:
+        Dict of quantitative metrics for assertion.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -348,6 +456,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Convert a value to a JSON-serializable form.
+
+    Args:
+        v: Value (datetime, float, or other).
+
+    Returns:
+        ISO-format string for datetime, None for NaN/inf, or the original.
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

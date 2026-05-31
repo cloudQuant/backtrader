@@ -1,6 +1,26 @@
 """Inlined regression test for trend_following/0045_0578_rabbitm2.
 
-Self-contained single-file test (manually authored). Runs with runonce=True only.
+Self-contained single-file test (manually authored). Runs with runonce=True
+only and validates the migrated strategy metrics against captured baselines.
+
+Data Used:
+- XAUUSD M15 bars from ``tests/datas/XAUUSD_M15.csv`` shifted by 15 minutes.
+- Backtest window: 2025-12-03 01:15:00 to 2026-03-10 09:00:00.
+
+Strategy Principle:
+RabbitM2 is a trend-following pair of moving-average and momentum filters.
+It combines CCI and Williams %R against Donchian channel breaks to switch
+between buy/sell modes, with fixed stop-loss/take-profit exits and staged
+position scaling after large unrealized gains.
+
+Strategy Logic:
+- Load M15 OHLCV data and create a custom Backtrader PandasData feed.
+- Track CCI, two EMAs and Williams %R each bar, close the opposite side
+  position when trend/mode changes, and flatten on Donchian breakout rules.
+- Enter when momentum filters align with the active mode, then set stop-loss
+  and take-profit levels for fixed-lot entries.
+- Track order/trade lifecycle and expose counters for buy/sell, wins/losses,
+  and completed/rejected orders in assertions.
 """
 from __future__ import annotations
 
@@ -16,6 +36,18 @@ DATA_FILE = _REPO / "tests" / "datas" / "XAUUSD_M15.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5-exported CSV data into an indexed OHLCV DataFrame.
+
+    Args:
+        filepath: Path to the MT5 export file.
+        fromdate: Optional lower bound for row selection by datetime index.
+        todate: Optional upper bound for row selection by datetime index.
+        bar_shift_minutes: Optional minute offset applied to the index.
+
+    Returns:
+        pandas.DataFrame: Columns ``open``, ``high``, ``low``, ``close``,
+        ``volume``, ``openinterest`` indexed by datetime.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.read().strip().split("\n")
     cleaned = "\n".join(line.strip().strip('"') for line in lines)
@@ -39,6 +71,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(bt.feeds.PandasData):
+    """Backtrader PandasData feed mapping MT5-exported columns by index."""
     params = (
         ("datetime", None), ("open", 0), ("high", 1), ("low", 2),
         ("close", 3), ("volume", 4), ("openinterest", 5),
@@ -46,6 +79,7 @@ class Mt5PandasFeed(bt.feeds.PandasData):
 
 
 class RabbitM2Strategy(bt.Strategy):
+    """Trend-following strategy using CCI/Williams %R filters and Donchian logic."""
     params = dict(
         cci_sell_level=101, cci_buy_level=99, cci_ma_period=14,
         count_bars=100, max_open_positions=1, big_win=1.50,
@@ -56,6 +90,7 @@ class RabbitM2Strategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Create indicators and initialise strategy state/counters."""
         self.cci = bt.indicators.CommodityChannelIndex(self.data, period=int(self.p.cci_ma_period))
         self.ema_fast = bt.indicators.ExponentialMovingAverage(self.data.close, period=int(self.p.ma_fast_ma_period))
         self.ema_slow = bt.indicators.ExponentialMovingAverage(self.data.close, period=int(self.p.ma_slow_ma_period))
@@ -145,6 +180,7 @@ class RabbitM2Strategy(bt.Strategy):
         return min(values[:-1])
 
     def next(self):
+        """Advance strategy state, manage exits, and evaluate new entries."""
         self.bar_num += 1
         warmup = max(int(self.p.cci_ma_period), int(self.p.ma_slow_ma_period), int(self.p.wpr_calc_period)) + 5
         if len(self) < warmup:
@@ -207,6 +243,11 @@ class RabbitM2Strategy(bt.Strategy):
                 self._arm("buy", price, size)
 
     def notify_order(self, order):
+        """Process order updates and update execution counters.
+
+        Args:
+            order: Backtrader order instance whose status changed.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == bt.Order.Completed:
@@ -227,6 +268,11 @@ class RabbitM2Strategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Track closed trade outcomes and update win/loss counters.
+
+        Args:
+            trade: Backtrader trade instance currently being processed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1

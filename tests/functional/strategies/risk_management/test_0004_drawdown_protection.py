@@ -7,6 +7,23 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    - Symbol: XAUUSD (Gold).
+    - Timeframe: Daily (D1).
+    - Data Path: '{repo}/tests/datas/XAUUSD_1d.csv'.
+    - Date Range: 2008-01-01 to 2025-12-31.
+
+Strategy Principle:
+    - This is a volatility-targeting strategy protected by a multi-level drawdown-based deleveraging filter.
+    - Market Assumptions: Markets establish risk-adjusted asset returns. Dynamic position scaling based on rolling asset volatility (volatility targeting) and cumulative Peak-to-Trough Drawdown controls portfolio risk and limits structural drawdown tail risks.
+    - Indicators:
+        - returns: Daily percentage return rate of close prices.
+        - volatility: Rolling 20-day annualized standard deviation of returns.
+        - drawdown: Current peak-to-trough price drawdown relative to rolling cumulative peak (cummax).
+        - smoothed_position: Volatility-targeted allocation scaled down progressively as drawdown crosses thresholds (3%, 6%, 10%), smoothed by `smoothing_factor` (0.15).
+    - Entry/Exit Signals:
+        - Target rebalancing trade triggered whenever smoothed_position changes by more than 5%.
 """
 from __future__ import annotations
 import math
@@ -77,7 +94,15 @@ def _resolve_repo_paths(node):
 
 
 def load_config(*args, **kwargs):
-    """Inlined config (was config.yaml). Accepts any args for compatibility with strategies that pass a path."""
+    """Load the inlined strategy and backtest configuration dict.
+
+    Args:
+        *args: Variable length argument list for compatibility.
+        **kwargs: Arbitrary keyword arguments for compatibility.
+
+    Returns:
+        dict: The deep-copied configuration dictionary with resolved repository absolute paths.
+    """
     import copy
     return _resolve_repo_paths(copy.deepcopy(_CONFIG))
 
@@ -85,6 +110,16 @@ def load_config(*args, **kwargs):
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load MT5 format historical CSV data file into a pandas DataFrame.
+
+    Args:
+        filepath (str or Path): Path to the MT5 CSV file.
+        fromdate (datetime.datetime, optional): Start date to filter data. Defaults to None.
+        todate (datetime.datetime, optional): End date to filter data. Defaults to None.
+
+    Returns:
+        pd.DataFrame: Cleaned and sorted DataFrame containing MT5 data.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -111,17 +146,25 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_drawdown_protection_features(df, params):
-    """准备回撤保护策略特征"""
+    """Prepare and compute indicators for the Drawdown Protection strategy.
+
+    Args:
+        df (pd.DataFrame): Raw historical market data DataFrame.
+        params (dict): Strategy parameters containing lookback windows and thresholds.
+
+    Returns:
+        pd.DataFrame: Feature-enriched DataFrame containing returns, volatility, and drawdown.
+    """
     out = df.copy()
     vol_lookback = int(params.get('vol_lookback', 20))
     
-    # 计算收益率
+    # Calculate returns
     out['returns'] = out['close'].pct_change()
     
-    # 计算波动率（年化）
+    # Calculate annualized volatility
     out['volatility'] = out['returns'].rolling(vol_lookback).std() * np.sqrt(252)
     
-    # 计算回撤
+    # Calculate drawdown
     out['cummax'] = out['close'].cummax()
     out['drawdown'] = (out['close'] - out['cummax']) / out['cummax']
     
@@ -131,6 +174,7 @@ def prepare_drawdown_protection_features(df, params):
 
 
 class Mt5DrawdownFeed(bt.feeds.PandasData):
+    """Custom backtrader Pandas data feed with Drawdown Protection lines."""
     lines = ('returns', 'volatility', 'drawdown',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -140,6 +184,11 @@ class Mt5DrawdownFeed(bt.feeds.PandasData):
 
 
 class DrawdownProtectionStrategy(bt.Strategy):
+    """Strategy class implementing volatility-targeted position sizing with drawdown scaling.
+
+    Attributes:
+        params (dict): Configured strategy parameters.
+    """
     params = dict(
         target_vol=0.12,
         max_drawdown=0.15,
@@ -156,6 +205,7 @@ class DrawdownProtectionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize indicators, backtest tracking metrics, and state variables."""
         self.bar_num = 0
         self.rebalance_count = 0
         self.trade_count = 0
@@ -166,8 +216,16 @@ class DrawdownProtectionStrategy(bt.Strategy):
         self.broker_value_series = []
 
 
-
     def _get_position_size(self, target_notional_pct=1.0, price=None):
+        """Calculate dynamic position size based on target notional percentage.
+
+        Args:
+            target_notional_pct (float): Target fraction of portfolio value. Defaults to 1.0.
+            price (float, optional): Market price for computation. Defaults to None.
+
+        Returns:
+            float: Calculated position size, rounded to 2 decimal places (min 0.01).
+        """
         if target_notional_pct <= 0:
             return 0.0
         broker_value = float(self.broker.getvalue())
@@ -182,7 +240,14 @@ class DrawdownProtectionStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def get_position_from_drawdown(self, drawdown):
-        """根据回撤确定目标仓位"""
+        """Determine target allocation level based on cumulative price drawdown.
+
+        Args:
+            drawdown (float): Current price drawdown value.
+
+        Returns:
+            float: Scaled target position size coefficient.
+        """
         if drawdown < -self.p.dd_threshold_1:
             return self.p.position_level_1
         elif drawdown < -self.p.dd_threshold_2:
@@ -193,13 +258,21 @@ class DrawdownProtectionStrategy(bt.Strategy):
             return self.p.position_level_4
 
     def get_position_from_volatility(self, current_vol):
-        """根据波动率确定目标仓位"""
+        """Determine volatility-targeted target allocation level.
+
+        Args:
+            current_vol (float): Current annualized return volatility.
+
+        Returns:
+            float: Volatility-targeted target position size coefficient.
+        """
         if current_vol > 0:
             vol_position = self.p.target_vol / current_vol
             return max(0.25, min(1.0, vol_position))
         return 1.0
 
     def next(self):
+        """Execute the strategy decision logic on each new bar."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         
@@ -209,18 +282,18 @@ class DrawdownProtectionStrategy(bt.Strategy):
         current_vol = float(self.data.volatility[0])
         current_dd = float(self.data.drawdown[0])
         
-        # 根据回撤和波动率确定目标仓位
+        # Determine target position sizing from volatility and drawdown values
         dd_position = self.get_position_from_drawdown(current_dd)
         vol_position = self.get_position_from_volatility(current_vol)
         target_position = min(dd_position, vol_position)
         
-        # 平滑调整
+        # Smooth allocations
         smoothed_position = (
             self.current_position_pct * (1 - self.p.smoothing_factor) +
             target_position * self.p.smoothing_factor
         )
         
-        # 执行调仓
+        # Execute target rebalancing order adjustments
         if abs(smoothed_position - self.current_position_pct) > 0.05:
             self.rebalance_count += 1
             target_size = self._get_position_size(target_notional_pct=smoothed_position * float(self.p.lot_size))
@@ -238,11 +311,21 @@ class DrawdownProtectionStrategy(bt.Strategy):
                     self.current_position_pct = smoothed_position
 
     def notify_order(self, order):
+        """Callback to handle order status updates.
+
+        Args:
+            order (bt.Order): The updated order instance.
+        """
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Callback to handle closed trades and manage win/loss counts.
+
+        Args:
+            trade (bt.Trade): The closed trade instance.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -254,7 +337,7 @@ class DrawdownProtectionStrategy(bt.Strategy):
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Drawdown Protection 策略回测"""
+"""Drawdown Protection strategy backtest."""
 
 
 
@@ -264,6 +347,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Retrieve arguments for configuring the Sharpe Ratio analyzer based on timeframe.
+
+    Args:
+        config (dict): Backtest configuration dictionary.
+
+    Returns:
+        dict: Parameter dictionary for SharpeRatio initialization.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -276,10 +367,26 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return the value if it is finite, otherwise None.
+
+    Args:
+        x (float): Number to check.
+
+    Returns:
+        float or None: Checked value or None if non-finite.
+    """
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Calculate the Ulcer Index drawdown volatility measure for portfolio values.
+
+    Args:
+        values (list of float): Time-series of portfolio/broker values.
+
+    Returns:
+        float: Calculated Ulcer Index value.
+    """
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -292,8 +399,18 @@ def calculate_ulcer_index(values):
     return math.sqrt(sum_squared / len(values))
 
 
-
 def resolve_data_path(filename):
+    """Resolve data file path relative to BASE_DIR and ensure it exists.
+
+    Args:
+        filename (str): Name or path of data file.
+
+    Raises:
+        FileNotFoundError: If the data file does not exist.
+
+    Returns:
+        Path: Resolved absolute path.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -301,6 +418,14 @@ def resolve_data_path(filename):
 
 
 def load_data(config):
+    """Load daily market data and prepare Drawdown Protection features.
+
+    Args:
+        config (dict): Configuration dictionary.
+
+    Returns:
+        dict: Loaded data frame dictionary.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -313,6 +438,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Construct and configure Cerebro instance with feed, analyzers and strategies.
+
+    Args:
+        frame (dict): Loaded and processed data frame dictionary.
+        config (dict): Strategy and backtest configuration.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro backtest engine.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -350,6 +484,17 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Extract backtest results, returns, Sharpe ratio, and drawdowns.
+
+    Args:
+        strat (bt.Strategy): Run strategy instance containing observers/analyzers.
+        cerebro (bt.Cerebro): Backtest Cerebro engine.
+        frame (dict): Loaded data frame dictionary.
+        config (dict): Strategy and backtest configuration dictionary.
+
+    Returns:
+        dict: Performance and trade metrics dict.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -372,7 +517,7 @@ def extract_metrics(strat, cerebro, frame, config):
         'initial_cash': initial_cash, 'final_value': final_value,
         'net_pnl': final_value - initial_cash,
         'total_return_pct': (final_value / initial_cash - 1.0) * 100.0,
-        'total_trades': strat.rebalance_count,  # 使用rebalance_count作为交易次数
+        'total_trades': strat.rebalance_count,  # Use rebalance_count as trade count
         'won': won, 'lost': lost,
         'win_rate': (won / total_trades * 100.0) if total_trades else 0.0,
         'profit_factor': (gross_won / gross_lost) if gross_lost else None,
@@ -385,6 +530,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize date and special float values for consistent JSON output.
+
+    Args:
+        v (any): Value to be normalized.
+
+    Returns:
+        any: Normalized value (e.g. ISO string for datetime, None for non-finite floats).
+    """
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
@@ -392,10 +545,8 @@ def normalize(v):
     return v
 
 
-
-
-
 def main():
+    """Main execution function to run the strategy backtest."""
     config = load_config()
     frame = load_data(config)
     print(f"Loaded {len(frame['data'])} bars")
@@ -415,15 +566,63 @@ def _close(actual, expected, *, tol, key):
     )
 
 
-def _invoke_strategy_main():
-    """Call main() or run() depending on what the original script defined."""
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    if hasattr(_mod, "main") and callable(_mod.main):
-        return _mod.main()
-    if hasattr(_mod, "run") and callable(_mod.run):
-        return _mod.run()
-    raise RuntimeError("Neither main() nor run() found in inlined module")
+def _resolve_loader():
+    """Locate the data-loading helper (varies by strategy).
+
+    Returns:
+        function: The data-loading helper function.
+    """
+    for name in ("load_inputs", "load_data", "load_backtest_frame", "prepare_inputs", "prepare_data"):
+        fn = globals().get(name)
+        if callable(fn):
+            return fn
+    raise RuntimeError("No inputs loader found in inlined module")
+
+
+def _build_cerebro_compat(inputs, config):
+    """Call build_cerebro with whichever signature the original used.
+
+    Args:
+        inputs (dict): Processed data frames.
+        config (dict): Configuration dictionary.
+
+    Returns:
+        bt.Cerebro: Configured Cerebro instance.
+    """
+    import inspect
+    sig = inspect.signature(build_cerebro)
+    params = list(sig.parameters.keys())
+    if params and params[0].lower() in ("config", "cfg", "configuration"):
+        return build_cerebro(config, inputs)
+    try:
+        return build_cerebro(inputs, config)
+    except TypeError:
+        return build_cerebro(config, inputs)
+
+
+def _extract_metrics_compat(strat, cerebro, inputs, config):
+    """Call extract_metrics with whichever signature the original used.
+
+    Args:
+        strat (bt.Strategy): Strategy instance.
+        cerebro (bt.Cerebro): Cerebro backtest engine.
+        inputs (dict): Input data frames.
+        config (dict): Strategy configuration dict.
+
+    Returns:
+        dict: Strategy summary metrics.
+    """
+    for args in (
+        (strat, cerebro, inputs, config),
+        (strat, cerebro, config, inputs),
+        (strat, cerebro, inputs),
+        (strat, cerebro),
+    ):
+        try:
+            return extract_metrics(*args)
+        except TypeError:
+            continue
+    raise RuntimeError("extract_metrics failed for all argument orderings")
 
 
 def test_4_0004_drawdown_protection() -> None:
@@ -431,48 +630,11 @@ def test_4_0004_drawdown_protection() -> None:
 
     Originally located at tests/functional/strategies_regression/risk_management/0004_drawdown_protection.
     """
-    # Capture metrics by hooking extract_metrics() and invoking the original
-    # main() (or run()). This reuses whatever loader / build_cerebro /
-    # extract_metrics signatures the strategy used internally.
-    captured = {}
-    _orig_extract = extract_metrics
-    def _capture_em(*a, **kw):
-        m = _orig_extract(*a, **kw)
-        if isinstance(m, dict):
-            captured["metrics"] = m
-        return m
-
-    import sys as _sys
-    _mod = _sys.modules[__name__]
-    _mod.extract_metrics = _capture_em
-
-    # Force runonce=True for the run inside main().
-    import backtrader as _bt
-    _orig_run = _bt.Cerebro.run
-    def _forced_runonce(self, *args, **kwargs):
-        kwargs["runonce"] = True
-        return _orig_run(self, *args, **kwargs)
-    _bt.Cerebro.run = _forced_runonce
-
-    # Strip pytest argv so that argparse-based main() functions don't see them.
-    _saved_argv = _sys.argv
-    _sys.argv = [_sys.argv[0]]
-
-    try:
-        try:
-            _invoke_strategy_main()
-        except SystemExit:
-            pass
-        except Exception:
-            if "metrics" not in captured:
-                raise
-    finally:
-        _bt.Cerebro.run = _orig_run
-        _mod.extract_metrics = _orig_extract
-        _sys.argv = _saved_argv
-
-    metrics = captured.get("metrics")
-    assert metrics is not None, "extract_metrics() was not called"
+    config = load_config()
+    inputs = _resolve_loader()(config)
+    cerebro = _build_cerebro_compat(inputs, config)
+    results = cerebro.run(runonce=True)
+    metrics = _extract_metrics_compat(results[0], cerebro, inputs, config)
 
     assert metrics.get('bar_num') == 4618, f"bar_num: expected=4618, got={metrics.get('bar_num')!r}"
     assert metrics.get('win_count') == 0, f"win_count: expected=0, got={metrics.get('win_count')!r}"

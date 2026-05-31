@@ -7,6 +7,39 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Data file:
+        `tests/datas/XAUUSD_M15.csv` (from MT5 format parser).
+    Symbol:
+        `XAUUSD`.
+    Timeframe:
+        `M15`, no further resampling is performed in this test harness.
+    Time range:
+        `2025-12-03 01:15:00` to `2026-03-10 09:00:00`.
+    Multi-data:
+        Single-symbol single-feed backtest.
+    Extra processing:
+        Add 15 minutes to each bar timestamp via `bar_shift_minutes`.
+
+Strategy Principle:
+    The strategy computes a custom RKD oscillator from RSV/K/D lines.
+    It opens when K crosses D and sizes orders with fixed `lots`.
+    Positions are exited by configured stop-loss / take-profit distances.
+
+Strategy Logic:
+    `load_config()` loads strategy/backtest parameters and resolves repo placeholders.
+    `load_mt5_csv()` cleans and normalizes raw MT5 data into indexed OHLCV rows.
+    `resolve_data_path()` ensures the configured file exists in repository.
+    `load_backtest_frame()` applies date filtering to the normalized frame.
+    `build_cerebro()` creates the engine, feed, indicators, strategy, and analyzers.
+    `RKDIndicator` calculates RSV, K and D values from recent high/low/close.
+    `RkdEaStrategy.__init__()` initializes indicator state, counters, and flags.
+    `RkdEaStrategy.next()` checks crossover conditions and issues entries/reversals.
+    `RkdEaStrategy.notify_trade()` records open/close side and outcome counts.
+    `extract_metrics()` converts analyzer outputs and strategy counters into the
+    expected metric schema.
+    `run()` executes the backtest and returns run results and metrics.
 """
 from __future__ import annotations
 import math
@@ -25,7 +58,7 @@ _REPO = Path(__file__).resolve().parents[4]
 _CONFIG = {
     'strategy': {
         'name': 'RKD EA',
-        'source_ea': 'ea/1202_一款简单_RKD_EA,_基于指定的自定义_RKD_指标',
+        'source_ea': 'ea/1202_Simple_RKD_EA_with_custom_RKD_indicator',
     },
     'data': {
         'symbol': 'XAUUSD',
@@ -81,6 +114,17 @@ if str(BACKTRADER_REPO) not in sys.path:
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5-format TSV file and normalize columns for Backtrader.
+
+    Args:
+        filepath (str | os.PathLike): Path to source file.
+        fromdate (datetime.datetime | None): Optional inclusive start filter.
+        todate (datetime.datetime | None): Optional inclusive end filter.
+        bar_shift_minutes (int): Optional minutes to shift each bar timestamp.
+
+    Returns:
+        pandas.DataFrame: DataFrame indexed by datetime with OHLCV + openinterest.
+    """
     with open(filepath, 'r', encoding='utf-8') as f:
         lines = f.read().strip().split('\n')
     cleaned = '\n'.join(line.strip().strip('"') for line in lines)
@@ -102,6 +146,7 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 class Mt5PandasFeed(btfeeds.PandasData):
+    """Backtrader feed definition for MT5-derived normalized OHLCV data."""
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
         ('close', 3), ('volume', 4), ('openinterest', 5),
@@ -109,13 +154,16 @@ class Mt5PandasFeed(btfeeds.PandasData):
 
 
 class RKDIndicator(bt.Indicator):
+    """Compute a custom RKD line set from RSV/K/D values."""
     lines = ('rsv', 'k', 'd')
     params = dict(kd_period=30, m1=3, m2=6)
 
     def __init__(self):
+        """Define indicator warm-up length before valid line updates."""
         self.addminperiod(max(int(self.p.kd_period), int(self.p.m1), int(self.p.m2)) + 2)
 
     def next(self):
+        """Update RSV, K, and D for the latest bar."""
         kd_period = int(self.p.kd_period)
         m1 = int(self.p.m1)
         m2 = int(self.p.m2)
@@ -142,6 +190,7 @@ class RKDIndicator(bt.Indicator):
 
 
 class RkdEaStrategy(bt.Strategy):
+    """RKD-based crossover strategy with fixed-size entries and explicit exits."""
     params = dict(
         lots=0.1,
         stop_loss_points=31,
@@ -153,6 +202,7 @@ class RkdEaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize RKD indicator, state counters and trade life-cycle flags."""
         self.base = self.datas[0]
         self.rkd = RKDIndicator(self.base, kd_period=self.p.kd_period, m1=self.p.m1, m2=self.p.m2)
         self.bar_num = 0
@@ -165,6 +215,7 @@ class RkdEaStrategy(bt.Strategy):
         self._position_was_open = False
 
     def log(self, text):
+        """Print timestamped strategy logs."""
         dt = bt.num2date(self.base.datetime[0])
         print(f'{dt.isoformat()}, {text}')
 
@@ -203,6 +254,7 @@ class RkdEaStrategy(bt.Strategy):
         return False
 
     def next(self):
+        """Evaluate signal transitions, apply reversals, and keep risk exits."""
         self.bar_num += 1
         if len(self.base) < 4:
             return
@@ -245,6 +297,7 @@ class RkdEaStrategy(bt.Strategy):
             self.log(f'close long by crossover close={close_price:.2f} k1={k1:.2f} d1={d1:.2f}')
 
     def notify_trade(self, trade):
+        """Track counts of buy/sell initiations and closed trade outcomes."""
         if trade.isopen and not self._position_was_open:
             if trade.size > 0:
                 self.buy_count += 1
@@ -278,6 +331,17 @@ MINUTES_PER_TRADING_YEAR = 24 * 60 * 252
 
 
 def resolve_data_path(filename):
+    """Resolve and validate a local backtest data file path.
+
+    Args:
+        filename (str): Data file path configured in test settings.
+
+    Returns:
+        pathlib.Path: Absolute path pointing to existing data file.
+
+    Raises:
+        FileNotFoundError: If configured file does not exist.
+    """
     path = (BASE_DIR / filename).resolve()
     if not path.exists():
         raise FileNotFoundError(f'Data file not found: {path}')
@@ -285,6 +349,17 @@ def resolve_data_path(filename):
 
 
 def load_backtest_frame(config):
+    """Build a filtered backtest frame from configuration date range.
+
+    Args:
+        config (dict): Full strategy and data configuration.
+
+    Returns:
+        dict: Dictionary with filtered `data`, `fromdate`, and `todate`.
+
+    Raises:
+        ValueError: If the selected range produces an empty dataframe.
+    """
     data_cfg = config['data']
     fromdate = datetime.datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.datetime.fromisoformat(data_cfg['todate'])
@@ -301,6 +376,15 @@ def load_backtest_frame(config):
 
 
 def build_cerebro(config, frame):
+    """Build and configure Cerebro engine for this RKD regression test.
+
+    Args:
+        config (dict): Configuration including backtest and strategy params.
+        frame (dict): Backtest frame from `load_backtest_frame`.
+
+    Returns:
+        bt.Cerebro: Configured engine with analyzers and strategy wired.
+    """
     bt_cfg = config['backtest']
     params = config.get('params', {})
 
@@ -327,6 +411,17 @@ def build_cerebro(config, frame):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Collect analyzers and strategy counters in the expected metric schema.
+
+    Args:
+        strat (bt.Strategy): Executed strategy instance.
+        cerebro (bt.Cerebro): Engine that executed the test.
+        frame (dict): Backtest context containing bars and time range.
+        config (dict): Test configuration.
+
+    Returns:
+        dict: Metrics map used by regression assertions.
+    """
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -368,6 +463,14 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def run(plot=False):
+    """Run the test strategy and return execution artifacts.
+
+    Args:
+        plot (bool): Whether to display cerebro plot after running.
+
+    Returns:
+        tuple: `(results, metrics, cerebro)` where results is Cerebro output.
+    """
     config = load_config()
     frame = load_backtest_frame(config)
     cerebro = build_cerebro(config, frame)

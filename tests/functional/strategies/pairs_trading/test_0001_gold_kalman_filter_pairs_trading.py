@@ -19,6 +19,17 @@ SILVER_FILE = _REPO / "tests" / "datas" / "XAGUSD_H1.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load MT5 gold/silver CSV data into OHLCV DataFrame.
+
+    Args:
+        filepath: Path to MT5 export file.
+        fromdate: Optional inclusive start datetime.
+        todate: Optional inclusive end datetime.
+        bar_shift_minutes: Optional close-time shift applied to parsed timestamps.
+
+    Returns:
+        Datetime-indexed DataFrame with open/high/low/close/volume/openinterest.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -60,18 +71,38 @@ def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
 
 
 def prepare_pairs_data(gold_df, silver_df):
+    """Align gold and silver frames on a common trading index.
+
+    Args:
+        gold_df: Gold OHLCV DataFrame.
+        silver_df: Silver OHLCV DataFrame.
+
+    Returns:
+        Tuple of aligned (gold, silver) DataFrames with same index.
+    """
     common_index = gold_df.index.intersection(silver_df.index).sort_values()
     return gold_df.loc[common_index].copy(), silver_df.loc[common_index].copy()
 
 
 class KalmanFilterHedgeRatio:
+    """Adaptive Kalman filter for estimating dynamic hedge ratio beta."""
     def __init__(self, process_noise, observation_noise, initial_beta, initial_P):
+        """Initialize filter noise covariance, state, and variance."""
         self.Q = float(process_noise)
         self.R = float(observation_noise)
         self.beta = float(initial_beta)
         self.P = float(initial_P)
 
     def update(self, price_a, price_b):
+        """Update beta/spread estimate for a pair observation.
+
+        Args:
+            price_a: Price series for base leg.
+            price_b: Price series for hedge leg.
+
+        Returns:
+            Tuple ``(beta, spread)`` after one Kalman update.
+        """
         beta_pred = self.beta
         P_pred = self.P + self.Q
         denominator = P_pred * price_b * price_b + self.R
@@ -84,6 +115,7 @@ class KalmanFilterHedgeRatio:
 
 
 class GoldKalmanFilterPairsStrategy(bt.Strategy):
+    """Pairs strategy using a Kalman filter to dynamically estimate hedge ratio."""
     params = dict(
         process_noise=0.0005,
         observation_noise=1.0,
@@ -100,6 +132,7 @@ class GoldKalmanFilterPairsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize pair handles, filter state, counters, and trade trackers."""
         self.gold = self.getdatabyname("XAUUSD")
         self.silver = self.getdatabyname("XAGUSD")
         self.kf = KalmanFilterHedgeRatio(
@@ -206,6 +239,7 @@ class GoldKalmanFilterPairsStrategy(bt.Strategy):
         self.entry_silver_size = 0
 
     def next(self):
+        """Update spread estimate, evaluate z-score conditions, and manage entries/exits."""
         self.bar_num += 1
         if self.pending_order_refs:
             return
@@ -244,12 +278,14 @@ class GoldKalmanFilterPairsStrategy(bt.Strategy):
             self._close_pair(price_a, price_b, is_stop=True)
 
     def notify_order(self, order):
+        """Drop order refs from the pending set after finalization."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order_refs.discard(order.ref)
 
 
 class ComminfoFuturesPercent(bt.CommInfoBase):
+    """Commission model with absolute percentage fee per turnover."""
     params = (
         ("commission", 0.0001),
         ("margin", 0.1),
@@ -259,6 +295,7 @@ class ComminfoFuturesPercent(bt.CommInfoBase):
     )
 
     def _getcommission(self, size, price, pseudoexec):
+        """Compute absolute percentage commission for the given notional size."""
         return abs(size) * price * self.p.commission
 
 

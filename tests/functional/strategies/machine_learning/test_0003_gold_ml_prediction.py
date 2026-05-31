@@ -7,6 +7,21 @@ collapsed into this single self-contained file.
 Runs with runonce=True only (no parametrization).
 Asserts directly on the strategy's own extract_metrics() output captured at
 migration time.
+
+Data Used:
+    Uses `tests/datas/XAUUSD_1d.csv` from 2008-01-01 to 2025-12-31.
+    Feature columns include RSI score, MA score, and volatility score used to
+    produce a composite ML-like prediction signal.
+
+Strategy Principle:
+    The strategy combines normalized RSI, moving-average trend, and volatility
+    rank into a composite score and opens long positions when the score exceeds
+    a threshold while exiting when the score weakens.
+
+Strategy Logic:
+    Daily candles are enriched with engineered features, delivered through a custom
+    Backtrader data feed. On each bar, composite score drives entry/exit signals
+    and broker equity history is tracked for ulcer-index style validation.
 """
 from __future__ import annotations
 import math
@@ -78,6 +93,16 @@ def load_config():
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
+    """Load and normalize MT5 CSV data for machine-learning feature generation.
+
+    Args:
+        filepath: Path to the MT5 CSV file.
+        fromdate: Optional lower datetime bound.
+        todate: Optional upper datetime bound.
+
+    Returns:
+        OHLCV DataFrame indexed by datetime.
+    """
     with open(filepath, 'r', encoding='utf-8', errors='ignore') as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = '\n'.join(lines)
@@ -105,6 +130,15 @@ def load_mt5_csv(filepath, fromdate=None, todate=None):
 
 
 def prepare_gold_ml_prediction_features(df, params):
+    """Create RSI/MA/volatility-derived composite prediction features.
+
+    Args:
+        df: Raw OHLCV DataFrame.
+        params: Strategy parameters controlling windows and threshold.
+
+    Returns:
+        DataFrame enriched with prediction scores and dropped invalid rows.
+    """
     rsi_period = int(params.get('rsi_period', 14))
     ma_fast = int(params.get('ma_fast', 20))
     ma_slow = int(params.get('ma_slow', 60))
@@ -141,6 +175,8 @@ def prepare_gold_ml_prediction_features(df, params):
 
 
 class Mt5GoldMlPredictionFeed(bt.feeds.PandasData):
+    """Pandas feed exposing ML prediction feature lines."""
+
     lines = ('rsi_score', 'ma_score', 'vol_score', 'composite_score',)
     params = (
         ('datetime', None), ('open', 0), ('high', 1), ('low', 2),
@@ -153,6 +189,8 @@ class Mt5GoldMlPredictionFeed(bt.feeds.PandasData):
 
 
 class GoldMlPredictionStrategy(bt.Strategy):
+    """Threshold-based long strategy driven by a composite indicator score."""
+
     params = dict(
         rsi_period=14,
         ma_fast=20,
@@ -163,6 +201,7 @@ class GoldMlPredictionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize counters, pending order status, and equity tracking."""
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -186,6 +225,7 @@ class GoldMlPredictionStrategy(bt.Strategy):
 
 
     def next(self):
+        """Evaluate score-driven entries and exits and update state counters."""
         self.bar_num += 1
         self.broker_value_series.append((bt.num2date(self.data.datetime[0]), float(self.broker.getvalue())))
         if self.pending_order is not None:
@@ -201,20 +241,14 @@ class GoldMlPredictionStrategy(bt.Strategy):
                 self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Clear pending order when an order is accepted, completed, or rejected."""
         if order.status in (order.Submitted, order.Accepted):
             return
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """No trade-specific counters are required for this strategy."""
         pass
-
-
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""Gold ML Prediction 策略回测"""
-
-
-
 
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -222,6 +256,14 @@ BASE_DIR = Path(__file__).parent.resolve()
 
 
 def get_sharpe_analyzer_kwargs(config):
+    """Build sharpe-ratio analyzer kwargs based on data timeframe.
+
+    Args:
+        config: Strategy configuration.
+
+    Returns:
+        Dictionary of analyzer arguments.
+    """
     data_cfg = config.get('data', {}) if isinstance(config, dict) else {}
     timeframe_value = str(data_cfg.get('timeframe', 'D1')).upper()
     if timeframe_value.startswith('M') and timeframe_value[1:].isdigit():
@@ -234,10 +276,12 @@ def get_sharpe_analyzer_kwargs(config):
 
 
 def finite_or_none(x):
+    """Return ``None`` for missing or non-finite values."""
     return x if x and math.isfinite(x) else None
 
 
 def calculate_ulcer_index(values):
+    """Compute ulcer index from a sequence of equity values."""
     if len(values) < 2:
         return 0.0
     max_value = values[0]
@@ -252,6 +296,14 @@ def calculate_ulcer_index(values):
 
 
 def load_data(config):
+    """Load features and metadata for backtest initialization.
+
+    Args:
+        config: Full test configuration.
+
+    Returns:
+        Dictionary with prepared dataframe and date window.
+    """
     data_cfg = config['data']
     fromdate = datetime.fromisoformat(data_cfg['fromdate'])
     todate = datetime.fromisoformat(data_cfg['todate'])
@@ -265,6 +317,15 @@ def load_data(config):
 
 
 def build_cerebro(frame, config):
+    """Build the Backtrader engine with feed, strategy, and analyzers.
+
+    Args:
+        frame: Input data dictionary.
+        config: Configuration dictionary.
+
+    Returns:
+        Configured Cerebro instance.
+    """
     cerebro = bt.Cerebro(stdstats=False)
     bt_cfg = config['backtest']
     cerebro.broker.setcash(float(bt_cfg['initial_cash']))
@@ -287,6 +348,7 @@ def build_cerebro(frame, config):
 
 
 def extract_metrics(strat, cerebro, frame, config):
+    """Aggregate key performance statistics from analyzers and broker equity."""
     sharpe = strat.analyzers.sharpe.get_analysis()
     returns = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -321,6 +383,7 @@ def extract_metrics(strat, cerebro, frame, config):
 
 
 def normalize(v):
+    """Normalize datetime and float values for deterministic metric output."""
     if isinstance(v, datetime):
         return v.isoformat()
     if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):

@@ -2,6 +2,26 @@
 
 Self-contained single-file test (manually authored). Runs with runonce=True only.
 KMeans clustering of XAUUSD candlestick features for next-day directional bias.
+
+Data Used:
+    Loads XAUUSD daily MT5 data from ``tests/datas/mt5_1d_data/XAUUSD_1d.csv``
+    and evaluates the period from 2022-01-01 to 2025-12-31.
+    The pipeline creates candlestick ratio features and cluster signals, then runs a
+    single-day open/close strategy feed on daily bars.
+
+Strategy Principle:
+    The strategy runs periodic KMeans refits on normalized candlestick features
+    (high-open, low-open, close-open) and identifies an "active" cluster with
+    above-benchmark next-bar return.
+    A long entry is triggered when the current candle's predicted cluster matches
+    the selected cluster; exits are forced before EOD to ensure one-day holds.
+
+Strategy Logic:
+    Feature preparation computes ATR-normalized candlestick statistics and rolling
+    cluster assignments/edge values.
+    The strategy submits a market buy when an entry signal is present and
+    closes any intraday position on the same trading day.
+    Analyzer assertions validate deterministic order counts and final value.
 """
 from __future__ import annotations
 
@@ -20,6 +40,17 @@ DATA_FILE = _REPO / "tests" / "datas" / "mt5_1d_data" / "XAUUSD_1d.csv"
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None, bar_shift_minutes=0):
+    """Load an MT5 CSV file and normalize it to an indexed OHLCV frame.
+
+    Args:
+        filepath: Path to the source CSV export.
+        fromdate: Optional start datetime to filter rows.
+        todate: Optional end datetime to filter rows.
+        bar_shift_minutes: Optional minute offset applied to datetime index.
+
+    Returns:
+        A pandas DataFrame indexed by datetime with OHLC and volume fields.
+    """
     with open(filepath, "r", encoding="utf-8", errors="ignore") as handle:
         lines = [line.strip().strip('"') for line in handle.readlines() if line.strip()]
     cleaned = "\n".join(lines)
@@ -56,6 +87,15 @@ def _calculate_atr(df, period=14):
 
 
 def prepare_candlestick_cluster_features(df, params):
+    """Prepare candlestick features and rolling KMeans-derived trade signals.
+
+    Args:
+        df: Input dataframe with OHLCV columns and datetime index.
+        params: Parameter dictionary controlling ATR, training window, and clustering.
+
+    Returns:
+        DataFrame containing engineered features and entry signal columns.
+    """
     out = df.copy()
     atr_period = int(params.get("atr_period", 14))
     train_window = int(params.get("train_window", 756))
@@ -124,6 +164,8 @@ def prepare_candlestick_cluster_features(df, params):
 
 
 class Mt5CandlestickClusterFeed(bt.feeds.PandasData):
+    """Pandas feed that exposes KMeans feature columns to Backtrader."""
+
     lines = ("atr", "ho_norm", "lo_norm", "co_norm", "cluster", "selected_cluster", "cluster_edge",
              "raw_signal", "entry_signal")
     params = (
@@ -134,11 +176,14 @@ class Mt5CandlestickClusterFeed(bt.feeds.PandasData):
 
 
 class CandlestickKMeansGoldStrategy(bt.Strategy):
+    """Daily-long trading strategy using precomputed KMeans entry flags."""
+
     params = dict(
         target_percent=0.95,
     )
 
     def __init__(self):
+        """Initialize order/session counters used by assertions."""
         self.pending_order = None
         self.entry_session_date = None
         self.bar_num = 0
@@ -164,6 +209,7 @@ class CandlestickKMeansGoldStrategy(bt.Strategy):
         return max(0.01, round(size, 2))
 
     def next_open(self):
+        """Place a long entry when today's signal is active and no order is pending."""
         if self.pending_order is not None or self.position:
             return
         if float(self.data.entry_signal[0]) <= 0.5:
@@ -177,6 +223,7 @@ class CandlestickKMeansGoldStrategy(bt.Strategy):
         self.pending_order = self.buy(size=size)
 
     def next(self):
+        """Advance bar counter and close position at session end of entry day."""
         self.bar_num += 1
         current_dt = bt.num2date(self.data.datetime[0])
         if self.pending_order is not None:
@@ -186,6 +233,7 @@ class CandlestickKMeansGoldStrategy(bt.Strategy):
             self.pending_order = self.close()
 
     def notify_order(self, order):
+        """Reset pending order state and session date on order lifecycle changes."""
         if order.status in (order.Submitted, order.Accepted):
             return
         if order.status in (order.Canceled, order.Margin, order.Rejected) and not self.position:
@@ -195,6 +243,7 @@ class CandlestickKMeansGoldStrategy(bt.Strategy):
         self.pending_order = None
 
     def notify_trade(self, trade):
+        """Increment win/loss counters for completed trades."""
         if not trade.isclosed:
             return
         self.trade_count += 1
