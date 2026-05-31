@@ -91,54 +91,7 @@ class PerformanceCalculator:
         # Get trade statistics from TradeAnalyzer
         trade_analysis = self._get_analyzer_result("tradeanalyzer")
         if trade_analysis:
-            pnl = trade_analysis.get("pnl", {})
-            net = pnl.get("net", {})
-
-            if "total" in net:
-                metrics["rpl"] = net["total"]
-
-            won = trade_analysis.get("won", {})
-            lost = trade_analysis.get("lost", {})
-
-            won_pnl = won.get("pnl", {})
-            lost_pnl = lost.get("pnl", {})
-
-            metrics["result_won_trades"] = won_pnl.get("total")
-            metrics["result_lost_trades"] = lost_pnl.get("total")
-
-            # Calculate profit factor
-            result_won_trades = metrics["result_won_trades"]
-            result_lost_trades = metrics["result_lost_trades"]
-            if all(
-                isinstance(value, (int, float)) and math.isfinite(value)
-                for value in (result_won_trades, result_lost_trades)
-            ):
-                if result_lost_trades != 0:
-                    metrics["profit_factor"] = abs(result_won_trades / result_lost_trades)
-            elif result_won_trades is not None or result_lost_trades is not None:
-                logger.debug(
-                    "Skipping profit_factor calculation for invalid trade PnL totals: won=%s, lost=%s",
-                    result_won_trades,
-                    result_lost_trades,
-                )
-
-            # Average profit/loss per trade
-            total = trade_analysis.get("total", {})
-            closed = total.get("closed", 0)
-            if (
-                isinstance(closed, (int, float))
-                and math.isfinite(closed)
-                and closed > 0
-                and isinstance(metrics["rpl"], (int, float))
-                and math.isfinite(metrics["rpl"])
-            ):
-                metrics["rpl_per_trade"] = metrics["rpl"] / closed
-            elif closed not in (0, None) or metrics["rpl"] is not None:
-                logger.debug(
-                    "Skipping rpl_per_trade calculation for invalid inputs: closed=%s, rpl=%s",
-                    closed,
-                    metrics["rpl"],
-                )
+            self._apply_trade_metrics(metrics, trade_analysis)
 
         # Calculate annual return
         bt_period_days = self._get_backtest_days()
@@ -154,6 +107,58 @@ class PerformanceCalculator:
                 )
 
         return metrics
+
+    def _apply_trade_metrics(self, metrics, trade_analysis):
+        """Fill rpl / won-lost / profit_factor / rpl_per_trade into ``metrics``
+        from a TradeAnalyzer result dict. Extracted from get_pnl_metrics."""
+        pnl = trade_analysis.get("pnl", {})
+        net = pnl.get("net", {})
+
+        if "total" in net:
+            metrics["rpl"] = net["total"]
+
+        won = trade_analysis.get("won", {})
+        lost = trade_analysis.get("lost", {})
+
+        won_pnl = won.get("pnl", {})
+        lost_pnl = lost.get("pnl", {})
+
+        metrics["result_won_trades"] = won_pnl.get("total")
+        metrics["result_lost_trades"] = lost_pnl.get("total")
+
+        # Calculate profit factor
+        result_won_trades = metrics["result_won_trades"]
+        result_lost_trades = metrics["result_lost_trades"]
+        if all(
+            isinstance(value, (int, float)) and math.isfinite(value)
+            for value in (result_won_trades, result_lost_trades)
+        ):
+            if result_lost_trades != 0:
+                metrics["profit_factor"] = abs(result_won_trades / result_lost_trades)
+        elif result_won_trades is not None or result_lost_trades is not None:
+            logger.debug(
+                "Skipping profit_factor calculation for invalid trade PnL totals: won=%s, lost=%s",
+                result_won_trades,
+                result_lost_trades,
+            )
+
+        # Average profit/loss per trade
+        total = trade_analysis.get("total", {})
+        closed = total.get("closed", 0)
+        if (
+            isinstance(closed, (int, float))
+            and math.isfinite(closed)
+            and closed > 0
+            and isinstance(metrics["rpl"], (int, float))
+            and math.isfinite(metrics["rpl"])
+        ):
+            metrics["rpl_per_trade"] = metrics["rpl"] / closed
+        elif closed not in (0, None) or metrics["rpl"] is not None:
+            logger.debug(
+                "Skipping rpl_per_trade calculation for invalid inputs: closed=%s, rpl=%s",
+                closed,
+                metrics["rpl"],
+            )
 
     def get_risk_metrics(self, pnl_metrics=None):
         """Get risk-related metrics.
