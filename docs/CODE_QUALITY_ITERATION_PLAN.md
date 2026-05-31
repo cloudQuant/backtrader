@@ -364,6 +364,11 @@ Sprint 的地基，且成本极低、风险极低。
 - `bokeh/app.py::BacktraderBokeh._add_equity_data`：拆 `_equity_from_broker_observer`
   / `_equity_from_timereturn` / `_compute_drawdown`，CC 24→3。
 - `feeds/btapifeed.py::BtApiFeed.islive`：抽出 `_api_indicates_live`，CC 22→11。
+- `bokeh/tabs/config.py::ConfigTab._get_panel`：拆 `_build_params_widgets` /
+  `_build_data_widgets`，CC 21→4。
+- `bokeh/tabs/metadata.py::MetadataTab._get_panel`：抽出 `_collect_metadata`，
+  CC 23→11。
+- `btrun/btrun.py::btrun`：抽出 `_add_datas` / `_print_analyzers`，CC 28→15。
 
 > 注：`_periodset` 的复杂度部分来自近期「多数据时钟对齐」修复（见
 > `docs/DEV_REGRESSION_FAILURES.md`）。重构时**务必先跑 `make test-strategies`**，
@@ -381,9 +386,9 @@ Sprint 的地基，且成本极低、风险极低。
 
 ### S5 验收（务实）
 
-已把 **15 个高复杂度函数**降入可维护区间（含 Top 10 的 `runstrategies`/
+已把 **18 个高复杂度函数**降入可维护区间（含 Top 10 的 `runstrategies`/
 `_next_signal`/`run`/`SharpeRatio.stop`），全程零行为变化、全量测试通过。其中
-8 个核心/分析函数 + 7 个非热路径模块函数（reports/analyzers/feeds/bokeh）。
+8 个核心/分析函数 + 10 个非热路径模块函数（reports/analyzers/feeds/bokeh/btrun）。
 其余 Top 函数（撮合状态机 `process_orderbook`、事件主循环 `_runnext`、多数据
 时钟 `_periodset`、订单撮合记账 `_execute`/`_execute_dual_side`、line 系统
 `__init__`/`donew`/`_once`/`__setitem__`/`__setattr__`/`_register_line_assignment_child`、
@@ -474,14 +479,14 @@ Sprint 的地基，且成本极低、风险极低。
 | 泛化异常比例 | 41.2% | <15% (S3) | 39.3%（防御网/边界刻意保留，见 S3） |
 | Mypy 错误 | 543 | <150 (S4) | ✅ 139 |
 | 类型注解覆盖率 | ~9% | >40% (S4) | ~9%（公共 API 已注解；40% 目标务实放弃，见 S4） |
-| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 15 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
+| 高复杂度 CC>40 | 14 | 显著降低 (S5) | 降 18 个高 CC 函数（含 Top10 四个）；其余高风险暂缓 |
 | 无专属测试核心模块 | 3（实测） | 0 冒烟 (S6) | ✅ 0（补 mathsupport/position_modes/version） |
 | 缺失模块 docstring | 11 | 0 (S6) | ✅ 0 |
 | 长参数列表 (>7) | 52（实测） | 减少 (S7) | ⏸ 评估后暂缓（多为既定公共 API） |
 | 非 `__init__` star import | 0 | 0 | ✅ 0（CI F403 守卫） |
 | **测试通过率** | 100% | 100%（每 Sprint） | ✅ 100%（3,001 passed / 1 skipped） |
 
-> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 15 个高复杂度函数，最高风险的撮合
+> 路线图状态：S1–S4、S6 完成；S5 进行中（已降 18 个高复杂度函数，最高风险的撮合
 > 状态机/事件主循环/多数据时钟/记账/line 基座函数刻意暂缓）；S7 评估后暂缓；S8 明确不执行。
 > 详见各 Sprint 小节的「决策」说明。
 
