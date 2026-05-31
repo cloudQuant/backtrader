@@ -113,6 +113,28 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
     return sr
 
 
+def _validate_srstdev_params(_returns, n, skew, kurtosis, sr):
+    """Validate/normalize estimated_sharpe_ratio_stdev inputs; return int n.
+
+    Resolves n from _returns when not given, enforces integer n > 1 and finite
+    skew/kurtosis/sr. Extracted from estimated_sharpe_ratio_stdev.
+    """
+    if _returns is not None and n is None:
+        n = len(_returns)
+    if not _is_integer_like(n):
+        raise ValueError("estimated_sharpe_ratio_stdev requires integer n")
+    n = int(n)
+    if n <= 1:
+        raise ValueError("estimated_sharpe_ratio_stdev requires n > 1")
+    if skew is not None and not _is_finite_value(skew):
+        raise ValueError("estimated_sharpe_ratio_stdev requires finite skew")
+    if kurtosis is not None and not _is_finite_value(kurtosis):
+        raise ValueError("estimated_sharpe_ratio_stdev requires finite kurtosis")
+    if sr is not None and not _is_finite_value(sr):
+        raise ValueError("estimated_sharpe_ratio_stdev requires finite sr")
+    return n
+
+
 def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=None, sr=None):
     """
     Calculate the standard deviation of the sharpe ratio estimation.
@@ -161,19 +183,8 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     else:
         _returns = returns.copy()
 
-    if _returns is not None and n is None:
-        n = len(_returns)
-    if not _is_integer_like(n):
-        raise ValueError("estimated_sharpe_ratio_stdev requires integer n")
-    n = int(n)
-    if n <= 1:
-        raise ValueError("estimated_sharpe_ratio_stdev requires n > 1")
-    if skew is not None and not _is_finite_value(skew):
-        raise ValueError("estimated_sharpe_ratio_stdev requires finite skew")
-    if kurtosis is not None and not _is_finite_value(kurtosis):
-        raise ValueError("estimated_sharpe_ratio_stdev requires finite kurtosis")
-    if sr is not None and not _is_finite_value(sr):
-        raise ValueError("estimated_sharpe_ratio_stdev requires finite sr")
+    n = _validate_srstdev_params(_returns, n, skew, kurtosis, sr)
+
     if _returns is not None and skew is None:
         skew_values = scipy_stats.skew(_returns)
         if isinstance(_returns, pd.DataFrame):

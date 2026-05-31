@@ -89,38 +89,9 @@ class BtApiFeed(DataBase, LiveFeedBase):
 
         api = getattr(store, "_api", None)
         if api is not None and dataname is not None:
-            if hasattr(api, "supports_live_streaming"):
-                try:
-                    if bool(api.supports_live_streaming(dataname)):
-                        return True
-                except Exception as e:
-                    logger.debug("supports_live_streaming check failed: %s", e)
-
-            if hasattr(api, "supports_live_ticks"):
-                try:
-                    if bool(api.supports_live_ticks(dataname)):
-                        return True
-                except Exception as e:
-                    logger.debug("supports_live_ticks check failed: %s", e)
-
-            if hasattr(api, "supports_live_orderbook"):
-                try:
-                    if bool(api.supports_live_orderbook(dataname)):
-                        return True
-                except Exception as e:
-                    logger.debug("supports_live_orderbook check failed: %s", e)
-
-            live_ticks = getattr(api, "live_ticks", None)
-            if live_ticks is not None:
-                return dataname in live_ticks
-
-            live_orderbooks = getattr(api, "live_orderbooks", None)
-            if live_orderbooks is not None:
-                return dataname in live_orderbooks
-
-            live_bars = getattr(api, "live", None)
-            if live_bars is not None:
-                return dataname in live_bars
+            api_live = self._api_indicates_live(api, dataname)
+            if api_live is not None:
+                return api_live
 
         if getattr(store, "_api_cls", None) is not None:
             return True
@@ -129,6 +100,40 @@ class BtApiFeed(DataBase, LiveFeedBase):
             return True
 
         return False
+
+    @staticmethod
+    def _api_indicates_live(api, dataname):
+        """Whether the store API reports a live source for ``dataname``.
+
+        Returns True/False when the API gives a definitive answer, or None when
+        it has no opinion (caller falls through to other heuristics). Extracted
+        from islive() to flatten the repeated supports_live_* probes.
+        """
+        for capability in (
+            "supports_live_streaming",
+            "supports_live_ticks",
+            "supports_live_orderbook",
+        ):
+            if hasattr(api, capability):
+                try:
+                    if bool(getattr(api, capability)(dataname)):
+                        return True
+                except Exception as e:
+                    logger.debug("%s check failed: %s", capability, e)
+
+        live_ticks = getattr(api, "live_ticks", None)
+        if live_ticks is not None:
+            return dataname in live_ticks
+
+        live_orderbooks = getattr(api, "live_orderbooks", None)
+        if live_orderbooks is not None:
+            return dataname in live_orderbooks
+
+        live_bars = getattr(api, "live", None)
+        if live_bars is not None:
+            return dataname in live_bars
+
+        return None
 
     def haslivedata(self) -> bool:
         """Return whether live bars are immediately available."""
