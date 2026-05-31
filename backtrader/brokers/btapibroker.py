@@ -588,9 +588,13 @@ class BtApiBroker(BrokerBase):
             return
 
         try:
-            synced = collections.defaultdict(Position)
-            long_synced = collections.defaultdict(Position)
-            short_synced = collections.defaultdict(Position)
+            synced: "collections.defaultdict[str, Position]" = collections.defaultdict(Position)
+            long_synced: "collections.defaultdict[str, Position]" = collections.defaultdict(
+                Position
+            )
+            short_synced: "collections.defaultdict[str, Position]" = collections.defaultdict(
+                Position
+            )
             for item in self.store.get_positions():
                 self._sync_one_position(item, synced, long_synced, short_synced)
 
@@ -608,7 +612,13 @@ class BtApiBroker(BrokerBase):
             if raise_errors:
                 raise
 
-    def _sync_one_position(self, item, synced, long_synced, short_synced):
+    def _sync_one_position(
+        self,
+        item,
+        synced: "collections.defaultdict[str, Position]",
+        long_synced: "collections.defaultdict[str, Position]",
+        short_synced: "collections.defaultdict[str, Position]",
+    ):
         """Parse a single provider position dict into the right cache bucket.
 
         Extracted from ``_sync_positions``' loop body; behavior unchanged.

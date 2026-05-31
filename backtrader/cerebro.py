@@ -1072,7 +1072,8 @@ class Cerebro(ParameterizedBase):
 
         # --- strategy instantiation (simplified, no bar-data required) ---
         self._init_stcount()
-        self.runningstrats = runstrats = list()
+        runstrats: list = list()
+        self.runningstrats = runstrats
 
         # Start broker
         self._broker.start()
