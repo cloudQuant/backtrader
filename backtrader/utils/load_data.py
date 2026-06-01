@@ -7,7 +7,6 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 from functools import lru_cache
 from pathlib import Path
 
-
 _BASE_COLUMNS = ["open", "high", "low", "close", "volume", "openinterest"]
 _AUGMENT_COLUMNS = ("tick_volume", "real_volume", "spread")
 
