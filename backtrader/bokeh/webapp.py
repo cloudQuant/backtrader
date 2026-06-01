@@ -5,7 +5,7 @@ Provides Bokeh Server wrapper."""
 
 import webbrowser
 
-from ..utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger
 
 try:
     from bokeh.application import Application

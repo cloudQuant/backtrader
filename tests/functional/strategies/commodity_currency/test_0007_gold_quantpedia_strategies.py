@@ -179,7 +179,7 @@ def prepare_gold_quantpedia_features(df, params):
     entry_threshold = float(params.get('entry_threshold', 0.35))
 
     out = df.copy()
-    monthly_close = out['close'].resample('ME').last()
+    monthly_close = out['close'].resample(pd.offsets.MonthEnd()).last()
     monthly_returns = monthly_close.pct_change()
     trend_signal = (monthly_close.pct_change(trend_lookback_months) > 0).astype(float)
     skew_signal = (monthly_returns.rolling(skew_lookback_months).skew() < 0).astype(float)

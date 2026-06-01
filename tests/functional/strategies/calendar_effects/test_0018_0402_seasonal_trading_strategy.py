@@ -165,7 +165,7 @@ def prepare_seasonal_features(price_df, params):
     neutral_weight = float(params.get('neutral_weight', 0.5))
     weak_weight = float(params.get('weak_weight', 0.0))
 
-    monthly_close = out['close'].resample('ME').last()
+    monthly_close = out['close'].resample(pd.offsets.MonthEnd()).last()
     monthly_return = monthly_close.pct_change()
     month_number = monthly_return.index.month
 

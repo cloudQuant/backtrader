@@ -8,8 +8,7 @@ Records data during strategy execution for subsequent plotting or analysis.
 from collections import OrderedDict
 
 import backtrader as bt
-
-from ...utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger
 
 logger = get_logger(__name__)
 

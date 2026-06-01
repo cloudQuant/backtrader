@@ -218,7 +218,8 @@ def prepare_rotation_inputs(asset_frames, params):
             weight_rows.append({asset: (1.0 if asset == current_asset else 0.0) for asset in ASSET_ORDER})
             continue
 
-        valid = rank_scores.loc[dt].dropna().sort_values()
+        valid = rank_scores.loc[dt].dropna().reindex(ASSET_ORDER).dropna()
+        valid = valid.sort_values(kind='mergesort')
         chosen = None
         candidate_assets = list(valid.index[:max(top_n + 2, top_n)])
         for asset in candidate_assets:
@@ -234,7 +235,13 @@ def prepare_rotation_inputs(asset_frames, params):
     weights_df = pd.DataFrame(weight_rows, index=close_df.index)
     weights_df = weights_df.ffill().fillna(0.0)
     selected_series = pd.Series(selected_assets, index=close_df.index).ffill()
-    rebalance_flag = selected_series.ne(selected_series.shift(1)).astype(float)
+    # pandas 3.x treats the leading None selection rows as changed rows for
+    # this migrated exact-count regression.  Make that behavior explicit so
+    # pandas 2.x does not silently collapse those initial no-asset rebalance
+    # events.
+    rebalance_flag = (
+        selected_series.ne(selected_series.shift(1)) | selected_series.isna()
+    ).astype(float)
 
     signal_df = transformed['XAUUSD'][['open', 'high', 'low', 'close', 'volume', 'openinterest']].copy()
     signal_df['rebalance_flag'] = rebalance_flag

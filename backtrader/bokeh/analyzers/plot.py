@@ -9,7 +9,7 @@ import asyncio
 import threading
 from threading import Lock
 
-from ...utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger
 
 try:
     import tornado.ioloop

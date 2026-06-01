@@ -6,7 +6,7 @@ Helper utility functions.
 import re
 from typing import List
 
-from ...utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger
 
 logger = get_logger(__name__)
 

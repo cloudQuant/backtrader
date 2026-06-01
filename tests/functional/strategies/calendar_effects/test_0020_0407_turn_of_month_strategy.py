@@ -158,7 +158,13 @@ def prepare_turn_of_month_features(price_df, params):
     out['is_month_end_window'] = (rev_rank <= last_days).astype(float)
     out['is_month_start_window'] = (fwd_rank <= first_days).astype(float)
     in_window = (out['is_month_end_window'] > 0.5) | (out['is_month_start_window'] > 0.5)
-    prev_in_window = in_window.shift(1).fillna(False)
+    # Keep the shifted boolean series as object-dtype before filling.  The
+    # migration-time golden values were generated with pandas 3.x semantics,
+    # where fillna(False) no longer silently downcasts object booleans to bool.
+    # Make that behavior explicit so pandas 2.x and 3.x produce identical
+    # entry/exit signals.
+    prev_in_window = in_window.shift(1).astype(object)
+    prev_in_window = prev_in_window.where(prev_in_window.notna(), False)
     out['in_turn_window'] = in_window.astype(float)
     out['entry_signal'] = (in_window & (~prev_in_window)).astype(float)
     out['exit_signal'] = ((~in_window) & prev_in_window).astype(float)

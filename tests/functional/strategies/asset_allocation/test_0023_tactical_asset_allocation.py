@@ -165,12 +165,12 @@ def resample_to_monthly(df):
         A month-end OHLCV DataFrame with rows missing core prices dropped.
     """
     monthly = pd.DataFrame({
-        'open': df['open'].resample('ME').first(),
-        'high': df['high'].resample('ME').max(),
-        'low': df['low'].resample('ME').min(),
-        'close': df['close'].resample('ME').last(),
-        'volume': df['volume'].resample('ME').sum(),
-        'openinterest': df['openinterest'].resample('ME').last().fillna(0),
+        'open': df['open'].resample(pd.offsets.MonthEnd()).first(),
+        'high': df['high'].resample(pd.offsets.MonthEnd()).max(),
+        'low': df['low'].resample(pd.offsets.MonthEnd()).min(),
+        'close': df['close'].resample(pd.offsets.MonthEnd()).last(),
+        'volume': df['volume'].resample(pd.offsets.MonthEnd()).sum(),
+        'openinterest': df['openinterest'].resample(pd.offsets.MonthEnd()).last().fillna(0),
     })
     return monthly.dropna(subset=['open', 'high', 'low', 'close'])
 
@@ -260,7 +260,7 @@ def prepare_taa_data(asset_daily_frames, params):
         aligned monthly OHLCV per asset, and ``summary_df`` is a combined view.
     """
     regime_daily = build_regime_frame(asset_daily_frames['IVV'], params)
-    monthly_regime = regime_daily.resample('ME').last().dropna(subset=['regime'])
+    monthly_regime = regime_daily.resample(pd.offsets.MonthEnd()).last().dropna(subset=['regime'])
     monthly_frames = {name: resample_to_monthly(frame) for name, frame in asset_daily_frames.items()}
     common_index = monthly_regime.index
     for frame in monthly_frames.values():

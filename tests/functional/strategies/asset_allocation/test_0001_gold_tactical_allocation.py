@@ -179,12 +179,12 @@ def resample_to_monthly(df):
         pandas.DataFrame: Month-end (``ME``) OHLCV bars.
     """
     monthly = pd.DataFrame({
-        'open': df['open'].resample('ME').first(),
-        'high': df['high'].resample('ME').max(),
-        'low': df['low'].resample('ME').min(),
-        'close': df['close'].resample('ME').last(),
-        'volume': df['volume'].resample('ME').sum(),
-        'openinterest': df['openinterest'].resample('ME').last().fillna(0),
+        'open': df['open'].resample(pd.offsets.MonthEnd()).first(),
+        'high': df['high'].resample(pd.offsets.MonthEnd()).max(),
+        'low': df['low'].resample(pd.offsets.MonthEnd()).min(),
+        'close': df['close'].resample(pd.offsets.MonthEnd()).last(),
+        'volume': df['volume'].resample(pd.offsets.MonthEnd()).sum(),
+        'openinterest': df['openinterest'].resample(pd.offsets.MonthEnd()).last().fillna(0),
     })
     return monthly.dropna(subset=['open', 'high', 'low', 'close'])
 

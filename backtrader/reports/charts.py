@@ -158,7 +158,7 @@ class ReportChart:
             period_map = {
                 "daily": ("Daily", "D"),
                 "weekly": ("Weekly", "W"),
-                "monthly": ("Monthly", "ME"),
+                "monthly": ("Monthly", pd.offsets.MonthEnd()),
                 "yearly": ("Yearly", "YE"),
             }
             period_name, period_code = period_map.get(period, ("Daily", "D"))
@@ -312,7 +312,7 @@ class ReportChart:
             if time_interval_days > 5 * 365.25:
                 return ("Yearly", "YE")
             if time_interval_days > 365.25:
-                return ("Monthly", "ME")
+                return ("Monthly", pd.offsets.MonthEnd())
             if time_interval_days > 50:
                 return ("Weekly", "W")
             if time_interval_days > 5:

@@ -170,7 +170,12 @@ def prepare_zweig_features(df, params):
     out['breadth_ema'] = out['up_pct_proxy'].ewm(span=ema_period, adjust=False).mean()
     out['was_below_low'] = (out['breadth_ema'].rolling(lookback_days).min() < low_threshold).astype(float)
     above_high = out['breadth_ema'] >= high_threshold
-    out['thrust_signal'] = (above_high & (out['was_below_low'] > 0.5) & (~above_high.shift(1).fillna(False))).astype(float)
+    # Keep pandas 3.x object-boolean behavior explicit across pandas versions.
+    # pandas 2.x silently downcasts fillna(False) to bool, changing the migrated
+    # signal stream and exact-count regression metrics.
+    prev_above_high = above_high.shift(1).astype(object)
+    prev_above_high = prev_above_high.where(prev_above_high.notna(), False)
+    out['thrust_signal'] = (above_high & (out['was_below_low'] > 0.5) & (~prev_above_high)).astype(float)
     return out[['open', 'high', 'low', 'close', 'volume', 'openinterest', 'up_pct_proxy', 'breadth_ema', 'was_below_low', 'thrust_signal']].dropna().copy()
 
 

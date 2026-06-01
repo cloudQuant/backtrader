@@ -7,7 +7,8 @@ Displays metadata info for strategy and backtest.
 
 import datetime
 
-from ...utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger
+
 from ..tab import BokehTab
 
 logger = get_logger(__name__)

@@ -186,7 +186,7 @@ def prepare_gold_commodity_momentum_features(price_df, params):
     allow_short = bool(params.get('allow_short', True))
 
     out = price_df.copy()
-    monthly_close = out['close'].resample('ME').last()
+    monthly_close = out['close'].resample(pd.offsets.MonthEnd()).last()
     short_mom = monthly_close.pct_change(short_lookback_months)
     long_mom = monthly_close.pct_change(long_lookback_months)
     out['short_momentum'] = short_mom.reindex(out.index, method='ffill')

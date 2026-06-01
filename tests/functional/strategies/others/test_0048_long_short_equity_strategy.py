@@ -21,6 +21,7 @@ ASSET_FILES = {
     "gld": DATA_DIR / "GLD_1d.csv",
     "ief": DATA_DIR / "IEF_1d.csv",
 }
+ASSET_ORDER = tuple(ASSET_FILES)
 
 
 def load_mt5_csv(filepath, fromdate=None, todate=None):
@@ -79,8 +80,9 @@ def build_weight_lookup(close_df, params):
         momentum = (close_df.iloc[idx] / close_df.iloc[idx - momentum_lookback] - 1.0).rank(pct=True)
         low_vol = (-returns.iloc[idx - volatility_lookback:idx].std()).rank(pct=True)
         score = 0.6 * momentum + 0.4 * low_vol
-        long_assets = score.sort_values(ascending=False).head(n_long).index.tolist()
-        short_assets = score.sort_values(ascending=True).head(n_short).index.tolist()
+        score = score.reindex(ASSET_ORDER)
+        long_assets = score.sort_values(ascending=False, kind="mergesort").head(n_long).index.tolist()
+        short_assets = score.sort_values(ascending=True, kind="mergesort").head(n_short).index.tolist()
         weights = {}
         for symbol in long_assets:
             weights[symbol] = long_weight / max(1, len(long_assets))

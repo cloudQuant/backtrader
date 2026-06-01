@@ -220,7 +220,7 @@ def prepare_taa_inputs(asset_frames, params):
     aligned = {name: frame.loc[common_index].copy() for name, frame in asset_frames.items()}
     close_df = pd.DataFrame({name: frame['close'] for name, frame in aligned.items()}, index=common_index).dropna()
     aligned = {name: frame.loc[close_df.index].copy() for name, frame in aligned.items()}
-    monthly_prices = close_df.resample('ME').last().dropna()
+    monthly_prices = close_df.resample(pd.offsets.MonthEnd()).last().dropna()
     rebalance_dates = pd.DatetimeIndex(monthly_prices.index)
     signal_df = aligned['GLD'][['open', 'high', 'low', 'close', 'volume', 'openinterest']].copy()
     signal_df = signal_df.loc[signal_df.index.isin(rebalance_dates)].copy()

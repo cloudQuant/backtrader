@@ -272,8 +272,12 @@ def compute_bnb(frame, xma_method='MODE_T3', xlength=14, xphase=15, volume_type=
     open_lt_close = frame['open'] < frame['close']
     diff.loc[open_gt_close] = ((frame.loc[open_gt_close, 'high'] - frame.loc[open_gt_close, 'low']) - (frame.loc[open_gt_close, 'open'] - frame.loc[open_gt_close, 'close'])) / (2.0 * tic.loc[open_gt_close])
     diff.loc[open_lt_close] = ((frame.loc[open_lt_close, 'high'] - frame.loc[open_lt_close, 'low']) - (frame.loc[open_lt_close, 'close'] - frame.loc[open_lt_close, 'open'])) / (2.0 * tic.loc[open_lt_close])
-    bulls = pd.Series(diff, index=frame.index)
-    bears = pd.Series(diff, index=frame.index)
+    # pandas 2.x can share the underlying data when constructing a Series from
+    # another Series with the same index.  The bull and bear buffers must be
+    # independent or the later assignments make both buffers identical and all
+    # crossover signals disappear.
+    bulls = pd.Series(diff, index=frame.index).copy()
+    bears = pd.Series(diff, index=frame.index).copy()
     bulls.loc[open_gt_close] = (frame.loc[open_gt_close, 'open'] - frame.loc[open_gt_close, 'close']) / tic.loc[open_gt_close] + diff.loc[open_gt_close]
     bears.loc[open_lt_close] = (frame.loc[open_lt_close, 'close'] - frame.loc[open_lt_close, 'open']) / tic.loc[open_lt_close] + diff.loc[open_lt_close]
     up = smooth_series(bulls, xma_method, xlength)

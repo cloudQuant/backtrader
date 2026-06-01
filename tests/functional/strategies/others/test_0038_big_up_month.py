@@ -141,7 +141,7 @@ def prepare_big_up_month_features(df, params):
     threshold = float(params.get('month_threshold', 0.05))
 
     out = df.copy()
-    monthly = out['close'].resample('ME').last()
+    monthly = out['close'].resample(pd.offsets.MonthEnd()).last()
     month_ret = monthly.pct_change()
     month_ret_expanded = month_ret.reindex(out.index, method='ffill')
     out['month_return'] = month_ret_expanded

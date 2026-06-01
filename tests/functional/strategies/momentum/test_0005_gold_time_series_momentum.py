@@ -178,7 +178,7 @@ def prepare_gold_tsm_features(price_df, params):
     out = price_df.copy()
     out['daily_return'] = out['close'].pct_change()
     out['annual_vol'] = out['daily_return'].rolling(vol_lookback).std() * np.sqrt(252)
-    monthly_close = out['close'].resample('ME').last()
+    monthly_close = out['close'].resample(pd.offsets.MonthEnd()).last()
     monthly_momentum = monthly_close.pct_change(lookback_months)
     out['momentum_return'] = monthly_momentum.reindex(out.index, method='ffill')
     periods = pd.Series(out.index, index=out.index).dt.to_period('M')

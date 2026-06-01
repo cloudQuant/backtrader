@@ -10,7 +10,7 @@ import time
 from enum import Enum
 from threading import Lock, Thread
 
-from ...utils.log_message import get_logger
+from backtrader.utils.log_message import get_logger
 
 TORNADO_AVAILABLE = importlib.util.find_spec("tornado") is not None
 

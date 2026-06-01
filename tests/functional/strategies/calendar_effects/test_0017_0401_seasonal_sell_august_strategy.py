@@ -200,7 +200,7 @@ def prepare_seasonal_sell_features(price_df, params):
     test_holding_months = [int(v) for v in params.get('test_holding_months', [3, 6, 9])]
     target_percent_value = float(params.get('target_percent', 1.0))
 
-    monthly_close = out['close'].resample('ME').last().dropna()
+    monthly_close = out['close'].resample(pd.offsets.MonthEnd()).last().dropna()
     chosen_entry = {}
     chosen_holding = {}
     seasonal_score = {}

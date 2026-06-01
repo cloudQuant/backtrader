@@ -273,8 +273,8 @@ jobs:
       - name: Check test results
         run: |
           if [ "${{ needs.test.result }}" == "success" ]; then
-            echo "✅ All tests passed!"
+            echo "All matrix tests passed."
           else
-            echo "❌ Some tests failed"
+            echo "At least one matrix test job failed"
             exit 1
           fi
